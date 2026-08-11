@@ -45,7 +45,7 @@ returning `PagedResult<T>` of headers; [misfire instructions are enums](#misfire
 [the stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use);
 [nine `Execute…Lock` overloads became four](#nine-execute-lock-overloads-became-four-members);
 [locks are a `SchedulerLock`](#locks-are-a-schedulerlock-not-a-string);
-[the job store configuration is read-only](#the-job-store-configuration-is-read-only);
+[the job store configuration is read-only](#the-job-store-configuration-is-read-only-and-no-longer-a-public-currency);
 [the driver delegate speaks in records](#the-driver-delegate-speaks-in-records);
 [the optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone)
 and the [schema migration](#database-schema-migration) that goes with that is mandatory;
@@ -2397,19 +2397,24 @@ same applies to `Quartz.Extensions.Redis`, whose keys keep their `…:TRIGGER_AC
 `DbSemaphore.ExecuteSql` still receives the stored name as a `string` — that parameter really is the value
 bound into the statement.
 
-## The job store configuration is read-only
+## The job store configuration is read-only, and no longer a public currency
 
 Twenty-odd `JobStoreSupport` properties duplicated `AdoJobStoreOptions` and `QuartzSchedulerOptions` with
 a public setter. Writing one after the store had started did nothing useful in most cases and quietly
-diverged from the options everything else reads, so they are now `{ get; }` and sourced from the injected
-options: `AcceptEnlistedTransactions`, `AcquireTriggersWithinLock`, `ClusterCheckinInterval`,
-`ClusterCheckinMisfireThreshold`, `Clustered`, `ConnectionManager`, `DataSource`, `DbRetryInterval`,
-`DoubleCheckLockMisfireHandler`, `InstanceId`, `InstanceName`, `LockOnInsert`,
-`MakeThreadsDaemons`, `MaxMisfiresToHandleAtATime`, `MaxTransientRetries`, `MisfireHandlerFrequency`,
-`ObjectSerializer`, `PerformSchemaValidation`, `RetryableActionErrorLogThreshold`, `SelectWithLockSql`,
-`TablePrefix`, `TransientRetryInterval`, `TxIsolationLevelSerializable` and `UseDbLocks`.
+diverged from the options everything else reads — and reading store configuration through a downcast
+`IJobStore` was a second currency for options that are already injectable. They are get-only and no
+longer public: the mirrors a derived store legitimately reads while doing its work are `protected`
+(`AcquireTriggersWithinLock`, `CanUseProperties`, `ClusterCheckinMisfireThreshold`, `ConnectionManager`,
+`DataSource`, `DoubleCheckLockMisfireHandler`, `LockOnInsert`, `MaxMisfiresToHandleAtATime`,
+`MaxTransientRetries`, `ObjectSerializer`, `PerformSchemaValidation`, `SelectWithLockSql`, `TablePrefix`,
+`TransientRetryInterval`, `TxIsolationLevelSerializable`, `UseDbLocks`), and the ones only the store's
+own cluster and misfire machinery reads are internal (`AcceptEnlistedTransactions`,
+`ClusterCheckinInterval`, `DbRetryInterval`, `InstanceId`, `InstanceName`, `MakeThreadsDaemons`,
+`MisfireHandlerFrequency`, `RetryableActionErrorLogThreshold`). `Clustered`, `SupportsPersistence` and
+`EstimatedTimeToReleaseAndAcquireTrigger` stay public — they are `IJobStore` members.
 
-Configure them where they are configured now:
+Code that read configuration off the store resolves `IOptions<AdoJobStoreOptions>` instead, and
+configuring goes where it always did in 4.0:
 
 ```diff
 - var store = new JobStoreTX(...) { Clustered = true, MaxTransientRetries = 5 };
@@ -2420,8 +2425,8 @@ Configure them where they are configured now:
 + })));
 ```
 
-`MisfireThreshold` deliberately keeps its setter on both `JobStoreSupport` and `RAMJobStore`: it is read on
-every misfire pass rather than only at startup.
+`MisfireThreshold` deliberately keeps its public setter on both `JobStoreSupport` and `RAMJobStore`: it
+is read on every misfire pass rather than only at startup.
 
 Two properties that nothing read are gone rather than made read-only: `DriverDelegateType` (the delegate is
 injected, not loaded from a type name here) and `DontSetAutoCommitFalse` (never consulted).
@@ -2431,6 +2436,27 @@ configuration key ever set it, so an application that set it was configuring not
 and a log helper, neither of which a subclass has any business in. The `[TimeSpanParseRule]` attributes on
 these properties are gone too; they are read only when a component's settings arrive as strings, which for
 this store they no longer do.
+
+### `JobStoreSupport`'s overridable surface is a decision now
+
+The base store had 56 `protected virtual` members — every internal step of every operation was an
+override point, which 4.0 would have frozen as a behavior contract by default. The seam is curated
+instead. What stays overridable is what derived stores demonstrably use:
+
+* **Lifecycle** — `Initialize` and `Shutdown` (the two shipped stores override both).
+* **Connections and transactions** — `GetConnection`, `GetLocalTransactionConnection` and
+  `ExecuteInLock<T>` (both abstract), and `IsTransient` for provider-specific transient-error
+  classification. This is the seam an ambient-transaction store builds on.
+* **Acquisition** — `AcquireNextTriggers` and `GetFiredTriggerRecordId`.
+
+Everything else — the per-entity add/get/delete internals, the pause/resume walkers, the fire path, the
+cluster check-in and recovery passes, the connection cleanup helpers — is non-virtual. Those members
+were virtual because the Java port made everything virtual, not because subclassing them was supported;
+overriding one changed the store's internal call order in ways no test covered. The seven conn-taking
+`PauseTrigger`/`PauseTriggerGroup`/`PauseAll`/`ResumeTrigger`/`ResumeTriggers`/`ResumeAll`/
+`RecoverMisfiredJobs` overloads are `protected` for the same reason: nothing outside the store can
+obtain the `ConnectionAndTransactionHolder` they demand. The dialect seam — statement text, paging,
+parameter binding — was never here; it belongs to `StdAdoDelegate`.
 
 ## The semaphores were tidied
 
@@ -4730,7 +4756,9 @@ Parameters and behavior are unchanged:
 | `ExternalTransactionJobStore.OpenConnection` is `{ get; set; }` | It was `{ protected get; set; }`: writable from anywhere, readable only from inside |
 | `ISemaphore` takes a `SchedulerLock` | The `string lockName` had two legal values. The `LOCK_NAME` column and the Redis keys are unchanged — see [Locks are a `SchedulerLock`, not a string](#locks-are-a-schedulerlock-not-a-string) |
 | `JobStoreSupport.LockTriggerAccess` / `.LockStateAccess` removed | `SchedulerLock.TriggerAccess` / `.StateAccess` replace the two protected constants |
-| ~25 `JobStoreSupport` configuration properties are read-only | They duplicated `AdoJobStoreOptions` / `QuartzSchedulerOptions`; configure the options instead. `MisfireThreshold` deliberately stays settable — see [The job store configuration is read-only](#the-job-store-configuration-is-read-only) |
+| ~25 `JobStoreSupport` configuration properties are read-only and `protected`/internal | They duplicated `AdoJobStoreOptions` / `QuartzSchedulerOptions`; resolve `IOptions<AdoJobStoreOptions>` to read, configure the options to write. `MisfireThreshold` deliberately stays settable, and the `IJobStore` members stay public — see [The job store configuration is read-only](#the-job-store-configuration-is-read-only-and-no-longer-a-public-currency) |
+| The seven conn-taking `Pause…`/`Resume…`/`RecoverMisfiredJobs` overloads are `protected` | They took a `ConnectionAndTransactionHolder` no caller outside the store can obtain; call the public keyed overloads, which take the lock and the connection themselves |
+| `JobStoreSupport`'s virtual surface is a curated seam | Only `Initialize`, `Shutdown`, `GetConnection`, `GetLocalTransactionConnection`, `ExecuteInLock<T>`, `IsTransient`, `AcquireNextTriggers` and `GetFiredTriggerRecordId` remain overridable; the other ~75 members were virtual by default, not by design, and freezing the store's internal call order as a behavior contract would have made it unrefactorable |
 | `JobStoreSupport.DriverDelegateType` and `.DontSetAutoCommitFalse` removed | Nothing read either one; the driver delegate is injected |
 | `AdoJobStoreOptions.DontSetAutoCommitFalse` removed | The option the deleted store property mirrored. No code path read it and no `quartz.*` key set it, so setting it configured nothing |
 | `JobStoreSupport.LastCheckin` is internal, `LogWarnIfNonZero` is private | Cluster check-in bookkeeping and a logging helper, neither of them an extension point |

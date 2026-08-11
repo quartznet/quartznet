@@ -141,12 +141,12 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// The name of the data source this store reads and writes through.
     /// </summary>
-    public string DataSource { get; } = "";
+    protected internal string DataSource { get; } = "";
 
     /// <summary>
     /// The database connection manager this store publishes its provider to.
     /// </summary>
-    public IDbConnectionManager ConnectionManager { get; }
+    protected internal IDbConnectionManager ConnectionManager { get; }
 
     /// <summary>
     /// Gets the log.
@@ -157,7 +157,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// The prefix pre-pended to all table names.
     /// </summary>
-    public string TablePrefix { get; }
+    protected internal string TablePrefix { get; }
 
     /// <summary>
     /// The instance id of the scheduler (unique within a cluster).
@@ -166,25 +166,25 @@ public abstract class JobStoreSupport : IJobStore
     /// Written once more after construction when the id is generated rather than configured, because
     /// the store is built before the generator has run and its rows are keyed by the value.
     /// </remarks>
-    public string InstanceId { get; internal set; } = "";
+    internal string InstanceId { get; set; } = "";
 
     /// <summary>
     /// The name of the scheduler, shared by every node of a cluster.
     /// </summary>
     /// <inheritdoc cref="InstanceId" path="/remarks" />
-    public string InstanceName { get; internal set; } = "";
+    internal string InstanceName { get; set; } = "";
 
     /// <summary>
     /// The number of retries before an error is logged for recovery operations.
     /// </summary>
-    public int RetryableActionErrorLogThreshold { get; }
+    internal int RetryableActionErrorLogThreshold { get; }
 
     /// <summary>
     /// The serializer that turns job data and calendars into what the database stores.
     /// </summary>
-    public IObjectSerializer? ObjectSerializer { get; }
+    protected internal IObjectSerializer? ObjectSerializer { get; }
 
-    public virtual TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; } = TimeSpan.FromMilliseconds(70);
+    public TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; } = TimeSpan.FromMilliseconds(70);
 
     /// <summary>
     /// Whether this instance is part of a cluster.
@@ -203,7 +203,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <remarks>
     /// Configured through <see cref="ClusteringOptions.CheckinInterval" />.
     /// </remarks>
-    public TimeSpan ClusterCheckinInterval { get; }
+    internal TimeSpan ClusterCheckinInterval { get; }
 
     /// <summary>
     /// The time span by which a check-in must have missed its
@@ -214,20 +214,20 @@ public abstract class JobStoreSupport : IJobStore
     /// <remarks>
     /// Configured through <see cref="ClusteringOptions.CheckinMisfireThreshold" />.
     /// </remarks>
-    public TimeSpan ClusterCheckinMisfireThreshold { get; }
+    protected internal TimeSpan ClusterCheckinMisfireThreshold { get; }
 
     /// <summary>
     /// The maximum number of misfired triggers that the misfire handling
     /// thread will try to recover at one time (within one transaction).  The
     /// default is 20.
     /// </summary>
-    public int MaxMisfiresToHandleAtATime { get; }
+    protected internal int MaxMisfiresToHandleAtATime { get; }
 
     /// <summary>
     /// The database retry interval.
     /// </summary>
     /// <value>The db retry interval.</value>
-    public TimeSpan DbRetryInterval { get; }
+    internal TimeSpan DbRetryInterval { get; }
 
     /// <summary>
     /// The maximum number of retries for transient database exceptions
@@ -237,7 +237,7 @@ public abstract class JobStoreSupport : IJobStore
     /// Defaults to 3. A value of 0 disables transient retries. Each retry is
     /// delayed by <see cref="TransientRetryInterval"/>.
     /// </remarks>
-    public int MaxTransientRetries { get; }
+    protected internal int MaxTransientRetries { get; }
 
     /// <summary>
     /// The delay between automatic retries for transient database
@@ -248,7 +248,7 @@ public abstract class JobStoreSupport : IJobStore
     /// because transient errors like deadlocks resolve quickly and the retry should be
     /// near-immediate. <see cref="TimeSpan.Zero"/> means no delay between retries.
     /// </remarks>
-    public TimeSpan TransientRetryInterval { get; }
+    protected internal TimeSpan TransientRetryInterval { get; }
 
     /// <summary>
     /// Whether this instance uses database-based thread synchronization.
@@ -258,7 +258,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <see cref="Initialize" /> for a configuration that cannot work without it - clustering,
     /// enlisted transactions, and container-managed transactions.
     /// </remarks>
-    public bool UseDbLocks { get; internal set; }
+    protected internal bool UseDbLocks { get; internal set; }
 
     /// <summary>
     /// Whether this instance may take part in a transaction the application owns, rather than always
@@ -288,7 +288,7 @@ public abstract class JobStoreSupport : IJobStore
     /// (<see cref="UseDbLocks" />) unless an explicit lock handler was configured.
     /// </para>
     /// </remarks>
-    public bool AcceptEnlistedTransactions { get; }
+    internal bool AcceptEnlistedTransactions { get; }
 
     /// <summary>
     /// Whether or not to obtain locks when inserting new jobs/triggers.
@@ -308,7 +308,7 @@ public abstract class JobStoreSupport : IJobStore
     /// and triggers.
     /// </para>
     /// </remarks>
-    public bool LockOnInsert { get; } = true;
+    protected internal bool LockOnInsert { get; } = true;
 
     /// <summary>
     /// The time span by which a trigger must have missed its
@@ -319,7 +319,7 @@ public abstract class JobStoreSupport : IJobStore
     /// The one configuration value that stays settable on both stores: it is read on every misfire
     /// pass rather than only at startup, and a test or an operator tool changes it on a live store.
     /// </remarks>
-    public virtual TimeSpan MisfireThreshold
+    public TimeSpan MisfireThreshold
     {
         get => misfireThreshold;
         set
@@ -336,7 +336,7 @@ public abstract class JobStoreSupport : IJobStore
     /// How often the misfire handler checks for misfires. Defaults to
     /// <see cref="MisfireThreshold"/>.
     /// </summary>
-    public TimeSpan MisfireHandlerFrequency => misfirehandlerFrequence.GetValueOrDefault(MisfireThreshold);
+    internal TimeSpan MisfireHandlerFrequency => misfirehandlerFrequence.GetValueOrDefault(MisfireThreshold);
 
     /// <summary>
     /// Whether the transaction isolation level of the connections this store opens is serializable.
@@ -345,7 +345,7 @@ public abstract class JobStoreSupport : IJobStore
     /// Configured through <see cref="AdoJobStoreOptions.TxIsolationLevelSerializable" />, and turned on
     /// by <see cref="Initialize" /> for SQLite, which needs it.
     /// </remarks>
-    public bool TxIsolationLevelSerializable { get; internal set; }
+    protected internal bool TxIsolationLevelSerializable { get; internal set; }
 
     /// <summary>
     /// Whether or not the query and update to acquire a Trigger for firing
@@ -358,7 +358,7 @@ public abstract class JobStoreSupport : IJobStore
     /// However, if batch acquisition is used, it is important for this behavior
     /// to be used for all dbs.
     /// </remarks>
-    public bool AcquireTriggersWithinLock { get; internal set; }
+    protected internal bool AcquireTriggersWithinLock { get; internal set; }
 
     /// <summary>
     /// When true, all operations (including reads) acquire a lock before
@@ -375,16 +375,16 @@ public abstract class JobStoreSupport : IJobStore
     /// <see cref="Initialize" /> to the SQL Server specific statement when that is the database in use.
     /// </remarks>
     /// <seealso cref="SelectForUpdateSemaphore" />
-    public string? SelectWithLockSql { get; internal set; }
+    protected internal string? SelectWithLockSql { get; internal set; }
 
-    protected virtual ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
+    protected ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
 
     /// <summary>
     /// Whether the threads spawned by this JobStore are
     /// marked as daemon.  Possible threads include the <see cref="MisfireHandler" />
     /// and the <see cref="ClusterManager"/>.
     /// </summary>
-    public bool MakeThreadsDaemons { get; }
+    internal bool MakeThreadsDaemons { get; }
 
     /// <summary>
     /// Whether to check to see if there are Triggers that have misfired
@@ -392,15 +392,15 @@ public abstract class JobStoreSupport : IJobStore
     /// set to false if the majority of the time, there are misfired
     /// Triggers.
     /// </summary>
-    public bool DoubleCheckLockMisfireHandler { get; }
+    protected internal bool DoubleCheckLockMisfireHandler { get; }
 
     /// <summary>
     /// Whether to perform a schema check on scheduler startup and try to determine if correct tables are in place.
     /// Defaults to true.
     /// </summary>
-    public bool PerformSchemaValidation { get; } = true;
+    protected internal bool PerformSchemaValidation { get; } = true;
 
-    public virtual TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
+    public TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
     protected DbMetadata DbMetadata => DbProvider.Metadata;
 
@@ -586,7 +586,7 @@ public abstract class JobStoreSupport : IJobStore
         return new ConnectionAndTransactionHolder(conn, tx);
     }
 
-    protected virtual DateTimeOffset MisfireTime
+    protected DateTimeOffset MisfireTime
     {
         get
         {
@@ -606,7 +606,7 @@ public abstract class JobStoreSupport : IJobStore
     /// generous enough to never interfere with normal acquisition (which takes at
     /// most idleWaitTime ~30s plus processing time).
     /// </summary>
-    protected virtual TimeSpan StaleAcquiredTriggerThreshold
+    protected TimeSpan StaleAcquiredTriggerThreshold
     {
         get
         {
@@ -645,7 +645,7 @@ public abstract class JobStoreSupport : IJobStore
     /// The driver delegate this store speaks to its database through.
     /// </summary>
 #pragma warning disable CA1716
-    protected virtual IDriverDelegate Delegate => driverDelegate;
+    protected IDriverDelegate Delegate => driverDelegate;
 #pragma warning restore CA1716
 
     /// <summary>
@@ -653,12 +653,12 @@ public abstract class JobStoreSupport : IJobStore
     /// </summary>
     protected internal IDbProvider DbProvider { get; }
 
-    protected internal virtual ISemaphore LockHandler { get; set; } = null!;
+    protected internal ISemaphore LockHandler { get; set; } = null!;
 
     /// <summary>
     /// Get whether String-only properties will be handled in JobDataMaps.
     /// </summary>
-    public virtual bool CanUseProperties => useProperties;
+    protected internal bool CanUseProperties => useProperties;
 
     /// <summary>
     /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
@@ -824,7 +824,7 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />
-    public virtual async ValueTask SchedulerStarted(
+    public async ValueTask SchedulerStarted(
         CancellationToken cancellationToken = default)
     {
         // Recovery below competes for the same TRIGGER_ACCESS lock that a scheduling call made earlier
@@ -922,9 +922,9 @@ public abstract class JobStoreSupport : IJobStore
     /// </summary>
     /// <value></value>
     /// <returns></returns>
-    public virtual bool SupportsPersistence => true;
+    public bool SupportsPersistence => true;
 
-    protected virtual async ValueTask ReleaseLock(
+    protected async ValueTask ReleaseLock(
         Guid requestorId,
         SchedulerLock? lockKind,
         bool shouldRelease,
@@ -947,7 +947,7 @@ public abstract class JobStoreSupport : IJobStore
     /// Will recover any failed or misfired jobs and clean up the data store as
     /// appropriate.
     /// </summary>
-    protected virtual ValueTask RecoverJobs(CancellationToken cancellationToken = default)
+    protected ValueTask RecoverJobs(CancellationToken cancellationToken = default)
     {
         return ExecuteInLocalTransactionLock(
             SchedulerLock.TriggerAccess,
@@ -959,7 +959,7 @@ public abstract class JobStoreSupport : IJobStore
     /// Will recover any failed or misfired jobs and clean up the data store as
     /// appropriate.
     /// </summary>
-    protected virtual async ValueTask RecoverJobs(
+    protected async ValueTask RecoverJobs(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
@@ -1013,7 +1013,7 @@ public abstract class JobStoreSupport : IJobStore
 
     //private int lastRecoverCount = 0;
 
-    public virtual async ValueTask<RecoverMisfiredJobsResult> RecoverMisfiredJobs(
+    protected internal async ValueTask<RecoverMisfiredJobsResult> RecoverMisfiredJobs(
         ConnectionAndTransactionHolder conn,
         bool recovering,
         CancellationToken cancellationToken = default)
@@ -1166,7 +1166,7 @@ public abstract class JobStoreSupport : IJobStore
     /// fails after <see cref="Extensibility.IJobStore.TriggersFired"/> fails, leaving the trigger
     /// in ACQUIRED state with no one to fire or release it.
     /// </summary>
-    protected virtual async ValueTask<int> RecoverStaleAcquiredTriggers(
+    protected async ValueTask<int> RecoverStaleAcquiredTriggers(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
@@ -1241,7 +1241,7 @@ public abstract class JobStoreSupport : IJobStore
         return false;
     }
 
-    protected virtual async ValueTask<bool> UpdateMisfiredTrigger(
+    protected async ValueTask<bool> UpdateMisfiredTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         StoredTriggerState newStateIfNotComplete,
@@ -1394,7 +1394,7 @@ public abstract class JobStoreSupport : IJobStore
     /// Insert or update a job.
     /// </para>
     /// </summary>
-    protected virtual async ValueTask AddJob(
+    protected async ValueTask AddJob(
         ConnectionAndTransactionHolder conn,
         IJobDetail newJob,
         bool replace,
@@ -1432,7 +1432,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Check existence of a given job.
     /// </summary>
-    protected virtual async ValueTask<bool> JobExists(
+    protected async ValueTask<bool> JobExists(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
@@ -1480,7 +1480,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Insert or update a trigger.
     /// </summary>
-    protected virtual async ValueTask AddTrigger(
+    protected async ValueTask AddTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger newTrigger,
         IJobDetail? job,
@@ -1562,7 +1562,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Check existence of a given trigger.
     /// </summary>
-    protected virtual async ValueTask<bool> TriggerExists(
+    protected async ValueTask<bool> TriggerExists(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -1605,7 +1605,7 @@ public abstract class JobStoreSupport : IJobStore
             });
     }
 
-    protected virtual async ValueTask<bool> DeleteJob(
+    protected async ValueTask<bool> DeleteJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         bool activeDeleteSafe,
@@ -1747,7 +1747,7 @@ public abstract class JobStoreSupport : IJobStore
         return ExecuteWithoutLock(conn => GetJob(conn, jobKey, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<IJobDetail?> GetJob(
+    protected async ValueTask<IJobDetail?> GetJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
@@ -1815,7 +1815,7 @@ public abstract class JobStoreSupport : IJobStore
             });
     }
 
-    protected virtual ValueTask<bool> DeleteTrigger(
+    protected ValueTask<bool> DeleteTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -1823,7 +1823,7 @@ public abstract class JobStoreSupport : IJobStore
         return DeleteTrigger(conn, triggerKey, null, cancellationToken);
     }
 
-    protected virtual async ValueTask<bool> DeleteTrigger(
+    protected async ValueTask<bool> DeleteTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         IJobDetail? job,
@@ -1890,7 +1890,7 @@ public abstract class JobStoreSupport : IJobStore
             });
     }
 
-    protected virtual async ValueTask<bool> ReplaceTrigger(
+    protected async ValueTask<bool> ReplaceTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         IOperableTrigger newTrigger,
@@ -1943,7 +1943,7 @@ public abstract class JobStoreSupport : IJobStore
             });
     }
 
-    protected virtual async ValueTask<bool> UpdateTriggerDetails(
+    protected async ValueTask<bool> UpdateTriggerDetails(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         TriggerDetailsUpdate update,
@@ -2055,7 +2055,7 @@ public abstract class JobStoreSupport : IJobStore
             cancellationToken);
     }
 
-    protected virtual async ValueTask<IOperableTrigger?> GetTrigger(
+    protected async ValueTask<IOperableTrigger?> GetTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -2097,7 +2097,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <param name="triggerKey">The key identifying the trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
-    protected virtual async ValueTask<TriggerState> GetTriggerState(
+    protected async ValueTask<TriggerState> GetTriggerState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -2191,7 +2191,7 @@ public abstract class JobStoreSupport : IJobStore
                 cancellationToken)).ConfigureAwait(false);
     }
 
-    protected virtual async ValueTask AddCalendar(
+    protected async ValueTask AddCalendar(
         ConnectionAndTransactionHolder conn,
         string calendarName,
         ICalendar calendar,
@@ -2253,7 +2253,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    protected virtual async ValueTask<bool> CalendarExists(
+    protected async ValueTask<bool> CalendarExists(
         ConnectionAndTransactionHolder conn,
         string calendarName,
         CancellationToken cancellationToken = default)
@@ -2292,7 +2292,7 @@ public abstract class JobStoreSupport : IJobStore
             () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteCalendar(conn, calendarName, cancellationToken), cancellationToken));
     }
 
-    protected virtual async ValueTask<bool> DeleteCalendar(
+    protected async ValueTask<bool> DeleteCalendar(
         ConnectionAndTransactionHolder conn,
         string calendarName,
         CancellationToken cancellationToken = default)
@@ -2331,7 +2331,7 @@ public abstract class JobStoreSupport : IJobStore
             cancellationToken);
     }
 
-    protected virtual async ValueTask<ICalendar?> GetCalendar(
+    protected async ValueTask<ICalendar?> GetCalendar(
         ConnectionAndTransactionHolder conn,
         string calendarName,
         CancellationToken cancellationToken = default)
@@ -2369,7 +2369,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    protected virtual async ValueTask<List<JobKey>> GetJobNames(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    protected async ValueTask<List<JobKey>> GetJobNames(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2475,7 +2475,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    protected virtual async ValueTask<List<string>> GetTriggerGroupNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
+    protected async ValueTask<List<string>> GetTriggerGroupNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2497,7 +2497,7 @@ public abstract class JobStoreSupport : IJobStore
         return ExecuteWithoutLock(conn => QueryJobs(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<PagedResult<JobHeader>> QueryJobs(
+    protected async ValueTask<PagedResult<JobHeader>> QueryJobs(
         ConnectionAndTransactionHolder conn,
         JobQuery query,
         CancellationToken cancellationToken = default)
@@ -2522,7 +2522,7 @@ public abstract class JobStoreSupport : IJobStore
         return ExecuteWithoutLock(conn => QueryTriggers(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<PagedResult<TriggerHeader>> QueryTriggers(
+    protected async ValueTask<PagedResult<TriggerHeader>> QueryTriggers(
         ConnectionAndTransactionHolder conn,
         TriggerQuery query,
         CancellationToken cancellationToken = default)
@@ -2547,7 +2547,7 @@ public abstract class JobStoreSupport : IJobStore
         return ExecuteWithoutLock(conn => QueryJobGroups(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<PagedResult<JobGroup>> QueryJobGroups(
+    protected async ValueTask<PagedResult<JobGroup>> QueryJobGroups(
         ConnectionAndTransactionHolder conn,
         JobGroupQuery query,
         CancellationToken cancellationToken = default)
@@ -2572,7 +2572,7 @@ public abstract class JobStoreSupport : IJobStore
         return ExecuteWithoutLock(conn => QueryTriggerGroups(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(
+    protected async ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(
         ConnectionAndTransactionHolder conn,
         TriggerGroupQuery query,
         CancellationToken cancellationToken = default)
@@ -2597,7 +2597,7 @@ public abstract class JobStoreSupport : IJobStore
         return ExecuteWithoutLock(conn => QueryCalendarNames(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<PagedResult<string>> QueryCalendarNames(
+    protected async ValueTask<PagedResult<string>> QueryCalendarNames(
         ConnectionAndTransactionHolder conn,
         CalendarQuery query,
         CancellationToken cancellationToken = default)
@@ -2622,7 +2622,7 @@ public abstract class JobStoreSupport : IJobStore
         return ExecuteWithoutLock(conn => GetJobs(conn, jobKeys, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<List<IJobDetail>> GetJobs(
+    protected async ValueTask<List<IJobDetail>> GetJobs(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
@@ -2657,7 +2657,7 @@ public abstract class JobStoreSupport : IJobStore
         return ExecuteWithoutLock(conn => GetTriggers(conn, triggerKeys, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<List<IOperableTrigger>> GetTriggers(
+    protected async ValueTask<List<IOperableTrigger>> GetTriggers(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
@@ -2687,7 +2687,7 @@ public abstract class JobStoreSupport : IJobStore
         return ExecuteWithoutLock(conn => GetTriggersForJob(conn, jobKey, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<List<IOperableTrigger>> GetTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey, CancellationToken cancellationToken = default)
+    protected async ValueTask<List<IOperableTrigger>> GetTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2722,7 +2722,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <see langword="true" /> if the trigger existed in a pausable state and was moved into the
     /// paused state by this call.
     /// </returns>
-    public virtual async ValueTask<bool> PauseTrigger(
+    protected async ValueTask<bool> PauseTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -2756,7 +2756,7 @@ public abstract class JobStoreSupport : IJobStore
     /// pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
     /// <seealso cref="ResumeJob(JobKey,CancellationToken)" />
-    public virtual async ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return await activityTracer.Trace(
             OperationName.JobStore.PauseJob,
@@ -2787,7 +2787,7 @@ public abstract class JobStoreSupport : IJobStore
     /// group - by pausing all of their <see cref="ITrigger" />s.
     /// </summary>
     /// <seealso cref="ResumeJobs" />
-    public virtual ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(
             OperationName.JobStore.PauseJobs,
@@ -2816,7 +2816,7 @@ public abstract class JobStoreSupport : IJobStore
     /// StatePaused/StateWaiting respectively.
     /// </summary>
     /// <returns>StatePausedBlocked, StateBlocked, or the currentState. </returns>
-    protected virtual async ValueTask<StoredTriggerState> CheckBlockedState(
+    protected async ValueTask<StoredTriggerState> CheckBlockedState(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         StoredTriggerState currentState,
@@ -2850,7 +2850,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    public virtual async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return await activityTracer.Trace(
             OperationName.JobStore.ResumeTrigger,
@@ -2874,7 +2874,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <see langword="true" /> if the trigger existed in a paused state and was resumed by this
     /// call.
     /// </returns>
-    public virtual async ValueTask<bool> ResumeTrigger(
+    protected async ValueTask<bool> ResumeTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -2934,7 +2934,7 @@ public abstract class JobStoreSupport : IJobStore
     /// instruction will be applied.
     /// </remarks>
     /// <seealso cref="PauseJob(JobKey,CancellationToken)" />
-    public virtual async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return await activityTracer.Trace(
             OperationName.JobStore.ResumeJob,
@@ -2970,7 +2970,7 @@ public abstract class JobStoreSupport : IJobStore
     /// misfire instruction will be applied.
     /// </remarks>
     /// <seealso cref="PauseJobs" />
-    public virtual ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(
             OperationName.JobStore.ResumeJobs,
@@ -2996,7 +2996,7 @@ public abstract class JobStoreSupport : IJobStore
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
     /// <seealso cref="ResumeTriggers(Quartz.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
-    public virtual ValueTask<List<string>> PauseTriggers(
+    public ValueTask<List<string>> PauseTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -3011,7 +3011,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
-    public virtual async ValueTask<List<string>> PauseTriggerGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    protected async ValueTask<List<string>> PauseTriggerGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -3047,7 +3047,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    public virtual ValueTask<List<string>> ResumeTriggers(
+    public ValueTask<List<string>> ResumeTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -3066,7 +3066,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public virtual async ValueTask<List<string>> ResumeTriggers(
+    protected async ValueTask<List<string>> ResumeTriggers(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
@@ -3093,7 +3093,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    public virtual async ValueTask PauseAll(CancellationToken cancellationToken = default)
+    public async ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
         await activityTracer.Trace(
             OperationName.JobStore.PauseAll,
@@ -3109,7 +3109,7 @@ public abstract class JobStoreSupport : IJobStore
     /// </para>
     /// </summary>
     /// <seealso cref="ResumeAll(CancellationToken)" />
-    public virtual async ValueTask PauseAll(
+    protected async ValueTask PauseAll(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
@@ -3142,7 +3142,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </remarks>
     /// <seealso cref="PauseAll(CancellationToken)" />
-    public virtual async ValueTask ResumeAll(CancellationToken cancellationToken = default)
+    public async ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
         await activityTracer.Trace(
             OperationName.JobStore.ResumeAll,
@@ -3158,7 +3158,7 @@ public abstract class JobStoreSupport : IJobStore
     /// </para>
     /// </summary>
     /// <seealso cref="PauseAll(CancellationToken)" />
-    public virtual async ValueTask ResumeAll(
+    protected async ValueTask ResumeAll(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
@@ -3240,7 +3240,7 @@ public abstract class JobStoreSupport : IJobStore
     // TODO: this really ought to return something like a FiredTriggerBundle,
     // so that the fireInstanceId doesn't have to be on the trigger...
 
-    protected virtual async ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
+    protected async ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionRequest request,
         CancellationToken cancellationToken = default)
@@ -3416,7 +3416,7 @@ public abstract class JobStoreSupport : IJobStore
             }).ConfigureAwait(false);
     }
 
-    protected virtual async ValueTask ReleaseAcquiredTrigger(
+    protected async ValueTask ReleaseAcquiredTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
@@ -3433,7 +3433,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    public virtual ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
+    public ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(
             OperationName.JobStore.TriggersFired,
@@ -3515,7 +3515,7 @@ public abstract class JobStoreSupport : IJobStore
             activity => activity.SetTag(ActivityTags.TriggerCount, triggers.Count));
     }
 
-    protected virtual async ValueTask<TriggerFiredBundle?> TriggerFired(
+    protected async ValueTask<TriggerFiredBundle?> TriggerFired(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
@@ -3701,7 +3701,7 @@ public abstract class JobStoreSupport : IJobStore
     /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
     /// is stateful.
     /// </summary>
-    public virtual async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
+    public async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
     {
         // Completion bookkeeping belongs to the scheduler, not to the job, and it retries a failing
         // JobPersistenceException until it succeeds. If a job body left an enlistment behind, this
@@ -3735,7 +3735,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    protected virtual async ValueTask TriggeredJobComplete(
+    protected async ValueTask TriggeredJobComplete(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         IJobDetail jobDetail,
@@ -3951,7 +3951,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    protected internal virtual ValueTask SignalSchedulingChangeImmediately(
+    protected internal ValueTask SignalSchedulingChangeImmediately(
         DateTimeOffset? candidateNewNextFireTime,
         CancellationToken cancellationToken = default)
     {
@@ -4034,7 +4034,7 @@ public abstract class JobStoreSupport : IJobStore
     /// </summary>
     internal DateTimeOffset LastCheckin { get; set; }
 
-    protected internal virtual async ValueTask<bool> DoCheckin(
+    protected internal async ValueTask<bool> DoCheckin(
         Guid requestorId,
         CancellationToken cancellationToken = default)
     {
@@ -4137,7 +4137,7 @@ public abstract class JobStoreSupport : IJobStore
     /// Get a list of all scheduler instances in the cluster that may have failed.
     /// This includes this scheduler if it is checking in for the first time.
     /// </summary>
-    protected virtual async ValueTask<List<SchedulerStateRecord>> FindFailedInstances(
+    protected async ValueTask<List<SchedulerStateRecord>> FindFailedInstances(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
@@ -4239,7 +4239,7 @@ public abstract class JobStoreSupport : IJobStore
         return rec.CheckinTimestamp.Add(ts).Add(ClusterCheckinMisfireThreshold);
     }
 
-    protected virtual async ValueTask<List<SchedulerStateRecord>> ClusterCheckIn(
+    protected async ValueTask<List<SchedulerStateRecord>> ClusterCheckIn(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
@@ -4264,7 +4264,7 @@ public abstract class JobStoreSupport : IJobStore
         return failedInstances;
     }
 
-    protected virtual async ValueTask ClusterRecover(
+    protected async ValueTask ClusterRecover(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<SchedulerStateRecord> failedInstances,
         CancellationToken cancellationToken = default)
@@ -4503,7 +4503,7 @@ public abstract class JobStoreSupport : IJobStore
     /// from the datasource.
     /// </remarks>
     /// <seealso cref="CloseConnection(ConnectionAndTransactionHolder, CancellationToken)" />
-    protected virtual async ValueTask CleanupConnection(
+    protected static async ValueTask CleanupConnection(
         ConnectionAndTransactionHolder? conn,
         CancellationToken cancellationToken = default)
     {
@@ -4523,7 +4523,7 @@ public abstract class JobStoreSupport : IJobStore
     /// </summary>
     /// <param name="cth">(Optional)</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    protected virtual async ValueTask CloseConnection(
+    protected static async ValueTask CloseConnection(
         ConnectionAndTransactionHolder cth,
         CancellationToken cancellationToken = default)
     {
@@ -4533,7 +4533,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Rollback the supplied connection.
     /// </summary>
-    protected virtual async ValueTask RollbackConnection(
+    protected async ValueTask RollbackConnection(
         ConnectionAndTransactionHolder? cth,
         Exception cause,
         CancellationToken cancellationToken = default)
@@ -4771,7 +4771,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <param name="openNewTransaction">if set to <c>true</c> opens a new transaction.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
-    protected virtual async ValueTask CommitConnection(
+    protected async ValueTask CommitConnection(
         ConnectionAndTransactionHolder cth,
         bool openNewTransaction,
         CancellationToken cancellationToken = default)
@@ -4869,7 +4869,7 @@ public abstract class JobStoreSupport : IJobStore
     /// retry is recognised as the same owner rather than deadlocking against itself.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    protected virtual async ValueTask<T> RetryExecuteInLocalTransactionLock<T>(
+    protected async ValueTask<T> RetryExecuteInLocalTransactionLock<T>(
         SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
         Guid? requestorId = null,
