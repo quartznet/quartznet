@@ -230,6 +230,85 @@ public class TimeZoneUtilTest
         firstZone.BaseUtcOffset.Should().Be(secondZone.BaseUtcOffset);
     }
 
+    [Test]
+    public void AddResolver_MostRecentlyAddedWins_AndDisposalUnregisters()
+    {
+        const string id = "Quartz/Test-Resolver-Ordering";
+        TimeZoneInfo earlierZone = TimeZoneInfo.CreateCustomTimeZone(id + "-earlier", TimeSpan.FromMinutes(30), null, null);
+        TimeZoneInfo laterZone = TimeZoneInfo.CreateCustomTimeZone(id + "-later", TimeSpan.FromMinutes(45), null, null);
+
+        IDisposable earlier = TimeZoneUtil.AddResolver(x => x == id ? earlierZone : null);
+        try
+        {
+            TimeZoneUtil.FindTimeZoneById(id).Should().BeSameAs(earlierZone);
+
+            IDisposable later = TimeZoneUtil.AddResolver(x => x == id ? laterZone : null);
+            try
+            {
+                TimeZoneUtil.FindTimeZoneById(id).Should().BeSameAs(laterZone,
+                    "resolvers are consulted most recently added first, preserving the last-write-wins semantics CustomResolver had");
+            }
+            finally
+            {
+                later.Dispose();
+            }
+
+            TimeZoneUtil.FindTimeZoneById(id).Should().BeSameAs(earlierZone,
+                "a disposed resolver must no longer shadow the one registered before it");
+        }
+        finally
+        {
+            earlier.Dispose();
+        }
+
+        Func<TimeZoneInfo> act = () => TimeZoneUtil.FindTimeZoneById(id);
+        act.Should().Throw<TimeZoneNotFoundException>("every registration was disposed");
+    }
+
+    [Test]
+    public void AddResolver_DisposingTwice_IsANoOpAndRemovesNothingElse()
+    {
+        const string id = "Quartz/Test-Resolver-Double-Dispose";
+        TimeZoneInfo earlierZone = TimeZoneInfo.CreateCustomTimeZone(id + "-earlier", TimeSpan.FromMinutes(30), null, null);
+        TimeZoneInfo laterZone = TimeZoneInfo.CreateCustomTimeZone(id + "-later", TimeSpan.FromMinutes(45), null, null);
+
+        IDisposable earlier = TimeZoneUtil.AddResolver(x => x == id ? earlierZone : null);
+        try
+        {
+            IDisposable later = TimeZoneUtil.AddResolver(x => x == id ? laterZone : null);
+            later.Dispose();
+            later.Dispose();
+
+            TimeZoneUtil.FindTimeZoneById(id).Should().BeSameAs(earlierZone,
+                "disposing a registration twice must not remove another resolver");
+        }
+        finally
+        {
+            earlier.Dispose();
+        }
+    }
+
+    [Test]
+    public void AddResolver_ResolverThrowingTimeZoneNotFound_FallsThroughToTheNextOne()
+    {
+        const string id = "Quartz/Test-Resolver-Throwing";
+        TimeZoneInfo zone = TimeZoneInfo.CreateCustomTimeZone(id + "-zone", TimeSpan.FromMinutes(15), null, null);
+
+        using IDisposable quiet = TimeZoneUtil.AddResolver(x => x == id ? zone : null);
+        using IDisposable loud = TimeZoneUtil.AddResolver(
+            x => x == id ? throw new TimeZoneNotFoundException("declining loudly") : null);
+
+        TimeZoneUtil.FindTimeZoneById(id).Should().BeSameAs(zone,
+            "a resolver throwing TimeZoneNotFoundException declines the id and the search continues with the next resolver");
+    }
+
+    [Test]
+    public void AddResolver_NullResolver_Throws()
+    {
+        Action act = () => TimeZoneUtil.AddResolver(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
     private static TimeZoneInfo ResolveZone(string zoneKey)
     {
         switch (zoneKey)

@@ -30,6 +30,8 @@ namespace Quartz.Plugins.TimeZoneConverter;
 /// </summary>
 public class TimeZoneConverterPlugin : ISchedulerPlugin
 {
+    private IDisposable? resolverRegistration;
+
     /// <summary>
     /// Called during creation of the <see cref="IScheduler" /> in order to give
     /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
@@ -39,7 +41,8 @@ public class TimeZoneConverterPlugin : ISchedulerPlugin
         IScheduler scheduler,
         CancellationToken cancellationToken = default)
     {
-        TimeZoneUtil.CustomResolver = TZConvert.GetTimeZoneInfo;
+        resolverRegistration = TimeZoneUtil.AddResolver(
+            static id => TZConvert.TryGetTimeZoneInfo(id, out TimeZoneInfo? timeZoneInfo) ? timeZoneInfo : null);
 
         return default;
     }
@@ -59,8 +62,15 @@ public class TimeZoneConverterPlugin : ISchedulerPlugin
     /// should free up all of it's resources because the scheduler is shutting
     /// down.
     /// </summary>
+    /// <remarks>
+    /// Disposes this plugin's resolver registration, so that shutting one scheduler down does not
+    /// change time zone resolution for the other schedulers in the process.
+    /// </remarks>
     public ValueTask Shutdown(CancellationToken cancellationToken = default)
     {
+        resolverRegistration?.Dispose();
+        resolverRegistration = null;
+
         return default;
     }
 }

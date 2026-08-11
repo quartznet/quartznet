@@ -1223,7 +1223,7 @@ namespace Quartz
     }
     public static class TimeZoneUtil
     {
-        public static System.Func<string, System.TimeZoneInfo?>? CustomResolver { get; set; }
+        public static System.IDisposable AddResolver(System.Func<string, System.TimeZoneInfo?> resolver) { }
         public static System.DateTimeOffset ConvertTime(System.DateTimeOffset dateTimeOffset, System.TimeZoneInfo timeZoneInfo) { }
         public static System.TimeZoneInfo FindTimeZoneById(string id) { }
         public static System.TimeSpan GetUtcOffset(System.DateTime dateTime, System.TimeZoneInfo timeZoneInfo) { }
