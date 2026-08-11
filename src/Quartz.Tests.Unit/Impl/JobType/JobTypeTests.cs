@@ -82,6 +82,79 @@ public class JobTypeTests
             "the stored name is reported back unchanged, so nothing rewrites the persisted spelling");
     }
 
+    [Test]
+    public void ImplicitConversionFromTypeValidates()
+    {
+        global::Quartz.JobType fromType = typeof(LoggerJob);
+
+        fromType.Type.Should().Be<LoggerJob>();
+
+        Action act = () =>
+        {
+            global::Quartz.JobType bad = typeof(ClassDoesNotImplementIJob);
+            GC.KeepAlive(bad);
+        };
+        act.Should().Throw<ArgumentException>("the implicit direction is the validated one");
+    }
+
+    [Test]
+    public void ExplicitConversionFromStringIsUnvalidated()
+    {
+        var fromString = (global::Quartz.JobType) "Library.UnknownType";
+
+        fromString.FullName.Should().Be("Library.UnknownType");
+        fromString.TryResolve(out _).Should().BeFalse();
+    }
+
+    [Test]
+    public void EqualityIsByFullName()
+    {
+        var first = new global::Quartz.JobType(typeof(LoggerJob));
+        var byName = new global::Quartz.JobType(first.FullName);
+        var other = (global::Quartz.JobType) "Library.UnknownType";
+
+        first.Equals(byName).Should().BeTrue("FullName is the identity, however the instance was constructed");
+        (first == byName).Should().BeTrue();
+        (first != other).Should().BeTrue();
+        ((global::Quartz.JobType) null == null).Should().BeTrue();
+        (first == null).Should().BeFalse();
+        first.GetHashCode().Should().Be(byName.GetHashCode());
+    }
+
+    [Test]
+    public void TryResolveIsPublicAndDoesNotSettleType()
+    {
+        var jobType = new global::Quartz.JobType("Library.UnknownType");
+
+        jobType.TryResolve(out var resolved).Should().BeFalse();
+        resolved.Should().BeNull();
+
+        var resolvable = new global::Quartz.JobType(typeof(LoggerJob).AssemblyQualifiedName);
+        resolvable.TryResolve(out resolved).Should().BeTrue();
+        resolved.Should().Be<LoggerJob>();
+    }
+
+    [Test]
+    public void GetJobBuilderWorksForADetailWhoseTypeNameDoesNotResolve()
+    {
+        // The job store loads details with loadJobType: false; rebuilding one through its builder
+        // must not force the stored name to resolve.
+        IJobDetail detail = JobBuilder.Create()
+            .WithIdentity("job", "group")
+            .OfType("Library.UnknownType")
+            .StoreDurably()
+            .UsingJobData("key", "value")
+            .DisallowConcurrentExecution()
+            .PersistJobDataAfterExecution()
+            .Build();
+
+        IJobDetail rebuilt = detail.GetJobBuilder().Build();
+
+        rebuilt.JobType.FullName.Should().Be("Library.UnknownType");
+        rebuilt.Key.Should().Be(new JobKey("job", "group"));
+        rebuilt.JobDataMap.GetString("key").Should().Be("value");
+    }
+
     public sealed class LoggerJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)

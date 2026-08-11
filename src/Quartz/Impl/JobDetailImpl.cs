@@ -95,7 +95,6 @@ internal sealed class JobDetailImpl : IJobDetail
     private string group = SchedulerConstants.DefaultGroup;
     private string? description;
     private JobDataMap jobDataMap = null!;
-    private readonly Type jobType = null!;
     private bool? disallowConcurrentExecution;
     private bool? persistJobDataAfterExecution;
 
@@ -343,7 +342,7 @@ internal sealed class JobDetailImpl : IJobDetail
         {
             if (!persistJobDataAfterExecution.HasValue)
             {
-                persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(JobType).PersistJobDataAfterExecution;
+                persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(JobType.Type).PersistJobDataAfterExecution;
             }
 
             return persistJobDataAfterExecution.GetValueOrDefault();
@@ -363,7 +362,7 @@ internal sealed class JobDetailImpl : IJobDetail
         {
             if (!disallowConcurrentExecution.HasValue)
             {
-                disallowConcurrentExecution = JobTypeInformation.GetOrCreate(JobType).ConcurrentExecutionDisallowed;
+                disallowConcurrentExecution = JobTypeInformation.GetOrCreate(JobType.Type).ConcurrentExecutionDisallowed;
             }
 
             return disallowConcurrentExecution.GetValueOrDefault();
@@ -386,7 +385,7 @@ internal sealed class JobDetailImpl : IJobDetail
             Throw.SchedulerException("Job's group cannot be null");
         }
 
-        if (jobType is null)
+        if (JobType is null)
         {
             Throw.SchedulerException("Job's class cannot be null");
         }

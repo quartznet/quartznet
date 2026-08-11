@@ -110,7 +110,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
 
     private (IJob Job, bool FromContainer) ResolveJob(TriggerFiredBundle bundle, IServiceProvider serviceProvider)
     {
-        var job = (IJob?) serviceProvider.GetService(bundle.JobDetail.JobType);
+        var job = (IJob?) serviceProvider.GetService(bundle.JobDetail.JobType.Type);
 
         if (job is not null)
         {
@@ -118,7 +118,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
             return (job, true);
         }
 
-        return (activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType), false);
+        return (activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType.Type), false);
     }
 
     /// <summary>

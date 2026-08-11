@@ -725,6 +725,7 @@ namespace Quartz
         public Quartz.JobKey? Key { get; }
         public Quartz.IJobDetail Build() { }
         public Quartz.JobBuilder<TJob> DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true) { }
+        public Quartz.JobBuilder<TJob> OfType(Quartz.JobType jobType) { }
         public Quartz.JobBuilder<TJob> OfType([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type type) { }
         public Quartz.JobBuilder<TJob> OfType(string typeName) { }
         public Quartz.JobBuilder<TJob> OfType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>()
@@ -838,17 +839,21 @@ namespace Quartz
         public Quartz.GroupMatcher<Quartz.JobKey>? Group { get; init; }
         public Quartz.NameMatcher<Quartz.JobKey>? Name { get; init; }
     }
-    public sealed class JobType
+    public sealed class JobType : System.IEquatable<Quartz.JobType>
     {
         public JobType(System.Type type) { }
         public JobType(string fullName) { }
         public string FullName { get; }
         public System.Type Type { get; }
+        public bool Equals(Quartz.JobType? other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override string ToString() { }
-        public static System.Type op_Implicit(Quartz.JobType jobType) { }
-        public static Quartz.JobType op_Implicit(string fullName) { }
+        public bool TryResolve([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out System.Type? resolved) { }
+        public static Quartz.JobType op_Explicit(string fullName) { }
+        public static Quartz.JobType op_Implicit(System.Type type) { }
+        public static bool operator !=(Quartz.JobType? left, Quartz.JobType? right) { }
+        public static bool operator ==(Quartz.JobType? left, Quartz.JobType? right) { }
     }
     public sealed class JsonSerializationException : Quartz.SchedulerException
     {
