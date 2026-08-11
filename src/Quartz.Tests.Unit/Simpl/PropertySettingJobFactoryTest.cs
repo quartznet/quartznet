@@ -61,8 +61,16 @@ public class PropertySettingJobFactoryTest
         var scheduler = A.Fake<IScheduler>();
         A.CallTo(() => scheduler.Context).Returns(new SchedulerContext { ["fromContext"] = "context" });
 
-        var bundle = new TriggerFiredBundle(jobDetail, trigger, calendar: null, jobIsRecovering: false,
-            fireTimeUtc: DateTimeOffset.UtcNow, scheduledFireTimeUtc: null, previousFireTimeUtc: null, nextFireTimeUtc: null);
+        var bundle = new TriggerFiredBundle
+        {
+            JobDetail = jobDetail,
+            Trigger = trigger,
+            Recovering = false,
+            FireTimeUtc = DateTimeOffset.UtcNow,
+            ScheduledFireTimeUtc = null,
+            PreviousFireTimeUtc = null,
+            NextFireTimeUtc = null,
+        };
 
         JobDataMap map = new ExposingJobFactory().BuildFor(bundle, scheduler);
 

@@ -63,12 +63,15 @@ public class ExternalTransactionJobStore : JobStoreSupport
         IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null)
         : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates)
     {
+        openConnection = storeOptions.Value.OpenConnection;
     }
 
     /// <summary>
-    /// Instructs this job store whether connections should be automatically opened.
+    /// Whether this job store opens the connections it creates, configured through
+    /// <see cref="AdoJobStoreOptions.OpenConnection" /> and read once at construction like every
+    /// sibling setting.
     /// </summary>
-    public bool OpenConnection { get; set; }
+    private readonly bool openConnection;
 
     /// <summary>
     /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
@@ -125,7 +128,7 @@ public class ExternalTransactionJobStore : JobStoreSupport
             // store exists precisely to run inside a transaction its container manages, so the
             // connection auto-enlisting is the contract rather than an accident.
             conn = DbProvider.CreateConnection();
-            if (OpenConnection)
+            if (openConnection)
             {
                 await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
             }

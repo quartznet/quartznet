@@ -64,7 +64,7 @@ public class JobRunShellBenchmark
         var trigger = (IOperableTrigger) CreateTrigger(TimeSpan.FromMilliseconds(0.01d));
         trigger.FireInstanceId = Guid.NewGuid().ToString();
 
-        return new TriggerFiredBundle(jobDetail, trigger, null, false, DateTimeOffset.Now, null, null, null);
+        return new TriggerFiredBundle { JobDetail = jobDetail, Trigger = trigger, Recovering = false, FireTimeUtc = DateTimeOffset.Now, ScheduledFireTimeUtc = null, PreviousFireTimeUtc = null, NextFireTimeUtc = null };
     }
 
     private static ITrigger CreateTrigger(TimeSpan repeatInterval)

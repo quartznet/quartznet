@@ -79,14 +79,16 @@ public class JobExecutionContextImplBenchmark
 
     private static TriggerFiredBundle CreateTriggerFiredBundle(IJobDetail jobDetail, IOperableTrigger trigger)
     {
-        return new TriggerFiredBundle(jobDetail,
-            trigger,
-            null,
-            false,
-            DateTimeOffset.Now,
-            DateTimeOffset.Now,
-            DateTimeOffset.Now,
-            DateTimeOffset.Now);
+        return new TriggerFiredBundle
+        {
+            JobDetail = jobDetail,
+            Trigger = trigger,
+            Recovering = false,
+            FireTimeUtc = DateTimeOffset.Now,
+            ScheduledFireTimeUtc = DateTimeOffset.Now,
+            PreviousFireTimeUtc = DateTimeOffset.Now,
+            NextFireTimeUtc = DateTimeOffset.Now,
+        };
     }
 
     private static QuartzScheduler CreateQuartzScheduler(string name, string instanceId, int threadCount)

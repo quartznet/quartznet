@@ -28,6 +28,7 @@ namespace Quartz
         public int MaxTransientRetries { get; set; }
         public System.TimeSpan? MisfireHandlerFrequency { get; set; }
         public System.TimeSpan MisfireThreshold { get; set; }
+        public bool OpenConnection { get; set; }
         public bool PerformSchemaValidation { get; set; }
         public int RetryableActionErrorLogThreshold { get; set; }
         public string? SelectWithLockSql { get; set; }
@@ -979,8 +980,8 @@ namespace Quartz
         public static Quartz.IPersistentStoreBuilder UseFirebird(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, string connectionString) { }
-        public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, System.Action<Quartz.DataSourceOptions> configureDataSource, System.Action<Quartz.Impl.AdoJobStore.Common.DbMetadata> configureMetadata) { }
-        public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, string connectionString, System.Action<Quartz.Impl.AdoJobStore.Common.DbMetadata> configureMetadata) { }
+        public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, System.Action<Quartz.DataSourceOptions> configureDataSource, System.Func<Quartz.Impl.AdoJobStore.Common.DbMetadata> describeMetadata) { }
+        public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, string connectionString, System.Func<Quartz.Impl.AdoJobStore.Common.DbMetadata> describeMetadata) { }
         public static Quartz.IPersistentStoreBuilder UseMySql(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseMySql(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseMySqlConnector(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
@@ -1705,17 +1706,17 @@ namespace Quartz.Extensibility
         public static System.Collections.Generic.List<System.DateTimeOffset> ComputeBetween(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, System.DateTimeOffset from, System.DateTimeOffset to) { }
         public static System.DateTimeOffset? ComputeEndTimeForCount(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, int numberOfTimes) { }
     }
-    public sealed class TriggerFiredBundle
+    public sealed class TriggerFiredBundle : System.IEquatable<Quartz.Extensibility.TriggerFiredBundle>
     {
-        public TriggerFiredBundle(Quartz.IJobDetail job, Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, bool jobIsRecovering, System.DateTimeOffset fireTimeUtc, System.DateTimeOffset? scheduledFireTimeUtc, System.DateTimeOffset? previousFireTimeUtc, System.DateTimeOffset? nextFireTimeUtc) { }
-        public Quartz.ICalendar? Calendar { get; }
-        public System.DateTimeOffset FireTimeUtc { get; }
-        public Quartz.IJobDetail JobDetail { get; }
-        public System.DateTimeOffset? NextFireTimeUtc { get; }
-        public System.DateTimeOffset? PreviousFireTimeUtc { get; }
-        public bool Recovering { get; }
-        public System.DateTimeOffset? ScheduledFireTimeUtc { get; }
-        public Quartz.Extensibility.IOperableTrigger Trigger { get; }
+        public TriggerFiredBundle() { }
+        public Quartz.ICalendar? Calendar { get; init; }
+        public required System.DateTimeOffset FireTimeUtc { get; init; }
+        public required Quartz.IJobDetail JobDetail { get; init; }
+        public required System.DateTimeOffset? NextFireTimeUtc { get; init; }
+        public required System.DateTimeOffset? PreviousFireTimeUtc { get; init; }
+        public required bool Recovering { get; init; }
+        public required System.DateTimeOffset? ScheduledFireTimeUtc { get; init; }
+        public required Quartz.Extensibility.IOperableTrigger Trigger { get; init; }
     }
     public sealed class TriggerFiredResult
     {
@@ -1873,7 +1874,6 @@ namespace Quartz.Impl.AdoJobStore
     public class ExternalTransactionJobStore : Quartz.Impl.AdoJobStore.JobStoreSupport
     {
         public ExternalTransactionJobStore(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Microsoft.Extensions.Options.IOptions<Quartz.ClusteringOptions> clusteringOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Impl.AdoJobStore.Common.IDbConnectionManager connectionManager, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null, System.Collections.Generic.IEnumerable<Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null) { }
-        public bool OpenConnection { get; set; }
         protected override System.Threading.Tasks.ValueTask<T> ExecuteInLock<T>(Quartz.Impl.AdoJobStore.SchedulerLock? lockKind, System.Func<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder, System.Threading.Tasks.ValueTask<T>> txCallback, System.Threading.CancellationToken cancellationToken = default) { }
         protected override System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder> GetLocalTransactionConnection(System.Threading.CancellationToken cancellationToken = default) { }
         public override System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
@@ -2548,36 +2548,33 @@ namespace Quartz.Impl.AdoJobStore.Common
         public Quartz.Impl.AdoJobStore.Common.IDbProvider GetDbProvider(string dataSourceName) { }
         public void Shutdown(string dataSourceName) { }
     }
-    public sealed class DbMetadata
+    public sealed class DbMetadata : System.IEquatable<Quartz.Impl.AdoJobStore.Common.DbMetadata>
     {
         public DbMetadata() { }
-        public string? AssemblyName { get; set; }
-        public bool BindByName { get; set; }
-        public System.Type? CommandType { get; set; }
-        public System.Type? ConnectionType { get; set; }
+        public string? AssemblyName { get; init; }
+        public bool BindByName { get; init; }
+        public System.Type? CommandType { get; init; }
+        public System.Type? ConnectionType { get; init; }
         public System.Enum? DbBinaryType { get; }
-        public string? DbBinaryTypeName { get; set; }
-        public System.Type? ExceptionType { get; set; }
-        public System.Type? ParameterDbType { get; set; }
-        public System.Reflection.PropertyInfo? ParameterDbTypeProperty { get; set; }
-        public string ParameterDbTypePropertyName { get; set; }
-        public System.Reflection.PropertyInfo? ParameterIsNullableProperty { get; set; }
-        public string? ParameterNamePrefix { get; set; }
-        public System.Type? ParameterType { get; set; }
-        public string? ProductName { get; set; }
-        public bool UseParameterNamePrefixInParameterCollection { get; set; }
+        public string? DbBinaryTypeName { get; init; }
+        public System.Type? ExceptionType { get; init; }
+        public System.Type? ParameterDbType { get; init; }
+        public System.Reflection.PropertyInfo? ParameterDbTypeProperty { get; }
+        public string ParameterDbTypePropertyName { get; init; }
+        public string? ParameterNamePrefix { get; init; }
+        public System.Type? ParameterType { get; init; }
+        public string? ProductName { get; init; }
+        public bool UseParameterNamePrefixInParameterCollection { get; init; }
         public string GetParameterName(string parameterName) { }
-        public void Initialize() { }
     }
     public class DbProvider : Quartz.Impl.AdoJobStore.Common.IDbProvider
     {
         public DbProvider(Quartz.Impl.AdoJobStore.Common.DbMetadata metadata, string connectionString) { }
         public DbProvider(string dbProviderName, string connectionString) { }
-        public string ConnectionString { get; set; }
+        public string ConnectionString { get; }
         public Quartz.Impl.AdoJobStore.Common.DbMetadata Metadata { get; }
         public virtual System.Data.Common.DbCommand CreateCommand() { }
         public virtual System.Data.Common.DbConnection CreateConnection() { }
-        public void Initialize() { }
         public virtual void Shutdown() { }
     }
     public interface IDbConnectionManager
@@ -2590,11 +2587,10 @@ namespace Quartz.Impl.AdoJobStore.Common
     }
     public interface IDbProvider
     {
-        string ConnectionString { get; set; }
+        string ConnectionString { get; }
         Quartz.Impl.AdoJobStore.Common.DbMetadata Metadata { get; }
         System.Data.Common.DbCommand CreateCommand();
         System.Data.Common.DbConnection CreateConnection();
-        void Initialize();
         void Shutdown();
     }
 }

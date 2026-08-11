@@ -165,16 +165,16 @@ for. That now has a code-first form, and the `quartz.dbprovider.*` keys themselv
 arrive through `IConfiguration` or a `NameValueCollection` like every other key:
 
 ```csharp
-q.UsePersistentStore(store => store.UseGenericDatabase("MyDatabase", connectionString, metadata =>
+q.UsePersistentStore(store => store.UseGenericDatabase("MyDatabase", connectionString, () => new DbMetadata
 {
-    metadata.ProductName = "My Database";
-    metadata.ConnectionType = typeof(MyConnection);
-    metadata.CommandType = typeof(MyCommand);
-    metadata.ParameterType = typeof(MyParameter);
-    metadata.ParameterDbType = typeof(MyDbType);
-    metadata.ParameterDbTypePropertyName = nameof(MyParameter.MyDbType);
-    metadata.ParameterNamePrefix = "@";
-    metadata.DbBinaryTypeName = "VarBinary";
+    ProductName = "My Database",
+    ConnectionType = typeof(MyConnection),
+    CommandType = typeof(MyCommand),
+    ParameterType = typeof(MyParameter),
+    ParameterDbType = typeof(MyDbType),
+    ParameterDbTypePropertyName = nameof(MyParameter.MyDbType),
+    ParameterNamePrefix = "@",
+    DbBinaryTypeName = "VarBinary",
 }));
 ```
 
@@ -2353,9 +2353,16 @@ only reaches a `JobStoreSupport` subclass:
 | `ExecuteInNonManagedTXLock` | `ExecuteInLocalTransactionLock` |
 | `RetryExecuteInNonManagedTXLock` | `RetryExecuteInLocalTransactionLock` |
 
-`ExternalTransactionJobStore.OpenConnection` is a normal `{ get; set; }`. It was
-`{ protected get; set; }` — writable from anywhere and readable only from inside, which is not a shape
-anything needs.
+`ExternalTransactionJobStore.OpenConnection` is `AdoJobStoreOptions.OpenConnection` now. The store
+property was the one piece of store configuration outside the options system — settable only by
+resolving `IJobStore` and downcasting, after the container had already built the store, with no
+guarantee the write landed before `Initialize` ran:
+
+```diff
+- ((ExternalTransactionJobStore) store).OpenConnection = true;
++ services.AddQuartz(q => q.UsePersistentStore<ExternalTransactionJobStore>(store =>
++     store.Configure(options => options.OpenConnection = true)));
+```
 
 ## Nine `Execute…Lock` overloads became four members
 
@@ -2710,6 +2717,11 @@ is the type they actually take:
 - serviceProvider.GetRequiredService<IDbConnectionManager>().AddConnectionProvider("default", myProvider);
 + serviceProvider.GetRequiredService<IDbConnectionManager>().AddDbProvider("default", myProvider);
 ```
+
+`IDbProvider` itself is constructor-shaped: `Initialize()` is gone (every implementation resolved its
+driver description during construction, so the member was an empty ritual), and `ConnectionString` is
+get-only — it arrives through the implementation's constructor, and a provider is fully usable once
+constructed. A custom `IDbProvider` deletes its empty `Initialize` and its `ConnectionString` setter.
 
 ## `RAMJobStore` is sealed
 
@@ -3219,14 +3231,14 @@ called out.
 | `JobStoreSupport.UseDBLocks`, `.SelectWithLockSQL` | `UseDbLocks`, `SelectWithLockSql` |
 | `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `LockSql`, `InsertSql` (both readable now), `ExecuteSql` — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | `Quartz.Util.DBConnectionManager` | `Quartz.Impl.AdoJobStore.Common.DbConnectionManager` |
-| `DbMetadata.Init()` | `Initialize()` |
+| `DbMetadata.Init()` | Gone entirely: `DbMetadata` is an init-only record now, and `DbBinaryType` / `ParameterDbTypeProperty` derive from the described values instead of being produced by a second phase. `UseGenericDatabase`'s describing overloads take a `Func<DbMetadata>` returning `new DbMetadata { … }`; the dead `ParameterIsNullableProperty` went too |
 | `AdoConstants.ColumnMifireInstruction` | `ColumnMisfireInstruction` (a typo; the column name is unchanged) |
 | `SchedulerConstants.FailedJobOriginalTriggerFiretime`, `…ScheduledFiretime` | `…TriggerFireTime`, `…ScheduledFireTime` (the string values are unchanged) |
 | `XMLSchedulingDataProcessor.OverWriteExistingData`, `SchedulingOptions.OverWriteExistingData` | `OverwriteExistingData`. The configuration key is spelled `Quartz:Scheduling:OverwriteExistingData` now; keys are matched case-insensitively, so an existing file keeps binding, but code assigning the property has to change |
 | `XMLSchedulingDataProcessor.PrepForProcessing`, `.BuildTriggersByFQJobNameMap` | `PrepareForProcessing`, `BuildTriggersByFullyQualifiedJobNameMap` |
 | `RedisSemaphore.LockTtlMilliseconds`, `.LockRetryIntervalMilliseconds` | `LockTimeToLive`, `LockRetryInterval`, both `TimeSpan` — **also the config keys `lockTtlMilliseconds` → `lockTimeToLive` and `lockRetryIntervalMilliseconds` → `lockRetryInterval`** |
 | `IObjectSerializer.DeSerialize` | `Deserialize` |
-| `TriggerFiredBundle.PrevFireTimeUtc` | `PreviousFireTimeUtc`, matching the spelling used everywhere else |
+| `TriggerFiredBundle.PrevFireTimeUtc` | `PreviousFireTimeUtc`, matching the spelling used everywhere else. The type is a required-init record now: the eight-positional constructor ended in three interchangeable `DateTimeOffset?` values, so transposing `scheduledFireTimeUtc` and `previousFireTimeUtc` compiled cleanly and reported wrong fire times to every listener. A custom job store's `TriggerFired` writes `new TriggerFiredBundle { JobDetail = …, Trigger = …, Recovering = …, FireTimeUtc = …, ScheduledFireTimeUtc = …, PreviousFireTimeUtc = …, NextFireTimeUtc = … }`; only `Calendar` is optional |
 | `XMLSchedulingDataProcessor.OverWriteExistingJobs` argument `overWriteExistingJobs` | `overwriteExistingJobs` |
 | `Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin` | `Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin` — the namespace moved and the casing follows .NET rules. A `quartz.plugin.<name>.type` naming either old spelling still resolves, with a warning. Its nested `JobFile` class and its `JobFiles` property are internal now: they are how the plugin tracks what it has read, not something to call |
 | `Quartz.Xml.ValidationException` | `Quartz.SchedulingDataValidationException`. The old name collided with `System.ComponentModel.DataAnnotations.ValidationException` in any file that used both, and it was never XML-specific — the JSON processor throws it too. Its `ValidationExceptions` is an `IReadOnlyList<Exception>`; it was a `List<Exception>` a caller could add to |
@@ -4753,7 +4765,7 @@ Parameters and behavior are unchanged:
 | `JobStoreTX` is `LocalTransactionJobStore`, `JobStoreCMT` is `ExternalTransactionJobStore` | The names now say whose transaction the store uses. `quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz` and the `JobStoreCMT` spelling still resolve, with a warning — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
 | `GetNonManagedTXConnection`, `ExecuteInNonManagedTXLock`, `RetryExecuteInNonManagedTXLock` renamed | `GetLocalTransactionConnection`, `ExecuteInLocalTransactionLock`, `RetryExecuteInLocalTransactionLock`; protected, so only a `JobStoreSupport` subclass sees them |
 | `JobStoreSupport`'s nine `Execute…Lock` overloads became four members | Optional parameters replace the ladder, and no member returns `object` as a stand-in for `void` any more — see [Nine `Execute…Lock` overloads became four members](#nine-execute-lock-overloads-became-four-members) |
-| `ExternalTransactionJobStore.OpenConnection` is `{ get; set; }` | It was `{ protected get; set; }`: writable from anywhere, readable only from inside |
+| `ExternalTransactionJobStore.OpenConnection` moved to `AdoJobStoreOptions.OpenConnection` | The last store setting outside the options system; the store reads it once at construction — see [Nine `Execute…Lock` overloads became four members](#nine-execute-lock-overloads-became-four-members) |
 | `ISemaphore` takes a `SchedulerLock` | The `string lockName` had two legal values. The `LOCK_NAME` column and the Redis keys are unchanged — see [Locks are a `SchedulerLock`, not a string](#locks-are-a-schedulerlock-not-a-string) |
 | `JobStoreSupport.LockTriggerAccess` / `.LockStateAccess` removed | `SchedulerLock.TriggerAccess` / `.StateAccess` replace the two protected constants |
 | ~25 `JobStoreSupport` configuration properties are read-only and `protected`/internal | They duplicated `AdoJobStoreOptions` / `QuartzSchedulerOptions`; resolve `IOptions<AdoJobStoreOptions>` to read, configure the options to write. `MisfireThreshold` deliberately stays settable, and the `IJobStore` members stay public — see [The job store configuration is read-only](#the-job-store-configuration-is-read-only-and-no-longer-a-public-currency) |

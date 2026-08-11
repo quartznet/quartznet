@@ -33,21 +33,21 @@ public class DbProviderMetadataTest
     /// Describes the fictional provider using a real driver's types, so the description is one that can
     /// actually build a command rather than one that only survives being stored.
     /// </summary>
-    private static void DescribeFictionalProvider(DbMetadata metadata)
+    private static DbMetadata DescribeFictionalProvider() => new()
     {
-        metadata.ProductName = "My Fictional Database";
-        metadata.AssemblyName = typeof(SqlConnection).Assembly.FullName;
-        metadata.ConnectionType = typeof(SqlConnection);
-        metadata.CommandType = typeof(SqlCommand);
-        metadata.ParameterType = typeof(SqlParameter);
-        metadata.ParameterDbType = typeof(SqlDbType);
-        metadata.ParameterDbTypePropertyName = nameof(SqlParameter.SqlDbType);
-        metadata.ParameterNamePrefix = "@";
-        metadata.ExceptionType = typeof(SqlException);
-        metadata.UseParameterNamePrefixInParameterCollection = true;
-        metadata.BindByName = true;
-        metadata.DbBinaryTypeName = "VarBinary";
-    }
+        ProductName = "My Fictional Database",
+        AssemblyName = typeof(SqlConnection).Assembly.FullName,
+        ConnectionType = typeof(SqlConnection),
+        CommandType = typeof(SqlCommand),
+        ParameterType = typeof(SqlParameter),
+        ParameterDbType = typeof(SqlDbType),
+        ParameterDbTypePropertyName = nameof(SqlParameter.SqlDbType),
+        ParameterNamePrefix = "@",
+        ExceptionType = typeof(SqlException),
+        UseParameterNamePrefixInParameterCollection = true,
+        BindByName = true,
+        DbBinaryTypeName = "VarBinary",
+    };
 
     private static NameValueCollection FictionalProviderProperties(string parameterNamePrefix = "@")
     {
@@ -165,11 +165,7 @@ public class DbProviderMetadataTest
             services.AddQuartz(q => q.UsePersistentStore(store => store.UseGenericDatabase(
                 FictionalProvider,
                 ConnectionString,
-                metadata =>
-                {
-                    DescribeFictionalProvider(metadata);
-                    metadata.ParameterNamePrefix = parameterNamePrefix;
-                })));
+                () => DescribeFictionalProvider() with { ParameterNamePrefix = parameterNamePrefix })));
 
             return services.BuildServiceProvider();
         }
@@ -190,11 +186,7 @@ public class DbProviderMetadataTest
         services.AddQuartz(q => q.UsePersistentStore(store => store.UseGenericDatabase(
             "SqlServer",
             ConnectionString,
-            metadata =>
-            {
-                DescribeFictionalProvider(metadata);
-                metadata.ProductName = "Something Else Entirely";
-            })));
+            () => DescribeFictionalProvider() with { ProductName = "Something Else Entirely" })));
 
         using var provider = services.BuildServiceProvider();
 
@@ -212,11 +204,7 @@ public class DbProviderMetadataTest
         services.AddQuartz("reporting", q => q.UsePersistentStore(store => store.UseGenericDatabase(
             "SqlServer",
             ConnectionString,
-            metadata =>
-            {
-                DescribeFictionalProvider(metadata);
-                metadata.ProductName = "Something Else Entirely";
-            })));
+            () => DescribeFictionalProvider() with { ProductName = "Something Else Entirely" })));
 
         using var provider = services.BuildServiceProvider();
 
@@ -246,12 +234,12 @@ public class DbProviderMetadataTest
         // dbBinaryTypeName cannot be resolved without knowing the parameter's db type enum, and finding
         // that out when the first command is built would be far too late.
         var configure = () => new ServiceCollection().AddQuartz(q => q.UsePersistentStore(store =>
-            store.UseGenericDatabase(FictionalProvider, ConnectionString, metadata =>
+            store.UseGenericDatabase(FictionalProvider, ConnectionString, () => new DbMetadata
             {
-                metadata.ProductName = "Half Described";
-                metadata.ConnectionType = typeof(SqlConnection);
-                metadata.CommandType = typeof(SqlCommand);
-                metadata.DbBinaryTypeName = "VarBinary";
+                ProductName = "Half Described",
+                ConnectionType = typeof(SqlConnection),
+                CommandType = typeof(SqlCommand),
+                DbBinaryTypeName = "VarBinary",
             })));
 
         configure.Should().Throw<ArgumentException>();

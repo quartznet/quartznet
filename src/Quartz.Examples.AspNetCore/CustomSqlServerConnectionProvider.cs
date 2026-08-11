@@ -32,12 +32,6 @@ public class CustomSqlServerConnectionProvider : IDbProvider
             ParameterType = typeof(SqlParameter),
             UseParameterNamePrefixInParameterCollection = true
         };
-        Metadata.Initialize();
-    }
-
-    public void Initialize()
-    {
-        logger.LogInformation("Initializing");
     }
 
     public DbCommand CreateCommand()
@@ -50,11 +44,7 @@ public class CustomSqlServerConnectionProvider : IDbProvider
         return new SqlConnection(ConnectionString);
     }
 
-    public string ConnectionString
-    {
-        get => configuration.GetConnectionString("Quartz")!;
-        set => throw new NotImplementedException();
-    }
+    public string ConnectionString => configuration.GetConnectionString("Quartz")!;
 
     public DbMetadata Metadata { get; }
 

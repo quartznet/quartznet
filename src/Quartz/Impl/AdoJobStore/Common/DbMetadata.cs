@@ -28,134 +28,132 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// create correct types of object instances to interact with the underlying
 /// database.
 /// </summary>
+/// <remarks>
+/// An init-only record: a description is built once — with an object initializer, or copied with a
+/// <c>with</c> expression — and cannot drift afterwards. The two derived members
+/// (<see cref="DbBinaryType" /> and <see cref="ParameterDbTypeProperty" />) compute from the described
+/// values, replacing the old two-phase <c>Initialize()</c> that had to be remembered.
+/// </remarks>
 /// <author>Marko Lahma</author>
-public sealed class DbMetadata
+public sealed record DbMetadata
 {
-    private string parameterDbTypePropertyName = null!;
-
-    private string? dbBinaryTypeName;
-    private Enum? dbBinaryType;
+    /// <summary>Gets the name of the assembly that holds the connection library.</summary>
+    /// <value>The name of the assembly.</value>
+    public string? AssemblyName { get; init; }
 
     /// <summary>
-    /// Initializes this instance. Parses information and initializes startup
-    /// values.
+    /// Gets the name of the product.
     /// </summary>
-    public void Initialize()
+    /// <value>The name of the product.</value>
+    public string? ProductName { get; init; }
+
+    /// <summary>
+    /// Gets the type of the connection.
+    /// </summary>
+    /// <value>The type of the connection.</value>
+    public Type? ConnectionType { get; init; }
+
+    /// <summary>
+    /// Gets the type of the command.
+    /// </summary>
+    /// <value>The type of the command.</value>
+    public Type? CommandType { get; init; }
+
+    /// <summary>
+    /// Gets the type of the parameter.
+    /// </summary>
+    /// <value>The type of the parameter.</value>
+    public Type? ParameterType { get; init; }
+
+    /// <summary>
+    /// Gets the parameter name prefix.
+    /// </summary>
+    /// <value>The parameter name prefix.</value>
+    public string? ParameterNamePrefix { get; init; }
+
+    /// <summary>
+    /// Gets the type of the exception that is thrown when using driver
+    /// library.
+    /// </summary>
+    /// <value>The type of the exception.</value>
+    public Type? ExceptionType { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether parameters are bind by name when using
+    /// ADO.NET parameters.
+    /// </summary>
+    /// <value><c>true</c> if parameters are bind by name; otherwise, <c>false</c>.</value>
+    public bool BindByName { get; init; }
+
+    /// <summary>Gets the type of the database parameters.</summary>
+    /// <value>The type of the parameter db.</value>
+    public Type? ParameterDbType { get; init; }
+
+    /// <summary>
+    /// Gets the property on <see cref="ParameterType" /> named by
+    /// <see cref="ParameterDbTypePropertyName" />, derived from the described values when
+    /// <see cref="DbBinaryTypeName" /> is set.
+    /// </summary>
+    /// <value>The parameter db type property.</value>
+    public PropertyInfo? ParameterDbTypeProperty
     {
-        // parse value to db binary column type
-        if (dbBinaryTypeName is not null)
+        get
         {
-            // not inited yet
+            if (DbBinaryTypeName is null)
+            {
+                return null;
+            }
+
+            PropertyInfo? property = ParameterType?.GetProperty(ParameterDbTypePropertyName);
+            if (property is null)
+            {
+                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
+            }
+
+            return property;
+        }
+    }
+
+    /// <summary>
+    /// Gets the type of the db binary column. This is a string representation of
+    /// Enum element because this information is database driver specific.
+    /// </summary>
+    /// <value>The type of the db binary.</value>
+    public string? DbBinaryTypeName { get; init; }
+
+    /// <summary>Gets the type of the db binary, derived from <see cref="DbBinaryTypeName" />.</summary>
+    /// <value>The type of the db binary.</value>
+    public Enum? DbBinaryType
+    {
+        get
+        {
+            if (DbBinaryTypeName is null)
+            {
+                return null;
+            }
+
             if (ParameterDbType is null || ParameterType is null)
             {
                 Throw.ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
             }
 
-            dbBinaryType = (Enum) Enum.Parse(ParameterDbType, dbBinaryTypeName);
-            ParameterDbTypeProperty = ParameterType.GetProperty(parameterDbTypePropertyName)!;
-            if (ParameterDbTypeProperty is null)
-            {
-                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
-            }
+            return (Enum) Enum.Parse(ParameterDbType, DbBinaryTypeName);
         }
     }
 
-    /// <summary>Gets or sets the name of the assembly that holds the connection library.</summary>
-    /// <value>The name of the assembly.</value>
-    public string? AssemblyName { get; set; }
-
     /// <summary>
-    /// Gets or sets the name of the product.
-    /// </summary>
-    /// <value>The name of the product.</value>
-    public string? ProductName { get; set; }
-
-    /// <summary>
-    /// Gets or sets the type of the connection.
-    /// </summary>
-    /// <value>The type of the connection.</value>
-    public Type? ConnectionType { get; set; }
-
-    /// <summary>
-    /// Gets or sets the type of the command.
-    /// </summary>
-    /// <value>The type of the command.</value>
-    public Type? CommandType { get; set; }
-
-    /// <summary>
-    /// Gets or sets the type of the parameter.
-    /// </summary>
-    /// <value>The type of the parameter.</value>
-    public Type? ParameterType { get; set; }
-
-    /// <summary>
-    /// Gets or sets the parameter name prefix.
-    /// </summary>
-    /// <value>The parameter name prefix.</value>
-    public string? ParameterNamePrefix { get; set; }
-
-    /// <summary>
-    /// Gets or sets the type of the exception that is thrown when using driver
-    /// library.
-    /// </summary>
-    /// <value>The type of the exception.</value>
-    public Type? ExceptionType { get; set; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether parameters are bind by name when using
-    /// ADO.NET parameters.
-    /// </summary>
-    /// <value><c>true</c> if parameters are bind by name; otherwise, <c>false</c>.</value>
-    public bool BindByName { get; set; }
-
-    /// <summary>Gets or sets the type of the database parameters.</summary>
-    /// <value>The type of the parameter db.</value>
-    public Type? ParameterDbType { get; set; }
-
-    /// <summary>
-    /// Gets the parameter db type property.
-    /// </summary>
-    /// <value>The parameter db type property.</value>
-    public PropertyInfo? ParameterDbTypeProperty { get; set; }
-
-    /// <summary>
-    /// Gets the parameter is nullable property.
-    /// </summary>
-    /// <value>The parameter is nullable property.</value>
-    public PropertyInfo? ParameterIsNullableProperty { get; set; }
-
-    /// <summary>
-    /// Gets or sets the type of the db binary column. This is a string representation of
-    /// Enum element because this information is database driver specific.
-    /// </summary>
-    /// <value>The type of the db binary.</value>
-    public string? DbBinaryTypeName
-    {
-        get => dbBinaryTypeName;
-        set => dbBinaryTypeName = value;
-    }
-
-    /// <summary>Gets the type of the db binary.</summary>
-    /// <value>The type of the db binary.</value>
-    public Enum? DbBinaryType => dbBinaryType;
-
-    /// <summary>
-    /// Gets or sets the name of the parameter db type property.
+    /// Gets the name of the parameter db type property.
     /// </summary>
     /// <value>The name of the parameter db type property.</value>
-    public string ParameterDbTypePropertyName
-    {
-        get => parameterDbTypePropertyName;
-        set => parameterDbTypePropertyName = value;
-    }
+    public string ParameterDbTypePropertyName { get; init; } = null!;
 
     /// <summary>
-    /// Gets or sets a value indicating whether [use parameter name prefix in parameter collection].
+    /// Gets a value indicating whether [use parameter name prefix in parameter collection].
     /// </summary>
     /// <value>
     /// 	<c>true</c> if [use parameter name prefix in parameter collection]; otherwise, <c>false</c>.
     /// </value>
-    public bool UseParameterNamePrefixInParameterCollection { get; set; }
+    public bool UseParameterNamePrefixInParameterCollection { get; init; }
 
     /// <summary>
     /// Gets the name of the parameter which includes the parameter prefix for this
@@ -165,5 +163,15 @@ public sealed class DbMetadata
     public string GetParameterName(string parameterName)
     {
         return ParameterNamePrefix + parameterName;
+    }
+
+    /// <summary>
+    /// Derives the computed members once so that a description that cannot work fails where the
+    /// description is made rather than when the first binary parameter is bound.
+    /// </summary>
+    internal void Validate()
+    {
+        _ = DbBinaryType;
+        _ = ParameterDbTypeProperty;
     }
 }

@@ -408,7 +408,7 @@ public class QuartSchedulerBenchmark
     {
         var job = new Job();
         var jobDetail = CreateJobDetail("A", job.GetType());
-        var triggerFiredBundle = new TriggerFiredBundle(jobDetail, trigger, null, false, DateTimeOffset.Now, null, null, null);
+        var triggerFiredBundle = new TriggerFiredBundle { JobDetail = jobDetail, Trigger = trigger, Recovering = false, FireTimeUtc = DateTimeOffset.Now, ScheduledFireTimeUtc = null, PreviousFireTimeUtc = null, NextFireTimeUtc = null };
 
         return new JobExecutionContextImpl(scheduler, triggerFiredBundle, job);
     }

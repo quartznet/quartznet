@@ -31,11 +31,6 @@ namespace Quartz.Impl.AdoJobStore.Common;
 public interface IDbProvider
 {
     /// <summary>
-    /// Initializes the db provider implementation.
-    /// </summary>
-    void Initialize();
-
-    /// <summary>
     /// Returns a new command object for executing SQL statements/Stored Procedures
     /// against the database.
     /// </summary>
@@ -49,9 +44,10 @@ public interface IDbProvider
     DbConnection CreateConnection();
 
     /// <summary>
-    /// Connection string used to create connections.
+    /// Connection string used to create connections. Arrives through the implementation's
+    /// constructor; a provider is fully usable once constructed.
     /// </summary>
-    string ConnectionString { set; get; }
+    string ConnectionString { get; }
 
     /// <summary>
     /// The database metadata for the provider.

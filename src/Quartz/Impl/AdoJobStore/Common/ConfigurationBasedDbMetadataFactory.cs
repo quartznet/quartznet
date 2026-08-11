@@ -68,7 +68,7 @@ internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
             DbMetadata metadata = new DbMetadata();
 
             ObjectUtils.SetObjectProperties(metadata, props);
-            metadata.Initialize();
+            metadata.Validate();
 
             return metadata;
         }

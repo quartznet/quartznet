@@ -123,6 +123,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `MakeThreadsDaemons` | bool | `false` | Runs the store's background threads as background threads. |
 | `PerformSchemaValidation` | bool | `true` | Verifies the expected tables exist at startup. |
 | `SelectWithLockSql` | string? | none | Overrides the row-lock statement. |
+| `OpenConnection` | bool | `false` | Whether `ExternalTransactionJobStore` opens the connections it creates; read only by that store. |
 
 A custom trigger persistence delegate is registered with
 `UsePersistentStore(s => s.UseTriggerPersistenceDelegate<T>())` rather than through an option; the
@@ -161,20 +162,20 @@ and which enum value means "binary column". Quartz ships descriptions for the dr
 listed above. For anything else, describe the driver in the `UseGenericDatabase` call:
 
 ```csharp
-store.UseGenericDatabase("MyDatabase", connectionString, metadata =>
+store.UseGenericDatabase("MyDatabase", connectionString, () => new DbMetadata
 {
-    metadata.ProductName = "My Database";
-    metadata.AssemblyName = typeof(MyConnection).Assembly.FullName;
-    metadata.ConnectionType = typeof(MyConnection);
-    metadata.CommandType = typeof(MyCommand);
-    metadata.ParameterType = typeof(MyParameter);
-    metadata.ParameterDbType = typeof(MyDbType);
-    metadata.ParameterDbTypePropertyName = nameof(MyParameter.MyDbType);
-    metadata.ParameterNamePrefix = "@";
-    metadata.ExceptionType = typeof(MyException);
-    metadata.UseParameterNamePrefixInParameterCollection = true;
-    metadata.BindByName = true;
-    metadata.DbBinaryTypeName = "VarBinary";
+    ProductName = "My Database",
+    AssemblyName = typeof(MyConnection).Assembly.FullName,
+    ConnectionType = typeof(MyConnection),
+    CommandType = typeof(MyCommand),
+    ParameterType = typeof(MyParameter),
+    ParameterDbType = typeof(MyDbType),
+    ParameterDbTypePropertyName = nameof(MyParameter.MyDbType),
+    ParameterNamePrefix = "@",
+    ExceptionType = typeof(MyException),
+    UseParameterNamePrefixInParameterCollection = true,
+    BindByName = true,
+    DbBinaryTypeName = "VarBinary",
 });
 ```
 

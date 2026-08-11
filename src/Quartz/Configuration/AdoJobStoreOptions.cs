@@ -129,4 +129,11 @@ public sealed class AdoJobStoreOptions
     /// Overrides the SQL statement used to acquire the row lock.
     /// </summary>
     public string? SelectWithLockSql { get; set; }
+
+    /// <summary>
+    /// Whether <see cref="Impl.AdoJobStore.ExternalTransactionJobStore" /> opens the connections it
+    /// creates before handing them to an operation. Defaults to <see langword="false" />, leaving the
+    /// opening to the externally managed transaction. Read only by that store.
+    /// </summary>
+    public bool OpenConnection { get; set; }
 }

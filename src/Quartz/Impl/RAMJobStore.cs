@@ -2349,15 +2349,17 @@ public sealed class RAMJobStore : IJobStore
                 tw.state = StoredTriggerState.Waiting;
 
                 var jobDetail = jobWrapper.JobDetail.Clone();
-                TriggerFiredBundle bndle = new TriggerFiredBundle(
-                    jobDetail,
-                    trigger,
-                    calendar,
-                    jobIsRecovering: false,
-                    timeProvider.GetUtcNow(),
-                    scheduledFireTime ?? trigger.PreviousFireTimeUtc,
-                    prevFireTime,
-                    trigger.NextFireTimeUtc);
+                TriggerFiredBundle bndle = new TriggerFiredBundle
+                {
+                    JobDetail = jobDetail,
+                    Trigger = trigger,
+                    Calendar = calendar,
+                    Recovering = false,
+                    FireTimeUtc = timeProvider.GetUtcNow(),
+                    ScheduledFireTimeUtc = scheduledFireTime ?? trigger.PreviousFireTimeUtc,
+                    PreviousFireTimeUtc = prevFireTime,
+                    NextFireTimeUtc = trigger.NextFireTimeUtc,
+                };
 
                 IJobDetail job = bndle.JobDetail;
 

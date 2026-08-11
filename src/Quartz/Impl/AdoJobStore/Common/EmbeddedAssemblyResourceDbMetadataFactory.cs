@@ -73,7 +73,7 @@ internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFact
             DbMetadata metadata = new DbMetadata();
 
             ObjectUtils.SetObjectProperties(metadata, props);
-            metadata.Initialize();
+            metadata.Validate();
 
             return metadata;
         }
