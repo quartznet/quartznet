@@ -482,22 +482,18 @@ public sealed class JobDataMap : IDictionary<string, object?>, IReadOnlyDictiona
     }
 
     /// <summary>
-    /// A content-based hash, consistent with <see cref="Equals(JobDataMap?)" />: equal maps hash equally.
+    /// A constant, consistent with <see cref="Equals(JobDataMap?)" />: equal maps trivially hash
+    /// equally.
     /// </summary>
     /// <remarks>
-    /// The map is mutable, so its hash changes when its content does; do not mutate a map that is a key
-    /// in a hash-based collection.
+    /// The map is mutable, so no hash derived from its content can honor the contract that an
+    /// object's hash never changes while it sits in a hash-keyed collection — a map mutated after
+    /// insertion would move out of reach of its own bucket and the entry would be silently lost.
+    /// With a constant, hash-keyed use of maps degrades to an Equals scan instead of corrupting.
     /// </remarks>
     public override int GetHashCode()
     {
-        // XOR keeps the hash independent of enumeration order.
-        int hash = 0;
-        foreach (KeyValuePair<string, object?> pair in map)
-        {
-            hash ^= HashCode.Combine(pair.Key, pair.Value);
-        }
-
-        return hash;
+        return typeof(JobDataMap).GetHashCode();
     }
 
     internal JobDataMap Clone()

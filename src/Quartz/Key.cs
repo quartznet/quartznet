@@ -27,7 +27,13 @@ namespace Quartz;
 /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
+// S4035 (seal classes implementing IEquatable<T>): the base cannot seal — JobKey and TriggerKey
+// derive from it — and cannot drop IEquatable without breaking the public surface. The hazard the
+// rule guards against does not arise: Equals demands exact runtime-type equality, so no derived
+// key ever compares equal across types, and the sealed leaves define consistent typed overloads.
+#pragma warning disable S4035
 public class Key<T> : IComparable<Key<T>>, IEquatable<Key<T>>
+#pragma warning restore S4035
 {
     /// <summary>
     /// The default group for scheduling entities, with the value "DEFAULT".
@@ -98,6 +104,10 @@ public class Key<T> : IComparable<Key<T>>, IEquatable<Key<T>>
     }
 
 
+    // S2328 (no mutable fields in GetHashCode): the field is a memo over the readonly name and
+    // group, so the value a hash-keyed collection observes can never change; it cannot be an
+    // eagerly-computed readonly field because binary deserialization bypasses constructors.
+#pragma warning disable S2328
     public override int GetHashCode()
     {
         int result = hash;
@@ -110,6 +120,7 @@ public class Key<T> : IComparable<Key<T>>, IEquatable<Key<T>>
 
         return result;
     }
+#pragma warning restore S2328
 
     public bool Equals(Key<T>? other)
     {
