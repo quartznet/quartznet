@@ -8,7 +8,14 @@ namespace Quartz;
 /// <summary>
 /// Store the Job Type and FullName for serialization
 /// </summary>
-public sealed class JobType
+/// <remarks>
+/// A <see cref="System.Type" /> converts implicitly — that construction validates the type
+/// implements <see cref="IJob" /> and cannot fail later. A string converts only explicitly (or via
+/// the constructor), because a name is unvalidated at construction: resolving it happens on first
+/// use of <see cref="Type" /> and can throw there. Two instances are equal when their
+/// <see cref="FullName" /> is equal.
+/// </remarks>
+public sealed class JobType : IEquatable<JobType>
 {
     /// <summary>
     /// How a name becomes a type when the caller had nothing better to offer: the runtime's own lookup.
@@ -118,7 +125,7 @@ public sealed class JobType
     /// permanently unresolvable. A speculative caller must not be able to poison the real one.
     /// </para>
     /// </remarks>
-    internal bool TryResolve([NotNullWhen(true)] out Type? resolved)
+    public bool TryResolve([NotNullWhen(true)] out Type? resolved)
     {
         if (declaredType is not null)
         {
@@ -155,18 +162,40 @@ public sealed class JobType
         return jobType.AssemblyQualifiedNameWithoutVersion();
     }
 
-    public static implicit operator Type(JobType jobType) => jobType.Type;
+    /// <summary>
+    /// The validated direction: construction from a <see cref="System.Type" /> checks
+    /// <see cref="IJob" /> assignability and the conversion cannot fail later.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="type"/> does not implement <see cref="IJob"/>.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is <see langword="null" />.</exception>
+    public static implicit operator JobType(Type type) => new(type);
 
-    public static implicit operator JobType(string fullName) => new(fullName);
+    /// <summary>
+    /// Explicit on purpose: a name is accepted unvalidated, and resolving it is deferred to the
+    /// first use of <see cref="Type" /> — which is where a bad name fails. The cast makes the leap
+    /// of faith visible at the call site.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="fullName"/> is <see langword="null" />.</exception>
+    public static explicit operator JobType(string fullName) => new(fullName);
 
-    private bool Equals(JobType other)
+    public bool Equals(JobType? other)
     {
-        return FullName == other.FullName;
+        return other is not null && (ReferenceEquals(this, other) || FullName == other.FullName);
     }
 
     public override bool Equals(object? obj)
     {
-        return ReferenceEquals(this, obj) || obj is JobType other && Equals(other);
+        return Equals(obj as JobType);
+    }
+
+    public static bool operator ==(JobType? left, JobType? right)
+    {
+        return left is null ? right is null : left.Equals(right);
+    }
+
+    public static bool operator !=(JobType? left, JobType? right)
+    {
+        return !(left == right);
     }
 
     public override string ToString()

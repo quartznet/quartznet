@@ -2012,7 +2012,7 @@ IReadOnlyCollection<JobKey> keys = await scheduler.GetJobKeys(GroupMatcher<JobKe
 foreach (JobKey key in keys)
 {
     IJobDetail? detail = await scheduler.GetJobDetail(key); // one round trip each
-    Console.WriteLine($"{key} -> {detail?.JobType.Name}");
+    Console.WriteLine($"{key} -> {detail?.JobType.FullName}");
 }
 ```
 
@@ -4468,7 +4468,8 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 |--------|---------|
 | `SimpleTriggerImpl` `endUtc` no longer nullable | The constructor argument is now required |
 | `QuartzScheduler` and `QuartzSchedulerResources` are internal | Resolve `IScheduler` / `ISchedulerFactory`; scheduler-wide settings are `QuartzSchedulerOptions` |
-| `JobType` introduced | Stores job type info without requiring an actual `Type` instance |
+| `JobType` introduced | Stores job type info without requiring an actual `Type` instance. A `Type` converts implicitly (validated: it must implement `IJob`); a string converts only explicitly or via the constructor, because resolving the name is deferred and can fail — `Type` throws for a name that does not resolve, `TryResolve` is the non-throwing probe. Equality (`Equals`, `==`/`!=`) is by `FullName`. There is deliberately **no** implicit conversion back to `Type`: `jobDetail.JobType.Type` spells out that assembly probing may happen, and can throw, at that read |
+| `JobBuilder.OfType(JobType)` added | Carries a stored type name and its resolver through a rebuild without forcing the name to resolve; `OfType(string)` constructs an unvalidated `JobType` for the same reason |
 | `RecoveringTriggerKey` behavior | `IJobExecutionContext.RecoveringTriggerKey` now returns `null` when not recovering instead of throwing |
 | `DictionaryExtensions` removed | `Quartz.Util.DictionaryExtensions` type was removed |
 | `JobStoreSupport` connection methods | `GetLocalTransactionConnection` (was `GetNonManagedTXConnection`) and `GetConnection` now return `ValueTask<ConnectionAndTransactionHolder>` |

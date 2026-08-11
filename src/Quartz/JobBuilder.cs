@@ -287,7 +287,7 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
     /// <returns>the updated JobBuilder</returns>
     public JobBuilder<TJob> OfType(string typeName)
     {
-        _jobType = typeName;
+        _jobType = new JobType(typeName);
         return this;
     }
 
@@ -301,8 +301,9 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
     /// </remarks>
     /// <param name="jobType">the job type, with whatever resolution it was constructed with</param>
     /// <returns>the updated JobBuilder</returns>
-    internal JobBuilder<TJob> OfType(JobType jobType)
+    public JobBuilder<TJob> OfType(JobType jobType)
     {
+        ArgumentNullException.ThrowIfNull(jobType);
         _jobType = jobType;
         return this;
     }
