@@ -185,8 +185,8 @@ public class SmokeTestPerformer
                 // ask scheduler to re-Execute this job if it was in progress when
                 // the scheduler went down...
 
-                var timeZone1 = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
-                var timeZone2 = TimeZoneUtil.FindTimeZoneById("Mountain Standard Time");
+                var timeZone1 = TimeZones.FindById("Central European Standard Time");
+                var timeZone2 = TimeZones.FindById("Mountain Standard Time");
 
                 DailyTimeIntervalTriggerImpl nt = new DailyTimeIntervalTriggerImpl("nth_trig_" + count, schedId, new TimeOnly(1, 1, 1), new TimeOnly(23, 30, 0), IntervalUnit.Hour, 1);
                 nt.StartTimeUtc = DateTime.Now.Date.AddMilliseconds(1000);
@@ -247,7 +247,7 @@ public class SmokeTestPerformer
                     null,
                     null);
 
-                customTimeZoneResolverRegistration = TimeZoneUtil.AddResolver(id =>
+                customTimeZoneResolverRegistration = TimeZones.AddResolver(id =>
                 {
                     if (id == CustomTimeZoneId)
                     {
@@ -747,7 +747,7 @@ internal sealed class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
     {
         base.DeserializeFields(trigger, source);
         ((CustomTrigger) trigger).CronExpressionString = source.Value<string>("CronExpressionString");
-        ((CustomTrigger) trigger).TimeZone = TimeZoneUtil.FindTimeZoneById(source.Value<string>("TimeZone")!);
+        ((CustomTrigger) trigger).TimeZone = TimeZones.FindById(source.Value<string>("TimeZone")!);
         ((CustomTrigger) trigger).SomeCustomProperty = source.Value<bool>("SomeCustomProperty");
     }
 
@@ -779,7 +779,7 @@ internal sealed class CustomSystemTextJsonTriggerSerializer : Serialization.Syst
     {
         base.DeserializeFields(trigger, jsonElement, options);
         ((CustomTrigger) trigger).CronExpressionString = jsonElement.GetProperty("CronExpressionString").GetString();
-        ((CustomTrigger) trigger).TimeZone = TimeZoneUtil.FindTimeZoneById(jsonElement.GetProperty("TimeZone").GetString());
+        ((CustomTrigger) trigger).TimeZone = TimeZones.FindById(jsonElement.GetProperty("TimeZone").GetString());
         ((CustomTrigger) trigger).SomeCustomProperty = jsonElement.GetProperty("SomeCustomProperty").GetBoolean();
     }
 

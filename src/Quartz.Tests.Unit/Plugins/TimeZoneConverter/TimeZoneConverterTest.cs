@@ -11,7 +11,7 @@ public class TimeZoneConverterTest
         await plugin.Initialize("timeZoneConverter", scheduler: null!);
         try
         {
-            TimeZoneUtil.FindTimeZoneById("Canada/Saskatchewan").Should().NotBeNull();
+            TimeZones.FindById("Canada/Saskatchewan").Should().NotBeNull();
         }
         finally
         {
@@ -36,7 +36,7 @@ public class TimeZoneConverterTest
         {
             await schedulerAPlugin.Shutdown();
 
-            TimeZoneUtil.FindTimeZoneById(id).Should().NotBeNull(
+            TimeZones.FindById(id).Should().NotBeNull(
                 "the second scheduler's registration must survive the first scheduler's shutdown");
         }
         finally
@@ -49,7 +49,7 @@ public class TimeZoneConverterTest
 
         if (!IsSystemResolvable(id))
         {
-            Func<TimeZoneInfo> act = () => TimeZoneUtil.FindTimeZoneById(id);
+            Func<TimeZoneInfo> act = () => TimeZones.FindById(id);
             act.Should().Throw<TimeZoneNotFoundException>(
                 "after every scheduler's plugin has shut down, no resolver registration may linger");
         }

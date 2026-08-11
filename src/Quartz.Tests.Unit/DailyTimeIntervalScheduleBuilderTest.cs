@@ -378,7 +378,7 @@ public class DailyTimeIntervalScheduleBuilderTest
     [Test]
     public void TestCanSetTimeZone()
     {
-        TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo est = TimeZones.FindById("Eastern Standard Time");
 
         IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
             .WithDailyTimeIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Hour)

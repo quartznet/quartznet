@@ -196,7 +196,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove time of day is not preserved without setPreserveHourOfDayAcrossDaylightSavings(true)
 
-        var cetTimeZone = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
+        var cetTimeZone = TimeZones.FindById("Central European Standard Time");
         startCalendar = TimeZoneInfo.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
 
         dailyTrigger = new CalendarIntervalTriggerImpl();
@@ -204,20 +204,20 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         dailyTrigger.RepeatIntervalUnit = IntervalUnit.Day;
         dailyTrigger.RepeatInterval = 1; // every day
 
-        targetCalendar = TimeZoneUtil.ConvertTime(startCalendar, cetTimeZone);
+        targetCalendar = TimeZones.ConvertTime(startCalendar, cetTimeZone);
         targetCalendar = targetCalendar.AddDays(2); // jump 2 days (2 intervals)
 
         fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
 
         testTime = fireTimes[2]; // get the third fire time
 
-        DateTimeOffset testCal = TimeZoneUtil.ConvertTime(testTime, cetTimeZone);
+        DateTimeOffset testCal = TimeZones.ConvertTime(testTime, cetTimeZone);
 
         Assert.That(testCal.Hour, Is.Not.EqualTo(targetCalendar.Hour), "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
 
         // And again, Pick a day before a spring daylight savings transition... (QTZ-240) - and prove time of day is preserved with setPreserveHourOfDayAcrossDaylightSavings(true)
 
-        startCalendar = TimeZoneUtil.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
+        startCalendar = TimeZones.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
 
         dailyTrigger = new CalendarIntervalTriggerImpl();
         dailyTrigger.StartTimeUtc = startCalendar;
@@ -232,7 +232,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         testTime = fireTimes[1]; // get the second fire time
 
-        testCal = TimeZoneUtil.ConvertTime(testTime, cetTimeZone);
+        testCal = TimeZones.ConvertTime(testTime, cetTimeZone);
 
         Assert.That(testCal.Hour, Is.EqualTo(targetCalendar.Hour), "Day increment time-of-day result not as expected over spring 2011 daylight savings transition.");
 
@@ -326,7 +326,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestTimeZoneTransition()
     {
-        TimeZoneInfo timeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo timeZone = TimeZones.FindById("Eastern Standard Time");
 
         CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl("trigger", IntervalUnit.Day, 1)
         {
@@ -353,7 +353,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestSkipDayIfItDoesNotExists()
     {
-        TimeZoneInfo timeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo timeZone = TimeZones.FindById("Eastern Standard Time");
 
         //March 11, 2012, EST DST starts at 2am and jumps to 3.
         // 3/11/2012 2:00:00 AM is an invalid time
@@ -456,7 +456,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestSkipDayIfItDoesNotExistsIsFalse()
     {
-        TimeZoneInfo timeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo timeZone = TimeZones.FindById("Eastern Standard Time");
 
         //March 11, 2012, EST DST starts at 2am and jumps to 3.
         // 3/11/2012 2:00:00 AM is an invalid time
@@ -570,7 +570,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestStartTimeOnDayInDifferentOffset()
     {
-        TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo est = TimeZones.FindById("Eastern Standard Time");
         DateTimeOffset startDate = new DateTimeOffset(2012, 3, 11, 12, 0, 0, TimeSpan.FromHours(-5));
 
         CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl
@@ -594,7 +594,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestMovingAcrossDSTAvoidsInfiniteLoop()
     {
-        TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo est = TimeZones.FindById("Eastern Standard Time");
         DateTimeOffset startDate = new DateTimeOffset(1990, 10, 27, 0, 0, 0, TimeSpan.FromHours(-4));
 
         CalendarIntervalTriggerImpl t = new CalendarIntervalTriggerImpl
@@ -634,8 +634,8 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestCrossingDSTBoundary()
     {
-        TimeZoneInfo cetTimeZone = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
-        DateTimeOffset startCalendar = TimeZoneUtil.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
+        TimeZoneInfo cetTimeZone = TimeZones.FindById("Central European Standard Time");
+        DateTimeOffset startCalendar = TimeZones.ConvertTime(new DateTime(2011, 3, 26, 4, 0, 0), cetTimeZone);
 
         CalendarIntervalTriggerImpl dailyTrigger = new CalendarIntervalTriggerImpl();
         dailyTrigger.StartTimeUtc = startCalendar;
@@ -659,7 +659,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestPreserveHourOfDayAcrossDaylightSavingsNotHanging()
     {
-        TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo est = TimeZones.FindById("Eastern Standard Time");
 
         DateTimeOffset startTime = new DateTimeOffset(2013, 3, 1, 4, 0, 0, TimeSpan.FromHours(-5));
 
@@ -790,7 +790,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         // - Should fire at 2:01 AM on 3/10/2024 (but that time doesn't exist - spring forward)
         // - Quartz correctly sets next fire to 3/10/2024 3:00 AM
         // - When 3:00 AM comes around, the trigger should fire ONCE and compute the next fire time correctly
-        var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
+        var centralTimeZone = TimeZones.FindById("Central Standard Time");
 
         // 2/25/2024 2:01 AM CST (UTC-6)
         var startDate = new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6));
@@ -864,7 +864,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         // This test demonstrates the bug: when a CalendarIntervalTrigger with a weekly interval
         // encounters a DST spring-forward transition where the scheduled time doesn't exist,
         // GetFireTimeAfter() returns the same time repeatedly, causing an infinite loop.
-        var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
+        var centralTimeZone = TimeZones.FindById("Central Standard Time");
 
         // Start 2 weeks before DST (2/25/2024 2:01 AM CST)
         var startDate = new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6));
@@ -907,7 +907,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Description("Variant test with SkipDayIfHourDoesNotExist=true during spring-forward")]
     public void TestWeeklyTriggerSkipsDayDuringSpringForward()
     {
-        var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
+        var centralTimeZone = TimeZones.FindById("Central Standard Time");
 
         // Start 2 weeks before DST transition
         var startDate = new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6));
@@ -953,7 +953,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         // times, so the guarantees the guard existed for are asserted directly: every fire is at
         // the scheduled local time (or the end of a spring-forward gap), strictly increasing, and
         // never at or past EndTimeUtc.
-        var timeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        var timeZone = TimeZones.FindById("Eastern Standard Time");
         var scheduledStart = new DateTime(2024, 2, 25, 2, 1, 0);
         var startDate = new DateTimeOffset(scheduledStart, timeZone.GetUtcOffset(scheduledStart));
         var endDate = startDate.AddDays(30); // spans the 2024-03-10 spring-forward transition
@@ -1001,7 +1001,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Description("Daily interval trigger should not loop infinitely during spring-forward DST transition")]
     public void TestDailyTriggerDoesNotFireInfinitelyDuringSpringForward()
     {
-        var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
+        var centralTimeZone = TimeZones.FindById("Central Standard Time");
 
         // Start a few days before DST spring-forward (3/10/2024)
         var startDate = new DateTimeOffset(2024, 3, 7, 2, 1, 0, TimeSpan.FromHours(-6));
@@ -1046,7 +1046,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Description("Monthly interval trigger should not loop infinitely during spring-forward DST transition")]
     public void TestMonthlyTriggerDoesNotFireInfinitelyDuringSpringForward()
     {
-        var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
+        var centralTimeZone = TimeZones.FindById("Central Standard Time");
 
         // Start on 1/10/2024 at 2:01 AM CST - the March fire lands on 3/10 (DST day)
         var startDate = new DateTimeOffset(2024, 1, 10, 2, 1, 0, TimeSpan.FromHours(-6));
@@ -1091,7 +1091,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     {
         // EU DST spring-forward: last Sunday of March, clocks go from 2:00 AM to 3:00 AM CET to CEST
         // In 2024, this is March 31
-        var cetTimeZone = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
+        var cetTimeZone = TimeZones.FindById("Central European Standard Time");
 
         // Start 2 weeks before EU DST (3/17/2024 2:01 AM CET)
         var startDate = new DateTimeOffset(2024, 3, 17, 2, 1, 0, TimeSpan.FromHours(1));

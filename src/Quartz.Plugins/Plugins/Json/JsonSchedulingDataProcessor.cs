@@ -377,7 +377,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             throw new SchedulerConfigException($"JSON trigger '{triggerName}': invalid cron expression '{cron.Expression}'. {ex.Message}", ex);
         }
 
-        if (cron.TimeZone is not null) builder.InTimeZone(TimeZoneUtil.FindTimeZoneById(cron.TimeZone));
+        if (cron.TimeZone is not null) builder.InTimeZone(TimeZones.FindById(cron.TimeZone));
         if (cron.MisfireInstruction is not null) builder.WithMisfireInstruction((CronTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.Cron, cron.MisfireInstruction, logger));
         return builder;
     }
@@ -404,7 +404,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             builder.OnDaysOfTheWeek(days);
         }
 
-        if (daily.TimeZone is not null) builder.InTimeZone(TimeZoneUtil.FindTimeZoneById(daily.TimeZone));
+        if (daily.TimeZone is not null) builder.InTimeZone(TimeZones.FindById(daily.TimeZone));
 
         if (daily.MisfireInstruction is not null)
         {

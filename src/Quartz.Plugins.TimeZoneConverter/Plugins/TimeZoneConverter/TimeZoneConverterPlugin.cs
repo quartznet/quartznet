@@ -41,7 +41,7 @@ public class TimeZoneConverterPlugin : ISchedulerPlugin
         IScheduler scheduler,
         CancellationToken cancellationToken = default)
     {
-        resolverRegistration = TimeZoneUtil.AddResolver(
+        resolverRegistration = TimeZones.AddResolver(
             static id => TZConvert.TryGetTimeZoneInfo(id, out TimeZoneInfo? timeZoneInfo) ? timeZoneInfo : null);
 
         return default;

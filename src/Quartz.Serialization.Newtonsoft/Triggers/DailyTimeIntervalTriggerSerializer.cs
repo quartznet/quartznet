@@ -18,7 +18,7 @@ public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<DailyTimeInt
         var startTimeOfDay = source.Value<JObject>("StartTimeOfDay")!.GetTimeOfDay();
         var endTimeOfDay = source.Value<JObject>("EndTimeOfDay")!.GetTimeOfDay();
         var daysOfWeek = source.Value<JArray>("DaysOfWeek")!.Select(x => (DayOfWeek) Enum.Parse(typeof(DayOfWeek), x.Value<string>()!)).ToArray();
-        var timeZone = TimeZoneUtil.FindTimeZoneById(source.Value<string>("TimeZone")!);
+        var timeZone = TimeZones.FindById(source.Value<string>("TimeZone")!);
 
         return DailyTimeIntervalScheduleBuilder.Create()
             .WithRepeatCount(repeatCount)

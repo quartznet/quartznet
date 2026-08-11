@@ -783,7 +783,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
             return false;
         }
 
-        DateTimeOffset p = TimeZoneUtil.ConvertTime(fta.Value, TimeZone);
+        DateTimeOffset p = TimeZones.ConvertTime(fta.Value, TimeZone);
 
         if (dayOnly)
         {

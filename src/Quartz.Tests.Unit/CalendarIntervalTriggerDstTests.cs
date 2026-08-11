@@ -141,7 +141,7 @@ public class CalendarIntervalTriggerDstTests
             .ToList();
 
         // 01:30 happens twice on 2024-11-03. The trigger fires once, and on the first (daylight, -04:00)
-        // occurrence, because the re-anchoring goes through TimeZoneUtil.GetUtcOffset(DateTime, ...)
+        // occurrence, because the re-anchoring goes through TimeZones.GetUtcOffset(DateTime, ...)
         // which resolves an ambiguous wall-clock time to the daylight offset.
         onTransitionDay.Should().Equal(TestTimeZones.Local("2024-11-03 01:30 -04:00"));
 
@@ -236,7 +236,7 @@ public class CalendarIntervalTriggerDstTests
     /// <summary>
     /// When the preserved wall-clock time is itself the ambiguous one, the trigger fires on the first
     /// (daylight) occurrence of it, not the second. The re-anchoring resolves the local time through
-    /// <c>TimeZoneUtil.GetUtcOffset(DateTime, ...)</c>, which prefers the daylight offset.
+    /// <c>TimeZones.GetUtcOffset(DateTime, ...)</c>, which prefers the daylight offset.
     /// </summary>
     [Test]
     public void PreserveHour_AmbiguousScheduledHour_Sydney_PicksFirstOccurrence()

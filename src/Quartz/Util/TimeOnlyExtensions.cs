@@ -35,7 +35,7 @@ internal static class TimeOnlyExtensions
     /// The returned value inherits the offset carried by <paramref name="dateTime" /> without
     /// consulting any time zone. Around a daylight saving transition that inherited offset can be
     /// wrong for the produced wall-clock time (see #3190), so callers that cross transitions must
-    /// re-resolve the result, for example with <see cref="TimeZoneUtil.ResolveLocal" />.
+    /// re-resolve the result, for example with <see cref="TimeZones.ResolveLocal" />.
     /// </remarks>
     internal static DateTimeOffset OnDate(this TimeOnly timeOfDay, DateTimeOffset dateTime)
     {

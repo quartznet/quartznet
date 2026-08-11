@@ -55,7 +55,7 @@ internal sealed class CalendarConverter(NewtonsoftJsonSerializerRegistry registr
         if (calendar is BaseCalendar target)
         {
             target.Description = jObject["Description"]!.Value<string>();
-            target.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>()!);
+            target.TimeZone = TimeZones.FindById(jObject["TimeZoneId"]!.Value<string>()!);
             var baseCalendar = jObject["BaseCalendar"]!.Value<JObject>();
             if (baseCalendar is not null)
             {

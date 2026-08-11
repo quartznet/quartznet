@@ -185,7 +185,7 @@ public sealed class MonthlyCalendar : BaseCalendar
             return false;
         }
 
-        timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone); //apply the timezone
+        timeStampUtc = TimeZones.ConvertTime(timeStampUtc, TimeZone); //apply the timezone
 
         return !excludeDays.Contains(timeStampUtc.Day);
     }
@@ -213,7 +213,7 @@ public sealed class MonthlyCalendar : BaseCalendar
         }
 
         //apply the timezone
-        timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
+        timeUtc = TimeZones.ConvertTime(timeUtc, TimeZone);
 
         // Get timestamp for 00:00:00, in the correct timezone offset
         DateTimeOffset newTimeStamp = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);

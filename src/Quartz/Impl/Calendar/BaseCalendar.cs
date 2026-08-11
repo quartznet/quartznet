@@ -123,7 +123,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
                 var timeZoneId = (string) info.GetValue(prefix + "timeZoneId", typeof(string))!;
                 if (!string.IsNullOrEmpty(timeZoneId))
                 {
-                    timeZone = TimeZoneUtil.FindTimeZoneById(timeZoneId);
+                    timeZone = TimeZones.FindById(timeZoneId);
                 }
                 break;
             default:

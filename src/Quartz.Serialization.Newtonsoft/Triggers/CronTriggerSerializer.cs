@@ -10,7 +10,7 @@ public class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
     public override IScheduleBuilder CreateScheduleBuilder(JObject source)
     {
         var cronExpressionString = source.Value<string>("CronExpressionString")!;
-        var timeZone = TimeZoneUtil.FindTimeZoneById(source.Value<string>("TimeZone")!);
+        var timeZone = TimeZones.FindById(source.Value<string>("TimeZone")!);
 
         return CronScheduleBuilder.Create(cronExpressionString)
             .InTimeZone(timeZone);

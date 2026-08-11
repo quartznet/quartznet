@@ -13,7 +13,7 @@ public class CalendarIntervalTriggerSerializer : TriggerSerializer<CalendarInter
     {
         var repeatIntervalUnit = source["RepeatIntervalUnit"]!.ToObject<IntervalUnit>();
         var repeatInterval = source.Value<int>("RepeatInterval");
-        var timeZone = TimeZoneUtil.FindTimeZoneById(source.Value<string>("TimeZone")!);
+        var timeZone = TimeZones.FindById(source.Value<string>("TimeZone")!);
         var preserveHourOfDayAcrossDaylightSavings = source.Value<bool>("PreserveHourOfDayAcrossDaylightSavings");
         var skipDayIfHourDoesNotExist = source.Value<bool>("SkipDayIfHourDoesNotExist");
 

@@ -121,7 +121,7 @@ public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICale
     [Test]
     public void TestAnnualCalendarTimeZone()
     {
-        TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo tz = TimeZones.FindById("Eastern Standard Time");
         AnnualCalendar c = new AnnualCalendar();
         c.TimeZone = tz;
 

@@ -366,7 +366,7 @@ public sealed class CronExpression : ISerializable
                 var timeZoneId = info.GetValue<string>("timeZoneId")!;
                 if (!string.IsNullOrEmpty(timeZoneId))
                 {
-                    timeZone = TimeZoneUtil.FindTimeZoneById(timeZoneId);
+                    timeZone = TimeZones.FindById(timeZoneId);
                 }
 
                 break;
@@ -2413,7 +2413,7 @@ public sealed class CronExpression : ISerializable
         var afterTimeUtcFloor = d;
 
         // change to specified time zone
-        d = TimeZoneUtil.ConvertTime(d, TimeZone);
+        d = TimeZones.ConvertTime(d, TimeZone);
 
         var nextFireTimeCursor = new NextFireTimeCursor(false, d);
         var foundNextFireTime = false;
@@ -2438,7 +2438,7 @@ public sealed class CronExpression : ISerializable
 
             // apply the proper offset for this date
             var localDateTime = nextFireTimeCursor.Date.Value.DateTime;
-            d = TimeZoneUtil.ResolveLocal(localDateTime, TimeZone);
+            d = TimeZones.ResolveLocal(localDateTime, TimeZone);
             foundNextFireTime = true;
 
             // During DST fall-back transitions an ambiguous local time resolves to its first
@@ -2480,7 +2480,7 @@ public sealed class CronExpression : ISerializable
     /// </remarks>
     private DateTimeOffset ApplySecondAmbiguousPassIfNeeded(DateTimeOffset candidate, DateTimeOffset afterTimeUtcFloor)
     {
-        var afterLocal = TimeZoneUtil.ConvertTime(afterTimeUtcFloor, TimeZone);
+        var afterLocal = TimeZones.ConvertTime(afterTimeUtcFloor, TimeZone);
         DateTime afterWallClock = afterLocal.DateTime;
 
         if (!TimeZone.IsAmbiguousTime(afterWallClock))
@@ -2496,7 +2496,7 @@ public sealed class CronExpression : ISerializable
             return candidate;
         }
 
-        if (!TimeZoneUtil.TryGetAmbiguousWindow(afterWallClock, TimeZone, out DateTime windowStart, out _))
+        if (!TimeZones.TryGetAmbiguousWindow(afterWallClock, TimeZone, out DateTime windowStart, out _))
         {
             return candidate;
         }

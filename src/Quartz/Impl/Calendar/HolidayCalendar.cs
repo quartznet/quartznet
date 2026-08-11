@@ -154,7 +154,7 @@ public sealed class HolidayCalendar : BaseCalendar
     private bool IsTimeIncludedThisCalendar(DateTimeOffset timeStampUtc)
     {
         // apply the timezone
-        timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone);
+        timeStampUtc = TimeZones.ConvertTime(timeStampUtc, TimeZone);
         return !dates.Contains(DateOnly.FromDateTime(timeStampUtc.Date));
     }
 
@@ -175,7 +175,7 @@ public sealed class HolidayCalendar : BaseCalendar
         }
 
         //apply the timezone
-        timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
+        timeUtc = TimeZones.ConvertTime(timeUtc, TimeZone);
 
         // Get timestamp for 00:00:00, with the correct timezone offset
         DateTimeOffset day = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);

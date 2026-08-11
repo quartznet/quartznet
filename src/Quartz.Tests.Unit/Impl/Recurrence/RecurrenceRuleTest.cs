@@ -501,7 +501,7 @@ public class RecurrenceRuleTest
     {
         // US Eastern: March 9, 2025, 2:00 AM doesn't exist (clocks jump to 3:00 AM)
         RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY");
-        TimeZoneInfo eastern = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo eastern = TimeZones.FindById("Eastern Standard Time");
         // Start at 2:30 AM local
         DateTimeOffset start = new DateTimeOffset(2025, 3, 8, 7, 30, 0, TimeSpan.Zero); // 2:30 AM EST = 7:30 UTC
         DateTimeOffset after = start;
@@ -519,7 +519,7 @@ public class RecurrenceRuleTest
     {
         // US Eastern: Nov 2, 2025, 1:30 AM exists twice (clocks fall back at 2:00 AM)
         RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY");
-        TimeZoneInfo eastern = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo eastern = TimeZones.FindById("Eastern Standard Time");
         // Start at 1:30 AM local on Nov 1
         DateTimeOffset start = new DateTimeOffset(2025, 11, 1, 5, 30, 0, TimeSpan.Zero); // 1:30 AM EDT = 5:30 UTC
         DateTimeOffset after = start;

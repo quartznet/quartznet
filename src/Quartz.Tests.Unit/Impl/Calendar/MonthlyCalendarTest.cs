@@ -77,7 +77,7 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
     [Test]
     public void TestTimeZone()
     {
-        TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo tz = TimeZones.FindById("Eastern Standard Time");
         MonthlyCalendar monthlyCalendar = new MonthlyCalendar();
         monthlyCalendar.TimeZone = tz;
 

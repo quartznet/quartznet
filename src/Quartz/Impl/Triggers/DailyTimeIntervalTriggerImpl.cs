@@ -594,7 +594,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
 
     private DateTimeOffset CreateCalendarTime(DateTimeOffset dateTime)
     {
-        return TimeZoneUtil.ConvertTime(dateTime, TimeZone);
+        return TimeZones.ConvertTime(dateTime, TimeZone);
     }
 
     /// <summary>
@@ -650,7 +650,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         }
 
         // now change to local time zone
-        afterTime = TimeZoneUtil.ConvertTime(afterTime.Value, TimeZone);
+        afterTime = TimeZones.ConvertTime(afterTime.Value, TimeZone);
 
         // b.Check to see if afterTime is after endTimeOfDay or not.
         // If yes, then we need to advance to next day as well.
@@ -669,13 +669,13 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         DateTimeOffset fireTimeEndDate = endTimeOfDay.OnDate(fireTime.Value);
 
         // apply the proper offset for the end date
-        fireTimeEndDate = TimeZoneUtil.ResolveLocal(fireTimeEndDate.DateTime, TimeZone);
+        fireTimeEndDate = TimeZones.ResolveLocal(fireTimeEndDate.DateTime, TimeZone);
 
         // e. Check fireTime against startTime or startTimeOfDay to see which go first.
         DateTimeOffset fireTimeStartDate = startTimeOfDay.OnDate(fireTime.Value);
 
         // apply the proper offset for the start date
-        fireTimeStartDate = TimeZoneUtil.ResolveLocal(fireTimeStartDate.DateTime, TimeZone);
+        fireTimeStartDate = TimeZones.ResolveLocal(fireTimeStartDate.DateTime, TimeZone);
 
         if (fireTime < fireTimeStartDate)
         {
@@ -684,7 +684,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
 
         // f. Continue to calculate the fireTime by incremental unit of intervals.
         // recall that if fireTime was less that fireTimeStartDate, we didn't get this far
-        DateTimeOffset startOfDayUtc = TimeZoneUtil.ConvertTime(fireTimeStartDate, TimeZone);
+        DateTimeOffset startOfDayUtc = TimeZones.ConvertTime(fireTimeStartDate, TimeZone);
         long secondsAfterStart = (long) (fireTime.Value - startOfDayUtc).TotalSeconds;
         long repeatLong = RepeatInterval;
 
@@ -700,7 +700,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             }
 
             sTime = sTime.AddSeconds(RepeatInterval * (int) jumpCount);
-            fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
+            fireTime = TimeZones.ConvertTime(sTime, TimeZone);
         }
         else if (repeatUnit == IntervalUnit.Minute)
         {
@@ -710,7 +710,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
                 jumpCount++;
             }
             sTime = sTime.AddMinutes(RepeatInterval * (int) jumpCount);
-            fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
+            fireTime = TimeZones.ConvertTime(sTime, TimeZone);
         }
         else if (repeatUnit == IntervalUnit.Hour)
         {
@@ -720,7 +720,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
                 jumpCount++;
             }
             sTime = sTime.AddHours(RepeatInterval * (int) jumpCount);
-            fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
+            fireTime = TimeZones.ConvertTime(sTime, TimeZone);
         }
 
         // g. Check if we've exceeded the per-day repeat count.
@@ -753,7 +753,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
 
             if (expectedLocalTime.Date != fireTime.Value.DateTime.Date)
             {
-                DateTimeOffset corrected = TimeZoneUtil.ResolveLocal(expectedLocalTime, TimeZone);
+                DateTimeOffset corrected = TimeZones.ResolveLocal(expectedLocalTime, TimeZone);
 
                 // GetFireTimeAfter must never move backwards
                 if (corrected > fireTime.Value)
@@ -797,7 +797,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
 
         // For a local time that does not exist (skipped by a spring-forward transition) the resolved
         // offset is the one from before the transition, which lands on the first instant that does exist.
-        return TimeZoneUtil.ResolveLocal(startOfDay.Value.DateTime, TimeZone);
+        return TimeZones.ResolveLocal(startOfDay.Value.DateTime, TimeZone);
     }
 
     /// <summary>
@@ -854,7 +854,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
                     // crosses a DST transition, and an instant-based resolution would place an
                     // in-gap start-of-day one transition delta too early, before the EndTimeUtc
                     // check below sees it
-                    fireTime = TimeZoneUtil.ResolveLocal(fireTime.DateTime, TimeZone);
+                    fireTime = TimeZones.ResolveLocal(fireTime.DateTime, TimeZone);
                     break;
                 }
             }

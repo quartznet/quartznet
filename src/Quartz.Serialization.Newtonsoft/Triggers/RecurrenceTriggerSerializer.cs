@@ -12,7 +12,7 @@ public sealed class RecurrenceTriggerSerializer : TriggerSerializer<RecurrenceTr
     public override IScheduleBuilder CreateScheduleBuilder(JObject source)
     {
         var recurrenceRule = source.Value<string>("RecurrenceRule")!;
-        var timeZone = TimeZoneUtil.FindTimeZoneById(source.Value<string>("TimeZone")!);
+        var timeZone = TimeZones.FindById(source.Value<string>("TimeZone")!);
 
         return RecurrenceScheduleBuilder.Create(recurrenceRule)
             .InTimeZone(timeZone);

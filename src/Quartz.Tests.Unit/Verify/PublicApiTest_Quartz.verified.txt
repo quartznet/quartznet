@@ -1221,10 +1221,10 @@ namespace Quartz
         public TimeSpanParseRuleAttribute(Quartz.TimeSpanParseRule rule) { }
         public Quartz.TimeSpanParseRule Rule { get; }
     }
-    public static class TimeZoneUtil
+    public static class TimeZones
     {
         public static System.IDisposable AddResolver(System.Func<string, System.TimeZoneInfo?> resolver) { }
-        public static System.TimeZoneInfo FindTimeZoneById(string id) { }
+        public static System.TimeZoneInfo FindById(string id) { }
         public static System.TimeSpan GetUtcOffset(System.DateTime dateTime, System.TimeZoneInfo timeZoneInfo) { }
     }
     public static class TriggerBuilder

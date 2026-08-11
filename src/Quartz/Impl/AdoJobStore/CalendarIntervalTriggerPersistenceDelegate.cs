@@ -70,7 +70,7 @@ public sealed class CalendarIntervalTriggerPersistenceDelegate : SimplePropertie
         }
         if (!string.IsNullOrEmpty(tzId) && tzId is not null)
         {
-            tz = TimeZoneUtil.FindTimeZoneById(tzId);
+            tz = TimeZones.FindById(tzId);
         }
 
         CalendarIntervalScheduleBuilder sb = CalendarIntervalScheduleBuilder.Create()

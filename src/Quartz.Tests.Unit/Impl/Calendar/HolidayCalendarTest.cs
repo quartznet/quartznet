@@ -75,7 +75,7 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
     [Test]
     public void TestTimeZone()
     {
-        TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo tz = TimeZones.FindById("Eastern Standard Time");
         HolidayCalendar c = new HolidayCalendar();
         c.TimeZone = tz;
 
