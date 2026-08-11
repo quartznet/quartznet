@@ -22,8 +22,6 @@
 using System.Collections;
 using System.Runtime.Serialization;
 
-using Quartz.Util;
-
 namespace Quartz.Impl.Calendar;
 
 /// <summary>

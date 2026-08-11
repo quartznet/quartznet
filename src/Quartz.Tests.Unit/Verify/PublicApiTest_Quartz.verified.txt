@@ -1221,6 +1221,14 @@ namespace Quartz
         public TimeSpanParseRuleAttribute(Quartz.TimeSpanParseRule rule) { }
         public Quartz.TimeSpanParseRule Rule { get; }
     }
+    public static class TimeZoneUtil
+    {
+        public static System.Func<string, System.TimeZoneInfo?>? CustomResolver { get; set; }
+        public static System.DateTimeOffset ConvertTime(System.DateTimeOffset dateTimeOffset, System.TimeZoneInfo timeZoneInfo) { }
+        public static System.TimeZoneInfo FindTimeZoneById(string id) { }
+        public static System.TimeSpan GetUtcOffset(System.DateTime dateTime, System.TimeZoneInfo timeZoneInfo) { }
+        public static System.TimeSpan GetUtcOffset(System.DateTimeOffset dateTimeOffset, System.TimeZoneInfo timeZoneInfo) { }
+    }
     public static class TriggerBuilder
     {
         public static Quartz.TriggerBuilder<Quartz.IJob> Create(System.TimeProvider? timeProvider = null) { }
@@ -3327,14 +3335,6 @@ namespace Quartz.Util
         public virtual bool TryGetLong(string key, out long value) { }
         public virtual bool TryGetString(string key, out string? value) { }
         public virtual bool TryGetTimeSpan(string key, out System.TimeSpan value) { }
-    }
-    public static class TimeZoneUtil
-    {
-        public static System.Func<string, System.TimeZoneInfo?>? CustomResolver { get; set; }
-        public static System.DateTimeOffset ConvertTime(System.DateTimeOffset dateTimeOffset, System.TimeZoneInfo timeZoneInfo) { }
-        public static System.TimeZoneInfo FindTimeZoneById(string id) { }
-        public static System.TimeSpan GetUtcOffset(System.DateTime dateTime, System.TimeZoneInfo timeZoneInfo) { }
-        public static System.TimeSpan GetUtcOffset(System.DateTimeOffset dateTimeOffset, System.TimeZoneInfo timeZoneInfo) { }
     }
 }
 namespace Quartz.Xml

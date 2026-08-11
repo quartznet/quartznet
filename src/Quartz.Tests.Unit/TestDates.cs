@@ -17,8 +17,6 @@
  */
 #endregion
 
-using Quartz.Util;
-
 namespace Quartz.Tests.Unit;
 
 /// <summary>

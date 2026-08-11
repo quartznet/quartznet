@@ -19,12 +19,10 @@
 
 #endregion
 
-
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Impl;
 using Quartz.Extensibility;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar;
 

@@ -23,7 +23,6 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
-using Quartz.Util;
 
 namespace Quartz.Impl.Triggers;
 

@@ -1,8 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
 
-using Quartz.Util;
-
 namespace Quartz.Serialization.SystemTextJson;
 
 internal static class Utf8JsonWriterExtensions

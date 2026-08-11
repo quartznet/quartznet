@@ -1,8 +1,6 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-using Quartz.Util;
-
 using Quartz.Impl.Triggers;
 
 namespace Quartz.Serialization.Newtonsoft.Triggers;

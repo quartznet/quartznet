@@ -1,5 +1,4 @@
 using Quartz.Impl.Recurrence;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Recurrence;
 
