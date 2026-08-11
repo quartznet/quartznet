@@ -4293,8 +4293,43 @@ replacement; it returned `null` both for "absent" and for "present but not a `Gu
 `TryGetGuid` distinguishes.
 
 `PutAsString`'s eleven overloads are one generic `PutAsString<T>(string key, T value) where T :
-IConvertible`, plus the four the constraint cannot express (`DateTimeOffset`, `Guid`, `Guid?`,
-`TimeSpan`). Call sites are unchanged.
+IConvertible`, plus the ones the constraint cannot express (`DateTime`, `DateTimeOffset`,
+`DateOnly`, `TimeOnly`, `Guid`, `TimeSpan`). Call sites are unchanged, with two exceptions
+described below.
+
+The accessor set also grew: `GetDateOnly`/`TryGetDateOnly`, `GetTimeOnly`/`TryGetTimeOnly`,
+`GetEnum<TEnum>`/`TryGetEnum<TEnum>` (an enum written through `PutAsString` stores its name, and
+the reader also accepts the underlying number a JSON round trip can produce), and a generic
+`TryGet<T>` that is a pure type test over the stored object — no string parsing.
+
+### `PutAsString` writes round-trip formats now
+
+`PutAsString(key, dateTimeOffset)` used to write the invariant general form — no fractional
+seconds — and a `DateTime` argument bound to the `IConvertible` overload, which erased sub-second
+precision *and* `DateTimeKind`. Both now write the round-trip ("O") format: what you read back is
+what you stored, to the tick, Kind and offset included. Reading is unaffected for existing data —
+the accessors parse both the old general form and "O" — but two edges are observable:
+
+- **Overload rebinding**: `map.PutAsString(key, someDateTime)` used to bind to the generic
+  `IConvertible` overload and store `"01/02/2026 15:04:05"`; it now binds to the dedicated
+  `DateTime` overload and stores `"2026-01-02T15:04:05.0000000"`. Anything *outside* Quartz that
+  reads `JOB_DATA` strings and expects the old shape sees the new one after the value is next
+  written.
+- **`TryGetDateTime` parses with `DateTimeStyles.RoundtripKind`** — its own behavioral change,
+  independent of what was written: a stored string ending in `Z` used to come back shifted to the
+  reader's local time with `Kind=Local`; it now comes back with the UTC clock reading and
+  `Kind=Utc`. That is the correct reading, but a job computing e.g. `DateTime.Now - map.GetDateTime(key)`
+  on such a value shifts by the local UTC offset. Such `Z` strings exist in real stores — the
+  System.Text.Json serializer writes a boxed UTC `DateTime` as `"…Z"` and hands it back as a raw
+  string.
+
+### `PutAsString(string, Guid?)` is gone
+
+Passing `null` stored a present-but-null entry that nothing could read back — `TryGetGuid`
+returned `false`, `GetGuid` threw, and under `UseProperties = true` the null was coerced to an
+empty string with the same outcome. An unreadable entry is worse than a missing key, so the
+overload is gone rather than fixed: call `PutAsString(key, value.Value)` when there is a value,
+and decide explicitly — usually `map.Remove(key)` — when there is not.
 
 ## `AddQuartzServer` is `AddQuartzHostedService`
 
@@ -4471,6 +4506,10 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `SchedulerContext` is backed by `ConcurrentDictionary` | Reading and writing it concurrently is safe; enumeration no longer races plugin writes |
 | `PropertySettingJobFactory` no longer merges the scheduler context into job properties | **Silent behavioral change** — read `context.Scheduler.Context` in `Execute`, or override `BuildJobDataMap` — see [Scheduler context entries are no longer injected into job properties](#scheduler-context-entries-are-no-longer-injected-into-job-properties) |
 | `JobKey` and `TriggerKey` implement `IEquatable<T>` and `IParsable<T>` | Additive. `TryParse`/`Parse` invert `ToString`'s `<group>.<name>` form, splitting at the first '.' — a *group* containing '.' is the ambiguous case. Every job-store dictionary probe also stops paying for the object-comparer path, and the hash is computed once |
+| `PutAsString` writes round-trip ("O") formats for `DateTime`/`DateTimeOffset` | Sub-second precision and Kind/offset survive; the dedicated `DateTime` overload also **rebinds** calls that used to hit the `IConvertible` one — see [`PutAsString` writes round-trip formats now](#putasstring-writes-round-trip-formats-now) |
+| `TryGetDateTime` parses with `DateTimeStyles.RoundtripKind` | **Behavioral**: a stored string ending in `Z` now returns the UTC clock reading with `Kind=Utc` instead of a local-shifted `Kind=Local` value — see [`PutAsString` writes round-trip formats now](#putasstring-writes-round-trip-formats-now) |
+| `PutAsString(string, Guid?)` removed | `null` wrote a present-but-null entry no reader could read back — see [`PutAsString(string, Guid?)` is gone](#putasstring-string-guid-is-gone) |
+| `DateOnly`/`TimeOnly`/enum accessors, `PutAsString(DateOnly/TimeOnly)` and `TryGet<T>` added | Additive; job data catches up with the types 4.0 made primary |
 | `ISchedulerFactory.GetAllSchedulers` returns `ValueTask<List<IScheduler>>` | Quartz returns concrete collection types from its query members for allocation and enumeration cost; this was the one that did not |
 | `IInstanceIdGenerator.GenerateInstanceId` returns `ValueTask<string>` | It never returned null, and a null instance id is not a usable one |
 | An `IJobStore` that implements `IJobListener` no longer receives events automatically | Register it as a job listener through the scheduler's `IListenerManager` |

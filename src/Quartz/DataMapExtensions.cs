@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace Quartz;
@@ -297,6 +298,87 @@ public static class DataMapExtensions
         {
             return TryCoerceGuid(map.TryGetValue(key, out object? obj), obj, out value);
         }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="DateOnly" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public DateOnly GetDateOnly(string key)
+        {
+            if (!TryCoerceDateOnly(map.TryGetValue(key, out object? obj), obj, out DateOnly value))
+            {
+                Throw.InvalidCastException("Identified object is not a DateOnly.");
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="DateOnly" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public bool TryGetDateOnly(string key, out DateOnly value)
+        {
+            return TryCoerceDateOnly(map.TryGetValue(key, out object? obj), obj, out value);
+        }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="TimeOnly" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public TimeOnly GetTimeOnly(string key)
+        {
+            if (!TryCoerceTimeOnly(map.TryGetValue(key, out object? obj), obj, out TimeOnly value))
+            {
+                Throw.InvalidCastException("Identified object is not a TimeOnly.");
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="TimeOnly" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public bool TryGetTimeOnly(string key, out TimeOnly value)
+        {
+            return TryCoerceTimeOnly(map.TryGetValue(key, out object? obj), obj, out value);
+        }
+
+        /// <summary>
+        /// Retrieve the identified enum value from the <see cref="JobDataMap" />; a string is parsed
+        /// by name (case-insensitively), which is what <c>PutAsString</c> writes for an enum.
+        /// </summary>
+        public TEnum GetEnum<TEnum>(string key) where TEnum : struct, Enum
+        {
+            if (!TryCoerceEnum(map.TryGetValue(key, out object? obj), obj, out TEnum value))
+            {
+                Throw.InvalidCastException($"Identified object is not a {typeof(TEnum).Name}.");
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified enum value from the <see cref="JobDataMap" />; a string is
+        /// parsed by name (case-insensitively), which is what <c>PutAsString</c> writes for an enum.
+        /// </summary>
+        public bool TryGetEnum<TEnum>(string key, out TEnum value) where TEnum : struct, Enum
+        {
+            return TryCoerceEnum(map.TryGetValue(key, out object? obj), obj, out value);
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified value from the <see cref="JobDataMap" /> when it is stored
+        /// as a <typeparamref name="T" />. A pure type test — no string parsing or conversion.
+        /// </summary>
+        public bool TryGet<T>(string key, [MaybeNullWhen(false)] out T value)
+        {
+            if (map.TryGetValue(key, out object? obj) && obj is T typed)
+            {
+                value = typed;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
     }
 
     /// <summary>Typed read accessors for <see cref="SchedulerContext" />.</summary>
@@ -550,6 +632,87 @@ public static class DataMapExtensions
         {
             return TryCoerceGuid(context.TryGetValue(key, out object? obj), obj, out value);
         }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="DateOnly" /> value from the <see cref="SchedulerContext" />.
+        /// </summary>
+        public DateOnly GetDateOnly(string key)
+        {
+            if (!TryCoerceDateOnly(context.TryGetValue(key, out object? obj), obj, out DateOnly value))
+            {
+                Throw.InvalidCastException("Identified object is not a DateOnly.");
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="DateOnly" /> value from the <see cref="SchedulerContext" />.
+        /// </summary>
+        public bool TryGetDateOnly(string key, out DateOnly value)
+        {
+            return TryCoerceDateOnly(context.TryGetValue(key, out object? obj), obj, out value);
+        }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="TimeOnly" /> value from the <see cref="SchedulerContext" />.
+        /// </summary>
+        public TimeOnly GetTimeOnly(string key)
+        {
+            if (!TryCoerceTimeOnly(context.TryGetValue(key, out object? obj), obj, out TimeOnly value))
+            {
+                Throw.InvalidCastException("Identified object is not a TimeOnly.");
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="TimeOnly" /> value from the <see cref="SchedulerContext" />.
+        /// </summary>
+        public bool TryGetTimeOnly(string key, out TimeOnly value)
+        {
+            return TryCoerceTimeOnly(context.TryGetValue(key, out object? obj), obj, out value);
+        }
+
+        /// <summary>
+        /// Retrieve the identified enum value from the <see cref="SchedulerContext" />; a string is
+        /// parsed by name (case-insensitively).
+        /// </summary>
+        public TEnum GetEnum<TEnum>(string key) where TEnum : struct, Enum
+        {
+            if (!TryCoerceEnum(context.TryGetValue(key, out object? obj), obj, out TEnum value))
+            {
+                Throw.InvalidCastException($"Identified object is not a {typeof(TEnum).Name}.");
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified enum value from the <see cref="SchedulerContext" />; a
+        /// string is parsed by name (case-insensitively).
+        /// </summary>
+        public bool TryGetEnum<TEnum>(string key, out TEnum value) where TEnum : struct, Enum
+        {
+            return TryCoerceEnum(context.TryGetValue(key, out object? obj), obj, out value);
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified value from the <see cref="SchedulerContext" /> when it is
+        /// stored as a <typeparamref name="T" />. A pure type test — no string parsing or conversion.
+        /// </summary>
+        public bool TryGet<T>(string key, [MaybeNullWhen(false)] out T value)
+        {
+            if (context.TryGetValue(key, out object? obj) && obj is T typed)
+            {
+                value = typed;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
     }
 
     // The coercion core. Each method takes the result of the receiver's TryGetValue so the two
@@ -798,7 +961,9 @@ public static class DataMapExtensions
 
         if (obj is string s)
         {
-            return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out value);
+            // RoundtripKind restores what PutAsString's "O" format wrote: a string carrying an
+            // offset or 'Z' comes back with its own clock reading and Kind, not shifted to local.
+            return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out value);
         }
 
         if (obj is DateTimeOffset dto)
@@ -885,6 +1050,88 @@ public static class DataMapExtensions
         }
 
         value = Guid.Empty;
+        return false;
+    }
+
+    private static bool TryCoerceDateOnly(bool found, object? obj, out DateOnly value)
+    {
+        if (!found)
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is DateOnly d)
+        {
+            value = d;
+            return true;
+        }
+
+        if (obj is string s)
+        {
+            return DateOnly.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out value);
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static bool TryCoerceTimeOnly(bool found, object? obj, out TimeOnly value)
+    {
+        if (!found)
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is TimeOnly t)
+        {
+            value = t;
+            return true;
+        }
+
+        if (obj is string s)
+        {
+            return TimeOnly.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out value);
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static bool TryCoerceEnum<TEnum>(bool found, object? obj, out TEnum value) where TEnum : struct, Enum
+    {
+        if (!found)
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is TEnum e)
+        {
+            value = e;
+            return true;
+        }
+
+        if (obj is string s)
+        {
+            return Enum.TryParse(s, ignoreCase: true, out value);
+        }
+
+        // A JSON round trip can hand the underlying number back instead of the enum.
+        if (obj is int i)
+        {
+            value = (TEnum) Enum.ToObject(typeof(TEnum), i);
+            return true;
+        }
+
+        if (obj is long l)
+        {
+            value = (TEnum) Enum.ToObject(typeof(TEnum), l);
+            return true;
+        }
+
+        value = default;
         return false;
     }
 }

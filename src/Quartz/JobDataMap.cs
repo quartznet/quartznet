@@ -374,18 +374,52 @@ public sealed class JobDataMap : IDictionary<string, object?>, IReadOnlyDictiona
     /// <summary>
     /// Adds the given value as a string version using the default ToString operation.
     /// </summary>
+    /// <remarks>
+    /// An enum lands here and stores its name (<c>DayOfWeek.Monday</c> stores <c>"Monday"</c>),
+    /// which <c>TryGetEnum</c> reads back.
+    /// </remarks>
     public void PutAsString<T>(string key, T value) where T : IConvertible
     {
         this[key] = value.ToString(CultureInfo.InvariantCulture);
     }
 
     /// <summary>
-    /// Adds the given <see cref="DateTimeOffset" /> value as a string version to the
-    /// <see cref="IJob" />'s data map.
+    /// Adds the given <see cref="DateTime" /> value as a round-trip ("O") formatted string to the
+    /// <see cref="IJob" />'s data map, preserving sub-second precision and <see cref="DateTime.Kind" />.
+    /// </summary>
+    public void PutAsString(string key, DateTime value)
+    {
+        string strValue = value.ToString("O", CultureInfo.InvariantCulture);
+        this[key] = strValue;
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="DateTimeOffset" /> value as a round-trip ("O") formatted string to the
+    /// <see cref="IJob" />'s data map, preserving sub-second precision and the offset.
     /// </summary>
     public void PutAsString(string key, DateTimeOffset value)
     {
-        string strValue = value.ToString(CultureInfo.InvariantCulture);
+        string strValue = value.ToString("O", CultureInfo.InvariantCulture);
+        this[key] = strValue;
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="DateOnly" /> value as a round-trip ("O", <c>yyyy-MM-dd</c>)
+    /// formatted string to the <see cref="IJob" />'s data map.
+    /// </summary>
+    public void PutAsString(string key, DateOnly value)
+    {
+        string strValue = value.ToString("O", CultureInfo.InvariantCulture);
+        this[key] = strValue;
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="TimeOnly" /> value as a round-trip ("O") formatted string to the
+    /// <see cref="IJob" />'s data map.
+    /// </summary>
+    public void PutAsString(string key, TimeOnly value)
+    {
+        string strValue = value.ToString("O", CultureInfo.InvariantCulture);
         this[key] = strValue;
     }
 
@@ -407,16 +441,6 @@ public sealed class JobDataMap : IDictionary<string, object?>, IReadOnlyDictiona
     {
         string strValue = value.ToString("N");
         this[key] = strValue;
-    }
-
-    /// <summary>
-    /// Adds the given <see cref="Guid" /> value as a string version to the
-    /// <see cref="IJob" />'s data map. The hyphens are omitted from the  <see cref="Guid" />.
-    /// </summary>
-    public void PutAsString(string key, Guid? value)
-    {
-        string? strValue = value?.ToString("N");
-        this[key] = strValue!;
     }
 
     /// <summary>

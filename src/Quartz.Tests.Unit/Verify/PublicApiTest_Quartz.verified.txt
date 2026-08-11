@@ -209,6 +209,15 @@ namespace Quartz
             public bool TryGetDateTimeOffset(string key, out System.DateTimeOffset value) { }
             public bool TryGetTimeSpan(string key, out System.TimeSpan value) { }
             public bool TryGetGuid(string key, out System.Guid value) { }
+            public System.DateOnly GetDateOnly(string key) { }
+            public bool TryGetDateOnly(string key, out System.DateOnly value) { }
+            public System.TimeOnly GetTimeOnly(string key) { }
+            public bool TryGetTimeOnly(string key, out System.TimeOnly value) { }
+            public TEnum GetEnum<TEnum>(string key)
+                where TEnum :  struct, System.Enum { }
+            public bool TryGetEnum<TEnum>(string key, out TEnum value)
+                where TEnum :  struct, System.Enum { }
+            public bool TryGet<T>(string key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value) { }
         }
         extension(Quartz.JobDataMap map)
         {
@@ -236,6 +245,15 @@ namespace Quartz
             public bool TryGetDateTimeOffset(string key, out System.DateTimeOffset value) { }
             public bool TryGetTimeSpan(string key, out System.TimeSpan value) { }
             public bool TryGetGuid(string key, out System.Guid value) { }
+            public System.DateOnly GetDateOnly(string key) { }
+            public bool TryGetDateOnly(string key, out System.DateOnly value) { }
+            public System.TimeOnly GetTimeOnly(string key) { }
+            public bool TryGetTimeOnly(string key, out System.TimeOnly value) { }
+            public TEnum GetEnum<TEnum>(string key)
+                where TEnum :  struct, System.Enum { }
+            public bool TryGetEnum<TEnum>(string key, out TEnum value)
+                where TEnum :  struct, System.Enum { }
+            public bool TryGet<T>(string key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value) { }
         }
     }
     public sealed class DataSourceOptions
@@ -742,9 +760,11 @@ namespace Quartz
         public override bool Equals(object? obj) { }
         public System.Collections.Generic.Dictionary<string, object?>.Enumerator GetEnumerator() { }
         public override int GetHashCode() { }
+        public void PutAsString(string key, System.DateOnly value) { }
+        public void PutAsString(string key, System.DateTime value) { }
         public void PutAsString(string key, System.DateTimeOffset value) { }
         public void PutAsString(string key, System.Guid value) { }
-        public void PutAsString(string key, System.Guid? value) { }
+        public void PutAsString(string key, System.TimeOnly value) { }
         public void PutAsString(string key, System.TimeSpan value) { }
         public void PutAsString<T>(string key, T value)
             where T : System.IConvertible { }
