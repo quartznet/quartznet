@@ -4275,12 +4275,12 @@ lifetime, and only the application can make that call. The same applies to a han
 `LogProvider.SetLogProvider(host.Services.GetRequiredService<ILoggerFactory>())`: it is correct as
 long as the host outlives the schedulers.
 
-`TimeZoneUtil.CustomResolver` is ambient for the same reason and is now nullable, `null` meaning
-"no custom resolver", so a resolver can be removed again rather than replaced with a lambda that
-returns `null`. `FindTimeZoneById` is reached from parsing a `CronExpression` and from deserializing
-a trigger out of a job store blob, neither of which has a scheduler in scope — which is why
-installing `Quartz.Plugins.TimeZoneConverter` in one scheduler changes id resolution for the whole
-process.
+`TimeZoneUtil.AddResolver` is ambient for the same reason. `FindTimeZoneById` is reached from
+parsing a `CronExpression` and from deserializing a trigger out of a job store blob, neither of
+which has a scheduler in scope — which is why installing `Quartz.Plugins.TimeZoneConverter` in one
+scheduler changes id resolution for the whole process, and why each registration is undone by
+disposing it rather than by anyone owning the slot — see
+[`TimeZoneUtil` moved to `Quartz`](#timezoneutil-moved-to-quartz).
 
 ## `TimeZoneUtil` moved to `Quartz`
 
@@ -4300,6 +4300,34 @@ the builders whose behavior it defines. Every file under a `Quartz.*` namespace 
 
 No configuration shim is needed: `TimeZoneUtil` is a static helper that is called, never a type a
 configuration string names and the scheduler instantiates.
+
+### `CustomResolver` became `AddResolver`
+
+`CustomResolver` was one settable delegate, which made every installer overwrite the previous one:
+two schedulers running `Quartz.Plugins.TimeZoneConverter` in the same process fought over the slot,
+and shutting either scheduler down left the winner's resolver installed for the rest of the
+process's life. `AddResolver` composes instead — each caller gets an `IDisposable` registration
+back, and disposing it removes exactly that resolver:
+
+```diff
+- TimeZoneUtil.CustomResolver = id => Resolve(id);
++ IDisposable registration = TimeZoneUtil.AddResolver(id => Resolve(id));
+  ...
+- TimeZoneUtil.CustomResolver = null;
++ registration.Dispose();
+```
+
+Resolvers are consulted **most recently added first**, so a later registration shadows an earlier
+one for the ids it resolves — which is exactly the last-write-wins behavior assigning
+`CustomResolver` had, minus the data loss. A resolver declines an id by returning `null`, or by
+throwing `TimeZoneNotFoundException` — the search catches it and continues with the next resolver,
+and `FindTimeZoneById` itself throws only after every fallback has failed.
+
+`TimeZoneConverterPlugin` now registers its own resolver on `Initialize` — targeting
+`TZConvert.TryGetTimeZoneInfo`, so an unknown id declines quietly instead of by exception — and
+disposes that registration on `Shutdown`. Shutting one scheduler down no longer changes time zone
+resolution for the other schedulers in the process, and no longer leaves a resolver installed after
+the last scheduler is gone.
 
 ## `TriggerUtils` moved to `Quartz.Extensibility`
 
@@ -4331,7 +4359,7 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `IDirectoryScanListener` is asynchronous | `FilesUpdatedOrAdded` and `FilesDeleted` return `ValueTask` and take a `CancellationToken` |
 | `LoggingJobHistoryPlugin.Name`, `LoggingTriggerHistoryPlugin.Name` are get-only | The name is handed to a plugin by `Initialize`; writing it afterwards did nothing |
 | `TimeSpanParseRuleAttribute` is public | It says how a bare number in configuration is read as a `TimeSpan`, which a component configured by the same keys needs to be able to say |
-| `TimeZoneUtil.CustomResolver` is a property | It was a public mutable field |
+| `TimeZoneUtil.CustomResolver` became `AddResolver(...)` | Returns an `IDisposable` whose disposal removes exactly that resolver; resolvers are consulted most recently added first — see [`CustomResolver` became `AddResolver`](#customresolver-became-addresolver) |
 | Setter-only members gained getters | `DbMetadata.DbBinaryTypeName` (now nullable) and `.ParameterDbTypePropertyName` |
 | `TriggerState.Executing` added | Reported where `Normal`, `Complete` or `Blocked` used to be, and `Blocked` narrowed to mean a sibling trigger is running (see [Executing is a trigger state](#executing-is-a-trigger-state)) |
 | `IDriverDelegate.IsTriggerCurrentlyExecuting` removed | Replaced by `SelectTriggerStateWithExecuting`, which reads the state and the execution in one statement and returns `TriggerExecutionState` |
@@ -4445,7 +4473,6 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `TriggerUtils` moved to `Quartz.Extensibility` | It is a helper over `IOperableTrigger`, not part of the scheduling API — see [`TriggerUtils` moved to `Quartz.Extensibility`](#triggerutils-moved-to-quartz-extensibility) |
 | `TimeZoneUtil` moved to `Quartz` | `FindTimeZoneById` and the wall-clock `GetUtcOffset` are scheduling API, not utilities — see [`TimeZoneUtil` moved to `Quartz`](#timezoneutil-moved-to-quartz) |
 | `Quartz.Util.ObjectExtensions` is internal | `AssemblyQualifiedNameWithoutVersion()` is how Quartz spells a type name into a blob or onto the wire, not a general-purpose helper |
-| `TimeZoneUtil.CustomResolver` is nullable | `null` means there is no custom resolver, which is how one is removed; it defaulted to a lambda returning `null` — see [The ambient logger factory stays ambient](#the-ambient-logger-factory-stays-ambient) |
 | `Quartz.Diagnostics.ActivityOptions` is `ActivityTags` | It holds `Activity` tag names, not options, and `*Options` names an options type everywhere else. It replaced 3.x's `DiagnosticHeaders`; the tag names and values are unchanged |
 | `DBSemaphore` is `DbSemaphore` | The last `DB` spelling, with `DBConnectionManager` → `DbConnectionManager`. The type is abstract and is never named in configuration |
 | `StartingDailyAt` / `EndingDailyAt` take a `timeOfDay` | The parameter was `timeOfDayUtc`, and the value is wall-clock in the trigger's time zone rather than UTC — the property it sets, `StartTimeOfDay`, never claimed otherwise. `DailyTimeIntervalTriggerImpl`'s five constructors say `startTimeOfDay` / `endTimeOfDay` for the same reason |
@@ -4613,4 +4640,5 @@ removals on types that are still public and still open, which no section above n
 | `StringKeyDirtyFlagMap.GetNullableGuid()`, `.TryGetNullableGuid()` | Removed | `TryGetGuid(key, out var value)`, whose `false` says the same thing as a `null` did — see [`JobDataMap`'s typed accessors are the ones it inherits](#jobdatamap-s-typed-accessors-are-the-ones-it-inherits) |
 | `StringKeyDirtyFlagMap.Put()` (eight overloads), `.PutAll()` | Removed; all were `[Obsolete]` in 3.x | `map[key] = value` |
 | `TaskSchedulingThreadPool.ThreadPriority` | Removed | No replacement; work runs on a `TaskScheduler`, which has no thread to prioritise — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
+| `TimeZoneUtil.CustomResolver` | Removed | `AddResolver(...)`, whose `IDisposable` undoes the registration; the type also moved to `Quartz` — see [`CustomResolver` became `AddResolver`](#customresolver-became-addresolver) |
 | `ZeroSizeThreadPool.AvailableThreadCount` | Removed | `PoolSize`, which is `0` — the pool never had a thread to report |

@@ -18,6 +18,7 @@ public class SmokeTestPerformer
 {
     public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs)
     {
+        IDisposable customTimeZoneResolverRegistration = null;
         try
         {
             if (clearJobs)
@@ -246,14 +247,14 @@ public class SmokeTestPerformer
                     null,
                     null);
 
-                TimeZoneUtil.CustomResolver = id =>
+                customTimeZoneResolverRegistration = TimeZoneUtil.AddResolver(id =>
                 {
                     if (id == CustomTimeZoneId)
                     {
                         return webTimezone;
                     }
                     return null;
-                };
+                });
 
                 var customTimeZoneTrigger = TriggerBuilder.Create()
                     .WithIdentity("customTimeZoneTrigger")
@@ -386,6 +387,7 @@ public class SmokeTestPerformer
         }
         finally
         {
+            customTimeZoneResolverRegistration?.Dispose();
             await scheduler.Shutdown(false);
         }
     }

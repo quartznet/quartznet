@@ -71,24 +71,84 @@ public static class TimeZoneUtil
         timeZoneIdAliases["Asia/Karachi"] = "Pakistan Standard Time";
     }
 
+    private static readonly Lock resolverLock = new();
+
     /// <summary>
-    /// A last-resort resolver consulted when a time zone id is neither a system id nor one of the
-    /// aliases above. <see langword="null" /> — the default — means there is none.
+    /// The registered resolvers, most recently added first — the order they are consulted in.
+    /// Copy-on-write: mutated only under <see cref="resolverLock" />, read as a snapshot without it.
+    /// </summary>
+    private static ResolverRegistration[] resolvers = [];
+
+    /// <summary>
+    /// Registers a last-resort resolver, consulted when a time zone id is neither a system id nor one
+    /// of the aliases above. Disposing the returned registration removes the resolver again.
     /// </summary>
     /// <remarks>
     /// <para>
     /// This is process-wide, and deliberately so: <see cref="FindTimeZoneById" /> is reached from
     /// places that have no scheduler in scope — parsing a <see cref="CronExpression" />, deserializing
     /// a trigger or calendar out of a job store blob — so there is nothing scheduler-scoped to hang a
-    /// resolver on. Setting it from one scheduler changes id resolution for every scheduler in the
-    /// process, which is what installing <c>Quartz.Plugins.TimeZoneConverter</c> does.
+    /// resolver on. Adding a resolver from one scheduler changes id resolution for every scheduler in
+    /// the process, which is what installing <c>Quartz.Plugins.TimeZoneConverter</c> does; each such
+    /// plugin disposes its own registration when its scheduler shuts down.
     /// </para>
     /// <para>
-    /// Assign <see langword="null" /> to remove a resolver again; a resolver returning
-    /// <see langword="null" /> for an id it does not know is how it declines a single id.
+    /// Resolvers are consulted most recently added first, so a later registration shadows an earlier
+    /// one for the ids it resolves. A resolver declines an id by returning <see langword="null" /> or
+    /// by throwing <see cref="TimeZoneNotFoundException" />; either way the search continues with the
+    /// next resolver, and <see cref="FindTimeZoneById" /> throws only when every fallback has failed.
     /// </para>
     /// </remarks>
-    public static Func<string, TimeZoneInfo?>? CustomResolver { get; set; }
+    /// <param name="resolver">Maps a time zone id to a <see cref="TimeZoneInfo" />, or to
+    /// <see langword="null" /> for an id it does not know.</param>
+    /// <returns>A registration whose disposal removes the resolver. Disposing twice is a no-op.</returns>
+    public static IDisposable AddResolver(Func<string, TimeZoneInfo?> resolver)
+    {
+        ArgumentNullException.ThrowIfNull(resolver);
+
+        ResolverRegistration registration = new ResolverRegistration(resolver);
+        lock (resolverLock)
+        {
+            ResolverRegistration[] next = new ResolverRegistration[resolvers.Length + 1];
+            next[0] = registration;
+            Array.Copy(resolvers, sourceIndex: 0, next, destinationIndex: 1, resolvers.Length);
+            resolvers = next;
+        }
+
+        return registration;
+    }
+
+    private static void RemoveResolver(ResolverRegistration registration)
+    {
+        lock (resolverLock)
+        {
+            int index = Array.IndexOf(resolvers, registration);
+            if (index < 0)
+            {
+                return;
+            }
+
+            ResolverRegistration[] next = new ResolverRegistration[resolvers.Length - 1];
+            Array.Copy(resolvers, sourceIndex: 0, next, destinationIndex: 0, index);
+            Array.Copy(resolvers, sourceIndex: index + 1, next, destinationIndex: index, resolvers.Length - index - 1);
+            resolvers = next;
+        }
+    }
+
+    private sealed class ResolverRegistration : IDisposable
+    {
+        internal readonly Func<string, TimeZoneInfo?> resolver;
+
+        internal ResolverRegistration(Func<string, TimeZoneInfo?> resolver)
+        {
+            this.resolver = resolver;
+        }
+
+        public void Dispose()
+        {
+            RemoveResolver(this);
+        }
+    }
 
     /// <summary>
     /// TimeZoneInfo.ConvertTime is not supported under mono
@@ -251,7 +311,27 @@ public static class TimeZoneUtil
                 }
             }
 
-            info ??= CustomResolver?.Invoke(id);
+            if (info is null)
+            {
+                // snapshot read; registrations added most recently are consulted first, so a later
+                // registration shadows an earlier one for the ids it resolves
+                foreach (ResolverRegistration registration in resolvers)
+                {
+                    try
+                    {
+                        info = registration.resolver(id);
+                    }
+                    catch (TimeZoneNotFoundException)
+                    {
+                        // the resolver declined loudly; continue with the next one
+                    }
+
+                    if (info is not null)
+                    {
+                        break;
+                    }
+                }
+            }
 
             if (info is null)
             {
