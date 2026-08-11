@@ -2010,6 +2010,12 @@ Two members are new on both interfaces: **`GetJobDetails(jobKeys)`** and **`GetT
 retrieve many by key in one round trip. Keys that do not exist are simply absent, duplicates fold away, and
 results come back in the order the keys were asked for.
 
+On `IJobStore` the bulk job fetch is spelled **`GetJobs(jobKeys)`**, completing the store's own pairs:
+`GetJob`/`GetJobs` beside `GetTrigger`/`GetTriggers`. The scheduler's noun is `JobDetail` — it hands
+users `IJobDetail`, so `IScheduler` keeps `GetJobDetail`/`GetJobDetails` — while the store speaks in
+storage terms. Singular/plural pairs are consistent within each interface; the two interfaces
+deliberately differ.
+
 ### Paging and projection
 
 Every query derives from `PagedQuery`, which carries `Skip`, `Take` and `IncludeTotalCount`. The result
@@ -2129,6 +2135,17 @@ Deleted, having had no caller: `SelectMisfiredTriggers`, both `HasMisfiredTrigge
 `SelectPausedTriggerGroups`, `SelectJobGroups(conn, ct)` and `DeleteAllPausedTriggerGroups`. The
 `GetSelectNextMisfiredTriggersInStateToAcquireSql` hook went with them, so a dialect delegate that overrode
 it should delete that override.
+
+Renamed to say what they return — a custom delegate author reads these names as the spec, and three of
+them said `Names` or whole entities where they return keys, while `SelectTriggerGroups` was one name
+overloaded across two unrelated result shapes:
+
+| Was | Is |
+|---|---|
+| `SelectTriggerNamesForJob` → `List<TriggerKey>` | `SelectTriggerKeysForJob` |
+| `SelectJobsInGroup` → `List<JobKey>` | `SelectJobKeysInGroup` |
+| `SelectTriggersInGroup` → `List<TriggerKey>` | `SelectTriggerKeysInGroup` |
+| `SelectTriggerGroups(conn, GroupMatcher, ct)` → `List<string>` | `SelectTriggerGroupNames` — the paged `SelectTriggerGroups(conn, TriggerGroupQuery, ct)` now owns the name alone |
 
 Consolidated into records rather than overload families:
 
@@ -3396,9 +3413,21 @@ trigger authors write through — is unchanged.
 the built-in calendar serializers assign through the interface while rebuilding a calendar, so they are part
 of its contract in a way the trigger setters never were.
 
-If you author an `ITriggerPersistenceDelegate` of your own, note that `ObjectUtils.SetPropertyValue` falls
-back to writable *interface* properties when the concrete type has none, and that fallback is now narrower.
-No built-in delegate depends on it — all five write only `timesTriggered`, which the concrete triggers expose.
+If you author an `ITriggerPersistenceDelegate` of your own, `TriggerPropertyBundle` no longer carries the
+parallel `StatePropertyNames` / `StatePropertyValues` arrays that were applied to the trigger by
+reflection. The bundle takes the schedule builder plus an optional applier delegate, checked by the
+compiler instead of resolved from strings at trigger-load time:
+
+```diff
+- return new TriggerPropertyBundle(sb, ["timesTriggered"], [timesTriggered]);
++ return new TriggerPropertyBundle(sb, t => ((SimpleTriggerImpl) t).TimesTriggered = timesTriggered);
+```
+
+The single-argument constructor is unchanged for a delegate that carries no state beyond the schedule —
+the Cron delegate passes none, and a null applier is simply skipped. The lambda casts to the concrete
+trigger type because the family interfaces (`ISimpleTrigger` and its siblings) expose `TimesTriggered`
+get-only; the four `Quartz.Impl.Triggers` trigger classes stay public with public `TimesTriggered`
+setters precisely so this write path exists.
 
 ## `CronExpression` is immutable
 
@@ -4679,6 +4708,7 @@ Parameters and behavior are unchanged:
 | `FiredTriggerRecord`, `RecoverMisfiredJobsResult`, `DelegateInitializationArgs` are `sealed record`s | Immutable, with `required` / `init` members instead of settable ones — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
 | `FiredTriggerRecord.FireInstanceState` is a `StoredTriggerState` | The last raw `AdoConstants.State*` comparisons in the store; `[Serializable]` is gone with it, and the always-populated members are non-nullable |
 | `RecoverMisfiredJobsResult.EarliestNewTime` is `EarliestNewTimeUtc` | The property and its constructor argument disagreed about the `Utc` suffix |
+| `RecoverMisfiredJobsResult.NoOp` is a static property | It was a `public static readonly` field beside sentinels that are properties; source keeps compiling, a recompile is required |
 | `TriggerAcquireResult` carries a `TriggerKey` | It carried `TriggerName` and `TriggerGroup`, which every caller immediately paired back up |
 | `TriggerStatus` removed, `IDriverDelegate.SelectTriggerStatus` is `SelectTriggerHeader` | It returns `StoredTriggerHeader`, an immutable record whose state is a `StoredTriggerState` — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
 | `IDriverDelegate.ValidateSchema` added | Schema validation was a `StdAdoDelegate` method reached by type test, so a delegate of your own silently skipped it — see [`ValidateSchema` is part of `IDriverDelegate`](#validateschema-is-part-of-idriverdelegate) |

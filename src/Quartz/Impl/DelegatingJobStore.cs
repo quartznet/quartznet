@@ -200,9 +200,9 @@ public class DelegatingJobStore : IJobStore
         return jobStore.QueryCalendarNames(query, cancellationToken);
     }
 
-    public virtual ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<IJobDetail>> GetJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
-        return jobStore.GetJobDetails(jobKeys, cancellationToken);
+        return jobStore.GetJobs(jobKeys, cancellationToken);
     }
 
     public virtual ValueTask<List<IOperableTrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)

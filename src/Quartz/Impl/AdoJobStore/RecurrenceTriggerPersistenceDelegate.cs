@@ -56,9 +56,6 @@ public sealed class RecurrenceTriggerPersistenceDelegate : SimplePropertiesTrigg
 
         int timesTriggered = props.Int1;
 
-        string[] statePropertyNames = { "timesTriggered" };
-        object[] statePropertyValues = { timesTriggered };
-
-        return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
+        return new TriggerPropertyBundle(sb, t => ((RecurrenceTriggerImpl) t).TimesTriggered = timesTriggered);
     }
 }

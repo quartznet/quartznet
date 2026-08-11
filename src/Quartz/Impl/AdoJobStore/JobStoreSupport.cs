@@ -1612,7 +1612,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         try
         {
-            var jobTriggers = await Delegate.SelectTriggerNamesForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
+            var jobTriggers = await Delegate.SelectTriggerKeysForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
 
             foreach (TriggerKey jobTrigger in jobTriggers)
             {
@@ -2372,7 +2372,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         try
         {
-            return await Delegate.SelectJobsInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+            return await Delegate.SelectJobKeysInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -2478,7 +2478,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         try
         {
-            return await Delegate.SelectTriggerGroups(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
+            return await Delegate.SelectTriggerGroupNames(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -2613,15 +2613,15 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <inheritdoc />
-    public ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    public ValueTask<List<IJobDetail>> GetJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(jobKeys);
 
         // no locks necessary for read...
-        return ExecuteWithoutLock(conn => GetJobDetails(conn, jobKeys, cancellationToken), cancellationToken);
+        return ExecuteWithoutLock(conn => GetJobs(conn, jobKeys, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<List<IJobDetail>> GetJobDetails(
+    protected virtual async ValueTask<List<IJobDetail>> GetJobs(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
@@ -3020,7 +3020,7 @@ public abstract class JobStoreSupport : IJobStore
             await Delegate.UpdateTriggerGroupStateFromOtherState(conn, matcher, StoredTriggerState.PausedBlocked,
                 StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
 
-            var groups = new List<string>(await Delegate.SelectTriggerGroups(conn, matcher, cancellationToken).ConfigureAwait(false));
+            var groups = new List<string>(await Delegate.SelectTriggerGroupNames(conn, matcher, cancellationToken).ConfigureAwait(false));
 
             // make sure to account for an exact group match for a group that doesn't yet exist
             StringOperator op = matcher.CompareWithOperator;
@@ -3075,7 +3075,7 @@ public abstract class JobStoreSupport : IJobStore
             await Delegate.DeletePausedTriggerGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
             var groups = new HashSet<string>();
 
-            List<TriggerKey>? keys = await Delegate.SelectTriggersInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+            List<TriggerKey>? keys = await Delegate.SelectTriggerKeysInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
 
             foreach (TriggerKey key in keys)
             {

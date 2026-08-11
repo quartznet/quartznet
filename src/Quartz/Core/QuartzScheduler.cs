@@ -1367,7 +1367,7 @@ internal sealed class QuartzScheduler
         ArgumentNullException.ThrowIfNull(jobKeys);
         ValidateState();
 
-        return resources.JobStore.GetJobDetails(jobKeys, cancellationToken);
+        return resources.JobStore.GetJobs(jobKeys, cancellationToken);
     }
 
     /// <summary>

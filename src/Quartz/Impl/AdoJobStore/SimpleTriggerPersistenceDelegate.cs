@@ -134,10 +134,7 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
             .WithRepeatCount(repeatCount)
             .WithInterval(repeatInterval);
 
-        string[] statePropertyNames = ["timesTriggered"];
-        object[] statePropertyValues = [timesTriggered];
-
-        return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
+        return new TriggerPropertyBundle(sb, t => ((SimpleTriggerImpl) t).TimesTriggered = timesTriggered);
     }
 
     public async ValueTask<int> UpdateExtendedTriggerProperties(

@@ -269,3 +269,21 @@ plus a bridge entry on main.
 - **Single target** — everything targets `net10.0`.
 - **SDK**: .NET 10 SDK (see `global.json`), with `rollForward: latestMinor`.
 - **License headers** — source files include Apache 2.0 license region at the top.
+
+### Naming decisions that are settled
+
+Two spots look inconsistent on purpose. Both were examined and ratified in the 4.0 API-finalization
+pass; do not "finish" either one.
+
+- **The scheduler's noun is `JobDetail`; the store's noun is `Job`.** `IScheduler` hands users
+  `IJobDetail`, so it says `GetJobDetail`/`GetJobDetails`. `IJobStore` speaks in storage terms, so it
+  says `GetJob`/`GetJobs` (beside `GetTrigger`/`GetTriggers`). Singular/plural pairs are consistent
+  *within* each interface; the two interfaces deliberately differ, and aligning one with the other
+  would break the consistent pairs on whichever side got "fixed".
+- **`StdAdoDelegate` and the `*Delegate` dialect family keep their names.** "A class named Delegate
+  that isn't a delegate" is regrettable in .NET, but this vocabulary is Quartz's cross-ecosystem
+  identity: Java parity, twenty years of Stack Overflow answers, `quartz.jobStore.driverDelegateType`
+  spelled in countless configuration files, `database/README.md`, and the dialect docs all teach
+  against `IDriverDelegate`/`SqlServerDelegate`/`PostgreSQLDelegate`/…. The `Std` prefix was retired
+  everywhere else (the semaphore renames finished that); `StdAdoDelegate` is the sole deliberate
+  survivor, because renaming it would orphan the pedagogy without helping anyone.

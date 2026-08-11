@@ -785,7 +785,8 @@ public partial class StdAdoDelegate
         var trigger = (IOperableTrigger) tb.Build();
 
         ApplyTriggerFireState(trigger, row);
-        SetTriggerStateProperties(trigger, triggerProps);
+        // The applier is null when the delegate carries no state beyond the schedule (Cron does not).
+        triggerProps.ApplyState?.Invoke(trigger);
         ApplyTriggerRoutingState(trigger, row);
 
         return trigger;
@@ -880,16 +881,6 @@ public partial class StdAdoDelegate
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         return await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static void SetTriggerStateProperties(IOperableTrigger trigger, TriggerPropertyBundle props)
-    {
-        if (props.StatePropertyNames is null)
-        {
-            return;
-        }
-
-        ObjectUtils.SetObjectProperties(trigger, props.StatePropertyNames, props.StatePropertyValues);
     }
 
     /// <inheritdoc />
@@ -1006,7 +997,7 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<List<string>> SelectTriggerGroups(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<string>> SelectTriggerGroupNames(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         (string sql, string parameter) = MatchGroup(matcher, StdAdoConstants.SqlSelectTriggerGroupsEquals, StdAdoConstants.SqlSelectTriggerGroupsLike);
 
@@ -1024,7 +1015,7 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<List<TriggerKey>> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<TriggerKey>> SelectTriggerKeysInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         (string sql, string parameter) = MatchGroup(matcher, StdAdoConstants.SqlSelectTriggersInGroup, StdAdoConstants.SqlSelectTriggersInGroupLike);
 

@@ -174,7 +174,7 @@ public class JobStoreSupportTest
         var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
 
         // No triggers exist in QRTZ_TRIGGERS for this job
-        A.CallTo(() => driverDelegate.SelectTriggerNamesForJob(
+        A.CallTo(() => driverDelegate.SelectTriggerKeysForJob(
             A<ConnectionAndTransactionHolder>.Ignored,
             jobKey,
             A<CancellationToken>.Ignored)).Returns(new ValueTask<List<TriggerKey>>(new List<TriggerKey>()));

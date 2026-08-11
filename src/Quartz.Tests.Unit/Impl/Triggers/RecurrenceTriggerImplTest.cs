@@ -353,9 +353,10 @@ public class RecurrenceTriggerImplTest
         Assert.AreEqual("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR", recRebuilt.RecurrenceRule);
         Assert.AreEqual(TimeZoneInfo.Utc, recRebuilt.TimeZone);
 
-        // Verify state properties
-        Assert.AreEqual("timesTriggered", bundle.StatePropertyNames![0]);
-        Assert.AreEqual(7, bundle.StatePropertyValues![0]);
+        // Verify state applier restores the fire count onto the rebuilt trigger
+        bundle.ApplyState.Should().NotBeNull("the recurrence delegate persists TimesTriggered");
+        bundle.ApplyState!((RecurrenceTriggerImpl) rebuilt);
+        ((RecurrenceTriggerImpl) rebuilt).TimesTriggered.Should().Be(7);
     }
 
     [Test]

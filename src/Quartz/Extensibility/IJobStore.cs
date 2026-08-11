@@ -361,7 +361,7 @@ public interface IJobStore
     /// </summary>
     /// <param name="jobKeys">The keys of the jobs to retrieve.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
+    ValueTask<List<IJobDetail>> GetJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves the given triggers in one round trip. Keys that do not exist are simply

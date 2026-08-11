@@ -107,9 +107,9 @@ public class StdAdoDelegateGroupMatcherTest
     }
 
     [Test]
-    public async Task SelectTriggerGroups_WithEqualityMatcher_ShouldCompareWithEquals()
+    public async Task SelectTriggerGroupNames_WithEqualityMatcher_ShouldCompareWithEquals()
     {
-        await adoDelegate.SelectTriggerGroups(conn, GroupMatcher<TriggerKey>.GroupEquals("50%"));
+        await adoDelegate.SelectTriggerGroupNames(conn, GroupMatcher<TriggerKey>.GroupEquals("50%"));
 
         command.CommandText.Should().Contain("TRIGGER_GROUP = @triggerGroup");
         command.CommandText.Should().NotContain("LIKE",
@@ -118,9 +118,9 @@ public class StdAdoDelegateGroupMatcherTest
     }
 
     [Test]
-    public async Task SelectTriggerGroups_WithStartsWithMatcher_ShouldEscapePercentInTheGroupName()
+    public async Task SelectTriggerGroupNames_WithStartsWithMatcher_ShouldEscapePercentInTheGroupName()
     {
-        await adoDelegate.SelectTriggerGroups(conn, GroupMatcher<TriggerKey>.GroupStartsWith("50%"));
+        await adoDelegate.SelectTriggerGroupNames(conn, GroupMatcher<TriggerKey>.GroupStartsWith("50%"));
 
         command.CommandText.Should().Contain("TRIGGER_GROUP LIKE @triggerGroup ESCAPE '!'");
         parameters.Value("@triggerGroup").Should().Be("50!%%",
@@ -130,7 +130,7 @@ public class StdAdoDelegateGroupMatcherTest
     [Test]
     public async Task SelectJobsInGroup_WithContainsMatcher_ShouldEscapeUnderscoreInTheGroupName()
     {
-        await adoDelegate.SelectJobsInGroup(conn, GroupMatcher<JobKey>.GroupContains("a_b"));
+        await adoDelegate.SelectJobKeysInGroup(conn, GroupMatcher<JobKey>.GroupContains("a_b"));
 
         command.CommandText.Should().Contain("JOB_GROUP LIKE @jobGroup ESCAPE '!'");
         parameters.Value("@jobGroup").Should().Be("%a!_b%",
@@ -140,7 +140,7 @@ public class StdAdoDelegateGroupMatcherTest
     [Test]
     public async Task SelectJobsInGroup_WithEndsWithMatcher_ShouldEscapeTheEscapeCharacterItself()
     {
-        await adoDelegate.SelectJobsInGroup(conn, GroupMatcher<JobKey>.GroupEndsWith("a!b"));
+        await adoDelegate.SelectJobKeysInGroup(conn, GroupMatcher<JobKey>.GroupEndsWith("a!b"));
 
         parameters.Value("@jobGroup").Should().Be("%a!!b",
             "an unescaped escape character would swallow the character after it");
@@ -149,7 +149,7 @@ public class StdAdoDelegateGroupMatcherTest
     [Test]
     public async Task SelectJobsInGroup_WithEqualityMatcher_ShouldCompareWithEquals()
     {
-        await adoDelegate.SelectJobsInGroup(conn, GroupMatcher<JobKey>.GroupEquals("a_b"));
+        await adoDelegate.SelectJobKeysInGroup(conn, GroupMatcher<JobKey>.GroupEquals("a_b"));
 
         command.CommandText.Should().Contain("JOB_GROUP = @jobGroup");
         command.CommandText.Should().NotContain("LIKE");
@@ -159,7 +159,7 @@ public class StdAdoDelegateGroupMatcherTest
     [Test]
     public async Task SelectTriggersInGroup_WithAnyGroup_ShouldMatchEveryGroup()
     {
-        await adoDelegate.SelectTriggersInGroup(conn, GroupMatcher<TriggerKey>.AnyGroup());
+        await adoDelegate.SelectTriggerKeysInGroup(conn, GroupMatcher<TriggerKey>.AnyGroup());
 
         command.CommandText.Should().Contain("TRIGGER_GROUP LIKE @triggerGroup ESCAPE '!'");
         parameters.Value("@triggerGroup").Should().Be("%");
@@ -513,7 +513,7 @@ public class StdAdoDelegateGroupMatcherTest
     }
 
     [Test]
-    public async Task SelectTriggerGroups_WithNameAndPaused_ShouldFilterThePausedGroupsTable()
+    public async Task SelectTriggerGroupNames_WithNameAndPaused_ShouldFilterThePausedGroupsTable()
     {
         await adoDelegate.SelectTriggerGroups(conn, new TriggerGroupQuery { Name = "reports", Paused = true });
 
@@ -523,7 +523,7 @@ public class StdAdoDelegateGroupMatcherTest
     }
 
     [Test]
-    public async Task SelectTriggerGroups_WithNameAndNoPausedFilter_ShouldFilterTheAliasedTriggersTable()
+    public async Task SelectTriggerGroupNames_WithNameAndNoPausedFilter_ShouldFilterTheAliasedTriggersTable()
     {
         await adoDelegate.SelectTriggerGroups(conn, new TriggerGroupQuery { Name = "reports" });
 

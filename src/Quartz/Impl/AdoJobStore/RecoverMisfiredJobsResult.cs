@@ -19,5 +19,5 @@ public sealed record RecoverMisfiredJobsResult(
     /// <summary>
     /// The result of a pass that found nothing to do.
     /// </summary>
-    public static readonly RecoverMisfiredJobsResult NoOp = new(false, 0, DateTimeOffset.MaxValue);
+    public static RecoverMisfiredJobsResult NoOp { get; } = new(false, 0, DateTimeOffset.MaxValue);
 }

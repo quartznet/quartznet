@@ -539,7 +539,7 @@ public class RAMJobStoreQueryTest
         IJobDetail first = await AddJob("j1", "g");
         IJobDetail second = await AddJob("j2", "g");
 
-        List<IJobDetail> jobs = await store.GetJobDetails([second.Key, new JobKey("missing", "g"), second.Key, first.Key]);
+        List<IJobDetail> jobs = await store.GetJobs([second.Key, new JobKey("missing", "g"), second.Key, first.Key]);
 
         jobs.Select(x => x.Key).Should().Equal(
             [second.Key, first.Key],
@@ -551,8 +551,8 @@ public class RAMJobStoreQueryTest
     {
         IJobDetail job = await AddJob("j1", "g");
 
-        List<IJobDetail> first = await store.GetJobDetails([job.Key]);
-        List<IJobDetail> second = await store.GetJobDetails([job.Key]);
+        List<IJobDetail> first = await store.GetJobs([job.Key]);
+        List<IJobDetail> second = await store.GetJobs([job.Key]);
 
         first.Single().Should().NotBeSameAs(second.Single(), "callers must not get a handle on the store's own job detail");
         first.Single().Key.Should().Be(job.Key);
@@ -591,7 +591,7 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task BulkFetches_TolerateAnEmptyRequest()
     {
-        List<IJobDetail> jobs = await store.GetJobDetails([]);
+        List<IJobDetail> jobs = await store.GetJobs([]);
         List<IOperableTrigger> triggers = await store.GetTriggers([]);
 
         jobs.Should().BeEmpty();
