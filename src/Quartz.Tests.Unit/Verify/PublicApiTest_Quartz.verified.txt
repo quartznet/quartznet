@@ -181,6 +181,63 @@ namespace Quartz
         FireAndProceed = 1,
         DoNothing = 2,
     }
+    public static class DataMapExtensions
+    {
+        extension(Quartz.SchedulerContext context)
+        {
+            public int GetInt(string key) { }
+            public long GetLong(string key) { }
+            public float GetFloat(string key) { }
+            public double GetDouble(string key) { }
+            public decimal GetDecimal(string key) { }
+            public bool GetBoolean(string key) { }
+            public char GetChar(string key) { }
+            public string? GetString(string key) { }
+            public System.DateTime GetDateTime(string key) { }
+            public System.DateTimeOffset GetDateTimeOffset(string key) { }
+            public System.TimeSpan GetTimeSpan(string key) { }
+            public System.Guid GetGuid(string key) { }
+            public bool TryGetInt(string key, out int value) { }
+            public bool TryGetLong(string key, out long value) { }
+            public bool TryGetFloat(string key, out float value) { }
+            public bool TryGetDouble(string key, out double value) { }
+            public bool TryGetDecimal(string key, out decimal value) { }
+            public bool TryGetBoolean(string key, out bool value) { }
+            public bool TryGetChar(string key, out char value) { }
+            public bool TryGetString(string key, out string? value) { }
+            public bool TryGetDateTime(string key, out System.DateTime value) { }
+            public bool TryGetDateTimeOffset(string key, out System.DateTimeOffset value) { }
+            public bool TryGetTimeSpan(string key, out System.TimeSpan value) { }
+            public bool TryGetGuid(string key, out System.Guid value) { }
+        }
+        extension(Quartz.JobDataMap map)
+        {
+            public int GetInt(string key) { }
+            public long GetLong(string key) { }
+            public float GetFloat(string key) { }
+            public double GetDouble(string key) { }
+            public decimal GetDecimal(string key) { }
+            public bool GetBoolean(string key) { }
+            public char GetChar(string key) { }
+            public string? GetString(string key) { }
+            public System.DateTime GetDateTime(string key) { }
+            public System.DateTimeOffset GetDateTimeOffset(string key) { }
+            public System.TimeSpan GetTimeSpan(string key) { }
+            public System.Guid GetGuid(string key) { }
+            public bool TryGetInt(string key, out int value) { }
+            public bool TryGetLong(string key, out long value) { }
+            public bool TryGetFloat(string key, out float value) { }
+            public bool TryGetDouble(string key, out double value) { }
+            public bool TryGetDecimal(string key, out decimal value) { }
+            public bool TryGetBoolean(string key, out bool value) { }
+            public bool TryGetChar(string key, out char value) { }
+            public bool TryGetString(string key, out string? value) { }
+            public bool TryGetDateTime(string key, out System.DateTime value) { }
+            public bool TryGetDateTimeOffset(string key, out System.DateTimeOffset value) { }
+            public bool TryGetTimeSpan(string key, out System.TimeSpan value) { }
+            public bool TryGetGuid(string key, out System.Guid value) { }
+        }
+    }
     public sealed class DataSourceOptions
     {
         public DataSourceOptions() { }
@@ -668,17 +725,33 @@ namespace Quartz
         public Quartz.JobBuilder<TJob> WithIdentity(string name, string group) { }
     }
     [System.Serializable]
-    public sealed class JobDataMap : Quartz.Util.StringKeyDirtyFlagMap
+    public sealed class JobDataMap : System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IDictionary<string, object?>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IReadOnlyDictionary<string, object?>, System.Collections.IEnumerable, System.IEquatable<Quartz.JobDataMap>, System.Runtime.Serialization.ISerializable
     {
         public JobDataMap() { }
         public JobDataMap(System.Collections.Generic.IDictionary<string, object?> map) { }
         public JobDataMap(int initialCapacity) { }
+        public int Count { get; }
+        public bool IsEmpty { get; }
+        public object? this[string key] { get; set; }
+        public System.Collections.Generic.ICollection<string> Keys { get; }
+        public System.Collections.Generic.ICollection<object?> Values { get; }
+        public void Add(string key, object? value) { }
+        public void Clear() { }
+        public bool ContainsKey(string key) { }
+        public bool ContainsValue(object? obj) { }
+        public void CopyTo(System.Collections.Generic.KeyValuePair<string, object?>[] array, int arrayIndex) { }
+        public bool Equals(Quartz.JobDataMap? other) { }
+        public override bool Equals(object? obj) { }
+        public System.Collections.Generic.Dictionary<string, object?>.Enumerator GetEnumerator() { }
+        public override int GetHashCode() { }
         public void PutAsString(string key, System.DateTimeOffset value) { }
         public void PutAsString(string key, System.Guid value) { }
         public void PutAsString(string key, System.Guid? value) { }
         public void PutAsString(string key, System.TimeSpan value) { }
         public void PutAsString<T>(string key, T value)
             where T : System.IConvertible { }
+        public bool Remove(string key) { }
+        public bool TryGetValue(string key, out object? value) { }
     }
     public sealed class JobExecutionException : Quartz.SchedulerException
     {
@@ -1032,10 +1105,22 @@ namespace Quartz
         public const string FailedJobOriginalTriggerScheduledFireTime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_SCHEDULED_FIRETIME_AS_STRING";
         public const string ForceJobDataMapDirty = "QRTZ_FORCE_JOB_DATAMAP_DIRTY";
     }
-    public sealed class SchedulerContext : Quartz.Util.StringKeyDirtyFlagMap
+    public sealed class SchedulerContext : System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IDictionary<string, object?>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IReadOnlyDictionary<string, object?>, System.Collections.IEnumerable
     {
         public SchedulerContext() { }
         public SchedulerContext(System.Collections.Generic.IDictionary<string, object?> map) { }
+        public int Count { get; }
+        public bool IsEmpty { get; }
+        public object? this[string key] { get; set; }
+        public System.Collections.Generic.ICollection<string> Keys { get; }
+        public System.Collections.Generic.ICollection<object?> Values { get; }
+        public void Add(string key, object? value) { }
+        public void Clear() { }
+        public bool ContainsKey(string key) { }
+        public void CopyTo(System.Collections.Generic.KeyValuePair<string, object?>[] array, int arrayIndex) { }
+        public System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<string, object?>> GetEnumerator() { }
+        public bool Remove(string key) { }
+        public bool TryGetValue(string key, out object? value) { }
     }
     public static class SchedulerEnlistmentExtensions
     {
@@ -3272,67 +3357,6 @@ namespace Quartz.Serialization.SystemTextJson.Triggers
         public abstract Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
         protected virtual void DeserializeFields(TTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
         protected abstract void SerializeFields(System.Text.Json.Utf8JsonWriter writer, TTrigger trigger, System.Text.Json.JsonSerializerOptions options);
-    }
-}
-namespace Quartz.Util
-{
-    [System.Serializable]
-    public class DirtyFlagMap<TKey, TValue> : System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<TKey, TValue?>>, System.Collections.Generic.IDictionary<TKey, TValue?>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue?>>, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<TKey, TValue?>>, System.Collections.Generic.IReadOnlyDictionary<TKey, TValue?>, System.Collections.IEnumerable, System.Runtime.Serialization.ISerializable
-        where TKey :  notnull
-    {
-        public DirtyFlagMap() { }
-        public DirtyFlagMap(int initialCapacity) { }
-        protected DirtyFlagMap(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
-        public int Count { get; }
-        public bool Dirty { get; }
-        public bool IsEmpty { get; }
-        public TValue this[TKey key] { get; set; }
-        public System.Collections.Generic.ICollection<TKey> Keys { get; }
-        public System.Collections.Generic.ICollection<TValue?> Values { get; }
-        public void Add(TKey key, TValue? value) { }
-        public void Clear() { }
-        public void ClearDirtyFlag() { }
-        public bool ContainsKey(TKey key) { }
-        public bool ContainsValue(TValue obj) { }
-        public void CopyTo(System.Collections.Generic.KeyValuePair<TKey, TValue?>[] array, int arrayIndex) { }
-        public override bool Equals(object? obj) { }
-        public System.Collections.Generic.Dictionary<TKey, TValue?>.Enumerator GetEnumerator() { }
-        public override int GetHashCode() { }
-        [System.Security.SecurityCritical]
-        protected void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
-        public bool Remove(TKey key) { }
-        public bool TryGetValue(TKey key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out TValue value) { }
-    }
-    [System.Serializable]
-    public class StringKeyDirtyFlagMap : Quartz.Util.DirtyFlagMap<string, object>
-    {
-        public StringKeyDirtyFlagMap() { }
-        public StringKeyDirtyFlagMap(int initialCapacity) { }
-        protected StringKeyDirtyFlagMap(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
-        public virtual bool GetBoolean(string key) { }
-        public virtual char GetChar(string key) { }
-        public virtual System.DateTime GetDateTime(string key) { }
-        public virtual System.DateTimeOffset GetDateTimeOffset(string key) { }
-        public virtual decimal GetDecimal(string key) { }
-        public virtual double GetDouble(string key) { }
-        public virtual float GetFloat(string key) { }
-        public virtual System.Guid GetGuid(string key) { }
-        public virtual int GetInt(string key) { }
-        public virtual long GetLong(string key) { }
-        public virtual string? GetString(string key) { }
-        public virtual System.TimeSpan GetTimeSpan(string key) { }
-        public virtual bool TryGetBoolean(string key, out bool value) { }
-        public virtual bool TryGetChar(string key, out char value) { }
-        public virtual bool TryGetDateTime(string key, out System.DateTime value) { }
-        public virtual bool TryGetDateTimeOffset(string key, out System.DateTimeOffset value) { }
-        public virtual bool TryGetDecimal(string key, out decimal value) { }
-        public virtual bool TryGetDouble(string key, out double value) { }
-        public virtual bool TryGetFloat(string key, out float value) { }
-        public virtual bool TryGetGuid(string key, out System.Guid value) { }
-        public virtual bool TryGetInt(string key, out int value) { }
-        public virtual bool TryGetLong(string key, out long value) { }
-        public virtual bool TryGetString(string key, out string? value) { }
-        public virtual bool TryGetTimeSpan(string key, out System.TimeSpan value) { }
     }
 }
 namespace Quartz.Xml

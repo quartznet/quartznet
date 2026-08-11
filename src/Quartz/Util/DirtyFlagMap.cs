@@ -15,21 +15,21 @@
  *
  */
 
-using System.Collections;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.Serialization;
-using System.Security;
 
 namespace Quartz.Util;
 
 /// <summary>
 /// A dictionary that flags itself 'dirty' when it is modified.
 /// </summary>
+/// <remarks>
+/// This is the storage behind <see cref="JobDataMap" />, which owns the serialized shape;
+/// this type carries no serialization behaviour of its own.
+/// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
 #pragma warning disable CA1710
-public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnlyDictionary<TKey, TValue?>, ISerializable where TKey : notnull
+internal class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnlyDictionary<TKey, TValue?> where TKey : notnull
 #pragma warning restore CA1710
 {
     private bool dirty;
@@ -51,100 +51,20 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnlyD
         map = new Dictionary<TKey, TValue?>(initialCapacity);
     }
 
+    /// <summary>
+    /// Create a <see cref="DirtyFlagMap{TKey,TValue}" /> adopting the given dictionary as its storage,
+    /// with the given dirty state. Used when reconstructing a map from its persisted form.
+    /// </summary>
+    internal DirtyFlagMap(Dictionary<TKey, TValue?> map, bool dirty)
+    {
+        this.map = map;
+        this.dirty = dirty;
+    }
+
     private DirtyFlagMap(DirtyFlagMap<TKey, TValue> other)
     {
         map = new Dictionary<TKey, TValue?>(other.map);
         dirty = other.dirty;
-    }
-
-    // Make sure that future DirtyFlagMap version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
-    /// <summary>
-    /// Serialization constructor.
-    /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
-    protected DirtyFlagMap(SerializationInfo info, StreamingContext context)
-    {
-        int version;
-        try
-        {
-            version = info.GetInt32("version");
-        }
-        catch
-        {
-            version = 0;
-        }
-
-        string prefix = "";
-        if (version < 1)
-        {
-            try
-            {
-                info.GetValue("dirty", typeof(bool));
-            }
-            catch
-            {
-                // base class qualified format
-                prefix = "DirtyFlagMap+";
-            }
-        }
-
-        switch (version)
-        {
-            case 0:
-                object o = info.GetValue(prefix + "map", typeof(object))!;
-                if (o is Hashtable oldMap)
-                {
-                    // need to call ondeserialization to get hashtable
-                    // initialized correctly
-                    oldMap.OnDeserialization(this);
-
-                    map = new Dictionary<TKey, TValue?>();
-#pragma warning disable 8605
-                    foreach (DictionaryEntry entry in oldMap)
-#pragma warning restore 8605
-                    {
-                        map.Add((TKey) entry.Key, (TValue) entry.Value!);
-                    }
-                }
-                else
-                {
-                    // new version
-                    map = (Dictionary<TKey, TValue?>) o;
-                }
-
-                break;
-            case 1:
-                dirty = (bool) info.GetValue("dirty", typeof(bool))!;
-                map = (Dictionary<TKey, TValue?>) info.GetValue("map", typeof(Dictionary<TKey, TValue?>))!;
-                break;
-            default:
-                Throw.NotSupportedException("Unknown serialization version");
-                break;
-        }
-    }
-
-    /// <summary>
-    /// Populates a <see cref="SerializationInfo"/> with the data needed to serialize the target object.
-    /// </summary>
-    /// <param name="info">The <see cref="SerializationInfo"/> to populate with data.</param>
-    /// <param name="context">The destination for this serialization.</param>
-    void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-    {
-        GetObjectData(info, context);
-    }
-
-    /// <summary>
-    /// Populates a <see cref="SerializationInfo"/> with the data needed to serialize the target object.
-    /// </summary>
-    /// <param name="info">The <see cref="SerializationInfo"/> to populate with data.</param>
-    /// <param name="context">The destination for this serialization.</param>
-    [SecurityCritical]
-    protected void GetObjectData(SerializationInfo info, StreamingContext context)
-    {
-        info.AddValue("version", 1);
-        info.AddValue("dirty", dirty);
-        info.AddValue("map", map);
     }
 
     /// <summary>
@@ -155,7 +75,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnlyD
     /// <summary>
     /// Get a direct handle to the underlying Map.
     /// </summary>
-    internal IDictionary<TKey, TValue?> WrappedMap => map;
+    internal Dictionary<TKey, TValue?> WrappedMap => map;
 
     /// <summary>
     /// Gets a value indicating whether this instance is empty.
@@ -169,7 +89,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnlyD
     /// <returns>
     /// A new object that is a copy of this instance.
     /// </returns>
-    internal virtual DirtyFlagMap<TKey, TValue> Clone()
+    internal DirtyFlagMap<TKey, TValue> Clone()
     {
         return new DirtyFlagMap<TKey, TValue>(this);
     }
@@ -354,52 +274,8 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnlyD
         return map.ContainsValue(obj);
     }
 
-    /// <summary>
-    /// Determines whether the specified <see cref="System.Object"/> is equal to the current <see cref="System.Object"/>.
-    /// </summary>
-    /// <param name="obj">The <see cref="System.Object"/> to compare with the current <see cref="System.Object"/>.</param>
-    /// <returns>
-    /// 	<see langword="true"/> if the specified <see cref="System.Object"/> is equal to the
-    /// current <see cref="System.Object"/>; otherwise, <see langword="false"/>.
-    /// </returns>
-    public override bool Equals(object? obj)
-    {
-        if (obj is not DirtyFlagMap<TKey, TValue> other)
-        {
-            return false;
-        }
-
-        if (Count != other.Count)
-        {
-            return false;
-        }
-
-        foreach (TKey key in map.Keys)
-        {
-            if (!other.map.ContainsKey(key))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Serves as a hash function for a particular type, suitable
-    /// for use in hashing algorithms and data structures like a hash table.
-    /// </summary>
-    /// <returns>
-    /// A hash code for the current <see cref="System.Object"/>.
-    /// </returns>
-    public override int GetHashCode()
-    {
-        return map.GetHashCode();
-    }
-
-    IEnumerator IEnumerable.GetEnumerator()
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
     }
-
 }

@@ -292,6 +292,42 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     }
 
     [Test]
+    public void EqualsComparesValuesNotJustKeys()
+    {
+        JobDataMap first = new JobDataMap { { "key", "value" } };
+        JobDataMap sameContent = new JobDataMap { { "key", "value" } };
+        JobDataMap sameKeyDifferentValue = new JobDataMap { { "key", "other" } };
+
+        first.Equals(sameContent).Should().BeTrue();
+        first.GetHashCode().Should().Be(sameContent.GetHashCode(), "equal maps must hash equally");
+        first.Equals(sameKeyDifferentValue).Should().BeFalse(
+            "until 4.0 only the key sets were compared, so maps with different values counted as equal");
+    }
+
+    [Test]
+    public void AssigningANestedMapWithDifferentValuesMarksTheOuterMapDirty()
+    {
+        JobDataMap outer = new JobDataMap { { "nested", new JobDataMap { { "key", "old" } } } };
+        outer.ClearDirtyFlag();
+
+        outer["nested"] = new JobDataMap { { "key", "new" } };
+
+        outer.Dirty.Should().BeTrue(
+            "the key-set-only equality used to suppress this, and the job store then skipped rewriting the changed data");
+    }
+
+    [Test]
+    public void AssigningAnEqualValueDoesNotMarkTheMapDirty()
+    {
+        JobDataMap map = new JobDataMap { { "key", "value" } };
+        map.ClearDirtyFlag();
+
+        map["key"] = "value";
+
+        map.Dirty.Should().BeFalse("writing back the value already there changes nothing worth persisting");
+    }
+
+    [Test]
     public void CanKeepDirtyFlagWhenSerializing()
     {
         Dictionary<string, object> dictionary = new Dictionary<string, object>();
