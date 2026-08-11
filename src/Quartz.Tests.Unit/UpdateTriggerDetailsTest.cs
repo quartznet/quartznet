@@ -256,7 +256,7 @@ public class UpdateTriggerDetailsTest
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.AddTrigger(trigger, false);
 
-        // Code 2 is in range for a cron trigger, so AbstractTrigger's own validation passes it and
+        // Code 2 is in range for a cron trigger, so TriggerBase's own validation passes it and
         // the trigger silently becomes DoNothing. Only the update object knows a simple trigger's
         // policy was meant.
         TriggerDetailsUpdate update = new TriggerDetailsUpdate()

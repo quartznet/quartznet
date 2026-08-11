@@ -175,7 +175,7 @@ namespace Quartz.Impl.Triggers;
 /// <author>Contributions from Mads Henderson</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class CronTriggerImpl : AbstractTrigger, ICronTrigger
+public class CronTriggerImpl : TriggerBase, ICronTrigger
 {
     private CronExpression? cronEx;
     private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;

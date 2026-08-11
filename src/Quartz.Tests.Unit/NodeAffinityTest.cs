@@ -171,7 +171,7 @@ public sealed class NodeAffinityTest
     }
 
     [Test]
-    public void AbstractTrigger_PreferredNode_CloneCopiesValue()
+    public void TriggerBase_PreferredNode_CloneCopiesValue()
     {
         SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
         trigger.SetPreferredNode(PreferredNode.ClaimedBy("node-1"), markDirty: true);

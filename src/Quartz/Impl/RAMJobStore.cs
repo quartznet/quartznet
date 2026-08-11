@@ -2068,10 +2068,10 @@ public sealed class RAMJobStore : IJobStore
         // RescheduleNextWith*) set it to a future schedule time where the existing code
         // already produces the correct ScheduledFireTimeUtc.
         var updatedTnft = tw.Trigger.NextFireTimeUtc;
-        if (tw.Trigger is AbstractTrigger abstractTrigger
+        if (tw.Trigger is TriggerBase abstractTrigger
             && originalFireTime.HasValue && updatedTnft.HasValue
             && originalFireTime.Value != updatedTnft.Value
-            && Math.Abs((updatedTnft.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
+            && Math.Abs((updatedTnft.Value - now).TotalMilliseconds) < TriggerBase.FireNowMisfireDetectionThresholdMs)
         {
             abstractTrigger.MisfiredFromFireTimeUtc = originalFireTime;
         }
@@ -2327,12 +2327,12 @@ public sealed class RAMJobStore : IJobStore
 
                 // Read saved original fire time (set during ApplyMisfireNoLock if a misfire occurred)
                 DateTimeOffset? scheduledFireTime = null;
-                if (trigger is AbstractTrigger at)
+                if (trigger is TriggerBase at)
                 {
                     scheduledFireTime = at.MisfiredFromFireTimeUtc;
                     at.MisfiredFromFireTimeUtc = null;
                 }
-                if (tw.Trigger is AbstractTrigger twAt)
+                if (tw.Trigger is TriggerBase twAt)
                 {
                     twAt.MisfiredFromFireTimeUtc = null;
                 }

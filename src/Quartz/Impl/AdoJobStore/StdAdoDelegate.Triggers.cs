@@ -341,7 +341,7 @@ public partial class StdAdoDelegate
         // Only write the preferred node columns when the pin was actually changed on this instance.
         // A trigger on the fire path carries the value loaded at acquire time; writing it back
         // would clobber a concurrent re-pin (ClusterRecover's failover reset, UpdateTriggerDetails).
-        bool writePreferredNode = (trigger as AbstractTrigger)?.PreferredNodeDirty == true;
+        bool writePreferredNode = (trigger as TriggerBase)?.PreferredNodeDirty == true;
 
         string sqlUpdate = (updateJobData, writePreferredNode) switch
         {
@@ -728,7 +728,7 @@ public partial class StdAdoDelegate
         trigger.NextFireTimeUtc = row.NextFireTimeUtc;
         trigger.PreviousFireTimeUtc = row.PreviousFireTimeUtc;
 
-        if (row.MisfireOriginalFireTime.HasValue && trigger is AbstractTrigger at)
+        if (row.MisfireOriginalFireTime.HasValue && trigger is TriggerBase at)
         {
             at.MisfiredFromFireTimeUtc = row.MisfireOriginalFireTime;
         }
@@ -744,7 +744,7 @@ public partial class StdAdoDelegate
 
         // Populating from the trigger's own row — not a change, so it must not mark the pin
         // dirty (that would make the next store write it back and clobber concurrent re-pins).
-        (trigger as AbstractTrigger)?.SetPreferredNode(PreferredNode.FromStored(row.PreferredNode, row.PreferredNodeAuto), markDirty: false);
+        (trigger as TriggerBase)?.SetPreferredNode(PreferredNode.FromStored(row.PreferredNode, row.PreferredNodeAuto), markDirty: false);
     }
 
     /// <summary>

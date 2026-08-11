@@ -593,7 +593,7 @@ public class JsonObjectSerializerTest
 
     private static void SetTimeProvider(TimeProvider timeProvider, ITrigger trigger)
     {
-        var field = typeof(AbstractTrigger).GetField("timeProvider", BindingFlags.Instance | BindingFlags.NonPublic);
+        var field = typeof(TriggerBase).GetField("timeProvider", BindingFlags.Instance | BindingFlags.NonPublic);
         field!.SetValue(trigger, timeProvider);
     }
 

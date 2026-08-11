@@ -939,7 +939,7 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException(
                 $"Trigger '{trigger.Key}' of type {trigger.GetType().FullName} cannot be scheduled: " +
                 "Quartz owns the implementations of ITrigger. Build triggers with TriggerBuilder, and " +
-                "derive custom trigger types from AbstractTrigger; an object implementing only ITrigger is a read model.");
+                "derive custom trigger types from TriggerBase; an object implementing only ITrigger is a read model.");
             return null!;
         }
 

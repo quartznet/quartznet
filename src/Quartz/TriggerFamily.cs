@@ -56,7 +56,7 @@ internal static class TriggerFamilyExtensions
     /// <summary>
     /// Rejects an update whose misfire instruction was given in a family other than the stored
     /// trigger's. A code that is in range for two families means a different policy in each, so
-    /// <see cref="Quartz.Impl.Triggers.AbstractTrigger" />'s range check lets the wrong one through
+    /// <see cref="Quartz.Impl.Triggers.TriggerBase" />'s range check lets the wrong one through
     /// silently; only the update object knows which family the caller meant.
     /// </summary>
     /// <exception cref="JobPersistenceException">The families disagree.</exception>

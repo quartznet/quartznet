@@ -621,7 +621,7 @@ public class StdAdoDelegateTest
         {
             Assert.That(trigger.NextFireTimeUtc, Is.EqualTo(nextFireTime));
             Assert.That(trigger.MisfireInstructionCode, Is.EqualTo(1));
-            Assert.That(((AbstractTrigger) trigger).MisfiredFromFireTimeUtc, Is.EqualTo(misfireOrigFireTime));
+            Assert.That(((TriggerBase) trigger).MisfiredFromFireTimeUtc, Is.EqualTo(misfireOrigFireTime));
         });
     }
 

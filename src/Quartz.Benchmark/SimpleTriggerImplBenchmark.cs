@@ -316,7 +316,7 @@ public class SimpleTriggerImplBenchmark
     /// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class SimpleTriggerImplLegacy : AbstractTrigger, ISimpleTrigger
+    public class SimpleTriggerImplLegacy : TriggerBase, ISimpleTrigger
     {
         /// <summary>
         /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in

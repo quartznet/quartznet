@@ -203,7 +203,7 @@ public class RecurrenceTriggerImplTest
         trigger.StartTimeUtc = new DateTimeOffset(1982, 6, 28, 13, 5, 5, 233, TimeSpan.Zero);
 
         // The trigger reports no millisecond precision, but it overrides StartTimeUtc and so never
-        // reaches AbstractTrigger's round-down-to-the-second - unlike CronTriggerImpl, which does.
+        // reaches TriggerBase's round-down-to-the-second - unlike CronTriggerImpl, which does.
         // Recorded as it behaves: rounding here would move the fire times of existing triggers.
         trigger.StartTimeUtc.Millisecond.Should().Be(233);
     }
