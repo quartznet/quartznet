@@ -19,7 +19,8 @@
 
 #endregion
 
-using Quartz.Util;
+using System.Collections;
+using System.Collections.Concurrent;
 
 namespace Quartz;
 
@@ -28,30 +29,170 @@ namespace Quartz;
 /// are executed.
 /// </summary>
 /// <remarks>
-/// Future versions of Quartz may make distinctions on how it propagates
-/// data in <see cref="SchedulerContext" /> between instances of proxies to a
-/// single scheduler instance - i.e. if Quartz is being used via RPC.
+/// <para>
+/// The context lives for the whole scheduler: plugins write to it during initialization while jobs
+/// and listeners read from it on their own threads, so it is backed by a
+/// <see cref="ConcurrentDictionary{TKey,TValue}" /> and is safe to read and write concurrently.
+/// It is never persisted.
+/// </para>
+/// <para>
+/// The typed read accessors (<c>GetString</c>, <c>TryGetInt</c> and friends) are extension members
+/// declared in <see cref="DataMapExtensions" />.
+/// </para>
 /// </remarks>
 /// <seealso cref="IScheduler.Context" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class SchedulerContext : StringKeyDirtyFlagMap
+#pragma warning disable CA1710
+public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDictionary<string, object?>
+#pragma warning restore CA1710
 {
+    private readonly ConcurrentDictionary<string, object?> map;
+
     /// <summary>
-    /// Create an empty <see cref="JobDataMap" />.
+    /// Create an empty <see cref="SchedulerContext" />.
     /// </summary>
-    public SchedulerContext() : base(15)
+    public SchedulerContext()
     {
+        map = new ConcurrentDictionary<string, object?>();
     }
 
     /// <summary>
-    /// Create a <see cref="JobDataMap" /> with the given data.
+    /// Create a <see cref="SchedulerContext" /> with the given data.
     /// </summary>
     public SchedulerContext(IDictionary<string, object?> map) : this()
     {
-        foreach (var pair in map)
+        foreach (KeyValuePair<string, object?> pair in map)
         {
-            this[pair.Key] = pair.Value;
+            this.map[pair.Key] = pair.Value;
         }
     }
+
+    /// <summary>
+    /// Gets a value indicating whether this instance is empty.
+    /// </summary>
+    /// <value><c>true</c> if this instance is empty; otherwise, <c>false</c>.</value>
+    public bool IsEmpty => map.IsEmpty;
+
+    /// <summary>
+    /// Gets the number of entries contained in the context.
+    /// </summary>
+    public int Count => map.Count;
+
+    /// <summary>
+    /// Gets a snapshot of the keys in the context.
+    /// </summary>
+    public ICollection<string> Keys => map.Keys;
+
+    /// <summary>
+    /// Gets a snapshot of the values in the context.
+    /// </summary>
+    public ICollection<object?> Values => map.Values;
+
+    /// <inheritdoc/>
+    IEnumerable<string> IReadOnlyDictionary<string, object?>.Keys => map.Keys;
+
+    /// <inheritdoc/>
+    IEnumerable<object?> IReadOnlyDictionary<string, object?>.Values => map.Values;
+
+    /// <summary>
+    /// Gets or sets the <see cref="object"/> with the specified key.
+    /// </summary>
+    public object? this[string key]
+    {
+        get => map[key];
+        set => map[key] = value;
+    }
+
+    /// <summary>
+    /// Gets the value associated with the specified key.
+    /// </summary>
+    /// <param name="key">The key whose value to get.</param>
+    /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, <see langword="null" />.</param>
+    /// <returns>
+    /// <see langword="true"/> if the <see cref="SchedulerContext"/> contains an element with the specified key;
+    /// otherwise, <see langword="false"/>.
+    /// </returns>
+    public bool TryGetValue(string key, out object? value)
+    {
+        return map.TryGetValue(key, out value);
+    }
+
+    /// <summary>
+    /// Determines whether the context contains an entry with the specified key.
+    /// </summary>
+    /// <param name="key">The key to locate.</param>
+    /// <returns>
+    /// 	<see langword="true"/> if the context contains an entry with the key; otherwise, <see langword="false"/>.
+    /// </returns>
+    public bool ContainsKey(string key)
+    {
+        return map.ContainsKey(key);
+    }
+
+    /// <summary>
+    /// Adds an entry with the provided key and value to the context.
+    /// </summary>
+    /// <param name="key">The key of the entry to add.</param>
+    /// <param name="value">The value of the entry to add.</param>
+    /// <exception cref="System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+    /// <exception cref="System.ArgumentException">
+    /// An entry with the same key already exists in the context.
+    /// </exception>
+    public void Add(string key, object? value)
+    {
+        if (!map.TryAdd(key, value))
+        {
+            Throw.ArgumentException("An entry with the same key already exists.", nameof(key));
+        }
+    }
+
+    /// <summary>
+    /// Removes the entry with the specified key from the context.
+    /// </summary>
+    /// <param name="key">The key of the entry to remove.</param>
+    public bool Remove(string key)
+    {
+        return map.TryRemove(key, out _);
+    }
+
+    /// <summary>
+    /// Removes all entries from the context.
+    /// </summary>
+    public void Clear()
+    {
+        map.Clear();
+    }
+
+    public void CopyTo(KeyValuePair<string, object?>[] array, int arrayIndex)
+    {
+        ((ICollection<KeyValuePair<string, object?>>) map).CopyTo(array, arrayIndex);
+    }
+
+    public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
+    {
+        return map.GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
+    void ICollection<KeyValuePair<string, object?>>.Add(KeyValuePair<string, object?> item)
+    {
+        Add(item.Key, item.Value);
+    }
+
+    bool ICollection<KeyValuePair<string, object?>>.Contains(KeyValuePair<string, object?> item)
+    {
+        return ((ICollection<KeyValuePair<string, object?>>) map).Contains(item);
+    }
+
+    bool ICollection<KeyValuePair<string, object?>>.Remove(KeyValuePair<string, object?> item)
+    {
+        return map.TryRemove(item);
+    }
+
+    bool ICollection<KeyValuePair<string, object?>>.IsReadOnly => false;
 }

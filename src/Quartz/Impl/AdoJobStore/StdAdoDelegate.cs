@@ -555,7 +555,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         byte[]? retValue = null;
         if (data.Count > 0)
         {
-            NameValueCollection properties = ConvertToProperty(data.WrappedMap);
+            NameValueCollection properties = ConvertToProperty(data);
             retValue = SerializeObject(properties);
         }
 

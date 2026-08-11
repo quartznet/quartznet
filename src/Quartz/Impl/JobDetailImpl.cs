@@ -409,7 +409,7 @@ internal sealed class JobDetailImpl : IJobDetail
         var copy = (JobDetailImpl) MemberwiseClone();
         if (jobDataMap is not null)
         {
-            copy.jobDataMap = (JobDataMap) jobDataMap.Clone();
+            copy.jobDataMap = jobDataMap.Clone();
         }
         return copy;
     }

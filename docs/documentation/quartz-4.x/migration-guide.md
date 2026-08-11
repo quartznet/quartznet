@@ -1431,21 +1431,43 @@ is false — and nothing outside the trigger acted on it. A custom trigger chang
 
 `JobKey` and `TriggerKey` now throw `ArgumentNullException` when you specify `null` for `name` or `group`. Triggers can no longer be constructed with a null group name. If your code was relying on null group names, switch to an explicit group name.
 
-## DirtyFlagMap Changes
+## JobDataMap and SchedulerContext stand alone
 
-The `Get(TKey key)` method has been removed. Use the indexer or `TryGetValue` instead:
+On 3.x, `JobDataMap` and `SchedulerContext` both derived from
+`Quartz.Util.StringKeyDirtyFlagMap : DirtyFlagMap<string, object>` — three public types across two
+namespaces for one concept, and the base chain published two members that could silently destroy
+data. The chain is internal now: `JobDataMap` and `SchedulerContext` are sealed, self-contained
+dictionaries implementing `IDictionary<string, object?>` and `IReadOnlyDictionary<string, object?>`.
 
-```csharp
-// 3.x
-var value = map.Get("key");
+Almost nothing changes at a call site:
 
-// 4.x
-var value = map["key"];
-// or
-if (map.TryGetValue("key", out var value)) { ... }
-```
+- The typed read accessors — `GetInt`, `TryGetDateTime`, `GetString` and the rest — are extension
+  members in the `Quartz` namespace (declared in `DataMapExtensions`), on both `JobDataMap` and
+  `SchedulerContext`. `map.GetInt("retries")` compiles unchanged. They are deliberately declared for
+  the two concrete types, not for `IReadOnlyDictionary<string, object?>`, so they do not appear on
+  every string-keyed dictionary in scope. A variable typed as the removed base class is the one
+  thing that no longer compiles — type it `JobDataMap` (or `IDictionary<string, object?>` when only
+  the dictionary surface matters).
+- `Dirty` and `ClearDirtyFlag()` are internal. Calling `ClearDirtyFlag()` from a job made
+  `[PersistJobDataAfterExecution]` silently skip re-storing the data — nothing else on the type
+  could destroy data like that. To force a data blob rewrite, put a
+  `SchedulerConstants.ForceJobDataMapDirty` entry in the source dictionary when constructing the
+  map, which remains the supported mechanism (the binary-to-JSON migration recipe uses it).
+- The `Get(TKey key)` method 3.x had is gone with the base chain. Use the indexer or `TryGetValue`.
+- `JobDataMap.Equals`/`GetHashCode` compare content now. The inherited comparison looked at key sets
+  only, so two maps with the same keys but different values counted as equal — and assigning such a
+  map as a nested value did not mark the outer map dirty, silently skipping the job store rewrite.
+  Equal maps also hash equally now. `SchedulerContext` compares by reference.
+- `SchedulerContext` is backed by a `ConcurrentDictionary<string, object?>` and is safe to read and
+  write concurrently — plugins write to it while jobs read it, and enumerating it during a write no
+  longer races.
 
-`IsReadOnly` is an explicit interface implementation and cannot be accessed directly on a `DirtyFlagMap` instance. `IsFixedSize`, `SyncRoot` and `IsSynchronized` are gone with the non-generic interfaces — see [`DirtyFlagMap` dropped the non-generic collection interfaces](#dirtyflagmap-dropped-the-non-generic-collection-interfaces).
+The binary-serialized shape of `JobDataMap` is unchanged: the type keeps `[Serializable]`, its
+serialization constructor and the `version`/`dirty`/`map` entries, so `JOB_DATA` and `BLOB_TRIGGERS`
+blobs written by 3.x still load — see
+[`[Serializable]` survives only where a database blob needs it](#serializable-survives-only-where-a-database-blob-needs-it).
+
+`IsReadOnly` is an explicit interface implementation and cannot be accessed directly on the maps. `IsFixedSize`, `SyncRoot` and `IsSynchronized` are gone with the non-generic interfaces — see [`JobDataMap` dropped the non-generic collection interfaces](#jobdatamap-dropped-the-non-generic-collection-interfaces).
 
 ## Listener API Changes
 
@@ -3951,12 +3973,13 @@ Existing calendar blobs load unchanged. Both serializers write the new shapes an
 `ExcludedDays`/`ExcludedDates` array may hold timestamps or dates, and per-day booleans or day numbers or
 day names.
 
-## `DirtyFlagMap` dropped the non-generic collection interfaces
+## `JobDataMap` dropped the non-generic collection interfaces
 
-`DirtyFlagMap<TKey, TValue>` no longer implements `System.Collections.IDictionary` or
-`System.Collections.ICollection`. Those duplicated the generic interfaces with untyped members that cast at
-runtime — `Add(object, object)` and the `object` indexer threw `InvalidCastException` for a key of the wrong
-type instead of `ArgumentException` (#1417), and `SyncRoot` handed out a lock object the map never took.
+`JobDataMap` and `SchedulerContext` (on 3.x, their `DirtyFlagMap<TKey, TValue>` base) no longer
+implement `System.Collections.IDictionary` or `System.Collections.ICollection`. Those duplicated the
+generic interfaces with untyped members that cast at runtime — `Add(object, object)` and the
+`object` indexer threw `InvalidCastException` for a key of the wrong type instead of
+`ArgumentException` (#1417), and `SyncRoot` handed out a lock object the map never took.
 
 | 3.x | 4.x |
 |---|---|
@@ -3964,14 +3987,14 @@ type instead of `ArgumentException` (#1417), and `SyncRoot` handed out a lock ob
 | `((IDictionary) map)[key]` | `map[key]` |
 | `((IDictionary) map).Contains(key)` | `map.ContainsKey(key)` |
 | `((IDictionary) map).Remove(key)` | `map.Remove(key)` |
-| `map.CopyTo(array, index)` (`Array`) | `map.CopyTo(KeyValuePair<TKey, TValue?>[], index)` |
+| `map.CopyTo(array, index)` (`Array`) | `map.CopyTo(KeyValuePair<string, object?>[], index)` |
 | `new JobDataMap(someIDictionary)` | `new JobDataMap(someIDictionaryOfStringToObject)` |
 
 `ISerializable` is untouched, so persisted maps still load. The generic
 `JobDataMap(IDictionary<string, object?>)` constructor also took over what the removed non-generic one did
 with a `QRTZ_FORCE_JOB_DATAMAP_DIRTY` entry: the entry is not copied, and the new map is left flagged dirty.
 
-`StringKeyDirtyFlagMap` gained `GetDecimal` and `TryGetDecimal`, so a `decimal` in a job data map can now be
+The accessor set gained `GetDecimal` and `TryGetDecimal`, so a `decimal` in a job data map can now be
 read back the way every other primitive can.
 
 ## `[Serializable]` survives only where a database blob needs it
@@ -3988,13 +4011,18 @@ readable while you migrate it to JSON — see
 
 | Blob column | Types that keep the attributes |
 |---|---|
-| `JOB_DETAILS.JOB_DATA`, `TRIGGERS.JOB_DATA` | `JobDataMap`, `StringKeyDirtyFlagMap`, `DirtyFlagMap<TKey, TValue>`, `Key<T>`, `JobKey`, `TriggerKey` |
+| `JOB_DETAILS.JOB_DATA`, `TRIGGERS.JOB_DATA` | `JobDataMap`, `Key<T>`, `JobKey`, `TriggerKey` |
 | `CALENDARS.CALENDAR` | `BaseCalendar`, `AnnualCalendar`, `CronCalendar`, `DailyCalendar`, `HolidayCalendar`, `MonthlyCalendar`, `WeeklyCalendar`, `CronExpression` |
 | `BLOB_TRIGGERS.BLOB_DATA` | `AbstractTrigger`, `SimpleTriggerImpl`, `CronTriggerImpl`, `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` |
 
 A trigger reaches that third row when no trigger persistence delegate handles it — a type of your own, or one
 deriving from a built-in trigger with `HasAdditionalProperties` returning `true`. The store writes the whole
 object into `BLOB_TRIGGERS`, so the trigger class hierarchy is part of the blob graph.
+
+3.x listed `StringKeyDirtyFlagMap` and `DirtyFlagMap<TKey, TValue>` in the first row; both are
+internal now. That costs nothing for existing blobs: `BinaryFormatter` records an `ISerializable`
+graph under the runtime type name — `Quartz.JobDataMap` — plus its `version`/`dirty`/`map` entries,
+never the base chain, and `JobDataMap` carries that exact constructor and entry set itself.
 
 Everything else lost `[Serializable]`:
 
@@ -4184,13 +4212,15 @@ any; whether the job honors the token remains the job's business. A `catch
 longer resurrects the type either, so a remote scheduler fault on an interrupt call surfaces as the
 `SchedulerException`-derived type the server actually reported.
 
-## `JobDataMap`'s typed accessors are the ones it inherits
+## `JobDataMap`'s typed accessors are extension members
 
 `JobDataMap` declared sixty typed accessors of its own — `GetIntValue`, `TryGetIntValue`,
 `GetIntValueFromString`, `TryGetIntValueFromString`, and the same four for `bool`, `char`, `double`,
 `float`, `long`, `Guid`, `TimeSpan`, `DateTime` and `DateTimeOffset` — while the
-`StringKeyDirtyFlagMap` it derives from declared a second, shorter set doing the same job. Two names
-for one lookup, differing only in a suffix. The `…Value` set is gone; the inherited one stays:
+`StringKeyDirtyFlagMap` it derived from declared a second, shorter set doing the same job. Two names
+for one lookup, differing only in a suffix. The `…Value` set is gone; the shorter set survives as
+extension members in the `Quartz` namespace (declared in `DataMapExtensions`, for both `JobDataMap`
+and `SchedulerContext`), so the call sites read the same:
 
 ```diff
 - int retries = context.JobDetail.JobDataMap.GetIntValue("retries");
@@ -4200,7 +4230,7 @@ for one lookup, differing only in a suffix. The `…Value` set is gone; the inhe
 + if (map.TryGetTimeSpan("timeout", out TimeSpan timeout)) { }
 ```
 
-| 3.x `JobDataMap` | 4.x, inherited from `StringKeyDirtyFlagMap` |
+| 3.x `JobDataMap` | 4.x extension members |
 |---|---|
 | `GetBooleanValue`, `GetBooleanValueFromString` | `GetBoolean` |
 | `GetCharFromString` | `GetChar` |
@@ -4394,7 +4424,11 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | Calendar `SetDayExcluded` / `AddExcludedDate` removed | `AddExcludedDay` / `RemoveExcludedDay` over a read-only set — see [Excluded days are a read-only set](#excluded-days-are-a-read-only-set) |
 | `CronCalendar.SetCronExpressionString` removed | Assign `CronExpression` instead; the property already accepted a parsed expression |
 | `JobDataMap(IDictionary)` removed | `JobDataMap(IDictionary<string, object?>)` remains and absorbed the dirty-marker handling |
-| `StringKeyDirtyFlagMap.GetDecimal` / `TryGetDecimal` added | A `decimal` could be written but not read back |
+| `GetDecimal` / `TryGetDecimal` added to the accessor set | A `decimal` could be written but not read back |
+| `DirtyFlagMap<TKey, TValue>` and `StringKeyDirtyFlagMap` are internal | `JobDataMap` and `SchedulerContext` are sealed, self-contained dictionaries; the typed accessors are extension members — see [JobDataMap and SchedulerContext stand alone](#jobdatamap-and-schedulercontext-stand-alone) |
+| `JobDataMap.Dirty` / `ClearDirtyFlag()` are internal | Clearing the flag from a job silently skipped the `[PersistJobDataAfterExecution]` rewrite; `SchedulerConstants.ForceJobDataMapDirty` remains the supported way to force one |
+| `JobDataMap.Equals` compares values, not just keys | Two maps with the same keys but different values no longer compare equal, and equal maps hash equally; `SchedulerContext` compares by reference |
+| `SchedulerContext` is backed by `ConcurrentDictionary` | Reading and writing it concurrently is safe; enumeration no longer races plugin writes |
 | `ISchedulerFactory.GetAllSchedulers` returns `ValueTask<List<IScheduler>>` | Quartz returns concrete collection types from its query members for allocation and enumeration cost; this was the one that did not |
 | `IInstanceIdGenerator.GenerateInstanceId` returns `ValueTask<string>` | It never returned null, and a null instance id is not a usable one |
 | An `IJobStore` that implements `IJobListener` no longer receives events automatically | Register it as a job listener through the scheduler's `IListenerManager` |
@@ -4483,7 +4517,7 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `Quartz.Diagnostics.IJobDiagnosticData` removed | It was the payload contract of the `DiagnosticSource` events `Quartz.OpenTracing` consumed. Both the package and the events are gone; job execution is on `Activity` through `QuartzActivitySource`, and `IJobExecutionContext` is what a listener reads |
 | `CronExpression.Clone()` returns `CronExpression` | It returned `object`, unlike `ITrigger.Clone`, `IJobDetail.Clone` and `ICalendar.Clone`; the casts at the call sites can go |
 | `IJobExecutionContext.Put` / `.Get` take a `string` key | They took `object`. The volatile per-execution map keys by name, like `JobDataMap`, and `Put`'s value is `object?` and its parameter is `value` rather than `objectValue` |
-| `JobDataMap`'s sixty typed accessors removed | The inherited `StringKeyDirtyFlagMap` set does the same job — see [`JobDataMap`'s typed accessors are the ones it inherits](#jobdatamap-s-typed-accessors-are-the-ones-it-inherits) |
+| `JobDataMap`'s sixty typed accessors removed | One set of extension members does the same job — see [`JobDataMap`'s typed accessors are extension members](#jobdatamap-s-typed-accessors-are-extension-members) |
 | `Quartz.AspNetCore.AddQuartzServer` removed | `AddQuartzHostedService` starts the scheduler and `AddQuartzHealthChecks` registers the check — see [`AddQuartzServer` is `AddQuartzHostedService`](#addquartzserver-is-addquartzhostedservice) |
 | `ISchedulerFactory.GetScheduler(name)` is `LookupScheduler(name)` | Two members named `GetScheduler` differed only in nullability. `GetScheduler()` builds this factory's scheduler and cannot return null; `LookupScheduler(name)` looks one up in the container's repository and can, which is what the verb now says. `Lookup` matches `ISchedulerRepository.Lookup` |
 | `TriggerUtils` moved to `Quartz.Extensibility` | It is a helper over `IOperableTrigger`, not part of the scheduling API — see [`TriggerUtils` moved to `Quartz.Extensibility`](#triggerutils-moved-to-quartz-extensibility) |
@@ -4638,10 +4672,12 @@ removals on types that are still public and still open, which no section above n
 | `DateBuilder.ValidateDayOfMonth`, `.ValidateHour`, `.ValidateMinute`, `.ValidateMonth`, `.ValidateSecond`, `.ValidateYear` | Removed | No replacement; the builder validates its own arguments, and it is `sealed` — see [`DateBuilder`'s static factories are gone](#datebuilder-s-static-factories-are-gone) |
 | `DbProvider.CreateParameter()` | Removed | `CreateCommand().CreateParameter()` |
 | `DbProvider.DbProviderSectionName`, `.GenerateValidProviderNamesInfo()` | Removed (`protected`) | No replacement; leftovers of the process-wide provider registry, like the two named in [Other Breaking Changes](#other-breaking-changes) |
+| `DirtyFlagMap<TKey, TValue>`, `StringKeyDirtyFlagMap` | Internal | `JobDataMap` / `SchedulerContext` are self-contained; the typed accessors are extension members — see [JobDataMap and SchedulerContext stand alone](#jobdatamap-and-schedulercontext-stand-alone) |
 | `DirtyFlagMap.Clone()` | Removed | Construct a new map from the old one |
+| `DirtyFlagMap.Dirty`, `.ClearDirtyFlag()` | Internal | `SchedulerConstants.ForceJobDataMapDirty` forces a rewrite; clearing the flag from a job silently lost data |
 | `DirtyFlagMap.EntrySet()` | Removed | `GetEnumerator()`, or `foreach` over the map |
 | `DirtyFlagMap.KeySet()` | Removed | `Keys` |
-| `DirtyFlagMap.Put()`, `.PutAll()` | Removed; both were `[Obsolete]` in 3.x | `map[key] = value`, in a loop for `PutAll` — see [DirtyFlagMap Changes](#dirtyflagmap-changes) |
+| `DirtyFlagMap.Put()`, `.PutAll()` | Removed; both were `[Obsolete]` in 3.x | `map[key] = value`, in a loop for `PutAll` — see [JobDataMap and SchedulerContext stand alone](#jobdatamap-and-schedulercontext-stand-alone) |
 | `DirtyFlagMap.WrappedMap` | Removed | No replacement; the map *is* the dictionary, and handing out the inner one let a caller write past the dirty flag |
 | `IDriverDelegate.UpdateTriggerPreferredNode`, `StdAdoDelegate.UpdateTriggerPreferredNode` | Removed | `UpdateTriggerPreferredNodeConditional`, which is a compare-and-swap, or `IScheduler.UpdateTriggerDetails` from outside the store — see [The preferred node is a value](#the-preferred-node-is-a-value) |
 | `JobBuilder.CreateForAsync<T>()` | Removed | `JobBuilder.Create<T>()`; every job has been asynchronous since 3.0 |
@@ -4653,7 +4689,7 @@ removals on types that are still public and still open, which no section above n
 | `StdAdoDelegate.GetStorableJobTypeName(Type)` | Removed (`protected`) | `new JobType(type).FullName`, which is the spelling the `JOB_CLASS_NAME` column holds |
 | `StdAdoDelegate.SchedulerNameLiteral` | Removed; it was `[Obsolete]` in 3.x | No replacement; as above |
 | `StringKeyDirtyFlagMap.GetKeys()` | Removed | `Keys` |
-| `StringKeyDirtyFlagMap.GetNullableGuid()`, `.TryGetNullableGuid()` | Removed | `TryGetGuid(key, out var value)`, whose `false` says the same thing as a `null` did — see [`JobDataMap`'s typed accessors are the ones it inherits](#jobdatamap-s-typed-accessors-are-the-ones-it-inherits) |
+| `StringKeyDirtyFlagMap.GetNullableGuid()`, `.TryGetNullableGuid()` | Removed | `TryGetGuid(key, out var value)`, whose `false` says the same thing as a `null` did — see [`JobDataMap`'s typed accessors are extension members](#jobdatamap-s-typed-accessors-are-extension-members) |
 | `StringKeyDirtyFlagMap.Put()` (eight overloads), `.PutAll()` | Removed; all were `[Obsolete]` in 3.x | `map[key] = value` |
 | `TaskSchedulingThreadPool.ThreadPriority` | Removed | No replacement; work runs on a `TaskScheduler`, which has no thread to prioritise — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
 | `TimeZoneUtil.ConvertTime`, `.GetUtcOffset(DateTimeOffset, TimeZoneInfo)` | Internal | `TimeZoneInfo.ConvertTime` / `TimeZoneInfo.GetUtcOffset`, which they forwarded to (they were Mono-era shims); the wall-clock `GetUtcOffset(DateTime, TimeZoneInfo)` stays public — see [`TimeZoneUtil` moved to `Quartz`](#timezoneutil-moved-to-quartz) |

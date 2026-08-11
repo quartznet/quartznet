@@ -68,7 +68,7 @@ internal sealed class DirectoryScanJobModel
             DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap)
                 .Distinct().ToList(),
             CurrentFileList = mergedJobDataMap.TryGetValue(DirectoryScanJob.CurrentFileList, out object? value)
-                ? (List<FileInfo>) value
+                ? (List<FileInfo>) value!
                 : [],
             SearchPattern = mergedJobDataMap.TryGetString(DirectoryScanJob.SearchPattern, out string? pattern)
                 ? pattern ?? "*"
@@ -115,7 +115,7 @@ internal sealed class DirectoryScanJobModel
             {
                 throw new JobExecutionException($"IDirectoryProvider named '{explicitDirProviderName}' not found in SchedulerContext");
             }
-            directoryProvider = (IDirectoryProvider) temp;
+            directoryProvider = (IDirectoryProvider) temp!;
         }
 
         return directoryProvider.GetDirectoriesToScan(mergedJobDataMap).ToList();
@@ -180,6 +180,6 @@ internal sealed class DirectoryScanJobModel
 
         }
 
-        return (IDirectoryScanListener) listenerFromContext;
+        return (IDirectoryScanListener) listenerFromContext!;
     }
 }

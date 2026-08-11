@@ -724,7 +724,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
         // they will also be modifying this Trigger.
         if (jobDataMap is not null)
         {
-            copy.jobDataMap = (JobDataMap) jobDataMap.Clone();
+            copy.jobDataMap = jobDataMap.Clone();
         }
 
         return copy;

@@ -1,7 +1,5 @@
 using Newtonsoft.Json;
 
-using Quartz.Util;
-
 namespace Quartz.Serialization.Newtonsoft;
 
 internal sealed class StringKeyDirtyFlagMapConverter : JsonConverter
@@ -15,12 +13,19 @@ internal sealed class StringKeyDirtyFlagMapConverter : JsonConverter
     public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
     {
         IDictionary<string, object?> innerMap = serializer.Deserialize<IDictionary<string, object?>>(reader)!;
-        JobDataMap map = new JobDataMap(innerMap);
-        return map;
+
+        // The declared type decides what comes back; unconditionally returning a JobDataMap would hand
+        // job code the wrong runtime type for a SchedulerContext-typed read.
+        if (objectType == typeof(SchedulerContext))
+        {
+            return new SchedulerContext(innerMap);
+        }
+
+        return new JobDataMap(innerMap);
     }
 
     public override bool CanConvert(Type objectType)
     {
-        return typeof(StringKeyDirtyFlagMap).IsAssignableFrom(objectType);
+        return objectType == typeof(JobDataMap) || objectType == typeof(SchedulerContext);
     }
 }

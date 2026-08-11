@@ -2439,7 +2439,7 @@ public sealed class RAMJobStore : IJobStore
                 if (jobDetail.PersistJobDataAfterExecution)
                 {
                     JobDataMap newData = jobDetail.JobDataMap;
-                    newData = (JobDataMap) newData.Clone();
+                    newData = newData.Clone();
                     newData.ClearDirtyFlag();
                     jd = jd.GetJobBuilder().ReplaceJobData(newData).Build();
                     jw.JobDetail = jd;
