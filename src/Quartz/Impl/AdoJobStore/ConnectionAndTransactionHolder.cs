@@ -32,7 +32,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// Unit of work for AdoJobStore operations.
 /// </summary>
 /// <author>Marko Lahma</author>
-public sealed class ConnectionAndTransactionHolder : IDisposable
+public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposable
 {
     private DateTimeOffset? sigChangeForTxCompletion;
 
@@ -217,18 +217,64 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         {
             connection?.Dispose();
         }
-        catch
+        catch (Exception e)
         {
-            // ignored
+            LogDisposeFailure(e);
         }
         try
         {
             transaction?.Dispose();
         }
-        catch
+        catch (Exception e)
         {
-            // ignored
+            LogDisposeFailure(e);
         }
+    }
+
+    /// <summary>
+    /// Disposes asynchronously, letting a provider close its connection without blocking a thread.
+    /// The form to prefer in an async method: <c>await using var conn = ...</c>.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (!ownsResources)
+        {
+            BorrowedFrom?.Release();
+            return;
+        }
+
+        try
+        {
+            if (connection is not null)
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception e)
+        {
+            LogDisposeFailure(e);
+        }
+        try
+        {
+            if (transaction is not null)
+            {
+                await transaction.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception e)
+        {
+            LogDisposeFailure(e);
+        }
+    }
+
+    /// <summary>
+    /// Logged rather than swallowed: the async <see cref="Close" /> path always reported its
+    /// failures, and the two disposal paths differed from it in observability for no reason.
+    /// </summary>
+    private static void LogDisposeFailure(Exception e)
+    {
+        LogProvider.CreateLogger<ConnectionAndTransactionHolder>()
+            .LogDebug(e, "Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown.");
     }
 
     internal DateTimeOffset? SignalSchedulingChangeOnTxCompletion

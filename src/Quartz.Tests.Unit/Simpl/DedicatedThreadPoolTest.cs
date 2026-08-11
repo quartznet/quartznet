@@ -120,7 +120,7 @@ public sealed class DedicatedThreadPoolTest
         bool scheduled = await pool.TryRun(() =>
         {
             ran = true;
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         });
 
         scheduled.Should().BeFalse("work offered after shutdown has to be refused so the scheduler can put the trigger back");

@@ -18,7 +18,7 @@ public class DefaultThreadPoolBenchmark
 
         for (var i = 0; i < 500_000; i++)
         {
-            await threadPool.TryRun(() => Task.CompletedTask);
+            await threadPool.TryRun(() => ValueTask.CompletedTask);
         }
 
         await threadPool.Shutdown(true);
@@ -33,7 +33,7 @@ public class DefaultThreadPoolBenchmark
         };
         await threadPool.Initialize();
 
-        await Execute(threadPool, 20, 50_000, tp => tp.TryRun(() => Task.CompletedTask));
+        await Execute(threadPool, 20, 50_000, tp => tp.TryRun(() => ValueTask.CompletedTask));
 
         await threadPool.Shutdown(true);
     }
@@ -50,7 +50,7 @@ public class DefaultThreadPoolBenchmark
 
         for (var i = 0; i < 500_000; i++)
         {
-            await threadPool.TryRun(() => Task.CompletedTask);
+            await threadPool.TryRun(() => ValueTask.CompletedTask);
         }
 
         await threadPool.Shutdown(true);
@@ -66,7 +66,7 @@ public class DefaultThreadPoolBenchmark
 
         await threadPool.Initialize();
 
-        await Execute(threadPool, 20, 50_000, tp => tp.TryRun(() => Task.CompletedTask));
+        await Execute(threadPool, 20, 50_000, tp => tp.TryRun(() => ValueTask.CompletedTask));
 
         await threadPool.Shutdown(true);
     }
@@ -83,7 +83,7 @@ public class DefaultThreadPoolBenchmark
         var threadPool = new DefaultThreadPool();
         threadPool.MaxConcurrency = int.MaxValue;
         await threadPool.Initialize();
-        await threadPool.TryRun(() => Task.CompletedTask);
+        await threadPool.TryRun(() => ValueTask.CompletedTask);
         await threadPool.Shutdown(true);
     }
 

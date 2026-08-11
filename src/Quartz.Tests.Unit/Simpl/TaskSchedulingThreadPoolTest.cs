@@ -83,7 +83,7 @@ public class TaskSchedulingThreadPoolTest
         bool scheduled = await threadPool.TryRun(() =>
         {
             ran = true;
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         });
 
         scheduled.Should().BeFalse("a pool without a semaphore or a task scheduler cannot accept work");
@@ -101,7 +101,7 @@ public class TaskSchedulingThreadPoolTest
         bool scheduled = await threadPool.TryRun(() =>
         {
             ran = true;
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         });
 
         scheduled.Should().BeFalse("work handed over after shutdown has to be refused rather than silently dropped");
@@ -162,7 +162,7 @@ public class TaskSchedulingThreadPoolTest
                 order.Add("work item finished");
             }
 
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         });
 
         scheduled.Should().BeTrue("an idle initialized pool has to accept the work item");
@@ -212,7 +212,7 @@ public class TaskSchedulingThreadPoolTest
             started.TrySetResult();
             release.Wait(TimeSpan.FromSeconds(30));
             finished.TrySetResult();
-            return Task.CompletedTask;
+            return ValueTask.CompletedTask;
         });
 
         scheduled.Should().BeTrue("an idle initialized pool has to accept the work item");

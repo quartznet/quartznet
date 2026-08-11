@@ -85,7 +85,7 @@ public interface IThreadPool
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns><see langword="true" /> if the work was scheduled; otherwise, <see langword="false" />
     /// (the pool has been shut down or was never initialized).</returns>
-    ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default);
+    ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the QuartzScheduler to inform the thread pool

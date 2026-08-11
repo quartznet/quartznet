@@ -171,7 +171,7 @@ fallback in `SimpleTypeLoadHelper`, with a warning.
 | `PropertySettingJobFactory.InstantiateJob` (sync) | `CreateJobInstance` → `ValueTask<JobScope>` |
 | `ITrigger.GetNextFireTimeUtc()` | `ITrigger.NextFireTimeUtc` (method kept as `[Obsolete]` forwarder) |
 | `IOperableTrigger.SetNextFireTimeUtc(v)` | `NextFireTimeUtc = v` on `IMutableTrigger` (no forwarder) |
-| `IThreadPool.RunInThread` / `BlockForAvailableThreads` | `TryRun` / `WaitForAvailableThreads`, both `ValueTask` |
+| `IThreadPool.RunInThread` / `BlockForAvailableThreads` | `TryRun(Func<ValueTask>)` / `WaitForAvailableThreads`, both `ValueTask` |
 | `IThreadPool.InstanceId` / `InstanceName` | removed — nothing read them |
 | `IObjectSerializer.DeSerialize` | `Deserialize`; `Initialize()` gone (options built on first use) |
 | `ITypeLoadHelper.Initialize()` | gone |
