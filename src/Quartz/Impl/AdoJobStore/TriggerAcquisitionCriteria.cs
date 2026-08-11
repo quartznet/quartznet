@@ -65,8 +65,8 @@ public sealed record TriggerAcquisitionCriteria
     public ExecutionLimits? ExecutionLimits { get; init; }
 
     /// <summary>
-    /// Tick value below which a node's last check-in is considered stale, releasing its pinned
+    /// Instant before which a node's last check-in is considered stale, releasing its pinned
     /// triggers to other nodes (preferred node / node affinity).
     /// </summary>
-    public long LiveNodeCutoff { get; init; }
+    public required DateTimeOffset LiveNodeCutoff { get; init; }
 }

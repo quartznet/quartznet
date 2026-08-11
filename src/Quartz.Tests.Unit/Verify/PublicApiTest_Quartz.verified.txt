@@ -2186,7 +2186,7 @@ namespace Quartz.Impl.AdoJobStore
     public class MySQLDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
         public MySQLDelegate() { }
-        protected override void AddPagingParameters(System.Data.Common.DbCommand cmd, long skip, long take, bool takeLimited) { }
+        protected override void AddPagingParameters(System.Data.Common.DbCommand cmd, int skip, int take, bool takeLimited) { }
         protected override string ApplyPaging(string sql, bool takeLimited) { }
         protected override string GetCountMisfiredTriggersInStateSql() { }
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
@@ -2241,7 +2241,7 @@ namespace Quartz.Impl.AdoJobStore
     public class SQLiteDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
         public SQLiteDelegate() { }
-        protected override void AddPagingParameters(System.Data.Common.DbCommand cmd, long skip, long take, bool takeLimited) { }
+        protected override void AddPagingParameters(System.Data.Common.DbCommand cmd, int skip, int take, bool takeLimited) { }
         protected override string ApplyPaging(string sql, bool takeLimited) { }
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
         protected override string GetSelectNextTriggerToAcquireSql(int maxCount) { }
@@ -2357,8 +2357,8 @@ namespace Quartz.Impl.AdoJobStore
         protected Quartz.Impl.AdoJobStore.Common.IDbProvider DbProvider { get; }
         public virtual void AddCommandParameter(System.Data.Common.DbCommand cmd, string paramName, object? paramValue, System.Enum? dataType = null, int? size = default) { }
         protected virtual void AddDefaultTriggerPersistenceDelegates() { }
-        protected virtual void AddPagingParameters(System.Data.Common.DbCommand cmd, long skip, long take, bool takeLimited) { }
-        protected void AddPreferredNodeParameters(System.Data.Common.DbCommand cmd, long liveNodeCutoff) { }
+        protected virtual void AddPagingParameters(System.Data.Common.DbCommand cmd, int skip, int take, bool takeLimited) { }
+        protected void AddPreferredNodeParameters(System.Data.Common.DbCommand cmd, System.DateTimeOffset liveNodeCutoff) { }
         public virtual void AddTriggerPersistenceDelegate(Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate persistenceDelegate) { }
         protected virtual string ApplyPaging(string sql, bool takeLimited) { }
         public virtual System.Threading.Tasks.ValueTask<bool> CalendarExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2382,10 +2382,10 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate? FindTriggerPersistenceDelegate(string discriminator) { }
         public virtual bool GetBooleanFromDbValue(object columnValue) { }
         protected virtual string GetCountMisfiredTriggersInStateSql() { }
-        public virtual System.DateTimeOffset? GetDateTimeFromDbValue(object columnValue) { }
+        public System.DateTimeOffset? GetDateTimeFromDbValue(object columnValue) { }
         public virtual object GetDbBooleanValue(bool booleanValue) { }
-        public virtual object? GetDbDateTimeValue(System.DateTimeOffset? dateTimeValue) { }
-        public virtual object? GetDbTimeSpanValue(System.TimeSpan? timeSpanValue) { }
+        public object? GetDbDateTimeValue(System.DateTimeOffset? dateTimeValue) { }
+        public object? GetDbTimeSpanValue(System.TimeSpan? timeSpanValue) { }
         protected virtual System.Threading.Tasks.ValueTask<T?> GetJobDataFromBlob<T>(System.Data.Common.DbDataReader rs, int colIndex, System.Threading.CancellationToken cancellationToken = default)
             where T :  class { }
         protected object? GetKeyOfNonSerializableValue(Quartz.JobDataMap data) { }
@@ -2393,7 +2393,7 @@ namespace Quartz.Impl.AdoJobStore
             where T :  class { }
         protected virtual string GetSelectMisfiredTriggersToRecoverSql(int count) { }
         protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount) { }
-        public virtual System.TimeSpan? GetTimeSpanFromDbValue(object columnValue) { }
+        public System.TimeSpan? GetTimeSpanFromDbValue(object columnValue) { }
         public virtual void Initialize(Quartz.Impl.AdoJobStore.DelegateInitializationArgs args) { }
         public virtual System.Threading.Tasks.ValueTask<int> InsertBlobTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> InsertCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, Quartz.ICalendar calendar, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2510,7 +2510,7 @@ namespace Quartz.Impl.AdoJobStore
     {
         public TriggerAcquisitionCriteria() { }
         public Quartz.ExecutionLimits? ExecutionLimits { get; init; }
-        public long LiveNodeCutoff { get; init; }
+        public required System.DateTimeOffset LiveNodeCutoff { get; init; }
         public required int MaxCount { get; init; }
         public required System.DateTimeOffset NoEarlierThan { get; init; }
         public required System.DateTimeOffset NoLaterThan { get; init; }

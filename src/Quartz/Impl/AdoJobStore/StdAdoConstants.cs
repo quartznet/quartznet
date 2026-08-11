@@ -245,9 +245,9 @@ internal static class StdAdoConstants
     // The final disjunct releases a trigger whose owning node is no longer checking in, using a
     // checkin-time-aware subquery against SCHEDULER_STATE. LAST_CHECKIN_TIME is stored in ticks and
     // CHECKIN_INTERVAL in milliseconds (10000 ticks per ms); @liveNodeCutoff is
-    // (now - ClusterCheckinMisfireThreshold).UtcTicks. The arithmetic assumes the default
-    // GetDbDateTimeValue/GetDbTimeSpanValue storage formats, so a delegate overriding those must
-    // also override GetSelectNextTriggerToAcquireSql.
+    // (now - ClusterCheckinMisfireThreshold), bound through GetDbDateTimeValue. Ticks and
+    // milliseconds are the schema contract - the converters are not overridable - so this
+    // arithmetic is always right.
     //
     // The IS NULL test comes first so the overwhelmingly common unpinned row short-circuits before
     // the correlated subquery is considered. The node name is stored verbatim (the auto-claim flag

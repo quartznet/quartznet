@@ -61,7 +61,7 @@ public partial class StdAdoDelegate
     /// anything follows the page.
     /// </param>
     /// <param name="takeLimited">Whether the page has an upper bound.</param>
-    protected virtual void AddPagingParameters(DbCommand cmd, long skip, long take, bool takeLimited)
+    protected virtual void AddPagingParameters(DbCommand cmd, int skip, int take, bool takeLimited)
     {
         AddCommandParameter(cmd, "pageSkip", skip);
         if (takeLimited)
@@ -84,9 +84,12 @@ public partial class StdAdoDelegate
     {
         if (IsPaged(query))
         {
+            bool takeLimited = query.Take != int.MaxValue;
+
             // Read one row past the page: its presence is what HasMore reports, and it costs one row
-            // rather than a second query.
-            AddPagingParameters(cmd, query.Skip, (long) query.Take + 1, query.Take != int.MaxValue);
+            // rather than a second query. When the take is unbounded the value is never bound, so any
+            // value serves; int.MaxValue avoids overflowing the increment.
+            AddPagingParameters(cmd, query.Skip, takeLimited ? query.Take + 1 : int.MaxValue, takeLimited);
         }
     }
 

@@ -226,21 +226,25 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     }
 
     /// <summary>
-    /// Gets the db presentation for date/time value. Subclasses can overwrite this behaviour.
+    /// Gets the db presentation for date/time value: UTC ticks. The storage format is part of the
+    /// schema contract, not an extension point — the preferred-node liveness SQL compares raw
+    /// check-in values assuming it, so a delegate cannot change how instants are stored without
+    /// owning its SQL outright.
     /// </summary>
     /// <param name="dateTimeValue">Value to map to database.</param>
     /// <returns></returns>
-    public virtual object? GetDbDateTimeValue(DateTimeOffset? dateTimeValue)
+    public object? GetDbDateTimeValue(DateTimeOffset? dateTimeValue)
     {
         return dateTimeValue?.UtcTicks;
     }
 
     /// <summary>
-    /// Gets the date/time value from db presentation. Subclasses can overwrite this behaviour.
+    /// Gets the date/time value from db presentation. The storage format is part of the schema
+    /// contract; see <see cref="GetDbDateTimeValue" />.
     /// </summary>
     /// <param name="columnValue">Value to map from database.</param>
     /// <returns></returns>
-    public virtual DateTimeOffset? GetDateTimeFromDbValue(object columnValue)
+    public DateTimeOffset? GetDateTimeFromDbValue(object columnValue)
     {
         if (columnValue is not null && columnValue != DBNull.Value)
         {
@@ -254,21 +258,25 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     }
 
     /// <summary>
-    /// Gets the db presentation for time span value. Subclasses can overwrite this behaviour.
+    /// Gets the db presentation for time span value: whole milliseconds. The storage format is part
+    /// of the schema contract, not an extension point — the preferred-node liveness SQL multiplies
+    /// stored check-in intervals assuming it, so a delegate cannot change how durations are stored
+    /// without owning its SQL outright.
     /// </summary>
     /// <param name="timeSpanValue">Value to map to database.</param>
     /// <returns></returns>
-    public virtual object? GetDbTimeSpanValue(TimeSpan? timeSpanValue)
+    public object? GetDbTimeSpanValue(TimeSpan? timeSpanValue)
     {
         return timeSpanValue is not null ? (long?) timeSpanValue.Value.TotalMilliseconds : null;
     }
 
     /// <summary>
-    /// Gets the time span value from db presentation. Subclasses can overwrite this behaviour.
+    /// Gets the time span value from db presentation. The storage format is part of the schema
+    /// contract; see <see cref="GetDbTimeSpanValue" />.
     /// </summary>
     /// <param name="columnValue">Value to map from database.</param>
     /// <returns></returns>
-    public virtual TimeSpan? GetTimeSpanFromDbValue(object columnValue)
+    public TimeSpan? GetTimeSpanFromDbValue(object columnValue)
     {
         if (columnValue is not null && columnValue != DBNull.Value)
         {

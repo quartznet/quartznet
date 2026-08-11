@@ -2144,13 +2144,25 @@ Consolidated into records rather than overload families:
 selects or deletes every fired trigger. `TriggerAcquisitionCriteria` carries `NoLaterThan`, `NoEarlierThan`,
 `MaxCount`, `ExecutionLimits` and `LiveNodeCutoff`, and is the extension point for future acquisition
 filtering: another way of narrowing what a node picks up is another optional property, not another overload.
+`LiveNodeCutoff` is a `required DateTimeOffset` like its two time siblings — it was briefly a raw
+`UtcTicks` `long` that defaulted to zero, which silently meant "every node counts as dead"; the tick
+conversion lives in the parameter binder now.
 
 Subclassing `StdAdoDelegate` gets you all of it. A database whose row-limiting syntax is not the ANSI
 `OFFSET … FETCH NEXT` should override the paging seam — **`ApplyPaging(sql, takeLimited)`** appends the
-clause and **`AddPagingParameters(cmd, skip, take, takeLimited)`** binds it. Override both together when your
-clause names the two parameters in the other order, because providers that bind positionally take parameters
-in the order the statement mentions them. `MySQLDelegate` and `SQLiteDelegate` do exactly this for
-`LIMIT … OFFSET`.
+clause and **`AddPagingParameters(cmd, skip, take, takeLimited)`** binds it (`skip` and `take` are `int`,
+matching the query objects they serve). Override both together when your clause names the two parameters
+in the other order, because providers that bind positionally take parameters in the order the statement
+mentions them. `MySQLDelegate` and `SQLiteDelegate` do exactly this for `LIMIT … OFFSET`.
+
+The value-conversion pairs on `IDbAccessor` are no longer all overridable on `StdAdoDelegate`: the
+boolean pair (`GetDbBooleanValue` / `GetBooleanFromDbValue`) stays virtual, because Oracle genuinely
+stores booleans differently, but the date/time and time-span conversions are frozen. UTC ticks and
+whole milliseconds are part of the schema contract — the preferred-node liveness SQL does raw tick
+arithmetic against `LAST_CHECKIN_TIME` and `CHECKIN_INTERVAL`, so a delegate that changed the storage
+format would silently break cluster failover for pinned triggers (3.x only logged a warning when it
+detected such an override; 4.0 removes the half-open door). A delegate for a database that stores
+`DATETIME` natively must implement `IDriverDelegate` directly and own its SQL.
 
 Finally, `ITriggerPersistenceDelegate` gained a batch `LoadExtendedTriggerProperties` taking several trigger
 keys. It is a **default interface method** that loops the single-key overload, so a third-party trigger
@@ -2617,7 +2629,8 @@ It is unchanged, and it is still the only thing the dialects differed in: `Fireb
 
 The node-affinity parameters the statement now always carries are bound for you by the protected
 `AddPreferredNodeParameters(cmd, liveNodeCutoff)`, so an override that rewrites the statement text
-still does not have to know their names or the order they are bound in.
+still does not have to know their names or the order they are bound in. The cutoff parameter is a
+`DateTimeOffset`; the binder converts it to the stored tick value itself.
 
 ## The connection manager lives with the other ADO.NET types
 
@@ -4643,6 +4656,9 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.IsJobCurrentlyExecuting` takes a `JobKey` | It took `(string jobName, string jobGroup)` |
 | `IDriverDelegate.SelectJobForTrigger`'s `loadJobType` is required | It defaulted in front of the cancellation token; pass `loadJobType: true` for the old default |
 | `IDriverDelegate.UpdateTriggerPreferredNodeConditional` takes a `PreferredNodeTransition` | Four loose compare-and-swap parameters became one record naming `Expected` and `New` |
+| `TriggerAcquisitionCriteria.LiveNodeCutoff` is a `required DateTimeOffset` | It was an optional `long` of `UtcTicks` beside two required `DateTimeOffset` siblings, and omitting it silently meant "every node is dead". The tick conversion happens in `AddPreferredNodeParameters`, whose parameter is a `DateTimeOffset` too |
+| `StdAdoDelegate.AddPagingParameters(cmd, int skip, int take, bool)` | `skip`/`take` were `long` while `PagedQuery.Skip`/`.Take` are `int`; the dialect override contract now matches the query object it serves |
+| `StdAdoDelegate`'s date/time and time-span conversions are non-virtual | UTC ticks and whole milliseconds are the schema contract the liveness SQL assumes; only the boolean pair remains a dialect seam. A delegate that changes the storage format implements `IDriverDelegate` itself — see [If you implement `IDriverDelegate`](#if-you-implement-idriverdelegate) |
 | `JobStoreTX` is `LocalTransactionJobStore`, `JobStoreCMT` is `ExternalTransactionJobStore` | The names now say whose transaction the store uses. `quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz` and the `JobStoreCMT` spelling still resolve, with a warning — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
 | `GetNonManagedTXConnection`, `ExecuteInNonManagedTXLock`, `RetryExecuteInNonManagedTXLock` renamed | `GetLocalTransactionConnection`, `ExecuteInLocalTransactionLock`, `RetryExecuteInLocalTransactionLock`; protected, so only a `JobStoreSupport` subclass sees them |
 | `JobStoreSupport`'s nine `Execute…Lock` overloads became four members | Optional parameters replace the ladder, and no member returns `object` as a stand-in for `void` any more — see [Nine `Execute…Lock` overloads became four members](#nine-execute-lock-overloads-became-four-members) |

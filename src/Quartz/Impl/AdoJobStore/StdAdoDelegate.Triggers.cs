@@ -1096,14 +1096,15 @@ public partial class StdAdoDelegate
     /// </summary>
     /// <param name="cmd">The acquisition command.</param>
     /// <param name="liveNodeCutoff">
-    /// Tick value below which a node's last check-in is considered stale, releasing its pinned
-    /// triggers to other nodes.
+    /// Instant before which a node's last check-in is considered stale, releasing its pinned
+    /// triggers to other nodes. Bound through <see cref="StdAdoDelegate.GetDbDateTimeValue" />, so
+    /// the raw ticks the liveness SQL compares stay inside this binder.
     /// </param>
-    protected void AddPreferredNodeParameters(DbCommand cmd, long liveNodeCutoff)
+    protected void AddPreferredNodeParameters(DbCommand cmd, DateTimeOffset liveNodeCutoff)
     {
         AddCommandParameter(cmd, "instanceId", instanceId);
         AddCommandParameter(cmd, "autoPinSentinel", StdAdoConstants.AutoPinSentinel);
-        AddCommandParameter(cmd, "liveNodeCutoff", liveNodeCutoff);
+        AddCommandParameter(cmd, "liveNodeCutoff", GetDbDateTimeValue(liveNodeCutoff));
     }
 
     /// <inheritdoc />
