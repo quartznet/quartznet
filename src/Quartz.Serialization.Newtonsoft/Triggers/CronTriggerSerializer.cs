@@ -1,8 +1,6 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-using Quartz.Util;
-
 namespace Quartz.Serialization.Newtonsoft.Triggers;
 
 public class CronTriggerSerializer : TriggerSerializer<ICronTrigger>

@@ -1,5 +1,4 @@
 using Quartz.Plugins.TimeZoneConverter;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Plugin.TimeZoneConverter;
 

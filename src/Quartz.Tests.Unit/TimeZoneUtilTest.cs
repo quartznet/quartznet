@@ -1,9 +1,8 @@
-﻿using System.Globalization;
+using System.Globalization;
 
 using Quartz.Impl.Calendar;
-using Quartz.Util;
 
-namespace Quartz.Tests.Unit.Utils;
+namespace Quartz.Tests.Unit;
 
 public class TimeZoneUtilTest
 {

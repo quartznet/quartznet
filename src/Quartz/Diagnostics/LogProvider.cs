@@ -10,7 +10,7 @@ namespace Quartz.Diagnostics;
 /// <para>
 /// This is ambient, mutable, process-wide state, and it stays that way on purpose. Nearly everything the
 /// scheduler is made of is built by a container and is injected an <see cref="ILogger" /> the ordinary
-/// way. What is left over cannot be: static helpers such as <see cref="Quartz.Util.TimeZoneUtil" />,
+/// way. What is left over cannot be: static helpers such as <see cref="Quartz.TimeZoneUtil" />,
 /// types a caller constructs directly — triggers, calendars, plugins, the jobs in <c>Quartz.Jobs</c> —
 /// and anything that runs while the container is still being built. A type cannot be handed a logger by
 /// a container that does not exist yet, so those sites read this instead of going unlogged.

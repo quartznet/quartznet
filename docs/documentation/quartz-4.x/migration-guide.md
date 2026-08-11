@@ -4282,6 +4282,25 @@ a trigger out of a job store blob, neither of which has a scheduler in scope —
 installing `Quartz.Plugins.TimeZoneConverter` in one scheduler changes id resolution for the whole
 process.
 
+## `TimeZoneUtil` moved to `Quartz`
+
+`FindTimeZoneById` is how a trigger built with `InTimeZone(...)` comes back out of a job store, and
+the wall-clock `GetUtcOffset(DateTime, TimeZoneInfo)` overload *is* the scheduler-wide daylight
+saving policy — an ambiguous local time resolves to the daylight offset, the first of the two
+occurrences. That is scheduling API, not a utility, so the type lives in the root namespace next to
+the builders whose behavior it defines. Every file under a `Quartz.*` namespace sees it without any
+`using`; elsewhere, `using Quartz.Util;` becomes `using Quartz;`:
+
+```diff
+- using Quartz.Util;
++ using Quartz;
+
+  var zone = TimeZoneUtil.FindTimeZoneById("Europe/Helsinki");
+```
+
+No configuration shim is needed: `TimeZoneUtil` is a static helper that is called, never a type a
+configuration string names and the scheduler instantiates.
+
 ## `TriggerUtils` moved to `Quartz.Extensibility`
 
 It computes fire times by advancing a copy of a trigger through its schedule, applying the calendar
@@ -4424,6 +4443,7 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `Quartz.AspNetCore.AddQuartzServer` removed | `AddQuartzHostedService` starts the scheduler and `AddQuartzHealthChecks` registers the check — see [`AddQuartzServer` is `AddQuartzHostedService`](#addquartzserver-is-addquartzhostedservice) |
 | `ISchedulerFactory.GetScheduler(name)` is `LookupScheduler(name)` | Two members named `GetScheduler` differed only in nullability. `GetScheduler()` builds this factory's scheduler and cannot return null; `LookupScheduler(name)` looks one up in the container's repository and can, which is what the verb now says. `Lookup` matches `ISchedulerRepository.Lookup` |
 | `TriggerUtils` moved to `Quartz.Extensibility` | It is a helper over `IOperableTrigger`, not part of the scheduling API — see [`TriggerUtils` moved to `Quartz.Extensibility`](#triggerutils-moved-to-quartz-extensibility) |
+| `TimeZoneUtil` moved to `Quartz` | `FindTimeZoneById` and the wall-clock `GetUtcOffset` are scheduling API, not utilities — see [`TimeZoneUtil` moved to `Quartz`](#timezoneutil-moved-to-quartz) |
 | `Quartz.Util.ObjectExtensions` is internal | `AssemblyQualifiedNameWithoutVersion()` is how Quartz spells a type name into a blob or onto the wire, not a general-purpose helper |
 | `TimeZoneUtil.CustomResolver` is nullable | `null` means there is no custom resolver, which is how one is removed; it defaulted to a lambda returning `null` — see [The ambient logger factory stays ambient](#the-ambient-logger-factory-stays-ambient) |
 | `Quartz.Diagnostics.ActivityOptions` is `ActivityTags` | It holds `Activity` tag names, not options, and `*Options` names an options type everywhere else. It replaced 3.x's `DiagnosticHeaders`; the tag names and values are unchanged |

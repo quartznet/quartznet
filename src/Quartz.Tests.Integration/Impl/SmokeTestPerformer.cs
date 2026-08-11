@@ -11,7 +11,6 @@ using Quartz.Serialization.Newtonsoft;
 using Quartz.Extensibility;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
 using Quartz.Serialization.Newtonsoft.Triggers;
-using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl;
 

@@ -22,11 +22,9 @@
 using System.Collections;
 using System.Diagnostics;
 
-
 using Newtonsoft.Json;
 
 using Quartz.Impl;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit;
 

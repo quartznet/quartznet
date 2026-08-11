@@ -1,8 +1,6 @@
 using System.Globalization;
 using System.Text;
 
-using Quartz.Util;
-
 namespace Quartz.Impl.Recurrence;
 
 /// <summary>

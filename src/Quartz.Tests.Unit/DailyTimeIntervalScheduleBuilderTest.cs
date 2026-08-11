@@ -28,7 +28,6 @@ using Microsoft.Extensions.Time.Testing;
 using Quartz.Impl.Triggers;
 using Quartz.Jobs;
 using Quartz.Extensibility;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit;
 

@@ -19,7 +19,6 @@
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar;
 

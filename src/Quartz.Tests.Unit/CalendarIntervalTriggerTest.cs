@@ -3,7 +3,6 @@ using AwesomeAssertions.Execution;
 using Quartz.Impl.Triggers;
 using Quartz.Impl;
 using Quartz.Extensibility;
-using Quartz.Util;
 
 using TimeZoneConverter;
 

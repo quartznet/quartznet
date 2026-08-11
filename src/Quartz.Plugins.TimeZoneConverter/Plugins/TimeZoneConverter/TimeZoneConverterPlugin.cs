@@ -20,7 +20,6 @@
 #endregion
 
 using Quartz.Extensibility;
-using Quartz.Util;
 
 using TimeZoneConverter;
 
