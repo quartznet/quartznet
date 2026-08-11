@@ -29,7 +29,7 @@ namespace Quartz;
 /// <para>
 /// <b>Quartz owns the implementations of this interface.</b> Build triggers with
 /// <see cref="TriggerBuilder" /> (or the DI configuration equivalents); a custom trigger type
-/// derives from <c>AbstractTrigger</c>, which implements the mutable and operational contracts
+/// derives from <c>TriggerBase</c>, which implements the mutable and operational contracts
 /// the scheduler and the job stores rely on. An object that implements only
 /// <see cref="ITrigger" /> is a read model — handing one to the scheduler is rejected with a
 /// clear error rather than scheduled.

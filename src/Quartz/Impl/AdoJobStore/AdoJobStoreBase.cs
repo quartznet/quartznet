@@ -1152,7 +1152,7 @@ public abstract class AdoJobStoreBase : IJobStore
         DateTimeOffset? misfireOrigFireTime = null;
         if (originalFireTime.HasValue && newFireTime.HasValue
             && originalFireTime.Value != newFireTime.Value
-            && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
+            && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < TriggerBase.FireNowMisfireDetectionThresholdMs)
         {
             misfireOrigFireTime = originalFireTime;
         }
@@ -1306,7 +1306,7 @@ public abstract class AdoJobStoreBase : IJobStore
         var newFireTime = trig.NextFireTimeUtc;
         if (originalFireTime.HasValue && newFireTime.HasValue
             && originalFireTime.Value != newFireTime.Value
-            && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
+            && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < TriggerBase.FireNowMisfireDetectionThresholdMs)
         {
             await Delegate.UpdateMisfireOriginalFireTime(conn, trig.Key, originalFireTime, CancellationToken.None).ConfigureAwait(false);
         }
@@ -3612,7 +3612,7 @@ public abstract class AdoJobStoreBase : IJobStore
         // concurrent change (an UpdateTriggerDetails re-pin or clear between acquisition and firing,
         // or ClusterRecover's reset to "*") wins over the claim instead of being clobbered by it.
         // Explicit pins (AUTO = false) are never re-pinned here.
-        if (trigger is AbstractTrigger pinTrigger)
+        if (trigger is TriggerBase pinTrigger)
         {
             PreferredNode pin = pinTrigger.PreferredNode;
             string? rawPreferredNode = pin.StoredNode;
@@ -3642,7 +3642,7 @@ public abstract class AdoJobStoreBase : IJobStore
         }
 
         // Read saved original fire time from trigger (populated by SelectTrigger from DB column)
-        DateTimeOffset? scheduledFireTime = (trigger as AbstractTrigger)?.MisfiredFromFireTimeUtc;
+        DateTimeOffset? scheduledFireTime = (trigger as TriggerBase)?.MisfiredFromFireTimeUtc;
         if (scheduledFireTime.HasValue)
         {
             // Clear so it doesn't persist beyond this firing

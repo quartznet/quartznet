@@ -51,7 +51,7 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
             writer.WritePropertyName("PreviousFireTimeUtc");
             writer.WriteValue(trigger.PreviousFireTimeUtc);
 
-            if (trigger is Quartz.Impl.Triggers.AbstractTrigger abstractTrigger)
+            if (trigger is Quartz.Impl.Triggers.TriggerBase abstractTrigger)
             {
                 writer.WritePropertyName("ExecutionGroup");
                 writer.WriteValue(abstractTrigger.ExecutionGroup);
@@ -140,7 +140,7 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
                 operableTrigger.PreviousFireTimeUtc = previousFireTimeUtc;
             }
 
-            if (trigger is Quartz.Impl.Triggers.AbstractTrigger abstractTrigger)
+            if (trigger is Quartz.Impl.Triggers.TriggerBase abstractTrigger)
             {
                 abstractTrigger.ExecutionGroup = source.Value<string>("ExecutionGroup");
             }

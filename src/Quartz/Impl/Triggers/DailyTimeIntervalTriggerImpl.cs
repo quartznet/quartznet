@@ -72,7 +72,7 @@ namespace Quartz.Impl.Triggers;
 /// <author>Nuno Maia (.NET)</author>
 [Serializable]
 #pragma warning disable CA1708
-public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger
+public sealed class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigger
 #pragma warning restore CA1708
 {
     /// <summary>
@@ -475,7 +475,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// triggering (if any).
     /// </summary>
     /// <param name="calendar"></param>
-    /// <see cref="AbstractTrigger.ExecutionComplete"/>
+    /// <see cref="TriggerBase.ExecutionComplete"/>
     public override void Triggered(ICalendar? calendar)
     {
         TimesTriggered++;
@@ -510,7 +510,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// </summary>
     /// <param name="calendar"></param>
     /// <param name="misfireThreshold"></param>
-    /// <see cref="AbstractTrigger.UpdateWithNewCalendar"/>
+    /// <see cref="TriggerBase.UpdateWithNewCalendar"/>
     public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
     {
         NextFireTimeUtc = GetFireTimeAfter(PreviousFireTimeUtc);

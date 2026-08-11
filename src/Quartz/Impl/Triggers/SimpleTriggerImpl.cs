@@ -29,7 +29,7 @@ namespace Quartz.Impl.Triggers;
 /// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
+public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
 {
     /// <summary>
     /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in

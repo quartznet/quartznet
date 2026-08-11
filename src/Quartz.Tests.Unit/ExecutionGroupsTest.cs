@@ -41,7 +41,7 @@ public sealed class ExecutionGroupsTest
         var builder = trigger.GetTriggerBuilder();
         ITrigger rebuilt = builder.Build();
 
-        AbstractTrigger at = (AbstractTrigger) rebuilt;
+        TriggerBase at = (TriggerBase) rebuilt;
         Assert.That(at.ExecutionGroup, Is.EqualTo("cpu-intensive"));
     }
 

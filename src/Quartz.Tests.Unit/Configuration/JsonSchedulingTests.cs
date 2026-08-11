@@ -343,7 +343,7 @@ public class JsonSchedulingTests
         var triggers = provider.ScheduledTriggers();
 
         triggers.Should().HaveCount(1);
-        var trigger = (Quartz.Impl.Triggers.AbstractTrigger) triggers[0];
+        var trigger = (Quartz.Impl.Triggers.TriggerBase) triggers[0];
         trigger.ExecutionGroup.Should().Be("batch");
     }
 

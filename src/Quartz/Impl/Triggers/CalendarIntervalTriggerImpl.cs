@@ -51,7 +51,7 @@ namespace Quartz.Impl.Triggers;
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
 #pragma warning disable CA1708
-public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
+public sealed class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
 #pragma warning restore CA1708
 {
     private DateTimeOffset startTime;

@@ -1437,9 +1437,18 @@ A schema violation still throws `SchedulingDataValidationException` carrying eve
 `XmlSchedulingDataProcessorPlugin` still wraps whatever surfaces in a `SchedulerException`, so a
 plugin-based setup sees no change at all.
 
-## AbstractTrigger Property Removals
+## TriggerBase Property Removals
 
-The following properties have been removed from `AbstractTrigger` as they are redundant with the `Key` and `JobKey` properties:
+`AbstractTrigger` — the abstract base every trigger implementation derives from — is **`TriggerBase`**,
+the .NET spelling of the same idea. It is abstract, so it is never a configuration string and never a
+JSON `$type` value; a custom trigger updates its base list and recompiles. (One consequence for the
+*binary* escape hatch: a `BinaryFormatter` payload names a private base-class field as
+`AbstractTrigger+field`, so reading a 3.x `BLOB_TRIGGERS` payload with the compatibility package on
+4.x does not survive the rename — do that part of a binary migration on 3.x, which is the
+recommended path anyway; see
+[Migrating from binary serialization](packages/json-serialization.md#migrating-from-binary-serialization).)
+
+The following properties have been removed from `TriggerBase` as they are redundant with the `Key` and `JobKey` properties:
 
 | Removed Property | Replacement |
 |-----------------|-------------|
@@ -1449,7 +1458,7 @@ The following properties have been removed from `AbstractTrigger` as they are re
 | `JobGroup` | `JobKey.Group` |
 | `FullName` | `Key.ToString()` |
 
-`HasMillisecondPrecision` left `ITrigger` and is `protected abstract` on `AbstractTrigger`. It is how a
+`HasMillisecondPrecision` left `ITrigger` and is `protected abstract` on `TriggerBase`. It is how a
 trigger describes its own schedule to the base class — which rounds the start time down to the second when it
 is false — and nothing outside the trigger acted on it. A custom trigger changes `public override` to
 `protected override`; to test the behaviour, assert on `StartTimeUtc.Millisecond` instead of on the flag.
@@ -2941,10 +2950,10 @@ the builder or the container.
 ```
 
 The three `Get` methods are gone — they spent a while as `[Obsolete]` forwarders on both `ITrigger` and
-`AbstractTrigger` and have now been removed — so fix the call by deleting `Get` and `()`. The `Set` methods
+`TriggerBase` and have now been removed — so fix the call by deleting `Get` and `()`. The `Set` methods
 likewise have no stand-in, because a method and a property setter cannot share a name.
 
-A **custom trigger deriving from `AbstractTrigger`** overrides the `MayFireAgain` property now, because that
+A **custom trigger deriving from `TriggerBase`** overrides the `MayFireAgain` property now, because that
 is the abstract member:
 
 ```diff
@@ -3470,7 +3479,7 @@ There are two sanctioned ways to change a stored trigger, and both were already 
 +     new TriggerDetailsUpdate().WithDescription("noon"));
 ```
 
-Code that owns a concrete `CronTriggerImpl` / `SimpleTriggerImpl` / … is unaffected: `AbstractTrigger` and the
+Code that owns a concrete `CronTriggerImpl` / `SimpleTriggerImpl` / … is unaffected: `TriggerBase` and the
 concrete triggers keep their public setters, and `IMutableTrigger` — the contract job stores and custom
 trigger authors write through — is unchanged.
 
@@ -3544,7 +3553,7 @@ value it always produced through `GetFinalFireTime`.
 ### `ITrigger` is Quartz-implemented
 
 The read-model split makes explicit what was always true operationally: Quartz owns the implementations
-of `ITrigger`. Build triggers with `TriggerBuilder`; a custom trigger type derives from `AbstractTrigger`,
+of `ITrigger`. Build triggers with `TriggerBuilder`; a custom trigger type derives from `TriggerBase`,
 which carries the mutable and operational contracts the scheduler and the stores need. An object that
 implements only `ITrigger` cannot be scheduled — `ScheduleJob` and `RescheduleJob` used to fail on it with
 an `InvalidCastException` from inside the scheduler; they now reject it with a `SchedulerException` that
@@ -3810,7 +3819,7 @@ and `IMutableTrigger` still carries the settable one.
 |---|---|
 | `int ITrigger.MisfireInstruction { get; }` | `int ITrigger.MisfireInstructionCode { get; }` |
 | `int IMutableTrigger.MisfireInstruction { get; set; }` | `int IMutableTrigger.MisfireInstructionCode { get; set; }` |
-| `int AbstractTrigger.MisfireInstruction { get; set; }` | `int AbstractTrigger.MisfireInstructionCode { get; set; }` |
+| `int AbstractTrigger.MisfireInstruction { get; set; }` | `int TriggerBase.MisfireInstructionCode { get; set; }` |
 | `(CronTriggerMisfireInstruction) trigger.MisfireInstruction` | `((ICronTrigger) trigger).MisfireInstruction` |
 | (new) | `SimpleTriggerMisfireInstruction ISimpleTrigger.MisfireInstruction { get; }`, and one per family |
 
@@ -4266,7 +4275,7 @@ readable while you migrate it to JSON — see
 |---|---|
 | `JOB_DETAILS.JOB_DATA`, `TRIGGERS.JOB_DATA` | `JobDataMap`, `Key<T>`, `JobKey`, `TriggerKey` |
 | `CALENDARS.CALENDAR` | `BaseCalendar`, `AnnualCalendar`, `CronCalendar`, `DailyCalendar`, `HolidayCalendar`, `MonthlyCalendar`, `WeeklyCalendar`, `CronExpression` |
-| `BLOB_TRIGGERS.BLOB_DATA` | `AbstractTrigger`, `SimpleTriggerImpl`, `CronTriggerImpl`, `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` |
+| `BLOB_TRIGGERS.BLOB_DATA` | `TriggerBase`, `SimpleTriggerImpl`, `CronTriggerImpl`, `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` |
 
 A trigger reaches that third row when no trigger persistence delegate handles it — a type of your own, or one
 deriving from a built-in trigger with `HasAdditionalProperties` returning `true`. The store writes the whole
@@ -4292,7 +4301,7 @@ delete your constructor — the base class library's `Exception(SerializationInf
 obsolete too, and nothing calls yours.
 
 `Key<T>` and its two subclasses are on the keep side because a key can be a *value* inside a job data map. Quartz
-never puts one there itself — the recovery entries it writes are strings, and both `AbstractTrigger` and
+never puts one there itself — the recovery entries it writes are strings, and both `TriggerBase` and
 `JobDetailImpl` deliberately mark their key fields `[NonSerialized]` and serialize the name and group as separate
 strings — but a job data map holds arbitrary `object` values and serializes them all, so an application that did
 `jobDataMap.Put("parent", jobKey)` on 3.x has a `JobKey` sitting in its `JOB_DATA`. `BinaryFormatter` refuses to
@@ -4932,6 +4941,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Impl.AdoJobStore.JobStoreCMT` | Renamed `ExternalTransactionJobStore` | The old spelling still resolves in configuration, with a warning — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
 | `Quartz.Impl.AdoJobStore.JobStoreTX` | Renamed `LocalTransactionJobStore` | As above — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
 | `Quartz.Impl.AdoJobStore.JobStoreSupport` | Renamed `AdoJobStoreBase` | Abstract, never a configuration string, so no fallback is needed; a derived store updates its base list — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
+| `Quartz.Impl.Triggers.AbstractTrigger` | Renamed `TriggerBase` | Abstract, so never a `$type` value in stored JSON; the five concrete `*TriggerImpl` names are unchanged — see [TriggerBase Property Removals](#triggerbase-property-removals) for the rename and its one binary-blob caveat |
 | `Quartz.Impl.AdoJobStore.SimplePropertiesTriggerPersistenceDelegateSupport` | Renamed `SimplePropertiesTriggerPersistenceDelegateBase` | As above |
 | `Quartz.Simpl.JsonObjectSerializer` | Renamed `Quartz.Serialization.Newtonsoft.NewtonsoftJsonObjectSerializer` | `UseNewtonsoftJsonSerializer()` registers it — see [JSON Serialization](#json-serialization) |
 | `Quartz.JsonSchedulingOptions` | Merged into `FileSchedulingOptions` | It was byte-for-byte identical to `XmlSchedulingOptions` — see [Other Breaking Changes](#other-breaking-changes) |
@@ -4997,8 +5007,8 @@ removals on types that are still public and still open, which no section above n
 
 | 3.x member | What happened | What to use instead |
 |---|---|---|
-| `AbstractTrigger.CompareTo(ITrigger)` | Removed; `AbstractTrigger` no longer implements `IComparable<ITrigger>` | It compared keys — `trigger.Key.CompareTo(other.Key)` |
-| `AbstractTrigger.FullJobName` | Removed | `JobKey.ToString()`, alongside the four in [AbstractTrigger Property Removals](#abstracttrigger-property-removals) |
+| `AbstractTrigger.CompareTo(ITrigger)` | Removed; `TriggerBase` no longer implements `IComparable<ITrigger>` | It compared keys — `trigger.Key.CompareTo(other.Key)` |
+| `AbstractTrigger.FullJobName` | Removed | `JobKey.ToString()`, alongside the four in [TriggerBase Property Removals](#triggerbase-property-removals) |
 | `CronExpression`'s `protected` constants and fields | Gone with the type, which is `sealed` now | No replacement; the parsed sets were never a contract — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
 | `CronTriggerImpl.GetTimeAfter(DateTimeOffset)` | Removed (it was `protected`) | `GetFireTimeAfter(DateTimeOffset?)`, or `CronExpression.GetNextValidTimeAfter` for the expression on its own |
 | `CronTriggerImpl.YearToGiveupSchedulingAt` | Removed (a `protected const`) | No replacement; where the search stops is the expression's business |

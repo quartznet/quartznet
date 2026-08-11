@@ -52,7 +52,7 @@ namespace Quartz.Impl.Triggers;
 /// <author>Sharada Jambula</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
+public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
 {
 #pragma warning disable IDE0052
     // We use these field to (de)serialize the Key and JobKey for backward compatibility
@@ -400,12 +400,12 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// has its start time rounded down to the second.
     /// </summary>
     /// <remarks>
-    /// This is how a trigger describes its own schedule to <see cref="AbstractTrigger" />, not
+    /// This is how a trigger describes its own schedule to <see cref="TriggerBase" />, not
     /// something a caller reads: nothing outside the trigger acted on it.
     /// </remarks>
     protected abstract bool HasMillisecondPrecision { get; }
 
-    protected AbstractTrigger()
+    protected TriggerBase()
     {
         this.timeProvider = TimeProvider.System;
     }
@@ -418,7 +418,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// the <see cref="ITrigger" /> can be placed into a <see cref="IScheduler" />.
     /// </remarks>
     /// <param name="timeProvider">Time provider instance to use</param>
-    protected AbstractTrigger(TimeProvider timeProvider)
+    protected TriggerBase(TimeProvider timeProvider)
     {
         this.timeProvider = timeProvider;
     }
@@ -433,7 +433,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// <param name="name">The name.</param>
     /// <param name="timeProvider">Time provider instance to use</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    protected AbstractTrigger(string name, TimeProvider timeProvider) : this(name, SchedulerConstants.DefaultGroup, timeProvider)
+    protected TriggerBase(string name, TimeProvider timeProvider) : this(name, SchedulerConstants.DefaultGroup, timeProvider)
     {
     }
 
@@ -448,7 +448,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// <param name="group">The group.</param>
     /// <param name="timeProvider">Time provider instance to use</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    protected AbstractTrigger(string name, string group, TimeProvider timeProvider) : this(timeProvider)
+    protected TriggerBase(string name, string group, TimeProvider timeProvider) : this(timeProvider)
     {
         Key = new TriggerKey(name, group);
     }
@@ -462,7 +462,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// <param name="jobGroup">The job group.</param>
     /// <param name="timeProvider">Time provider instance to use</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    protected AbstractTrigger(string name, string group, string jobName, string jobGroup, TimeProvider timeProvider) : this(timeProvider)
+    protected TriggerBase(string name, string group, string jobName, string jobGroup, TimeProvider timeProvider) : this(timeProvider)
     {
         Key = new TriggerKey(name, group);
         JobKey = new JobKey(jobName, jobGroup);
@@ -675,7 +675,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </returns>
     public override bool Equals(object? obj)
     {
-        return Equals(obj as AbstractTrigger);
+        return Equals(obj as TriggerBase);
     }
 
     /// <summary>
@@ -683,7 +683,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </summary>
     /// <param name="trigger"></param>
     /// <returns>true if the key of this Trigger equals that of the given Trigger</returns>
-    public virtual bool Equals(AbstractTrigger? trigger)
+    public virtual bool Equals(TriggerBase? trigger)
     {
         if (trigger?.Key is null || Key is null)
         {
@@ -717,7 +717,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </returns>
     public virtual ITrigger Clone()
     {
-        AbstractTrigger copy = (AbstractTrigger) MemberwiseClone();
+        TriggerBase copy = (TriggerBase) MemberwiseClone();
 
         // Shallow copy the jobDataMap.  Note that this means that if a user
         // modifies a value object in this map from the cloned Trigger

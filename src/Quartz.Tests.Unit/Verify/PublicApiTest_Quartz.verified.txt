@@ -3019,49 +3019,7 @@ namespace Quartz.Impl
 namespace Quartz.Impl.Triggers
 {
     [System.Serializable]
-    public abstract class AbstractTrigger : Quartz.Extensibility.IMutableTrigger, Quartz.Extensibility.IOperableTrigger, Quartz.ITrigger, System.IEquatable<Quartz.Impl.Triggers.AbstractTrigger>
-    {
-        protected AbstractTrigger() { }
-        protected AbstractTrigger(System.TimeProvider timeProvider) { }
-        protected AbstractTrigger(string name, System.TimeProvider timeProvider) { }
-        protected AbstractTrigger(string name, string group, System.TimeProvider timeProvider) { }
-        protected AbstractTrigger(string name, string group, string jobName, string jobGroup, System.TimeProvider timeProvider) { }
-        public virtual string? CalendarName { get; set; }
-        public virtual string? Description { get; set; }
-        public virtual System.DateTimeOffset? EndTimeUtc { get; set; }
-        public string? ExecutionGroup { get; set; }
-        public abstract System.DateTimeOffset? FinalFireTimeUtc { get; }
-        public virtual string FireInstanceId { get; set; }
-        public virtual bool HasAdditionalProperties { get; }
-        protected abstract bool HasMillisecondPrecision { get; }
-        public virtual Quartz.JobDataMap JobDataMap { get; set; }
-        public Quartz.JobKey JobKey { get; set; }
-        public Quartz.TriggerKey Key { get; set; }
-        public abstract bool MayFireAgain { get; }
-        public virtual int MisfireInstructionCode { get; set; }
-        public abstract System.DateTimeOffset? NextFireTimeUtc { get; set; }
-        public Quartz.PreferredNode PreferredNode { get; set; }
-        public abstract System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
-        public virtual int Priority { get; set; }
-        public virtual System.DateTimeOffset StartTimeUtc { get; set; }
-        public virtual Quartz.ITrigger Clone() { }
-        public abstract System.DateTimeOffset? ComputeFirstFireTimeUtc(Quartz.ICalendar? calendar);
-        public virtual bool Equals(Quartz.Impl.Triggers.AbstractTrigger? trigger) { }
-        public override bool Equals(object? obj) { }
-        public virtual Quartz.SchedulerInstruction ExecutionComplete(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? result) { }
-        public abstract System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTime);
-        public override int GetHashCode() { }
-        public abstract Quartz.IScheduleBuilder GetScheduleBuilder();
-        public Quartz.TriggerBuilder<Quartz.IJob> GetTriggerBuilder() { }
-        public override string ToString() { }
-        public abstract void Triggered(Quartz.ICalendar? calendar);
-        public abstract void UpdateAfterMisfire(Quartz.ICalendar? calendar);
-        public abstract void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold);
-        public virtual void Validate() { }
-        protected abstract bool ValidateMisfireInstruction(int misfireInstruction);
-    }
-    [System.Serializable]
-    public sealed class CalendarIntervalTriggerImpl : Quartz.Impl.Triggers.AbstractTrigger, Quartz.ICalendarIntervalTrigger, Quartz.ITrigger
+    public sealed class CalendarIntervalTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.ICalendarIntervalTrigger, Quartz.ITrigger
     {
         public CalendarIntervalTriggerImpl() { }
         public CalendarIntervalTriggerImpl(System.TimeProvider timeProvider) { }
@@ -3094,7 +3052,7 @@ namespace Quartz.Impl.Triggers
         protected override bool ValidateMisfireInstruction(int misfireInstruction) { }
     }
     [System.Serializable]
-    public class CronTriggerImpl : Quartz.Impl.Triggers.AbstractTrigger, Quartz.ICronTrigger, Quartz.ITrigger
+    public class CronTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.ICronTrigger, Quartz.ITrigger
     {
         public CronTriggerImpl(System.TimeProvider? timeProvider = null) { }
         public CronTriggerImpl(string name, System.TimeProvider? timeProvider = null) { }
@@ -3130,7 +3088,7 @@ namespace Quartz.Impl.Triggers
         public bool WillFireOn(System.DateTimeOffset timeUtc, bool dayOnly) { }
     }
     [System.Serializable]
-    public sealed class DailyTimeIntervalTriggerImpl : Quartz.Impl.Triggers.AbstractTrigger, Quartz.IDailyTimeIntervalTrigger, Quartz.ITrigger
+    public sealed class DailyTimeIntervalTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.IDailyTimeIntervalTrigger, Quartz.ITrigger
     {
         public const int RepeatIndefinitely = -1;
         public DailyTimeIntervalTriggerImpl(System.TimeProvider? timeProvider = null) { }
@@ -3164,7 +3122,7 @@ namespace Quartz.Impl.Triggers
         public override void Validate() { }
         protected override bool ValidateMisfireInstruction(int misfireInstruction) { }
     }
-    public sealed class RecurrenceTriggerImpl : Quartz.Impl.Triggers.AbstractTrigger, Quartz.IRecurrenceTrigger, Quartz.ITrigger
+    public sealed class RecurrenceTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.IRecurrenceTrigger, Quartz.ITrigger
     {
         public RecurrenceTriggerImpl() { }
         public RecurrenceTriggerImpl(string name, string group, string recurrenceRule, System.TimeProvider? timeProvider = null) { }
@@ -3189,7 +3147,7 @@ namespace Quartz.Impl.Triggers
         protected override bool ValidateMisfireInstruction(int misfireInstruction) { }
     }
     [System.Serializable]
-    public class SimpleTriggerImpl : Quartz.Impl.Triggers.AbstractTrigger, Quartz.ISimpleTrigger, Quartz.ITrigger
+    public class SimpleTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.ISimpleTrigger, Quartz.ITrigger
     {
         public const int RepeatIndefinitely = -1;
         public SimpleTriggerImpl() { }
@@ -3222,6 +3180,48 @@ namespace Quartz.Impl.Triggers
         public override void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold) { }
         public override void Validate() { }
         protected override bool ValidateMisfireInstruction(int misfireInstruction) { }
+    }
+    [System.Serializable]
+    public abstract class TriggerBase : Quartz.Extensibility.IMutableTrigger, Quartz.Extensibility.IOperableTrigger, Quartz.ITrigger, System.IEquatable<Quartz.Impl.Triggers.TriggerBase>
+    {
+        protected TriggerBase() { }
+        protected TriggerBase(System.TimeProvider timeProvider) { }
+        protected TriggerBase(string name, System.TimeProvider timeProvider) { }
+        protected TriggerBase(string name, string group, System.TimeProvider timeProvider) { }
+        protected TriggerBase(string name, string group, string jobName, string jobGroup, System.TimeProvider timeProvider) { }
+        public virtual string? CalendarName { get; set; }
+        public virtual string? Description { get; set; }
+        public virtual System.DateTimeOffset? EndTimeUtc { get; set; }
+        public string? ExecutionGroup { get; set; }
+        public abstract System.DateTimeOffset? FinalFireTimeUtc { get; }
+        public virtual string FireInstanceId { get; set; }
+        public virtual bool HasAdditionalProperties { get; }
+        protected abstract bool HasMillisecondPrecision { get; }
+        public virtual Quartz.JobDataMap JobDataMap { get; set; }
+        public Quartz.JobKey JobKey { get; set; }
+        public Quartz.TriggerKey Key { get; set; }
+        public abstract bool MayFireAgain { get; }
+        public virtual int MisfireInstructionCode { get; set; }
+        public abstract System.DateTimeOffset? NextFireTimeUtc { get; set; }
+        public Quartz.PreferredNode PreferredNode { get; set; }
+        public abstract System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
+        public virtual int Priority { get; set; }
+        public virtual System.DateTimeOffset StartTimeUtc { get; set; }
+        public virtual Quartz.ITrigger Clone() { }
+        public abstract System.DateTimeOffset? ComputeFirstFireTimeUtc(Quartz.ICalendar? calendar);
+        public virtual bool Equals(Quartz.Impl.Triggers.TriggerBase? trigger) { }
+        public override bool Equals(object? obj) { }
+        public virtual Quartz.SchedulerInstruction ExecutionComplete(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? result) { }
+        public abstract System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTime);
+        public override int GetHashCode() { }
+        public abstract Quartz.IScheduleBuilder GetScheduleBuilder();
+        public Quartz.TriggerBuilder<Quartz.IJob> GetTriggerBuilder() { }
+        public override string ToString() { }
+        public abstract void Triggered(Quartz.ICalendar? calendar);
+        public abstract void UpdateAfterMisfire(Quartz.ICalendar? calendar);
+        public abstract void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold);
+        public virtual void Validate() { }
+        protected abstract bool ValidateMisfireInstruction(int misfireInstruction);
     }
 }
 namespace Quartz.Listeners

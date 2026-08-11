@@ -101,6 +101,12 @@ could never be part of a blob lost those attributes in 4.0; see
 [the migration guide](../migration-guide.md#serializable-survives-only-where-a-database-blob-needs-it)
 for the full list.
 
+One column is the exception: `BLOB_TRIGGERS.BLOB_DATA` holds whole trigger objects, and
+`BinaryFormatter` records private base-class fields under the base class's *name* - which 4.0
+renamed (`AbstractTrigger` is `TriggerBase`) and whose field set 4.0 extended. Migrate binary
+blob triggers while still on 3.x; the hybrid serializer on 4.x is for the job data map, key and
+calendar payloads.
+
 **Example hybrid serializer**
 
 ```csharp

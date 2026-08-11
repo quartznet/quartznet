@@ -214,7 +214,7 @@ public class JsonSchedulingDataProcessorTest
         processor.ProcessJsonContent(json);
 
         processor.ParsedTriggers.Should().HaveCount(1);
-        var trigger = (Quartz.Impl.Triggers.AbstractTrigger) processor.ParsedTriggers[0];
+        var trigger = (Quartz.Impl.Triggers.TriggerBase) processor.ParsedTriggers[0];
         trigger.ExecutionGroup.Should().Be("batch");
     }
 
