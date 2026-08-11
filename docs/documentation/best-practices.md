@@ -89,10 +89,11 @@ public async Task DoSomething(IScheduler schedule, CancellationToken ct)
 
 ## Trigger Tips
 
-### Use TriggerUtils
+### Use TriggerFireTimes
 
-TriggerUtils offers helpers for analyzing triggers: computing a trigger's next fire times, the fire
-times it produces between two instants, and the end time that would allow exactly N firings.
+TriggerFireTimes answers what a trigger would fire without scheduling it: a trigger's next fire
+times, the fire times it produces between two instants, and the end time that would allow exactly
+N firings. On Quartz 3.x the same helpers live on `TriggerUtils`.
 
 ### Use ScheduleJobs
 

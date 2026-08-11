@@ -1685,6 +1685,12 @@ namespace Quartz.Extensibility
         public required System.DateTimeOffset NoLaterThan { get; init; }
         public System.TimeSpan TimeWindow { get; init; }
     }
+    public static class TriggerFireTimes
+    {
+        public static System.Collections.Generic.List<System.DateTimeOffset> Compute(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, int numberOfTimes) { }
+        public static System.Collections.Generic.List<System.DateTimeOffset> ComputeBetween(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, System.DateTimeOffset from, System.DateTimeOffset to) { }
+        public static System.DateTimeOffset? ComputeEndTimeForCount(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, int numberOfTimes) { }
+    }
     public sealed class TriggerFiredBundle
     {
         public TriggerFiredBundle(Quartz.IJobDetail job, Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, bool jobIsRecovering, System.DateTimeOffset fireTimeUtc, System.DateTimeOffset? scheduledFireTimeUtc, System.DateTimeOffset? previousFireTimeUtc, System.DateTimeOffset? nextFireTimeUtc) { }
@@ -1703,12 +1709,6 @@ namespace Quartz.Extensibility
         public TriggerFiredResult(System.Exception exception) { }
         public System.Exception? Exception { get; }
         public Quartz.Extensibility.TriggerFiredBundle? TriggerFiredBundle { get; }
-    }
-    public static class TriggerUtils
-    {
-        public static System.DateTimeOffset? ComputeEndTimeToAllowParticularNumberOfFirings(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, int numberOfTimes) { }
-        public static System.Collections.Generic.List<System.DateTimeOffset> ComputeFireTimes(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, int numberOfTimes) { }
-        public static System.Collections.Generic.List<System.DateTimeOffset> ComputeFireTimesBetween(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, System.DateTimeOffset from, System.DateTimeOffset to) { }
     }
 }
 namespace Quartz.Impl.AdoJobStore

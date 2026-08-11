@@ -51,7 +51,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 72 // this interval will give three firings per day (8:00, 9:12, and 10:24)
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -73,7 +73,7 @@ public class DailyTimeIntervalTriggerImplTest
         };
 
         CronCalendar cronCal = new CronCalendar("* * 9-12 * * ?"); // exclude 9-12
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, cronCal, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, cronCal, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes.Count, Is.EqualTo(48));
@@ -133,7 +133,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -155,7 +155,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(47));
@@ -177,7 +177,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -208,7 +208,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         Assert.That(trigger.GetFireTimeAfter(dateOf(6, 0, 0, 22, 5, 2010)), Is.EqualTo(dateOf(8, 0, 0, 3, 1, 2011)));
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -230,7 +230,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -254,7 +254,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(35));
@@ -279,7 +279,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(36));
@@ -304,7 +304,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -331,7 +331,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(30));
@@ -356,7 +356,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -382,7 +382,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -409,7 +409,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         
         Assert.Multiple(() =>
         {
@@ -440,7 +440,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -475,7 +475,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 60
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>{
             Assert.That(fireTimes, Has.Count.EqualTo(48));
             Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 3, 1, 2011)));
@@ -504,7 +504,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 23
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(18));
@@ -531,7 +531,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 2
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -555,7 +555,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatInterval = 72
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -582,7 +582,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         // Setting this (which is default) should make the trigger just as normal one.
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -609,7 +609,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         // repeatCount=7 allows 8 fires/day, but 8:00-11:00 with 72min interval only allows 3/day
         // so endTimeOfDay is the effective limiter; trigger continues across days
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -635,7 +635,7 @@ public class DailyTimeIntervalTriggerImplTest
         };
 
         // repeatCount=0 means 1 fire per day (at startTimeOfDay), continuing daily
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 5);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(5));
@@ -663,7 +663,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatCount = 2 // 3 fires per day: 8:00, 9:00, 10:00
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 9);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 9);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(9));
@@ -700,7 +700,7 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatCount = 1 // 2 fires per day: 8:00, 9:00
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(4));
@@ -731,7 +731,7 @@ public class DailyTimeIntervalTriggerImplTest
             DaysOfWeek = new HashSet<DayOfWeek> { DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday }
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 6);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 6);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(6));
@@ -766,7 +766,7 @@ public class DailyTimeIntervalTriggerImplTest
             TimeZone = est
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 8);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 8);
 
         DateTimeOffset expected0 = new DateTimeOffset(2012, 3, 10, 8, 0, 0, 0, TimeSpan.FromHours(-5));
         DateTimeOffset expected1 = new DateTimeOffset(2012, 3, 10, 9, 0, 0, 0, TimeSpan.FromHours(-5));
@@ -810,7 +810,7 @@ public class DailyTimeIntervalTriggerImplTest
             TimeZone = est
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 8);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 8);
 
         DateTimeOffset expected0 = new DateTimeOffset(2012, 11, 3, 8, 0, 0, 0, TimeSpan.FromHours(-4));
         DateTimeOffset expected1 = new DateTimeOffset(2012, 11, 3, 9, 0, 0, 0, TimeSpan.FromHours(-4));
@@ -1109,7 +1109,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         trigger.StartTimeUtc = new DateTimeOffset(2015, 1, 11, 23, 57, 0, 0, TimeSpan.Zero);
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 100);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 100);
         foreach (var fireTime in fireTimes)
         {
             // Console.WriteLine(fireTime.LocalDateTime);
@@ -1182,7 +1182,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         var from = new DateTimeOffset(2018, 3, 25, 0, 0, 0, TimeSpan.Zero);
         var to = new DateTimeOffset(2018, 3, 27, 0, 0, 0, TimeSpan.Zero);
-        var times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
+        var times = TriggerFireTimes.ComputeBetween(trigger, null, from, to);
         Assert.That(times, Has.Count.LessThan(200));
     }
 
@@ -1280,7 +1280,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         DateTimeOffset from = new DateTimeOffset(2020, 10, 24, 22, 0, 0, TimeSpan.Zero);
         DateTimeOffset to = new DateTimeOffset(2020, 10, 27, 23, 0, 0, TimeSpan.Zero);
-        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
+        IReadOnlyList<DateTimeOffset> times = TriggerFireTimes.ComputeBetween(trigger, null, from, to);
 
         Assert.That(times, Has.Count.EqualTo(3),
             $"Expected 3 fire times but got {times.Count}: {string.Join(", ", times.Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo)))}");
@@ -1312,7 +1312,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         DateTimeOffset from = new DateTimeOffset(2020, 10, 24, 22, 0, 0, TimeSpan.Zero);
         DateTimeOffset to = new DateTimeOffset(2020, 10, 27, 23, 0, 0, TimeSpan.Zero);
-        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
+        IReadOnlyList<DateTimeOffset> times = TriggerFireTimes.ComputeBetween(trigger, null, from, to);
 
         // Oct 25 is the fall-back day; should get one fire per day, no duplicate on Oct 25
         Assert.That(times, Has.Count.EqualTo(3),
@@ -1339,7 +1339,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         DateTimeOffset from = new DateTimeOffset(2020, 11, 1, 4, 0, 0, TimeSpan.Zero);
         DateTimeOffset to = new DateTimeOffset(2020, 11, 3, 5, 0, 0, TimeSpan.Zero);
-        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
+        IReadOnlyList<DateTimeOffset> times = TriggerFireTimes.ComputeBetween(trigger, null, from, to);
 
         // Nov 1 is the fall-back day; should get one fire per day, no duplicate on Nov 1
         Assert.That(times, Has.Count.EqualTo(3),
@@ -1366,7 +1366,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         DateTimeOffset from = new DateTimeOffset(2020, 10, 24, 22, 0, 0, TimeSpan.Zero);
         DateTimeOffset to = new DateTimeOffset(2020, 10, 27, 23, 0, 0, TimeSpan.Zero);
-        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
+        IReadOnlyList<DateTimeOffset> times = TriggerFireTimes.ComputeBetween(trigger, null, from, to);
 
         Assert.That(times, Has.Count.EqualTo(3),
             $"Expected 3 fire times but got {times.Count}: {string.Join(", ", times.Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo)))}");
@@ -1392,7 +1392,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         DateTimeOffset from = new DateTimeOffset(2020, 10, 24, 22, 0, 0, TimeSpan.Zero);
         DateTimeOffset to = new DateTimeOffset(2020, 10, 27, 23, 0, 0, TimeSpan.Zero);
-        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
+        IReadOnlyList<DateTimeOffset> times = TriggerFireTimes.ComputeBetween(trigger, null, from, to);
 
         Assert.That(times, Has.Count.EqualTo(3),
             $"Expected 3 fire times but got {times.Count}: {string.Join(", ", times.Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo)))}");
@@ -1420,7 +1420,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         DateTimeOffset from = new DateTimeOffset(2020, 10, 24, 0, 0, 0, TimeSpan.Zero);
         DateTimeOffset to = new DateTimeOffset(2020, 10, 27, 23, 0, 0, TimeSpan.Zero);
-        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
+        IReadOnlyList<DateTimeOffset> times = TriggerFireTimes.ComputeBetween(trigger, null, from, to);
 
         Assert.That(times, Has.Count.EqualTo(4),
             $"Expected 4 fire times but got {times.Count}: {string.Join(", ", times.Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo)))}");
@@ -1496,7 +1496,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         // The spring-forward day is 23 hours long, so a 5 minute trigger fires 276 times
         // instead of the usual 288, and never during the local hour that does not exist.
-        List<DateTimeOffset> springForwardDay = TriggerUtils.ComputeFireTimes(trigger, null, 400)
+        List<DateTimeOffset> springForwardDay = TriggerFireTimes.Compute(trigger, null, 400)
             .Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo))
             .Where(t => t.Date == new DateTime(2018, 3, 25))
             .ToList();
@@ -1547,7 +1547,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         // enough fire times to get past the end of the spring-forward day
         int count = (int) (TimeSpan.FromHours(26).Ticks / intervalSpan.Ticks) + 5;
-        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimes(trigger, null, count);
+        IReadOnlyList<DateTimeOffset> times = TriggerFireTimes.Compute(trigger, null, count);
 
         for (int i = 1; i < times.Count; i++)
         {
@@ -1581,7 +1581,7 @@ public class DailyTimeIntervalTriggerImplTest
         trigger.StartTimeUtc = new DateTimeOffset(2018, 10, 27, 22, 0, 0, TimeSpan.Zero);
         trigger.ComputeFirstFireTimeUtc(null);
 
-        List<DateTimeOffset> fallBackDay = TriggerUtils.ComputeFireTimes(trigger, null, 400)
+        List<DateTimeOffset> fallBackDay = TriggerFireTimes.Compute(trigger, null, 400)
             .Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo))
             .Where(t => t.Date == new DateTime(2018, 10, 28))
             .ToList();
@@ -1628,7 +1628,7 @@ public class DailyTimeIntervalTriggerImplTest
         // 00:00 does not exist on Sep 6, so the first instant that does is 01:00 -03:00 = 04:00 UTC
         next.Should().Be(new DateTimeOffset(2026, 9, 6, 4, 0, 0, TimeSpan.Zero));
 
-        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimes(trigger, null, 40);
+        IReadOnlyList<DateTimeOffset> times = TriggerFireTimes.Compute(trigger, null, 40);
         for (int i = 1; i < times.Count; i++)
         {
             times[i].Should().BeAfter(times[i - 1], $"fire time {i} must come after fire time {i - 1}");

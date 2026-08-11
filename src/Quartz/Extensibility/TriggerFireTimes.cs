@@ -36,7 +36,7 @@ namespace Quartz.Extensibility;
 /// <seealso cref="ISimpleTrigger" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public static class TriggerUtils
+public static class TriggerFireTimes
 {
     /// <summary>
     /// Returns a list of Dates that are the next fire times of a
@@ -47,7 +47,7 @@ public static class TriggerUtils
     /// <param name="trigger">The trigger upon which to do the work</param>
     /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
     /// <param name="numberOfTimes">The number of next fire times to produce</param>
-    public static List<DateTimeOffset> ComputeFireTimes(IOperableTrigger trigger, ICalendar? calendar, int numberOfTimes)
+    public static List<DateTimeOffset> Compute(IOperableTrigger trigger, ICalendar? calendar, int numberOfTimes)
     {
         List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
@@ -88,7 +88,7 @@ public static class TriggerUtils
     /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
     /// <param name="numberOfTimes">The number of next fire times to produce</param>
     /// <returns>the computed Date, or null if the trigger (as configured) will not fire that many times</returns>
-    public static DateTimeOffset? ComputeEndTimeToAllowParticularNumberOfFirings(IOperableTrigger trigger, ICalendar? calendar, int numberOfTimes)
+    public static DateTimeOffset? ComputeEndTimeForCount(IOperableTrigger trigger, ICalendar? calendar, int numberOfTimes)
     {
         IOperableTrigger t = (IOperableTrigger) trigger.Clone();
 
@@ -144,7 +144,7 @@ public static class TriggerUtils
     /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
     /// <param name="from">The starting date at which to find fire times</param>
     /// <param name="to">The ending date at which to stop finding fire times</param>
-    public static List<DateTimeOffset> ComputeFireTimesBetween(IOperableTrigger trigger, ICalendar? calendar, DateTimeOffset from, DateTimeOffset to)
+    public static List<DateTimeOffset> ComputeBetween(IOperableTrigger trigger, ICalendar? calendar, DateTimeOffset from, DateTimeOffset to)
     {
         List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
