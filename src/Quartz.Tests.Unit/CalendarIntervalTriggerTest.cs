@@ -31,7 +31,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         DateTimeOffset targetCalendar = startCalendar.AddYears(4);
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 4);
+        var fireTimes = TriggerFireTimes.Compute(yearlyTrigger, null, 4);
         DateTimeOffset thirdTime = fireTimes[2]; // get the third fire time
 
         Assert.That(thirdTime, Is.EqualTo(targetCalendar), "Year increment result not as expected.");
@@ -51,7 +51,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         DateTimeOffset targetCalendar = startCalendar.AddMonths(25); // jump 25 five months (5 intervals)
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+        var fireTimes = TriggerFireTimes.Compute(yearlyTrigger, null, 6);
         DateTimeOffset sixthTime = fireTimes[5]; // get the sixth fire time
 
         Assert.That(sixthTime, Is.EqualTo(targetCalendar), "Month increment result not as expected.");
@@ -71,7 +71,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         DateTimeOffset targetCalendar = startCalendar.AddDays(7 * 6 * 4); // jump 24 weeks (4 intervals)
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 7);
+        var fireTimes = TriggerFireTimes.Compute(yearlyTrigger, null, 7);
         DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
 
         Assert.That(fifthTime, Is.EqualTo(targetCalendar), "Week increment result not as expected.");
@@ -91,7 +91,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         DateTimeOffset targetCalendar = startCalendar.AddDays(360); // jump 360 days (4 intervals)
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+        var fireTimes = TriggerFireTimes.Compute(dailyTrigger, null, 6);
         DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
 
         Assert.That(fifthTime, Is.EqualTo(targetCalendar), "Day increment result not as expected.");
@@ -111,7 +111,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         DateTimeOffset targetCalendar = startCalendar.AddHours(400); // jump 400 hours (4 intervals)
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+        var fireTimes = TriggerFireTimes.Compute(yearlyTrigger, null, 6);
         DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
 
         Assert.That(fifthTime, Is.EqualTo(targetCalendar), "Hour increment result not as expected.");
@@ -131,7 +131,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         DateTimeOffset targetCalendar = startCalendar.AddMinutes(400); // jump 400 minutes (4 intervals)
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+        var fireTimes = TriggerFireTimes.Compute(yearlyTrigger, null, 6);
         DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
 
         Assert.That(fifthTime, Is.EqualTo(targetCalendar), "Minutes increment result not as expected.");
@@ -151,7 +151,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         DateTimeOffset targetCalendar = startCalendar.AddSeconds(400); // jump 400 seconds (4 intervals)
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+        var fireTimes = TriggerFireTimes.Compute(yearlyTrigger, null, 6);
         DateTimeOffset fifthTime = fireTimes[4]; // get the third fire time
 
         Assert.That(fifthTime, Is.EqualTo(targetCalendar), "Seconds increment result not as expected.");
@@ -173,7 +173,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         DateTimeOffset targetCalendar = startCalendar.AddDays(10); // jump 10 days (2 intervals)
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+        var fireTimes = TriggerFireTimes.Compute(dailyTrigger, null, 6);
         DateTimeOffset testTime = fireTimes[2]; // get the third fire time
 
         Assert.That(testTime, Is.EqualTo(targetCalendar), "Day increment result not as expected over spring 2010 daylight savings transition.");
@@ -189,7 +189,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         targetCalendar = startCalendar.AddDays(2); // jump 2 days (2 intervals)
 
-        fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+        fireTimes = TriggerFireTimes.Compute(dailyTrigger, null, 6);
         testTime = fireTimes[2]; // get the third fire time
 
         Assert.That(testTime, Is.EqualTo(targetCalendar), "Day increment result not as expected over spring 2011 daylight savings transition.");
@@ -207,7 +207,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         targetCalendar = TimeZones.ConvertTime(startCalendar, cetTimeZone);
         targetCalendar = targetCalendar.AddDays(2); // jump 2 days (2 intervals)
 
-        fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+        fireTimes = TriggerFireTimes.Compute(dailyTrigger, null, 6);
 
         testTime = fireTimes[2]; // get the third fire time
 
@@ -228,7 +228,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         targetCalendar = startCalendar.AddDays(2); // jump 2 days (2 intervals)
 
-        fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+        fireTimes = TriggerFireTimes.Compute(dailyTrigger, null, 6);
 
         testTime = fireTimes[1]; // get the second fire time
 
@@ -249,7 +249,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         targetCalendar = startCalendar.AddDays(15); // jump 15 days (3 intervals)
 
-        fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+        fireTimes = TriggerFireTimes.Compute(dailyTrigger, null, 6);
         testTime = fireTimes[3]; // get the fourth fire time
 
         Assert.That(testTime, Is.EqualTo(targetCalendar), "Day increment result not as expected over fall daylight savings transition.");
@@ -334,7 +334,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             StartTimeUtc = new DateTimeOffset(2012, 11, 2, 12, 0, 0, TimeSpan.FromHours(-4))
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 6);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 6);
 
         var expected = new DateTimeOffset(2012, 11, 2, 12, 0, 0, TimeSpan.FromHours(-4));
         Assert.That(fireTimes[0], Is.EqualTo(expected));
@@ -373,7 +373,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         DateTimeOffset startDate = new DateTimeOffset(2012, 3, 10, 2, 0, 0, 0, TimeSpan.FromHours(-5));
         trigger.StartTimeUtc = startDate;
 
-        var fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        var fires = TriggerFireTimes.Compute(trigger, null, 5);
 
         var targetTime = fires[1]; //get second fire
 
@@ -395,7 +395,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         startDate = new DateTimeOffset(2012, 3, 4, 2, 0, 0, 0, TimeSpan.FromHours(-5));
         trigger.StartTimeUtc = startDate;
 
-        fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        fires = TriggerFireTimes.Compute(trigger, null, 5);
 
         targetTime = fires[1]; //get second fire
 
@@ -418,7 +418,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         startDate = new DateTimeOffset(2012, 2, 11, 2, 0, 0, 0, TimeSpan.FromHours(-5));
         trigger.StartTimeUtc = startDate;
 
-        fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        fires = TriggerFireTimes.Compute(trigger, null, 5);
 
         targetTime = fires[1]; //get second fire
 
@@ -443,7 +443,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         startDate = new DateTimeOffset(2011, 3, 11, 2, 0, 0, 0, TimeSpan.FromHours(-5));
         trigger.StartTimeUtc = startDate;
 
-        fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        fires = TriggerFireTimes.Compute(trigger, null, 5);
 
         targetTime = fires[1]; //get second fire
 
@@ -480,7 +480,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         DateTimeOffset startDate = new DateTimeOffset(2012, 3, 10, 2, 0, 0, 0, TimeSpan.FromHours(-5));
         trigger.StartTimeUtc = startDate;
 
-        var fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        var fires = TriggerFireTimes.Compute(trigger, null, 5);
 
         var targetTime = fires[1]; //get second fire
 
@@ -505,7 +505,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         startDate = new DateTimeOffset(2012, 3, 4, 2, 0, 0, 0, TimeSpan.FromHours(-5));
         trigger.StartTimeUtc = startDate;
 
-        fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        fires = TriggerFireTimes.Compute(trigger, null, 5);
 
         targetTime = fires[1]; //get second fire
 
@@ -530,7 +530,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         startDate = new DateTimeOffset(2012, 2, 11, 2, 0, 0, 0, TimeSpan.FromHours(-5));
         trigger.StartTimeUtc = startDate;
 
-        fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        fires = TriggerFireTimes.Compute(trigger, null, 5);
 
         targetTime = fires[1]; //get second fire
 
@@ -556,7 +556,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         startDate = new DateTimeOffset(2011, 3, 11, 2, 0, 0, 0, TimeSpan.FromHours(-5));
         trigger.StartTimeUtc = startDate;
 
-        fires = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        fires = TriggerFireTimes.Compute(trigger, null, 5);
 
         targetTime = fires[1]; //get second fire
 
@@ -583,7 +583,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             TimeZone = est
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(t, null, 10);
+        var fireTimes = TriggerFireTimes.Compute(t, null, 10);
 
         var firstFire = fireTimes[0];
         var secondFire = fireTimes[1];
@@ -607,7 +607,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             TimeZone = est
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(t, null, 10);
+        var fireTimes = TriggerFireTimes.Compute(t, null, 10);
 
         var firstFire = fireTimes[0];
         var secondFire = fireTimes[1];
@@ -626,7 +626,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             TimeZone = est
         };
 
-        fireTimes = TriggerUtils.ComputeFireTimes(t, null, 10);
+        fireTimes = TriggerFireTimes.Compute(t, null, 10);
 
         Assert.That(secondFire, Is.Not.EqualTo(firstFire));
     }
@@ -644,7 +644,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         dailyTrigger.TimeZone = cetTimeZone;
         dailyTrigger.PreserveHourOfDayAcrossDaylightSavings = true;
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+        var fireTimes = TriggerFireTimes.Compute(dailyTrigger, null, 6);
 
         //none of these should match the previous fire time.
         for (int i = 1; i < fireTimes.Count; i++)
@@ -757,7 +757,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
                 .InTimeZone(tz))
             .Build();
 
-        var firstFireTime = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 1).First();
+        var firstFireTime = TriggerFireTimes.Compute(dailyTrigger, null, 1).First();
         Assert.That(firstFireTime, Is.EqualTo(new DateTimeOffset(2017, 1, 4, 13, 0, 0, TimeSpan.FromHours(-2))));
     }
 
@@ -805,8 +805,8 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             StartTimeUtc = startDate
         };
 
-        // Compute the first few fire times using TriggerUtils.ComputeFireTimes
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 10);
+        // Compute the first few fire times using TriggerFireTimes.Compute
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 10);
 
         // Expected fire times:
         // 1. 2/25/2024 2:01 AM CST
@@ -922,7 +922,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             StartTimeUtc = startDate
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 5);
 
         Assert.That(fireTimes, Is.Not.Null);
         Assert.That(fireTimes.Count, Is.GreaterThanOrEqualTo(4));
@@ -1016,7 +1016,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             StartTimeUtc = startDate
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 10);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 10);
 
         Assert.That(fireTimes, Is.Not.Null);
         Assert.That(fireTimes.Count, Is.GreaterThanOrEqualTo(6));
@@ -1061,7 +1061,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             StartTimeUtc = startDate
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 6);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 6);
 
         Assert.That(fireTimes, Is.Not.Null);
         Assert.That(fireTimes.Count, Is.GreaterThanOrEqualTo(5));
@@ -1106,7 +1106,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             StartTimeUtc = startDate
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        var fireTimes = TriggerFireTimes.Compute(trigger, null, 5);
 
         Assert.That(fireTimes, Is.Not.Null);
         Assert.That(fireTimes.Count, Is.GreaterThanOrEqualTo(4));

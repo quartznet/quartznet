@@ -131,7 +131,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             Assert.That(trigger.RepeatIntervalUnit, Is.EqualTo(IntervalUnit.Hour));
         });
         //Assert.AreEqual(1, trigger.RepeatInterval);
-        var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute((IOperableTrigger) trigger, null, 48);
         Assert.That(fireTimes, Has.Count.EqualTo(48));
     }
 
@@ -158,7 +158,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             Assert.That(trigger.StartTimeOfDay, Is.EqualTo(new TimeOnly(8, 0)));
             Assert.That(trigger.EndTimeOfDay, Is.EqualTo(new TimeOnly(17, 0)));
         });
-        var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute((IOperableTrigger) trigger, null, 48);
         Assert.That(fireTimes, Has.Count.EqualTo(48));
     }
 
@@ -188,7 +188,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             Assert.That(trigger.StartTimeOfDay, Is.EqualTo(new TimeOnly(10, 0, 0)));
             Assert.That(trigger.EndTimeOfDay, Is.EqualTo(new TimeOnly(23, 59, 59)));
         });
-        var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute((IOperableTrigger) trigger, null, 48);
         Assert.That(fireTimes, Has.Count.EqualTo(48));
     }
 
@@ -208,7 +208,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             Assert.That(trigger.RepeatInterval, Is.EqualTo(1));
         });
         // repeatCount=9 means 10 fires per day; trigger continues on subsequent days
-        var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute((IOperableTrigger) trigger, null, 48);
         Assert.That(fireTimes, Has.Count.EqualTo(48));
     }
 
@@ -230,7 +230,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             Assert.That(trigger.Key.Group, Is.EqualTo("DEFAULT"));
             Assert.That(trigger.RepeatIntervalUnit, Is.EqualTo(IntervalUnit.Minute));
         });
-        var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute((IOperableTrigger) trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -259,7 +259,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             Assert.That(trigger.RepeatIntervalUnit, Is.EqualTo(IntervalUnit.Minute));
         });
         ((IOperableTrigger) trigger).Validate();
-        var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+        var fireTimes = TriggerFireTimes.Compute((IOperableTrigger) trigger, null, 48);
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -438,7 +438,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             .StartAt(startDate)
             .Build();
 
-        var times = TriggerUtils.ComputeFireTimesBetween(trigger, null, startDate, new DateTime(2015, 1, 2));
+        var times = TriggerFireTimes.ComputeBetween(trigger, null, startDate, new DateTime(2015, 1, 2));
         Assert.Multiple(() =>
         {
             Assert.That(times, Has.Count.EqualTo(2), "wrong occurrancy count");

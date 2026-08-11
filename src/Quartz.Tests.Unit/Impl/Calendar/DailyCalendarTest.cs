@@ -137,7 +137,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
                 .RepeatForever())
             .Build();
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, dailyCalendar, (int)TimeSpan.FromDays(1).TotalMinutes);
+        var fireTimes = TriggerFireTimes.Compute(trigger, dailyCalendar, (int)TimeSpan.FromDays(1).TotalMinutes);
 
         var timeZoneOffset = TimeZoneInfo.Local.BaseUtcOffset;
 

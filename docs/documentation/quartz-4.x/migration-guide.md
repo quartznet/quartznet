@@ -4348,16 +4348,27 @@ disposes that registration on `Shutdown`. Shutting one scheduler down no longer 
 resolution for the other schedulers in the process, and no longer leaves a resolver installed after
 the last scheduler is gone.
 
-## `TriggerUtils` moved to `Quartz.Extensibility`
+## `TriggerUtils` became `TriggerFireTimes`
 
 It computes fire times by advancing a copy of a trigger through its schedule, applying the calendar
-at each step, which is exactly what `IOperableTrigger` adds over `ITrigger` — so it belongs with that
-contract rather than in the root namespace next to `IScheduler`. The methods are unchanged:
+at each step, which is exactly what `IOperableTrigger` adds over `ITrigger` — so it is named for the
+fire times it computes and lives in `Quartz.Extensibility` with that contract, rather than in the
+root namespace next to `IScheduler`. The type name carries the "fire times" half, so the methods
+stop repeating it:
+
+| 3.x | 4.0 |
+|-----|-----|
+| `TriggerUtils.ComputeFireTimes(...)` | `TriggerFireTimes.Compute(...)` |
+| `TriggerUtils.ComputeFireTimesBetween(...)` | `TriggerFireTimes.ComputeBetween(...)` |
+| `TriggerUtils.ComputeEndTimeToAllowParticularNumberOfFirings(...)` | `TriggerFireTimes.ComputeEndTimeForCount(...)` |
+
+Parameters and behavior are unchanged:
 
 ```diff
 + using Quartz.Extensibility;
 
-  var times = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, calendar, 10);
+- var times = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, calendar, 10);
++ var times = TriggerFireTimes.Compute((IOperableTrigger) trigger, calendar, 10);
 ```
 
 ## Other Breaking Changes
@@ -4489,7 +4500,7 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `JobDataMap`'s sixty typed accessors removed | The inherited `StringKeyDirtyFlagMap` set does the same job — see [`JobDataMap`'s typed accessors are the ones it inherits](#jobdatamap-s-typed-accessors-are-the-ones-it-inherits) |
 | `Quartz.AspNetCore.AddQuartzServer` removed | `AddQuartzHostedService` starts the scheduler and `AddQuartzHealthChecks` registers the check — see [`AddQuartzServer` is `AddQuartzHostedService`](#addquartzserver-is-addquartzhostedservice) |
 | `ISchedulerFactory.GetScheduler(name)` is `LookupScheduler(name)` | Two members named `GetScheduler` differed only in nullability. `GetScheduler()` builds this factory's scheduler and cannot return null; `LookupScheduler(name)` looks one up in the container's repository and can, which is what the verb now says. `Lookup` matches `ISchedulerRepository.Lookup` |
-| `TriggerUtils` moved to `Quartz.Extensibility` | It is a helper over `IOperableTrigger`, not part of the scheduling API — see [`TriggerUtils` moved to `Quartz.Extensibility`](#triggerutils-moved-to-quartz-extensibility) |
+| `TriggerUtils` became `Quartz.Extensibility.TriggerFireTimes` | A fire-time calculator over `IOperableTrigger`, named for what it computes; the three `Compute*` methods shortened with it — see [`TriggerUtils` became `TriggerFireTimes`](#triggerutils-became-triggerfiretimes) |
 | `TimeZoneUtil` became `Quartz.TimeZones` | `FindTimeZoneById` — now `FindById` — and the wall-clock `GetUtcOffset` are scheduling API, not utilities — see [`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones) |
 | `Quartz.Util.ObjectExtensions` is internal | `AssemblyQualifiedNameWithoutVersion()` is how Quartz spells a type name into a blob or onto the wire, not a general-purpose helper |
 | `Quartz.Diagnostics.ActivityOptions` is `ActivityTags` | It holds `Activity` tag names, not options, and `*Options` names an options type everywhere else. It replaced 3.x's `DiagnosticHeaders`; the tag names and values are unchanged |
@@ -4499,7 +4510,7 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `IDriverDelegate.SelectNumTriggersForJob` is `CountTriggersForJob` | Matching `CountMisfiredTriggersInState`, and spelling out the last `Num` |
 | `SimpleTriggerImpl.ComputeNumTimesFiredBetween` is `ComputeNumberOfTimesFiredBetween` | As above |
 | `TriggerAcquireResult.JobType` is `JobTypeName` | It holds `JOB_CLASS_NAME` — a type name, the same thing `JobHeader.JobTypeName` carries — and was documented as a discriminator, which it is not. `TriggerHeader.TriggerType` really is a discriminator and keeps its name |
-| Parameter names spelled out on the ADO.NET surface | `IDriverDelegate.SelectJobDetail`'s `classLoadHelper` is `loadHelper` (the implementation already called it that, so named arguments disagreed with the interface); `ts` is `misfireTime`; `JobStoreSupport.ReleaseLock`'s `doIt` is `shouldRelease`; `StdAdoDelegate.AddTriggerPersistenceDelegate`'s `del` is `persistenceDelegate`; `TriggerPropertyBundle`'s `sb` is `scheduleBuilder`; `CronTriggerImpl.WillFireOn`'s `test` is `timeUtc`; `TriggerUtils.ComputeFireTimes`'s `numTimes` is `numberOfTimes` |
+| Parameter names spelled out on the ADO.NET surface | `IDriverDelegate.SelectJobDetail`'s `classLoadHelper` is `loadHelper` (the implementation already called it that, so named arguments disagreed with the interface); `ts` is `misfireTime`; `JobStoreSupport.ReleaseLock`'s `doIt` is `shouldRelease`; `StdAdoDelegate.AddTriggerPersistenceDelegate`'s `del` is `persistenceDelegate`; `TriggerPropertyBundle`'s `sb` is `scheduleBuilder`; `CronTriggerImpl.WillFireOn`'s `test` is `timeUtc`; `TriggerFireTimes.Compute`'s `numTimes` is `numberOfTimes` |
 
 ## Appendix: what happened to a name
 
@@ -4510,7 +4521,7 @@ explaining it a second time.
 
 It is derived mechanically, by diffing the public API baselines both branches keep under
 `src/Quartz.Tests.Unit/Verify/` and `src/Quartz.Tests.AspNetCore/Verify/`, so it names **every**
-public type 3.x had and 4.0 does not — all 93, across every package — rather than the ones that came
+public type 3.x had and 4.0 does not — all 94, across every package — rather than the ones that came
 to mind.
 
 Two whole-surface changes are deliberately left out, because repeating them per type would bury
@@ -4622,6 +4633,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.TriggerExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.Impl.AdoJobStore.TriggerStatus` | Removed | `StoredTriggerHeader`, returned by `IDriverDelegate.SelectTriggerHeader` — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
 | `Quartz.TriggerTimeComparator` | Internal | No replacement; it ordered by next fire time, then priority descending, then key — write that inline if you need it |
+| `Quartz.TriggerUtils` | Renamed `Quartz.Extensibility.TriggerFireTimes` | `ComputeFireTimes` is `Compute`, `ComputeFireTimesBetween` is `ComputeBetween` and `ComputeEndTimeToAllowParticularNumberOfFirings` is `ComputeEndTimeForCount`, with parameters and behavior unchanged — see [`TriggerUtils` became `TriggerFireTimes`](#triggerutils-became-triggerfiretimes) |
 | `Quartz.Simpl.TriggerWrapper` | Internal | No replacement; it is `RAMJobStore`'s per-trigger state — see [`RAMJobStore` is sealed](#ramjobstore-is-sealed) |
 | `Quartz.UnableToInterruptJobException` | Removed | Nothing throws it: interruption is cancellation, and every job receives the token — see [`UnableToInterruptJobException` is gone](#unabletointerruptjobexception-is-gone) |
 | `Quartz.XmlSchedulingOptions` | Merged into `FileSchedulingOptions` | See [Other Breaking Changes](#other-breaking-changes) |
