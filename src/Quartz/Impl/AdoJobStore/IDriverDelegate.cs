@@ -131,7 +131,7 @@ public interface IDriverDelegate
     /// <param name="conn">The DB Connection</param>
     /// <param name="jobKey">The key identifying the job.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask<List<TriggerKey>> SelectTriggerNamesForJob(
+    ValueTask<List<TriggerKey>> SelectTriggerKeysForJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default);
@@ -198,7 +198,7 @@ public interface IDriverDelegate
     /// <param name="matcher">Criteria for matching groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The keys of the matching jobs.</returns>
-    ValueTask<List<JobKey>> SelectJobsInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
+    ValueTask<List<JobKey>> SelectJobKeysInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     //---------------------------------------------------------------------------
     // triggers
@@ -534,15 +534,15 @@ public interface IDriverDelegate
     /// <see cref="GroupMatcher{TKey}.AnyGroup" /> for every group.
     /// </summary>
     /// <remarks>
-    /// Not a listing — the <see cref="TriggerGroupQuery" /> overload is. This one serves the
-    /// pause/resume mutation paths, which need every matching group in one go so that they can update
-    /// them under the same lock, and which therefore must not be paged.
+    /// Not a listing — <see cref="SelectTriggerGroups" /> with a <see cref="TriggerGroupQuery" /> is.
+    /// This one serves the pause/resume mutation paths, which need every matching group in one go so
+    /// that they can update them under the same lock, and which therefore must not be paged.
     /// </remarks>
     /// <param name="conn">The DB Connection.</param>
     /// <param name="matcher">The matcher to apply for searching.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The names of the matching groups.</returns>
-    ValueTask<List<string>> SelectTriggerGroups(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
+    ValueTask<List<string>> SelectTriggerGroupNames(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Select the keys of all the triggers a group matcher selects.
@@ -556,7 +556,7 @@ public interface IDriverDelegate
     /// <param name="matcher">Criteria for matching groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The keys of the matching triggers.</returns>
-    ValueTask<List<TriggerKey>> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
+    ValueTask<List<TriggerKey>> SelectTriggerKeysInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Select all the triggers in a given state.

@@ -150,7 +150,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+        public ValueTask<List<IJobDetail>> GetJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

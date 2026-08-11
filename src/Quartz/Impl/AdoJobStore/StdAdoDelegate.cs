@@ -379,7 +379,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// <param name="matcher"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>An array of <see cref="String" /> job names.</returns>
-    public virtual async ValueTask<List<JobKey>> SelectJobsInGroup(
+    public virtual async ValueTask<List<JobKey>> SelectJobKeysInGroup(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)

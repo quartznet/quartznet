@@ -1,30 +1,34 @@
-﻿namespace Quartz.Impl.AdoJobStore;
+using Quartz.Extensibility;
+
+namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
-/// Property name and value holder for trigger state data.
+/// What a trigger persistence delegate reads back for one trigger: the schedule builder that
+/// recreates its schedule, and optionally an applier that restores trigger state the schedule
+/// builder cannot carry, such as how many times the trigger has fired.
 /// </summary>
 public sealed class TriggerPropertyBundle
 {
     public TriggerPropertyBundle(IScheduleBuilder scheduleBuilder)
-        : this(scheduleBuilder, [], [])
+        : this(scheduleBuilder, applyState: null)
     {
     }
 
-    public TriggerPropertyBundle(IScheduleBuilder scheduleBuilder, string[]? statePropertyNames, object[]? statePropertyValues)
+    public TriggerPropertyBundle(IScheduleBuilder scheduleBuilder, Action<IOperableTrigger>? applyState)
     {
         ScheduleBuilder = scheduleBuilder;
-        StatePropertyNames = statePropertyNames ?? [];
-        StatePropertyValues = statePropertyValues ?? [];
-
-        if (StatePropertyNames.Length != StatePropertyValues.Length)
-        {
-            Throw.ArgumentException("property names and values must be of same length");
-        }
+        ApplyState = applyState;
     }
 
+    /// <summary>
+    /// Recreates the trigger's schedule when the trigger is materialized from its stored rows.
+    /// </summary>
     public IScheduleBuilder ScheduleBuilder { get; }
 
-    public string[] StatePropertyNames { get; }
-
-    public object[] StatePropertyValues { get; }
+    /// <summary>
+    /// Restores state onto the materialized trigger, or <see langword="null"/> when the delegate
+    /// carries no state beyond the schedule. The shipped delegates assign the fire count by casting
+    /// to the concrete trigger type: <c>t =&gt; ((SimpleTriggerImpl) t).TimesTriggered = timesTriggered</c>.
+    /// </summary>
+    public Action<IOperableTrigger>? ApplyState { get; }
 }

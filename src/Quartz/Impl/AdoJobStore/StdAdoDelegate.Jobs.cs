@@ -38,7 +38,7 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<List<TriggerKey>> SelectTriggerNamesForJob(ConnectionAndTransactionHolder conn,
+    public virtual async ValueTask<List<TriggerKey>> SelectTriggerKeysForJob(ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
