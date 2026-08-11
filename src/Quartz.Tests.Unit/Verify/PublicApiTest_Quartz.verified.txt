@@ -797,10 +797,15 @@ namespace Quartz
         public Quartz.ITrigger Trigger { get; }
     }
     [System.Serializable]
-    public sealed class JobKey : Quartz.Key<Quartz.JobKey>
+    public sealed class JobKey : Quartz.Key<Quartz.JobKey>, System.IEquatable<Quartz.JobKey>, System.IParsable<Quartz.JobKey>
     {
         public JobKey(string name) { }
         public JobKey(string name, string group) { }
+        public bool Equals(Quartz.JobKey? other) { }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public static Quartz.JobKey Parse(string s) { }
+        public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? s, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out Quartz.JobKey result) { }
     }
     public class JobPersistenceException : Quartz.SchedulerException
     {
@@ -839,7 +844,7 @@ namespace Quartz
         public bool IsMatch(TKey key) { }
     }
     [System.Serializable]
-    public class Key<T> : System.IComparable<Quartz.Key<T>>
+    public class Key<T> : System.IComparable<Quartz.Key<T>>, System.IEquatable<Quartz.Key<T>>
     {
         public const string DefaultGroup = "DEFAULT";
         public Key(string name) { }
@@ -847,6 +852,7 @@ namespace Quartz
         public string Group { get; }
         public string Name { get; }
         public int CompareTo(Quartz.Key<T>? other) { }
+        public bool Equals(Quartz.Key<T>? other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override string ToString() { }
@@ -1416,10 +1422,15 @@ namespace Quartz
         public string TriggerType { get; init; }
     }
     [System.Serializable]
-    public sealed class TriggerKey : Quartz.Key<Quartz.TriggerKey>
+    public sealed class TriggerKey : Quartz.Key<Quartz.TriggerKey>, System.IEquatable<Quartz.TriggerKey>, System.IParsable<Quartz.TriggerKey>
     {
         public TriggerKey(string name) { }
         public TriggerKey(string name, string group) { }
+        public bool Equals(Quartz.TriggerKey? other) { }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public static Quartz.TriggerKey Parse(string s) { }
+        public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? s, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out Quartz.TriggerKey result) { }
     }
     public sealed class TriggerQuery : Quartz.PagedQuery, System.IEquatable<Quartz.TriggerQuery>
     {

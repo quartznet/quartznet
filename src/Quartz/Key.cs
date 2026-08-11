@@ -27,7 +27,7 @@ namespace Quartz;
 /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class Key<T> : IComparable<Key<T>>
+public class Key<T> : IComparable<Key<T>>, IEquatable<Key<T>>
 {
     /// <summary>
     /// The default group for scheduling entities, with the value "DEFAULT".
@@ -36,6 +36,13 @@ public class Key<T> : IComparable<Key<T>>
 
     private readonly string name;
     private readonly string group;
+
+    // Computed lazily rather than in the constructor so that a 3.x binary blob, which lacks the
+    // field and deserializes it as 0, hashes correctly. [NonSerialized] keeps the serialized shape
+    // unchanged. 0 doubles as the not-yet-computed sentinel; the rare key hashing to exactly 0 is
+    // recomputed on every call, which is only the price the cache exists to avoid.
+    [NonSerialized]
+    private int hash;
 
     /// <summary>
     /// Construct a new key with the given name and <see cref="DefaultGroup"/> as group.
@@ -93,30 +100,58 @@ public class Key<T> : IComparable<Key<T>>
 
     public override int GetHashCode()
     {
-        const int Prime = 31;
-        int result = 1;
-        result = Prime * result + group.GetHashCode();
-        result = Prime * result + name.GetHashCode();
+        int result = hash;
+        if (result == 0)
+        {
+            const int Prime = 31;
+            result = (Prime + group.GetHashCode()) * Prime + name.GetHashCode();
+            hash = result;
+        }
+
         return result;
+    }
+
+    public bool Equals(Key<T>? other)
+    {
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+        if (other is null)
+        {
+            return false;
+        }
+        if (GetType() != other.GetType())
+        {
+            return false;
+        }
+
+        return group == other.group && name == other.name;
     }
 
     public override bool Equals(object? obj)
     {
-        if (ReferenceEquals(this, obj))
+        return Equals(obj as Key<T>);
+    }
+
+    /// <summary>
+    /// Splits the <c>&lt;group&gt;.&lt;name&gt;</c> form <see cref="ToString" /> composes back into
+    /// its parts, at the first '.' — the exact inverse of the composition. A group containing '.'
+    /// is the ambiguous case: it parses at the first dot, which is not the key it printed from.
+    /// </summary>
+    private protected static bool TryParseParts(string? s, out string name, out string group)
+    {
+        int separator = s?.IndexOf('.') ?? -1;
+        if (s is null || separator < 0)
         {
-            return true;
-        }
-        if (obj is null)
-        {
-            return false;
-        }
-        if (GetType() != obj.GetType())
-        {
+            name = null!;
+            group = null!;
             return false;
         }
 
-        Key<T> other = (Key<T>) obj;
-        return group == other.group && name == other.name;
+        group = s.Substring(0, separator);
+        name = s.Substring(separator + 1);
+        return true;
     }
 
     public int CompareTo(Key<T>? other)
