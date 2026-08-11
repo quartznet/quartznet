@@ -47,14 +47,14 @@ namespace Quartz;
 public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDictionary<string, object?>
 #pragma warning restore CA1710
 {
-    private readonly ConcurrentDictionary<string, object?> map;
+    private readonly ConcurrentDictionary<string, object?> store;
 
     /// <summary>
     /// Create an empty <see cref="SchedulerContext" />.
     /// </summary>
     public SchedulerContext()
     {
-        map = new ConcurrentDictionary<string, object?>();
+        store = new ConcurrentDictionary<string, object?>();
     }
 
     /// <summary>
@@ -64,7 +64,7 @@ public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDi
     {
         foreach (KeyValuePair<string, object?> pair in map)
         {
-            this.map[pair.Key] = pair.Value;
+            store[pair.Key] = pair.Value;
         }
     }
 
@@ -72,36 +72,36 @@ public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDi
     /// Gets a value indicating whether this instance is empty.
     /// </summary>
     /// <value><c>true</c> if this instance is empty; otherwise, <c>false</c>.</value>
-    public bool IsEmpty => map.IsEmpty;
+    public bool IsEmpty => store.IsEmpty;
 
     /// <summary>
     /// Gets the number of entries contained in the context.
     /// </summary>
-    public int Count => map.Count;
+    public int Count => store.Count;
 
     /// <summary>
     /// Gets a snapshot of the keys in the context.
     /// </summary>
-    public ICollection<string> Keys => map.Keys;
+    public ICollection<string> Keys => store.Keys;
 
     /// <summary>
     /// Gets a snapshot of the values in the context.
     /// </summary>
-    public ICollection<object?> Values => map.Values;
+    public ICollection<object?> Values => store.Values;
 
     /// <inheritdoc/>
-    IEnumerable<string> IReadOnlyDictionary<string, object?>.Keys => map.Keys;
+    IEnumerable<string> IReadOnlyDictionary<string, object?>.Keys => store.Keys;
 
     /// <inheritdoc/>
-    IEnumerable<object?> IReadOnlyDictionary<string, object?>.Values => map.Values;
+    IEnumerable<object?> IReadOnlyDictionary<string, object?>.Values => store.Values;
 
     /// <summary>
     /// Gets or sets the <see cref="object"/> with the specified key.
     /// </summary>
     public object? this[string key]
     {
-        get => map[key];
-        set => map[key] = value;
+        get => store[key];
+        set => store[key] = value;
     }
 
     /// <summary>
@@ -115,7 +115,7 @@ public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDi
     /// </returns>
     public bool TryGetValue(string key, out object? value)
     {
-        return map.TryGetValue(key, out value);
+        return store.TryGetValue(key, out value);
     }
 
     /// <summary>
@@ -127,7 +127,7 @@ public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDi
     /// </returns>
     public bool ContainsKey(string key)
     {
-        return map.ContainsKey(key);
+        return store.ContainsKey(key);
     }
 
     /// <summary>
@@ -141,7 +141,7 @@ public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDi
     /// </exception>
     public void Add(string key, object? value)
     {
-        if (!map.TryAdd(key, value))
+        if (!store.TryAdd(key, value))
         {
             Throw.ArgumentException("An entry with the same key already exists.", nameof(key));
         }
@@ -153,7 +153,7 @@ public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDi
     /// <param name="key">The key of the entry to remove.</param>
     public bool Remove(string key)
     {
-        return map.TryRemove(key, out _);
+        return store.TryRemove(key, out _);
     }
 
     /// <summary>
@@ -161,17 +161,17 @@ public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDi
     /// </summary>
     public void Clear()
     {
-        map.Clear();
+        store.Clear();
     }
 
     public void CopyTo(KeyValuePair<string, object?>[] array, int arrayIndex)
     {
-        ((ICollection<KeyValuePair<string, object?>>) map).CopyTo(array, arrayIndex);
+        ((ICollection<KeyValuePair<string, object?>>) store).CopyTo(array, arrayIndex);
     }
 
     public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
-        return map.GetEnumerator();
+        return store.GetEnumerator();
     }
 
     IEnumerator IEnumerable.GetEnumerator()
@@ -186,12 +186,12 @@ public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDi
 
     bool ICollection<KeyValuePair<string, object?>>.Contains(KeyValuePair<string, object?> item)
     {
-        return ((ICollection<KeyValuePair<string, object?>>) map).Contains(item);
+        return ((ICollection<KeyValuePair<string, object?>>) store).Contains(item);
     }
 
     bool ICollection<KeyValuePair<string, object?>>.Remove(KeyValuePair<string, object?> item)
     {
-        return map.TryRemove(item);
+        return store.TryRemove(item);
     }
 
     bool ICollection<KeyValuePair<string, object?>>.IsReadOnly => false;
