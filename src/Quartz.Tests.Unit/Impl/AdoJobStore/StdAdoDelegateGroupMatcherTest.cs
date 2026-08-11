@@ -27,6 +27,7 @@ using FakeItEasy;
 using Microsoft.Data.SqlClient;
 
 using Quartz.Impl;
+using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 

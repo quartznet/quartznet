@@ -19,7 +19,7 @@ internal sealed class TriggerWrapper : IEquatable<TriggerWrapper>
     /// <summary>
     /// Current state
     /// </summary>
-    public InternalTriggerState state = InternalTriggerState.Waiting;
+    public StoredTriggerState state = StoredTriggerState.Waiting;
 
     internal TriggerWrapper(IOperableTrigger trigger)
     {

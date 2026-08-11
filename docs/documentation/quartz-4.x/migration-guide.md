@@ -2189,10 +2189,24 @@ persistence delegate needs no change; override it only to turn a batch into one 
 
 Eighteen members of `IDriverDelegate` took a trigger state as a `string` whose only legal values were the
 `AdoConstants.State*` constants. A typo, a stale spelling, or a transposed `newState`/`oldState` pair
-compiled and then quietly matched no row. `Quartz.Impl.AdoJobStore.StoredTriggerState` is now that type.
+compiled and then quietly matched no row. `StoredTriggerState` is now that type — and it lives in
+**`Quartz.Extensibility`**, not in the ADO namespace, because it is every store's vocabulary: the
+in-memory store keeps its triggers in the same enum (its private `InternalTriggerState` twin is gone),
+and a custom `IJobStore` uses it too. The precedence that turns a stored state plus "is it executing"
+into the `TriggerState` callers see is public beside it:
+
+```csharp
+TriggerState reported = TriggerStateResolver.Resolve(stored, isExecuting);
+```
+
+`Resolve` applies `None > Error > Paused > Executing > Blocked > Complete > Normal`. Every built-in
+store resolves through it, so a custom store that does the same cannot report a different state than
+the ADO store would for the same situation — which used to require re-deriving the precedence from an
+internal class's XML comment.
 
 **Nothing changes in the database.** The columns still hold the same strings; the conversion happens at the
-delegate boundary, and `AdoConstants.State*` stays public because the strings are the schema contract. A 4.0
+delegate boundary, and `AdoConstants.State*` stays public because the strings are the schema contract
+(the string mapping, `StoredTriggerStates`, stays in `Quartz.Impl.AdoJobStore` with them). A 4.0
 scheduler reads and writes rows a 3.x one wrote, and the two can share a cluster.
 
 | `AdoConstants` constant | Stored value | `StoredTriggerState` member |
@@ -4730,6 +4744,7 @@ Parameters and behavior are unchanged:
 | `FiredTriggerRecord`, `RecoverMisfiredJobsResult`, `DelegateInitializationArgs` are `sealed record`s | Immutable, with `required` / `init` members instead of settable ones — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
 | `DelegateInitializationArgs.InitString` replaced by `TriggerPersistenceDelegates` | The delimited string became a typed collection; register delegates with `UseTriggerPersistenceDelegate<T>()`. The legacy `quartz.jobStore.driverDelegateInitString` key still translates |
 | `FiredTriggerRecord.FireInstanceState` is a `StoredTriggerState` | The last raw `AdoConstants.State*` comparisons in the store; `[Serializable]` is gone with it, and the always-populated members are non-nullable |
+| `StoredTriggerState` moved to `Quartz.Extensibility`; `TriggerStateResolver.Resolve` is public | The stored-state vocabulary and its reporting precedence belong to every job store, not just the ADO one; members and stored strings are unchanged, so a delegate updates a `using` directive — see [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate) |
 | `RecoverMisfiredJobsResult.EarliestNewTime` is `EarliestNewTimeUtc` | The property and its constructor argument disagreed about the `Utc` suffix |
 | `RecoverMisfiredJobsResult.NoOp` is a static property | It was a `public static readonly` field beside sentinels that are properties; source keeps compiling, a recompile is required |
 | `TriggerAcquireResult` carries a `TriggerKey` | It carried `TriggerName` and `TriggerGroup`, which every caller immediately paired back up |
@@ -4847,7 +4862,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Logging.ILogProvider` | Removed with LibLog | `ILoggerFactory` — see [Logging](#logging) |
 | `Quartz.SchedulerBuilder.InMemoryStoreOptions` | Removed | `InMemoryJobStoreOptions`, through `UseInMemoryStore(configure)` |
 | `Quartz.Dashboard.Services.InProcessQuartzApiClient` | Internal | Resolve `IQuartzApiClient` — see [Other Breaking Changes](#other-breaking-changes) |
-| `Quartz.Simpl.InternalTriggerState` | Internal | No replacement; it is `RAMJobStore`'s own bookkeeping — see [Other Breaking Changes](#other-breaking-changes) |
+| `Quartz.Simpl.InternalTriggerState` | Removed | `Quartz.Extensibility.StoredTriggerState`, the stored-state vocabulary every store now shares — see [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate) |
 | `Quartz.IPropertyConfigurationRoot` | Removed | Typed options — see [Code-first configuration is typed](#code-first-configuration-is-typed) |
 | `Quartz.Impl.AdoJobStore.ITablePrefixAware` | Removed | `ISemaphore.Initialize(SemaphoreContext)` — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
 | `Quartz.IPropertyConfigurer` | Removed | Typed options — see [Code-first configuration is typed](#code-first-configuration-is-typed) |
