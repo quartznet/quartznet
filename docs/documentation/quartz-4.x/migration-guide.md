@@ -4301,6 +4301,22 @@ the builders whose behavior it defines. Every file under a `Quartz.*` namespace 
 No configuration shim is needed: `TimeZoneUtil` is a static helper that is called, never a type a
 configuration string names and the scheduler instantiates.
 
+Two members went internal on the way: `ConvertTime(DateTimeOffset, TimeZoneInfo)` and
+`GetUtcOffset(DateTimeOffset, TimeZoneInfo)` were Mono-era shims over the `TimeZoneInfo` calls they
+forward to — call `TimeZoneInfo` directly. The wall-clock `GetUtcOffset(DateTime, TimeZoneInfo)`
+overload is the daylight saving policy, not a shim, and stays public.
+
+The id alias table also stays: on Windows, "Coordinated Universal Time" and "CET" fail
+`TimeZoneInfo.FindSystemTimeZoneById` and both `TryConvert*` conversions even on ICU, and resolve
+through the table alone. Its one dead entry — "US Central Standard Time" ↔ "US/Indiana-Stark",
+where each side aliased the other and neither is a system id on Windows — was pruned; both ids now
+fail with the exception that points at `Quartz.Plugins.TimeZoneConverter`. When the direct lookup
+and the aliases have both failed, `FindTimeZoneById` now also asks
+`TimeZoneInfo.TryConvertIanaIdToWindowsId` before consulting the registered resolvers. The
+conversion runs *after* the direct lookup on purpose: run first, it would turn "US/Eastern" into a
+`TimeZoneInfo` whose `Id` is "Eastern Standard Time", and that rewritten Id is what a job store
+writes back to `TIME_ZONE_ID`.
+
 ### `CustomResolver` became `AddResolver`
 
 `CustomResolver` was one settable delegate, which made every installer overwrite the previous one:
@@ -4640,5 +4656,6 @@ removals on types that are still public and still open, which no section above n
 | `StringKeyDirtyFlagMap.GetNullableGuid()`, `.TryGetNullableGuid()` | Removed | `TryGetGuid(key, out var value)`, whose `false` says the same thing as a `null` did — see [`JobDataMap`'s typed accessors are the ones it inherits](#jobdatamap-s-typed-accessors-are-the-ones-it-inherits) |
 | `StringKeyDirtyFlagMap.Put()` (eight overloads), `.PutAll()` | Removed; all were `[Obsolete]` in 3.x | `map[key] = value` |
 | `TaskSchedulingThreadPool.ThreadPriority` | Removed | No replacement; work runs on a `TaskScheduler`, which has no thread to prioritise — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
+| `TimeZoneUtil.ConvertTime`, `.GetUtcOffset(DateTimeOffset, TimeZoneInfo)` | Internal | `TimeZoneInfo.ConvertTime` / `TimeZoneInfo.GetUtcOffset`, which they forwarded to (they were Mono-era shims); the wall-clock `GetUtcOffset(DateTime, TimeZoneInfo)` stays public — see [`TimeZoneUtil` moved to `Quartz`](#timezoneutil-moved-to-quartz) |
 | `TimeZoneUtil.CustomResolver` | Removed | `AddResolver(...)`, whose `IDisposable` undoes the registration; the type also moved to `Quartz` — see [`CustomResolver` became `AddResolver`](#customresolver-became-addresolver) |
 | `ZeroSizeThreadPool.AvailableThreadCount` | Removed | `PoolSize`, which is `0` — the pool never had a thread to report |

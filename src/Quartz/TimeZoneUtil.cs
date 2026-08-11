@@ -28,6 +28,13 @@ namespace Quartz;
 
 public static class TimeZoneUtil
 {
+    /// <summary>
+    /// Id spellings that some platform has used and some other platform cannot resolve. The BCL does
+    /// not make this table redundant: on Windows with ICU, "Coordinated Universal Time" and "CET"
+    /// fail both <see cref="TimeZoneInfo.FindSystemTimeZoneById" /> and the
+    /// <see cref="TimeZoneInfo.TryConvertIanaIdToWindowsId(string, out string)" /> conversions, and
+    /// resolve through this table alone.
+    /// </summary>
     private static readonly Dictionary<string, string> timeZoneIdAliases = new Dictionary<string, string>();
 
     static TimeZoneUtil()
@@ -45,9 +52,6 @@ public static class TimeZoneUtil
 
         timeZoneIdAliases["Central Standard Time"] = "US/Central";
         timeZoneIdAliases["US/Central"] = "Central Standard Time";
-
-        timeZoneIdAliases["US Central Standard Time"] = "US/Indiana-Stark";
-        timeZoneIdAliases["US/Indiana-Stark"] = "US Central Standard Time";
 
         timeZoneIdAliases["Mountain Standard Time"] = "US/Mountain";
         timeZoneIdAliases["US/Mountain"] = "Mountain Standard Time";
@@ -156,7 +160,7 @@ public static class TimeZoneUtil
     /// <param name="dateTimeOffset"></param>
     /// <param name="timeZoneInfo"></param>
     /// <returns></returns>
-    public static DateTimeOffset ConvertTime(DateTimeOffset dateTimeOffset, TimeZoneInfo timeZoneInfo)
+    internal static DateTimeOffset ConvertTime(DateTimeOffset dateTimeOffset, TimeZoneInfo timeZoneInfo)
     {
         return TimeZoneInfo.ConvertTime(dateTimeOffset, timeZoneInfo);
     }
@@ -167,7 +171,7 @@ public static class TimeZoneUtil
     /// <param name="dateTimeOffset"></param>
     /// <param name="timeZoneInfo"></param>
     /// <returns></returns>
-    public static TimeSpan GetUtcOffset(DateTimeOffset dateTimeOffset, TimeZoneInfo timeZoneInfo)
+    internal static TimeSpan GetUtcOffset(DateTimeOffset dateTimeOffset, TimeZoneInfo timeZoneInfo)
     {
         if (QuartzEnvironment.IsRunningOnMono)
         {
@@ -308,6 +312,23 @@ public static class TimeZoneUtil
                 {
                     var logger = LogProvider.CreateLogger(nameof(TimeZoneUtil));
                     logger.LogError("Could not find time zone using alias id {AliasId}", aliasedId);
+                }
+            }
+
+            // The BCL conversion runs only here, after the direct lookup has failed: run first, it
+            // would turn an id like "US/Eastern" into a TimeZoneInfo whose Id is "Eastern Standard
+            // Time", and that rewritten Id is what a job store writes back to TIME_ZONE_ID. On ICU
+            // builds FindSystemTimeZoneById already attempts this conversion internally, so this is
+            // a guard for environments where that internal fallback is unavailable.
+            if (info is null && TimeZoneInfo.TryConvertIanaIdToWindowsId(id, out string? windowsId))
+            {
+                try
+                {
+                    info = TimeZoneInfo.FindSystemTimeZoneById(windowsId);
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                    // the converted id is not present on this system either; continue with the resolvers
                 }
             }
 

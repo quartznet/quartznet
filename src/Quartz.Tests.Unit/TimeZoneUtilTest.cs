@@ -220,14 +220,56 @@ public class TimeZoneUtilTest
         TimeZoneInfo.ConvertTime(resolved, dublin).DateTime.Should().Be(new DateTime(2024, 3, 31, 2, 30, 0), "the instant renders at the delta-shifted wall clock after the gap");
     }
 
-    [TestCase("US/Eastern", "Eastern Standard Time")]
+    [TestCase("UTC", "Coordinated Universal Time")]
     [TestCase("CET", "Central European Standard Time")]
+    [TestCase("US/Eastern", "Eastern Standard Time")]
+    [TestCase("US/Central", "Central Standard Time")]
+    [TestCase("US/Mountain", "Mountain Standard Time")]
+    [TestCase("US/Arizona", "US Mountain Standard Time")]
+    [TestCase("US/Pacific", "Pacific Standard Time")]
+    [TestCase("US/Alaska", "Alaskan Standard Time")]
+    [TestCase("US/Hawaii", "Hawaiian Standard Time")]
+    [TestCase("Asia/Shanghai", "China Standard Time")]
+    [TestCase("Asia/Karachi", "Pakistan Standard Time")]
     public void FindTimeZoneById_ResolvesAliasPairsOnAnyPlatform(string first, string second)
     {
         TimeZoneInfo firstZone = TimeZoneUtil.FindTimeZoneById(first);
         TimeZoneInfo secondZone = TimeZoneUtil.FindTimeZoneById(second);
 
         firstZone.BaseUtcOffset.Should().Be(secondZone.BaseUtcOffset);
+    }
+
+    [TestCase("Coordinated Universal Time")]
+    [TestCase("CET")]
+    public void FindTimeZoneById_RescuesAliasEntriesTheBclCannotResolve(string id)
+    {
+        // On Windows with ICU these ids fail TimeZoneInfo.FindSystemTimeZoneById AND both
+        // TryConvert* conversions - they are why the alias table survives 4.0. On a platform
+        // whose tzdata resolves them directly (e.g. "CET" on Linux) the lookup passes trivially.
+        TimeZoneUtil.FindTimeZoneById(id).Should().NotBeNull();
+    }
+
+    [TestCase("US Central Standard Time")]
+    [TestCase("US/Indiana-Stark")]
+    public void FindTimeZoneById_PrunedDeadAliasPair_FailsWithGuidance(string id)
+    {
+        // The two ids aliased each other, but neither is a system id on Windows and neither is
+        // known to the BCL conversions or to TimeZoneConverter, so the alias never rescued
+        // anything - the pair was pruned in 4.0. A platform whose tzdata still ships the id
+        // resolves it directly, and this test self-skips there.
+        try
+        {
+            TimeZoneInfo.FindSystemTimeZoneById(id);
+            Assert.Ignore($"'{id}' is a system time zone on this platform");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+        }
+
+        Func<TimeZoneInfo> act = () => TimeZoneUtil.FindTimeZoneById(id);
+
+        act.Should().Throw<TimeZoneNotFoundException>()
+            .WithMessage("*Quartz.Plugins.TimeZoneConverter*", "the failure should point at the plugin that resolves more ids");
     }
 
     [Test]
