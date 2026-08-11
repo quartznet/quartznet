@@ -38,7 +38,8 @@ namespace Quartz;
 /// <para>
 /// The accessors are declared for the two concrete types rather than for
 /// <c>IReadOnlyDictionary&lt;string, object?&gt;</c> on purpose: an interface receiver would graft
-/// them onto every string-keyed dictionary in any file with <c>using Quartz;</c>.
+/// them onto every string-keyed dictionary in any file with <c>using Quartz;</c>. Both blocks are
+/// one-line bridges into a shared coercion core taking the looked-up value.
 /// <see cref="SchedulerContext" /> gets the read accessors only; the <c>PutAsString</c> writers are
 /// instance members of <see cref="JobDataMap" /> because they participate in its change tracking.
 /// </para>
@@ -53,332 +54,161 @@ public static class DataMapExtensions
         /// <summary>
         /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public int GetInt(string key)
-        {
-            if (!TryCoerceInt(map.TryGetValue(key, out object? obj), obj, out int value))
-            {
-                Throw.InvalidCastException("Identified object is not an Integer.");
-            }
-
-            return value;
-        }
+        public int GetInt(string key) => CoerceIntOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public long GetLong(string key)
-        {
-            if (!TryCoerceLong(map.TryGetValue(key, out object? obj), obj, out long value))
-            {
-                Throw.InvalidCastException("Identified object is not a Long.");
-            }
-
-            return value;
-        }
+        public long GetLong(string key) => CoerceLongOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public float GetFloat(string key)
-        {
-            if (!TryCoerceFloat(map.TryGetValue(key, out object? obj), obj, out float value))
-            {
-                Throw.InvalidCastException("Identified object is not a Float.");
-            }
-
-            return value;
-        }
+        public float GetFloat(string key) => CoerceFloatOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public double GetDouble(string key)
-        {
-            if (!TryCoerceDouble(map.TryGetValue(key, out object? obj), obj, out double value))
-            {
-                Throw.InvalidCastException("Identified object is not a Double.");
-            }
-
-            return value;
-        }
+        public double GetDouble(string key) => CoerceDoubleOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="decimal" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public decimal GetDecimal(string key)
-        {
-            if (!TryCoerceDecimal(map.TryGetValue(key, out object? obj), obj, out decimal value))
-            {
-                Throw.InvalidCastException("Identified object is not a Decimal.");
-            }
-
-            return value;
-        }
+        public decimal GetDecimal(string key) => CoerceDecimalOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool GetBoolean(string key)
-        {
-            if (!TryCoerceBoolean(map.TryGetValue(key, out object? obj), obj, out bool value))
-            {
-                Throw.InvalidCastException("Identified object is not a Boolean.");
-            }
-
-            return value;
-        }
+        public bool GetBoolean(string key) => CoerceBooleanOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public char GetChar(string key)
-        {
-            if (!TryCoerceChar(map.TryGetValue(key, out object? obj), obj, out char value))
-            {
-                Throw.InvalidCastException("Identified object is not a Character.");
-            }
-
-            return value;
-        }
+        public char GetChar(string key) => CoerceCharOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="string" /> value from the <see cref="JobDataMap" />,
         /// or <see langword="null" /> when the entry is missing or is not a string.
         /// </summary>
-        public string? GetString(string key)
-        {
-            TryCoerceString(map.TryGetValue(key, out object? obj), obj, out string? value);
-            return value;
-        }
+        public string? GetString(string key) => CoerceStringOrNull(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public DateTime GetDateTime(string key)
-        {
-            if (!TryCoerceDateTime(map.TryGetValue(key, out object? obj), obj, out DateTime value))
-            {
-                Throw.InvalidCastException("Identified object is not a DateTime.");
-            }
-
-            return value;
-        }
+        public DateTime GetDateTime(string key) => CoerceDateTimeOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public DateTimeOffset GetDateTimeOffset(string key)
-        {
-            if (!TryCoerceDateTimeOffset(map.TryGetValue(key, out object? obj), obj, out DateTimeOffset value))
-            {
-                Throw.InvalidCastException("Identified object is not a DateTimeOffset.");
-            }
-
-            return value;
-        }
+        public DateTimeOffset GetDateTimeOffset(string key) => CoerceDateTimeOffsetOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public TimeSpan GetTimeSpan(string key)
-        {
-            if (!TryCoerceTimeSpan(map.TryGetValue(key, out object? obj), obj, out TimeSpan value))
-            {
-                Throw.InvalidCastException("Identified object is not a TimeSpan.");
-            }
-
-            return value;
-        }
+        public TimeSpan GetTimeSpan(string key) => CoerceTimeSpanOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public Guid GetGuid(string key)
-        {
-            if (!TryCoerceGuid(map.TryGetValue(key, out object? obj), obj, out Guid value))
-            {
-                Throw.InvalidCastException("Identified object is not a Guid");
-            }
-
-            return value;
-        }
+        public Guid GetGuid(string key) => CoerceGuidOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetInt(string key, out int value)
-        {
-            return TryCoerceInt(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetInt(string key, out int value) => TryCoerceInt(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetLong(string key, out long value)
-        {
-            return TryCoerceLong(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetLong(string key, out long value) => TryCoerceLong(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetFloat(string key, out float value)
-        {
-            return TryCoerceFloat(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetFloat(string key, out float value) => TryCoerceFloat(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetDouble(string key, out double value)
-        {
-            return TryCoerceDouble(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetDouble(string key, out double value) => TryCoerceDouble(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="decimal" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetDecimal(string key, out decimal value)
-        {
-            return TryCoerceDecimal(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetDecimal(string key, out decimal value) => TryCoerceDecimal(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetBoolean(string key, out bool value)
-        {
-            return TryCoerceBoolean(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetBoolean(string key, out bool value) => TryCoerceBoolean(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetChar(string key, out char value)
-        {
-            return TryCoerceChar(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetChar(string key, out char value) => TryCoerceChar(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="string" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetString(string key, out string? value)
-        {
-            return TryCoerceString(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetString(string key, out string? value) => TryCoerceString(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetDateTime(string key, out DateTime value)
-        {
-            return TryCoerceDateTime(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetDateTime(string key, out DateTime value) => TryCoerceDateTime(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetDateTimeOffset(string key, out DateTimeOffset value)
-        {
-            return TryCoerceDateTimeOffset(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetDateTimeOffset(string key, out DateTimeOffset value) => TryCoerceDateTimeOffset(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetTimeSpan(string key, out TimeSpan value)
-        {
-            return TryCoerceTimeSpan(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetTimeSpan(string key, out TimeSpan value) => TryCoerceTimeSpan(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetGuid(string key, out Guid value)
-        {
-            return TryCoerceGuid(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetGuid(string key, out Guid value) => TryCoerceGuid(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Retrieve the identified <see cref="DateOnly" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public DateOnly GetDateOnly(string key)
-        {
-            if (!TryCoerceDateOnly(map.TryGetValue(key, out object? obj), obj, out DateOnly value))
-            {
-                Throw.InvalidCastException("Identified object is not a DateOnly.");
-            }
-
-            return value;
-        }
+        public DateOnly GetDateOnly(string key) => CoerceDateOnlyOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="DateOnly" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetDateOnly(string key, out DateOnly value)
-        {
-            return TryCoerceDateOnly(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetDateOnly(string key, out DateOnly value) => TryCoerceDateOnly(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Retrieve the identified <see cref="TimeOnly" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public TimeOnly GetTimeOnly(string key)
-        {
-            if (!TryCoerceTimeOnly(map.TryGetValue(key, out object? obj), obj, out TimeOnly value))
-            {
-                Throw.InvalidCastException("Identified object is not a TimeOnly.");
-            }
-
-            return value;
-        }
+        public TimeOnly GetTimeOnly(string key) => CoerceTimeOnlyOrThrow(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="TimeOnly" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public bool TryGetTimeOnly(string key, out TimeOnly value)
-        {
-            return TryCoerceTimeOnly(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetTimeOnly(string key, out TimeOnly value) => TryCoerceTimeOnly(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Retrieve the identified enum value from the <see cref="JobDataMap" />; a string is parsed
         /// by name (case-insensitively), which is what <c>PutAsString</c> writes for an enum.
         /// </summary>
-        public TEnum GetEnum<TEnum>(string key) where TEnum : struct, Enum
-        {
-            if (!TryCoerceEnum(map.TryGetValue(key, out object? obj), obj, out TEnum value))
-            {
-                Throw.InvalidCastException($"Identified object is not a {typeof(TEnum).Name}.");
-            }
-
-            return value;
-        }
+        public TEnum GetEnum<TEnum>(string key) where TEnum : struct, Enum => CoerceEnumOrThrow<TEnum>(map.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Try to retrieve the identified enum value from the <see cref="JobDataMap" />; a string is
         /// parsed by name (case-insensitively), which is what <c>PutAsString</c> writes for an enum.
         /// </summary>
-        public bool TryGetEnum<TEnum>(string key, out TEnum value) where TEnum : struct, Enum
-        {
-            return TryCoerceEnum(map.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetEnum<TEnum>(string key, out TEnum value) where TEnum : struct, Enum => TryCoerceEnum(map.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified value from the <see cref="JobDataMap" /> when it is stored
         /// as a <typeparamref name="T" />. A pure type test — no string parsing or conversion.
         /// </summary>
-        public bool TryGet<T>(string key, [MaybeNullWhen(false)] out T value)
-        {
-            if (map.TryGetValue(key, out object? obj) && obj is T typed)
-            {
-                value = typed;
-                return true;
-            }
-
-            value = default;
-            return false;
-        }
+        public bool TryGet<T>(string key, [MaybeNullWhen(false)] out T value) => TryCoerceExact(map.TryGetValue(key, out object? obj), obj, out value);
     }
 
     /// <summary>Typed read accessors for <see cref="SchedulerContext" />.</summary>
@@ -387,338 +217,326 @@ public static class DataMapExtensions
         /// <summary>
         /// Retrieve the identified <see cref="int" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public int GetInt(string key)
-        {
-            if (!TryCoerceInt(context.TryGetValue(key, out object? obj), obj, out int value))
-            {
-                Throw.InvalidCastException("Identified object is not an Integer.");
-            }
-
-            return value;
-        }
+        public int GetInt(string key) => CoerceIntOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="long" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public long GetLong(string key)
-        {
-            if (!TryCoerceLong(context.TryGetValue(key, out object? obj), obj, out long value))
-            {
-                Throw.InvalidCastException("Identified object is not a Long.");
-            }
-
-            return value;
-        }
+        public long GetLong(string key) => CoerceLongOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="float" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public float GetFloat(string key)
-        {
-            if (!TryCoerceFloat(context.TryGetValue(key, out object? obj), obj, out float value))
-            {
-                Throw.InvalidCastException("Identified object is not a Float.");
-            }
-
-            return value;
-        }
+        public float GetFloat(string key) => CoerceFloatOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="double" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public double GetDouble(string key)
-        {
-            if (!TryCoerceDouble(context.TryGetValue(key, out object? obj), obj, out double value))
-            {
-                Throw.InvalidCastException("Identified object is not a Double.");
-            }
-
-            return value;
-        }
+        public double GetDouble(string key) => CoerceDoubleOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="decimal" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public decimal GetDecimal(string key)
-        {
-            if (!TryCoerceDecimal(context.TryGetValue(key, out object? obj), obj, out decimal value))
-            {
-                Throw.InvalidCastException("Identified object is not a Decimal.");
-            }
-
-            return value;
-        }
+        public decimal GetDecimal(string key) => CoerceDecimalOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="bool" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool GetBoolean(string key)
-        {
-            if (!TryCoerceBoolean(context.TryGetValue(key, out object? obj), obj, out bool value))
-            {
-                Throw.InvalidCastException("Identified object is not a Boolean.");
-            }
-
-            return value;
-        }
+        public bool GetBoolean(string key) => CoerceBooleanOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="char" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public char GetChar(string key)
-        {
-            if (!TryCoerceChar(context.TryGetValue(key, out object? obj), obj, out char value))
-            {
-                Throw.InvalidCastException("Identified object is not a Character.");
-            }
-
-            return value;
-        }
+        public char GetChar(string key) => CoerceCharOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="string" /> value from the <see cref="SchedulerContext" />,
         /// or <see langword="null" /> when the entry is missing or is not a string.
         /// </summary>
-        public string? GetString(string key)
-        {
-            TryCoerceString(context.TryGetValue(key, out object? obj), obj, out string? value);
-            return value;
-        }
+        public string? GetString(string key) => CoerceStringOrNull(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="DateTime" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public DateTime GetDateTime(string key)
-        {
-            if (!TryCoerceDateTime(context.TryGetValue(key, out object? obj), obj, out DateTime value))
-            {
-                Throw.InvalidCastException("Identified object is not a DateTime.");
-            }
-
-            return value;
-        }
+        public DateTime GetDateTime(string key) => CoerceDateTimeOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public DateTimeOffset GetDateTimeOffset(string key)
-        {
-            if (!TryCoerceDateTimeOffset(context.TryGetValue(key, out object? obj), obj, out DateTimeOffset value))
-            {
-                Throw.InvalidCastException("Identified object is not a DateTimeOffset.");
-            }
-
-            return value;
-        }
+        public DateTimeOffset GetDateTimeOffset(string key) => CoerceDateTimeOffsetOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="TimeSpan" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public TimeSpan GetTimeSpan(string key)
-        {
-            if (!TryCoerceTimeSpan(context.TryGetValue(key, out object? obj), obj, out TimeSpan value))
-            {
-                Throw.InvalidCastException("Identified object is not a TimeSpan.");
-            }
-
-            return value;
-        }
+        public TimeSpan GetTimeSpan(string key) => CoerceTimeSpanOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Retrieve the identified <see cref="Guid" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public Guid GetGuid(string key)
-        {
-            if (!TryCoerceGuid(context.TryGetValue(key, out object? obj), obj, out Guid value))
-            {
-                Throw.InvalidCastException("Identified object is not a Guid");
-            }
-
-            return value;
-        }
+        public Guid GetGuid(string key) => CoerceGuidOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="int" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetInt(string key, out int value)
-        {
-            return TryCoerceInt(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetInt(string key, out int value) => TryCoerceInt(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="long" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetLong(string key, out long value)
-        {
-            return TryCoerceLong(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetLong(string key, out long value) => TryCoerceLong(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="float" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetFloat(string key, out float value)
-        {
-            return TryCoerceFloat(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetFloat(string key, out float value) => TryCoerceFloat(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="double" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetDouble(string key, out double value)
-        {
-            return TryCoerceDouble(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetDouble(string key, out double value) => TryCoerceDouble(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="decimal" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetDecimal(string key, out decimal value)
-        {
-            return TryCoerceDecimal(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetDecimal(string key, out decimal value) => TryCoerceDecimal(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="bool" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetBoolean(string key, out bool value)
-        {
-            return TryCoerceBoolean(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetBoolean(string key, out bool value) => TryCoerceBoolean(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="char" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetChar(string key, out char value)
-        {
-            return TryCoerceChar(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetChar(string key, out char value) => TryCoerceChar(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="string" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetString(string key, out string? value)
-        {
-            return TryCoerceString(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetString(string key, out string? value) => TryCoerceString(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="DateTime" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetDateTime(string key, out DateTime value)
-        {
-            return TryCoerceDateTime(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetDateTime(string key, out DateTime value) => TryCoerceDateTime(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetDateTimeOffset(string key, out DateTimeOffset value)
-        {
-            return TryCoerceDateTimeOffset(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetDateTimeOffset(string key, out DateTimeOffset value) => TryCoerceDateTimeOffset(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="TimeSpan" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetTimeSpan(string key, out TimeSpan value)
-        {
-            return TryCoerceTimeSpan(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetTimeSpan(string key, out TimeSpan value) => TryCoerceTimeSpan(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="Guid" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetGuid(string key, out Guid value)
-        {
-            return TryCoerceGuid(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetGuid(string key, out Guid value) => TryCoerceGuid(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Retrieve the identified <see cref="DateOnly" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public DateOnly GetDateOnly(string key)
-        {
-            if (!TryCoerceDateOnly(context.TryGetValue(key, out object? obj), obj, out DateOnly value))
-            {
-                Throw.InvalidCastException("Identified object is not a DateOnly.");
-            }
-
-            return value;
-        }
+        public DateOnly GetDateOnly(string key) => CoerceDateOnlyOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="DateOnly" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetDateOnly(string key, out DateOnly value)
-        {
-            return TryCoerceDateOnly(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetDateOnly(string key, out DateOnly value) => TryCoerceDateOnly(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Retrieve the identified <see cref="TimeOnly" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public TimeOnly GetTimeOnly(string key)
-        {
-            if (!TryCoerceTimeOnly(context.TryGetValue(key, out object? obj), obj, out TimeOnly value))
-            {
-                Throw.InvalidCastException("Identified object is not a TimeOnly.");
-            }
-
-            return value;
-        }
+        public TimeOnly GetTimeOnly(string key) => CoerceTimeOnlyOrThrow(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Try to retrieve the identified <see cref="TimeOnly" /> value from the <see cref="SchedulerContext" />.
         /// </summary>
-        public bool TryGetTimeOnly(string key, out TimeOnly value)
-        {
-            return TryCoerceTimeOnly(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetTimeOnly(string key, out TimeOnly value) => TryCoerceTimeOnly(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Retrieve the identified enum value from the <see cref="SchedulerContext" />; a string is
         /// parsed by name (case-insensitively).
         /// </summary>
-        public TEnum GetEnum<TEnum>(string key) where TEnum : struct, Enum
-        {
-            if (!TryCoerceEnum(context.TryGetValue(key, out object? obj), obj, out TEnum value))
-            {
-                Throw.InvalidCastException($"Identified object is not a {typeof(TEnum).Name}.");
-            }
-
-            return value;
-        }
+        public TEnum GetEnum<TEnum>(string key) where TEnum : struct, Enum => CoerceEnumOrThrow<TEnum>(context.TryGetValue(key, out object? obj), obj);
 
         /// <summary>
         /// Try to retrieve the identified enum value from the <see cref="SchedulerContext" />; a
         /// string is parsed by name (case-insensitively).
         /// </summary>
-        public bool TryGetEnum<TEnum>(string key, out TEnum value) where TEnum : struct, Enum
-        {
-            return TryCoerceEnum(context.TryGetValue(key, out object? obj), obj, out value);
-        }
+        public bool TryGetEnum<TEnum>(string key, out TEnum value) where TEnum : struct, Enum => TryCoerceEnum(context.TryGetValue(key, out object? obj), obj, out value);
 
         /// <summary>
         /// Try to retrieve the identified value from the <see cref="SchedulerContext" /> when it is
         /// stored as a <typeparamref name="T" />. A pure type test — no string parsing or conversion.
         /// </summary>
-        public bool TryGet<T>(string key, [MaybeNullWhen(false)] out T value)
-        {
-            if (context.TryGetValue(key, out object? obj) && obj is T typed)
-            {
-                value = typed;
-                return true;
-            }
-
-            value = default;
-            return false;
-        }
+        public bool TryGet<T>(string key, [MaybeNullWhen(false)] out T value) => TryCoerceExact(context.TryGetValue(key, out object? obj), obj, out value);
     }
 
     // The coercion core. Each method takes the result of the receiver's TryGetValue so the two
-    // extension blocks above share one implementation. The stored type and the string form are
-    // matched without exceptions; only an exotic stored type reaches the Convert-based cold path,
-    // whose semantics (including a stored null coercing to a type's default) are kept from 3.x.
+    // extension blocks above stay one-line bridges over one implementation. The stored type and
+    // the string form are matched without exceptions; only an exotic stored type reaches the
+    // Convert-based cold path, whose semantics (including a stored null coercing to a type's
+    // default) are kept from 3.x.
+
+    private static int CoerceIntOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceInt(found, obj, out int value))
+        {
+            Throw.InvalidCastException("Identified object is not an Integer.");
+        }
+
+        return value;
+    }
+
+    private static long CoerceLongOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceLong(found, obj, out long value))
+        {
+            Throw.InvalidCastException("Identified object is not a Long.");
+        }
+
+        return value;
+    }
+
+    private static float CoerceFloatOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceFloat(found, obj, out float value))
+        {
+            Throw.InvalidCastException("Identified object is not a Float.");
+        }
+
+        return value;
+    }
+
+    private static double CoerceDoubleOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceDouble(found, obj, out double value))
+        {
+            Throw.InvalidCastException("Identified object is not a Double.");
+        }
+
+        return value;
+    }
+
+    private static decimal CoerceDecimalOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceDecimal(found, obj, out decimal value))
+        {
+            Throw.InvalidCastException("Identified object is not a Decimal.");
+        }
+
+        return value;
+    }
+
+    private static bool CoerceBooleanOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceBoolean(found, obj, out bool value))
+        {
+            Throw.InvalidCastException("Identified object is not a Boolean.");
+        }
+
+        return value;
+    }
+
+    private static char CoerceCharOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceChar(found, obj, out char value))
+        {
+            Throw.InvalidCastException("Identified object is not a Character.");
+        }
+
+        return value;
+    }
+
+    private static string? CoerceStringOrNull(bool found, object? obj)
+    {
+        TryCoerceString(found, obj, out string? value);
+        return value;
+    }
+
+    private static DateTime CoerceDateTimeOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceDateTime(found, obj, out DateTime value))
+        {
+            Throw.InvalidCastException("Identified object is not a DateTime.");
+        }
+
+        return value;
+    }
+
+    private static DateTimeOffset CoerceDateTimeOffsetOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceDateTimeOffset(found, obj, out DateTimeOffset value))
+        {
+            Throw.InvalidCastException("Identified object is not a DateTimeOffset.");
+        }
+
+        return value;
+    }
+
+    private static TimeSpan CoerceTimeSpanOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceTimeSpan(found, obj, out TimeSpan value))
+        {
+            Throw.InvalidCastException("Identified object is not a TimeSpan.");
+        }
+
+        return value;
+    }
+
+    private static Guid CoerceGuidOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceGuid(found, obj, out Guid value))
+        {
+            Throw.InvalidCastException("Identified object is not a Guid");
+        }
+
+        return value;
+    }
+
+    private static DateOnly CoerceDateOnlyOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceDateOnly(found, obj, out DateOnly value))
+        {
+            Throw.InvalidCastException("Identified object is not a DateOnly.");
+        }
+
+        return value;
+    }
+
+    private static TimeOnly CoerceTimeOnlyOrThrow(bool found, object? obj)
+    {
+        if (!TryCoerceTimeOnly(found, obj, out TimeOnly value))
+        {
+            Throw.InvalidCastException("Identified object is not a TimeOnly.");
+        }
+
+        return value;
+    }
+
+    private static TEnum CoerceEnumOrThrow<TEnum>(bool found, object? obj) where TEnum : struct, Enum
+    {
+        if (!TryCoerceEnum(found, obj, out TEnum value))
+        {
+            Throw.InvalidCastException($"Identified object is not a {typeof(TEnum).Name}.");
+        }
+
+        return value;
+    }
+
+    private static bool TryCoerceExact<T>(bool found, object? obj, [MaybeNullWhen(false)] out T value)
+    {
+        if (found && obj is T typed)
+        {
+            value = typed;
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
 
     private static bool TryCoerceInt(bool found, object? obj, out int value)
     {
