@@ -524,7 +524,7 @@ internal sealed class QuartzSchedulerThread
                             // will see accurate in-flight counts immediately
                             runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 1, (_, c) => c + 1);
 
-                            Func<Task> jobRunner = async () =>
+                            Func<ValueTask> jobRunner = async () =>
                             {
                                 try
                                 {

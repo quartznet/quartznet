@@ -196,7 +196,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// <returns>
     /// <see langword="true"/> if the task was successfully scheduled; otherwise, <see langword="false"/>.
     /// </returns>
-    public async ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default)
     {
         if (action is null || !isInitialized || shutdownCancellation.IsCancellationRequested)
         {
@@ -218,8 +218,9 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             }
         }
 
-        // Wrap the action in a Task to start it asynchronously
-        var task = new Task<Task>(action);
+        // Wrap the action in a Task to start it asynchronously. AsTask costs nothing when the
+        // work completed synchronously and is the Task the machinery below needs otherwise.
+        var task = new Task<Task>(() => action().AsTask());
 
         // Unrap the task so that we can work with the underlying task
         var unwrappedTask = task.Unwrap();

@@ -1667,7 +1667,7 @@ namespace Quartz.Extensibility
         int PoolSize { get; }
         System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.Task> action, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.ValueTask> action, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> WaitForAvailableThreads(System.Threading.CancellationToken cancellationToken = default);
     }
     public interface ITypeLoadHelper
@@ -1811,7 +1811,7 @@ namespace Quartz.Impl.AdoJobStore
         protected override Quartz.Impl.AdoJobStore.SimplePropertiesTriggerProperties GetTriggerProperties(Quartz.Extensibility.IOperableTrigger trigger) { }
         protected override Quartz.Impl.AdoJobStore.TriggerPropertyBundle GetTriggerPropertyBundle(Quartz.Impl.AdoJobStore.SimplePropertiesTriggerProperties props) { }
     }
-    public sealed class ConnectionAndTransactionHolder : System.IDisposable
+    public sealed class ConnectionAndTransactionHolder : System.IAsyncDisposable, System.IDisposable
     {
         public ConnectionAndTransactionHolder(System.Data.Common.DbConnection connection, System.Data.Common.DbTransaction? transaction) { }
         public ConnectionAndTransactionHolder(System.Data.Common.DbConnection connection, System.Data.Common.DbTransaction? transaction, bool ownsResources) { }
@@ -1823,6 +1823,7 @@ namespace Quartz.Impl.AdoJobStore
         public System.Threading.Tasks.ValueTask Close(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Data.Common.DbBatch CreateBatch() { }
         public void Dispose() { }
+        public System.Threading.Tasks.ValueTask DisposeAsync() { }
     }
     public sealed class CronTriggerPersistenceDelegate : Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate
     {
@@ -3002,7 +3003,7 @@ namespace Quartz.Impl
         protected abstract System.Threading.Tasks.TaskScheduler GetDefaultScheduler();
         public virtual System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.Task> action, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.ValueTask> action, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<int> WaitForAvailableThreads(System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class ZeroSizeThreadPool : Quartz.Extensibility.IThreadPool
@@ -3011,7 +3012,7 @@ namespace Quartz.Impl
         public int PoolSize { get; }
         public System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.Task> action, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.ValueTask> action, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<int> WaitForAvailableThreads(System.Threading.CancellationToken cancellationToken = default) { }
     }
 }

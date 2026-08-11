@@ -2958,7 +2958,7 @@ Only relevant if you implement `IThreadPool` yourself:
 - void Shutdown(bool waitForJobsToComplete = true);
 - string InstanceId { set; }
 - string InstanceName { set; }
-+ ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default);
++ ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default);
 + ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default);
 + ValueTask Initialize(CancellationToken cancellationToken = default);
 + ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default);
@@ -2966,6 +2966,11 @@ Only relevant if you implement `IThreadPool` yourself:
 
 The two renamed methods used to block the calling thread on a semaphore, and the caller is the scheduler's own
 asynchronous loop, so waiting for pool capacity tied up a thread. Use `WaitAsync` in your implementation.
+
+`TryRun`'s work item is a `Func<ValueTask>`: it was the one place an extensibility SPI still made you
+write `async Task` in a surface that is `ValueTask` everywhere else, and the `Task`-shaped delegate
+cost the dispatch path a `Task<Task>`/`Unwrap` round trip per fire. A custom pool changes the
+parameter type; a lambda that returned `Task.CompletedTask` returns `ValueTask.CompletedTask`.
 
 `InstanceId` and `InstanceName` are gone rather than moved: Quartz set them and nothing ever read them. If your
 pool wants the scheduler's identity, take `IOptions<QuartzSchedulerOptions>` from the container.
@@ -4781,6 +4786,7 @@ Parameters and behavior are unchanged:
 | `ISemaphore.Initialize(SemaphoreContext)` replaces `ITablePrefixAware` | Identity arrives through one initialization call instead of a property pair; the default implementation does nothing — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
 | `JobStoreSupport.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
 | `ConnectionAndTransactionHolder` gained an ownership-aware constructor and `OwnsResources` | `(connection, transaction, ownsResources)` for a store running on a connection it did not open |
+| `ConnectionAndTransactionHolder` is `IAsyncDisposable` | `await using` is the form to prefer in an async method — the provider closes its connection without blocking a thread. Purely additive; `using` keeps working, and both disposal paths now log failures at debug instead of swallowing them |
 | `FiredTriggerRecord`, `RecoverMisfiredJobsResult`, `DelegateInitializationArgs` are `sealed record`s | Immutable, with `required` / `init` members instead of settable ones — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
 | `DelegateInitializationArgs.InitString` replaced by `TriggerPersistenceDelegates` | The delimited string became a typed collection; register delegates with `UseTriggerPersistenceDelegate<T>()`. The legacy `quartz.jobStore.driverDelegateInitString` key still translates |
 | `FiredTriggerRecord.FireInstanceState` is a `StoredTriggerState` | The last raw `AdoConstants.State*` comparisons in the store; `[Serializable]` is gone with it, and the always-populated members are non-nullable |

@@ -97,7 +97,7 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// </remarks>
     /// <param name="action">The work to run.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default)
+    public ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default)
     {
         Throw.NotSupportedException("This ThreadPool should not be used on Scheduler instances that are started.");
         return default;

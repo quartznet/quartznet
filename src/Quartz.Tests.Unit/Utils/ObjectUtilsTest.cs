@@ -181,7 +181,7 @@ public class ObjectUtilsTest
 
 internal sealed class ExplicitImplementor : IThreadPool
 {
-    public ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default)
+    public ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();
     }
