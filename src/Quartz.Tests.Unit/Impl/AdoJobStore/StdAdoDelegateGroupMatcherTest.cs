@@ -83,7 +83,6 @@ public class StdAdoDelegateGroupMatcherTest
             BindByName = bindByName,
             ParameterNamePrefix = parameterNamePrefix
         };
-        metadata.Initialize();
         A.CallTo(() => dbProvider.Metadata).Returns(metadata);
         A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 

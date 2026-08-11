@@ -3683,15 +3683,17 @@ public abstract class JobStoreSupport : IJobStore
 
         job.JobDataMap.ClearDirtyFlag();
 
-        return new TriggerFiredBundle(
-            job,
-            trigger,
-            calendar,
-            jobIsRecovering: trigger.Key.Group == SchedulerConstants.DefaultRecoveryGroup,
-            timeProvider.GetUtcNow(),
-            scheduledFireTime ?? trigger.PreviousFireTimeUtc,
-            prevFireTime,
-            trigger.NextFireTimeUtc);
+        return new TriggerFiredBundle
+        {
+            JobDetail = job,
+            Trigger = trigger,
+            Calendar = calendar,
+            Recovering = trigger.Key.Group == SchedulerConstants.DefaultRecoveryGroup,
+            FireTimeUtc = timeProvider.GetUtcNow(),
+            ScheduledFireTimeUtc = scheduledFireTime ?? trigger.PreviousFireTimeUtc,
+            PreviousFireTimeUtc = prevFireTime,
+            NextFireTimeUtc = trigger.NextFireTimeUtc,
+        };
     }
 
     /// <summary>

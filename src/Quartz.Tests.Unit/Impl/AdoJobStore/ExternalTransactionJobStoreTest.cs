@@ -24,8 +24,8 @@ public class ExternalTransactionJobStoreTest
 
     private sealed class TestExternalTransactionJobStore : ExternalTransactionJobStore
     {
-        public TestExternalTransactionJobStore(IDbProvider dbProvider)
-            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), dbProvider, TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        public TestExternalTransactionJobStore(IDbProvider dbProvider, bool openConnection = false)
+            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(configure: o => o.OpenConnection = openConnection), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), dbProvider, TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
         }
 
@@ -49,7 +49,9 @@ public class ExternalTransactionJobStoreTest
     [Test]
     public void ShouldOpenConnectionIfRequested()
     {
-        jobStore.OpenConnection = true;
+        // Configured through AdoJobStoreOptions.OpenConnection and read at construction, like every
+        // other store setting; the settable store property is gone.
+        jobStore = new TestExternalTransactionJobStore(dbProvider, openConnection: true);
         var mock = A.Fake<DbConnection>();
         A.CallTo(() => dbProvider.CreateConnection()).Returns(mock);
 

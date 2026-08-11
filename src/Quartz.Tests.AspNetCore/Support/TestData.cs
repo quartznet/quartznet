@@ -200,31 +200,33 @@ public static class TestData
 
         ExecutingJobOne = new JobExecutionContextImpl(
             scheduler: A.Fake<IScheduler>(),
-            firedBundle: new TriggerFiredBundle(
-                job: JobDetail,
-                trigger: (IOperableTrigger) CronTrigger,
-                calendar: CronCalendar,
-                jobIsRecovering: false,
-                fireTimeUtc: DateTimeOffset.Now.AddSeconds(-1),
-                scheduledFireTimeUtc: DateTimeOffset.Now.AddSeconds(-1),
-                previousFireTimeUtc: DateTimeOffset.Now.AddMinutes(-10),
-                nextFireTimeUtc: DateTimeOffset.Now.AddMinutes(10)
-            ),
+            firedBundle: new TriggerFiredBundle
+            {
+                JobDetail = JobDetail,
+                Trigger = (IOperableTrigger) CronTrigger,
+                Calendar = CronCalendar,
+                Recovering = false,
+                FireTimeUtc = DateTimeOffset.Now.AddSeconds(-1),
+                ScheduledFireTimeUtc = DateTimeOffset.Now.AddSeconds(-1),
+                PreviousFireTimeUtc = DateTimeOffset.Now.AddMinutes(-10),
+                NextFireTimeUtc = DateTimeOffset.Now.AddMinutes(10)
+            },
             job: new DummyJob()
         );
 
         ExecutingJobTwo = new JobExecutionContextImpl(
             scheduler: A.Fake<IScheduler>(),
-            firedBundle: new TriggerFiredBundle(
-                job: JobDetail2,
-                trigger: (IOperableTrigger) SimpleTrigger,
-                calendar: null,
-                jobIsRecovering: true,
-                fireTimeUtc: DateTimeOffset.Now.AddSeconds(-5),
-                scheduledFireTimeUtc: null,
-                previousFireTimeUtc: null,
-                nextFireTimeUtc: null
-            ),
+            firedBundle: new TriggerFiredBundle
+            {
+                JobDetail = JobDetail2,
+                Trigger = (IOperableTrigger) SimpleTrigger,
+                Calendar = null,
+                Recovering = true,
+                FireTimeUtc = DateTimeOffset.Now.AddSeconds(-5),
+                ScheduledFireTimeUtc = null,
+                PreviousFireTimeUtc = null,
+                NextFireTimeUtc = null
+            },
             job: new DummyJob()
         );
     }

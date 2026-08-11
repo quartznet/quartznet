@@ -60,16 +60,17 @@ internal record CurrentlyExecutingJobDto(
             return (null, errorReason);
         }
 
-        var triggerFiredBundle = new TriggerFiredBundle(
-            job: jobDetail,
-            trigger: (IOperableTrigger) Trigger,
-            calendar: Calendar,
-            jobIsRecovering: Recovering,
-            fireTimeUtc: FireTime,
-            scheduledFireTimeUtc: ScheduledFireTime,
-            previousFireTimeUtc: PreviousFireTime,
-            nextFireTimeUtc: NextFireTime
-        );
+        var triggerFiredBundle = new TriggerFiredBundle
+        {
+            JobDetail = jobDetail,
+            Trigger = (IOperableTrigger) Trigger,
+            Calendar = Calendar,
+            Recovering = Recovering,
+            FireTimeUtc = FireTime,
+            ScheduledFireTimeUtc = ScheduledFireTime,
+            PreviousFireTimeUtc = PreviousFireTime,
+            NextFireTimeUtc = NextFireTime,
+        };
 
         var result = new JobExecutionContextImpl(scheduler, triggerFiredBundle, job: null!);
         return (result, null);

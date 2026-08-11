@@ -279,7 +279,6 @@ public class StdAdoDelegateTest
             BindByName = true,
             ParameterNamePrefix = "@"
         };
-        dbMetadata.Initialize();
         A.CallTo(() => dbProvider.Metadata)
             .Returns(dbMetadata);
 
@@ -373,7 +372,6 @@ public class StdAdoDelegateTest
             BindByName = true,
             ParameterNamePrefix = "@"
         };
-        dbMetadata.Initialize();
 
         var dbProvider = A.Fake<IDbProvider>();
         A.CallTo(() => dbProvider.CreateCommand()).Returns(command);

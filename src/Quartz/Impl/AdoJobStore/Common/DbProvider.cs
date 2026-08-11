@@ -82,11 +82,6 @@ public class DbProvider : IDbProvider
         commandConstructor = ObjectUtils.GetDefaultConstructor((Metadata.CommandType));
     }
 
-    public void Initialize()
-    {
-        // do nothing, the driver description is resolved during construction
-    }
-
     /// <inheritdoc />
     public virtual DbCommand CreateCommand()
     {
@@ -104,7 +99,7 @@ public class DbProvider : IDbProvider
     }
 
     /// <inheritdoc />
-    public string ConnectionString { get; set; }
+    public string ConnectionString { get; }
 
     /// <inheritdoc />
     public DbMetadata Metadata { get; }

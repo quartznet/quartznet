@@ -26,7 +26,7 @@ public class JobDispatchBenchmark
 
         trigger.FireInstanceId = "fire-instance-id";
         trigger.NextFireTimeUtc = DateTimeOffset.UtcNow.AddSeconds(10);
-        var bundle = new TriggerFiredBundle(job, trigger, null, false, DateTimeOffset.UtcNow, null, null, null);
+        var bundle = new TriggerFiredBundle { JobDetail = job, Trigger = trigger, Recovering = false, FireTimeUtc = DateTimeOffset.UtcNow, ScheduledFireTimeUtc = null, PreviousFireTimeUtc = null, NextFireTimeUtc = null };
         shell = new JobRunShell(scheduler, bundle, NullLogger<JobRunShell>.Instance);
     }
 

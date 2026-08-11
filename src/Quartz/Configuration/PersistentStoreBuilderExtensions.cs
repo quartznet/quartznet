@@ -136,34 +136,34 @@ public static class PersistentStoreBuilderExtensions
     /// </remarks>
     /// <example>
     /// <code>
-    /// store.UseGenericDatabase("MyDatabase", connectionString, metadata =>
+    /// store.UseGenericDatabase("MyDatabase", connectionString, () => new DbMetadata
     /// {
-    ///     metadata.ProductName = "My Database";
-    ///     metadata.AssemblyName = typeof(MyConnection).Assembly.FullName;
-    ///     metadata.ConnectionType = typeof(MyConnection);
-    ///     metadata.CommandType = typeof(MyCommand);
-    ///     metadata.ParameterType = typeof(MyParameter);
-    ///     metadata.ParameterDbType = typeof(MyDbType);
-    ///     metadata.ParameterDbTypePropertyName = nameof(MyParameter.MyDbType);
-    ///     metadata.ParameterNamePrefix = "@";
-    ///     metadata.ExceptionType = typeof(MyException);
-    ///     metadata.UseParameterNamePrefixInParameterCollection = true;
-    ///     metadata.BindByName = true;
-    ///     metadata.DbBinaryTypeName = "VarBinary";
+    ///     ProductName = "My Database",
+    ///     AssemblyName = typeof(MyConnection).Assembly.FullName,
+    ///     ConnectionType = typeof(MyConnection),
+    ///     CommandType = typeof(MyCommand),
+    ///     ParameterType = typeof(MyParameter),
+    ///     ParameterDbType = typeof(MyDbType),
+    ///     ParameterDbTypePropertyName = nameof(MyParameter.MyDbType),
+    ///     ParameterNamePrefix = "@",
+    ///     ExceptionType = typeof(MyException),
+    ///     UseParameterNamePrefixInParameterCollection = true,
+    ///     BindByName = true,
+    ///     DbBinaryTypeName = "VarBinary",
     /// });
     /// </code>
     /// </example>
     /// <param name="builder">The store being configured.</param>
     /// <param name="provider">The provider name the driver description is registered under.</param>
     /// <param name="connectionString">The connection string.</param>
-    /// <param name="configureMetadata">Describes the ADO.NET driver.</param>
+    /// <param name="describeMetadata">Builds the ADO.NET driver description.</param>
     public static IPersistentStoreBuilder UseGenericDatabase(
         this IPersistentStoreBuilder builder,
         string provider,
         string connectionString,
-        Action<DbMetadata> configureMetadata)
+        Func<DbMetadata> describeMetadata)
     {
-        DescribeDbProvider(builder, provider, configureMetadata);
+        DescribeDbProvider(builder, provider, describeMetadata);
         return builder.UseDatabase<StdAdoDelegate>(provider, connectionString);
     }
 
@@ -174,14 +174,14 @@ public static class PersistentStoreBuilderExtensions
     /// <param name="builder">The store being configured.</param>
     /// <param name="provider">The provider name the driver description is registered under.</param>
     /// <param name="configureDataSource">Configures the data source, for example a named connection string.</param>
-    /// <param name="configureMetadata">Describes the ADO.NET driver.</param>
+    /// <param name="describeMetadata">Builds the ADO.NET driver description.</param>
     public static IPersistentStoreBuilder UseGenericDatabase(
         this IPersistentStoreBuilder builder,
         string provider,
         Action<DataSourceOptions> configureDataSource,
-        Action<DbMetadata> configureMetadata)
+        Func<DbMetadata> describeMetadata)
     {
-        DescribeDbProvider(builder, provider, configureMetadata);
+        DescribeDbProvider(builder, provider, describeMetadata);
         return builder.UseDatabase<StdAdoDelegate>(provider, configureDataSource);
     }
 
@@ -194,24 +194,23 @@ public static class PersistentStoreBuilderExtensions
     /// second one silently losing to the first.
     /// </para>
     /// <para>
-    /// <see cref="DbMetadata.Initialize"/> is called here rather than later because it is what turns the
-    /// settable bag into usable metadata — it resolves the binary column type and the parameter's db type
-    /// property by reflection. Doing it now means a description that cannot work fails while the
-    /// container is being configured rather than when the first command is built.
+    /// The metadata is immutable once the callback returns: the binary column type and the parameter's
+    /// db type property derive from the described values on first use, so a description that cannot
+    /// work fails when the first binary parameter is bound rather than needing a separate
+    /// initialization step here.
     /// </para>
     /// </remarks>
     private static void DescribeDbProvider(
         IPersistentStoreBuilder builder,
         string provider,
-        Action<DbMetadata> configure)
+        Func<DbMetadata> describe)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(provider);
-        ArgumentNullException.ThrowIfNull(configure);
+        ArgumentNullException.ThrowIfNull(describe);
 
-        var metadata = new DbMetadata();
-        configure(metadata);
-        metadata.Initialize();
+        DbMetadata metadata = describe();
+        metadata.Validate();
 
         builder.Services.AddSingleton<DbMetadataFactory>(new ConfiguredDbMetadataFactory(provider, metadata));
     }

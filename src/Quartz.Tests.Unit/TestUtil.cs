@@ -43,7 +43,7 @@ public static class TestUtil
             .OfType(jobType)
             .WithIdentity(new JobKey("jobName", "jobGroup"))
             .Build();
-        TriggerFiredBundle bundle = new TriggerFiredBundle(jd, trigger, null, false, DateTimeOffset.UtcNow, null, null, null);
+        TriggerFiredBundle bundle = new TriggerFiredBundle { JobDetail = jd, Trigger = trigger, Recovering = false, FireTimeUtc = DateTimeOffset.UtcNow, ScheduledFireTimeUtc = null, PreviousFireTimeUtc = null, NextFireTimeUtc = null };
         return bundle;
     }
 
@@ -63,7 +63,16 @@ public static class TestUtil
             .WithIdentity(new JobKey("jobName", "jobGroup"))
             .Build();
         IOperableTrigger trigger = new SimpleTriggerImpl("triggerName", "triggerGroup");
-        TriggerFiredBundle retValue = new TriggerFiredBundle(jd, trigger, null, isRecovering, DateTimeOffset.UtcNow, null, null, null);
+        TriggerFiredBundle retValue = new TriggerFiredBundle
+        {
+            JobDetail = jd,
+            Trigger = trigger,
+            Recovering = isRecovering,
+            FireTimeUtc = DateTimeOffset.UtcNow,
+            ScheduledFireTimeUtc = null,
+            PreviousFireTimeUtc = null,
+            NextFireTimeUtc = null,
+        };
 
         return retValue;
     }

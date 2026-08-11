@@ -135,13 +135,9 @@ public static class TestJobStores
 /// </summary>
 public sealed class StubDbProvider : IDbProvider
 {
-    public string ConnectionString { get; set; } = "";
+    public string ConnectionString => "";
 
     public DbMetadata Metadata { get; } = new();
-
-    public void Initialize()
-    {
-    }
 
     public DbCommand CreateCommand() => throw new NotSupportedException("StubDbProvider does not connect.");
 

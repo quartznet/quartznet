@@ -24,90 +24,59 @@ using Quartz.Core;
 namespace Quartz.Extensibility;
 
 /// <summary>
-/// A simple class (structure) used for returning execution-time data from the
-/// JobStore to the <see cref="QuartzSchedulerThread" />.
+/// What a job store hands the scheduler for one fire: the trigger that fired, the job it starts, and
+/// the fire times the execution context reports.
 /// </summary>
+/// <remarks>
+/// A required-init record rather than a positional constructor, because a store builds one of these on
+/// its fire path and the shape used to end in three interchangeable <see cref="DateTimeOffset" />
+/// values — transposing two compiled cleanly and produced a scheduler that reported wrong fire times
+/// to every listener. The sibling SPI request records (<see cref="TriggerAcquisitionRequest" />) made
+/// the same choice for the same reason.
+/// </remarks>
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class TriggerFiredBundle
+public sealed record TriggerFiredBundle
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="TriggerFiredBundle"/> class.
+    /// The job the fire executes.
     /// </summary>
-    /// <param name="job">The job.</param>
-    /// <param name="trigger">The trigger.</param>
-    /// <param name="calendar">The calendar.</param>
-    /// <param name="jobIsRecovering">if set to <c>true</c> [job is recovering].</param>
-    /// <param name="fireTimeUtc">The fire time.</param>
-    /// <param name="scheduledFireTimeUtc">The scheduled fire time.</param>
-    /// <param name="previousFireTimeUtc">The previous fire time.</param>
-    /// <param name="nextFireTimeUtc">The next fire time.</param>
-    public TriggerFiredBundle(
-        IJobDetail job,
-        IOperableTrigger trigger,
-        ICalendar? calendar,
-        bool jobIsRecovering,
-        DateTimeOffset fireTimeUtc,
-        DateTimeOffset? scheduledFireTimeUtc,
-        DateTimeOffset? previousFireTimeUtc,
-        DateTimeOffset? nextFireTimeUtc)
-    {
-        JobDetail = job;
-        Trigger = trigger;
-        Calendar = calendar;
-        Recovering = jobIsRecovering;
-        FireTimeUtc = fireTimeUtc;
-        ScheduledFireTimeUtc = scheduledFireTimeUtc;
-        PreviousFireTimeUtc = previousFireTimeUtc;
-        NextFireTimeUtc = nextFireTimeUtc;
-    }
+    public required IJobDetail JobDetail { get; init; }
 
     /// <summary>
-    /// Gets the job detail.
+    /// The trigger that fired.
     /// </summary>
-    /// <value>The job detail.</value>
-    public IJobDetail JobDetail { get; }
+    public required IOperableTrigger Trigger { get; init; }
 
     /// <summary>
-    /// Gets the trigger.
+    /// The calendar the trigger fires against, when it names one.
     /// </summary>
-    /// <value>The trigger.</value>
-    public IOperableTrigger Trigger { get; }
+    public ICalendar? Calendar { get; init; }
 
     /// <summary>
-    /// Gets the calendar.
+    /// Whether this fire recovers an execution a failed scheduler instance left behind.
     /// </summary>
-    /// <value>The calendar.</value>
-    public ICalendar? Calendar { get; }
+    public required bool Recovering { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether this <see cref="TriggerFiredBundle"/> is recovering.
+    /// The UTC time the trigger actually fired.
     /// </summary>
-    /// <value><c>true</c> if recovering; otherwise, <c>false</c>.</value>
-    public bool Recovering { get; }
-
-    /// <returns>
-    /// Returns the UTC fire time.
-    /// </returns>
-    public DateTimeOffset FireTimeUtc { get; }
+    public required DateTimeOffset FireTimeUtc { get; init; }
 
     /// <summary>
-    /// Gets the next UTC fire time.
+    /// The UTC time the trigger was scheduled to fire, which trails <see cref="FireTimeUtc" /> by the
+    /// firing latency.
     /// </summary>
-    /// <value>The next fire time.</value>
-    /// <returns> Returns the nextFireTimeUtc.</returns>
-    public DateTimeOffset? NextFireTimeUtc { get; }
+    public required DateTimeOffset? ScheduledFireTimeUtc { get; init; }
 
     /// <summary>
-    /// Gets the previous UTC fire time.
+    /// The trigger's previous UTC fire time, before this fire.
     /// </summary>
-    /// <value>The previous fire time.</value>
-    /// <returns> Returns the previous fire time. </returns>
-    public DateTimeOffset? PreviousFireTimeUtc { get; }
+    public required DateTimeOffset? PreviousFireTimeUtc { get; init; }
 
-    /// <returns>
-    /// Returns the scheduled UTC fire time.
-    /// </returns>
-    public DateTimeOffset? ScheduledFireTimeUtc { get; }
+    /// <summary>
+    /// The trigger's next UTC fire time, after this fire.
+    /// </summary>
+    public required DateTimeOffset? NextFireTimeUtc { get; init; }
 }
