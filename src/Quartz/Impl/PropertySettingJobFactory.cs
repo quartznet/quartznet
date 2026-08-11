@@ -31,9 +31,8 @@ namespace Quartz.Impl;
 /// <summary>
 /// A JobFactory that instantiates the Job instance (using the default no-arg
 /// constructor, or more specifically: <see cref="ObjectUtils.InstantiateType{T}" />), and
-/// then attempts to set all values from the <see cref="IJobExecutionContext" /> and
-/// the <see cref="IJobExecutionContext" />'s merged <see cref="JobDataMap" /> onto
-/// properties of the job.
+/// then attempts to set all values from the <see cref="IJobExecutionContext" />'s merged
+/// <see cref="JobDataMap" /> onto properties of the job.
 /// </summary>
 /// <remarks>
 /// Set the WarnIfPropertyNotFound property to true if you'd like noisy logging in
@@ -180,19 +179,27 @@ public class PropertySettingJobFactory : SimpleJobFactory
         }
     }
 
+    /// <summary>
+    /// Builds the map whose entries are applied to the job's properties: the trigger's data merged
+    /// over the job's.
+    /// </summary>
+    /// <remarks>
+    /// Until 4.0 the scheduler context was merged in as well, underneath both. That injected every
+    /// context entry into every fire — including the service-provider entry the DI integration seeds,
+    /// which no job has a property for, so with <see cref="ThrowIfPropertyNotFound" /> every
+    /// container-hosted fire failed. A job that wants a context value reads
+    /// <c>context.Scheduler.Context</c> in <see cref="IJob.Execute" />; a factory that wants the old
+    /// behavior overrides this method, which is handed the scheduler for exactly that reason.
+    /// </remarks>
     protected virtual JobDataMap BuildJobDataMap(TriggerFiredBundle bundle, IScheduler scheduler)
     {
-        var capacity = scheduler.Context.Count + bundle.JobDetail.JobDataMap.Count + bundle.Trigger.JobDataMap.Count;
+        var capacity = bundle.JobDetail.JobDataMap.Count + bundle.Trigger.JobDataMap.Count;
         JobDataMap jobDataMap = new JobDataMap(capacity);
         if (capacity == 0)
         {
             return jobDataMap;
         }
 
-        foreach (var pair in scheduler.Context)
-        {
-            jobDataMap[pair.Key] = pair.Value;
-        }
         foreach (var pair in bundle.JobDetail.JobDataMap)
         {
             jobDataMap[pair.Key] = pair.Value;

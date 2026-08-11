@@ -17,7 +17,10 @@
  */
 #endregion
 
+using FakeItEasy;
+
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Simpl;
@@ -37,6 +40,47 @@ public class PropertySettingJobFactoryTest
         {
             ThrowIfPropertyNotFound = true
         };
+    }
+
+    [Test]
+    public void BuildJobDataMapMergesTriggerDataOverJobDataAndNothingElse()
+    {
+        var jobDetail = JobBuilder.Create()
+            .OfType(typeof(SampleJob))
+            .WithIdentity("job")
+            .UsingJobData("fromJob", "job")
+            .UsingJobData("shared", "job")
+            .Build();
+
+        var trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("trigger")
+            .UsingJobData("fromTrigger", "trigger")
+            .UsingJobData("shared", "trigger")
+            .Build();
+
+        var scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.Context).Returns(new SchedulerContext { ["fromContext"] = "context" });
+
+        var bundle = new TriggerFiredBundle(jobDetail, trigger, calendar: null, jobIsRecovering: false,
+            fireTimeUtc: DateTimeOffset.UtcNow, scheduledFireTimeUtc: null, previousFireTimeUtc: null, nextFireTimeUtc: null);
+
+        JobDataMap map = new ExposingJobFactory().BuildFor(bundle, scheduler);
+
+        map.GetString("fromJob").Should().Be("job");
+        map.GetString("fromTrigger").Should().Be("trigger");
+        map.GetString("shared").Should().Be("trigger", "trigger data merges over job data");
+        map.Should().NotContainKey("fromContext",
+            "scheduler context entries are no longer injected into job properties; jobs read context.Scheduler.Context");
+    }
+
+    private sealed class ExposingJobFactory : PropertySettingJobFactory
+    {
+        public JobDataMap BuildFor(TriggerFiredBundle bundle, IScheduler scheduler) => BuildJobDataMap(bundle, scheduler);
+    }
+
+    private sealed class SampleJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
     [Test]

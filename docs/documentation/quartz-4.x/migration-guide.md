@@ -2686,6 +2686,46 @@ that needed to do real work had to override `NewJob` outright and reimplement th
 `SimpleJobFactory`'s `protected static Dispose(object?)` helper is `DisposeIfDisposable(object?, CancellationToken)`,
 which is what it has always done: it disposes the argument only when the argument is disposable.
 
+### Scheduler context entries are no longer injected into job properties
+
+On 3.x, `PropertySettingJobFactory.BuildJobDataMap` merged the whole `SchedulerContext` underneath
+the job's and trigger's data on every fire, so a context entry whose key matched a job property was
+silently injected into the job. That stops: the map applied to the job is the trigger's data merged
+over the job's, and nothing else. **This is a silent behavioral change** — a job that declared a
+property fed from `scheduler.Context["ConnectionString"]` (or a `quartz.context.key.*` property)
+keeps its default value and nothing throws. `MicrosoftDependencyInjectionJobFactory` derives from
+`PropertySettingJobFactory`, so this covers the default DI path too.
+
+The replacements:
+
+```csharp
+// read the context where it lives…
+public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+{
+    var connectionString = context.Scheduler.Context.GetString("ConnectionString");
+    // …
+}
+
+// …or opt back into merging by overriding the hook, which is handed the scheduler for this reason
+public class ContextMergingJobFactory : MicrosoftDependencyInjectionJobFactory
+{
+    protected override JobDataMap BuildJobDataMap(TriggerFiredBundle bundle, IScheduler scheduler)
+    {
+        var map = new JobDataMap((IDictionary<string, object?>) scheduler.Context);
+        foreach (var pair in base.BuildJobDataMap(bundle, scheduler))
+        {
+            map[pair.Key] = pair.Value;
+        }
+        return map;
+    }
+}
+```
+
+The merge was also defective in ways the removal fixes: the DI integration seeds a service-provider
+entry into every scheduler context, which no job has a property for, so every container-hosted fire
+logged a property miss — and threw, with `ThrowIfPropertyNotFound = true`; and the factory
+enumerated the context while plugins could still be writing to it.
+
 ### The factory is set where the scheduler is built
 
 `IScheduler.JobFactory` was a setter-only property, and it is gone from `IScheduler`, `StdScheduler`,
@@ -4429,6 +4469,7 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `JobDataMap.Dirty` / `ClearDirtyFlag()` are internal | Clearing the flag from a job silently skipped the `[PersistJobDataAfterExecution]` rewrite; `SchedulerConstants.ForceJobDataMapDirty` remains the supported way to force one |
 | `JobDataMap.Equals` compares values, not just keys | Two maps with the same keys but different values no longer compare equal, and equal maps hash equally; `SchedulerContext` compares by reference |
 | `SchedulerContext` is backed by `ConcurrentDictionary` | Reading and writing it concurrently is safe; enumeration no longer races plugin writes |
+| `PropertySettingJobFactory` no longer merges the scheduler context into job properties | **Silent behavioral change** — read `context.Scheduler.Context` in `Execute`, or override `BuildJobDataMap` — see [Scheduler context entries are no longer injected into job properties](#scheduler-context-entries-are-no-longer-injected-into-job-properties) |
 | `ISchedulerFactory.GetAllSchedulers` returns `ValueTask<List<IScheduler>>` | Quartz returns concrete collection types from its query members for allocation and enumeration cost; this was the one that did not |
 | `IInstanceIdGenerator.GenerateInstanceId` returns `ValueTask<string>` | It never returned null, and a null instance id is not a usable one |
 | An `IJobStore` that implements `IJobListener` no longer receives events automatically | Register it as a job listener through the scheduler's `IListenerManager` |
