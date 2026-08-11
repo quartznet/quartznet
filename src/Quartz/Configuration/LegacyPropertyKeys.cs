@@ -138,6 +138,12 @@ internal static class LegacyPropertyKeys
         ("quartz.scheduler.exporter",
             "Remoting a scheduler is not supported on modern .NET. Expose a scheduler over HTTP with the "
             + "Quartz.AspNetCore package (AddQuartzHttpApi and MapQuartzHttpApi) instead."),
+        (JobStoreLockHandlerPrefix + ".tablePrefix",
+            "The job store tells the lock handler its table prefix through ISemaphore.Initialize, "
+            + "using the value of 'quartz.jobStore.tablePrefix'. Set that key instead and remove this one."),
+        (JobStoreLockHandlerPrefix + ".schedulerName",
+            "The job store tells the lock handler which scheduler it locks for through "
+            + "ISemaphore.Initialize, using the scheduler's own instance name. Remove this key."),
     ];
 
     /// <summary>

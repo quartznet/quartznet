@@ -81,7 +81,7 @@ public class ClusteringJobsExecutionExample : IExample
                 store.UseSqlServer(TestConstants.SqlServerConnectionString);
 
                 // if running SQLite this would be UseSystemDataSqlite (System.Data.SQLite) or
-                // UseSqlite (Microsoft.Data.Sqlite), plus UseLockHandler<UpdateLockRowSemaphore>()
+                // UseSqlite (Microsoft.Data.Sqlite), plus UseLockHandler<UpdateRowSemaphore>()
 
                 // the ~15 seconds it takes to notice a failed node is ClusteringOptions.CheckinInterval
                 // plus CheckinMisfireThreshold, 7.5 seconds each by default and both settable here

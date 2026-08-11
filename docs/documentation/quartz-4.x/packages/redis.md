@@ -20,7 +20,7 @@ Install-Package Quartz.Extensions.Redis
 
 ## Why Redis Locks?
 
-The default `StdRowLockSemaphore` uses `SELECT ... FOR UPDATE` database row locks to coordinate trigger acquisition across cluster nodes. Under heavy scheduling load this can lead to:
+The default `SelectForUpdateSemaphore` uses `SELECT ... FOR UPDATE` database row locks to coordinate trigger acquisition across cluster nodes. Under heavy scheduling load this can lead to:
 
 - **Table deadlocks** in certain database engines
 - **Connection timeouts** when obtaining locks is slow
@@ -83,7 +83,9 @@ store.UseRedisLockHandler(redis =>
 });
 ```
 
-All properties are set under `quartz.jobStore.lockHandler.*`. The `schedName` and `tablePrefix` properties are injected automatically.
+All properties are set under `quartz.jobStore.lockHandler.*`. The scheduler name that namespaces the
+lock keys is not configured here: the job store tells the handler which scheduler it locks for through
+`ISemaphore.Initialize(SemaphoreContext)` before the handler is used.
 
 ## How It Works
 

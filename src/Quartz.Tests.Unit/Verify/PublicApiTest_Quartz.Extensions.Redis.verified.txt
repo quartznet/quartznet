@@ -1,7 +1,7 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
 namespace Quartz.Extensions.Redis
 {
-    public sealed class RedisSemaphore : Quartz.Impl.AdoJobStore.ISemaphore, Quartz.Impl.AdoJobStore.ITablePrefixAware
+    public sealed class RedisSemaphore : Quartz.Impl.AdoJobStore.ISemaphore
     {
         public RedisSemaphore() { }
         public string KeyPrefix { get; set; }
@@ -11,8 +11,8 @@ namespace Quartz.Extensions.Redis
         public System.TimeSpan LockTimeToLive { get; set; }
         public string RedisConfiguration { get; set; }
         public bool RequiresConnection { get; }
-        public string? SchedulerName { get; set; }
-        public string TablePrefix { get; set; }
+        public string? SchedulerName { get; }
+        public void Initialize(Quartz.Impl.AdoJobStore.SemaphoreContext context) { }
         public System.Threading.Tasks.ValueTask<bool> ObtainLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
     }

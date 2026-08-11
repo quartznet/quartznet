@@ -28,6 +28,15 @@ namespace Quartz.Impl.AdoJobStore;
 public interface ISemaphore
 {
     /// <summary>
+    /// Called once by the job store before the semaphore is used, telling the handler which
+    /// scheduler it locks for. The default implementation does nothing, which suits a handler
+    /// that does not key its locks by scheduler identity.
+    /// </summary>
+    void Initialize(SemaphoreContext context)
+    {
+    }
+
+    /// <summary>
     /// Grants a lock on the identified resource to the calling thread (blocking
     /// until it is available).
     /// </summary>

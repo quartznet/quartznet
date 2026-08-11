@@ -9,6 +9,13 @@ namespace Quartz.Tests.Integration.Impl.Redis;
 [Category("db-redis")]
 public class RedisSemaphoreTest
 {
+    private static readonly SemaphoreContext TestSemaphoreContext = new()
+    {
+        SchedulerName = "TestScheduler",
+        InstanceId = "TestInstance",
+        TablePrefix = AdoConstants.DefaultTablePrefix
+    };
+
     private RedisSemaphore semaphore = null!;
     private IConnectionMultiplexer redis = null!;
 
@@ -18,9 +25,9 @@ public class RedisSemaphoreTest
         semaphore = new RedisSemaphore
         {
             RedisConfiguration = RedisTestEnvironment.ConnectionString,
-            SchedulerName = "TestScheduler",
             KeyPrefix = "quartz:test:lock:"
         };
+        semaphore.Initialize(TestSemaphoreContext);
 
         redis = await ConnectionMultiplexer.ConnectAsync(RedisTestEnvironment.ConnectionString);
     }
@@ -177,10 +184,10 @@ public class RedisSemaphoreTest
         var shortTtlSemaphore = new RedisSemaphore
         {
             RedisConfiguration = RedisTestEnvironment.ConnectionString,
-            SchedulerName = "TestScheduler",
             KeyPrefix = "quartz:test:lock:",
             LockTimeToLive = TimeSpan.FromSeconds(2)
         };
+        shortTtlSemaphore.Initialize(TestSemaphoreContext);
 
         var requestorId = Guid.NewGuid();
 
@@ -248,9 +255,9 @@ public class RedisSemaphoreTest
         var semaphore2 = new RedisSemaphore
         {
             RedisConfiguration = RedisTestEnvironment.ConnectionString,
-            SchedulerName = "TestScheduler",
             KeyPrefix = "quartz:test:lock:"
         };
+        semaphore2.Initialize(TestSemaphoreContext);
 
         var requestor1 = Guid.NewGuid();
         var requestor2 = Guid.NewGuid();

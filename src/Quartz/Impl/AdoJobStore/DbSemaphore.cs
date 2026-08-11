@@ -33,7 +33,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// same time.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-public abstract class DbSemaphore : ISemaphore, ITablePrefixAware
+public abstract class DbSemaphore : ISemaphore
 {
     private readonly ConcurrentDictionary<ThreadLockKey, object?> locks = new();
 
@@ -81,6 +81,18 @@ public abstract class DbSemaphore : ISemaphore, ITablePrefixAware
     /// </summary>
     /// <value>The log.</value>
     internal ILogger<DbSemaphore> logger { get; }
+
+    /// <summary>
+    /// Learns which scheduler this semaphore locks for and folds the store's table prefix into
+    /// both statements. The job store calls this once before the semaphore is used, whether the
+    /// store built the handler itself or the container supplied it.
+    /// </summary>
+    public void Initialize(SemaphoreContext context)
+    {
+        schedulerName = context.SchedulerName;
+        tablePrefix = context.TablePrefix;
+        SetExpandedSql();
+    }
 
     /// <summary>
     /// Execute the SQL that will lock the proper database row.
@@ -179,7 +191,7 @@ public abstract class DbSemaphore : ISemaphore, ITablePrefixAware
     /// <summary>
     /// The statement that takes the lock, before the table prefix is folded in.
     /// </summary>
-    protected string Sql => sql;
+    protected string LockSql => sql;
 
     /// <summary>
     /// The statement that inserts the lock row when it does not exist yet, before the table prefix is
@@ -193,25 +205,17 @@ public abstract class DbSemaphore : ISemaphore, ITablePrefixAware
         expandedInsertSql = AdoJobStoreUtil.ReplaceTablePrefix(insertSql, tablePrefix);
     }
 
-    public string? SchedulerName
-    {
-        get => schedulerName;
-        set => schedulerName = value;
-    }
+    /// <summary>
+    /// Name of the scheduler whose lock rows this semaphore contends for, told to the semaphore
+    /// through <see cref="Initialize" />.
+    /// </summary>
+    public string? SchedulerName => schedulerName;
 
     /// <summary>
-    /// Gets or sets the table prefix.
+    /// Table prefix of the tables the ADO.NET job store uses, told to the semaphore through
+    /// <see cref="Initialize" />.
     /// </summary>
-    /// <value>The table prefix.</value>
-    public string TablePrefix
-    {
-        get => tablePrefix;
-        set
-        {
-            tablePrefix = value;
-            SetExpandedSql();
-        }
-    }
+    public string TablePrefix => tablePrefix;
 
     /// <remarks>
     /// <c>private protected</c> because <see cref="IAdoUtil" /> is an implementation detail: command

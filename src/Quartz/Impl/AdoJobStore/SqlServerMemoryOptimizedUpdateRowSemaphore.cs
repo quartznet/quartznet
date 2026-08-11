@@ -24,23 +24,24 @@ using Quartz.Impl.AdoJobStore.Common;
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
-/// Provides thread/resource using SQL Server memory-optimized tables.
+/// Update-based lock handler for SQL Server memory-optimized tables, which need the
+/// <c>WITH (SNAPSHOT)</c> hint on the locking update.
 /// </summary>
 /// <author>JBVyncent</author>
 /// <author>Marko Lahma</author>
-public sealed class UpdateLockRowSemaphoreMOT : UpdateLockRowSemaphore
+public sealed class SqlServerMemoryOptimizedUpdateRowSemaphore : UpdateRowSemaphore
 {
-    private static readonly string UpdateForLockMOT =
+    private const string UpdateForLockMemoryOptimized =
         $"UPDATE {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks} WITH (SNAPSHOT) SET {AdoConstants.ColumnLockName} = {AdoConstants.ColumnLockName} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnLockName} = @lockName";
 
-    private static readonly string InsertLockMOT =
+    private const string InsertLockMemoryOptimized =
         $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="UpdateLockRowSemaphoreMOT"/> class.
+    /// Initializes a new instance of the <see cref="SqlServerMemoryOptimizedUpdateRowSemaphore"/> class.
     /// </summary>
-    public UpdateLockRowSemaphoreMOT(IDbProvider provider)
-        : base(AdoConstants.DefaultTablePrefix, null, UpdateForLockMOT, InsertLockMOT, provider)
+    public SqlServerMemoryOptimizedUpdateRowSemaphore(IDbProvider provider)
+        : base(AdoConstants.DefaultTablePrefix, null, UpdateForLockMemoryOptimized, InsertLockMemoryOptimized, provider)
     {
     }
 

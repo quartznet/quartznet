@@ -373,7 +373,7 @@ public abstract class JobStoreSupport : IJobStore
     /// Configured through <see cref="AdoJobStoreOptions.SelectWithLockSql" />, and defaulted by
     /// <see cref="Initialize" /> to the SQL Server specific statement when that is the database in use.
     /// </remarks>
-    /// <seealso cref="StdRowLockSemaphore" />
+    /// <seealso cref="SelectForUpdateSemaphore" />
     public string? SelectWithLockSql { get; internal set; }
 
     protected virtual ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
@@ -742,13 +742,13 @@ public abstract class JobStoreSupport : IJobStore
 
                 if (Delegate is PostgreSQLDelegate)
                 {
-                    LockHandler = new PostgreSQLRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
+                    LockHandler = new PostgreSqlSelectForUpdateSemaphore(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
                 }
                 else
                 {
-                    LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
+                    LockHandler = new SelectForUpdateSemaphore(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
                 }
-                
+
                 Logger.LogInformation("Using db table-based data access locking (synchronization) via {LockHandlerType}.", LockHandler.GetType().Name);
             }
             else
@@ -775,19 +775,10 @@ public abstract class JobStoreSupport : IJobStore
                 }
             }
 
-            // A lock handler built by the container knows nothing about the store it locks for, so it
-            // has to be told which tables to look in and whose rows they are. Without this it queries
-            // QRTZ_LOCKS with a null scheduler name, whatever the store is actually configured with.
-            if (LockHandler is ITablePrefixAware tablePrefixAware)
-            {
-                tablePrefixAware.TablePrefix = TablePrefix;
-                tablePrefixAware.SchedulerName = InstanceName;
-            }
-
             // be ready to give a friendly warning if SQL Server is used and sub-optimal locking
-            if (LockHandler is UpdateLockRowSemaphore && Delegate is SqlServerDelegate)
+            if (LockHandler is UpdateRowSemaphore and not SqlServerMemoryOptimizedUpdateRowSemaphore && Delegate is SqlServerDelegate)
             {
-                Logger.LogWarning("Detected usage of SqlServerDelegate and UpdateLockRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access");
+                Logger.LogWarning("Detected usage of SqlServerDelegate and UpdateRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access");
             }
             // be ready to give a friendly warning if SQL Server provider and wrong delegate
             if (DbProvider.Metadata.ConnectionType?.Namespace is not null
@@ -798,6 +789,17 @@ public abstract class JobStoreSupport : IJobStore
                 Logger.LogWarning("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
             }
         }
+
+        // The lock handler learns which scheduler it locks for from the store, on both construction
+        // paths: a handler the store built itself is told the same identity its constructor arguments
+        // carried, and a handler the container or configuration supplied would otherwise query
+        // QRTZ_LOCKS with a null scheduler name, whatever the store is actually configured with.
+        LockHandler.Initialize(new SemaphoreContext
+        {
+            SchedulerName = InstanceName,
+            InstanceId = InstanceId,
+            TablePrefix = TablePrefix,
+        });
 
         activityTracer.SetSchedulerContext(InstanceName, InstanceId);
 

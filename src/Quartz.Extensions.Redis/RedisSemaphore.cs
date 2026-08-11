@@ -53,7 +53,7 @@ namespace Quartz.Extensions.Redis;
 /// </code>
 /// </para>
 /// </remarks>
-public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
+public sealed class RedisSemaphore : ISemaphore
 {
     // The Redis key keeps the stored lock names rather than the enum member names, so that a rolling
     // upgrade and a mixed-version cluster keep contending for the same key.
@@ -130,18 +130,18 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
     }
 
     /// <summary>
-    /// Table prefix (unused, but required by <see cref="ITablePrefixAware"/>
-    /// so that the scheduler auto-injects <see cref="SchedulerName"/>).
-    /// </summary>
-    public string TablePrefix { get; set; } = "";
-
-    /// <summary>
-    /// Gets or sets the scheduler name used to namespace Redis lock keys.
+    /// Gets the scheduler name used to namespace Redis lock keys.
     /// </summary>
     /// <remarks>
-    /// Auto-injected by the job store when <see cref="ITablePrefixAware"/> is implemented.
+    /// Told to the semaphore by the job store through <see cref="Initialize"/>.
     /// </remarks>
-    public string? SchedulerName { get; set; }
+    public string? SchedulerName { get; private set; }
+
+    /// <inheritdoc />
+    public void Initialize(SemaphoreContext context)
+    {
+        SchedulerName = context.SchedulerName;
+    }
 
     /// <inheritdoc />
     public bool RequiresConnection => false;
