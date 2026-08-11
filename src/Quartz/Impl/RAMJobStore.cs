@@ -493,15 +493,15 @@ public sealed class RAMJobStore : IJobStore
         if (pausedTriggerGroups.Contains(tw.TriggerKey.Group) ||
             (pausedJobGroups.Contains(tw.JobKey.Group) && !resumedJobsInPausedGroups.Contains(tw.JobKey)))
         {
-            tw.state = InternalTriggerState.Paused;
+            tw.state = StoredTriggerState.Paused;
             if (blockedJobs.Contains(tw.JobKey))
             {
-                tw.state = InternalTriggerState.PausedAndBlocked;
+                tw.state = StoredTriggerState.PausedBlocked;
             }
         }
         else if (blockedJobs.Contains(tw.JobKey))
         {
-            tw.state = InternalTriggerState.Blocked;
+            tw.state = StoredTriggerState.Blocked;
         }
         else
         {
@@ -867,18 +867,18 @@ public sealed class RAMJobStore : IJobStore
             }
 
             // is the trigger in error state?
-            if (tw.state != InternalTriggerState.Error)
+            if (tw.state != StoredTriggerState.Error)
             {
                 return false;
             }
 
             if (pausedTriggerGroups.Contains(triggerKey.Group))
             {
-                tw.state = InternalTriggerState.Paused;
+                tw.state = StoredTriggerState.Paused;
             }
             else
             {
-                tw.state = InternalTriggerState.Waiting;
+                tw.state = StoredTriggerState.Waiting;
                 timeTriggers.Add(tw);
             }
 
@@ -1582,24 +1582,24 @@ public sealed class RAMJobStore : IJobStore
         }
 
         // if the trigger is "complete" pausing it does not make sense...
-        if (tw.state == InternalTriggerState.Complete)
+        if (tw.state == StoredTriggerState.Complete)
         {
             return false;
         }
 
         // already paused, nothing to change
-        if (tw.state is InternalTriggerState.Paused or InternalTriggerState.PausedAndBlocked)
+        if (tw.state is StoredTriggerState.Paused or StoredTriggerState.PausedBlocked)
         {
             return false;
         }
 
-        if (tw.state == InternalTriggerState.Blocked)
+        if (tw.state == StoredTriggerState.Blocked)
         {
-            tw.state = InternalTriggerState.PausedAndBlocked;
+            tw.state = StoredTriggerState.PausedBlocked;
         }
         else
         {
-            tw.state = InternalTriggerState.Paused;
+            tw.state = StoredTriggerState.Paused;
         }
 
         timeTriggers.Remove(tw);
@@ -1783,24 +1783,24 @@ public sealed class RAMJobStore : IJobStore
         }
 
         // if the trigger is not paused resuming it does not make sense...
-        if (tw.state != InternalTriggerState.Paused &&
-            tw.state != InternalTriggerState.PausedAndBlocked)
+        if (tw.state != StoredTriggerState.Paused &&
+            tw.state != StoredTriggerState.PausedBlocked)
         {
             return false;
         }
 
         if (blockedJobs.Contains(tw.JobKey))
         {
-            tw.state = InternalTriggerState.Blocked;
+            tw.state = StoredTriggerState.Blocked;
         }
         else
         {
-            tw.state = InternalTriggerState.Waiting;
+            tw.state = StoredTriggerState.Waiting;
         }
 
         await ApplyMisfireNoLock(tw).ConfigureAwait(false);
 
-        if (tw.state == InternalTriggerState.Waiting)
+        if (tw.state == StoredTriggerState.Waiting)
         {
             timeTriggers.Add(tw);
         }
@@ -2078,7 +2078,7 @@ public sealed class RAMJobStore : IJobStore
 
         if (!updatedTnft.HasValue)
         {
-            tw.state = InternalTriggerState.Complete;
+            tw.state = StoredTriggerState.Complete;
             await signaler.NotifySchedulerListenersFinalized(tw.Trigger).ConfigureAwait(false);
 
             // We do not remove the trigger that we applied the misfire for (since its next fire time has been
@@ -2203,7 +2203,7 @@ public sealed class RAMJobStore : IJobStore
                     }
                 }
 
-                tw.state = InternalTriggerState.Acquired;
+                tw.state = StoredTriggerState.Acquired;
                 tw.Trigger.FireInstanceId = GetFiredTriggerRecordId();
                 IOperableTrigger trig = (IOperableTrigger) tw.Trigger.Clone();
 
@@ -2262,9 +2262,9 @@ public sealed class RAMJobStore : IJobStore
             // actually started.
             ReleaseExecutionNoLock(trigger.Key, trigger.FireInstanceId);
 
-            if (triggersByKey.TryGetValue(trigger.Key, out var tw) && tw.state == InternalTriggerState.Acquired)
+            if (triggersByKey.TryGetValue(trigger.Key, out var tw) && tw.state == StoredTriggerState.Acquired)
             {
-                tw.state = InternalTriggerState.Waiting;
+                tw.state = StoredTriggerState.Waiting;
                 timeTriggers.Add(tw);
             }
         }
@@ -2296,7 +2296,7 @@ public sealed class RAMJobStore : IJobStore
                 }
 
                 // was the trigger completed, paused, blocked, etc. since being acquired?
-                if (tw.state != InternalTriggerState.Acquired)
+                if (tw.state != StoredTriggerState.Acquired)
                 {
                     results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
                     continue;
@@ -2346,7 +2346,7 @@ public sealed class RAMJobStore : IJobStore
                 // acquired and fired again, and TriggersFired/ReleaseAcquiredTrigger/the blocking fan-out
                 // below all depend on it being Waiting or Blocked here. Executions are tracked separately,
                 // in executingFireInstances.
-                tw.state = InternalTriggerState.Waiting;
+                tw.state = StoredTriggerState.Waiting;
 
                 var jobDetail = jobWrapper.JobDetail.Clone();
                 TriggerFiredBundle bndle = new TriggerFiredBundle(
@@ -2369,14 +2369,14 @@ public sealed class RAMJobStore : IJobStore
                     {
                         var ttw = triggerWrappersForJob[i];
 
-                        if (ttw.state == InternalTriggerState.Waiting)
+                        if (ttw.state == StoredTriggerState.Waiting)
                         {
-                            ttw.state = InternalTriggerState.Blocked;
+                            ttw.state = StoredTriggerState.Blocked;
                         }
 
-                        if (ttw.state == InternalTriggerState.Paused)
+                        if (ttw.state == StoredTriggerState.Paused)
                         {
-                            ttw.state = InternalTriggerState.PausedAndBlocked;
+                            ttw.state = StoredTriggerState.PausedBlocked;
                         }
 
                         timeTriggers.Remove(ttw);
@@ -2455,15 +2455,15 @@ public sealed class RAMJobStore : IJobStore
                     {
                         var ttw = triggerWrappersForJob[i];
 
-                        if (ttw.state == InternalTriggerState.Blocked)
+                        if (ttw.state == StoredTriggerState.Blocked)
                         {
-                            ttw.state = InternalTriggerState.Waiting;
+                            ttw.state = StoredTriggerState.Waiting;
                             timeTriggers.Add(ttw);
                         }
 
-                        if (ttw.state == InternalTriggerState.PausedAndBlocked)
+                        if (ttw.state == StoredTriggerState.PausedBlocked)
                         {
-                            ttw.state = InternalTriggerState.Paused;
+                            ttw.state = StoredTriggerState.Paused;
                         }
                     }
 
@@ -2509,27 +2509,27 @@ public sealed class RAMJobStore : IJobStore
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetTriggerComplete)
                 {
-                    tw.state = InternalTriggerState.Complete;
+                    tw.state = StoredTriggerState.Complete;
                     timeTriggers.Remove(tw);
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
                 {
                     logger.LogInformation("Trigger {TriggerKey} set to ERROR state.", trigger.Key);
-                    tw.state = InternalTriggerState.Error;
+                    tw.state = StoredTriggerState.Error;
                     errorNotification = ErrorNotification.Trigger;
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     logger.LogInformation("All triggers of Job {JobKey} set to ERROR state.", trigger.JobKey);
-                    SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Error);
+                    SetAllTriggersOfJobToState(trigger.JobKey, StoredTriggerState.Error);
                     errorNotification = ErrorNotification.JobTriggers;
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
-                    SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Complete);
+                    SetAllTriggersOfJobToState(trigger.JobKey, StoredTriggerState.Complete);
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -2571,7 +2571,7 @@ public sealed class RAMJobStore : IJobStore
     /// <remarks>
     /// This method should only be executed while holding the instance level lock.
     /// </remarks>
-    internal void SetAllTriggersOfJobToState(JobKey jobKey, InternalTriggerState state)
+    internal void SetAllTriggersOfJobToState(JobKey jobKey, StoredTriggerState state)
     {
         var triggerWrappersForJob = GetTriggerWrappersForJobNoLock(jobKey);
 
@@ -2580,7 +2580,7 @@ public sealed class RAMJobStore : IJobStore
             var tw = triggerWrappersForJob[i];
 
             tw.state = state;
-            if (state != InternalTriggerState.Waiting)
+            if (state != StoredTriggerState.Waiting)
             {
                 timeTriggers.Remove(tw);
             }

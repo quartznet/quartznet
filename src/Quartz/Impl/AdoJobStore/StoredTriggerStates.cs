@@ -19,75 +19,9 @@
 
 #endregion
 
+using Quartz.Extensibility;
+
 namespace Quartz.Impl.AdoJobStore;
-
-/// <summary>
-/// The state the ADO job store keeps a trigger in, as the TRIGGER_STATE and STATE columns hold it.
-/// </summary>
-/// <remarks>
-/// <para>
-/// This is storage's own vocabulary, not the one callers see: <see cref="TriggerState" /> is what a
-/// scheduler reports, and one is derived from the other (plus whether an execution is in flight) rather
-/// than mapped one to one. Only <see cref="IDriverDelegate" /> and its callers speak this enum.
-/// </para>
-/// <para>
-/// The database keeps storing the same strings it always has — see
-/// <see cref="StoredTriggerStates.ToStoredValue" /> and <see cref="StoredTriggerStates.FromStoredValue" />,
-/// which are the only place the two representations meet. A delegate written against this enum therefore
-/// reads and writes rows a 3.x scheduler wrote, and vice versa.
-/// </para>
-/// </remarks>
-public enum StoredTriggerState
-{
-    /// <summary>
-    /// Schedulable: the trigger is waiting for its next fire time to arrive. The default, and the state
-    /// a stored value this version does not recognise is treated as.
-    /// </summary>
-    Waiting,
-
-    /// <summary>
-    /// A scheduler instance has reserved the trigger and intends to fire it.
-    /// </summary>
-    Acquired,
-
-    /// <summary>
-    /// The trigger is firing. Written to FIRED_TRIGGERS rather than to TRIGGERS, where it only turns up
-    /// through migrated or hand-repaired data.
-    /// </summary>
-    Executing,
-
-    /// <summary>
-    /// The trigger has no further fire times and is awaiting removal.
-    /// </summary>
-    Complete,
-
-    /// <summary>
-    /// Held back because its job disallows concurrent execution and is already running.
-    /// </summary>
-    Blocked,
-
-    /// <summary>
-    /// The trigger could not be fired — typically its job type would not load — and will not be
-    /// retried until it is reset.
-    /// </summary>
-    Error,
-
-    /// <summary>
-    /// Paused, either individually or as part of its group.
-    /// </summary>
-    Paused,
-
-    /// <summary>
-    /// Paused while also blocked, so that resuming returns it to <see cref="Blocked" /> rather than to
-    /// <see cref="Waiting" />.
-    /// </summary>
-    PausedBlocked,
-
-    /// <summary>
-    /// The trigger does not exist. A sentinel a read reports rather than a value the store writes.
-    /// </summary>
-    Deleted
-}
 
 /// <summary>
 /// Translates between <see cref="StoredTriggerState" /> and the strings the trigger state columns hold.

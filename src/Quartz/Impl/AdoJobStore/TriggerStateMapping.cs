@@ -21,6 +21,8 @@
 
 using System.Diagnostics;
 
+using Quartz.Extensibility;
+
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
@@ -58,8 +60,7 @@ internal static class TriggerStateMapping
     /// </summary>
     internal static TriggerState ToTriggerState(StoredTriggerState state, bool isExecuting)
     {
-        InternalTriggerState? stored = ToInternalState(state);
-        return stored is null ? TriggerState.None : TriggerStateResolver.Resolve(stored.Value, isExecuting);
+        return TriggerStateResolver.Resolve(state, isExecuting);
     }
 
     /// <summary>
@@ -76,29 +77,6 @@ internal static class TriggerStateMapping
     }
 
     /// <summary>
-    /// Normalizes a stored state to the state shared with the in-memory store.
-    /// </summary>
-    /// <returns><see langword="null" /> when the row does not exist.</returns>
-    private static InternalTriggerState? ToInternalState(StoredTriggerState state)
-    {
-        return state switch
-        {
-            StoredTriggerState.Deleted => null,
-            StoredTriggerState.Complete => InternalTriggerState.Complete,
-            StoredTriggerState.Blocked => InternalTriggerState.Blocked,
-            StoredTriggerState.Paused => InternalTriggerState.Paused,
-            StoredTriggerState.PausedBlocked => InternalTriggerState.PausedAndBlocked,
-            StoredTriggerState.Error => InternalTriggerState.Error,
-            StoredTriggerState.Acquired => InternalTriggerState.Acquired,
-
-            // WAITING, the EXECUTING value this store never writes to TRIGGER_STATE, and anything a
-            // foreign delegate may have put there (which reads back as WAITING): all schedulable, all
-            // report as normal.
-            _ => InternalTriggerState.Waiting
-        };
-    }
-
-    /// <summary>
     /// Derives every listing filter from <see cref="TriggerStateResolver" />, so that a filter cannot
     /// select rows the listing would then report as some other state. Changing the precedence changes
     /// both directions at once.
@@ -108,7 +86,7 @@ internal static class TriggerStateMapping
         // The values an unrecognised state string can take cannot be enumerated, so whatever it reports as
         // has to match by exclusion instead. It reports one thing while idle and another while executing,
         // so both sides need their own catch-all; everything else matches by inclusion.
-        InternalTriggerState unrecognised = ToInternalState(StoredTriggerStates.FromStoredValue("~unrecognised~"))!.Value;
+        StoredTriggerState unrecognised = StoredTriggerStates.FromStoredValue("~unrecognised~");
         TriggerState catchAllIdle = TriggerStateResolver.Resolve(unrecognised, isExecuting: false);
         TriggerState catchAllExecuting = TriggerStateResolver.Resolve(unrecognised, isExecuting: true);
 

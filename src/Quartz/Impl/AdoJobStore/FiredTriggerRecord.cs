@@ -19,6 +19,8 @@
 
 #endregion
 
+using Quartz.Extensibility;
+
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>

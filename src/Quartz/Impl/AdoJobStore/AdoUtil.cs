@@ -23,6 +23,7 @@ using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
+using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore.Common;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
