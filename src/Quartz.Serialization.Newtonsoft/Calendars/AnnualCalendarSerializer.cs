@@ -2,13 +2,14 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
-using Quartz.Serialization.Newtonsoft;
 using Quartz.Util;
 
-namespace Quartz.Calendars;
+namespace Quartz.Serialization.Newtonsoft.Calendars;
 
 internal sealed class AnnualCalendarSerializer : CalendarSerializer<AnnualCalendar>
 {
+    public override string CalendarTypeName => "AnnualCalendar";
+
     protected override AnnualCalendar Create(JObject source)
     {
         return new AnnualCalendar();

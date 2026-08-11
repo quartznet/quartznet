@@ -8,6 +8,7 @@ using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Jobs;
 using Quartz.Serialization.Newtonsoft;
+using Quartz.Serialization.Newtonsoft.Calendars;
 using Quartz.Extensibility;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
 using Quartz.Serialization.Newtonsoft.Triggers;

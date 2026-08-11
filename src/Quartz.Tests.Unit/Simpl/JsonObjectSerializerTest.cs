@@ -622,7 +622,7 @@ public class JsonSerializationTestCalendar : BaseCalendar
 {
     public int CustomProperty { get; set; }
 
-    public sealed class NewtonsoftSerializer : Quartz.Serialization.Newtonsoft.CalendarSerializer<JsonSerializationTestCalendar>
+    public sealed class NewtonsoftSerializer : Quartz.Serialization.Newtonsoft.Calendars.CalendarSerializer<JsonSerializationTestCalendar>
     {
         protected override void SerializeFields(JsonWriter writer, JsonSerializationTestCalendar calendar)
         {

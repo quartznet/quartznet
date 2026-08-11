@@ -2,13 +2,14 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
-using Quartz.Serialization.Newtonsoft;
 using Quartz.Util;
 
-namespace Quartz.Calendars;
+namespace Quartz.Serialization.Newtonsoft.Calendars;
 
 internal sealed class DailyCalendarSerializer : CalendarSerializer<DailyCalendar>
 {
+    public override string CalendarTypeName => "DailyCalendar";
+
     protected override DailyCalendar Create(JObject source)
     {
         var (start, end) = source.GetDailyCalendarRange();

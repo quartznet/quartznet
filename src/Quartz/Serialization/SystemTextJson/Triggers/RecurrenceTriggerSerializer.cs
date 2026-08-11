@@ -4,7 +4,7 @@ using Quartz.Impl.Triggers;
 
 namespace Quartz.Serialization.SystemTextJson.Triggers;
 
-public sealed class RecurrenceTriggerSerializer : TriggerSerializer<RecurrenceTriggerImpl>
+public class RecurrenceTriggerSerializer : TriggerSerializer<RecurrenceTriggerImpl>
 {
     public override string TriggerTypeName => "RecurrenceTrigger";
 
