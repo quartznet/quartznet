@@ -406,6 +406,8 @@ internal static class QuartzPropertyBridge
         // returning early on a missing quartz.jobStore.type would drop it.
         Register<IDriverDelegate>(services, schedulerName, parser.Type("quartz.jobStore.driverDelegateType"));
 
+        RegisterInitStringTriggerPersistenceDelegates(services, parser, schedulerName);
+
         if (parser.Type(LegacyPropertyKeys.JobStoreLockHandlerType) is { } lockHandlerType)
         {
             // A lock handler has no typed options, so its settings — a Redis semaphore's key prefix and
@@ -520,7 +522,95 @@ internal static class QuartzPropertyBridge
         parser.Bool("quartz.jobStore.doubleCheckLockMisfireHandler", value => options.DoubleCheckLockMisfireHandler = value);
         parser.Bool("quartz.jobStore.performSchemaValidation", value => options.PerformSchemaValidation = value);
         parser.String("quartz.jobStore.selectWithLockSQL", value => options.SelectWithLockSql = value);
-        parser.String("quartz.jobStore.driverDelegateInitString", value => options.DriverDelegateInitString = value);
+    }
+
+    /// <summary>
+    /// Translates the legacy <c>quartz.jobStore.driverDelegateInitString</c> key into trigger
+    /// persistence delegate registrations, which is what
+    /// <c>UsePersistentStore(s =&gt; s.UseTriggerPersistenceDelegate&lt;T&gt;())</c> produces in code.
+    /// </summary>
+    /// <remarks>
+    /// The accepted format is exactly the 3.x one: settings separated by <c>|</c> or <c>\</c>, one
+    /// supported setting in two spellings (<c>triggerPersistenceDelegateClasses</c> splits its list on
+    /// <c>,</c> unless a <c>;</c> is present; <c>triggerPersistenceDelegateTypes</c> always splits on
+    /// <c>;</c> so assembly-qualified names survive), and anything else rejected by name.
+    /// </remarks>
+    private static void RegisterInitStringTriggerPersistenceDelegates(
+        IServiceCollection services,
+        PropertyReader parser,
+        string? schedulerName)
+    {
+        var initString = parser.String("quartz.jobStore.driverDelegateInitString");
+        if (string.IsNullOrEmpty(initString))
+        {
+            return;
+        }
+
+        foreach (string setting in initString.Split('\\', '|'))
+        {
+            var index = setting.IndexOf('=');
+            if (index == -1 || index == setting.Length - 1)
+            {
+                continue;
+            }
+
+            string name = setting.Substring(0, index).Trim();
+            string value = setting.Substring(index + 1).Trim();
+
+            if (string.IsNullOrEmpty(value))
+            {
+                continue;
+            }
+
+            if (name is not ("triggerPersistenceDelegateClasses" or "triggerPersistenceDelegateTypes"))
+            {
+                Throw.SchedulerConfigException(
+                    $"Unknown quartz.jobStore.driverDelegateInitString setting: '{name}'. The only supported "
+                    + "setting is triggerPersistenceDelegateTypes; in code, use "
+                    + "UsePersistentStore(s => s.UseTriggerPersistenceDelegate<T>()).");
+            }
+
+            var separator = value.Contains(';') || name == "triggerPersistenceDelegateTypes" ? ';' : ',';
+
+            foreach (string typeName in value.Split(separator))
+            {
+                var trimmed = typeName.Trim();
+                if (string.IsNullOrEmpty(trimmed))
+                {
+                    continue;
+                }
+
+                Type? delegateType;
+                try
+                {
+                    delegateType = typeLoadHelper.LoadType(trimmed);
+                }
+                catch (TypeLoadException e)
+                {
+                    Throw.SchedulerConfigException($"Trigger persistence delegate type '{trimmed}' could not be loaded.", e);
+                    return;
+                }
+
+                if (delegateType is null || !typeof(ITriggerPersistenceDelegate).IsAssignableFrom(delegateType))
+                {
+                    Throw.SchedulerConfigException($"Type '{trimmed}' does not implement ITriggerPersistenceDelegate.");
+                }
+
+                // Added rather than TryAdded: the legacy format tolerated a type listed twice, and a
+                // factory descriptor cannot participate in TryAddEnumerable's dedup anyway.
+                if (schedulerName is null)
+                {
+                    services.AddSingleton(provider =>
+                        (ITriggerPersistenceDelegate) ActivatorUtilities.CreateInstance(provider, delegateType));
+                }
+                else
+                {
+                    services.AddKeyedSingleton<ITriggerPersistenceDelegate>(schedulerName, (provider, key) =>
+                        (ITriggerPersistenceDelegate) ActivatorUtilities.CreateInstance(
+                            SchedulerScopedServiceProvider.For(provider, key), delegateType));
+                }
+            }
+        }
     }
 
     /// <summary>

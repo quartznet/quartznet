@@ -57,6 +57,7 @@ public abstract class JobStoreSupport : IJobStore
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
     private readonly JobStoreActivityTracer activityTracer = new();
+    private readonly ITriggerPersistenceDelegate[] triggerPersistenceDelegates;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
@@ -72,7 +73,8 @@ public abstract class JobStoreSupport : IJobStore
         IDbConnectionManager connectionManager,
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
-        ISemaphore? lockHandler = null)
+        ISemaphore? lockHandler = null,
+        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null)
     {
         schedSignaler = schedulerSignaler;
         ObjectSerializer = objectSerializer;
@@ -112,7 +114,11 @@ public abstract class JobStoreSupport : IJobStore
         MakeThreadsDaemons = options.MakeThreadsDaemons;
         PerformSchemaValidation = options.PerformSchemaValidation;
         SelectWithLockSql = options.SelectWithLockSql;
-        DriverDelegateInitString = options.DriverDelegateInitString;
+
+        // Registered through UseTriggerPersistenceDelegate<T>() (or translated from the legacy
+        // quartz.jobStore.driverDelegateInitString key by the property bridge) and handed to the driver
+        // delegate when it is initialized.
+        this.triggerPersistenceDelegates = triggerPersistenceDelegates?.ToArray() ?? [];
 
         // The store uses the provider it was given. It is also published to the connection manager under
         // the data source name, because code outside the container still resolves providers by name --
@@ -360,11 +366,6 @@ public abstract class JobStoreSupport : IJobStore
     /// serializable transactions from causing "database is locked" errors.
     /// </summary>
     internal bool LockAllOperations { get; set; }
-
-    /// <summary>
-    /// The driver delegate's initialization string.
-    /// </summary>
-    public string? DriverDelegateInitString { get; }
 
     /// <summary>
     /// The SQL statement used to select and lock a row in the "locks" table.
@@ -635,7 +636,7 @@ public abstract class JobStoreSupport : IJobStore
             DbProvider = DbProvider,
             TypeLoadHelper = typeLoadHelper,
             ObjectSerializer = ObjectSerializer,
-            InitString = DriverDelegateInitString,
+            TriggerPersistenceDelegates = triggerPersistenceDelegates,
             TimeProvider = timeProvider,
         });
     }

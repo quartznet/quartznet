@@ -217,6 +217,112 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     }
 
     [Test]
+    public void TheLegacyInitStringTypesSettingRegistersATriggerPersistenceDelegate()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.jobStore.driverDelegateInitString"] =
+                    "triggerPersistenceDelegateTypes=" + typeof(MarkedTriggerPersistenceDelegate).AssemblyQualifiedName,
+            },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetServices<ITriggerPersistenceDelegate>()
+            .Should().ContainSingle(x => x is MarkedTriggerPersistenceDelegate,
+                "the 3.x key was the only way to register a custom trigger persistence delegate, so it must "
+                + "keep working through the bridge");
+    }
+
+    [Test]
+    public void TheLegacyInitStringClassesSettingSplitsAssemblyQualifiedNamesOnSemicolons()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                // The old *Classes spelling splits on ',' unless a ';' is present, which is how 3.x
+                // configurations carried assembly-qualified names under it.
+                ["quartz.jobStore.driverDelegateInitString"] =
+                    "triggerPersistenceDelegateClasses="
+                    + typeof(MarkedTriggerPersistenceDelegate).AssemblyQualifiedName + ";"
+                    + typeof(MarkedTriggerPersistenceDelegate).AssemblyQualifiedName,
+            },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetServices<ITriggerPersistenceDelegate>()
+            .Where(x => x is MarkedTriggerPersistenceDelegate)
+            .Should().HaveCount(2, "the legacy format tolerated a type listed twice, and the bridge must not quietly halve it");
+    }
+
+    [Test]
+    public void AnUnknownInitStringSettingIsRejectedByName()
+    {
+        var services = new ServiceCollection();
+
+        var act = () => services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.jobStore.driverDelegateInitString"] = "triggerPersistenceDelegateClazzes=Some.Type",
+            },
+            UseStubbedPersistentStore);
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a misspelled setting used to be rejected at store startup; rejecting it at AddQuartz time must not "
+                + "turn it into silence")
+            .WithMessage("*triggerPersistenceDelegateClazzes*UseTriggerPersistenceDelegate*");
+    }
+
+    [Test]
+    public void ANamedSchedulersInitStringDelegatesStayWithThatScheduler()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            "reporting",
+            new NameValueCollection
+            {
+                ["quartz.jobStore.driverDelegateInitString"] =
+                    "triggerPersistenceDelegateTypes=" + typeof(MarkedTriggerPersistenceDelegate).AssemblyQualifiedName,
+            },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetKeyedServices<ITriggerPersistenceDelegate>("reporting")
+            .Should().ContainSingle(x => x is MarkedTriggerPersistenceDelegate,
+                "a named scheduler's store resolves its delegates under its own key, so an unkeyed registration "
+                + "would silently register nothing");
+        provider.GetServices<ITriggerPersistenceDelegate>()
+            .Should().BeEmpty("the delegate belongs to the named scheduler, not to every scheduler in the container");
+    }
+
+    [Test]
+    public void ATriggerPersistenceDelegateRegisteredInCodeReachesANamedSchedulersStore()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz("reporting", q => q.UsePersistentStore(store =>
+        {
+            store.Configure(options => options.DataSource = "test");
+            store.UseTriggerPersistenceDelegate<MarkedTriggerPersistenceDelegate>();
+            RegisterStubProvider(store.Services, q.SchedulerName);
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetKeyedServices<ITriggerPersistenceDelegate>("reporting")
+            .Should().ContainSingle(x => x is MarkedTriggerPersistenceDelegate);
+
+        // The store's constructor takes the enumerable, which for a named scheduler only the
+        // scheduler-scoped provider resolves from the keyed set.
+        var store = (JobStoreSupport) provider.GetRequiredKeyedService<IJobStore>("reporting");
+        store.Should().NotBeNull();
+    }
+
+    [Test]
     public void EachNamedSchedulerKeepsItsOwnSerializer()
     {
         var services = new ServiceCollection();
@@ -807,6 +913,19 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
         properties["quartz.plugin.dev.type"].Should().BeNull();
         properties["quartz.plugin.dev.blank"].Should().Be("   ");
+    }
+
+    public sealed class MarkedTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
+    {
+        public override bool CanHandleTriggerType(Quartz.Extensibility.IOperableTrigger trigger) => false;
+
+        public override string GetHandledTriggerTypeDiscriminator() => "MARKED";
+
+        protected override SimplePropertiesTriggerProperties GetTriggerProperties(Quartz.Extensibility.IOperableTrigger trigger)
+            => throw new NotSupportedException();
+
+        protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties properties)
+            => throw new NotSupportedException();
     }
 
     private sealed class MarkedSemaphore : ISemaphore

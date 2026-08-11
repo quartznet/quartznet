@@ -123,7 +123,10 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `MakeThreadsDaemons` | bool | `false` | Runs the store's background threads as background threads. |
 | `PerformSchemaValidation` | bool | `true` | Verifies the expected tables exist at startup. |
 | `SelectWithLockSql` | string? | none | Overrides the row-lock statement. |
-| `DriverDelegateInitString` | string? | none | Extra initialization passed to the driver delegate. |
+
+A custom trigger persistence delegate is registered with
+`UsePersistentStore(s => s.UseTriggerPersistenceDelegate<T>())` rather than through an option; the
+legacy `quartz.jobStore.driverDelegateInitString` key still translates to the same registrations.
 
 ### Databases
 

@@ -163,4 +163,26 @@ public interface IPersistentStoreBuilder
     /// under the scheduler's own key, which registering against <see cref="Services"/> would not.
     /// </remarks>
     IPersistentStoreBuilder UseLockHandler(Func<IServiceProvider, ISemaphore> factory);
+
+    /// <summary>
+    /// Adds a trigger persistence delegate, which stores and rebuilds a custom trigger type's
+    /// scheduling data in its own tables rather than as a serialized blob.
+    /// </summary>
+    /// <remarks>
+    /// The built-in delegates for the five shipped trigger types are always present; delegates added
+    /// here serve additional trigger types. Call once per delegate — repeated registrations of the
+    /// same type collapse to one.
+    /// </remarks>
+    IPersistentStoreBuilder UseTriggerPersistenceDelegate<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, ITriggerPersistenceDelegate;
+
+    /// <summary>
+    /// Adds a trigger persistence delegate the caller builds, for cases where it needs configuring
+    /// first.
+    /// </summary>
+    /// <remarks>
+    /// As with <see cref="UseSerializer(Func{IServiceProvider, IObjectSerializer})"/>, this registers
+    /// under the scheduler's own key, which registering against <see cref="Services"/> would not.
+    /// </remarks>
+    IPersistentStoreBuilder UseTriggerPersistenceDelegate(Func<IServiceProvider, ITriggerPersistenceDelegate> factory);
 }

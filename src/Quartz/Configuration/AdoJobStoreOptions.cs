@@ -129,9 +129,4 @@ public sealed class AdoJobStoreOptions
     /// Overrides the SQL statement used to acquire the row lock.
     /// </summary>
     public string? SelectWithLockSql { get; set; }
-
-    /// <summary>
-    /// Additional initialization string handed to the driver delegate.
-    /// </summary>
-    public string? DriverDelegateInitString { get; set; }
 }

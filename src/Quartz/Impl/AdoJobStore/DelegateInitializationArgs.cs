@@ -46,13 +46,10 @@ public sealed record DelegateInitializationArgs
     public IObjectSerializer? ObjectSerializer { get; init; }
 
     /// <summary>
-    /// Custom driver delegate initialization.
+    /// Custom trigger persistence delegates the delegate serves beyond the built-in five, registered
+    /// through <c>UseTriggerPersistenceDelegate&lt;T&gt;()</c>.
     /// </summary>
-    /// <remarks>
-    /// initStrings are of the format:
-    /// settingName=settingValue|otherSettingName=otherSettingValue|...
-    /// </remarks>
-    public string? InitString { get; init; }
+    public IReadOnlyCollection<ITriggerPersistenceDelegate> TriggerPersistenceDelegates { get; init; } = [];
 
     /// <summary>
     /// Time provider to use, defaults to <see cref="System.TimeProvider.System"/>.
