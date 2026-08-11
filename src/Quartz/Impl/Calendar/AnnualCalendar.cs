@@ -186,7 +186,7 @@ public sealed class AnnualCalendar : BaseCalendar
         }
 
         //apply the timezone
-        dateUtc = TimeZoneUtil.ConvertTime(dateUtc, TimeZone);
+        dateUtc = TimeZones.ConvertTime(dateUtc, TimeZone);
 
         return !IsDateTimeExcluded(dateUtc, checkBaseCalendar: true);
     }
@@ -209,7 +209,7 @@ public sealed class AnnualCalendar : BaseCalendar
         }
 
         //apply the timezone
-        timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone);
+        timeStampUtc = TimeZones.ConvertTime(timeStampUtc, TimeZone);
 
         // Get timestamp for 00:00:00, in the correct timezone offset
         DateTimeOffset day = new DateTimeOffset(timeStampUtc.Date, timeStampUtc.Offset);

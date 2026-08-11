@@ -434,8 +434,8 @@ internal sealed class RecurrenceRule
     private LocalTimes ConvertToLocal(DateTimeOffset dtStart, DateTimeOffset after, TimeZoneInfo? timeZone, DateTimeOffset? endTime)
     {
         TimeZoneInfo tz = timeZone ?? TimeZoneInfo.Utc;
-        DateTime localStart = TimeZoneUtil.ConvertTime(dtStart, tz).DateTime;
-        DateTime localAfter = TimeZoneUtil.ConvertTime(after, tz).DateTime;
+        DateTime localStart = TimeZones.ConvertTime(dtStart, tz).DateTime;
+        DateTime localAfter = TimeZones.ConvertTime(after, tz).DateTime;
 
         DateTime? localUntil = null;
         if (Until != null)
@@ -448,7 +448,7 @@ internal sealed class RecurrenceRule
         DateTime? localEnd = null;
         if (endTime != null)
         {
-            localEnd = TimeZoneUtil.ConvertTime(endTime.Value, tz).DateTime;
+            localEnd = TimeZones.ConvertTime(endTime.Value, tz).DateTime;
         }
 
         return new LocalTimes(localStart, localAfter, localUntil, localEnd, tz);
@@ -811,12 +811,12 @@ internal sealed class RecurrenceRule
             // 02:30 in a one hour gap comes back as 03:30 at the post-transition offset). Deriving
             // the shift this way is robust for transition deltas that are not whole hours and for
             // zones modeled with a negative daylight delta.
-            return TimeZoneInfo.ConvertTime(TimeZoneUtil.ResolveLocal(local, tz), tz);
+            return TimeZoneInfo.ConvertTime(TimeZones.ResolveLocal(local, tz), tz);
         }
 
         // Ambiguous times (DST overlap / fall back) resolve to the daylight offset - the first of
         // the two occurrences - matching the shared scheduler-wide policy.
-        return TimeZoneUtil.ResolveLocal(local, tz);
+        return TimeZones.ResolveLocal(local, tz);
     }
 
     /// <summary>

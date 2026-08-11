@@ -47,7 +47,7 @@ internal static class Utf8JsonWriterExtensions
     public static TimeZoneInfo GetTimeZone(this JsonElement jsonElement)
     {
         var timeZoneId = jsonElement.GetString();
-        return TimeZoneUtil.FindTimeZoneById(timeZoneId!);
+        return TimeZones.FindById(timeZoneId!);
     }
 
     public static void WriteEnum<T>(this Utf8JsonWriter writer, string propertyName, T value) where T : Enum

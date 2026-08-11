@@ -106,7 +106,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     [Test]
     public void TestTimeZone()
     {
-        TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo tz = TimeZones.FindById("Eastern Standard Time");
 
         DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(12, 0, 0), new TimeOnly(14, 0, 0))
         {

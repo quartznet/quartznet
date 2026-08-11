@@ -315,7 +315,7 @@ internal static class JsonSchedulingHelper
         }
 
         var timeZoneStr = section[nameof(JsonCronSchedule.TimeZone)];
-        var tz = timeZoneStr is not null ? TimeZoneUtil.FindTimeZoneById(timeZoneStr) : null;
+        var tz = timeZoneStr is not null ? TimeZones.FindById(timeZoneStr) : null;
 
         CronScheduleBuilder builder;
         try
@@ -409,7 +409,7 @@ internal static class JsonSchedulingHelper
 
         if (timeZoneStr is not null)
         {
-            builder.InTimeZone(TimeZoneUtil.FindTimeZoneById(timeZoneStr));
+            builder.InTimeZone(TimeZones.FindById(timeZoneStr));
         }
 
         var misfireInstruction = section[nameof(JsonDailyTimeIntervalSchedule.MisfireInstruction)];

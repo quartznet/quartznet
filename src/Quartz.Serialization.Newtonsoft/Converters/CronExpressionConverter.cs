@@ -29,7 +29,7 @@ internal sealed class CronExpressionConverter : JsonConverter
         JObject jObject = JObject.Load(reader);
         var cronExpressionString = jObject["CronExpression"]!.Value<string>()!;
 
-        TimeZoneInfo timeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>()!);
+        TimeZoneInfo timeZone = TimeZones.FindById(jObject["TimeZoneId"]!.Value<string>()!);
         return new CronExpression(cronExpressionString, timeZone);
     }
 

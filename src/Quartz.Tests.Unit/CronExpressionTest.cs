@@ -755,9 +755,9 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         DateTimeOffset test = new DateTimeOffset(2009, 3, 8, 0, 0, 0, TimeSpan.Zero); //Sunday
         DateTimeOffset d = expression.GetNextValidTimeAfter(test).Value;
         // 2009-04-06 is Monday, Sunday is invalid for W
-        Assert.That(d, Is.EqualTo(new DateTimeOffset(2009, 4, 6, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)).ToUniversalTime()));
+        Assert.That(d, Is.EqualTo(new DateTimeOffset(2009, 4, 6, 13, 5, 0, TimeZones.GetUtcOffset(d, TimeZoneInfo.Local)).ToUniversalTime()));
         d = expression.GetNextValidTimeAfter(d).Value;
-        Assert.That(d, Is.EqualTo(new DateTimeOffset(2009, 5, 5, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local))));
+        Assert.That(d, Is.EqualTo(new DateTimeOffset(2009, 5, 5, 13, 5, 0, TimeZones.GetUtcOffset(d, TimeZoneInfo.Local))));
     }
 
     [Test]
@@ -832,7 +832,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [Test]
     public void TestDaylightSavingsDoesNotMatchAnHourBefore()
     {
-        TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo est = TimeZones.FindById("Eastern Standard Time");
         CronExpression expression = new CronExpression("0 15 15 5 11 ?", est);
 
         DateTimeOffset startTime = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
@@ -847,7 +847,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     public void TestDaylightSavingsDoesNotMatchAnHourBefore2()
     {
         //another case
-        TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo est = TimeZones.FindById("Eastern Standard Time");
         CronExpression expression = new CronExpression("0 0 0 ? * THU", est);
 
         DateTimeOffset startTime = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);

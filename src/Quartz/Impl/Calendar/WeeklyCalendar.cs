@@ -174,7 +174,7 @@ public sealed class WeeklyCalendar : BaseCalendar
             return false;
         }
 
-        timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone); //apply the timezone
+        timeUtc = TimeZones.ConvertTime(timeUtc, TimeZone); //apply the timezone
         return !excludeDays.Contains(timeUtc.DayOfWeek);
     }
 
@@ -201,7 +201,7 @@ public sealed class WeeklyCalendar : BaseCalendar
         }
 
         //apply the timezone
-        timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
+        timeUtc = TimeZones.ConvertTime(timeUtc, TimeZone);
 
         // Get timestamp for 00:00:00, in the correct timezone offset
         DateTimeOffset d = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);

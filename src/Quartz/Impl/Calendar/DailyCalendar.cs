@@ -164,7 +164,7 @@ public sealed class DailyCalendar : BaseCalendar
         }
 
         //Before we start, apply the correct timezone offsets.
-        timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
+        timeUtc = TimeZones.ConvertTime(timeUtc, TimeZone);
 
         DateTimeOffset startOfDayInMillis = GetStartOfDay(timeUtc);
         DateTimeOffset endOfDayInMillis = GetEndOfDay(timeUtc);

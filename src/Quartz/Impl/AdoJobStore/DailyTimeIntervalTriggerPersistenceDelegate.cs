@@ -93,7 +93,7 @@ public sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProperti
 
         if (!string.IsNullOrEmpty(props.TimeZoneId) && props.TimeZoneId is not null)
         {
-            scheduleBuilder.InTimeZone(TimeZoneUtil.FindTimeZoneById(props.TimeZoneId));
+            scheduleBuilder.InTimeZone(TimeZones.FindById(props.TimeZoneId));
         }
 
         if (daysOfWeekStr is not null)

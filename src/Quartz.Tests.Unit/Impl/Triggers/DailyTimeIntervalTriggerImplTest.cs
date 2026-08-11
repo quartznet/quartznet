@@ -750,7 +750,7 @@ public class DailyTimeIntervalTriggerImplTest
     [Test]
     public void TestFollowsTimeZone1()
     {
-        TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo est = TimeZones.FindById("Eastern Standard Time");
 
         DateTimeOffset startTime = new DateTimeOffset(2012, 3, 9, 23, 0, 0, TimeSpan.FromHours(-5));
 
@@ -794,7 +794,7 @@ public class DailyTimeIntervalTriggerImplTest
     [Test]
     public void TestFollowsTimeZone2()
     {
-        TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo est = TimeZones.FindById("Eastern Standard Time");
 
         DateTimeOffset startTime = new DateTimeOffset(2012, 11, 2, 12, 0, 0, TimeSpan.FromHours(-4));
 

@@ -4393,7 +4393,7 @@ The health-check overload that took `IEnumerable<string> healthCheckTags` is gon
 Quartz, and it is deliberate rather than overlooked.
 
 Almost everything the scheduler is made of is built by a container and is injected an `ILogger` the
-ordinary way. What is left over cannot be: static helpers such as `TimeZoneUtil`, types a caller
+ordinary way. What is left over cannot be: static classes such as `TimeZones`, types a caller
 constructs directly — triggers, calendars, plugins, the jobs in `Quartz.Jobs` — and anything that
 runs while the container is still being built. A type cannot be handed a logger by a container that
 does not exist yet, so those sites read the ambient factory instead of going unlogged.
@@ -4407,30 +4407,33 @@ lifetime, and only the application can make that call. The same applies to a han
 `LogProvider.SetLogProvider(host.Services.GetRequiredService<ILoggerFactory>())`: it is correct as
 long as the host outlives the schedulers.
 
-`TimeZoneUtil.AddResolver` is ambient for the same reason. `FindTimeZoneById` is reached from
+`TimeZones.AddResolver` is ambient for the same reason. `FindById` is reached from
 parsing a `CronExpression` and from deserializing a trigger out of a job store blob, neither of
 which has a scheduler in scope — which is why installing `Quartz.Plugins.TimeZoneConverter` in one
 scheduler changes id resolution for the whole process, and why each registration is undone by
 disposing it rather than by anyone owning the slot — see
-[`TimeZoneUtil` moved to `Quartz`](#timezoneutil-moved-to-quartz).
+[`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones).
 
-## `TimeZoneUtil` moved to `Quartz`
+## `TimeZoneUtil` became `Quartz.TimeZones`
 
 `FindTimeZoneById` is how a trigger built with `InTimeZone(...)` comes back out of a job store, and
 the wall-clock `GetUtcOffset(DateTime, TimeZoneInfo)` overload *is* the scheduler-wide daylight
 saving policy — an ambiguous local time resolves to the daylight offset, the first of the two
-occurrences. That is scheduling API, not a utility, so the type lives in the root namespace next to
-the builders whose behavior it defines. Every file under a `Quartz.*` namespace sees it without any
-`using`; elsewhere, `using Quartz.Util;` becomes `using Quartz;`:
+occurrences. That is scheduling API, not a utility, so 4.0 stops calling it one: the type is
+`TimeZones` — a static class named by its domain, the way `Matchers` is — and it lives in the root
+namespace next to the builders whose behavior it defines. `FindTimeZoneById` sheds the words the
+type name now carries and reads `TimeZones.FindById(id)`. Every file under a `Quartz.*` namespace
+sees it without any `using`; elsewhere, `using Quartz.Util;` becomes `using Quartz;`:
 
 ```diff
 - using Quartz.Util;
 + using Quartz;
 
-  var zone = TimeZoneUtil.FindTimeZoneById("Europe/Helsinki");
+- var zone = TimeZoneUtil.FindTimeZoneById("Europe/Helsinki");
++ var zone = TimeZones.FindById("Europe/Helsinki");
 ```
 
-No configuration shim is needed: `TimeZoneUtil` is a static helper that is called, never a type a
+No configuration shim is needed: `TimeZones` is a static class that is called, never a type a
 configuration string names and the scheduler instantiates.
 
 Two members went internal on the way: `ConvertTime(DateTimeOffset, TimeZoneInfo)` and
@@ -4443,7 +4446,7 @@ The id alias table also stays: on Windows, "Coordinated Universal Time" and "CET
 through the table alone. Its one dead entry — "US Central Standard Time" ↔ "US/Indiana-Stark",
 where each side aliased the other and neither is a system id on Windows — was pruned; both ids now
 fail with the exception that points at `Quartz.Plugins.TimeZoneConverter`. When the direct lookup
-and the aliases have both failed, `FindTimeZoneById` now also asks
+and the aliases have both failed, `FindById` now also asks
 `TimeZoneInfo.TryConvertIanaIdToWindowsId` before consulting the registered resolvers. The
 conversion runs *after* the direct lookup on purpose: run first, it would turn "US/Eastern" into a
 `TimeZoneInfo` whose `Id` is "Eastern Standard Time", and that rewritten Id is what a job store
@@ -4459,7 +4462,7 @@ back, and disposing it removes exactly that resolver:
 
 ```diff
 - TimeZoneUtil.CustomResolver = id => Resolve(id);
-+ IDisposable registration = TimeZoneUtil.AddResolver(id => Resolve(id));
++ IDisposable registration = TimeZones.AddResolver(id => Resolve(id));
   ...
 - TimeZoneUtil.CustomResolver = null;
 + registration.Dispose();
@@ -4469,7 +4472,7 @@ Resolvers are consulted **most recently added first**, so a later registration s
 one for the ids it resolves — which is exactly the last-write-wins behavior assigning
 `CustomResolver` had, minus the data loss. A resolver declines an id by returning `null`, or by
 throwing `TimeZoneNotFoundException` — the search catches it and continues with the next resolver,
-and `FindTimeZoneById` itself throws only after every fallback has failed.
+and `FindById` itself throws only after every fallback has failed.
 
 `TimeZoneConverterPlugin` now registers its own resolver on `Initialize` — targeting
 `TZConvert.TryGetTimeZoneInfo`, so an unknown id declines quietly instead of by exception — and
@@ -4508,7 +4511,7 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `IDirectoryScanListener` is asynchronous | `FilesUpdatedOrAdded` and `FilesDeleted` return `ValueTask` and take a `CancellationToken` |
 | `LoggingJobHistoryPlugin.Name`, `LoggingTriggerHistoryPlugin.Name` are get-only | The name is handed to a plugin by `Initialize`; writing it afterwards did nothing |
 | `TimeSpanParseRuleAttribute` is public | It says how a bare number in configuration is read as a `TimeSpan`, which a component configured by the same keys needs to be able to say |
-| `TimeZoneUtil.CustomResolver` became `AddResolver(...)` | Returns an `IDisposable` whose disposal removes exactly that resolver; resolvers are consulted most recently added first — see [`CustomResolver` became `AddResolver`](#customresolver-became-addresolver) |
+| `TimeZoneUtil.CustomResolver` became `TimeZones.AddResolver(...)` | Returns an `IDisposable` whose disposal removes exactly that resolver; resolvers are consulted most recently added first — see [`CustomResolver` became `AddResolver`](#customresolver-became-addresolver) |
 | Setter-only members gained getters | `DbMetadata.DbBinaryTypeName` (now nullable) and `.ParameterDbTypePropertyName` |
 | `TriggerState.Executing` added | Reported where `Normal`, `Complete` or `Blocked` used to be, and `Blocked` narrowed to mean a sibling trigger is running (see [Executing is a trigger state](#executing-is-a-trigger-state)) |
 | `IDriverDelegate.IsTriggerCurrentlyExecuting` removed | Replaced by `SelectTriggerStateWithExecuting`, which reads the state and the execution in one statement and returns `TriggerExecutionState` |
@@ -4634,7 +4637,7 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `Quartz.AspNetCore.AddQuartzServer` removed | `AddQuartzHostedService` starts the scheduler and `AddQuartzHealthChecks` registers the check — see [`AddQuartzServer` is `AddQuartzHostedService`](#addquartzserver-is-addquartzhostedservice) |
 | `ISchedulerFactory.GetScheduler(name)` is `LookupScheduler(name)` | Two members named `GetScheduler` differed only in nullability. `GetScheduler()` builds this factory's scheduler and cannot return null; `LookupScheduler(name)` looks one up in the container's repository and can, which is what the verb now says. `Lookup` matches `ISchedulerRepository.Lookup` |
 | `TriggerUtils` moved to `Quartz.Extensibility` | It is a helper over `IOperableTrigger`, not part of the scheduling API — see [`TriggerUtils` moved to `Quartz.Extensibility`](#triggerutils-moved-to-quartz-extensibility) |
-| `TimeZoneUtil` moved to `Quartz` | `FindTimeZoneById` and the wall-clock `GetUtcOffset` are scheduling API, not utilities — see [`TimeZoneUtil` moved to `Quartz`](#timezoneutil-moved-to-quartz) |
+| `TimeZoneUtil` became `Quartz.TimeZones` | `FindTimeZoneById` — now `FindById` — and the wall-clock `GetUtcOffset` are scheduling API, not utilities — see [`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones) |
 | `Quartz.Util.ObjectExtensions` is internal | `AssemblyQualifiedNameWithoutVersion()` is how Quartz spells a type name into a blob or onto the wire, not a general-purpose helper |
 | `Quartz.Diagnostics.ActivityOptions` is `ActivityTags` | It holds `Activity` tag names, not options, and `*Options` names an options type everywhere else. It replaced 3.x's `DiagnosticHeaders`; the tag names and values are unchanged |
 | `DBSemaphore` is `DbSemaphore` | The last `DB` spelling, with `DBConnectionManager` → `DbConnectionManager`. The type is abstract and is never named in configuration |
@@ -4654,7 +4657,7 @@ explaining it a second time.
 
 It is derived mechanically, by diffing the public API baselines both branches keep under
 `src/Quartz.Tests.Unit/Verify/` and `src/Quartz.Tests.AspNetCore/Verify/`, so it names **every**
-public type 3.x had and 4.0 does not — all 92, across every package — rather than the ones that came
+public type 3.x had and 4.0 does not — all 93, across every package — rather than the ones that came
 to mind.
 
 Two whole-surface changes are deliberately left out, because repeating them per type would bury
@@ -4762,6 +4765,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Simpl.SystemPropertyInstanceIdGenerator` | Internal | `quartz.scheduler.instanceId = SYS_PROP` still selects it; in code, register your own `IInstanceIdGenerator` |
 | `Quartz.SystemTime` | Removed | `TimeProvider` — see [SystemTime Replaced with TimeProvider](#systemtime-replaced-with-timeprovider) |
 | `Quartz.TimeOfDay` | Removed | `TimeOnly` — see [`TimeOfDay` became `TimeOnly`](#timeofday-became-timeonly) |
+| `Quartz.Util.TimeZoneUtil` | Renamed `Quartz.TimeZones` | `FindTimeZoneById` is `FindById`; `CustomResolver` is `AddResolver(...)`, whose `IDisposable` undoes the registration; the Mono-era `ConvertTime` / `GetUtcOffset(DateTimeOffset, TimeZoneInfo)` shims went internal, while the wall-clock `GetUtcOffset(DateTime, TimeZoneInfo)` stays public — see [`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones) |
 | `Quartz.TriggerExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.Impl.AdoJobStore.TriggerStatus` | Removed | `StoredTriggerHeader`, returned by `IDriverDelegate.SelectTriggerHeader` — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
 | `Quartz.TriggerTimeComparator` | Internal | No replacement; it ordered by next fire time, then priority descending, then key — write that inline if you need it |
@@ -4805,6 +4809,4 @@ removals on types that are still public and still open, which no section above n
 | `StringKeyDirtyFlagMap.GetNullableGuid()`, `.TryGetNullableGuid()` | Removed | `TryGetGuid(key, out var value)`, whose `false` says the same thing as a `null` did — see [`JobDataMap`'s typed accessors are extension members](#jobdatamap-s-typed-accessors-are-extension-members) |
 | `StringKeyDirtyFlagMap.Put()` (eight overloads), `.PutAll()` | Removed; all were `[Obsolete]` in 3.x | `map[key] = value` |
 | `TaskSchedulingThreadPool.ThreadPriority` | Removed | No replacement; work runs on a `TaskScheduler`, which has no thread to prioritise — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
-| `TimeZoneUtil.ConvertTime`, `.GetUtcOffset(DateTimeOffset, TimeZoneInfo)` | Internal | `TimeZoneInfo.ConvertTime` / `TimeZoneInfo.GetUtcOffset`, which they forwarded to (they were Mono-era shims); the wall-clock `GetUtcOffset(DateTime, TimeZoneInfo)` stays public — see [`TimeZoneUtil` moved to `Quartz`](#timezoneutil-moved-to-quartz) |
-| `TimeZoneUtil.CustomResolver` | Removed | `AddResolver(...)`, whose `IDisposable` undoes the registration; the type also moved to `Quartz` — see [`CustomResolver` became `AddResolver`](#customresolver-became-addresolver) |
 | `ZeroSizeThreadPool.AvailableThreadCount` | Removed | `PoolSize`, which is `0` — the pool never had a thread to report |

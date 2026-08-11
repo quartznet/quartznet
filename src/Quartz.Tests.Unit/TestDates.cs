@@ -53,7 +53,7 @@ public static class TestDates
     public static DateTimeOffset DateOf(int hour, int minute, int second, int dayOfMonth, int month, int year)
     {
         DateTime dt = new DateTime(year, month, dayOfMonth, hour, minute, second);
-        return new DateTimeOffset(dt, TimeZoneUtil.GetUtcOffset(dt, TimeZoneInfo.Local));
+        return new DateTimeOffset(dt, TimeZones.GetUtcOffset(dt, TimeZoneInfo.Local));
     }
 
     /// <summary>

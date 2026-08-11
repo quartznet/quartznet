@@ -4,13 +4,13 @@ using Quartz.Impl.Calendar;
 
 namespace Quartz.Tests.Unit;
 
-public class TimeZoneUtilTest
+public class TimeZonesTest
 {
     [Test]
     public void ShouldBeAbleToFindWithAlias()
     {
-        var infoWithUtc = TimeZoneUtil.FindTimeZoneById("UTC");
-        var infoWithUniversalCoordinatedTime = TimeZoneUtil.FindTimeZoneById("Coordinated Universal Time");
+        var infoWithUtc = TimeZones.FindById("UTC");
+        var infoWithUniversalCoordinatedTime = TimeZones.FindById("Coordinated Universal Time");
 
         Assert.That(infoWithUniversalCoordinatedTime, Is.EqualTo(infoWithUtc));
     }
@@ -54,7 +54,7 @@ public class TimeZoneUtilTest
         DateTime local = DateTime.Parse(localTime, CultureInfo.InvariantCulture);
         TestTimeZones.AssumeAmbiguousLocalTime(zone, local);
 
-        TimeZoneUtil.GetUtcOffset(local, zone).Should().Be(TimeSpan.FromHours(expectedOffsetHours));
+        TimeZones.GetUtcOffset(local, zone).Should().Be(TimeSpan.FromHours(expectedOffsetHours));
     }
 
     // An invalid (spring-forward gap) local time is not special-cased: it resolves to the
@@ -69,7 +69,7 @@ public class TimeZoneUtilTest
         DateTime local = DateTime.Parse(localTime, CultureInfo.InvariantCulture);
         TestTimeZones.AssumeInvalidLocalTime(zone, local);
 
-        TimeZoneUtil.GetUtcOffset(local, zone).Should().Be(TimeSpan.FromHours(expectedOffsetHours));
+        TimeZones.GetUtcOffset(local, zone).Should().Be(TimeSpan.FromHours(expectedOffsetHours));
     }
 
     [Test]
@@ -83,8 +83,8 @@ public class TimeZoneUtilTest
         DateTimeOffset standardPassInstant = TestTimeZones.Local("2024-11-03 01:30 -05:00");
         TestTimeZones.AssumeAmbiguousLocalTime(eastern, standardPassInstant.DateTime);
 
-        TimeZoneUtil.GetUtcOffset(standardPassInstant, eastern).Should().Be(TimeSpan.FromHours(-5));
-        TimeZoneUtil.GetUtcOffset(standardPassInstant.DateTime, eastern).Should().Be(TimeSpan.FromHours(-4));
+        TimeZones.GetUtcOffset(standardPassInstant, eastern).Should().Be(TimeSpan.FromHours(-5));
+        TimeZones.GetUtcOffset(standardPassInstant.DateTime, eastern).Should().Be(TimeSpan.FromHours(-4));
     }
 
     // ResolveLocal must agree with the wall-clock GetUtcOffset policy for every time that exists
@@ -98,10 +98,10 @@ public class TimeZoneUtilTest
         DateTime local = DateTime.Parse(localTime, CultureInfo.InvariantCulture);
         TestTimeZones.AssumeAmbiguousLocalTime(zone, local);
 
-        DateTimeOffset resolved = TimeZoneUtil.ResolveLocal(local, zone);
+        DateTimeOffset resolved = TimeZones.ResolveLocal(local, zone);
 
         resolved.DateTime.Should().Be(local, "the wall clock must be kept as given");
-        resolved.Offset.Should().Be(TimeZoneUtil.GetUtcOffset(local, zone), "an ambiguous time resolves to the daylight/first occurrence");
+        resolved.Offset.Should().Be(TimeZones.GetUtcOffset(local, zone), "an ambiguous time resolves to the daylight/first occurrence");
     }
 
     // An in-gap time pairs with the pre-transition offset, which renders in the zone as the same
@@ -115,7 +115,7 @@ public class TimeZoneUtilTest
         DateTime local = DateTime.Parse(localTime, CultureInfo.InvariantCulture);
         TestTimeZones.AssumeInvalidLocalTime(zone, local);
 
-        DateTimeOffset resolved = TimeZoneUtil.ResolveLocal(local, zone);
+        DateTimeOffset resolved = TimeZones.ResolveLocal(local, zone);
 
         resolved.Offset.Should().Be(TimeSpan.FromHours(expectedOffsetHours), "an in-gap time pairs with the offset in effect just before the gap");
         TimeZoneInfo.ConvertTime(resolved, zone).DateTime
@@ -142,8 +142,8 @@ public class TimeZoneUtilTest
         for (int minute = -180; minute <= 180; minute++)
         {
             DateTime probe = center.AddMinutes(minute);
-            DateTimeOffset legacy = new DateTimeOffset(probe, TimeZoneUtil.GetUtcOffset(probe, zone));
-            TimeZoneUtil.ResolveLocal(probe, zone).Should().Be(legacy, $"probe {probe:yyyy-MM-dd HH:mm} must resolve exactly as the previous inline logic did");
+            DateTimeOffset legacy = new DateTimeOffset(probe, TimeZones.GetUtcOffset(probe, zone));
+            TimeZones.ResolveLocal(probe, zone).Should().Be(legacy, $"probe {probe:yyyy-MM-dd HH:mm} must resolve exactly as the previous inline logic did");
         }
     }
 
@@ -157,7 +157,7 @@ public class TimeZoneUtilTest
         DateTime local = DateTime.Parse(ambiguousLocal, CultureInfo.InvariantCulture);
         TestTimeZones.AssumeAmbiguousLocalTime(zone, local);
 
-        TimeZoneUtil.TryGetAmbiguousWindow(local, zone, out DateTime windowStart, out DateTime windowEnd).Should().BeTrue();
+        TimeZones.TryGetAmbiguousWindow(local, zone, out DateTime windowStart, out DateTime windowEnd).Should().BeTrue();
 
         windowStart.Should().Be(DateTime.Parse(expectedStart, CultureInfo.InvariantCulture));
         windowEnd.Should().Be(DateTime.Parse(expectedEnd, CultureInfo.InvariantCulture));
@@ -168,7 +168,7 @@ public class TimeZoneUtilTest
         DateTimeOffset transition = new DateTimeOffset(windowStart, standardOffset);
         TimeZoneInfo.ConvertTime(transition, zone).DateTime.Should().Be(windowStart);
 
-        TimeZoneUtil.TryGetAmbiguousWindow(local.Date.AddHours(12), zone, out _, out _)
+        TimeZones.TryGetAmbiguousWindow(local.Date.AddHours(12), zone, out _, out _)
             .Should().BeFalse("noon is not ambiguous");
     }
 
@@ -181,11 +181,11 @@ public class TimeZoneUtilTest
         DateTime local = DateTime.Parse(invalidLocal, CultureInfo.InvariantCulture);
         TestTimeZones.AssumeInvalidLocalTime(zone, local);
 
-        TimeZoneUtil.WalkToGapEnd(local, zone).Should().Be(DateTime.Parse(expectedGapEnd, CultureInfo.InvariantCulture));
+        TimeZones.WalkToGapEnd(local, zone).Should().Be(DateTime.Parse(expectedGapEnd, CultureInfo.InvariantCulture));
 
         // noon, not midnight - in a midnight-gap zone like Santiago the date's own 00:00 is invalid
         DateTime alreadyValid = local.Date.AddHours(12);
-        TimeZoneUtil.WalkToGapEnd(alreadyValid, zone).Should().Be(alreadyValid, "a valid time is returned unchanged");
+        TimeZones.WalkToGapEnd(alreadyValid, zone).Should().Be(alreadyValid, "a valid time is returned unchanged");
     }
 
     [Test]
@@ -198,7 +198,7 @@ public class TimeZoneUtilTest
         TimeZoneInfo dublin;
         try
         {
-            dublin = TimeZoneUtil.FindTimeZoneById("Europe/Dublin");
+            dublin = TimeZones.FindById("Europe/Dublin");
         }
         catch (TimeZoneNotFoundException)
         {
@@ -214,7 +214,7 @@ public class TimeZoneUtilTest
         Assume.That(negativeDelta, "test premise: the zone data models Dublin with a negative daylight delta (TZif); on Windows this is positive and the hazard does not exist");
 
         DateTimeOffset justBeforeGap = new DateTimeOffset(new DateTime(2024, 3, 31, 0, 59, 0), dublin.GetUtcOffset(new DateTime(2024, 3, 31, 0, 59, 0)));
-        DateTimeOffset resolved = TimeZoneUtil.ResolveLocal(inGap, dublin);
+        DateTimeOffset resolved = TimeZones.ResolveLocal(inGap, dublin);
 
         resolved.Should().BeAfter(justBeforeGap, "an in-gap time must resolve forward across the gap, never backwards");
         TimeZoneInfo.ConvertTime(resolved, dublin).DateTime.Should().Be(new DateTime(2024, 3, 31, 2, 30, 0), "the instant renders at the delta-shifted wall clock after the gap");
@@ -231,27 +231,27 @@ public class TimeZoneUtilTest
     [TestCase("US/Hawaii", "Hawaiian Standard Time")]
     [TestCase("Asia/Shanghai", "China Standard Time")]
     [TestCase("Asia/Karachi", "Pakistan Standard Time")]
-    public void FindTimeZoneById_ResolvesAliasPairsOnAnyPlatform(string first, string second)
+    public void FindById_ResolvesAliasPairsOnAnyPlatform(string first, string second)
     {
-        TimeZoneInfo firstZone = TimeZoneUtil.FindTimeZoneById(first);
-        TimeZoneInfo secondZone = TimeZoneUtil.FindTimeZoneById(second);
+        TimeZoneInfo firstZone = TimeZones.FindById(first);
+        TimeZoneInfo secondZone = TimeZones.FindById(second);
 
         firstZone.BaseUtcOffset.Should().Be(secondZone.BaseUtcOffset);
     }
 
     [TestCase("Coordinated Universal Time")]
     [TestCase("CET")]
-    public void FindTimeZoneById_RescuesAliasEntriesTheBclCannotResolve(string id)
+    public void FindById_RescuesAliasEntriesTheBclCannotResolve(string id)
     {
         // On Windows with ICU these ids fail TimeZoneInfo.FindSystemTimeZoneById AND both
         // TryConvert* conversions - they are why the alias table survives 4.0. On a platform
         // whose tzdata resolves them directly (e.g. "CET" on Linux) the lookup passes trivially.
-        TimeZoneUtil.FindTimeZoneById(id).Should().NotBeNull();
+        TimeZones.FindById(id).Should().NotBeNull();
     }
 
     [TestCase("US Central Standard Time")]
     [TestCase("US/Indiana-Stark")]
-    public void FindTimeZoneById_PrunedDeadAliasPair_FailsWithGuidance(string id)
+    public void FindById_PrunedDeadAliasPair_FailsWithGuidance(string id)
     {
         // The two ids aliased each other, but neither is a system id on Windows and neither is
         // known to the BCL conversions or to TimeZoneConverter, so the alias never rescued
@@ -266,7 +266,7 @@ public class TimeZoneUtilTest
         {
         }
 
-        Func<TimeZoneInfo> act = () => TimeZoneUtil.FindTimeZoneById(id);
+        Func<TimeZoneInfo> act = () => TimeZones.FindById(id);
 
         act.Should().Throw<TimeZoneNotFoundException>()
             .WithMessage("*Quartz.Plugins.TimeZoneConverter*", "the failure should point at the plugin that resolves more ids");
@@ -279,15 +279,15 @@ public class TimeZoneUtilTest
         TimeZoneInfo earlierZone = TimeZoneInfo.CreateCustomTimeZone(id + "-earlier", TimeSpan.FromMinutes(30), null, null);
         TimeZoneInfo laterZone = TimeZoneInfo.CreateCustomTimeZone(id + "-later", TimeSpan.FromMinutes(45), null, null);
 
-        IDisposable earlier = TimeZoneUtil.AddResolver(x => x == id ? earlierZone : null);
+        IDisposable earlier = TimeZones.AddResolver(x => x == id ? earlierZone : null);
         try
         {
-            TimeZoneUtil.FindTimeZoneById(id).Should().BeSameAs(earlierZone);
+            TimeZones.FindById(id).Should().BeSameAs(earlierZone);
 
-            IDisposable later = TimeZoneUtil.AddResolver(x => x == id ? laterZone : null);
+            IDisposable later = TimeZones.AddResolver(x => x == id ? laterZone : null);
             try
             {
-                TimeZoneUtil.FindTimeZoneById(id).Should().BeSameAs(laterZone,
+                TimeZones.FindById(id).Should().BeSameAs(laterZone,
                     "resolvers are consulted most recently added first, preserving the last-write-wins semantics CustomResolver had");
             }
             finally
@@ -295,7 +295,7 @@ public class TimeZoneUtilTest
                 later.Dispose();
             }
 
-            TimeZoneUtil.FindTimeZoneById(id).Should().BeSameAs(earlierZone,
+            TimeZones.FindById(id).Should().BeSameAs(earlierZone,
                 "a disposed resolver must no longer shadow the one registered before it");
         }
         finally
@@ -303,7 +303,7 @@ public class TimeZoneUtilTest
             earlier.Dispose();
         }
 
-        Func<TimeZoneInfo> act = () => TimeZoneUtil.FindTimeZoneById(id);
+        Func<TimeZoneInfo> act = () => TimeZones.FindById(id);
         act.Should().Throw<TimeZoneNotFoundException>("every registration was disposed");
     }
 
@@ -314,14 +314,14 @@ public class TimeZoneUtilTest
         TimeZoneInfo earlierZone = TimeZoneInfo.CreateCustomTimeZone(id + "-earlier", TimeSpan.FromMinutes(30), null, null);
         TimeZoneInfo laterZone = TimeZoneInfo.CreateCustomTimeZone(id + "-later", TimeSpan.FromMinutes(45), null, null);
 
-        IDisposable earlier = TimeZoneUtil.AddResolver(x => x == id ? earlierZone : null);
+        IDisposable earlier = TimeZones.AddResolver(x => x == id ? earlierZone : null);
         try
         {
-            IDisposable later = TimeZoneUtil.AddResolver(x => x == id ? laterZone : null);
+            IDisposable later = TimeZones.AddResolver(x => x == id ? laterZone : null);
             later.Dispose();
             later.Dispose();
 
-            TimeZoneUtil.FindTimeZoneById(id).Should().BeSameAs(earlierZone,
+            TimeZones.FindById(id).Should().BeSameAs(earlierZone,
                 "disposing a registration twice must not remove another resolver");
         }
         finally
@@ -336,18 +336,18 @@ public class TimeZoneUtilTest
         const string id = "Quartz/Test-Resolver-Throwing";
         TimeZoneInfo zone = TimeZoneInfo.CreateCustomTimeZone(id + "-zone", TimeSpan.FromMinutes(15), null, null);
 
-        using IDisposable quiet = TimeZoneUtil.AddResolver(x => x == id ? zone : null);
-        using IDisposable loud = TimeZoneUtil.AddResolver(
+        using IDisposable quiet = TimeZones.AddResolver(x => x == id ? zone : null);
+        using IDisposable loud = TimeZones.AddResolver(
             x => x == id ? throw new TimeZoneNotFoundException("declining loudly") : null);
 
-        TimeZoneUtil.FindTimeZoneById(id).Should().BeSameAs(zone,
+        TimeZones.FindById(id).Should().BeSameAs(zone,
             "a resolver throwing TimeZoneNotFoundException declines the id and the search continues with the next resolver");
     }
 
     [Test]
     public void AddResolver_NullResolver_Throws()
     {
-        Action act = () => TimeZoneUtil.AddResolver(null!);
+        Action act = () => TimeZones.AddResolver(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 

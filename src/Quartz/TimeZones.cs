@@ -26,7 +26,7 @@ using Quartz.Util;
 
 namespace Quartz;
 
-public static class TimeZoneUtil
+public static class TimeZones
 {
     /// <summary>
     /// Id spellings that some platform has used and some other platform cannot resolve. The BCL does
@@ -37,7 +37,7 @@ public static class TimeZoneUtil
     /// </summary>
     private static readonly Dictionary<string, string> timeZoneIdAliases = new Dictionary<string, string>();
 
-    static TimeZoneUtil()
+    static TimeZones()
     {
         // Azure has had issues with having both formats
         timeZoneIdAliases["UTC"] = "Coordinated Universal Time";
@@ -89,7 +89,7 @@ public static class TimeZoneUtil
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is process-wide, and deliberately so: <see cref="FindTimeZoneById" /> is reached from
+    /// This is process-wide, and deliberately so: <see cref="FindById" /> is reached from
     /// places that have no scheduler in scope — parsing a <see cref="CronExpression" />, deserializing
     /// a trigger or calendar out of a job store blob — so there is nothing scheduler-scoped to hang a
     /// resolver on. Adding a resolver from one scheduler changes id resolution for every scheduler in
@@ -100,7 +100,7 @@ public static class TimeZoneUtil
     /// Resolvers are consulted most recently added first, so a later registration shadows an earlier
     /// one for the ids it resolves. A resolver declines an id by returning <see langword="null" /> or
     /// by throwing <see cref="TimeZoneNotFoundException" />; either way the search continues with the
-    /// next resolver, and <see cref="FindTimeZoneById" /> throws only when every fallback has failed.
+    /// next resolver, and <see cref="FindById" /> throws only when every fallback has failed.
     /// </para>
     /// </remarks>
     /// <param name="resolver">Maps a time zone id to a <see cref="TimeZoneInfo" />, or to
@@ -293,7 +293,7 @@ public static class TimeZoneUtil
     /// </summary>
     /// <param name="id">System id of the time zone.</param>
     /// <returns></returns>
-    public static TimeZoneInfo FindTimeZoneById(string id)
+    public static TimeZoneInfo FindById(string id)
     {
         TimeZoneInfo? info = null;
         try
@@ -310,7 +310,7 @@ public static class TimeZoneUtil
                 }
                 catch
                 {
-                    var logger = LogProvider.CreateLogger(nameof(TimeZoneUtil));
+                    var logger = LogProvider.CreateLogger(nameof(TimeZones));
                     logger.LogError("Could not find time zone using alias id {AliasId}", aliasedId);
                 }
             }

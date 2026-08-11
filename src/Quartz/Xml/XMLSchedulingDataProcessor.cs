@@ -391,7 +391,7 @@ public class XMLSchedulingDataProcessor
                 var cronExpression = cronTrigger.CronExpression.TrimEmptyToNull();
                 var timezoneString = cronTrigger.TimeZone.TrimEmptyToNull();
 
-                TimeZoneInfo? tz = timezoneString is not null ? TimeZoneUtil.FindTimeZoneById(timezoneString) : null;
+                TimeZoneInfo? tz = timezoneString is not null ? TimeZones.FindById(timezoneString) : null;
                 scheduleBuilder = CronScheduleBuilder.Create(cronExpression!)
                     .InTimeZone(tz);
 

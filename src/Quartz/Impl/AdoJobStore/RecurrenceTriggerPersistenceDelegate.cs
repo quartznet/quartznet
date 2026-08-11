@@ -48,7 +48,7 @@ public sealed class RecurrenceTriggerPersistenceDelegate : SimplePropertiesTrigg
         string? tzId = props.TimeZoneId;
         if (!string.IsNullOrEmpty(tzId))
         {
-            tz = TimeZoneUtil.FindTimeZoneById(tzId!);
+            tz = TimeZones.FindById(tzId!);
         }
 
         RecurrenceScheduleBuilder sb = RecurrenceScheduleBuilder.Create(props.String1!)

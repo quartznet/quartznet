@@ -526,7 +526,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// </returns>
     public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)
     {
-        NextFireTimeUtc = TimeZoneUtil.ConvertTime(StartTimeUtc, TimeZone);
+        NextFireTimeUtc = TimeZones.ConvertTime(StartTimeUtc, TimeZone);
 
         while (NextFireTimeUtc is not null && calendar is not null
                                        && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
@@ -616,7 +616,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         DateTimeOffset sTime = StartTimeUtc;
         if (timeZone is not null)
         {
-            sTime = TimeZoneUtil.ConvertTime(sTime, timeZone);
+            sTime = TimeZones.ConvertTime(sTime, timeZone);
         }
 
         if (RepeatIntervalUnit == IntervalUnit.Second)
@@ -782,10 +782,10 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     {
         if (afterTime.UtcDateTime <= StartTimeUtc.UtcDateTime)
         {
-            return TimeZoneUtil.ConvertTime(StartTimeUtc, TimeZone);
+            return TimeZones.ConvertTime(StartTimeUtc, TimeZone);
         }
 
-        DateTime candidateLocal = TimeZoneUtil.ConvertTime(StartTimeUtc, TimeZone).DateTime;
+        DateTime candidateLocal = TimeZones.ConvertTime(StartTimeUtc, TimeZone).DateTime;
 
         // day-based steps are linear in the local calendar, so jump most of the way there instead
         // of iterating; aim short of the target because DST makes the UTC distance and the calendar
@@ -821,11 +821,11 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                     continue;
                 }
 
-                resolved = TimeZoneUtil.ResolveLocal(TimeZoneUtil.WalkToGapEnd(candidateLocal, TimeZone), TimeZone);
+                resolved = TimeZones.ResolveLocal(TimeZones.WalkToGapEnd(candidateLocal, TimeZone), TimeZone);
             }
             else
             {
-                resolved = TimeZoneUtil.ResolveLocal(candidateLocal, TimeZone);
+                resolved = TimeZones.ResolveLocal(candidateLocal, TimeZone);
             }
 
             if (resolved.UtcDateTime >= afterTime.UtcDateTime || candidateLocal.Year > TriggerConstants.YearToGiveUpSchedulingAt)

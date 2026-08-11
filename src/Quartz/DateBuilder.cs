@@ -120,7 +120,7 @@ public sealed class DateBuilder
     public DateTimeOffset Build()
     {
         DateTime dt = new DateTime(year, month, day, hour, minute, second);
-        TimeSpan offset = TimeZoneUtil.GetUtcOffset(dt, tz ?? TimeZoneInfo.Local);
+        TimeSpan offset = TimeZones.GetUtcOffset(dt, tz ?? TimeZoneInfo.Local);
         return new DateTimeOffset(dt, offset);
     }
 

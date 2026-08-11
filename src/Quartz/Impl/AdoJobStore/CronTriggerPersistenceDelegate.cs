@@ -134,7 +134,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 
         if (timeZoneId is not null)
         {
-            cb.InTimeZone(TimeZoneUtil.FindTimeZoneById(timeZoneId));
+            cb.InTimeZone(TimeZones.FindById(timeZoneId));
         }
 
         return new TriggerPropertyBundle(cb);

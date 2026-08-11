@@ -64,7 +64,7 @@ public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICale
     [Test]
     public void TestDaylightSavingTransition()
     {
-        calendar.TimeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        calendar.TimeZone = TimeZones.FindById("Eastern Standard Time");
         calendar.RemoveExcludedDay(DayOfWeek.Monday); //Monday only
         calendar.AddExcludedDay(DayOfWeek.Tuesday);
         calendar.AddExcludedDay(DayOfWeek.Wednesday);
