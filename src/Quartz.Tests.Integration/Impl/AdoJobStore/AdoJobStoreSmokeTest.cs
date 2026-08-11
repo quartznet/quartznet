@@ -229,10 +229,8 @@ public class AdoJobStoreSmokeTest
                 store.UseNewtonsoftJsonSerializer(j =>
                 {
                     j.AddCalendarSerializer<CustomCalendar>(new CustomNewtonsoftCalendarSerializer());
-
-                    j.RegisterTriggerConverters = true;
                     j.AddTriggerSerializer<CustomTrigger>(new CustomNewtonsoftTriggerSerializer());
-                });
+                }, registerTriggerConverters: true);
             }
             else
             {

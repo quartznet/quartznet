@@ -1,6 +1,6 @@
-using Quartz.Calendars;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Serialization.Newtonsoft.Calendars;
 using Quartz.Serialization.Newtonsoft.Triggers;
 using Quartz.Util;
 
@@ -23,16 +23,16 @@ namespace Quartz.Serialization.Newtonsoft;
 /// not synchronized for concurrent writes, exactly as the statics they replace were not.
 /// </para>
 /// <para>
-/// The lookup rules deliberately match what the Newtonsoft converters have always done, which is not
-/// quite what the System.Text.Json ones do: a calendar is found by its assembly-qualified type name
-/// only, case-sensitively, because <see cref="ICalendarSerializer"/> here carries no calendar type name
-/// of its own.
+/// Lookups mirror the System.Text.Json registry: case-insensitive, with a calendar indexed both under
+/// its assembly-qualified type name — which is what payloads written by 3.x carry, so that key always
+/// stays registered — and, when the serializer provides one, under its
+/// <see cref="ICalendarSerializer.CalendarTypeName"/> discriminator.
 /// </para>
 /// </remarks>
 public sealed class NewtonsoftJsonSerializerRegistry
 {
     private readonly SerializerMap<ITriggerSerializer> triggerSerializers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly SerializerMap<ICalendarSerializer> calendarSerializers = new(StringComparer.Ordinal);
+    private readonly SerializerMap<ICalendarSerializer> calendarSerializers = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Creates a registry holding the serializers for the built-in trigger and calendar types.
@@ -73,9 +73,17 @@ public sealed class NewtonsoftJsonSerializerRegistry
     {
         ArgumentNullException.ThrowIfNull(serializer);
 
-        // One name only, and matched case-sensitively, because ICalendarSerializer here carries no
-        // calendar type name of its own — see the remarks above.
-        calendarSerializers.Add(serializer, typeof(TCalendar).AssemblyQualifiedNameWithoutVersion());
+        // The assembly-qualified name is what 3.x-written payloads carry, so it is always registered;
+        // the discriminator is a second key, never a replacement — see the remarks above.
+        if (string.IsNullOrEmpty(serializer.CalendarTypeName))
+        {
+            calendarSerializers.Add(serializer, typeof(TCalendar).AssemblyQualifiedNameWithoutVersion());
+        }
+        else
+        {
+            calendarSerializers.Add(serializer, typeof(TCalendar).AssemblyQualifiedNameWithoutVersion(), serializer.CalendarTypeName);
+        }
+
         return this;
     }
 

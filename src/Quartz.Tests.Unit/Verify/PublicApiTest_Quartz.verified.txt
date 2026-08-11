@@ -1306,15 +1306,7 @@ namespace Quartz
     }
     public static class SystemTextJsonConfigurationExtensions
     {
-        public static Quartz.IPersistentStoreBuilder UseSystemTextJsonSerializer(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.SystemTextJsonSerializerOptions>? configure = null) { }
-    }
-    public class SystemTextJsonSerializerOptions
-    {
-        public SystemTextJsonSerializerOptions() { }
-        public Quartz.SystemTextJsonSerializerOptions AddCalendarSerializer<TCalendar>(Quartz.Serialization.SystemTextJson.Calendars.ICalendarSerializer serializer)
-            where TCalendar : Quartz.ICalendar { }
-        public Quartz.SystemTextJsonSerializerOptions AddTriggerSerializer<TTrigger>(Quartz.Serialization.SystemTextJson.Triggers.ITriggerSerializer serializer)
-            where TTrigger : Quartz.ITrigger { }
+        public static Quartz.IPersistentStoreBuilder UseSystemTextJsonSerializer(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry>? configure = null) { }
     }
     public sealed class ThreadPoolOptions
     {
@@ -3365,7 +3357,7 @@ namespace Quartz.Serialization.SystemTextJson.Triggers
         void DeserializeFields(Quartz.ITrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
         void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ITrigger trigger, System.Text.Json.JsonSerializerOptions options);
     }
-    public sealed class RecurrenceTriggerSerializer : Quartz.Serialization.SystemTextJson.Triggers.TriggerSerializer<Quartz.Impl.Triggers.RecurrenceTriggerImpl>
+    public class RecurrenceTriggerSerializer : Quartz.Serialization.SystemTextJson.Triggers.TriggerSerializer<Quartz.Impl.Triggers.RecurrenceTriggerImpl>
     {
         public RecurrenceTriggerSerializer() { }
         public override string TriggerTypeName { get; }

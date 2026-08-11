@@ -2,12 +2,13 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
-using Quartz.Serialization.Newtonsoft;
 
-namespace Quartz.Calendars;
+namespace Quartz.Serialization.Newtonsoft.Calendars;
 
 internal sealed class CronCalendarSerializer : CalendarSerializer<CronCalendar>
 {
+    public override string CalendarTypeName => "CronCalendar";
+
     protected override CronCalendar Create(JObject source)
     {
         string cronExpression = source["CronExpressionString"]!.Value<string>()!;

@@ -2,12 +2,13 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
-using Quartz.Serialization.Newtonsoft;
 
-namespace Quartz.Calendars;
+namespace Quartz.Serialization.Newtonsoft.Calendars;
 
 internal sealed class BaseCalendarSerializer : CalendarSerializer<BaseCalendar>
 {
+    public override string CalendarTypeName => "BaseCalendar";
+
     protected override BaseCalendar Create(JObject source)
     {
         return new BaseCalendar();

@@ -1260,6 +1260,25 @@ var serializer = new SystemTextJsonObjectSerializer(registry);
 The registries start out knowing every built-in trigger and calendar type, so a custom registration adds to
 that set. The parameterless serializer constructors still exist and use the built-ins only.
 
+Each package has exactly one registration type: the callback parameter *is* the registry — the same
+`SystemTextJsonSerializerRegistry` / `NewtonsoftJsonSerializerRegistry` the serializer constructors
+take — rather than an `…SerializerOptions` wrapper that forwarded to it. A lambda body like the one
+above compiles unchanged; only an explicitly typed lambda parameter or a variable of the removed
+`SystemTextJsonSerializerOptions` / `NewtonsoftJsonSerializerOptions` types needs retyping. The one
+member that was not a registration, Newtonsoft's `RegisterTriggerConverters`, is a parameter of the
+extension method:
+
+```diff
+- store.UseNewtonsoftJsonSerializer(json =>
+- {
+-     json.RegisterTriggerConverters = true;
+-     json.AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer());
+- });
++ store.UseNewtonsoftJsonSerializer(
++     json => json.AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer()),
++     registerTriggerConverters: true);
+```
+
 One consequence worth checking: the HTTP API, the dashboard and `Quartz.HttpClient` also serialize triggers,
 and none of them belongs to a single scheduler, so they no longer inherit a scheduler's custom serializers
 for free. They read a container-wide registry — register it as a singleton to make a custom serializer
@@ -1306,11 +1325,19 @@ which made `UseNewtonsoftJsonSerializer` ambiguous when both were referenced.
 |---|---|
 | `Quartz.JsonConfigurationExtensions` (Newtonsoft) | `Quartz.NewtonsoftJsonConfigurationExtensions` |
 | `Quartz.Triggers.ITriggerSerializer`, `TriggerSerializer<T>`, the built-in trigger serializers | `Quartz.Serialization.Newtonsoft.Triggers.*` |
+| `Quartz.ICalendarSerializer`, `Quartz.CalendarSerializer<T>` | `Quartz.Serialization.Newtonsoft.Calendars.*` — the same namespace shape as the System.Text.Json package's `Quartz.Serialization.SystemTextJson.Calendars` |
 | `Quartz.Converters.NameValueCollectionConverter` | `Quartz.Serialization.Newtonsoft.NameValueCollectionConverter` |
 
 `UseNewtonsoftJsonSerializer` itself is unchanged — only the `using` on a file that names one of these types.
 `AddCalendarSerializer<TCalendar>` is now constrained to `ICalendar`, matching the trigger side; a call that
 passed something else was never going to work at runtime.
+
+`ICalendarSerializer` also gained `CalendarTypeName`, closing the last contract gap between the two
+packages. It is a default interface member returning empty, so an existing implementation compiles
+unchanged and keeps its 3.x behavior: matched by the calendar's assembly-qualified type name. When a
+serializer provides a name, the registry indexes it under both — the assembly-qualified key always
+stays registered, because that is what `CALENDARS.CALENDAR` payloads written by 3.x carry. Calendar
+lookups are case-insensitive now, matching the trigger side and the System.Text.Json package.
 
 ### The OpenAPI trigger schema describes the whole payload
 
@@ -2861,7 +2888,7 @@ above cover configuration strings.
 In 3.x, `Quartz.Serialization.Json.Triggers` and `Quartz.Serialization.Json.Calendars` were the
 **Newtonsoft** package's namespaces. In 4.x the same spellings, minus `.Json`, plus `.SystemTextJson`,
 belong to System.Text.Json — and the Newtonsoft package's are `Quartz.Serialization.Newtonsoft.Triggers`
-and `Quartz.Calendars`.
+and `Quartz.Serialization.Newtonsoft.Calendars`.
 
 So a 3.x custom Newtonsoft serializer that is ported by changing its `using` to
 `Quartz.Serialization.SystemTextJson.Triggers` compiles against the *System.Text.Json* base class, and then
@@ -4511,6 +4538,10 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `TryGetDateTime` parses with `DateTimeStyles.RoundtripKind` | **Behavioral**: a stored string ending in `Z` now returns the UTC clock reading with `Kind=Utc` instead of a local-shifted `Kind=Local` value — see [`PutAsString` writes round-trip formats now](#putasstring-writes-round-trip-formats-now) |
 | `PutAsString(string, Guid?)` removed | `null` wrote a present-but-null entry no reader could read back — see [`PutAsString(string, Guid?)` is gone](#putasstring-string-guid-is-gone) |
 | `DateOnly`/`TimeOnly`/enum accessors, `PutAsString(DateOnly/TimeOnly)` and `TryGet<T>` added | Additive; job data catches up with the types 4.0 made primary |
+| `SystemTextJsonSerializerOptions` and `NewtonsoftJsonSerializerOptions` removed | The `Use*JsonSerializer` callback hands you the registry itself; lambda bodies compile unchanged, `RegisterTriggerConverters` is a parameter — see [Custom trigger and calendar serializers are no longer static](#custom-trigger-and-calendar-serializers-are-no-longer-static) |
+| Newtonsoft `ICalendarSerializer.CalendarTypeName` added (default interface member) | Existing implementations compile unchanged; the registry indexes a named serializer under both the assembly-qualified name (which 3.x payloads carry, and always stays) and the discriminator, case-insensitively — see [Newtonsoft types moved out of the core namespaces](#newtonsoft-types-moved-out-of-the-core-namespaces) |
+| Newtonsoft calendar contracts moved to `Quartz.Serialization.Newtonsoft.Calendars` | Namespace symmetry with `Quartz.Serialization.SystemTextJson.Calendars`; source-only |
+| `RecurrenceTriggerSerializer` unsealed in both packages | It was the one sealed built-in trigger serializer; deriving from a built-in serializer for a subclassed trigger is a supported scenario on all five |
 | `ISchedulerFactory.GetAllSchedulers` returns `ValueTask<List<IScheduler>>` | Quartz returns concrete collection types from its query members for allocation and enumeration cost; this was the one that did not |
 | `IInstanceIdGenerator.GenerateInstanceId` returns `ValueTask<string>` | It never returned null, and a null instance id is not a usable one |
 | An `IJobStore` that implements `IJobListener` no longer receives events automatically | Register it as a job listener through the scheduler's `IListenerManager` |
@@ -4690,7 +4721,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Impl.AdoJobStore.JobStoreTX` | Renamed `LocalTransactionJobStore` | As above — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
 | `Quartz.Simpl.JsonObjectSerializer` | Renamed `Quartz.Serialization.Newtonsoft.NewtonsoftJsonObjectSerializer` | `UseNewtonsoftJsonSerializer()` registers it — see [JSON Serialization](#json-serialization) |
 | `Quartz.JsonSchedulingOptions` | Merged into `FileSchedulingOptions` | It was byte-for-byte identical to `XmlSchedulingOptions` — see [Other Breaking Changes](#other-breaking-changes) |
-| `Quartz.JsonSerializerOptions` | Renamed `Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerOptions` | See [Newtonsoft types moved out of the core namespaces](#newtonsoft-types-moved-out-of-the-core-namespaces) |
+| `Quartz.JsonSerializerOptions` | Removed | `UseNewtonsoftJsonSerializer`'s callback hands you the `NewtonsoftJsonSerializerRegistry` itself, with `registerTriggerConverters` as a parameter of the method — see [Custom trigger and calendar serializers are no longer static](#custom-trigger-and-calendar-serializers-are-no-longer-static) |
 | `Quartz.Logging.LogProviders.LibLogException` | Removed with LibLog | No replacement — see [Logging](#logging) |
 | `Quartz.Core.ListenerManagerImpl` | Internal | `IScheduler.ListenerManager`, typed `IListenerManager` — see [Listener API Changes](#listener-api-changes) |
 | `Quartz.Logging.LogContext` | Removed with LibLog | `LogProvider.SetLogProvider(ILoggerFactory)` — see [Logging](#logging) |

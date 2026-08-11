@@ -223,6 +223,12 @@ class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
 }
 ```
 
+A serializer can optionally override `CalendarTypeName` to give the calendar a serializer-neutral
+name — the same discriminator the System.Text.Json package would use for it. The registry then finds
+the serializer under that name as well as under the calendar's assembly-qualified type name, so a
+payload written by either package resolves. Leave it unset and the serializer answers only to the
+assembly-qualified name, which is what payloads written by 3.x carry.
+
 **Configuring custom calendar serializer**
 
 ```csharp
