@@ -40,7 +40,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public abstract class JobStoreSupport : IJobStore
+public abstract class AdoJobStoreBase : IJobStore
 {
     private readonly bool useProperties;
     private readonly Dictionary<string, ICalendar?> calendarCache = [];
@@ -60,9 +60,9 @@ public abstract class JobStoreSupport : IJobStore
     private readonly ITriggerPersistenceDelegate[] triggerPersistenceDelegates;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
+    /// Initializes a new instance of the <see cref="AdoJobStoreBase"/> class.
     /// </summary>
-    protected JobStoreSupport(
+    protected AdoJobStoreBase(
         ISchedulerSignaler schedulerSignaler,
         ITypeLoadHelper typeLoadHelper,
         TimeProvider timeProvider,
@@ -84,7 +84,7 @@ public abstract class JobStoreSupport : IJobStore
         InstanceId = schedulerOptions.Value.InstanceId;
 
         // Created from the runtime type, so LocalTransactionJobStore and ExternalTransactionJobStore log
-        // under their own names rather than everything arriving as JobStoreSupport.
+        // under their own names rather than everything arriving as AdoJobStoreBase.
         Logger = LogProvider.CreateLogger(GetType().FullName!);
         ConnectionManager = connectionManager;
 
@@ -1696,7 +1696,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Delete a job and its listeners.
     /// </summary>
-    /// <seealso cref="JobStoreSupport.DeleteJob(ConnectionAndTransactionHolder, JobKey, bool, CancellationToken)" />
+    /// <seealso cref="AdoJobStoreBase.DeleteJob(ConnectionAndTransactionHolder, JobKey, bool, CancellationToken)" />
     /// <seealso cref="DeleteTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail, CancellationToken)" />
     private async ValueTask<bool> DeleteJobAndChildren(
         ConnectionAndTransactionHolder conn,

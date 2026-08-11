@@ -134,7 +134,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
 
             // The job store was constructed before the id existed, and its rows are keyed by it, so it
             // has to be told the generated value rather than keeping the placeholder.
-            if (resources.JobStore is JobStoreSupport persistentStore)
+            if (resources.JobStore is AdoJobStoreBase persistentStore)
             {
                 persistentStore.InstanceId = resources.InstanceId;
                 persistentStore.InstanceName = resources.Name;

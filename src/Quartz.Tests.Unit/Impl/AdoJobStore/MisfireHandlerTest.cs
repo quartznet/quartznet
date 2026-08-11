@@ -36,7 +36,7 @@ public class MisfireHandlerTest
     public async Task Shutdown_ShouldNotDeadlock_WhenDisposedBeforeTaskStarts()
     {
         // Arrange
-        var jobStoreSupport = new TestJobStoreSupport();
+        var jobStoreSupport = new TestAdoJobStoreBase();
         var misfireHandler = new MisfireHandler(jobStoreSupport);
 
         // Act - Initialize the handler and immediately shut it down
@@ -57,7 +57,7 @@ public class MisfireHandlerTest
     public async Task Shutdown_ShouldComplete_WhenTaskIsRunning()
     {
         // Arrange
-        var jobStoreSupport = new TestJobStoreSupport();
+        var jobStoreSupport = new TestAdoJobStoreBase();
         var misfireHandler = new MisfireHandler(jobStoreSupport);
 
         // Act - Initialize and give the task time to start
@@ -165,9 +165,9 @@ public class MisfireHandlerTest
         }
     }
 
-    private sealed class TestJobStoreSupport : JobStoreSupport
+    private sealed class TestAdoJobStoreBase : AdoJobStoreBase
     {
-        public TestJobStoreSupport()
+        public TestAdoJobStoreBase()
         // A short misfire handler frequency so that if the Run loop starts, it quickly checks the
         // cancellation token and exits, letting shutdown tests complete faster.
         : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(configure: options => options.MisfireHandlerFrequency = TimeSpan.FromMilliseconds(100)), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())

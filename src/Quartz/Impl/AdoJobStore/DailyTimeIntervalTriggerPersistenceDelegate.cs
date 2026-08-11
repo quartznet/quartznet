@@ -35,7 +35,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <see cref="IDailyTimeIntervalTrigger"/>
 /// <author>Zemian Deng saltnlight5@gmail.com</author>
 /// <author>Nuno Maia (.NET)</author>
-public sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
+public sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateBase
 {
     public override bool CanHandleTriggerType(IOperableTrigger trigger)
     {

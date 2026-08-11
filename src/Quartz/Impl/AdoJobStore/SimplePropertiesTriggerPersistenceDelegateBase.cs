@@ -36,7 +36,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <seealso cref="CalendarIntervalTriggerPersistenceDelegate" />
 /// <author>jhouse</author>
 /// <author>Marko Lahma (.NET)</author>
-public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITriggerPersistenceDelegate
+public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerPersistenceDelegate
 {
     // The table and column names are the schema contract a derived delegate reads its own values back
     // from, so they stay protected. The four statements below are not: they name every column this base

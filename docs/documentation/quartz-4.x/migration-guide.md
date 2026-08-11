@@ -1378,7 +1378,7 @@ on `QuartzSchedulerResources` are `QuartzSchedulerOptions`.
 
 **`StdAdoConstants` and `IAdoUtil` are internal, and constants are no longer inherited.** `AdoConstants` stays
 public — table, column and state names are a real contract for delegate authors — but it is a `static class`
-now, and `JobStoreSupport`, `StdAdoDelegate` and `DbSemaphore` no longer derive from it or from
+now, and `AdoJobStoreBase`, `StdAdoDelegate` and `DbSemaphore` no longer derive from it or from
 `StdAdoConstants`:
 
 ```diff
@@ -1400,7 +1400,7 @@ longer sees it — derive from `DbSemaphore` and use `IDbProvider`, or implement
 `CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and
 `DailyTimeIntervalTriggerPersistenceDelegate` join `CalendarIntervalTriggerPersistenceDelegate` and
 `RecurrenceTriggerPersistenceDelegate`. All five are `sealed`; write your own against
-`SimplePropertiesTriggerPersistenceDelegateSupport` or `ITriggerPersistenceDelegate`.
+`SimplePropertiesTriggerPersistenceDelegateBase` or `ITriggerPersistenceDelegate`.
 
 **`SchedulerConstants` is a static class** rather than a struct, and `QuartzOptions`, `SchedulingOptions`
 and `QuartzHostedServiceOptions` are `sealed`. **`MisfireInstruction` is internal** — see
@@ -2240,7 +2240,7 @@ mutation side now agrees with the listing side about it. A listing has always re
 pauses it. Storing such a trigger back writes `WAITING` rather than preserving the unrecognised value.
 
 `MisfiredTriggerUpdate.NewState` and `TriggerExecutionState.State` (and its constructor) carry the enum too.
-On `JobStoreSupport`, the protected members that pass a state through follow: `AddTrigger`,
+On `AdoJobStoreBase`, the protected members that pass a state through follow: `AddTrigger`,
 `UpdateMisfiredTrigger` and `CheckBlockedState`, the last of which now returns
 `ValueTask<StoredTriggerState>`.
 
@@ -2328,6 +2328,14 @@ They now say it:
 itself; it stays the default and the one nearly everybody wants. `ExternalTransactionJobStore` runs
 inside a transaction somebody else owns and neither commits nor rolls back.
 
+Their abstract base follows the same cleanup: `JobStoreSupport` is **`AdoJobStoreBase`**, so
+`LocalTransactionJobStore : AdoJobStoreBase` says what it is instead of carrying the Java/Spring
+`*Support` idiom the listener bases already shed. For the same reason
+`SimplePropertiesTriggerPersistenceDelegateSupport` — the base class for a custom trigger type's
+persistence delegate — is **`SimplePropertiesTriggerPersistenceDelegateBase`**. Both are abstract
+types: they are never spelled in configuration strings and never stored as `$type` values, so there
+is no fallback to need — a subclass updates the name in its base list and recompiles.
+
 **Configuration naming either as a string keeps working.** `quartz.jobStore.type` is the one type name
 almost every persistent configuration spells out, so both old names resolve through the same fallback as
 the [renamed namespaces](#quartz-spi-and-quartz-simpl-were-renamed), with a warning telling you what to
@@ -2345,7 +2353,7 @@ Code that names the type — `UsePersistentStore<JobStoreTX>()`, a subclass, a `
 ### The vocabulary follows
 
 The "non-managed TX" phrasing went with the old names. The members it appeared in are protected, so this
-only reaches a `JobStoreSupport` subclass:
+only reaches a `AdoJobStoreBase` subclass:
 
 | 3.x / earlier 4.0 preview | 4.0 |
 |---|---|
@@ -2366,7 +2374,7 @@ guarantee the write landed before `Initialize` ran:
 
 ## Nine `Execute…Lock` overloads became four members
 
-`JobStoreSupport` had nine overlapping ways to run a callback under a lock, three of which existed only to
+`AdoJobStoreBase` had nine overlapping ways to run a callback under a lock, three of which existed only to
 adapt a `void` callback and did so by returning `object` — a value that was always `null` and was never
 read. Optional parameters replace the ladder:
 
@@ -2396,7 +2404,7 @@ type, with members `TriggerAccess` and `StateAccess`.
 + ValueTask ReleaseLock(Guid requestorId, SchedulerLock lockKind, CancellationToken ct = default);
 ```
 
-`JobStoreSupport.LockTriggerAccess` and `LockStateAccess` are gone with the strings they held. **Nothing
+`AdoJobStoreBase.LockTriggerAccess` and `LockStateAccess` are gone with the strings they held. **Nothing
 changes in the database**: the `LOCK_NAME` column still holds `TRIGGER_ACCESS` and `STATE_ACCESS`, the
 conversion happens where the row is written, and a 4.0 node contends for the same rows as a 3.x one. The
 same applies to `Quartz.Extensions.Redis`, whose keys keep their `…:TRIGGER_ACCESS` spelling.
@@ -2406,7 +2414,7 @@ bound into the statement.
 
 ## The job store configuration is read-only, and no longer a public currency
 
-Twenty-odd `JobStoreSupport` properties duplicated `AdoJobStoreOptions` and `QuartzSchedulerOptions` with
+Twenty-odd `AdoJobStoreBase` properties duplicated `AdoJobStoreOptions` and `QuartzSchedulerOptions` with
 a public setter. Writing one after the store had started did nothing useful in most cases and quietly
 diverged from the options everything else reads — and reading store configuration through a downcast
 `IJobStore` was a second currency for options that are already injectable. They are get-only and no
@@ -2432,7 +2440,7 @@ configuring goes where it always did in 4.0:
 + })));
 ```
 
-`MisfireThreshold` deliberately keeps its public setter on both `JobStoreSupport` and `RAMJobStore`: it
+`MisfireThreshold` deliberately keeps its public setter on both `AdoJobStoreBase` and `RAMJobStore`: it
 is read on every misfire pass rather than only at startup.
 
 Two properties that nothing read are gone rather than made read-only: `DriverDelegateType` (the delegate is
@@ -2444,7 +2452,7 @@ and a log helper, neither of which a subclass has any business in. The `[TimeSpa
 these properties are gone too; they are read only when a component's settings arrive as strings, which for
 this store they no longer do.
 
-### `JobStoreSupport`'s overridable surface is a decision now
+### `AdoJobStoreBase`'s overridable surface is a decision now
 
 The base store had 56 `protected virtual` members — every internal step of every operation was an
 override point, which 4.0 would have frozen as a behavior contract by default. The seam is curated
@@ -2551,7 +2559,7 @@ so the lock rows follow the store's table prefix without separate configuration.
 
 ## A job store of your own can join your transaction
 
-`JobStoreSupport` is public and abstract, but everything needed to honour an enlisted transaction was
+`AdoJobStoreBase` is public and abstract, but everything needed to honour an enlisted transaction was
 `private protected`, so a store outside this assembly could not take part in one — it could only open a
 connection of its own while the caller believed the scheduling was inside their transaction.
 
@@ -2583,7 +2591,7 @@ for a store that borrows a connection from somewhere else entirely. Owning nothi
 nothing — `Commit`, `Rollback`, `Close` and `Dispose` all return without touching a borrowed connection.
 
 `Commit(bool)` and `Rollback(bool)` are internal: when the unit of work commits is the job store's
-decision, and `JobStoreSupport.CommitConnection` / `.RollbackConnection` are the seams a subclass
+decision, and `AdoJobStoreBase.CommitConnection` / `.RollbackConnection` are the seams a subclass
 overrides. `Close` stays public.
 
 ## The driver delegate speaks in records
@@ -2757,7 +2765,7 @@ wants the in-memory behaviour plus something of its own wraps it, deriving from 
 `UsePersistentStore<TStore>()` and `quartz.jobStore.type` take the wrapping store exactly as they took the
 derived one; the `Quartz.Examples.AspNetCore` sample's `CustomJobStore` shows the whole shape.
 
-`MisfireThreshold` keeps its setter here as it does on `JobStoreSupport`: it is read on every misfire pass
+`MisfireThreshold` keeps its setter here as it does on `AdoJobStoreBase`: it is read on every misfire pass
 rather than only at startup.
 
 ### `DelegatingJobStore` decorates a store
@@ -3069,7 +3077,7 @@ if you only call `IScheduler`, nothing here affects you.
 | `AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits)` | `AcquireNextTriggers(TriggerAcquisitionRequest)` |
 
 The `bool` that decides whether an existing item is over-written is called `replace` on every member; it was
-`replaceExisting` on some. The `protected` `JobStoreSupport` members that mirror these — the
+`replaceExisting` on some. The `protected` `AdoJobStoreBase` members that mirror these — the
 `ConnectionAndTransactionHolder` overloads, and `AcquireNextTrigger` — were renamed with them.
 
 The activity names in `Quartz.Diagnostics.OperationName.JobStore` follow the methods they name, so a trace
@@ -3093,7 +3101,7 @@ above.
 batching window, per-execution-group limits, node affinity — and each one used to be another parameter on the
 hot path of every store. As a record, the next one is an added optional property a store can ignore. It is the
 store-level counterpart of the delegate-level `TriggerAcquisitionCriteria`, which is unchanged. `TimeWindow`
-rejects a negative value at construction, where `JobStoreSupport` used to throw from inside acquisition.
+rejects a negative value at construction, where `AdoJobStoreBase` used to throw from inside acquisition.
 
 ## Options records replace boolean parameters
 
@@ -3502,7 +3510,7 @@ The delimited `quartz.jobStore.driverDelegateInitString` format this replaces �
 one supported setting under two spellings, type names instantiated by reflection — is gone from the
 API: `DelegateInitializationArgs.InitString` was replaced by a typed `TriggerPersistenceDelegates`
 collection, and `AdoJobStoreOptions.DriverDelegateInitString` went with it (as did the
-`JobStoreSupport` property mirroring it). **The legacy key itself keeps working**: the property bridge
+`AdoJobStoreBase` property mirroring it). **The legacy key itself keeps working**: the property bridge
 translates `quartz.jobStore.driverDelegateInitString = triggerPersistenceDelegateTypes=...` (and the
 older `triggerPersistenceDelegateClasses` spelling, with both of its list separators) into the same
 registrations `UseTriggerPersistenceDelegate<T>()` produces. A misspelled setting name inside the
@@ -4691,9 +4699,9 @@ Parameters and behavior are unchanged:
 | `JobBuilder.OfType(JobType)` added | Carries a stored type name and its resolver through a rebuild without forcing the name to resolve; `OfType(string)` constructs an unvalidated `JobType` for the same reason |
 | `RecoveringTriggerKey` behavior | `IJobExecutionContext.RecoveringTriggerKey` now returns `null` when not recovering instead of throwing |
 | `DictionaryExtensions` removed | `Quartz.Util.DictionaryExtensions` type was removed |
-| `JobStoreSupport` connection methods | `GetLocalTransactionConnection` (was `GetNonManagedTXConnection`) and `GetConnection` now return `ValueTask<ConnectionAndTransactionHolder>` |
+| `AdoJobStoreBase` connection methods | `GetLocalTransactionConnection` (was `GetNonManagedTXConnection`) and `GetConnection` now return `ValueTask<ConnectionAndTransactionHolder>` |
 | `JobStoreSupport.UseProperties` `string` setter removed | The `bool` `AdoJobStoreOptions.UseProperties` option and the read-only `CanUseProperties` remain; the property bridge parses the key |
-| Protected `JobStoreSupport` / `StdAdoDelegate` members take a `CancellationToken` | Overrides have to add the parameter; callers do not |
+| Protected `AdoJobStoreBase` / `StdAdoDelegate` members take a `CancellationToken` | Overrides have to add the parameter; callers do not |
 | `ConnectionAndTransactionHolder.Close` takes a `CancellationToken` | `.Commit` and `.Rollback` took one too, and are now internal — see [A job store of your own can join your transaction](#a-job-store-of-your-own-can-join-your-transaction) |
 | `IJobConfigurator<TJob>` members return `IJobConfigurator<TJob>` | `JobBuilder<TJob>` implements them explicitly and keeps its own `JobBuilder<TJob>`-returning members, so `JobBuilder.Create()…` chains are unaffected — see [Job data can name the property](#job-data-can-name-the-property) for the type parameter |
 | `UsingJobData` takes an `object?` | The nine primitive overloads collapsed into one — see [Nine `UsingJobData` overloads became one](#nine-usingjobdata-overloads-became-one) |
@@ -4706,7 +4714,7 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.IsTriggerCurrentlyExecuting` removed | Replaced by `SelectTriggerStateWithExecuting`, which reads the state and the execution in one statement and returns `TriggerExecutionState` |
 | `StdAdoConstants.SqlSelectCountExecutingFiredTriggersOfTrigger` removed | Removed with the method that used it; the per-job `SqlSelectCountExecutingFiredTriggersOfJob` remains — both on what is now an internal type |
 | `StdAdoConstants` and `IAdoUtil` are internal | Statement text is not a contract; the schema names stay public on `AdoConstants`, which is a static class rather than a base class |
-| Trigger persistence delegates are all public and `sealed` | `CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and `DailyTimeIntervalTriggerPersistenceDelegate` were internal; derive from `SimplePropertiesTriggerPersistenceDelegateSupport` for a delegate of your own |
+| Trigger persistence delegates are all public and `sealed` | `CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and `DailyTimeIntervalTriggerPersistenceDelegate` were internal; derive from `SimplePropertiesTriggerPersistenceDelegateBase` for a delegate of your own |
 | `SchedulerConstants` is a `static class` | It was a `struct` holding only `const`s; constant references are unchanged |
 | `MisfireInstruction` is internal | The five per-family enums are the vocabulary; every constant has an enum member with the same value |
 | `QuartzOptions`, `SchedulingOptions`, `QuartzHostedServiceOptions` are `sealed` | `QuartzHostedService` itself stays open for `AddQuartzHostedService<T>` |
@@ -4742,7 +4750,7 @@ Parameters and behavior are unchanged:
 | `QuartzSchedulerBuilder` implements `IQuartzBuilder` | Its five duplicated members and `Configure(Action<IQuartzBuilder>)` are gone, and configuration members return `IQuartzBuilder`, so `Build()` is called on a builder held in a variable — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
 | `IQuartzBuilder` gained `UseThreadPool(IThreadPool)` and `UseJobStore(IJobStore)` | A pre-built part can be handed to a scheduler registered with `AddQuartz`, not only to a standalone one |
 | Clustering settings moved to `ClusteringOptions` | `AdoJobStoreOptions.Clustered` and the two `ClusterCheckin*` settings are gone; `IJobStore.Clustered` reports the state rather than setting it — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
-| `JobStoreSupport`'s constructor takes `IOptions<ClusteringOptions>` | Between `storeOptions` and `objectSerializer`; a job store deriving from it has to pass one on |
+| `AdoJobStoreBase`'s constructor takes `IOptions<ClusteringOptions>` | Between `storeOptions` and `objectSerializer`; a job store deriving from it has to pass one on |
 | `UseSQLite` is `UseSystemDataSqlite`, `UseMicrosoftSQLite` is `UseSqlite` | **The short name changed meaning** — see [The SQLite extension methods swapped names](#the-sqlite-extension-methods-swapped-names) |
 | `UseDataSourceConnectionProvider()` removed | `DataSourceOptions.UseRegisteredDataSource`, which is what it set |
 | `AddDataSourceProvider()` removed | Its other half. It registered `DataSourceDbProvider` in the container for `UseDataSourceConnectionProvider()` to name; `UseRegisteredDataSource` builds the provider itself from the registered `DbDataSource` — see [`AddDataSourceProvider()` went with it](#adddatasourceprovider-went-with-it) |
@@ -4768,23 +4776,23 @@ Parameters and behavior are unchanged:
 | `StdAdoDelegate.AddPagingParameters(cmd, int skip, int take, bool)` | `skip`/`take` were `long` while `PagedQuery.Skip`/`.Take` are `int`; the dialect override contract now matches the query object it serves |
 | `StdAdoDelegate`'s date/time and time-span conversions are non-virtual | UTC ticks and whole milliseconds are the schema contract the liveness SQL assumes; only the boolean pair remains a dialect seam. A delegate that changes the storage format implements `IDriverDelegate` itself — see [If you implement `IDriverDelegate`](#if-you-implement-idriverdelegate) |
 | `JobStoreTX` is `LocalTransactionJobStore`, `JobStoreCMT` is `ExternalTransactionJobStore` | The names now say whose transaction the store uses. `quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz` and the `JobStoreCMT` spelling still resolve, with a warning — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
-| `GetNonManagedTXConnection`, `ExecuteInNonManagedTXLock`, `RetryExecuteInNonManagedTXLock` renamed | `GetLocalTransactionConnection`, `ExecuteInLocalTransactionLock`, `RetryExecuteInLocalTransactionLock`; protected, so only a `JobStoreSupport` subclass sees them |
-| `JobStoreSupport`'s nine `Execute…Lock` overloads became four members | Optional parameters replace the ladder, and no member returns `object` as a stand-in for `void` any more — see [Nine `Execute…Lock` overloads became four members](#nine-execute-lock-overloads-became-four-members) |
+| `GetNonManagedTXConnection`, `ExecuteInNonManagedTXLock`, `RetryExecuteInNonManagedTXLock` renamed | `GetLocalTransactionConnection`, `ExecuteInLocalTransactionLock`, `RetryExecuteInLocalTransactionLock`; protected, so only a `AdoJobStoreBase` subclass sees them |
+| `AdoJobStoreBase`'s nine `Execute…Lock` overloads became four members | Optional parameters replace the ladder, and no member returns `object` as a stand-in for `void` any more — see [Nine `Execute…Lock` overloads became four members](#nine-execute-lock-overloads-became-four-members) |
 | `ExternalTransactionJobStore.OpenConnection` moved to `AdoJobStoreOptions.OpenConnection` | The last store setting outside the options system; the store reads it once at construction — see [Nine `Execute…Lock` overloads became four members](#nine-execute-lock-overloads-became-four-members) |
 | `ISemaphore` takes a `SchedulerLock` | The `string lockName` had two legal values. The `LOCK_NAME` column and the Redis keys are unchanged — see [Locks are a `SchedulerLock`, not a string](#locks-are-a-schedulerlock-not-a-string) |
-| `JobStoreSupport.LockTriggerAccess` / `.LockStateAccess` removed | `SchedulerLock.TriggerAccess` / `.StateAccess` replace the two protected constants |
-| ~25 `JobStoreSupport` configuration properties are read-only and `protected`/internal | They duplicated `AdoJobStoreOptions` / `QuartzSchedulerOptions`; resolve `IOptions<AdoJobStoreOptions>` to read, configure the options to write. `MisfireThreshold` deliberately stays settable, and the `IJobStore` members stay public — see [The job store configuration is read-only](#the-job-store-configuration-is-read-only-and-no-longer-a-public-currency) |
+| `AdoJobStoreBase.LockTriggerAccess` / `.LockStateAccess` removed | `SchedulerLock.TriggerAccess` / `.StateAccess` replace the two protected constants |
+| ~25 `AdoJobStoreBase` configuration properties are read-only and `protected`/internal | They duplicated `AdoJobStoreOptions` / `QuartzSchedulerOptions`; resolve `IOptions<AdoJobStoreOptions>` to read, configure the options to write. `MisfireThreshold` deliberately stays settable, and the `IJobStore` members stay public — see [The job store configuration is read-only](#the-job-store-configuration-is-read-only-and-no-longer-a-public-currency) |
 | The seven conn-taking `Pause…`/`Resume…`/`RecoverMisfiredJobs` overloads are `protected` | They took a `ConnectionAndTransactionHolder` no caller outside the store can obtain; call the public keyed overloads, which take the lock and the connection themselves |
-| `JobStoreSupport`'s virtual surface is a curated seam | Only `Initialize`, `Shutdown`, `GetConnection`, `GetLocalTransactionConnection`, `ExecuteInLock<T>`, `IsTransient`, `AcquireNextTriggers` and `GetFiredTriggerRecordId` remain overridable; the other ~75 members were virtual by default, not by design, and freezing the store's internal call order as a behavior contract would have made it unrefactorable |
-| `JobStoreSupport.DriverDelegateType` and `.DontSetAutoCommitFalse` removed | Nothing read either one; the driver delegate is injected |
+| `AdoJobStoreBase`'s virtual surface is a curated seam | Only `Initialize`, `Shutdown`, `GetConnection`, `GetLocalTransactionConnection`, `ExecuteInLock<T>`, `IsTransient`, `AcquireNextTriggers` and `GetFiredTriggerRecordId` remain overridable; the other ~75 members were virtual by default, not by design, and freezing the store's internal call order as a behavior contract would have made it unrefactorable |
+| `AdoJobStoreBase.DriverDelegateType` and `.DontSetAutoCommitFalse` removed | Nothing read either one; the driver delegate is injected |
 | `AdoJobStoreOptions.DontSetAutoCommitFalse` removed | The option the deleted store property mirrored. No code path read it and no `quartz.*` key set it, so setting it configured nothing |
-| `JobStoreSupport.LastCheckin` is internal, `LogWarnIfNonZero` is private | Cluster check-in bookkeeping and a logging helper, neither of them an extension point |
-| `JobStoreSupport.RecoverJobs(CancellationToken)` returns `ValueTask` | The `bool` it returned was the constant `true` |
+| `AdoJobStoreBase.LastCheckin` is internal, `LogWarnIfNonZero` is private | Cluster check-in bookkeeping and a logging helper, neither of them an extension point |
+| `AdoJobStoreBase.RecoverJobs(CancellationToken)` returns `ValueTask` | The `bool` it returned was the constant `true` |
 | `DbSemaphore.LockSql` (was `Sql`) and `InsertSql` are get-only, fed by the constructor | Assigning one after construction left it un-prefixed relative to its pair — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | The row-lock semaphores are named for the SQL they issue | `StdRowLockSemaphore` is `SelectForUpdateSemaphore`, `UpdateLockRowSemaphore` is `UpdateRowSemaphore`, `PostgreSQLRowLockSemaphore` is `PostgreSqlSelectForUpdateSemaphore`, `UpdateLockRowSemaphoreMOT` is `SqlServerMemoryOptimizedUpdateRowSemaphore`. `quartz.jobStore.lockHandler.type` naming an old one still resolves, with a warning — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | Row-lock semaphore SQL fields are `protected const` and consistently named | `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateRowSemaphore.UpdateForLock` / `.InsertLock`; `SelectForUpdateSemaphore.SelectForLock` / `.InsertLock` keep their member names |
 | `ISemaphore.Initialize(SemaphoreContext)` replaces `ITablePrefixAware` | Identity arrives through one initialization call instead of a property pair; the default implementation does nothing — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
-| `JobStoreSupport.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
+| `AdoJobStoreBase.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
 | `ConnectionAndTransactionHolder` gained an ownership-aware constructor and `OwnsResources` | `(connection, transaction, ownsResources)` for a store running on a connection it did not open |
 | `ConnectionAndTransactionHolder` is `IAsyncDisposable` | `await using` is the form to prefer in an async method — the provider closes its connection without blocking a thread. Purely additive; `using` keeps working, and both disposal paths now log failures at debug instead of swallowing them |
 | `FiredTriggerRecord`, `RecoverMisfiredJobsResult`, `DelegateInitializationArgs` are `sealed record`s | Immutable, with `required` / `init` members instead of settable ones — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
@@ -4801,7 +4809,7 @@ Parameters and behavior are unchanged:
 | `IDbConnectionManager` / `DbConnectionManager` moved to `Quartz.Impl.AdoJobStore.Common` | And `AddConnectionProvider` / `GetConnectionProvider` are `AddDbProvider` / `GetDbProvider` — see [The connection manager lives with the other ADO.NET types](#the-connection-manager-lives-with-the-other-ado-net-types) |
 | `DbMetadataFactory` is internal | Every implementation was already internal and no public member accepted one; describe a driver through `UseGenericDatabase`'s metadata callback |
 | `DbProvider.PropertyDbProvider` and `.DbProviderResourceName` removed | Two `protected const`s nothing read, left over from the process-wide provider registry |
-| `SimplePropertiesTriggerPersistenceDelegateSupport`'s four SQL statements are private | `SelectSimplePropsTrigger`, `DeleteSimplePropsTrigger`, `InsertSimplePropsTrigger` and `UpdateSimplePropsTrigger` name every column the base class binds, so replacing one could not work. The table and column name constants stay `protected` — they are the schema contract |
+| `SimplePropertiesTriggerPersistenceDelegateBase`'s four SQL statements are private | `SelectSimplePropsTrigger`, `DeleteSimplePropsTrigger`, `InsertSimplePropsTrigger` and `UpdateSimplePropsTrigger` name every column the base class binds, so replacing one could not work. The table and column name constants stay `protected` — they are the schema contract |
 | `RAMJobStore` is `sealed` and has no `virtual` members | Wrap it in a store deriving from the new `DelegatingJobStore` instead of deriving from it — see [`RAMJobStore` is sealed](#ramjobstore-is-sealed) |
 | `Quartz.Impl.DelegatingJobStore` added | Forwards every `IJobStore` member to a wrapped store, each one `virtual`, so a decorating store overrides only what it changes — see [`DelegatingJobStore` decorates a store](#delegatingjobstore-decorates-a-store) |
 | `HostnameInstanceIdGenerator` is `HostNameInstanceIdGenerator` | Casing matched to `HostNameBasedIdGenerator`. The type is internal; a `quartz.scheduler.instanceIdGenerator.type` still naming the old spelling resolves, with a warning |
@@ -4846,7 +4854,7 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.SelectNumTriggersForJob` is `CountTriggersForJob` | Matching `CountMisfiredTriggersInState`, and spelling out the last `Num` |
 | `SimpleTriggerImpl.ComputeNumTimesFiredBetween` is `ComputeNumberOfTimesFiredBetween` | As above |
 | `TriggerAcquireResult.JobType` is `JobTypeName` | It holds `JOB_CLASS_NAME` — a type name, the same thing `JobHeader.JobTypeName` carries — and was documented as a discriminator, which it is not. `TriggerHeader.TriggerType` really is a discriminator and keeps its name |
-| Parameter names spelled out on the ADO.NET surface | `IDriverDelegate.SelectJobDetail`'s `classLoadHelper` is `loadHelper` (the implementation already called it that, so named arguments disagreed with the interface); `ts` is `misfireTime`; `JobStoreSupport.ReleaseLock`'s `doIt` is `shouldRelease`; `StdAdoDelegate.AddTriggerPersistenceDelegate`'s `del` is `persistenceDelegate`; `TriggerPropertyBundle`'s `sb` is `scheduleBuilder`; `CronTriggerImpl.WillFireOn`'s `test` is `timeUtc`; `TriggerFireTimes.Compute`'s `numTimes` is `numberOfTimes` |
+| Parameter names spelled out on the ADO.NET surface | `IDriverDelegate.SelectJobDetail`'s `classLoadHelper` is `loadHelper` (the implementation already called it that, so named arguments disagreed with the interface); `ts` is `misfireTime`; `AdoJobStoreBase.ReleaseLock`'s `doIt` is `shouldRelease`; `StdAdoDelegate.AddTriggerPersistenceDelegate`'s `del` is `persistenceDelegate`; `TriggerPropertyBundle`'s `sb` is `scheduleBuilder`; `CronTriggerImpl.WillFireOn`'s `test` is `timeUtc`; `TriggerFireTimes.Compute`'s `numTimes` is `numberOfTimes` |
 
 ## Appendix: what happened to a name
 
@@ -4923,6 +4931,8 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Core.JobRunShell` | Internal | No replacement; use `IJobListener` to observe a fire |
 | `Quartz.Impl.AdoJobStore.JobStoreCMT` | Renamed `ExternalTransactionJobStore` | The old spelling still resolves in configuration, with a warning — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
 | `Quartz.Impl.AdoJobStore.JobStoreTX` | Renamed `LocalTransactionJobStore` | As above — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
+| `Quartz.Impl.AdoJobStore.JobStoreSupport` | Renamed `AdoJobStoreBase` | Abstract, never a configuration string, so no fallback is needed; a derived store updates its base list — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
+| `Quartz.Impl.AdoJobStore.SimplePropertiesTriggerPersistenceDelegateSupport` | Renamed `SimplePropertiesTriggerPersistenceDelegateBase` | As above |
 | `Quartz.Simpl.JsonObjectSerializer` | Renamed `Quartz.Serialization.Newtonsoft.NewtonsoftJsonObjectSerializer` | `UseNewtonsoftJsonSerializer()` registers it — see [JSON Serialization](#json-serialization) |
 | `Quartz.JsonSchedulingOptions` | Merged into `FileSchedulingOptions` | It was byte-for-byte identical to `XmlSchedulingOptions` — see [Other Breaking Changes](#other-breaking-changes) |
 | `Quartz.JsonSerializerOptions` | Removed | `UseNewtonsoftJsonSerializer`'s callback hands you the `NewtonsoftJsonSerializerRegistry` itself, with `registerTriggerConverters` as a parameter of the method — see [Custom trigger and calendar serializers are no longer static](#custom-trigger-and-calendar-serializers-are-no-longer-static) |

@@ -11,7 +11,7 @@ internal sealed class MisfireHandler
     // keep constant lock requestor id for handler's lifetime
     private readonly Guid requestorId = Guid.NewGuid();
 
-    private readonly JobStoreSupport jobStoreSupport;
+    private readonly AdoJobStoreBase jobStoreSupport;
     private int numFails;
 
     private readonly CancellationTokenSource cancellationTokenSource;
@@ -22,7 +22,7 @@ internal sealed class MisfireHandler
     // This prevents hanging if the scheduler was disposed before it could schedule the task.
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(1);
 
-    internal MisfireHandler(JobStoreSupport jobStoreSupport)
+    internal MisfireHandler(AdoJobStoreBase jobStoreSupport)
     {
         this.jobStoreSupport = jobStoreSupport;
         logger = LogProvider.CreateLogger<MisfireHandler>();

@@ -61,9 +61,9 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
     /// means committing nothing: whoever owns the transaction decides its outcome, and a rollback here
     /// would discard their work along with the scheduling.
     /// <para>
-    /// A <see cref="JobStoreSupport" /> subclass that wants to honour
+    /// A <see cref="AdoJobStoreBase" /> subclass that wants to honour
     /// <see cref="SchedulerEnlistmentExtensions">enlisted transactions</see> should call
-    /// <see cref="JobStoreSupport.GetEnlistedConnection" /> instead of building the holder itself: it
+    /// <see cref="AdoJobStoreBase.GetEnlistedConnection" /> instead of building the holder itself: it
     /// performs the checks that make an enlistment safe to use and books the connection out for the
     /// duration of the operation.
     /// </para>
@@ -151,7 +151,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
 
     /// <remarks>
     /// Internal because deciding when the unit of work commits is the job store's, not its caller's:
-    /// <see cref="JobStoreSupport.CommitConnection" /> is the seam a subclass overrides.
+    /// <see cref="AdoJobStoreBase.CommitConnection" /> is the seam a subclass overrides.
     /// </remarks>
     internal async ValueTask Commit(bool openNewTransaction, CancellationToken cancellationToken = default)
     {
@@ -299,7 +299,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
 
     /// <remarks>
     /// Internal for the same reason as <see cref="Commit" />:
-    /// <see cref="JobStoreSupport.RollbackConnection" /> is the seam a subclass overrides.
+    /// <see cref="AdoJobStoreBase.RollbackConnection" /> is the seam a subclass overrides.
     /// </remarks>
     internal async ValueTask Rollback(bool transientError, CancellationToken cancellationToken = default)
     {

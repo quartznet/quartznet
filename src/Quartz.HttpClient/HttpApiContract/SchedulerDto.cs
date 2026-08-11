@@ -61,7 +61,7 @@ internal record SchedulerJobStoreDto(string Type, bool Clustered, bool Persisten
 {
     public static SchedulerJobStoreDto Create(SchedulerMetadata metadata)
     {
-        return new SchedulerJobStoreDto(metadata.JobStoreTypeName, metadata.JobStoreClustered, metadata.JobStoreSupportsPersistence);
+        return new SchedulerJobStoreDto(metadata.JobStoreTypeName, metadata.JobStoreClustered, metadata.AdoJobStoreBasesPersistence);
     }
 }
 

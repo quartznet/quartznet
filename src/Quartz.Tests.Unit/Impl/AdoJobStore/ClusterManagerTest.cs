@@ -40,7 +40,7 @@ public class ClusterManagerTest
     public async Task Shutdown_ShouldNotDeadlock_WhenDisposedBeforeTaskStarts()
     {
         // Arrange
-        var jobStoreSupport = new TestJobStoreSupport();
+        var jobStoreSupport = new TestAdoJobStoreBase();
         var clusterManager = new ClusterManager(jobStoreSupport);
 
         // Act - Initialize the manager and immediately shut it down
@@ -61,7 +61,7 @@ public class ClusterManagerTest
     public async Task Shutdown_ShouldComplete_WhenTaskIsRunning()
     {
         // Arrange
-        var jobStoreSupport = new TestJobStoreSupport();
+        var jobStoreSupport = new TestAdoJobStoreBase();
         var clusterManager = new ClusterManager(jobStoreSupport);
 
         // Act - Initialize and give the task time to start
@@ -130,9 +130,9 @@ public class ClusterManagerTest
         timeToSleep.Should().Be(TimeSpan.FromSeconds(15));
     }
 
-    private sealed class TestJobStoreSupport : JobStoreSupport
+    private sealed class TestAdoJobStoreBase : AdoJobStoreBase
     {
-        public TestJobStoreSupport(
+        public TestAdoJobStoreBase(
             ISchedulerSignaler schedulerSignaler,
             ITypeLoadHelper typeLoadHelper,
             TimeProvider timeProvider,
@@ -148,7 +148,7 @@ public class ClusterManagerTest
         {
         }
 
-        public TestJobStoreSupport()
+        public TestAdoJobStoreBase()
         // A short check-in interval so that if the Run loop starts, it quickly checks the
         // cancellation token and exits, letting shutdown tests complete faster.
         : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(configure: options => options.CheckinInterval = TimeSpan.FromMilliseconds(100)), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())

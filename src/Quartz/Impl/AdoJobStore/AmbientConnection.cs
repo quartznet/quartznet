@@ -25,7 +25,7 @@ namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
 /// Keeps track of the connection and transaction that the current asynchronous flow has enlisted
-/// for a given scheduler, so that <see cref="JobStoreSupport" /> can use the unit of work the
+/// for a given scheduler, so that <see cref="AdoJobStoreBase" /> can use the unit of work the
 /// application already owns instead of opening a connection of its own.
 /// </summary>
 /// <remarks>

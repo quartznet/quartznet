@@ -11,15 +11,15 @@ using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
-public class JobStoreSupportTest
+public class AdoJobStoreBaseTest
 {
-    private TestJobStoreSupport jobStoreSupport;
+    private TestAdoJobStoreBase jobStoreSupport;
     private IDriverDelegate driverDelegate;
 
     [SetUp]
     public void SetUp()
     {
-        jobStoreSupport = new TestJobStoreSupport();
+        jobStoreSupport = new TestAdoJobStoreBase();
         driverDelegate = A.Fake<IDriverDelegate>();
         jobStoreSupport.DirectDelegate = driverDelegate;
         jobStoreSupport.DirectSignaler = A.Fake<ISchedulerSignaler>();
@@ -140,7 +140,7 @@ public class JobStoreSupportTest
     {
         // Disable field-level calendarCache so the test validates the batch cache,
         // not the existing GetCalendar lazy-cache (which is active when Clustered=false).
-        jobStoreSupport = new TestJobStoreSupport(clustered: true) { DirectDelegate = driverDelegate };
+        jobStoreSupport = new TestAdoJobStoreBase(clustered: true) { DirectDelegate = driverDelegate };
 
         string calendarName = "shared-cal";
 
@@ -813,15 +813,15 @@ public class JobStoreSupportTest
             .WithMessage("db error");
     }
 
-    private static RetryTestJobStoreSupport CreateRetryTestStore(int maxTransientRetries = 3)
+    private static RetryTestAdoJobStoreBase CreateRetryTestStore(int maxTransientRetries = 3)
     {
-        return new RetryTestJobStoreSupport(maxTransientRetries);
+        return new RetryTestAdoJobStoreBase(maxTransientRetries);
     }
 
-    public class TestJobStoreSupport : JobStoreSupport
+    public class TestAdoJobStoreBase : AdoJobStoreBase
     {
 
-    public TestJobStoreSupport(bool clustered = false)
+    public TestAdoJobStoreBase(bool clustered = false)
         : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
     {
     }
@@ -845,7 +845,7 @@ public class JobStoreSupportTest
         {
             set
             {
-                FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic);
+                FieldInfo fieldInfo = typeof(AdoJobStoreBase).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(fieldInfo, Is.Not.Null);
                 fieldInfo.SetValue(this, value);
             }
@@ -855,7 +855,7 @@ public class JobStoreSupportTest
         {
             set
             {
-                FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("schedSignaler", BindingFlags.Instance | BindingFlags.NonPublic);
+                FieldInfo fieldInfo = typeof(AdoJobStoreBase).GetField("schedSignaler", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(fieldInfo, Is.Not.Null);
                 fieldInfo.SetValue(this, value);
             }
@@ -907,12 +907,12 @@ public class JobStoreSupportTest
     }
 
     /// <summary>
-    /// A <see cref="JobStoreSupport"/> subclass used to test retry logic in
-    /// <see cref="JobStoreSupport.ExecuteInLocalTransactionLock{T}"/>.
+    /// A <see cref="AdoJobStoreBase"/> subclass used to test retry logic in
+    /// <see cref="AdoJobStoreBase.ExecuteInLocalTransactionLock{T}"/>.
     /// </summary>
-    public sealed class RetryTestJobStoreSupport : JobStoreSupport
+    public sealed class RetryTestAdoJobStoreBase : AdoJobStoreBase
     {
-        public RetryTestJobStoreSupport(int maxTransientRetries = 3)
+        public RetryTestAdoJobStoreBase(int maxTransientRetries = 3)
             : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(configure: options =>
             {
                 options.MaxTransientRetries = maxTransientRetries;
@@ -951,7 +951,7 @@ public class JobStoreSupportTest
     }
 
     /// <summary>
-    /// A test exception that will be recognized as transient by <see cref="RetryTestJobStoreSupport"/>.
+    /// A test exception that will be recognized as transient by <see cref="RetryTestAdoJobStoreBase"/>.
     /// </summary>
     public sealed class TransientTestException : Exception
     {
@@ -1143,10 +1143,10 @@ public class JobStoreSupportTest
     }
 
     /// <summary>
-    /// A <see cref="JobStoreSupport"/> subclass used to test transient retry logic
-    /// in the <see cref="JobStoreSupport.TriggersFired"/> method.
+    /// A <see cref="AdoJobStoreBase"/> subclass used to test transient retry logic
+    /// in the <see cref="AdoJobStoreBase.TriggersFired"/> method.
     /// </summary>
-    public sealed class TransientTriggersFiredTestStore : JobStoreSupport
+    public sealed class TransientTriggersFiredTestStore : AdoJobStoreBase
     {
         public TransientTriggersFiredTestStore(int maxTransientRetries = 3)
         : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(configure: options =>
@@ -1181,7 +1181,7 @@ public class JobStoreSupportTest
         {
             set
             {
-                FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                FieldInfo fieldInfo = typeof(AdoJobStoreBase).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 fieldInfo.SetValue(this, value);
             }
         }
@@ -1316,10 +1316,10 @@ public class JobStoreSupportTest
     }
 
     /// <summary>
-    /// A <see cref="JobStoreSupport"/> subclass used to test transient retry logic
-    /// in the <see cref="JobStoreSupport.DoCheckin"/> method.
+    /// A <see cref="AdoJobStoreBase"/> subclass used to test transient retry logic
+    /// in the <see cref="AdoJobStoreBase.DoCheckin"/> method.
     /// </summary>
-    public sealed class TransientDoCheckinTestStore : JobStoreSupport
+    public sealed class TransientDoCheckinTestStore : AdoJobStoreBase
     {
         public TransientDoCheckinTestStore(int maxTransientRetries = 3)
         : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("test-scheduler", "test-instance"), TestJobStores.StoreOptions(configure: options =>
@@ -1333,7 +1333,7 @@ public class JobStoreSupportTest
 
         public void SetFirstCheckIn(bool value)
         {
-            FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("firstCheckIn", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            FieldInfo fieldInfo = typeof(AdoJobStoreBase).GetField("firstCheckIn", BindingFlags.Instance | BindingFlags.NonPublic)!;
             fieldInfo.SetValue(this, value);
         }
 
@@ -1360,7 +1360,7 @@ public class JobStoreSupportTest
         {
             set
             {
-                FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                FieldInfo fieldInfo = typeof(AdoJobStoreBase).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 fieldInfo.SetValue(this, value);
             }
         }

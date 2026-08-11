@@ -44,7 +44,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </para>
 /// <para>
 /// This semaphore does not require a database connection (<see cref="RequiresConnection"/>
-/// returns <c>false</c>), which is critical: it allows <see cref="JobStoreSupport"/>
+/// returns <c>false</c>), which is critical: it allows <see cref="AdoJobStoreBase"/>
 /// to acquire the lock before opening a connection/transaction, eliminating the
 /// chicken-and-egg problem where a serializable transaction was needed just to
 /// acquire a database-based lock.

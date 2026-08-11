@@ -9,13 +9,13 @@ using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
-public class JobStoreSupportTest
+public class AdoJobStoreBaseTest
 {
 
     [Test]
     public void CanDetectTransientException()
     {
-        var jobStoreSupport = new TestJobStoreSupport(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler());
+        var jobStoreSupport = new TestAdoJobStoreBase(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler());
         var npgsqlException = new NpgsqlException("timeout", new TimeoutException());
         Assert.That(jobStoreSupport.IsTransientPublic(npgsqlException), Is.True);
 
@@ -36,9 +36,9 @@ public class JobStoreSupportTest
         }
     }
 
-    private sealed class TestJobStoreSupport : JobStoreSupport
+    private sealed class TestAdoJobStoreBase : AdoJobStoreBase
     {
-        public TestJobStoreSupport(
+        public TestAdoJobStoreBase(
             ISchedulerSignaler schedulerSignaler,
             ITypeLoadHelper typeLoadHelper,
             TimeProvider timeProvider,

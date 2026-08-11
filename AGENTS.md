@@ -88,7 +88,7 @@ Quartz.NET is an enterprise job scheduling library. The core domain model:
 ### Job Stores
 
 - **`RAMJobStore`** (`Quartz.Impl`) — in-memory, volatile. Default.
-- **`JobStoreSupport`** → `JobStoreTX` / `JobStoreCMT` (`Quartz.Impl.AdoJobStore`) — ADO.NET-based persistence with database-specific delegates (`SqlServerDelegate`, `PostgreSQLDelegate`, `OracleDelegate`, `MySQLDelegate`, `SQLiteDelegate`, `FirebirdDelegate`).
+- **`AdoJobStoreBase`** → `LocalTransactionJobStore` / `ExternalTransactionJobStore` (`Quartz.Impl.AdoJobStore`) — ADO.NET-based persistence with database-specific delegates (`SqlServerDelegate`, `PostgreSQLDelegate`, `OracleDelegate`, `MySQLDelegate`, `SQLiteDelegate`, `FirebirdDelegate`). On 3.x these are `JobStoreSupport` → `JobStoreTX` / `JobStoreCMT`.
 
 ### Database scripts
 
