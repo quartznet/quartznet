@@ -361,6 +361,10 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         first.GetHashCode().Should().Be(sameContent.GetHashCode(), "equal maps must hash equally");
         first.Equals(sameKeyDifferentValue).Should().BeFalse(
             "until 4.0 only the key sets were compared, so maps with different values counted as equal");
+
+        // The hash is deliberately constant: the map is mutable, so a content-derived hash would
+        // strand a mutated map outside its own bucket. Hash-keyed use degrades to Equals scans.
+        first.GetHashCode().Should().Be(sameKeyDifferentValue.GetHashCode());
     }
 
     [Test]
