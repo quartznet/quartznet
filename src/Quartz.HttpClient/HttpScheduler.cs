@@ -109,7 +109,7 @@ public sealed class HttpScheduler : IScheduler
             JobsExecuted = schedulerDto.Statistics.JobsExecuted,
             // names pass through as strings: the remote types need not exist in this process
             JobStoreTypeName = schedulerDto.JobStore.Type,
-            JobStoreSupportsPersistence = schedulerDto.JobStore.Persistent,
+            AdoJobStoreBasesPersistence = schedulerDto.JobStore.Persistent,
             JobStoreClustered = schedulerDto.JobStore.Clustered,
             ThreadPoolTypeName = schedulerDto.ThreadPool.Type,
             ThreadPoolSize = schedulerDto.ThreadPool.Size,

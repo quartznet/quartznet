@@ -12,7 +12,7 @@ internal sealed class ClusterManager
     // keep constant lock requestor id for manager's lifetime
     private readonly Guid requestorId = Guid.NewGuid();
 
-    private readonly JobStoreSupport jobStoreSupport;
+    private readonly AdoJobStoreBase jobStoreSupport;
 
     private QueuedTaskScheduler taskScheduler = null!;
     private readonly CancellationTokenSource cancellationTokenSource;
@@ -24,7 +24,7 @@ internal sealed class ClusterManager
 
     private int numFails;
 
-    internal ClusterManager(JobStoreSupport jobStoreSupport)
+    internal ClusterManager(AdoJobStoreBase jobStoreSupport)
     {
         this.jobStoreSupport = jobStoreSupport;
         cancellationTokenSource = new CancellationTokenSource();

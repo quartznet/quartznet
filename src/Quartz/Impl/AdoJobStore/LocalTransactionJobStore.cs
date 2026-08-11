@@ -33,13 +33,13 @@ namespace Quartz.Impl.AdoJobStore;
 /// <remarks>
 /// This is the default persistent store. Use <see cref="ExternalTransactionJobStore" /> instead when
 /// the transaction belongs to a container, and see
-/// <see cref="JobStoreSupport.AcceptEnlistedTransactions" /> for taking part in a transaction the
+/// <see cref="AdoJobStoreBase.AcceptEnlistedTransactions" /> for taking part in a transaction the
 /// application owns while still managing one when nothing is enlisted.
 /// </remarks>
 /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class LocalTransactionJobStore : JobStoreSupport
+public class LocalTransactionJobStore : AdoJobStoreBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="LocalTransactionJobStore"/> class.
@@ -75,7 +75,7 @@ public class LocalTransactionJobStore : JobStoreSupport
     /// This store manages its own transactions and has the one data source, so the connection it runs
     /// a locked operation on is just the normal one.
     /// </summary>
-    /// <seealso cref="JobStoreSupport.GetConnection(CancellationToken)" />
+    /// <seealso cref="AdoJobStoreBase.GetConnection(CancellationToken)" />
     protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
     {
         return GetConnection(cancellationToken);
@@ -84,7 +84,7 @@ public class LocalTransactionJobStore : JobStoreSupport
     /// <summary>
     /// Execute the given callback having optionally acquired the given lock. Because this store
     /// manages its own transactions and only has the one data source, this is the same behavior as
-    /// <see cref="JobStoreSupport.ExecuteInLocalTransactionLock{T}" />.
+    /// <see cref="AdoJobStoreBase.ExecuteInLocalTransactionLock{T}" />.
     /// </summary>
     /// <param name="lockKind">
     /// The lock to acquire. If <see langword="null" />, then no lock is acquired, but the
@@ -92,9 +92,9 @@ public class LocalTransactionJobStore : JobStoreSupport
     /// </param>
     /// <param name="txCallback">Callback to execute.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <seealso cref="JobStoreSupport.ExecuteInLocalTransactionLock{T}" />
-    /// <seealso cref="JobStoreSupport.GetLocalTransactionConnection(CancellationToken)" />
-    /// <seealso cref="JobStoreSupport.GetConnection(CancellationToken)" />
+    /// <seealso cref="AdoJobStoreBase.ExecuteInLocalTransactionLock{T}" />
+    /// <seealso cref="AdoJobStoreBase.GetLocalTransactionConnection(CancellationToken)" />
+    /// <seealso cref="AdoJobStoreBase.GetConnection(CancellationToken)" />
     protected override ValueTask<T> ExecuteInLock<T>(
         SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,

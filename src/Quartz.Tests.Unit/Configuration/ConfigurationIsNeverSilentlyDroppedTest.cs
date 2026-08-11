@@ -111,7 +111,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             UseStubbedPersistentStore);
 
         using var provider = services.BuildServiceProvider();
-        var store = (JobStoreSupport) provider.GetRequiredService<IJobStore>();
+        var store = (AdoJobStoreBase) provider.GetRequiredService<IJobStore>();
 
         store.TablePrefix.Should().Be("QRTZ2_", "querying QRTZ_TRIGGERS when the tables are QRTZ2_ is a runtime failure, not a fallback");
     }
@@ -152,7 +152,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         });
 
         using var provider = services.BuildServiceProvider();
-        var store = (JobStoreSupport) provider.GetRequiredKeyedService<IJobStore>("reporting");
+        var store = (AdoJobStoreBase) provider.GetRequiredKeyedService<IJobStore>("reporting");
 
         store.TablePrefix.Should().Be("REPORT_", "IOptions<T> resolves the unnamed options, so a named scheduler has to be given its own");
         store.InstanceName.Should().Be("reporting");
@@ -174,7 +174,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         }));
 
         using var provider = services.BuildServiceProvider();
-        var store = (JobStoreSupport) provider.GetRequiredService<IJobStore>();
+        var store = (AdoJobStoreBase) provider.GetRequiredService<IJobStore>();
 
         store.LockHandler.Should().BeNull(
             "the choice between database row locks and an in-process monitor is made during Initialize, "
@@ -194,7 +194,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         }));
 
         using var provider = services.BuildServiceProvider();
-        var store = (JobStoreSupport) provider.GetRequiredService<IJobStore>();
+        var store = (AdoJobStoreBase) provider.GetRequiredService<IJobStore>();
 
         store.LockHandler.Should().BeOfType<SimpleSemaphore>();
     }
@@ -318,7 +318,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
         // The store's constructor takes the enumerable, which for a named scheduler only the
         // scheduler-scoped provider resolves from the keyed set.
-        var store = (JobStoreSupport) provider.GetRequiredKeyedService<IJobStore>("reporting");
+        var store = (AdoJobStoreBase) provider.GetRequiredKeyedService<IJobStore>("reporting");
         store.Should().NotBeNull();
     }
 
@@ -602,7 +602,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         store.Should().BeOfType<LocalTransactionJobStore>(
             "Type has no property on the options type to bind to, so excluding the section from "
             + "flattening would leave nobody reading it and fall back to RAMJobStore");
-        ((JobStoreSupport) store).TablePrefix.Should().Be("QRTZ2_");
+        ((AdoJobStoreBase) store).TablePrefix.Should().Be("QRTZ2_");
     }
 
     [Test]
@@ -915,7 +915,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         properties["quartz.plugin.dev.blank"].Should().Be("   ");
     }
 
-    public sealed class MarkedTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
+    public sealed class MarkedTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateBase
     {
         public override bool CanHandleTriggerType(Quartz.Extensibility.IOperableTrigger trigger) => false;
 

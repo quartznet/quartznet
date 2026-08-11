@@ -428,7 +428,7 @@ internal static class QuartzPropertyBridge
             return;
         }
 
-        var persistent = typeof(JobStoreSupport).IsAssignableFrom(jobStoreType);
+        var persistent = typeof(AdoJobStoreBase).IsAssignableFrom(jobStoreType);
 
         if (persistent)
         {
@@ -468,7 +468,7 @@ internal static class QuartzPropertyBridge
             {
                 ramJobStore.MisfireThreshold = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key).MisfireThreshold;
             }
-            else if (jobStore is not JobStoreSupport)
+            else if (jobStore is not AdoJobStoreBase)
             {
                 // A third-party store has no typed options, so its knobs still arrive as strings. The
                 // ADO store reads AdoJobStoreOptions in its constructor and needs none of this.

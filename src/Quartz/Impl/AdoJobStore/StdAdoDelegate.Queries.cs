@@ -391,7 +391,7 @@ public partial class StdAdoDelegate
     /// </summary>
     /// <remarks>
     /// The last column is the executing flag the statement computes per row, so a listing reports the
-    /// same state <c>JobStoreSupport.GetTriggerState</c> would for the same trigger. It costs one
+    /// same state <c>AdoJobStoreBase.GetTriggerState</c> would for the same trigger. It costs one
     /// correlated subquery per row within the single listing statement rather than a query per trigger.
     /// </remarks>
     private TriggerHeader ReadTriggerHeader(DbDataReader rs)

@@ -325,7 +325,7 @@ take whatever else it needs. `Quartz.Examples.AspNetCore`'s `CustomJobStore` sho
 
 **Storing scheduling data somewhere new** implements `IJobStore` directly. It is a large interface with real
 concurrency requirements - trigger acquisition has to be atomic against other scheduler instances, and misfire
-handling has to be idempotent - so start from the semantics `RAMJobStore` and `JobStoreSupport` document rather
+handling has to be idempotent - so start from the semantics `RAMJobStore` and `AdoJobStoreBase` document rather
 than from the method signatures alone.
 
 Either kind is registered the same way, by type:

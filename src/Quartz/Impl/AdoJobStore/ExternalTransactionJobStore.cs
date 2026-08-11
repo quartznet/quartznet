@@ -43,7 +43,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>James House</author>
 /// <author>Srinivas Venkatarangaiah</author>
 /// <author>Marko Lahma (.NET)</author>
-public class ExternalTransactionJobStore : JobStoreSupport
+public class ExternalTransactionJobStore : AdoJobStoreBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ExternalTransactionJobStore"/> class.
@@ -124,7 +124,7 @@ public class ExternalTransactionJobStore : JobStoreSupport
         DbConnection conn;
         try
         {
-            // Deliberately not kept out of an ambient transaction the way JobStoreSupport does it: this
+            // Deliberately not kept out of an ambient transaction the way AdoJobStoreBase does it: this
             // store exists precisely to run inside a transaction its container manages, so the
             // connection auto-enlisting is the contract rather than an accident.
             conn = DbProvider.CreateConnection();
@@ -147,10 +147,10 @@ public class ExternalTransactionJobStore : JobStoreSupport
     /// Because this store assumes that the connection is already part of a transaction its container
     /// manages, it does not attempt to commit or rollback the enclosing transaction.
     /// </summary>
-    /// <seealso cref="JobStoreSupport.ExecuteInLocalTransactionLock{T}" />
-    /// <seealso cref="JobStoreSupport.ExecuteInLock{T}" />
-    /// <seealso cref="JobStoreSupport.GetLocalTransactionConnection(CancellationToken)" />
-    /// <seealso cref="JobStoreSupport.GetConnection(CancellationToken)" />
+    /// <seealso cref="AdoJobStoreBase.ExecuteInLocalTransactionLock{T}" />
+    /// <seealso cref="AdoJobStoreBase.ExecuteInLock{T}" />
+    /// <seealso cref="AdoJobStoreBase.GetLocalTransactionConnection(CancellationToken)" />
+    /// <seealso cref="AdoJobStoreBase.GetConnection(CancellationToken)" />
     /// <param name="lockKind">
     /// The lock to acquire. If <see langword="null" />, then no lock is acquired, but the
     /// <paramref name="txCallback" /> is still executed in a transaction.

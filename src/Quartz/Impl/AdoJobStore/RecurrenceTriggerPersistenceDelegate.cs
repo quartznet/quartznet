@@ -10,7 +10,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <see cref="RecurrenceScheduleBuilder"/>
 /// <see cref="IRecurrenceTrigger"/>
-public sealed class RecurrenceTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
+public sealed class RecurrenceTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateBase
 {
     public override bool CanHandleTriggerType(IOperableTrigger trigger)
     {

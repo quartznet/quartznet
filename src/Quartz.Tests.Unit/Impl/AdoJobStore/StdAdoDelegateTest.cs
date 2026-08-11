@@ -785,7 +785,7 @@ public class StubParameterCollection : DbParameterCollection
 /// invoked — the built-in delegates are sealed, so the shape a real extension would take is a
 /// subclass of the public support base.
 /// </summary>
-internal sealed class TestTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
+internal sealed class TestTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateBase
 {
     public override bool CanHandleTriggerType(IOperableTrigger trigger) => false;
 

@@ -185,7 +185,7 @@ public static class SchedulerEnlistmentExtensions
 
         IJobStore jobStore = local.scheduler.resources.JobStore;
 
-        if (jobStore is not JobStoreSupport adoJobStore)
+        if (jobStore is not AdoJobStoreBase adoJobStore)
         {
             throw new InvalidOperationException(
                 $"Scheduler '{scheduler.SchedulerName}' uses {jobStore.GetType().Name}, which does not store anything in the "

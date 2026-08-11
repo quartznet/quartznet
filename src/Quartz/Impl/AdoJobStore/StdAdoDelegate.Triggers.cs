@@ -1664,7 +1664,7 @@ public partial class StdAdoDelegate
                 Throw.JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + row.TriggerType);
             }
 
-            if (tDel is SimplePropertiesTriggerPersistenceDelegateSupport)
+            if (tDel is SimplePropertiesTriggerPersistenceDelegateBase)
             {
                 (simpropKeys ??= []).Add(keys[i]);
                 continue;
