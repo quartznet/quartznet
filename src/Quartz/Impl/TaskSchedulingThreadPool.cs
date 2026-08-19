@@ -21,6 +21,12 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private readonly CancellationTokenSource shutdownCancellation = new CancellationTokenSource();
 
     /// <summary>
+    /// Guards <see cref="runningTasksCountdown" />. A lock of its own, because the countdown itself is
+    /// replaced by <see cref="Initialize" /> and is a BCL type others could lock on.
+    /// </summary>
+    private readonly Lock runningTasksLock = new();
+
+    /// <summary>
     /// Allows us to wait until no running tasks remain.
     /// </summary>
     private CountdownEvent runningTasksCountdown = null!;
@@ -131,8 +137,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         // Initialize the concurrency semaphore with the proper initial count
         concurrencySemaphore = new SemaphoreSlim(MaxConcurrency);
 
-        // We start with an initial count of one to make sure it doesn't start in "signaled" state
-        runningTasksCountdown = new CountdownEvent(1);
+        // We start with an initial count of one to make sure it doesn't start in "signaled" state.
+        // Assigned under the lock that guards it, so that a caller already inside TryRun cannot add a
+        // count to the countdown this replaces.
+        lock (runningTasksLock)
+        {
+            runningTasksCountdown = new CountdownEvent(1);
+        }
 
         // Reduce allocations by caching the delegate to mark a task as complete
         completeTask = SignalTaskComplete;
@@ -225,7 +236,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         // Unrap the task so that we can work with the underlying task
         var unwrappedTask = task.Unwrap();
 
-        lock (runningTasksCountdown)
+        lock (runningTasksLock)
         {
             // Now that the lock is held, shutdown can't proceed,
             // so double-check that no shutdown has started since the initial check.
@@ -306,7 +317,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         // If waitForJobsToComplete is true, wait for running tasks to complete
         if (waitForJobsToComplete)
         {
-            lock (runningTasksCountdown)
+            lock (runningTasksLock)
             {
                 // Cancellation has been signaled, so no new tasks will begin once
                 // shutdown has acquired this lock. CurrentCount includes the +1 guard

@@ -53,6 +53,12 @@ internal sealed class QuartzScheduler
     internal readonly QuartzSchedulerThread schedThread = null!;
     private readonly List<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
 
+    /// <summary>
+    /// Guards <see cref="internalSchedulerListeners" />. A dedicated lock rather than the list itself, so
+    /// that what is synchronized on is an object nothing outside this class can reach.
+    /// </summary>
+    private readonly Lock internalSchedulerListenersLock = new();
+
     private IJobFactory jobFactory = new PropertySettingJobFactory();
     private readonly ExecutingJobsManager jobMgr;
     private readonly List<object> holdToPreventGc = new List<object>(5);
@@ -180,7 +186,7 @@ internal sealed class QuartzScheduler
     /// <param name="schedulerListener"></param>
     public void AddInternalSchedulerListener(ISchedulerListener schedulerListener)
     {
-        lock (internalSchedulerListeners)
+        lock (internalSchedulerListenersLock)
         {
             internalSchedulerListeners.Add(schedulerListener);
         }
@@ -194,7 +200,7 @@ internal sealed class QuartzScheduler
     /// <returns>true if the identified listener was found in the list, and removed.</returns>
     public bool RemoveInternalSchedulerListener(ISchedulerListener schedulerListener)
     {
-        lock (internalSchedulerListeners)
+        lock (internalSchedulerListenersLock)
         {
             return internalSchedulerListeners.Remove(schedulerListener);
         }
@@ -208,7 +214,7 @@ internal sealed class QuartzScheduler
     {
         get
         {
-            lock (internalSchedulerListeners)
+            lock (internalSchedulerListenersLock)
             {
                 return new List<ISchedulerListener>(internalSchedulerListeners);
             }

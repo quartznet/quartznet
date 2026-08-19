@@ -4,19 +4,11 @@ namespace Quartz.Core;
 
 internal static class QuartzRandom
 {
-    private static double NextDouble()
-    {
-        using RandomNumberGenerator random = RandomNumberGenerator.Create();
-        Span<byte> buf = stackalloc byte[4];
-        random.GetBytes(buf);
-        return (double) BitConverter.ToUInt32(buf) / uint.MaxValue;
-    }
-
     /// <summary>
     /// Random number generator
     /// </summary>
     /// <param name="maxValue"></param>
-    /// <returns>int between 0 and maxValue</returns>
+    /// <returns>int between 0 (inclusive) and maxValue (exclusive)</returns>
     public static int Next(int maxValue)
     {
         return Next(0, maxValue);
@@ -36,7 +28,7 @@ internal static class QuartzRandom
     /// </summary>
     /// <param name="minValue"></param>
     /// <param name="maxValue"></param>
-    /// <returns>integer between minValue and maxValue</returns>
+    /// <returns>integer between minValue (inclusive) and maxValue (exclusive)</returns>
     public static int Next(int minValue, int maxValue)
     {
         if (maxValue <= minValue)
@@ -44,7 +36,8 @@ internal static class QuartzRandom
             Throw.ArgumentOutOfRangeException(nameof(maxValue), "maxValue must be larger then minValue");
         }
 
-        long range = (long) maxValue - minValue;
-        return (int) Math.Floor(NextDouble() * range) + minValue;
+        // Rejection-sampled by the framework, so the distribution is uniform and the upper bound is
+        // genuinely exclusive. It also draws from a shared generator rather than creating one per call.
+        return RandomNumberGenerator.GetInt32(minValue, maxValue);
     }
 }

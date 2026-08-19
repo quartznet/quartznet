@@ -303,7 +303,7 @@ internal sealed class QuartzSchedulerThread
                         // Cancellable so that shutdown does not stall for the remainder of the
                         // back-off; the catch swallows the OperationCanceledException and the
                         // halted/cancellation checks right below exit the loop.
-                        await Task.Delay(delay, cancellationTokenSource.Token).ConfigureAwait(false);
+                        await Task.Delay(delay, qsRsrcs.TimeProvider, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
                     catch
                     {
@@ -423,35 +423,7 @@ internal sealed class QuartzSchedulerThread
                             continue;
                         }
 
-                        // set triggers to 'executing'
-                        List<TriggerFiredResult> bndles = new List<TriggerFiredResult>();
-
-                        bool goAhead = !halted;
-
-                        if (goAhead)
-                        {
-                            try
-                            {
-                                var res = await qsRsrcs.JobStore.TriggersFired(triggers, CancellationToken.None).ConfigureAwait(false);
-                                if (res is not null)
-                                {
-                                    bndles = res.ToList();
-                                }
-                            }
-                            catch (SchedulerException se)
-                            {
-                                var msg = "An error occurred while firing triggers '" + triggers + "'";
-                                await qs.NotifySchedulerListenersError(msg, se, CancellationToken.None).ConfigureAwait(false);
-                                // QTZ-179 : a problem occurred interacting with the triggers from the db
-                                // we release them and loop again
-                                foreach (IOperableTrigger t in triggers)
-                                {
-                                    await SafeReleaseAcquiredTrigger(t, "after TriggersFired failure").ConfigureAwait(false);
-                                }
-                                continue;
-                            }
-                        }
-                        else
+                        if (halted)
                         {
                             // Scheduler is shutting down - release acquired triggers
                             // so they don't remain stuck in ACQUIRED state
@@ -462,9 +434,30 @@ internal sealed class QuartzSchedulerThread
                             continue;
                         }
 
-                        for (int i = 0; i < bndles.Count; i++)
+                        // set triggers to 'executing'
+                        List<TriggerFiredResult> bundles;
+                        try
                         {
-                            TriggerFiredResult result = bndles[i];
+                            // The store hands back a list it built for this call and does not keep it,
+                            // and nothing below mutates it, so it is read as-is rather than copied.
+                            bundles = await qsRsrcs.JobStore.TriggersFired(triggers, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (SchedulerException se)
+                        {
+                            var msg = "An error occurred while firing triggers '" + string.Join(", ", triggers.Select(t => t.Key)) + "'";
+                            await qs.NotifySchedulerListenersError(msg, se, CancellationToken.None).ConfigureAwait(false);
+                            // QTZ-179 : a problem occurred interacting with the triggers from the db
+                            // we release them and loop again
+                            foreach (IOperableTrigger t in triggers)
+                            {
+                                await SafeReleaseAcquiredTrigger(t, "after TriggersFired failure").ConfigureAwait(false);
+                            }
+                            continue;
+                        }
+
+                        for (int i = 0; i < bundles.Count; i++)
+                        {
+                            TriggerFiredResult result = bundles[i];
                             var bndle = result.TriggerFiredBundle;
                             var exception = result.Exception;
 
