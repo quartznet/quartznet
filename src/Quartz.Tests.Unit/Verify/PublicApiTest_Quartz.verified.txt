@@ -1849,6 +1849,7 @@ namespace Quartz.Impl.AdoJobStore
         protected System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.SchedulerStateRecord>> ClusterCheckIn(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask ClusterRecover(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyCollection<Quartz.Impl.AdoJobStore.SchedulerStateRecord> failedInstances, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask CommitConnection(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder cth, bool openNewTransaction, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual Quartz.Impl.AdoJobStore.TriggerAcquisitionCriteria CreateAcquisitionCriteria(Quartz.Extensibility.TriggerAcquisitionRequest request) { }
         public System.Threading.Tasks.ValueTask<bool> DeleteCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask<bool> DeleteCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> DeleteJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }

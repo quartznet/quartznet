@@ -3237,6 +3237,49 @@ public abstract class AdoJobStoreBase : IJobStore
             activity => activity.SetTag(ActivityTags.BatchSize, request.MaxCount));
     }
 
+    /// <summary>
+    /// Builds the criteria <see cref="IDriverDelegate.SelectTriggersToAcquire" /> is called with when
+    /// this node looks for the next triggers to fire.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the override seam for acquisition filtering (see issue #2238). A derived store narrows
+    /// what its own node picks up by starting from <c>base.CreateAcquisitionCriteria(request)</c> and
+    /// returning a copy with the additional filters set — the criteria are a record, so <c>with</c>
+    /// leaves everything the base decided in place.
+    /// </para>
+    /// <para>
+    /// Called once per acquisition attempt, inside the store's internal retry loop, so an override
+    /// runs again for every retry rather than once per <see cref="AcquireNextTriggers" /> call.
+    /// </para>
+    /// <para>
+    /// <see cref="TriggerAcquisitionCriteria" />'s remarks state the contract a new filter has to
+    /// keep: it is another optional property on that record, defaulting to "no additional filtering".
+    /// </para>
+    /// </remarks>
+    /// <param name="request">What the scheduler asked this store to acquire.</param>
+    protected virtual TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
+    {
+        // The liveness cutoff determines when a preferred node is considered dead, releasing
+        // its pinned triggers to other nodes. SQL check: a node is live if
+        // (now - lastCheckin) <= checkinInterval + misfireThreshold. This is equivalent to
+        // CalcFailedIfAfter for healthy acquiring nodes; the formulas only diverge when the
+        // acquiring node itself is unhealthy (its own checkins are late), in which case
+        // CalcFailedIfAfter becomes MORE lenient while this stays fixed. Being more
+        // aggressive in that edge case is the safer direction — it prevents triggers pinned
+        // to a dead node from being stuck when the surviving nodes are under load.
+        DateTimeOffset liveNodeCutoff = timeProvider.GetUtcNow() - ClusterCheckinMisfireThreshold;
+
+        return new TriggerAcquisitionCriteria
+        {
+            NoLaterThan = request.NoLaterThan + request.TimeWindow,
+            NoEarlierThan = MisfireTime,
+            MaxCount = request.MaxCount,
+            ExecutionLimits = request.ExecutionLimits,
+            LiveNodeCutoff = liveNodeCutoff,
+        };
+    }
+
     // TODO: this really ought to return something like a FiredTriggerBundle,
     // so that the fireInstanceId doesn't have to be on the trigger...
 
@@ -3255,24 +3298,8 @@ public abstract class AdoJobStoreBase : IJobStore
             currentLoopCount++;
             try
             {
-                // The liveness cutoff determines when a preferred node is considered dead, releasing
-                // its pinned triggers to other nodes. SQL check: a node is live if
-                // (now - lastCheckin) <= checkinInterval + misfireThreshold. This is equivalent to
-                // CalcFailedIfAfter for healthy acquiring nodes; the formulas only diverge when the
-                // acquiring node itself is unhealthy (its own checkins are late), in which case
-                // CalcFailedIfAfter becomes MORE lenient while this stays fixed. Being more
-                // aggressive in that edge case is the safer direction — it prevents triggers pinned
-                // to a dead node from being stuck when the surviving nodes are under load.
-                DateTimeOffset liveNodeCutoff = timeProvider.GetUtcNow() - ClusterCheckinMisfireThreshold;
-
-                TriggerAcquisitionCriteria criteria = new()
-                {
-                    NoLaterThan = request.NoLaterThan + request.TimeWindow,
-                    NoEarlierThan = MisfireTime,
-                    MaxCount = request.MaxCount,
-                    ExecutionLimits = request.ExecutionLimits,
-                    LiveNodeCutoff = liveNodeCutoff,
-                };
+                // Built inside the loop, so each retry asks again and sees the time it retried at.
+                TriggerAcquisitionCriteria criteria = CreateAcquisitionCriteria(request);
 
                 List<TriggerAcquireResult> results = await Delegate.SelectTriggersToAcquire(conn, criteria, cancellationToken).ConfigureAwait(false);
 

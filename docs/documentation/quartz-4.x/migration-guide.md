@@ -2471,7 +2471,10 @@ instead. What stays overridable is what derived stores demonstrably use:
 * **Connections and transactions** — `GetConnection`, `GetLocalTransactionConnection` and
   `ExecuteInLock<T>` (both abstract), and `IsTransient` for provider-specific transient-error
   classification. This is the seam an ambient-transaction store builds on.
-* **Acquisition** — `AcquireNextTriggers` and `GetFiredTriggerRecordId`.
+* **Acquisition** — `AcquireNextTriggers`, `GetFiredTriggerRecordId`, and
+  `CreateAcquisitionCriteria`, the seam for acquisition filtering (issue #2238): it builds the
+  `TriggerAcquisitionCriteria` the delegate is asked with, and a derived store narrows what its node
+  picks up by returning `base.CreateAcquisitionCriteria(request) with { … }`.
 
 Everything else — the per-entity add/get/delete internals, the pause/resume walkers, the fire path, the
 cluster check-in and recovery passes, the connection cleanup helpers — is non-virtual. Those members
@@ -4792,7 +4795,7 @@ Parameters and behavior are unchanged:
 | `AdoJobStoreBase.LockTriggerAccess` / `.LockStateAccess` removed | `SchedulerLock.TriggerAccess` / `.StateAccess` replace the two protected constants |
 | ~25 `AdoJobStoreBase` configuration properties are read-only and `protected`/internal | They duplicated `AdoJobStoreOptions` / `QuartzSchedulerOptions`; resolve `IOptions<AdoJobStoreOptions>` to read, configure the options to write. `MisfireThreshold` deliberately stays settable, and the `IJobStore` members stay public — see [The job store configuration is read-only](#the-job-store-configuration-is-read-only-and-no-longer-a-public-currency) |
 | The seven conn-taking `Pause…`/`Resume…`/`RecoverMisfiredJobs` overloads are `protected` | They took a `ConnectionAndTransactionHolder` no caller outside the store can obtain; call the public keyed overloads, which take the lock and the connection themselves |
-| `AdoJobStoreBase`'s virtual surface is a curated seam | Only `Initialize`, `Shutdown`, `GetConnection`, `GetLocalTransactionConnection`, `ExecuteInLock<T>`, `IsTransient`, `AcquireNextTriggers` and `GetFiredTriggerRecordId` remain overridable; the other ~75 members were virtual by default, not by design, and freezing the store's internal call order as a behavior contract would have made it unrefactorable |
+| `AdoJobStoreBase`'s virtual surface is a curated seam | Only `Initialize`, `Shutdown`, `GetConnection`, `GetLocalTransactionConnection`, `ExecuteInLock<T>`, `IsTransient`, `AcquireNextTriggers`, `CreateAcquisitionCriteria` and `GetFiredTriggerRecordId` remain overridable; the other ~75 members were virtual by default, not by design, and freezing the store's internal call order as a behavior contract would have made it unrefactorable |
 | `AdoJobStoreBase.DriverDelegateType` and `.DontSetAutoCommitFalse` removed | Nothing read either one; the driver delegate is injected |
 | `AdoJobStoreOptions.DontSetAutoCommitFalse` removed | The option the deleted store property mirrored. No code path read it and no `quartz.*` key set it, so setting it configured nothing |
 | `AdoJobStoreBase.LastCheckin` is internal, `LogWarnIfNonZero` is private | Cluster check-in bookkeeping and a logging helper, neither of them an extension point |
