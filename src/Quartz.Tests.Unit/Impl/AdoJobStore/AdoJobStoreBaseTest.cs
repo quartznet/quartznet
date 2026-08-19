@@ -1367,4 +1367,87 @@ public class AdoJobStoreBaseTest
     }
 
     #endregion
+
+    #region Acquisition criteria
+
+    /// <summary>
+    /// Arranges the acquisition read to find nothing, so the acquisition loop exits on its first pass,
+    /// and hands back the criteria the delegate was called with — one entry per attempt.
+    /// </summary>
+    private static List<TriggerAcquisitionCriteria> GivenNoTriggersToAcquire(IDriverDelegate del)
+    {
+        List<TriggerAcquisitionCriteria> received = [];
+        A.CallTo(() => del.SelectTriggersToAcquire(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<TriggerAcquisitionCriteria>.Ignored,
+                A<CancellationToken>.Ignored))
+            .ReturnsLazily((ConnectionAndTransactionHolder _, TriggerAcquisitionCriteria criteria, CancellationToken _) =>
+            {
+                received.Add(criteria);
+                return new ValueTask<List<TriggerAcquireResult>>(new List<TriggerAcquireResult>());
+            });
+        return received;
+    }
+
+    [Test]
+    public async Task AcquireNextTriggers_ShouldBuildCriteriaFromTheRequest()
+    {
+        List<TriggerAcquisitionCriteria> received = GivenNoTriggersToAcquire(driverDelegate);
+
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create().ForGroup("batch", 2).Build();
+        TriggerAcquisitionRequest request = new()
+        {
+            NoLaterThan = new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero),
+            TimeWindow = TimeSpan.FromSeconds(30),
+            MaxCount = 5,
+            ExecutionLimits = limits,
+        };
+
+        DateTimeOffset acquiredAt = DateTimeOffset.UtcNow;
+        await jobStoreSupport.AcquireNextTriggers(request);
+
+        TriggerAcquisitionCriteria criteria = received.Should().ContainSingle(
+            "one acquisition attempt asks the delegate once").Subject;
+
+        criteria.NoLaterThan.Should().Be(request.NoLaterThan + request.TimeWindow,
+            "the batch window widens how far ahead the store is willing to look");
+        criteria.MaxCount.Should().Be(request.MaxCount, "the request caps the batch size");
+        criteria.ExecutionLimits.Should().BeSameAs(limits,
+            "the caller's snapshot is handed through untouched, so a delegate counting slots down works on a copy");
+        criteria.LiveNodeCutoff.Should().BeCloseTo(acquiredAt - jobStoreSupport.ClusterCheckinMisfireThreshold, TimeSpan.FromSeconds(10),
+            "the cutoff is now less the check-in misfire threshold, and this store runs on TimeProvider.System so 'now' can only be pinned to a window around the call");
+    }
+
+    [Test]
+    public async Task CreateAcquisitionCriteria_ShouldLetADerivedStoreNarrowWhatThisNodeAcquires()
+    {
+        CappedAcquisitionTestStore store = new();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+        store.DirectSignaler = A.Fake<ISchedulerSignaler>();
+        List<TriggerAcquisitionCriteria> received = GivenNoTriggersToAcquire(del);
+
+        await store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow,
+            MaxCount = 5,
+        });
+
+        received.Should().ContainSingle().Which.MaxCount.Should().Be(1,
+            "the override, not the request, has the last word on the criteria the delegate is called with");
+    }
+
+    /// <summary>
+    /// A store that narrows acquisition through <see cref="AdoJobStoreBase.CreateAcquisitionCriteria" />,
+    /// the way a store filtering on job type (issue #2238) would.
+    /// </summary>
+    private sealed class CappedAcquisitionTestStore : TestAdoJobStoreBase
+    {
+        protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
+        {
+            return base.CreateAcquisitionCriteria(request) with { MaxCount = 1 };
+        }
+    }
+
+    #endregion
 }
