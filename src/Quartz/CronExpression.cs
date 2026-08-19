@@ -209,7 +209,7 @@ namespace Quartz;
 /// <author>Refactoring from CronTrigger to CronExpression by Aaron Craven</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed class CronExpression : ISerializable
+public sealed partial class CronExpression : ISerializable
 {
     private const string DayOfWeekRangeMessage =
         "Day-of-Week values must be between 1 and 7, with 1 = Sunday and 7 = Saturday. "
@@ -274,15 +274,13 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     [NonSerialized] private bool calendarDayOfMonth;
 
-    private static readonly Regex regex = new("^L(-\\d+)?(W(-\\d+)?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5)); //e.g. LW L-0W L-4 L-12W LW-4 (out-of-range offsets are rejected in the 'L' parse)
+    //e.g. LW L-0W L-4 L-12W LW-4 (out-of-range offsets are rejected in the 'L' parse)
+    [GeneratedRegex("^L(-\\d+)?(W(-\\d+)?)?$", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 5000)]
+    private static partial Regex LastDayExpression();
 
     // Field ranges for H (hash) token resolution: [min, max] indexed by field type (Second=0 through DayOfWeek=5)
     private static readonly int[] HashFieldMins = { 0, 0, 0, 1, 1, 1 };
     private static readonly int[] HashFieldMaxes = { 59, 59, 23, 31, 12, 7 };
-
-    static CronExpression()
-    {
-    }
 
     ///<summary>
     /// Constructs a new <see cref="CronExpressionString" /> based on the specified
@@ -1207,7 +1205,7 @@ public sealed class CronExpression : ISerializable
 
         switch (s[i])
         {
-            case >= 'A' and <= 'Z' when !regex.IsMatch(s.ToString()):
+            case >= 'A' and <= 'Z' when !LastDayExpression().IsMatch(s.ToString()):
                 StoreExpressionGeneralValue(type, s, i);
                 break;
 

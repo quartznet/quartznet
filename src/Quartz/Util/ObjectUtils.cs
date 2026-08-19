@@ -172,7 +172,7 @@ internal static class ObjectUtils
 
     public static void SetPropertyValue(object target, string propertyName, object? value)
     {
-        var pi = propertyResolutionCache.GetOrAdd((target.GetType(), propertyName), tuple =>
+        var pi = propertyResolutionCache.GetOrAdd((target.GetType(), propertyName), static tuple =>
         {
             string name = char.IsLower(tuple.PropertyName[0])
                 ? char.ToUpper(tuple.PropertyName[0]) + tuple.PropertyName.Substring(1)
@@ -184,7 +184,7 @@ internal static class ObjectUtils
             if (propertyInfo is null || !propertyInfo.CanWrite)
             {
                 // try to find from interfaces
-                foreach (var interfaceType in target.GetType().GetInterfaces())
+                foreach (var interfaceType in t.GetInterfaces())
                 {
                     propertyInfo = interfaceType.GetProperty(name);
                     if (propertyInfo is not null && propertyInfo.CanWrite)

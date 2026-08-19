@@ -404,7 +404,7 @@ internal sealed class AdoUtil : IAdoUtil
             var length = Math.Min(MaxTriggerKeysPerPredicate, keys.Count - offset);
             var paddedCount = RoundUpTriggerKeyCount(length);
 
-            using var cmd = dbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(sqlPrefix + BuildTriggerKeyPredicate(paddedCount), tablePrefix));
+            using var cmd = dbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(sqlPrefix + BuildTriggerKeyPredicate(paddedCount), tablePrefix));
             dbAccessor.AddCommandParameter(cmd, "schedulerName", schedulerName);
 
             for (var i = 0; i < paddedCount; i++)

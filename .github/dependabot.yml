@@ -37,13 +37,12 @@ updates:
           - "MELT"
           - "GitHubActionsTestLogger"
           - "BenchmarkDotNet*"
-      # Compile-time only tooling: analyzers, source generators, polyfills.
+      # Compile-time only tooling: analyzers and source generators.
       analyzers:
         patterns:
           - "*.Analyzers"
           - "Meziantou.Analyzer"
           - "Microsoft.CodeAnalysis*"
-          - "PolySharp"
       # ADO.NET providers and other data store clients used by the job stores.
       database-providers:
         patterns:

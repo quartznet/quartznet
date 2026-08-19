@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System.Collections.Concurrent;
 using System.Globalization;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -28,6 +29,27 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma (.NET)</author>
 internal static class AdoJobStoreUtil
 {
+    private static readonly ConcurrentDictionary<(string Query, string TablePrefix), string> cachedQueries = new();
+
+    /// <summary>
+    /// Substitutes the table prefix exactly as <see cref="ReplaceTablePrefix(string, string)" /> does, but
+    /// remembers the result so repeated preparations of the same statement do not re-run the format scan.
+    /// </summary>
+    /// <remarks>
+    /// The cache is unbounded, so callers must only pass statements drawn from a bounded set — in practice
+    /// compile-time constants, optionally combined with one of the fixed-width key predicates. A statement
+    /// built from user input would leak an entry per distinct string.
+    /// </remarks>
+    /// <param name="query">The unsubstituted query</param>
+    /// <param name="tablePrefix">The table prefix</param>
+    /// <returns>The query, with proper table prefix substituted</returns>
+    public static string ReplaceTablePrefixCached(string query, string tablePrefix)
+    {
+        return cachedQueries.GetOrAdd(
+            (query, tablePrefix),
+            static key => ReplaceTablePrefix(key.Query, key.TablePrefix));
+    }
+
     /// <summary>
     /// Replace the table prefix in a query by replacing any occurrences of
     /// "{0}" with the table prefix, and "{1}" with the unqualified portion of

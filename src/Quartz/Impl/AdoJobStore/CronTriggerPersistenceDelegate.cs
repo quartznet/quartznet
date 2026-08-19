@@ -62,7 +62,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, TablePrefix));
+        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlDeleteCronTrigger, TablePrefix));
         DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
@@ -79,7 +79,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
     {
         ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
-        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertCronTrigger, TablePrefix));
+        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlInsertCronTrigger, TablePrefix));
         DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
@@ -94,7 +94,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
+        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
         DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
@@ -149,7 +149,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
     {
         ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
-        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, TablePrefix));
+        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlUpdateCronTrigger, TablePrefix));
         DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
         DbAccessor.AddCommandParameter(cmd, "timeZoneId", cronTrigger.TimeZone.Id);

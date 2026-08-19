@@ -8,10 +8,12 @@ namespace Quartz.Util;
 /// version, culture and public key token, so a payload written by one build still binds after an
 /// assembly version bump.
 /// </summary>
-internal static class ObjectExtensions
+internal static partial class ObjectExtensions
 {
     private static readonly ConcurrentDictionary<Type, string> assemblyQualifiedNameCache = new();
-    private static readonly Regex cleanup = new(", (Version|Culture|PublicKeyToken)=[0-9.\\w]+", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
+
+    [GeneratedRegex(", (Version|Culture|PublicKeyToken)=[0-9.\\w]+", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 5000)]
+    private static partial Regex Cleanup();
 
     public static string AssemblyQualifiedNameWithoutVersion(this Type type)
         => assemblyQualifiedNameCache.GetOrAdd(type, x => $"{GetTypeString(x)}, {x.Assembly.GetName().Name}");
@@ -24,5 +26,5 @@ internal static class ObjectExtensions
     private static string? GenericTypeString(string? name)
         => string.IsNullOrEmpty(name)
             ? null
-            : cleanup.Replace(name, "");
+            : Cleanup().Replace(name, "");
 }
