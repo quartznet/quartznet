@@ -136,6 +136,23 @@ public sealed class HttpScheduler : IScheduler
         return result;
     }
 
+    public async ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(TriggerKey? triggerKey, CancellationToken cancellationToken = default)
+    {
+        string query = triggerKey is null
+            ? string.Empty
+            : $"?triggerName={Uri.EscapeDataString(triggerKey.Name)}&triggerGroup={Uri.EscapeDataString(triggerKey.Group)}";
+
+        var dtos = await httpClient.Get<ExecutingFireInstanceDto[]>($"{JobEndpointUrl()}/executing-fire-instances{query}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+
+        var result = new List<ExecutingFireInstance>(dtos.Length);
+        foreach (var dto in dtos)
+        {
+            result.Add(dto.AsExecutingFireInstance());
+        }
+
+        return result;
+    }
+
     public ValueTask Start(CancellationToken cancellationToken = default)
     {
         return httpClient.Post($"{SchedulerEndpointUrl()}/start", jsonSerializerOptions, cancellationToken);
