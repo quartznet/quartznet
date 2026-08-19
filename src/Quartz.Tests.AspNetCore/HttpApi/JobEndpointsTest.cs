@@ -276,6 +276,27 @@ public class JobEndpointsTest : WebApiTest
     }
 
     [Test]
+    public async Task GetExecutingFireInstancesShouldWork()
+    {
+        var instance = new ExecutingFireInstance
+        {
+            FireInstanceId = "fire1",
+            TriggerKey = new TriggerKey("trigger1", "group1"),
+            JobKey = jobKeyOne,
+            SchedulerInstanceId = "node-1",
+            FireTimeUtc = DateTimeOffset.UtcNow,
+            ScheduledFireTimeUtc = DateTimeOffset.UtcNow.AddSeconds(-1)
+        };
+
+        A.CallTo(() => FakeScheduler.GetExecutingFireInstances(A<TriggerKey>._, A<CancellationToken>._)).Returns([instance]);
+
+        var result = await HttpScheduler.GetExecutingFireInstances(null);
+
+        result.Should().ContainSingle();
+        result[0].Should().BeEquivalentTo(instance);
+    }
+
+    [Test]
     public async Task PauseJobShouldWork()
     {
         A.CallTo(() => FakeScheduler.PauseJob(jobKeyOne, A<CancellationToken>._)).Returns(true);

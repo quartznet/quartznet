@@ -33,6 +33,9 @@ internal static class JobEndpoints
         yield return builder.MapGet(patternPrefix + "/currently-executing", CurrentlyExecutingJobs)
             .WithQuartzDefaults(nameof(CurrentlyExecutingJobs), "Get currently executing jobs");
 
+        yield return builder.MapGet(patternPrefix + "/executing-fire-instances", ExecutingFireInstances)
+            .WithQuartzDefaults(nameof(ExecutingFireInstances), "Get executing fire instances");
+
         yield return builder.MapPost(patternPrefix + "/{jobGroup}/{jobName}/pause", PauseJob)
             .WithQuartzDefaults(nameof(PauseJob), "Pause job");
 
@@ -189,6 +192,27 @@ internal static class JobEndpoints
         {
             var currentlyExecutingJobs = await scheduler.GetCurrentlyExecutingJobs(cancellationToken).ConfigureAwait(false);
             var result = currentlyExecutingJobs.Select(CurrentlyExecutingJobDto.Create).ToArray();
+            return result;
+        });
+    }
+
+    [ProducesResponseType(typeof(ExecutingFireInstanceDto[]), StatusCodes.Status200OK)]
+    private static Task<IResult> ExecutingFireInstances(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        string? triggerName = null,
+        string? triggerGroup = null,
+        CancellationToken cancellationToken = default)
+    {
+        TriggerKey? triggerKey = triggerName is not null && triggerGroup is not null
+            ? new TriggerKey(triggerName, triggerGroup)
+            : null;
+
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var executingFireInstances = await scheduler.GetExecutingFireInstances(triggerKey, cancellationToken).ConfigureAwait(false);
+            var result = executingFireInstances.Select(ExecutingFireInstanceDto.Create).ToArray();
             return result;
         });
     }
