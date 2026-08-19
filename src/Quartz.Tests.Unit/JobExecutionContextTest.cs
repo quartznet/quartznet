@@ -17,7 +17,10 @@
  */
 #endregion
 
+using Quartz.Extensibility;
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
+using Quartz.Jobs;
 
 namespace Quartz.Tests.Unit;
 
@@ -48,5 +51,42 @@ public class JobExecutionContextTest
             Assert.That(recoveringTriggerKey.Name, Is.EqualTo("originalTriggerName"));
             Assert.That(recoveringTriggerKey.Group, Is.EqualTo("originalTriggerGroup"));
         });
+    }
+
+    [Test]
+    public void MergedJobDataMapIsFullyPopulatedAndBuiltOnce()
+    {
+        IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
+            .WithIdentity(new JobKey("jobName", "jobGroup"))
+            .UsingJobData("jobOnly", "jobValue")
+            .UsingJobData("shared", "fromJob")
+            .Build();
+
+        IOperableTrigger trigger = new SimpleTriggerImpl("triggerName", "triggerGroup");
+        trigger.JobDataMap["triggerOnly"] = "triggerValue";
+        trigger.JobDataMap["shared"] = "fromTrigger";
+
+        TriggerFiredBundle bundle = new TriggerFiredBundle
+        {
+            JobDetail = jobDetail,
+            Trigger = trigger,
+            Recovering = false,
+            FireTimeUtc = DateTimeOffset.UtcNow,
+            ScheduledFireTimeUtc = null,
+            PreviousFireTimeUtc = null,
+            NextFireTimeUtc = null,
+        };
+
+        IJobExecutionContext ctx = new JobExecutionContextImpl(null, bundle, null);
+
+        JobDataMap merged = ctx.MergedJobDataMap;
+
+        merged.Count.Should().Be(3, "the merged map holds the union of the job's and the trigger's keys");
+        merged.GetString("jobOnly").Should().Be("jobValue");
+        merged.GetString("triggerOnly").Should().Be("triggerValue");
+        merged.GetString("shared").Should().Be("fromTrigger", "the trigger's value overrides the job's");
+
+        ctx.MergedJobDataMap.Should().BeSameAs(merged,
+            "the map is merged once and then published, so every later read sees that same fully built instance");
     }
 }

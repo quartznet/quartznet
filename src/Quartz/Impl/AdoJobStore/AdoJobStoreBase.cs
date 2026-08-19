@@ -4155,7 +4155,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
 
             // Delay before the next attempt
-            await Task.Delay(TransientRetryInterval, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TransientRetryInterval, timeProvider, cancellationToken).ConfigureAwait(false);
         }
 
         Throw.InvalidOperationException("DoCheckin retry loop exited unexpectedly");
@@ -4923,7 +4923,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
 
             // retry every N seconds (the db connection must be failed)
-            await Task.Delay(DbRetryInterval, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(DbRetryInterval, timeProvider, cancellationToken).ConfigureAwait(false);
         }
 
         Throw.InvalidOperationException("JobStore is shutdown - aborting retry");
@@ -5089,7 +5089,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
 
             // Delay before the next attempt
-            await Task.Delay(TransientRetryInterval, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TransientRetryInterval, timeProvider, cancellationToken).ConfigureAwait(false);
         }
 
         Throw.InvalidOperationException("ExecuteInLocalTransactionLock retry loop exited unexpectedly");

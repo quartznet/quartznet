@@ -71,13 +71,22 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
 {
     private readonly ITrigger trigger;
     private readonly IJobDetail jobDetail;
-    private JobDataMap? jobDataMap;
+
+    /// <summary>
+    /// The merged map, published only once it is fully populated. Volatile because the fast path in
+    /// <see cref="MergedJobDataMap" /> reads it without taking <see cref="lazyInitLock" />.
+    /// </summary>
+    private volatile JobDataMap? jobDataMap;
+
     private readonly IScheduler scheduler;
 
     private int numRefires;
     private TimeSpan? jobRunTime;
 
-    private CancellationTokenSource? cancellationTokenSource;
+    /// <summary>
+    /// Volatile for the same reason as <see cref="jobDataMap" />: the fast path reads it outside the lock.
+    /// </summary>
+    private volatile CancellationTokenSource? cancellationTokenSource;
 
     internal readonly IJob jobInstance;
 
@@ -171,26 +180,36 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     {
         get
         {
-            if (jobDataMap is null)
+            JobDataMap? current = jobDataMap;
+            if (current is not null)
             {
-                lock (lazyInitLock)
-                {
-                    if (jobDataMap is null)
-                    {
-                        jobDataMap = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
-                        foreach (var pair in jobDetail.JobDataMap)
-                        {
-                            jobDataMap[pair.Key] = pair.Value;
-                        }
-                        foreach (var pair in trigger.JobDataMap)
-                        {
-                            jobDataMap[pair.Key] = pair.Value;
-                        }
-                    }
-                }
+                return current;
             }
 
-            return jobDataMap;
+            lock (lazyInitLock)
+            {
+                current = jobDataMap;
+                if (current is not null)
+                {
+                    return current;
+                }
+
+                // Merge into a local and publish the reference only once it is fully populated: the
+                // fast path above reads the field without the lock, so a reference stored first and
+                // filled afterwards would let a racing reader see a half-built map.
+                JobDataMap merged = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
+                foreach (var pair in jobDetail.JobDataMap)
+                {
+                    merged[pair.Key] = pair.Value;
+                }
+                foreach (var pair in trigger.JobDataMap)
+                {
+                    merged[pair.Key] = pair.Value;
+                }
+
+                jobDataMap = merged;
+                return merged;
+            }
         }
     }
 
@@ -324,18 +343,16 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     {
         get
         {
-            if (cancellationTokenSource is null)
+            CancellationTokenSource? current = cancellationTokenSource;
+            if (current is not null)
             {
-                lock (lazyInitLock)
-                {
-                    if (cancellationTokenSource is null)
-                    {
-                        cancellationTokenSource = new CancellationTokenSource();
-                    }
-                }
+                return current;
             }
 
-            return cancellationTokenSource;
+            lock (lazyInitLock)
+            {
+                return cancellationTokenSource ??= new CancellationTokenSource();
+            }
         }
     }
 
