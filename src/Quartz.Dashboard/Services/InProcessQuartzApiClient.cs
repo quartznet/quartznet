@@ -249,6 +249,27 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return result;
     }
 
+    public async ValueTask<List<ExecutingFireInstanceDto>> GetExecutingFireInstances(string schedulerName, CancellationToken cancellationToken = default)
+    {
+        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
+        List<ExecutingFireInstance> executingFireInstances = await scheduler.GetExecutingFireInstances(null, cancellationToken).ConfigureAwait(false);
+
+        List<ExecutingFireInstanceDto> result = [];
+        foreach (ExecutingFireInstance instance in executingFireInstances)
+        {
+            result.Add(
+                new ExecutingFireInstanceDto(
+                    FireInstanceId: instance.FireInstanceId,
+                    TriggerKey: new TriggerKeyDto(instance.TriggerKey.Group, instance.TriggerKey.Name),
+                    JobKey: new JobKeyDto(instance.JobKey.Group, instance.JobKey.Name),
+                    SchedulerInstanceId: instance.SchedulerInstanceId,
+                    FireTimeUtc: instance.FireTimeUtc,
+                    ScheduledFireTimeUtc: instance.ScheduledFireTimeUtc));
+        }
+
+        return result;
+    }
+
     public ValueTask<bool> PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();

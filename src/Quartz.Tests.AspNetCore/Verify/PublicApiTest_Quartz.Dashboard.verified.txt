@@ -156,6 +156,16 @@ namespace Quartz.Dashboard.Services
         public int PageSize { get; init; }
         public int TotalCount { get; init; }
     }
+    public sealed class ExecutingFireInstanceDto : System.IEquatable<Quartz.Dashboard.Services.ExecutingFireInstanceDto>
+    {
+        public ExecutingFireInstanceDto(string FireInstanceId, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, Quartz.Dashboard.Services.JobKeyDto JobKey, string SchedulerInstanceId, System.DateTimeOffset FireTimeUtc, System.DateTimeOffset? ScheduledFireTimeUtc) { }
+        public string FireInstanceId { get; init; }
+        public System.DateTimeOffset FireTimeUtc { get; init; }
+        public Quartz.Dashboard.Services.JobKeyDto JobKey { get; init; }
+        public System.DateTimeOffset? ScheduledFireTimeUtc { get; init; }
+        public string SchedulerInstanceId { get; init; }
+        public Quartz.Dashboard.Services.TriggerKeyDto TriggerKey { get; init; }
+    }
     public sealed class ExecutionLimitsDto : System.IEquatable<Quartz.Dashboard.Services.ExecutionLimitsDto>
     {
         public ExecutionLimitsDto(System.Collections.Generic.Dictionary<string, int?> Limits) { }
@@ -175,6 +185,7 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> GetCalendarNames(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.ExecutingFireInstanceDto>> GetExecutingFireInstances(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.JobHistoryPageDto?> GetHistory(Quartz.Dashboard.Services.JobHistoryQueryDto query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.JobDetailDto> GetJob(string schedulerName, string group, string name, System.Threading.CancellationToken cancellationToken = default);

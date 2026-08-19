@@ -264,6 +264,38 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return result;
     }
 
+    public async ValueTask<List<ExecutingFireInstanceDto>> GetExecutingFireInstances(string schedulerName, CancellationToken cancellationToken = default)
+    {
+        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/jobs/executing-fire-instances", cancellationToken).ConfigureAwait(false);
+        if (json.ValueKind is not JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        List<ExecutingFireInstanceDto> result = [];
+        foreach (JsonElement item in json.EnumerateArray())
+        {
+            string fireInstanceId = GetStringProperty(item, "fireInstanceId");
+            string triggerName = GetStringProperty(item, "triggerName");
+            string triggerGroup = GetStringProperty(item, "triggerGroup");
+            string jobName = GetStringProperty(item, "jobName");
+            string jobGroup = GetStringProperty(item, "jobGroup");
+            string schedulerInstanceId = GetStringProperty(item, "schedulerInstanceId");
+            DateTimeOffset fireTimeUtc = GetDateTimeOffsetProperty(item, "fireTimeUtc");
+            DateTimeOffset? scheduledFireTimeUtc = GetNullableDateTimeOffsetProperty(item, "scheduledFireTimeUtc");
+
+            result.Add(new ExecutingFireInstanceDto(
+                FireInstanceId: fireInstanceId,
+                TriggerKey: new TriggerKeyDto(triggerGroup, triggerName),
+                JobKey: new JobKeyDto(jobGroup, jobName),
+                SchedulerInstanceId: schedulerInstanceId,
+                FireTimeUtc: fireTimeUtc,
+                ScheduledFireTimeUtc: scheduledFireTimeUtc));
+        }
+
+        return result;
+    }
+
     public ValueTask<bool> PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause", cancellationToken);
@@ -796,6 +828,32 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
 
         return default;
+    }
+
+    private static DateTimeOffset? GetNullableDateTimeOffsetProperty(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind is not JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!element.TryGetProperty(propertyName, out JsonElement value))
+        {
+            return null;
+        }
+
+        if (value.ValueKind is JsonValueKind.String &&
+            DateTimeOffset.TryParse(value.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed))
+        {
+            return parsed;
+        }
+
+        if (value.ValueKind is JsonValueKind.Number && value.TryGetInt64(out long unixMilliseconds))
+        {
+            return DateTimeOffset.FromUnixTimeMilliseconds(unixMilliseconds);
+        }
+
+        return null;
     }
 
     private static JsonElement GetOptionalProperty(JsonElement element, string propertyName)

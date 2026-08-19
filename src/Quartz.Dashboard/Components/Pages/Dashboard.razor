@@ -143,7 +143,7 @@
             JobPageDto jobs = await Api.GetJobs(schedulerName, groupFilter: null, page: 1, pageSize: 0);
             TriggerPageDto triggers = await Api.GetTriggers(schedulerName, groupFilter: null, state: null, page: 1, pageSize: 0);
             TriggerPageDto errorTriggers = await Api.GetTriggers(schedulerName, groupFilter: null, state: TriggerState.Error, page: 1, pageSize: 0);
-            List<CurrentlyExecutingJobDto> executing = await Api.GetCurrentlyExecutingJobs(schedulerName);
+            List<ExecutingFireInstanceDto> executing = await Api.GetExecutingFireInstances(schedulerName);
 
             _totalJobs = jobs.TotalCount;
             _totalTriggers = triggers.TotalCount;
@@ -223,7 +223,7 @@
                 return;
             }
 
-            List<CurrentlyExecutingJobDto> executing = await Api.GetCurrentlyExecutingJobs(schedulerName);
+            List<ExecutingFireInstanceDto> executing = await Api.GetExecutingFireInstances(schedulerName);
             _currentlyExecuting = executing.Count;
         }
         catch (Exception ex)

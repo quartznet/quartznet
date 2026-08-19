@@ -53,6 +53,12 @@ public interface IQuartzApiClient
     ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the fire instances currently executing across every node of the cluster, unlike
+    /// <see cref="GetCurrentlyExecutingJobs" /> which only sees the node it is called on.
+    /// </summary>
+    ValueTask<List<ExecutingFireInstanceDto>> GetExecutingFireInstances(string schedulerName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Pauses the job. Returns <see langword="true" /> when the job existed and was paused,
     /// <see langword="false" /> when there was nothing to pause.
     /// </summary>
@@ -170,6 +176,14 @@ public sealed record CurrentlyExecutingJobDto(
     DateTimeOffset FireTimeUtc,
     string? FireInstanceId,
     string? ExecutionGroup = null);
+
+public sealed record ExecutingFireInstanceDto(
+    string FireInstanceId,
+    TriggerKeyDto TriggerKey,
+    JobKeyDto JobKey,
+    string SchedulerInstanceId,
+    DateTimeOffset FireTimeUtc,
+    DateTimeOffset? ScheduledFireTimeUtc);
 
 public sealed record TriggerDetailDto(JsonElement Value);
 
