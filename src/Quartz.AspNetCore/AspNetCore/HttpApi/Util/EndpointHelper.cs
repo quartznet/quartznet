@@ -8,7 +8,12 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 
 internal sealed class EndpointHelper
 {
-    public static IResult JsonResponse(object data) => Results.Json(data);
+    /// <summary>
+    /// The one place the API turns a response into JSON. Generic because every caller already has the
+    /// static type in hand: erasing it to <see cref="object" /> binds the overload that has to rediscover
+    /// the type at runtime, where this one carries it through to the serializer.
+    /// </summary>
+    public static IResult JsonResponse<T>(T data) where T : notnull => Results.Json(data);
 
     public static GroupMatcher<T> GetGroupMatcher<T>(string? groupContains, string? groupEndsWith, string? groupStartsWith, string? groupEquals) where T : Key<T>
     {

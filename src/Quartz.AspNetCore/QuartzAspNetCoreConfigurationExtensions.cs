@@ -114,17 +114,14 @@ public static class QuartzAspNetCoreConfigurationExtensions
         // custom trigger or calendar serializer there to have the API understand it.
         builder.Services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
 
-        // Add json converters into ASP.NET Core's default json options
-        builder.Services
-            .AddOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>()
-            .Configure<SystemTextJsonSerializerRegistry>(AddJsonConverters);
+        // Add json converters into ASP.NET Core's default json options. Those options belong to the whole
+        // container, not to this scheduler, so the setup is registered by type: calling AddQuartzHttpApi
+        // for a second scheduler must not stack the same converters onto them twice.
+        builder.Services.AddOptions();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IConfigureOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>, QuartzJsonOptionsSetup>());
 
         return builder;
-
-        static void AddJsonConverters(Microsoft.AspNetCore.Http.Json.JsonOptions options, SystemTextJsonSerializerRegistry registry)
-        {
-            options.SerializerOptions?.AddQuartzConverters(registry, newtonsoftCompatibilityMode: false);
-        }
     }
 
     /// <summary>
