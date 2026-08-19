@@ -79,7 +79,7 @@ internal sealed class StdScheduler : IScheduler
             RunningSince = scheduler.RunningSince,
             JobsExecuted = scheduler.NumberOfJobsExecuted,
             JobStoreTypeName = scheduler.JobStoreType.AssemblyQualifiedNameWithoutVersion(),
-            AdoJobStoreBasesPersistence = scheduler.SupportsPersistence,
+            JobStorePersistent = scheduler.SupportsPersistence,
             JobStoreClustered = scheduler.Clustered,
             ThreadPoolTypeName = scheduler.ThreadPoolType.AssemblyQualifiedNameWithoutVersion(),
             ThreadPoolSize = scheduler.ThreadPoolSize,

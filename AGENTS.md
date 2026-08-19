@@ -180,7 +180,7 @@ fallback in `SimpleTypeLoadHelper`, with a warning.
 | `ISchedulerListener.SchedulerShuttingdown` | `SchedulerShuttingDown` |
 | `IListenerManager.GetSchedulerListeners()` → `IReadOnlyCollection<T>` | `ISchedulerListener[]` |
 | `IJobStore.EstimatedTimeToReleaseAndAcquireTrigger` (`long` ms) | `TimeSpan` |
-| two `IJobStore.AcquireNextTriggers` overloads | one, with optional `executionLimits` |
+| two `IJobStore.AcquireNextTriggers` overloads | one, taking a `TriggerAcquisitionRequest` record |
 | `IScheduler`/`IJobStore` `GetJobKeys` / `GetTriggerKeys` | `QueryJobs` / `QueryTriggers` → `PagedResult<JobHeader\|TriggerHeader>` |
 | `Get{Job,Trigger}GroupNames`, `GetPausedTriggerGroups`, `Is{Job,Trigger}GroupPaused` | `Query{Job,Trigger}Groups` with `JobGroupQuery`/`TriggerGroupQuery.Paused` |
 | `GetCalendarNames` | `QueryCalendarNames(CalendarQuery)` |

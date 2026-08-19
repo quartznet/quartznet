@@ -53,7 +53,7 @@ public static class TestData
             RunningSince = DateTimeOffset.Now.AddDays(-1),
             JobsExecuted = 1_000_000,
             JobStoreTypeName = typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion(),
-            AdoJobStoreBasesPersistence = false,
+            JobStorePersistent = false,
             JobStoreClustered = false,
             ThreadPoolTypeName = typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion(),
             ThreadPoolSize = 10,
