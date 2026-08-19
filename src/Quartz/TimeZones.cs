@@ -35,45 +35,43 @@ public static class TimeZones
     /// <see cref="TimeZoneInfo.TryConvertIanaIdToWindowsId(string, out string)" /> conversions, and
     /// resolve through this table alone.
     /// </summary>
-    private static readonly Dictionary<string, string> timeZoneIdAliases = new Dictionary<string, string>();
-
-    static TimeZones()
+    private static readonly Dictionary<string, string> timeZoneIdAliases = new Dictionary<string, string>
     {
         // Azure has had issues with having both formats
-        timeZoneIdAliases["UTC"] = "Coordinated Universal Time";
-        timeZoneIdAliases["Coordinated Universal Time"] = "UTC";
+        ["UTC"] = "Coordinated Universal Time",
+        ["Coordinated Universal Time"] = "UTC",
 
         // Mono differs in naming too...
-        timeZoneIdAliases["Central European Standard Time"] = "CET";
-        timeZoneIdAliases["CET"] = "Central European Standard Time";
+        ["Central European Standard Time"] = "CET",
+        ["CET"] = "Central European Standard Time",
 
-        timeZoneIdAliases["Eastern Standard Time"] = "US/Eastern";
-        timeZoneIdAliases["US/Eastern"] = "Eastern Standard Time";
+        ["Eastern Standard Time"] = "US/Eastern",
+        ["US/Eastern"] = "Eastern Standard Time",
 
-        timeZoneIdAliases["Central Standard Time"] = "US/Central";
-        timeZoneIdAliases["US/Central"] = "Central Standard Time";
+        ["Central Standard Time"] = "US/Central",
+        ["US/Central"] = "Central Standard Time",
 
-        timeZoneIdAliases["Mountain Standard Time"] = "US/Mountain";
-        timeZoneIdAliases["US/Mountain"] = "Mountain Standard Time";
+        ["Mountain Standard Time"] = "US/Mountain",
+        ["US/Mountain"] = "Mountain Standard Time",
 
-        timeZoneIdAliases["US Mountain Standard Time"] = "US/Arizona";
-        timeZoneIdAliases["US/Arizona"] = "US Mountain Standard Time";
+        ["US Mountain Standard Time"] = "US/Arizona",
+        ["US/Arizona"] = "US Mountain Standard Time",
 
-        timeZoneIdAliases["Pacific Standard Time"] = "US/Pacific";
-        timeZoneIdAliases["US/Pacific"] = "Pacific Standard Time";
+        ["Pacific Standard Time"] = "US/Pacific",
+        ["US/Pacific"] = "Pacific Standard Time",
 
-        timeZoneIdAliases["Alaskan Standard Time"] = "US/Alaska";
-        timeZoneIdAliases["US/Alaska"] = "Alaskan Standard Time";
+        ["Alaskan Standard Time"] = "US/Alaska",
+        ["US/Alaska"] = "Alaskan Standard Time",
 
-        timeZoneIdAliases["Hawaiian Standard Time"] = "US/Hawaii";
-        timeZoneIdAliases["US/Hawaii"] = "Hawaiian Standard Time";
+        ["Hawaiian Standard Time"] = "US/Hawaii",
+        ["US/Hawaii"] = "Hawaiian Standard Time",
 
-        timeZoneIdAliases["China Standard Time"] = "Asia/Shanghai";
-        timeZoneIdAliases["Asia/Shanghai"] = "China Standard Time";
+        ["China Standard Time"] = "Asia/Shanghai",
+        ["Asia/Shanghai"] = "China Standard Time",
 
-        timeZoneIdAliases["Pakistan Standard Time"] = "Asia/Karachi";
-        timeZoneIdAliases["Asia/Karachi"] = "Pakistan Standard Time";
-    }
+        ["Pakistan Standard Time"] = "Asia/Karachi",
+        ["Asia/Karachi"] = "Pakistan Standard Time"
+    };
 
     private static readonly Lock resolverLock = new();
 

@@ -467,7 +467,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// <returns>The query, with proper table prefix substituted</returns>
     protected string ReplaceTablePrefix(string query)
     {
-        return cachedQueries.GetOrAdd(query, q => AdoJobStoreUtil.ReplaceTablePrefix(q, tablePrefix));
+        return cachedQueries.GetOrAdd(query, static (q, prefix) => AdoJobStoreUtil.ReplaceTablePrefix(q, prefix), tablePrefix);
     }
 
     /// <summary>

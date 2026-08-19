@@ -1,5 +1,3 @@
-using Quartz.Collections;
-
 namespace Quartz.Core;
 
 /// <summary>
