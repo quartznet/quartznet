@@ -118,27 +118,34 @@ partial class Build : FalloutBuild, ICompile, IPack
             );
         });
 
+    /// <summary>
+    /// Pairs each named test project with every target framework it declares, rather than forcing one
+    /// framework on all of them. <c>dotnet test --framework X</c> against a project that does not target
+    /// X exits 0 having run nothing, so a pinned framework quietly becomes "no tests ran" the moment a
+    /// project moves — which is how the non-Windows legs ran no unit tests at all once everything moved
+    /// to net10.0. net4x needs the .NET Framework runtime, so it is the one framework that cannot run
+    /// off Windows.
+    /// </summary>
+    (Project Project, string Framework)[] GetTestRuns(params string[] projectNames)
+    {
+        var solution = ((IHasSolution) this).Solution;
+
+        return projectNames
+            .Select(x => solution.GetAllProjects(x).First())
+            .SelectMany(project => project.GetTargetFrameworks()
+                .Where(framework => IsRunningOnWindows || !framework.StartsWith("net4", StringComparison.Ordinal))
+                .Select(framework => (Project: project, Framework: framework)))
+            .OrderBy(x => x.Project.Name).ThenBy(x => x.Framework)
+            .ToArray();
+    }
+
     Target UnitTest => _ => _
         .DependsOn<ICompile>()
         .Before<IPack>()
         .Executes(() =>
         {
-            var solution = ((IHasSolution) this).Solution;
             var configuration = ((ICompile) this).Configuration;
-            var testProjects = new[] { "Quartz.Tests.Unit", "Quartz.Tests.AspNetCore" };
-
-            // Run each project once per target framework it declares, rather than forcing one
-            // framework on all of them. `dotnet test --framework X` against a project that does not
-            // target X exits 0 having run nothing, so the hardcoded net8.0 meant the non-Windows
-            // legs ran no unit tests at all once everything moved to net10.0. net4x needs the .NET
-            // Framework runtime, so it is the one framework that cannot run off Windows.
-            var testRuns = testProjects
-                .Select(x => solution.GetAllProjects(x).First())
-                .SelectMany(project => project.GetTargetFrameworks()
-                    .Where(framework => IsRunningOnWindows || !framework.StartsWith("net4", StringComparison.Ordinal))
-                    .Select(framework => (Project: project, Framework: framework)))
-                .OrderBy(x => x.Project.Name).ThenBy(x => x.Framework)
-                .ToArray();
+            var testRuns = GetTestRuns("Quartz.Tests.Unit", "Quartz.Tests.AspNetCore");
 
             foreach (var (project, framework) in testRuns)
             {
@@ -149,6 +156,9 @@ partial class Build : FalloutBuild, ICompile, IPack
                 .EnableNoRestore()
                 .EnableNoBuild()
                 .SetConfiguration(configuration)
+                // 'fragile' tests write into the application directory, so they collide with anything
+                // else running from it. They stay out until they are rewritten against a temp directory.
+                .SetFilter("TestCategory!=fragile")
                 .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : [])
                 .CombineWith(testRuns, (_, run) => _
                     .SetProjectFile(run.Project)
@@ -184,15 +194,20 @@ partial class Build : FalloutBuild, ICompile, IPack
 
             var filter = GetTestFilter(database);
 
-            var solution = ((IHasSolution) this).Solution;
             var configuration = ((ICompile) this).Configuration;
-            var integrationTestProjects = new[] { "Quartz.Tests.Integration" };
+            var testRuns = GetTestRuns("Quartz.Tests.Integration");
+
+            foreach (var (project, framework) in testRuns)
+            {
+                Log.Information("Integration tests against {Database}: {Project} ({Framework})",
+                    database ?? "all", project.Name, framework);
+            }
+
             DotNetTest(s =>
             {
                 s = s.EnableNoRestore()
                     .EnableNoBuild()
                     .SetConfiguration(configuration)
-                    .SetFramework("net8.0")
                     .SetLoggers("GitHubActions");
 
                 if (!string.IsNullOrEmpty(filter))
@@ -200,8 +215,9 @@ partial class Build : FalloutBuild, ICompile, IPack
                     s = s.SetFilter(filter);
                 }
 
-                return s.CombineWith(integrationTestProjects, (_, testProject) => _
-                    .SetProjectFile(solution.GetAllProjects(testProject).First())
+                return s.CombineWith(testRuns, (_, run) => _
+                    .SetProjectFile(run.Project)
+                    .SetFramework(run.Framework)
                 );
             });
         });
