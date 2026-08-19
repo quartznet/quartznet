@@ -99,7 +99,7 @@ public sealed record SchedulerMetadata
     /// <summary>
     /// Whether the <see cref="IScheduler" />'s <see cref="IJobStore" /> supports persistence.
     /// </summary>
-    public bool AdoJobStoreBasesPersistence { get; init; }
+    public bool JobStorePersistent { get; init; }
 
     /// <summary>
     /// Whether the <see cref="IScheduler" />'s <see cref="IJobStore" /> is clustered.

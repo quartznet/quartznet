@@ -3187,6 +3187,7 @@ The renamed and reshaped properties:
 | `ThreadPoolType` (`Type`) | `ThreadPoolTypeName` (`string`) |
 | `SchedulerRemote` / `IsRemote` | `IsProxy` |
 | `NumberOfJobsExecuted` | `JobsExecuted` |
+| `JobStoreSupportsPersistence` | `JobStorePersistent`, reading like its sibling `JobStoreClustered` |
 
 The `Type` members became assembly-qualified names (without version) because a proxy cannot promise to
 materialize them: an `HttpScheduler` reads the remote scheduler's metadata over the wire, and the remote's

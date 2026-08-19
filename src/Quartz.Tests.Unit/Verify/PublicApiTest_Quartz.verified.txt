@@ -1180,10 +1180,10 @@ namespace Quartz
     public sealed class SchedulerMetadata : System.IEquatable<Quartz.SchedulerMetadata>
     {
         public SchedulerMetadata() { }
-        public bool AdoJobStoreBasesPersistence { get; init; }
         public bool InStandbyMode { get; init; }
         public bool IsProxy { get; init; }
         public bool JobStoreClustered { get; init; }
+        public bool JobStorePersistent { get; init; }
         public required string JobStoreTypeName { get; init; }
         public int JobsExecuted { get; init; }
         public System.DateTimeOffset? RunningSince { get; init; }
