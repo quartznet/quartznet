@@ -54,7 +54,9 @@ internal sealed class ClusterManager
         // 2. If the task was never scheduled, no amount of waiting will help
         try
         {
-            await task.WaitAsync(ShutdownTimeout, jobStoreSupport.timeProvider).ConfigureAwait(false);
+            // CancellationToken.None deliberately: the loop's own token is already cancelled at this
+            // point, and passing it would abort the graceful wait we are here for.
+            await task.WaitAsync(ShutdownTimeout, jobStoreSupport.timeProvider, CancellationToken.None).ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
