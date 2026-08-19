@@ -1003,6 +1003,76 @@ public class JobStoreSupportTest
 
     #endregion
 
+    #region GetExecutingFireInstances
+
+    [Test]
+    public async Task GetExecutingFireInstances_MapsFiredTriggerRecordsToExecutingFireInstances()
+    {
+        TransientTriggersFiredTestStore store = CreateTransientTriggersFiredTestStore();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        var triggerKey = new TriggerKey("trigger1", "group1");
+        var jobKey = new JobKey("job1", "group1");
+        DateTimeOffset fireTime = DateTimeOffset.UtcNow;
+        DateTimeOffset scheduledTime = fireTime.AddSeconds(-1);
+
+        var record = new FiredTriggerRecord
+        {
+            FireInstanceId = "fire1",
+            FireInstanceState = StoredTriggerState.Executing,
+            TriggerKey = triggerKey,
+            SchedulerInstanceId = "node-1",
+            FireTimestamp = fireTime,
+            ScheduleTimestamp = scheduledTime,
+            JobKey = jobKey
+        };
+
+        A.CallTo(() => del.SelectExecutingFiredTriggers(A<ConnectionAndTransactionHolder>.Ignored, triggerKey, A<CancellationToken>.Ignored))
+            .Returns(new List<FiredTriggerRecord> { record });
+
+        List<ExecutingFireInstance> result = await store.GetExecutingFireInstances(triggerKey);
+
+        result.Should().ContainSingle();
+        ExecutingFireInstance instance = result[0];
+        instance.FireInstanceId.Should().Be("fire1");
+        instance.TriggerKey.Should().Be(triggerKey);
+        instance.JobKey.Should().Be(jobKey);
+        instance.SchedulerInstanceId.Should().Be("node-1");
+        instance.FireTimeUtc.Should().Be(fireTime);
+        instance.ScheduledFireTimeUtc.Should().Be(scheduledTime);
+    }
+
+    [Test]
+    public async Task GetExecutingFireInstances_SkipsRecordsWithoutJobKey()
+    {
+        // An EXECUTING row always carries its job columns; a record without one (e.g. still ACQUIRED)
+        // cannot be reported as an executing fire instance and must be skipped rather than throw.
+        TransientTriggersFiredTestStore store = CreateTransientTriggersFiredTestStore();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        var record = new FiredTriggerRecord
+        {
+            FireInstanceId = "fire1",
+            FireInstanceState = StoredTriggerState.Acquired,
+            TriggerKey = new TriggerKey("trigger1", "group1"),
+            SchedulerInstanceId = "node-1",
+            FireTimestamp = DateTimeOffset.UtcNow,
+            ScheduleTimestamp = DateTimeOffset.UtcNow,
+            JobKey = null
+        };
+
+        A.CallTo(() => del.SelectExecutingFiredTriggers(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new List<FiredTriggerRecord> { record });
+
+        List<ExecutingFireInstance> result = await store.GetExecutingFireInstances(null);
+
+        result.Should().BeEmpty();
+    }
+
+    #endregion
+
     #region TriggersFired transient retry tests
 
     [Test]

@@ -2148,6 +2148,61 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
+    /// <inheritdoc />
+    public ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(
+        TriggerKey? triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        // no locks necessary for read...
+        return ExecuteWithoutLock(conn => GetExecutingFireInstances(conn, triggerKey, cancellationToken), cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets the fire instances that are currently executing, across every node of the cluster.
+    /// </summary>
+    /// <param name="conn">The conn.</param>
+    /// <param name="triggerKey">Limits the result to one trigger, or <see langword="null" /> for every executing fire instance.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    protected virtual async ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey? triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            List<FiredTriggerRecord> records = await Delegate
+                .SelectExecutingFiredTriggers(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+
+            List<ExecutingFireInstance> result = new(records.Count);
+            foreach (FiredTriggerRecord record in records)
+            {
+                if (record.JobKey is null)
+                {
+                    // An EXECUTING row always has its job columns filled in; skip defensively rather than
+                    // report a fire instance with no job.
+                    continue;
+                }
+
+                result.Add(new ExecutingFireInstance
+                {
+                    FireInstanceId = record.FireInstanceId,
+                    TriggerKey = record.TriggerKey,
+                    JobKey = record.JobKey,
+                    SchedulerInstanceId = record.SchedulerInstanceId,
+                    FireTimeUtc = record.FireTimestamp,
+                    ScheduledFireTimeUtc = record.ScheduleTimestamp
+                });
+            }
+
+            return result;
+        }
+        catch (Exception e)
+        {
+            Throw.JobPersistenceException($"Couldn't retrieve executing fire instances: {e.Message}", e);
+            return default!;
+        }
+    }
+
     public async ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return await activityTracer.Trace(

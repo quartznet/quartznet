@@ -190,6 +190,13 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectFiredTriggerInstanceNames =
         Invariant($"SELECT DISTINCT {AdoConstants.ColumnInstanceName} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
 
+    /// <summary>
+    /// Selects every EXECUTING fired trigger of the scheduler; the caller appends
+    /// <see cref="SqlFiredTriggerTriggerPredicate" /> to narrow it to one trigger.
+    /// </summary>
+    public static readonly string SqlSelectExecutingFiredTriggers =
+        Invariant($"SELECT * FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnEntryState} = @executingState");
+
     public static readonly string SqlSelectCountExecutingFiredTriggersOfJob =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnJobName} = @jobName AND {AdoConstants.ColumnJobGroup} = @jobGroup AND {AdoConstants.ColumnEntryState} = @executingState");
 

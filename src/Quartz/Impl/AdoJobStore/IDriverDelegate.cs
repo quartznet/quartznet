@@ -719,6 +719,20 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Selects the fired-trigger records that are in the EXECUTING state, across every node of the
+    /// cluster. A listing-wide query rather than <see cref="SelectFiredTriggerRecords" /> filtered in
+    /// memory, so a caller answering a whole page does it in one query rather than one per row.
+    /// </summary>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="triggerKey">Limits the result to one trigger, or <see langword="null" /> for every executing fired trigger.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>A list of FiredTriggerRecord objects, all in the EXECUTING state.</returns>
+    ValueTask<List<FiredTriggerRecord>> SelectExecutingFiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey? triggerKey,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Checks whether a job is currently being executed (has a fired trigger in EXECUTING state).
     /// Used to enforce <see cref="DisallowConcurrentExecutionAttribute"/> across cluster nodes.
     /// </summary>

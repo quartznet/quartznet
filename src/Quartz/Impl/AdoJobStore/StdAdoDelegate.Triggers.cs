@@ -1297,6 +1297,38 @@ public partial class StdAdoDelegate
         return records;
     }
 
+    /// <inheritdoc />
+    public virtual async ValueTask<List<FiredTriggerRecord>> SelectExecutingFiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey? triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        List<FiredTriggerRecord> records = [];
+
+        string sql = StdAdoConstants.SqlSelectExecutingFiredTriggers;
+        if (triggerKey is not null)
+        {
+            sql += StdAdoConstants.SqlFiredTriggerTriggerPredicate;
+        }
+
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
+        AddCommandParameter(cmd, "schedulerName", schedulerName);
+        AddCommandParameter(cmd, "executingState", StoredTriggerState.Executing.ToStoredValue());
+        if (triggerKey is not null)
+        {
+            AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+            AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        }
+
+        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            records.Add(ReadFiredTriggerRecord(rs));
+        }
+
+        return records;
+    }
+
     private FiredTriggerRecord ReadFiredTriggerRecord(DbDataReader rs)
     {
         StoredTriggerState state = StoredTriggerStates.FromStoredValue(rs.GetString(AdoConstants.ColumnEntryState));
