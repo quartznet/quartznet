@@ -141,6 +141,14 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             }
         }
 
+        // Unlike JobStoreSupport, RAMJobStore has no constructor-time access to QuartzSchedulerOptions, so
+        // it never learns the configured instance id on its own — tell it now, whether that id came from
+        // configuration or was just generated above.
+        if (resources.JobStore is RAMJobStore ramJobStore)
+        {
+            ramJobStore.SchedulerInstanceId = resources.InstanceId;
+        }
+
         var threadPool = resources.ThreadPool;
         await threadPool.Initialize(cancellationToken).ConfigureAwait(false);
 

@@ -573,6 +573,15 @@ public interface IJobStore
     ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the fire instances that are currently executing, across every node of the cluster.
+    /// </summary>
+    /// <param name="triggerKey">Limits the result to the fire instances of one trigger, or <see langword="null" /> for every executing fire instance.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The currently executing fire instances, in no particular order.</returns>
+    /// <seealso cref="ExecutingFireInstance" />
+    ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(TriggerKey? triggerKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get the amount of time to wait when accessing this job store repeatedly fails.
     /// </summary>
     /// <remarks>

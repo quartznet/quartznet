@@ -113,6 +113,11 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
+        public ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask<IJobDetail> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();

@@ -295,6 +295,11 @@ public class DelegatingJobStore : IJobStore
         return jobStore.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken);
     }
 
+    public virtual ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(TriggerKey? triggerKey, CancellationToken cancellationToken = default)
+    {
+        return jobStore.GetExecutingFireInstances(triggerKey, cancellationToken);
+    }
+
     public virtual TimeSpan GetAcquireRetryDelay(int failureCount)
     {
         return jobStore.GetAcquireRetryDelay(failureCount);

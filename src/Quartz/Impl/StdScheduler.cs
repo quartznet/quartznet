@@ -510,6 +510,16 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
+    public ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(
+        TriggerKey? triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetExecutingFireInstances(triggerKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
     public ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);

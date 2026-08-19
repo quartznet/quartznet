@@ -153,6 +153,33 @@ public interface IScheduler
     ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the fire instances that are currently executing, across every node of the cluster.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Unlike <see cref="GetCurrentlyExecutingJobs" />, this is cluster aware when a persistent job store
+    /// is used: it reports every node's executions, not only this one's. It is also richer than
+    /// <see cref="TriggerState.Executing" />, which only says that at least one execution of a trigger is
+    /// running — this returns every one of them individually, so a trigger with several executions in
+    /// flight is not collapsed into a single fact.
+    /// </para>
+    /// <para>
+    /// Deliberately not a list of <see cref="IJobExecutionContext" />: a remote node's live execution
+    /// object cannot be reconstructed from another process, so this only carries what any node can answer
+    /// for another — identity and timing.
+    /// </para>
+    /// <para>
+    /// Note that the list returned is an 'instantaneous' snapshot, and that as soon as it's returned, the
+    /// true list of executing fire instances may be different.
+    /// </para>
+    /// </remarks>
+    /// <param name="triggerKey">Limits the result to the fire instances of one trigger, or <see langword="null" /> for every executing fire instance.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <seealso cref="ExecutingFireInstance" />
+    /// <seealso cref="GetCurrentlyExecutingJobs" />
+    ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(TriggerKey? triggerKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get a reference to the scheduler's <see cref="IListenerManager" />,
     /// through which listeners may be registered.
     /// </summary>

@@ -69,10 +69,31 @@ public sealed class RAMJobStore : IJobStore
     /// ADO store, where the answer comes from FIRED_TRIGGERS rows that likewise outlive a trigger update.
     /// </remarks>
     private readonly Dictionary<TriggerKey, HashSet<string>> executingFireInstances = [];
+
+    /// <summary>
+    /// The full detail of every execution recorded in <see cref="executingFireInstances" />, keyed by
+    /// <see cref="ExecutingFireInstance.FireInstanceId" /> rather than by trigger: unlike that dictionary,
+    /// this one backs <see cref="GetExecutingFireInstances" />, which identifies individual executions, so
+    /// it has to be able to look one up on its own key. Populated and released alongside it, in
+    /// <see cref="TriggersFired" /> and <see cref="ReleaseExecutionNoLock" />.
+    /// </summary>
+    private readonly Dictionary<string, ExecutingFireInstance> executingFireInstanceDetails = [];
+
     private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
     private readonly ISchedulerSignaler signaler;
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
+
+    /// <summary>
+    /// The instance id reported on <see cref="ExecutingFireInstance" /> results from this store.
+    /// </summary>
+    /// <remarks>
+    /// RAMJobStore is never clustered, so unlike <c>JobStoreSupport</c> it has no constructor-time access
+    /// to the scheduler's configured instance id — it is told this after construction, once the id is
+    /// known (see <c>DefaultSchedulerFactory</c>). Defaults to the same placeholder as an unconfigured
+    /// scheduler's instance id.
+    /// </remarks>
+    public string SchedulerInstanceId { get; set; } = "NON_CLUSTERED";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RAMJobStore"/> class.
@@ -215,6 +236,7 @@ public sealed class RAMJobStore : IJobStore
 
             resumedJobsInPausedGroups.Clear();
             executingFireInstances.Clear();
+            executingFireInstanceDetails.Clear();
         }
         finally
         {
@@ -539,9 +561,12 @@ public sealed class RAMJobStore : IJobStore
     // fired-trigger rows alone but deleting one removes them. There is no default: every caller says which.
     private async Task<bool> RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, bool keepExecutions, CancellationToken cancellationToken)
     {
-        if (!keepExecutions)
+        if (!keepExecutions && executingFireInstances.Remove(key, out var executionsToForget))
         {
-            executingFireInstances.Remove(key);
+            foreach (string fireInstanceId in executionsToForget)
+            {
+                executingFireInstanceDetails.Remove(fireInstanceId);
+            }
         }
 
         // remove from triggers by FQN map
@@ -847,11 +872,41 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     private void ReleaseExecutionNoLock(TriggerKey triggerKey, string fireInstanceId)
     {
+        // Unlike the HashSet<string> below, Dictionary<string, T>.Remove throws on a null key instead of
+        // just reporting no match - and a trigger that was acquired but never fired has no FireInstanceId.
+        if (fireInstanceId is not null)
+        {
+            executingFireInstanceDetails.Remove(fireInstanceId);
+        }
+
         if (executingFireInstances.TryGetValue(triggerKey, out var fireInstances)
-            && fireInstances.Remove(fireInstanceId)
+            && fireInstances.Remove(fireInstanceId!)
             && fireInstances.Count == 0)
         {
             executingFireInstances.Remove(triggerKey);
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(TriggerKey? triggerKey, CancellationToken cancellationToken = default)
+    {
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            List<ExecutingFireInstance> result = [];
+            foreach (ExecutingFireInstance instance in executingFireInstanceDetails.Values)
+            {
+                if (triggerKey is null || instance.TriggerKey.Equals(triggerKey))
+                {
+                    result.Add(instance);
+                }
+            }
+
+            return result;
+        }
+        finally
+        {
+            lockObject.Release();
         }
     }
 
@@ -2398,6 +2453,15 @@ public sealed class RAMJobStore : IJobStore
                 }
 
                 fireInstances.Add(trigger.FireInstanceId);
+                executingFireInstanceDetails[trigger.FireInstanceId] = new ExecutingFireInstance
+                {
+                    FireInstanceId = trigger.FireInstanceId,
+                    TriggerKey = tw.TriggerKey,
+                    JobKey = job.Key,
+                    SchedulerInstanceId = SchedulerInstanceId,
+                    FireTimeUtc = bndle.FireTimeUtc,
+                    ScheduledFireTimeUtc = bndle.ScheduledFireTimeUtc
+                };
 
                 results.Add(new TriggerFiredResult(bndle));
             }

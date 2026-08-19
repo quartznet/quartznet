@@ -227,6 +227,11 @@ public class DelegatingScheduler : IScheduler
         return scheduler.GetTriggerState(triggerKey, cancellationToken);
     }
 
+    public virtual ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(TriggerKey? triggerKey, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetExecutingFireInstances(triggerKey, cancellationToken);
+    }
+
     public virtual ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);

@@ -1477,6 +1477,19 @@ internal sealed class QuartzScheduler
         return resources.JobStore.GetTriggerState(triggerKey, cancellationToken);
     }
 
+    /// <summary>
+    /// Gets the fire instances that are currently executing, across every node of the cluster.
+    /// </summary>
+    /// <seealso cref="ExecutingFireInstance" />
+    public ValueTask<List<ExecutingFireInstance>> GetExecutingFireInstances(
+        TriggerKey? triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateState();
+
+        return resources.JobStore.GetExecutingFireInstances(triggerKey, cancellationToken);
+    }
+
     public ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         ValidateState();

@@ -699,6 +699,119 @@ public class RAMJobStoreTest
             "ReleaseAcquiredTrigger should not unblock all triggers for DisallowConcurrentExecution jobs");
     }
 
+    [Test]
+    public async Task TestGetExecutingFireInstances_ReturnsDetailForFiredTrigger()
+    {
+        var d = TestDates.EvenMinuteDateAfterNow();
+        var trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.AddTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
+        Assert.That(acquired, Has.Count.EqualTo(1));
+
+        var fired = await fJobStore.TriggersFired(acquired);
+        Assert.That(fired, Has.Count.EqualTo(1));
+        var bundle = fired[0].TriggerFiredBundle;
+
+        var executing = await fJobStore.GetExecutingFireInstances(null);
+
+        executing.Should().HaveCount(1);
+        var instance = executing[0];
+        instance.FireInstanceId.Should().Be(bundle.Trigger.FireInstanceId);
+        instance.TriggerKey.Should().Be(trigger.Key);
+        instance.JobKey.Should().Be(fJobDetail.Key);
+        instance.FireTimeUtc.Should().Be(bundle.FireTimeUtc);
+    }
+
+    [Test]
+    public async Task TestGetExecutingFireInstances_MultiplicityIsNotCollapsed()
+    {
+        // TriggerState.Executing only ever says "at least one execution is running"; unlike it,
+        // GetExecutingFireInstances must not collapse several concurrent executions into that single fact.
+        var d = TestDates.EvenMinuteDateAfterNow();
+        var trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        var trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        trigger1.ComputeFirstFireTimeUtc(null);
+        trigger2.ComputeFirstFireTimeUtc(null);
+        await fJobStore.AddTrigger(trigger1, false);
+        await fJobStore.AddTrigger(trigger2, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 2, TimeWindow = TimeSpan.Zero });
+        Assert.That(acquired, Has.Count.EqualTo(2));
+
+        var fired = await fJobStore.TriggersFired(acquired);
+        Assert.That(fired, Has.Count.EqualTo(2));
+
+        var executing = await fJobStore.GetExecutingFireInstances(null);
+
+        executing.Should().HaveCount(2);
+        executing.Select(x => x.FireInstanceId).Should().OnlyHaveUniqueItems();
+    }
+
+    [Test]
+    public async Task TestGetExecutingFireInstances_FiltersByTriggerKey()
+    {
+        var d = TestDates.EvenMinuteDateAfterNow();
+        var trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        var trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        trigger1.ComputeFirstFireTimeUtc(null);
+        trigger2.ComputeFirstFireTimeUtc(null);
+        await fJobStore.AddTrigger(trigger1, false);
+        await fJobStore.AddTrigger(trigger2, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 2, TimeWindow = TimeSpan.Zero });
+        await fJobStore.TriggersFired(acquired);
+
+        var executing = await fJobStore.GetExecutingFireInstances(trigger1.Key);
+
+        executing.Should().ContainSingle();
+        executing[0].TriggerKey.Should().Be(trigger1.Key);
+    }
+
+    [Test]
+    public async Task TestGetExecutingFireInstances_ReleasedAfterTriggeredJobComplete()
+    {
+        var d = TestDates.EvenMinuteDateAfterNow();
+        var trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.AddTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
+        var fired = await fJobStore.TriggersFired(acquired);
+        var bundle = fired[0].TriggerFiredBundle;
+
+        (await fJobStore.GetExecutingFireInstances(null)).Should().HaveCount(1);
+
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.GetExecutingFireInstances(null)).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task TestGetExecutingFireInstances_AgreesWithTriggerStateExecuting()
+    {
+        // Complementary per issue #3205: TriggerState.Executing and GetExecutingFireInstances should
+        // never disagree about whether a trigger has an execution in flight.
+        var d = TestDates.EvenMinuteDateAfterNow();
+        var trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.AddTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
+        await fJobStore.TriggersFired(acquired);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Executing);
+        (await fJobStore.GetExecutingFireInstances(trigger.Key)).Should().ContainSingle();
+    }
+
     /// <summary>
     /// Builds a repeating trigger for the concurrency-allowed job the fixture stores.
     /// </summary>
