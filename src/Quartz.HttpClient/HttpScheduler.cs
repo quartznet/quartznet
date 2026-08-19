@@ -35,7 +35,10 @@ public sealed class HttpScheduler : IScheduler
 
     /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler.</param>
     /// <param name="httpClient">The client to call the remote scheduler with.</param>
-    /// <param name="jsonSerializerOptions">Optional serializer options; Quartz's own converters are added to them.</param>
+    /// <param name="jsonSerializerOptions">
+    /// Optional serializer options. A copy is taken and Quartz's own converters are added to the copy,
+    /// so the instance passed in is left untouched.
+    /// </param>
     /// <param name="serializerRegistry">
     /// The trigger and calendar serializers to understand. Custom types are only readable over HTTP when
     /// their serializers are given here — the remote scheduler's own registrations are not visible in this
@@ -60,7 +63,13 @@ public sealed class HttpScheduler : IScheduler
             throw new ArgumentException("HttpClient's BaseAddress must end in /", nameof(httpClient));
         }
 
-        this.jsonSerializerOptions = jsonSerializerOptions ?? new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        // The caller's options are borrowed, not owned: adding our converters to their instance would
+        // throw once those options had been used for anything (they are read-only from then on), and
+        // would add the converters a second time when two clients share one instance.
+        this.jsonSerializerOptions = jsonSerializerOptions is null
+            ? new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            : new JsonSerializerOptions(jsonSerializerOptions);
+
         this.jsonSerializerOptions.AddQuartzConverters(
             serializerRegistry ?? new SystemTextJsonSerializerRegistry(),
             newtonsoftCompatibilityMode: false);
