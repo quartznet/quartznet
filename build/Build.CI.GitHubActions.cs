@@ -30,8 +30,12 @@ using Quartz.Build;
 [DatabaseIntegrationGitHubActions("pr-integration-firebird", "firebird")]
 [DatabaseIntegrationGitHubActions("pr-integration-sqlite", "sqlite")]
 [DatabaseIntegrationGitHubActions("pr-integration-redis", "redis")]
-[GitHubActions(
+// The push leg runs 'basic' — the container-free negation of every db-* category. Left unset the build
+// defaults to "all", which starts six database containers inside a ten-minute job; per-database coverage
+// is what the pr-integration-* workflows above are for.
+[DatabaseGitHubActions(
     "build",
+    "basic",
     GitHubActionsImage.WindowsLatest,
     GitHubActionsImage.UbuntuLatest,
     GitHubActionsImage.MacOsLatest,
@@ -66,21 +70,42 @@ public partial class Build;
 namespace Quartz.Build
 {
     /// <summary>
-    /// Preset for the per-database integration workflows. The database under test is handed to the build
-    /// as an <c>env:</c> entry on the generated run step, which Fallout resolves into the <c>Database</c>
-    /// parameter — the same mechanism <see cref="GitHubActionsAttribute.ImportSecrets"/> uses, so no
-    /// custom step needs to be written.
+    /// A workflow that pins the database its integration tests run against. The database is handed to the
+    /// build as an <c>env:</c> entry on the generated run step, which Fallout resolves into the
+    /// <c>Database</c> parameter — the same mechanism <see cref="GitHubActionsAttribute.ImportSecrets"/>
+    /// uses, so no custom step needs to be written.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-    internal sealed class DatabaseIntegrationGitHubActionsAttribute : GitHubActionsAttribute
+    internal class DatabaseGitHubActionsAttribute : GitHubActionsAttribute
     {
         readonly string database;
 
-        public DatabaseIntegrationGitHubActionsAttribute(string name, string database)
-            : base(name, GitHubActionsImage.UbuntuLatest)
+        public DatabaseGitHubActionsAttribute(
+            string name,
+            string database,
+            GitHubActionsImage image,
+            params GitHubActionsImage[] images)
+            : base(name, image, images)
         {
             this.database = database;
+        }
 
+        protected override IEnumerable<(string Key, string Value)> GetImports()
+        {
+            return base.GetImports().Concat([("Database", database)]);
+        }
+    }
+
+    /// <summary>
+    /// Preset for the per-database integration workflows: one Ubuntu job per database, triggered by pull
+    /// requests, running nothing but a compile and the integration tests for that one database.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+    internal sealed class DatabaseIntegrationGitHubActionsAttribute : DatabaseGitHubActionsAttribute
+    {
+        public DatabaseIntegrationGitHubActionsAttribute(string name, string database)
+            : base(name, database, GitHubActionsImage.UbuntuLatest)
+        {
             OnPullRequestBranches = ["main", "3.x"];
             OnPullRequestIncludePaths = ["**/*"];
             OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"];
@@ -90,11 +115,6 @@ namespace Quartz.Build
             TimeoutMinutes = 10;
             ConcurrencyCancelInProgress = true;
             ReadPermissions = [GitHubActionsPermissions.Contents];
-        }
-
-        protected override IEnumerable<(string Key, string Value)> GetImports()
-        {
-            return base.GetImports().Concat([("Database", database)]);
         }
     }
 }

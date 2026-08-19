@@ -5,7 +5,7 @@
 #
 #     - To turn off auto-generation set:
 #
-#         [GitHubActions (AutoGenerate = false)]
+#         [DatabaseGitHubActions (AutoGenerate = false)]
 #
 #     - To trigger manual generation invoke:
 #
@@ -48,6 +48,7 @@ jobs:
         run: dotnet fallout Compile UnitTest IntegrationTest Pack Publish
         env:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
+          Database: basic
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v7
         if: ${{ runner.os == 'Windows' }}
@@ -70,6 +71,7 @@ jobs:
         run: dotnet fallout Compile UnitTest IntegrationTest Pack Publish
         env:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
+          Database: basic
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v7
         if: ${{ runner.os == 'Windows' }}
@@ -92,6 +94,7 @@ jobs:
         run: dotnet fallout Compile UnitTest IntegrationTest Pack Publish
         env:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
+          Database: basic
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v7
         if: ${{ runner.os == 'Windows' }}
