@@ -15,51 +15,49 @@ public class XMLSchedulingDataProcessorPluginTest
     [Test]
     public async Task WhenFullPathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
     {
-        string fp1 = Path.GetTempFileName();
-        using (File.Create(fp1))
+        string tempDir = Path.Combine(Path.GetTempPath(), "QuartzTest_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
         {
+            string fp1 = Path.Combine(tempDir, "job-data-1.xml");
+            string fp2 = Path.Combine(tempDir, "job-data-2.xml");
+            File.WriteAllText(fp1, "");
+            File.WriteAllText(fp2, "");
+
+            var dataProcessor = new XMLSchedulingDataProcessorPlugin();
+            dataProcessor.FileNames = fp1 + ", " + fp2;
+            var mockScheduler = A.Fake<IScheduler>();
+
+            await dataProcessor.Initialize("something", mockScheduler);
+
+            dataProcessor.JobFiles.Should().HaveCount(2);
+            dataProcessor.JobFiles.Select(x => x.Key).Should().Equal(fp1, fp2);
         }
-        string fp2 = Path.GetTempFileName();
-        using (File.Create(fp2))
+        finally
         {
+            Directory.Delete(tempDir, true);
         }
-
-        var dataProcessor = new XMLSchedulingDataProcessorPlugin();
-        dataProcessor.FileNames = fp1 + ", " + fp2;
-        var mockScheduler = A.Fake<IScheduler>();
-
-        await dataProcessor.Initialize("something", mockScheduler);
-
-        Assert.That(dataProcessor.JobFiles.Count(), Is.EqualTo(2));
-        Assert.That(dataProcessor.JobFiles.Select(x => x.Key), Is.EqualTo(new[] {fp1, fp2}));
     }
 
     [Test]
-    [Category("fragile")]
     public async Task WhenRelativePathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
     {
-        string configuredFileName1 = "~/File1.xml";
+        // '~' always resolves against the application base directory, so the files must not be
+        // created there; FailOnFileNotFound = false lets initialization resolve missing files.
+        string configuredFileName1 = $"~/{Guid.NewGuid():N}.xml";
+        string configuredFileName2 = $"~/{Guid.NewGuid():N}.xml";
         string expectedPathFile1 = FileUtil.ResolveFile(configuredFileName1);
-        if (!File.Exists(expectedPathFile1))
-        {
-            File.Create(expectedPathFile1).Close();
-        }
-
-        string configuredFileName2 = "~/File2.xml";
         string expectedPathFile2 = FileUtil.ResolveFile(configuredFileName2);
-        if (!File.Exists(expectedPathFile2))
-        {
-            File.Create(expectedPathFile2).Close();
-        }
 
         var dataProcessor = new XMLSchedulingDataProcessorPlugin();
         dataProcessor.FileNames = configuredFileName1 + ", " + configuredFileName2;
+        dataProcessor.FailOnFileNotFound = false;
         var mockScheduler = A.Fake<IScheduler>();
 
         await dataProcessor.Initialize("something", mockScheduler);
 
-        Assert.That(dataProcessor.JobFiles.Count(), Is.EqualTo(2));
-        Assert.That(dataProcessor.JobFiles.Select(x => x.Key).ToArray(), Is.EqualTo(new[] {expectedPathFile1, expectedPathFile2}));
+        dataProcessor.JobFiles.Should().HaveCount(2);
+        dataProcessor.JobFiles.Select(x => x.Key).Should().Equal(expectedPathFile1, expectedPathFile2);
     }
 
     [Test]
