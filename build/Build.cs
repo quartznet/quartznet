@@ -156,9 +156,6 @@ partial class Build : FalloutBuild, ICompile, IPack
                 .EnableNoRestore()
                 .EnableNoBuild()
                 .SetConfiguration(configuration)
-                // 'fragile' tests write into the application directory, so they collide with anything
-                // else running from it. They stay out until they are rewritten against a temp directory.
-                .SetFilter("TestCategory!=fragile")
                 .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : [])
                 .CombineWith(testRuns, (_, run) => _
                     .SetProjectFile(run.Project)
