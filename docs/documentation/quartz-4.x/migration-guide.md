@@ -1304,9 +1304,39 @@ second remote scheduler needed a marker interface only because the container had
 + var mine = provider.GetRequiredKeyedService<IScheduler>("MyScheduler");
 ```
 
-The marker interfaces themselves can be deleted. The three non-generic `AddQuartzHttpClient` overloads are
-unchanged, and the first remote scheduler registered is still the unkeyed `IScheduler` for a container
-that holds only one.
+The marker interfaces themselves can be deleted, and the first remote scheduler registered is still the
+unkeyed `IScheduler` for a container that holds only one.
+
+### A client is named or built, never handed over
+
+`HttpClientOptions.HttpClient` and the `AddQuartzHttpClient(schedulerName, HttpClient, …)` overload are
+removed. An options object is bound from configuration, cached and shared; a live `HttpClient` sitting
+in one is a disposable resource with no owner, unreachable from `appsettings.json`, and it goes around
+`IHttpClientFactory` — which is what keeps a long-lived client from pinning stale DNS.
+
+There are two shapes, both of which say who made the client:
+
+| Shape | How |
+|---|---|
+| A named `IHttpClientFactory` client — prefer this | `AddQuartzHttpClient(name, "QuartzHttpClient")`, or `options.HttpClientName` |
+| A factory of your own | `AddQuartzHttpClient(name, provider => …)`, or `options.CreateHttpClient` |
+
+```diff
+- var client = new HttpClient { BaseAddress = new Uri("http://localhost:5000/quartz-api/") };
+- services.AddQuartzHttpClient("MyScheduler", client);
++ services.AddHttpClient("QuartzHttpClient", c => c.BaseAddress = new Uri("http://localhost:5000/quartz-api/"));
++ services.AddQuartzHttpClient("MyScheduler", "QuartzHttpClient");
+```
+
+To keep building the client yourself, wrap it in a factory — it runs once, when the scheduler is first
+resolved, and is handed the container:
+
+```diff
+- services.AddQuartzHttpClient("MyScheduler", client);
++ services.AddQuartzHttpClient("MyScheduler", _ => client);
+```
+
+Either way the client belongs to whoever made it. The scheduler never disposes it.
 
 This removes `Quartz.HttpClient`'s only use of `System.Reflection.Emit`, so the package no longer emits a
 type at runtime for a scheduler interface — one fewer thing standing between it and ahead-of-time
