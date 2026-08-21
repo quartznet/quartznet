@@ -1716,6 +1716,25 @@ which made `UseNewtonsoftJsonSerializer` ambiguous when both were referenced.
 `AddCalendarSerializer<TCalendar>` is now constrained to `ICalendar`, matching the trigger side; a call that
 passed something else was never going to work at runtime.
 
+Its *argument* is constrained too, in both packages: it takes `CalendarSerializer<TCalendar>` rather than
+`ICalendarSerializer`, so the calendar type and the serializer that reads it have to agree.
+
+```diff
+- // compiled fine, then threw InvalidCastException on the first calendar that round-tripped
+- json.AddCalendarSerializer<HolidayCalendar>(new AnnualCalendarSerializer());
++ json.AddCalendarSerializer(new HolidayCalendarSerializer());   // TCalendar is inferred
+```
+
+Existing calls that pair correctly — including ones that spell the type argument out — compile unchanged.
+The type argument is now inferable from the serializer, so it can be dropped.
+
+`AddTriggerSerializer<TTrigger>` deliberately keeps `ITriggerSerializer`. The documented way to serialize
+a trigger that derives from a built-in one is a serializer that derives from the built-in serializer —
+`class ReportTriggerSerializer : CronTriggerSerializer` for a `ReportTrigger : CronTriggerImpl`. That
+serializer is a `TriggerSerializer<CronTriggerImpl>`, not a `TriggerSerializer<ReportTrigger>`, and
+`TriggerSerializer<T>` is an invariant class, so tightening the argument the same way would reject exactly
+the pattern the package recommends. Calendars have no equivalent pattern.
+
 `ICalendarSerializer` also gained `CalendarTypeName`, closing the last contract gap between the two
 packages. It is a default interface member returning empty, so an existing implementation compiles
 unchanged and keeps its 3.x behavior: matched by the calendar's assembly-qualified type name. When a

@@ -52,7 +52,7 @@ namespace Quartz.Serialization.Newtonsoft
     public sealed class NewtonsoftJsonSerializerRegistry
     {
         public NewtonsoftJsonSerializerRegistry() { }
-        public Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry AddCalendarSerializer<TCalendar>(Quartz.Serialization.Newtonsoft.Calendars.ICalendarSerializer serializer)
+        public Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry AddCalendarSerializer<TCalendar>(Quartz.Serialization.Newtonsoft.Calendars.CalendarSerializer<TCalendar> serializer)
             where TCalendar : Quartz.ICalendar { }
         public Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry AddTriggerSerializer<TTrigger>(Quartz.Serialization.Newtonsoft.Triggers.ITriggerSerializer serializer)
             where TTrigger : Quartz.ITrigger { }

@@ -3350,7 +3350,7 @@ namespace Quartz.Serialization.SystemTextJson
     public sealed class SystemTextJsonSerializerRegistry
     {
         public SystemTextJsonSerializerRegistry() { }
-        public Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry AddCalendarSerializer<TCalendar>(Quartz.Serialization.SystemTextJson.Calendars.ICalendarSerializer serializer)
+        public Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry AddCalendarSerializer<TCalendar>(Quartz.Serialization.SystemTextJson.Calendars.CalendarSerializer<TCalendar> serializer)
             where TCalendar : Quartz.ICalendar { }
         public Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry AddTriggerSerializer<TTrigger>(Quartz.Serialization.SystemTextJson.Triggers.ITriggerSerializer serializer)
             where TTrigger : Quartz.ITrigger { }
