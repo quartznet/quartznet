@@ -36,7 +36,13 @@ internal static class QuartzTypedOptions
     {
         services.AddOptions();
 
+        // The name registry is what the default scheduler's name is checked against, and it has to exist
+        // whether or not a named scheduler was ever registered — otherwise validating the default
+        // scheduler's options would fail to construct its own validator.
+        SchedulerNameRegistry.For(services);
+
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QuartzSchedulerOptions>, QuartzSchedulerOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QuartzSchedulerOptions>, DefaultSchedulerNameValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ThreadPoolOptions>, ThreadPoolOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<InMemoryJobStoreOptions>, InMemoryJobStoreOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AdoJobStoreOptions>, AdoJobStoreOptionsValidator>());
