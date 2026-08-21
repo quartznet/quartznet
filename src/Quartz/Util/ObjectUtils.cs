@@ -170,6 +170,18 @@ internal static class ObjectUtils
 
     private static readonly ConcurrentDictionary<(Type ObjectType, string PropertyName), PropertyInfo?> propertyResolutionCache = new();
 
+    /// <summary>
+    /// Non-public setters are bound too.
+    /// </summary>
+    /// <remarks>
+    /// A shipped component's settings are public on its options type and internal on the component
+    /// itself, so that the options type is the one way to configure it in code. The flat
+    /// <c>quartz.plugin.&lt;name&gt;.*</c> and <c>quartz.jobStore.lockHandler.*</c> keys write the
+    /// component directly, and they have to keep working — so this binder sees what a caller cannot.
+    /// </remarks>
+    private const BindingFlags Bindings =
+        BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
     public static void SetPropertyValue(object target, string propertyName, object? value)
     {
         var pi = propertyResolutionCache.GetOrAdd((target.GetType(), propertyName), static tuple =>
@@ -179,14 +191,14 @@ internal static class ObjectUtils
                 : tuple.PropertyName;
 
             Type t = tuple.ObjectType;
-            var propertyInfo = t.GetProperty(name);
+            var propertyInfo = t.GetProperty(name, Bindings);
 
             if (propertyInfo is null || !propertyInfo.CanWrite)
             {
                 // try to find from interfaces
                 foreach (var interfaceType in t.GetInterfaces())
                 {
-                    propertyInfo = interfaceType.GetProperty(name);
+                    propertyInfo = interfaceType.GetProperty(name, Bindings);
                     if (propertyInfo is not null && propertyInfo.CanWrite)
                     {
                         // found suitable
@@ -204,7 +216,7 @@ internal static class ObjectUtils
             Throw.MemberAccessException($"No writable property '{propertyName}' found");
         }
 
-        var mi = pi.GetSetMethod();
+        var mi = pi.GetSetMethod(nonPublic: true);
 
         if (mi is null)
         {

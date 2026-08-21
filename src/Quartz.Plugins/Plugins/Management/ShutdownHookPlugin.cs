@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -51,7 +51,7 @@ public class ShutdownHookPlugin : ISchedulerPlugin
     /// </para>
     /// </summary>
     /// <seealso cref="IScheduler.Shutdown(bool, CancellationToken)" />
-    public bool CleanShutdown { get; set; }
+    public bool CleanShutdown { get; internal set; }
 
     /// <summary>
     /// Called during creation of the <see cref="IScheduler" /> in order to give

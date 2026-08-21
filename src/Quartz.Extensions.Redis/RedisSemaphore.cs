@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -83,7 +83,7 @@ public sealed class RedisSemaphore : ISemaphore
     /// <remarks>
     /// Defaults to <c>"localhost:6379"</c>.
     /// </remarks>
-    public string RedisConfiguration { get; set; } = "localhost:6379";
+    public string RedisConfiguration { get; internal set; } = "localhost:6379";
 
     /// <summary>
     /// Gets or sets the prefix for Redis lock keys.
@@ -92,7 +92,7 @@ public sealed class RedisSemaphore : ISemaphore
     /// Defaults to <c>"quartz:lock:"</c>. The full key format is
     /// <c>{KeyPrefix}{SchedulerName}:{lockName}</c>.
     /// </remarks>
-    public string KeyPrefix { get; set; } = "quartz:lock:";
+    public string KeyPrefix { get; internal set; } = "quartz:lock:";
 
     /// <summary>
     /// Gets or sets the lock time-to-live.
@@ -105,7 +105,7 @@ public sealed class RedisSemaphore : ISemaphore
     public TimeSpan LockTimeToLive
     {
         get => lockTimeToLive;
-        set
+        internal set
         {
             ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(value, TimeSpan.Zero);
             lockTimeToLive = value;
@@ -122,7 +122,7 @@ public sealed class RedisSemaphore : ISemaphore
     public TimeSpan LockRetryInterval
     {
         get => lockRetryInterval;
-        set
+        internal set
         {
             ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(value, TimeSpan.Zero);
             lockRetryInterval = value;

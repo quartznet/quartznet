@@ -1,4 +1,4 @@
-
+﻿
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -26,7 +26,7 @@ public class QuartzHealthCheckRegistrationTests
         services.AddQuartzHealthChecks(options =>
         {
             options.Name = "quartz";
-            options.Tags = ["ready", "live"];
+            options.Tags.AddRange(["ready", "live"]);
             options.FailureStatus = HealthStatus.Degraded;
         });
 

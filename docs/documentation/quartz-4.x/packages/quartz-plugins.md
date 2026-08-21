@@ -56,7 +56,11 @@ Available template properties:
 ```csharp
 services.AddQuartz(q =>
 {
-    q.UseStructuredJobLogging();
+    q.UseStructuredJobLogging(options =>
+    {
+        // Optional; each template left unset keeps the plugin's own default.
+        options.JobFailedMessage = "Job {JobGroup}.{JobName} failed: {ExceptionMessage}";
+    });
 });
 ```
 
@@ -83,7 +87,11 @@ Available template properties:
 ```csharp
 services.AddQuartz(q =>
 {
-    q.UseStructuredTriggerLogging();
+    q.UseStructuredTriggerLogging(options =>
+    {
+        // Optional; each template left unset keeps the plugin's own default.
+        options.TriggerMisfiredMessage = "Trigger {TriggerGroup}.{TriggerName} misfired at {FireTime}";
+    });
 });
 ```
 
@@ -118,7 +126,7 @@ services.AddQuartz(q =>
 {
     q.UseJsonSchedulingConfiguration(x =>
     {
-        x.Files = ["quartz_jobs.json"];
+        x.Files.Add("quartz_jobs.json");
         x.ScanInterval = TimeSpan.FromMinutes(1);
         x.FailOnFileNotFound = true;
         x.FailOnSchedulingError = true;

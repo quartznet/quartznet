@@ -6,7 +6,7 @@ namespace Quartz
         public FileSchedulingOptions() { }
         public bool FailOnFileNotFound { get; set; }
         public bool FailOnSchedulingError { get; set; }
-        public string[] Files { get; set; }
+        public System.Collections.Generic.List<string> Files { get; }
         public System.TimeSpan ScanInterval { get; set; }
     }
     public sealed class JobAutoInterruptOptions
@@ -28,8 +28,8 @@ namespace Quartz
         public static Quartz.IQuartzBuilder UseJobHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseJsonSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
         public static Quartz.IQuartzBuilder UseShutdownHook(this Quartz.IQuartzBuilder builder, bool cleanShutdown = true) { }
-        public static Quartz.IQuartzBuilder UseStructuredJobLogging(this Quartz.IQuartzBuilder builder) { }
-        public static Quartz.IQuartzBuilder UseStructuredTriggerLogging(this Quartz.IQuartzBuilder builder) { }
+        public static Quartz.IQuartzBuilder UseStructuredJobLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobHistoryLoggingOptions>? configure = null) { }
+        public static Quartz.IQuartzBuilder UseStructuredTriggerLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.TriggerHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseTriggerHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.TriggerHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseXmlSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
     }
@@ -49,10 +49,10 @@ namespace Quartz.Plugins.History
         public LoggingJobHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.History.LoggingJobHistoryPlugin> logger, System.TimeProvider timeProvider) { }
         protected virtual bool IsInfoEnabled { get; }
         protected virtual bool IsWarnEnabled { get; }
-        public virtual string JobFailedMessage { get; set; }
-        public virtual string JobSuccessMessage { get; set; }
-        public virtual string JobToBeFiredMessage { get; set; }
-        public virtual string JobWasVetoedMessage { get; set; }
+        public virtual string JobFailedMessage { get; }
+        public virtual string JobSuccessMessage { get; }
+        public virtual string JobToBeFiredMessage { get; }
+        public virtual string JobWasVetoedMessage { get; }
         public string Name { get; }
         public virtual System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobExecutionVetoed(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
@@ -69,9 +69,9 @@ namespace Quartz.Plugins.History
         public LoggingTriggerHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.History.LoggingTriggerHistoryPlugin> logger, System.TimeProvider timeProvider) { }
         protected virtual bool IsInfoEnabled { get; }
         public string Name { get; }
-        public virtual string TriggerCompleteMessage { get; set; }
-        public virtual string TriggerFiredMessage { get; set; }
-        public virtual string TriggerMisfiredMessage { get; set; }
+        public virtual string TriggerCompleteMessage { get; }
+        public virtual string TriggerFiredMessage { get; }
+        public virtual string TriggerMisfiredMessage { get; }
         public virtual System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
@@ -85,10 +85,10 @@ namespace Quartz.Plugins.History
     {
         public StructuredLoggingJobHistoryPlugin() { }
         public StructuredLoggingJobHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.History.StructuredLoggingJobHistoryPlugin> logger, System.TimeProvider timeProvider) { }
-        public string JobFailedMessage { get; set; }
-        public string JobSuccessMessage { get; set; }
-        public string JobToBeFiredMessage { get; set; }
-        public string JobWasVetoedMessage { get; set; }
+        public string JobFailedMessage { get; }
+        public string JobSuccessMessage { get; }
+        public string JobToBeFiredMessage { get; }
+        public string JobWasVetoedMessage { get; }
         public string Name { get; }
         public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobExecutionVetoed(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
@@ -102,9 +102,9 @@ namespace Quartz.Plugins.History
         public StructuredLoggingTriggerHistoryPlugin() { }
         public StructuredLoggingTriggerHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.History.StructuredLoggingTriggerHistoryPlugin> logger, System.TimeProvider timeProvider) { }
         public string Name { get; }
-        public string TriggerCompleteMessage { get; set; }
-        public string TriggerFiredMessage { get; set; }
-        public string TriggerMisfiredMessage { get; set; }
+        public string TriggerCompleteMessage { get; }
+        public string TriggerFiredMessage { get; }
+        public string TriggerMisfiredMessage { get; }
         public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
@@ -122,7 +122,7 @@ namespace Quartz.Plugins.Interrupt
         public const string JobDataMapKeyMaxRunTime = "MaxRunTime";
         public JobInterruptMonitorPlugin() { }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
-        public System.TimeSpan DefaultMaxRunTime { get; set; }
+        public System.TimeSpan DefaultMaxRunTime { get; }
         public virtual string Name { get; }
         public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
@@ -137,12 +137,12 @@ namespace Quartz.Plugins.Json
     {
         public JsonSchedulingDataProcessorPlugin() { }
         public JsonSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.Json.JsonSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoader typeLoader, System.TimeProvider timeProvider) { }
-        public bool FailOnFileNotFound { get; set; }
-        public bool FailOnSchedulingError { get; set; }
-        public string FileNames { get; set; }
+        public bool FailOnFileNotFound { get; }
+        public bool FailOnSchedulingError { get; }
+        public string FileNames { get; }
         public string Name { get; }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Seconds)]
-        public System.TimeSpan ScanInterval { get; set; }
+        public System.TimeSpan ScanInterval { get; }
         public Quartz.IScheduler Scheduler { get; }
         public System.Threading.Tasks.ValueTask FileUpdated(string fileName, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
@@ -155,7 +155,7 @@ namespace Quartz.Plugins.Management
     public class ShutdownHookPlugin : Quartz.Extensibility.ISchedulerPlugin
     {
         public ShutdownHookPlugin() { }
-        public bool CleanShutdown { get; set; }
+        public bool CleanShutdown { get; }
         public virtual System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
@@ -167,12 +167,12 @@ namespace Quartz.Plugins.Xml
     {
         public XmlSchedulingDataProcessorPlugin() { }
         public XmlSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoader typeLoader, System.TimeProvider timeProvider) { }
-        public bool FailOnFileNotFound { get; set; }
-        public virtual bool FailOnSchedulingError { get; set; }
-        public string FileNames { get; set; }
+        public bool FailOnFileNotFound { get; }
+        public virtual bool FailOnSchedulingError { get; }
+        public string FileNames { get; }
         public string Name { get; }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Seconds)]
-        public System.TimeSpan ScanInterval { get; set; }
+        public System.TimeSpan ScanInterval { get; }
         public Quartz.IScheduler Scheduler { get; }
         protected Quartz.Extensibility.ITypeLoader TypeLoader { get; }
         public virtual System.Threading.Tasks.ValueTask FileUpdated(string fileName, System.Threading.CancellationToken cancellationToken = default) { }

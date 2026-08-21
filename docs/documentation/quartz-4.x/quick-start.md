@@ -79,7 +79,7 @@ builder.Services.AddQuartz(q =>
     // reads jobs and triggers from XML; requires the Quartz.Plugins package
     q.UseXmlSchedulingConfiguration(x =>
     {
-        x.Files = ["~/quartz_jobs.xml"];
+        x.Files.Add("~/quartz_jobs.xml");
         x.FailOnFileNotFound = true;
         x.FailOnSchedulingError = true;
     });

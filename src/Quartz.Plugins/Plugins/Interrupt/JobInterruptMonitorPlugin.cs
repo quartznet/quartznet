@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Listeners;
@@ -64,7 +64,7 @@ public class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlugin
     /// Defaults to 5 minutes.
     /// </summary>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan DefaultMaxRunTime { get; set; } = defaultMaxRunTime;
+    public TimeSpan DefaultMaxRunTime { get; internal set; } = defaultMaxRunTime;
 
     public virtual string Name => name;
 

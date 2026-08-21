@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -70,13 +70,13 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
     public IScheduler Scheduler { get; private set; } = null!;
     private ITypeLoader TypeLoader { get; }
 
-    public string FileNames { get; set; } = JsonSchedulingDataProcessor.QuartzJsonFileName;
+    public string FileNames { get; internal set; } = JsonSchedulingDataProcessor.QuartzJsonFileName;
 
     [TimeSpanParseRule(TimeSpanParseRule.Seconds)]
-    public TimeSpan ScanInterval { get; set; } = TimeSpan.Zero;
+    public TimeSpan ScanInterval { get; internal set; } = TimeSpan.Zero;
 
-    public bool FailOnFileNotFound { get; set; } = true;
-    public bool FailOnSchedulingError { get; set; }
+    public bool FailOnFileNotFound { get; internal set; } = true;
+    public bool FailOnSchedulingError { get; internal set; }
 
     public ValueTask FileUpdated(string fileName, CancellationToken cancellationToken = default)
     {

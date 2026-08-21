@@ -229,7 +229,7 @@ public void ConfigureServices(IServiceCollection services)
         // also add XML configuration and poll it for changes
         q.UseXmlSchedulingConfiguration(x =>
         {
-            x.Files = new[] { "~/quartz_jobs.config" };
+            x.Files.Add("~/quartz_jobs.config");
             x.ScanInterval = TimeSpan.FromSeconds(2);
             x.FailOnFileNotFound = true;
             x.FailOnSchedulingError = true;
