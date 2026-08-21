@@ -470,6 +470,46 @@ public class JsonObjectSerializerTest
         await VerifyCreatedJson(trigger);
     }
 
+    [Test(Description = "https://github.com/quartznet/quartznet/issues/3294")]
+    public void DeserializeBlankCalendarNameAsNoCalendarAtAll()
+    {
+        // What the dashboard's reschedule wrote before #3294 was fixed, and what is therefore sitting
+        // in BLOB_TRIGGERS today: text the trigger did not have arrived as an empty string, not null.
+        const string json =
+            """
+            {
+              "TriggerType": "CronTrigger",
+              "Key": { "Name": "BlankTextTriggerKey", "Group": "BlankTextTriggerGroup" },
+              "JobKey": { "Name": "BlankTextJob", "Group": "BlankTextJobGroup" },
+              "Description": "",
+              "CalendarName": "",
+              "JobDataMap": {},
+              "MisfireInstruction": 0,
+              "StartTimeUtc": "2024-07-01T00:00:00+00:00",
+              "EndTimeUtc": null,
+              "Priority": 5,
+              "NextFireTimeUtc": null,
+              "PreviousFireTimeUtc": null,
+              "ExecutionGroup": "",
+              "PreferredNode": null,
+              "PreferredNodeAuto": false,
+              "CronExpressionString": "0 0/5 * * * ?",
+              "TimeZone": "UTC"
+            }
+            """;
+
+        byte[] bytes = Encoding.UTF8.GetBytes(json);
+
+        foreach (IObjectSerializer serializer in new IObjectSerializer[] { newtonsoftSerializer, systemTextJsonSerializer })
+        {
+            AbstractTrigger trigger = (AbstractTrigger) serializer.DeSerialize<IOperableTrigger>(bytes);
+
+            trigger.CalendarName.Should().BeNull(
+                "every job store gates its calendar lookup on a non-null name, so a blank one would be looked up, not found, and the trigger would never fire again (#3294)");
+            trigger.ExecutionGroup.Should().BeNull("the execution group setter has always normalized blanks");
+        }
+    }
+
     private void CompareSerialization<T>(
         T original,
         Action<T, T> asserter = null,

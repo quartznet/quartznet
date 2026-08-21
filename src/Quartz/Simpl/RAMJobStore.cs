@@ -1900,6 +1900,7 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                     calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
                     if (cal == null)
                     {
+                        Log.Warn($"Trigger {tw.Trigger.Key} references calendar '{tw.Trigger.CalendarName}', which does not exist - the fire was skipped and the trigger will not run until the calendar is added or the reference is cleared.");
                         results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
                         continue;
                     }

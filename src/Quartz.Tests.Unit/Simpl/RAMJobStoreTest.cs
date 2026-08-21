@@ -896,6 +896,35 @@ public class RAMJobStoreTest
     }
 
     /// <summary>
+    /// Regression test for #3294: the dashboard's reschedule wrote CALENDAR_NAME='' instead of NULL.
+    /// The store gates its calendar lookup on a non-null name, so the empty string passed the gate,
+    /// resolved to no calendar, and the trigger silently never fired again.
+    /// </summary>
+    [Test]
+    public async Task TriggersFired_BlankCalendarName_StillProducesABundle()
+    {
+        DateTimeOffset d = DateTimeOffset.UtcNow;
+
+        IOperableTrigger trigger = new SimpleTriggerImpl("blankCalendarTrigger", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddSeconds(1), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+        trigger.CalendarName = "";
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        IOperableTrigger stored = await fJobStore.RetrieveTrigger(trigger.Key);
+        stored.CalendarName.Should().BeNull("a blank name is stored as no calendar, so nothing is ever looked up for it");
+
+        DateTimeOffset firstFireTime = trigger.GetNextFireTimeUtc()!.Value;
+        var acquired = await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero);
+        acquired.Should().HaveCount(1);
+
+        var fired = await fJobStore.TriggersFired(acquired.ToList());
+
+        fired.Should().HaveCount(1);
+        fired.First().TriggerFiredBundle.Should().NotBeNull(
+            "a trigger with no calendar has to fire; naming the empty string is naming no calendar");
+    }
+
+    /// <summary>
     /// Regression test for #1386: TriggersFired returns null bundle for triggers
     /// that changed state (e.g., paused) between acquire and fire.
     /// </summary>
