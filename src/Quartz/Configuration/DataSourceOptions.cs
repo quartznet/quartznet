@@ -84,4 +84,34 @@ public sealed class DataSourceOptions
     /// It is a setting rather than a builder method because it answers the same question they do.
     /// </remarks>
     public bool UseRegisteredDataSource { get; set; }
+
+    /// <summary>
+    /// The service key the <c>DbDataSource</c> is registered under, for an application that registers
+    /// more than one. Setting it implies <see cref="UseRegisteredDataSource"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An unkeyed <see cref="System.Data.Common.DbDataSource"/> is the container's one data source, so a
+    /// process talking to two databases — a scheduler per tenant, or a reporting scheduler beside the
+    /// application's own — has to key them apart. This says which key is this data source's.
+    /// </para>
+    /// <para>
+    /// A service key can be any object, so this is settable from code only: a configuration binder has
+    /// no way to produce one. Configuration that needs to name a keyed data source therefore says so in
+    /// a <c>UseDataSource</c> callback rather than in a <c>Quartz:DataSource:&lt;name&gt;</c> section.
+    /// </para>
+    /// </remarks>
+    public object? DataSourceServiceKey { get; set; }
+
+    /// <summary>
+    /// Supplies the <c>DbDataSource</c> directly, for a data source that is built rather than
+    /// registered. Wins over <see cref="UseRegisteredDataSource"/> and
+    /// <see cref="DataSourceServiceKey"/>.
+    /// </summary>
+    /// <remarks>
+    /// The factory runs once, when the store's connection provider is first resolved, and is given the
+    /// container's service provider. Like <see cref="DataSourceServiceKey"/> it is settable from code
+    /// only.
+    /// </remarks>
+    public Func<IServiceProvider, System.Data.Common.DbDataSource>? DataSourceFactory { get; set; }
 }

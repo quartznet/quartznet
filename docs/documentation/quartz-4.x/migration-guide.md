@@ -814,7 +814,8 @@ What is left says four different things:
 |---|---|
 | `UseDataSource(configure)` | **defines** a data source — which driver, and how to reach the database. The database methods such as `UseSqlServer` are shorthands for it |
 | `UseDataSourceName(name)` | **refers to** a data source by name, picking up settings registered elsewhere, such as a `Quartz:DataSource:<name>` section |
-| `DataSourceOptions.UseRegisteredDataSource` | takes connections from a `DbDataSource` the application registered in the container, instead of from a connection string |
+| `DataSourceOptions.UseRegisteredDataSource` | takes connections from the container's unkeyed `DbDataSource`, instead of from a connection string |
+| `DataSourceOptions.DataSourceServiceKey` / `.DataSourceFactory` | the same, for a `DbDataSource` registered under a key of its own or built by the caller. Set from code — neither a service key nor a delegate is something a configuration binder can produce |
 | `UseConnectionProvider<T>()` / `UseConnectionProvider(factory)` | **replaces** the connection provider outright, for connections Quartz cannot describe. The code spelling of `quartz.dataSource.<name>.connectionProvider.type` |
 
 Where connections come from is a property of the data source, so the first three are said in
@@ -849,6 +850,27 @@ around the `DbDataSource` it resolves from the container:
 
 Registering the `DbDataSource` itself is still yours to do — `services.AddNpgsqlDataSource(…)`, or
 whatever your provider offers. What is no longer yours to do is wiring it up to Quartz.
+
+`UseRegisteredDataSource` asks for the container's one unkeyed `DbDataSource`, which was the only shape
+3.x's `AddDataSourceProvider()` could express either. A container holding several — a scheduler per
+tenant — says which one it means with `DataSourceServiceKey`, and a data source built rather than
+registered goes in `DataSourceFactory`:
+
+```csharp
+services.AddNpgsqlDataSource(tenantA, serviceKey: "tenant-a");
+services.AddQuartz("tenant-a", q => q.UsePersistentStore(store =>
+    store.UsePostgres(db => db.DataSourceServiceKey = "tenant-a")));
+```
+
+Both are settable from code only — a service key is any object and a factory is a delegate, so a
+configuration binder can produce neither. Both imply `UseRegisteredDataSource`, so neither needs a
+connection string.
+
+Commands on this path are now made by the connection rather than built from the driver description.
+A `DbDataSource` configures the connections it hands out — `NpgsqlDataSource` attaches its type mappers,
+its logging and its composite type registrations — and a command reaches those through the connection it
+belongs to, which a command constructed by reflection and given a connection afterwards does not. The
+connection-string path is unchanged.
 
 ## `QuartzOptions` lost its three typed settings
 

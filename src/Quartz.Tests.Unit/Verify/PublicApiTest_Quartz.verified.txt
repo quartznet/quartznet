@@ -267,6 +267,8 @@ namespace Quartz
         public DataSourceOptions() { }
         public string? ConnectionString { get; set; }
         public string? ConnectionStringName { get; set; }
+        public System.Func<System.IServiceProvider, System.Data.Common.DbDataSource>? DataSourceFactory { get; set; }
+        public object? DataSourceServiceKey { get; set; }
         public string Provider { get; set; }
         public bool UseRegisteredDataSource { get; set; }
         public static class Providers

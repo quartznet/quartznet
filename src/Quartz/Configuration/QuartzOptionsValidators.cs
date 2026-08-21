@@ -268,8 +268,14 @@ internal sealed class DataSourceOptionsValidator : IValidateOptions<DataSourceOp
             (failures ??= []).Add($"{nameof(DataSourceOptions.Provider)} must be specified for {described}.");
         }
 
-        // A container-registered data source carries its own connection details, so Quartz needs none.
-        if (!options.UseRegisteredDataSource
+        // A DbDataSource carries its own connection details, so Quartz needs none — however the data
+        // source is reached: built by a factory, resolved under a key of its own, or the container's
+        // single unkeyed one.
+        var suppliesItsOwnConnections = options.DataSourceFactory is not null
+            || options.DataSourceServiceKey is not null
+            || options.UseRegisteredDataSource;
+
+        if (!suppliesItsOwnConnections
             && string.IsNullOrWhiteSpace(options.ConnectionString)
             && string.IsNullOrWhiteSpace(options.ConnectionStringName))
         {
