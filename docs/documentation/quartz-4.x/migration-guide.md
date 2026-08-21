@@ -1857,6 +1857,7 @@ scheduler.ListenerManager.AddJobListener(myJobStoreListener);
 * `IdleWaitTime` values less than or equal to zero are no longer silently replaced with a 30-second default — they now throw.
 * Negative values for `IdleWaitTime` or `BatchTimeWindow` are rejected.
 * `MaxBatchSize` values less than or equal to zero are rejected.
+* `MaxBatchSize` may not exceed `ThreadPoolOptions.MaxConcurrency`. The two are configured through different builder methods and different configuration sections, so the pair is only ever wrong by accident — and triggers acquired beyond the number of threads available to run them are held by this node, unfireable by any other, until the pool drains. See [Batching trigger acquisition](tutorial/advanced-enterprise-features.md#batching-trigger-acquisition).
 
 ### Validation happens at startup, through one mechanism
 

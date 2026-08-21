@@ -48,12 +48,38 @@ public sealed class QuartzSchedulerOptions
     /// <summary>
     /// The maximum number of triggers the scheduler acquires in a single batch.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Defaults to 1, which is also the point at which a database-backed store needs no cluster-wide
+    /// lock to acquire: raising it makes every acquisition cycle take the <c>TRIGGER_ACCESS</c> row
+    /// lock, including cycles that acquire nothing. It pays off where triggers genuinely arrive in
+    /// bunches, and costs lock traffic where they do not.
+    /// </para>
+    /// <para>
+    /// This is only the upper bound. What decides the size of a batch is
+    /// <see cref="BatchTriggerAcquisitionFireAheadTimeWindow"/>: after the first trigger, only triggers
+    /// due within that window of it join the batch, and the window defaults to
+    /// <see cref="TimeSpan.Zero"/>. Raising this alone leaves the effective batch at one trigger for any
+    /// schedule whose fire times are spread out — the two are one setting in two halves, so move them
+    /// together.
+    /// </para>
+    /// <para>
+    /// Must not exceed <see cref="ThreadPoolOptions.MaxConcurrency"/>: triggers acquired beyond the
+    /// number of threads there are to run them on are held by this node, unfireable by any other, until
+    /// the pool drains.
+    /// </para>
+    /// </remarks>
     public int MaxBatchSize { get; set; } = 1;
 
     /// <summary>
     /// How far past the current time a trigger may fire in order to be included in the current
     /// acquisition batch.
     /// </summary>
+    /// <remarks>
+    /// The other half of <see cref="MaxBatchSize"/>; neither batches anything on its own. At the default
+    /// of <see cref="TimeSpan.Zero"/> a batch holds the triggers due at the same instant and nothing
+    /// else. Widening it fires triggers early by up to this much, which is what the batching costs.
+    /// </remarks>
     public TimeSpan BatchTriggerAcquisitionFireAheadTimeWindow { get; set; } = TimeSpan.Zero;
 
     /// <summary>

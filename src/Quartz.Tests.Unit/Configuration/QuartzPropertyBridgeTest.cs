@@ -34,7 +34,7 @@ public class QuartzPropertyBridgeTest
         {
             ["quartz.scheduler.instanceName"] = "legacy",
             ["quartz.scheduler.instanceId"] = "node-7",
-            ["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "12",
+            ["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "8",
             ["quartz.scheduler.interruptJobsOnShutdown"] = "true",
         });
 
@@ -42,7 +42,7 @@ public class QuartzPropertyBridgeTest
 
         options.InstanceName.Should().Be("legacy");
         options.InstanceId.Should().Be("node-7");
-        options.MaxBatchSize.Should().Be(12);
+        options.MaxBatchSize.Should().Be(8);
         options.InterruptJobsOnShutdown.Should().BeTrue();
     }
 

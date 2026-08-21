@@ -10,6 +10,13 @@ internal sealed class QuartzSchedulerOptionsValidator : IValidateOptions<QuartzS
 {
     private static readonly TimeSpan minimumIdleWaitTime = TimeSpan.FromSeconds(1);
 
+    private readonly IOptionsMonitor<ThreadPoolOptions> threadPoolOptions;
+
+    public QuartzSchedulerOptionsValidator(IOptionsMonitor<ThreadPoolOptions> threadPoolOptions)
+    {
+        this.threadPoolOptions = threadPoolOptions;
+    }
+
     public ValidateOptionsResult Validate(string? name, QuartzSchedulerOptions options)
     {
         List<string>? failures = null;
@@ -37,6 +44,21 @@ internal sealed class QuartzSchedulerOptionsValidator : IValidateOptions<QuartzS
         {
             (failures ??= []).Add(
                 $"{nameof(QuartzSchedulerOptions.MaxBatchSize)} must be at least 1, was {options.MaxBatchSize}.");
+        }
+        else
+        {
+            // Acquiring more triggers than there are threads to run them on does not make the surplus
+            // fire sooner: it makes them this node's, unfireable by any other, until the pool drains.
+            // The two are configured through different builder methods and different sections, so the
+            // pair is only ever wrong by accident.
+            var maxConcurrency = threadPoolOptions.Get(name ?? Options.DefaultName).MaxConcurrency;
+            if (maxConcurrency >= 1 && options.MaxBatchSize > maxConcurrency)
+            {
+                (failures ??= []).Add(
+                    $"{nameof(QuartzSchedulerOptions.MaxBatchSize)} is {options.MaxBatchSize}, which is more than the "
+                    + $"thread pool's {nameof(ThreadPoolOptions.MaxConcurrency)} of {maxConcurrency}. Triggers acquired "
+                    + "beyond the number of threads available to run them are held by this node until the pool drains.");
+            }
         }
 
         if (options.BatchTriggerAcquisitionFireAheadTimeWindow < TimeSpan.Zero)
