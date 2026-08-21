@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace Quartz.Tests.Unit;
 
 public class CronExpressionBuilderTest
@@ -116,6 +118,22 @@ public class CronExpressionBuilderTest
         CronExpressionBuilder.Create().WithYears(2030, 2032).ToString().Should().Be("* * * ? * * 2030,2032");
         CronExpressionBuilder.Create().WithYearRange(2030, 2035).ToString().Should().Be("* * * ? * * 2030-2035");
         CronExpressionBuilder.Create().WithYearIncrements(2030, 2).ToString().Should().Be("* * * ? * * 2030/2");
+    }
+
+    [Test]
+    public void TestListFieldsAcceptCollectionArguments()
+    {
+        // the params overloads take a ReadOnlySpan, but an already-materialised array still binds
+        int[] seconds = [30, 0];
+        DayOfWeek[] days = [DayOfWeek.Sunday, DayOfWeek.Wednesday];
+        List<int> hours = [8, 16];
+
+        CronExpressionBuilder.Create().WithSeconds(seconds).ToString().Should().Be("30,0 * * ? * *");
+        CronExpressionBuilder.Create().WithDaysOfWeek(days).ToString().Should().Be("* * * ? * SUN,WED");
+        CronExpressionBuilder.Create().WithHours(CollectionsMarshal.AsSpan(hours)).ToString().Should().Be("* * 8,16 ? * *");
+
+        Invoking(x => x.WithSeconds((int[]) null)).Should().Throw<ArgumentException>();
+        Invoking(x => x.WithDaysOfWeek((DayOfWeek[]) null)).Should().Throw<ArgumentException>();
     }
 
     [Test]

@@ -318,32 +318,32 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression expr = new CronExpression("0 15 10 * * ?");
 
-        expr.Equals((CronExpression?) null).Should().BeFalse();
-        expr.Equals((object?) null).Should().BeFalse();
+        expr.Equals((CronExpression) null).Should().BeFalse();
+        expr.Equals((object) null).Should().BeFalse();
         expr.Equals("0 15 10 * * ?").Should().BeFalse("a string is not a CronExpression");
     }
 
     [Test]
     public void TryParseAcceptsAValidExpression()
     {
-        CronExpression.TryParse("0 15 10 * * ?", out CronExpression? parsed).Should().BeTrue();
-        parsed!.CronExpressionString.Should().Be("0 15 10 * * ?");
+        CronExpression.TryParse("0 15 10 * * ?", out CronExpression parsed).Should().BeTrue();
+        parsed.CronExpressionString.Should().Be("0 15 10 * * ?");
     }
 
     [TestCase(null)]
     [TestCase("")]
     [TestCase("not a cron expression")]
     [TestCase("0 0 15 ? * FRI*")]
-    public void TryParseRejectsAnInvalidExpression(string? expression)
+    public void TryParseRejectsAnInvalidExpression(string expression)
     {
-        CronExpression.TryParse(expression, out CronExpression? parsed).Should().BeFalse();
+        CronExpression.TryParse(expression, out CronExpression parsed).Should().BeFalse();
         parsed.Should().BeNull();
     }
 
     [Test]
     public void ParseThrowsForNullAndForGarbage()
     {
-        Action parseNull = () => CronExpression.Parse(null!);
+        Action parseNull = () => CronExpression.Parse(null);
         parseNull.Should().Throw<ArgumentNullException>();
 
         Action parseGarbage = () => CronExpression.Parse("not a cron expression");
@@ -356,11 +356,11 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         CronExpression parsed = ParseThrough<CronExpression>("0 15 10 * * ?");
         parsed.CronExpressionString.Should().Be("0 15 10 * * ?");
 
-        TryParseThrough<CronExpression>("garbage", out CronExpression? failed).Should().BeFalse();
+        TryParseThrough<CronExpression>("garbage", out CronExpression failed).Should().BeFalse();
         failed.Should().BeNull();
 
         static T ParseThrough<T>(string s) where T : IParsable<T> => T.Parse(s, CultureInfo.InvariantCulture);
-        static bool TryParseThrough<T>(string? s, out T? result) where T : IParsable<T> => T.TryParse(s, CultureInfo.InvariantCulture, out result);
+        static bool TryParseThrough<T>(string s, out T result) where T : IParsable<T> => T.TryParse(s, CultureInfo.InvariantCulture, out result);
     }
 
     [Test]
