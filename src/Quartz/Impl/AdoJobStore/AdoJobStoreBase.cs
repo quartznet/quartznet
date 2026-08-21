@@ -621,11 +621,11 @@ public abstract class AdoJobStoreBase : IJobStore
     /// </summary>
     private void InitializeDelegate()
     {
-        driverDelegate.Initialize(new DelegateInitializationArgs
+        driverDelegate.Initialize(new DriverDelegateContext
         {
             UseProperties = CanUseProperties,
             TablePrefix = TablePrefix,
-            InstanceName = InstanceName,
+            SchedulerName = InstanceName,
             InstanceId = InstanceId,
             DbProvider = DbProvider,
             TypeLoader = typeLoader,

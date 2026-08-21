@@ -33,9 +33,15 @@ namespace Quartz.Impl.AdoJobStore;
 public interface ITriggerPersistenceDelegate
 {
     /// <summary>
-    /// Initializes the persistence delegate.
+    /// Initializes the persistence delegate with the settings it works from.
     /// </summary>
-    void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor);
+    /// <remarks>
+    /// Called once by the driver delegate before this delegate is used. There is no default
+    /// implementation: a delegate that does not read the context has no accessor to prepare its
+    /// commands with, and would fail at its first statement rather than at startup.
+    /// </remarks>
+    /// <param name="context">The settings the driver delegate was initialized with.</param>
+    void Initialize(TriggerPersistenceDelegateContext context);
 
     /// <summary>
     /// Returns whether the trigger type can be handled by delegate.

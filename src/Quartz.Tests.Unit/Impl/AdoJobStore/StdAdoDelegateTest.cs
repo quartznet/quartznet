@@ -51,10 +51,10 @@ public class StdAdoDelegateTest
     [Test]
     public void TestSerializeJobData()
     {
-        var args = new DelegateInitializationArgs
+        var args = new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
-            InstanceName = "TESTSCHED",
+            SchedulerName = "TESTSCHED",
             InstanceId = "INSTANCE",
             DbProvider = new DbProvider(TestConstants.DefaultSqlServerProvider, ""),
             TypeLoader = new SimpleTypeLoader(),
@@ -93,11 +93,11 @@ public class StdAdoDelegateTest
     public async Task SelectJobGroups_PausedTrue_IsAlwaysEmpty()
     {
         var adoDelegate = new StdAdoDelegate();
-        adoDelegate.Initialize(new DelegateInitializationArgs
+        adoDelegate.Initialize(new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
             InstanceId = "INSTANCE",
-            InstanceName = "TESTSCHED",
+            SchedulerName = "TESTSCHED",
             TypeLoader = new SimpleTypeLoader(),
             DbProvider = new DbProvider(TestConstants.DefaultSqlServerProvider, ""),
             ObjectSerializer = serializer
@@ -141,16 +141,16 @@ public class StdAdoDelegateTest
 
         var adoDelegate = new StdAdoDelegate();
 
-        var delegateInitializationArgs = new DelegateInitializationArgs
+        var driverDelegateContext = new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
-            InstanceName = "INSTANCE",
+            SchedulerName = "INSTANCE",
             TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
         };
-        adoDelegate.Initialize(delegateInitializationArgs);
+        adoDelegate.Initialize(driverDelegateContext);
 
         var conn = new ConnectionAndTransactionHolder(connection, transaction);
 
@@ -201,16 +201,16 @@ public class StdAdoDelegateTest
 
         StdAdoDelegate adoDelegate = new TestStdAdoDelegate(persistenceDelegate);
 
-        var delegateInitializationArgs = new DelegateInitializationArgs
+        var driverDelegateContext = new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
-            InstanceName = "INSTANCE",
+            SchedulerName = "INSTANCE",
             TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
         };
-        adoDelegate.Initialize(delegateInitializationArgs);
+        adoDelegate.Initialize(driverDelegateContext);
 
         // Mock basic trigger data
         A.CallTo(() => dataReader.ReadAsync(CancellationToken.None)).Returns(true);
@@ -282,18 +282,18 @@ public class StdAdoDelegateTest
         A.CallTo(() => dbProvider.Metadata)
             .Returns(dbMetadata);
 
-        var delegateInitializationArgs = new DelegateInitializationArgs
+        var driverDelegateContext = new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
-            InstanceName = "INSTANCE",
+            SchedulerName = "INSTANCE",
             TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
         };
 
         var adoDelegate = new StdAdoDelegate();
-        adoDelegate.Initialize(delegateInitializationArgs);
+        adoDelegate.Initialize(driverDelegateContext);
 
         var jobKey = new JobKey(jobName, jobGroup);
 
@@ -378,11 +378,11 @@ public class StdAdoDelegateTest
         A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
         var adoDelegate = new StdAdoDelegate();
-        adoDelegate.Initialize(new DelegateInitializationArgs
+        adoDelegate.Initialize(new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
-            InstanceName = "INSTANCE",
+            SchedulerName = "INSTANCE",
             TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider,
@@ -445,16 +445,16 @@ public class StdAdoDelegateTest
 
         StdAdoDelegate adoDelegate = new TestStdAdoDelegate(persistenceDelegate);
 
-        var delegateInitializationArgs = new DelegateInitializationArgs
+        var driverDelegateContext = new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
-            InstanceName = "INSTANCE",
+            SchedulerName = "INSTANCE",
             TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
         };
-        adoDelegate.Initialize(delegateInitializationArgs);
+        adoDelegate.Initialize(driverDelegateContext);
 
         // First result set has results, second has none
         A.CallTo(() => dataReader.ReadAsync(CancellationToken.None)).Returns(true).Once();
@@ -526,11 +526,11 @@ public class StdAdoDelegateTest
         };
 
         var adoDelegate = new BlobTriggerOverrideDelegate(blobTrigger);
-        adoDelegate.Initialize(new DelegateInitializationArgs
+        adoDelegate.Initialize(new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
-            InstanceName = "INSTANCE",
+            SchedulerName = "INSTANCE",
             TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
@@ -603,11 +603,11 @@ public class StdAdoDelegateTest
         };
 
         var adoDelegate = new BlobTriggerOverrideDelegate(blobTrigger);
-        adoDelegate.Initialize(new DelegateInitializationArgs
+        adoDelegate.Initialize(new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
-            InstanceName = "INSTANCE",
+            SchedulerName = "INSTANCE",
             TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
@@ -630,18 +630,18 @@ public class StdAdoDelegateTest
     {
         StdAdoDelegate adoDelegate = new TestStdAdoDelegate(new SimpleTriggerPersistenceDelegate());
 
-        var delegateInitializationArgs = new DelegateInitializationArgs
+        var driverDelegateContext = new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
-            InstanceName = "INSTANCE",
+            SchedulerName = "INSTANCE",
             TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             TriggerPersistenceDelegates = [new TestTriggerPersistenceDelegate(), new TestTriggerPersistenceDelegate()],
             DbProvider = A.Fake<IDbProvider>()
         };
 
-        var act = () => adoDelegate.Initialize(delegateInitializationArgs);
+        var act = () => adoDelegate.Initialize(driverDelegateContext);
 
         act.Should().NotThrow("the registered set arrives typed, the same delegate twice included");
     }

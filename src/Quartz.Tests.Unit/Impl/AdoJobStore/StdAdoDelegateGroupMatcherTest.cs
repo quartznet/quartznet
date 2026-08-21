@@ -87,10 +87,10 @@ public class StdAdoDelegateGroupMatcherTest
         A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
         StdAdoDelegate result = new();
-        result.Initialize(new DelegateInitializationArgs
+        result.Initialize(new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
-            InstanceName = "TESTSCHED",
+            SchedulerName = "TESTSCHED",
             InstanceId = "INSTANCE",
             TypeLoader = new SimpleTypeLoader(),
             DbProvider = dbProvider
