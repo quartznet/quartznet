@@ -142,9 +142,9 @@ public class SelectForUpdateSemaphore : DbSemaphore
             count++;
             try
             {
-                using DbCommand cmd = AdoUtil.PrepareCommand(conn, expandedSql);
-                AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-                AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
+                using DbCommand cmd = PrepareCommand(conn, expandedSql);
+                AddCommandParameter(cmd, "schedulerName", SchedulerName);
+                AddCommandParameter(cmd, "lockName", lockName);
 
                 bool found;
                 using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
@@ -164,9 +164,9 @@ public class SelectForUpdateSemaphore : DbSemaphore
                         logger.LogDebug("Inserting new lock row for lock: '{LockName}' being obtained by thread: {RequestorId}", lockName, requestorId);
                     }
 
-                    using DbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSql);
-                    AdoUtil.AddCommandParameter(cmd2, "schedulerName", SchedulerName);
-                    AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
+                    using DbCommand cmd2 = PrepareCommand(conn, expandedInsertSql);
+                    AddCommandParameter(cmd2, "schedulerName", SchedulerName);
+                    AddCommandParameter(cmd2, "lockName", lockName);
                     int res = await cmd2.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
                     if (res != 1)
