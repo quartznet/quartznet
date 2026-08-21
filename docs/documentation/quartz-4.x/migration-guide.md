@@ -1082,6 +1082,28 @@ remote scheduler's instance id costs a request, and a name identifies one regist
 container with no host is unaffected — nothing runs the binder, and the scheduler is built when it is
 first used, exactly as before.
 
+## Quartz can be added to the host application builder
+
+`AddQuartz` and `AddQuartzHostedService` have `IHostApplicationBuilder` overloads, which is how an
+application built by `Host.CreateApplicationBuilder` or `WebApplication.CreateBuilder` adds everything
+else. A builder has both halves of what the configuration overload needs, so the section is found rather
+than handed over:
+
+```diff
+- services.AddQuartz(builder.Configuration.GetSection("Quartz"), q => { });
+- services.AddQuartzHostedService();
++ builder.AddQuartz(q => { });
++ builder.AddQuartzHostedService();
+```
+
+The section it reads is `Quartz`, which is the name every sample and documentation page uses. An
+application whose Quartz configuration lives elsewhere passes the section explicitly, through the
+`IServiceCollection` overloads — nothing was removed, and they mean exactly what they always did.
+
+A string is a scheduler's name here as it is everywhere else in Quartz: `builder.AddQuartz("reporting")`
+registers a scheduler called `reporting` and reads its settings from `Quartz:Schedulers:reporting`, and
+`builder.AddQuartzSchedulers()` registers one scheduler per child of that sub-section.
+
 ## The hosted service starts every scheduler
 
 `AddQuartzHostedService()` registered the hosted service only if an unkeyed `ISchedulerFactory` was

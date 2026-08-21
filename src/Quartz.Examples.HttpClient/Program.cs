@@ -3,20 +3,19 @@ using Microsoft.Extensions.Hosting;
 
 using Quartz;
 
-// Using HttpClientFactory with host builder
-var host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices(services =>
-    {
-        services.AddHttpClient("QuartzHttpClient", client =>
-        {
-            client.BaseAddress = new Uri("http://localhost:5000/quartz-api/");
-            client.DefaultRequestHeaders.Add("X-Quartz-ApiKey", "MySuperSecretApiKey");
-        });
+// Using HttpClientFactory with the host application builder
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
-        // You can also use AddQuartzHttpClient(schedulerName, HttpClient) override if you do not want to use HttpClientFactory (AddHttpClient method call above)
-        services.AddQuartzHttpClient("Quartz ASP.NET Core Sample Scheduler", "QuartzHttpClient");
-    })
-    .Build();
+builder.Services.AddHttpClient("QuartzHttpClient", client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5000/quartz-api/");
+    client.DefaultRequestHeaders.Add("X-Quartz-ApiKey", "MySuperSecretApiKey");
+});
+
+// You can also use AddQuartzHttpClient(schedulerName, HttpClient) override if you do not want to use HttpClientFactory (AddHttpClient method call above)
+builder.Services.AddQuartzHttpClient("Quartz ASP.NET Core Sample Scheduler", "QuartzHttpClient");
+
+using IHost host = builder.Build();
 
 var httpScheduler = host.Services.GetRequiredService<IScheduler>();
 
@@ -47,20 +46,9 @@ var httpScheduler = new Quartz.HttpScheduler("Quartz ASP.NET Core Sample Schedul
 */
 
 /* Several remote schedulers are told apart by name, which is the service key each is registered under
-var host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices(services =>
-    {
-        services.AddHttpClient("QuartzHttpClient", client =>
-        {
-            client.BaseAddress = new Uri("http://localhost:5000/quartz-api/");
-            client.DefaultRequestHeaders.Add("X-Quartz-ApiKey", "MySuperSecretApiKey");
-        });
-
-        services.AddQuartzHttpClient("Quartz ASP.NET Core Sample Scheduler", "QuartzHttpClient");
-        services.AddQuartzHttpClient("MyScheduler", "QuartzHttpClient");
-        services.AddQuartzHttpClient("MySecondScheduler", "QuartzHttpClient");
-    })
-    .Build();
+builder.Services.AddQuartzHttpClient("Quartz ASP.NET Core Sample Scheduler", "QuartzHttpClient");
+builder.Services.AddQuartzHttpClient("MyScheduler", "QuartzHttpClient");
+builder.Services.AddQuartzHttpClient("MySecondScheduler", "QuartzHttpClient");
 
 var myScheduler = host.Services.GetRequiredKeyedService<IScheduler>("MyScheduler");
 var mySecondScheduler = host.Services.GetRequiredKeyedService<IScheduler>("MySecondScheduler");
