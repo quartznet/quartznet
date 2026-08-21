@@ -114,7 +114,7 @@ public static class QuartzDashboardServiceCollectionExtensions
     /// parameters) and percent-encoded for client-side comparisons (where <c>?</c>/<c>#</c> and
     /// <c>.</c>/<c>..</c> segments would be truncated or collapsed, diverging from the server route).
     /// </summary>
-    private static bool IsRoutableDashboardPath(string? path)
+    internal static bool IsRoutableDashboardPath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {

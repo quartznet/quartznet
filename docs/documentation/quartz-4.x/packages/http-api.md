@@ -18,10 +18,7 @@ Install-Package Quartz
 Configure Quartz and enable the HTTP API:
 
 ```csharp
-services.AddQuartzHttpApi(options =>
-{
-    options.ApiPath = "/quartz-api";
-});
+services.AddQuartzHttpApi();
 
 services.AddQuartz(q => { });
 services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
@@ -42,11 +39,27 @@ app.UseAntiforgery();
 
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapQuartzHttpApi().RequireAuthorization();
+    endpoints.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
 });
 ```
 
-By default, API endpoints are exposed under `/quartz-api`.
+### Where the API is served
+
+`/quartz-api` is the default, and there are two ways to say something else:
+
+```csharp
+// at the map site, beside the application's other routes
+endpoints.MapQuartzHttpApi("/ops/api");
+
+// or at registration
+services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
+```
+
+Naming the path where the endpoints are mapped is how the rest of ASP.NET Core reads —
+`MapHealthChecks("/health")` — and it keeps the route with the application's other routes. If both are
+given, **the pattern passed to `MapQuartzHttpApi` wins**; the parameterless overload uses whatever
+`ApiPath` says. A pattern given at the map site has to start with `/`, the same rule `ApiPath` is
+validated against.
 
 ## Endpoint groups
 

@@ -10,6 +10,7 @@ namespace Quartz
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHttpApi(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHttpApiOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder AddQuartzHttpApi(this Quartz.IQuartzBuilder builder, System.Action<Quartz.QuartzHttpApiOptions>? configure = null) { }
         public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzHttpApi(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder) { }
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzHttpApi(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, string pattern) { }
     }
     public sealed class QuartzHealthCheckOptions
     {
