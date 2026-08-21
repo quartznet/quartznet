@@ -328,8 +328,11 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     {
         TimeZoneInfo timeZone = TimeZones.FindById("Eastern Standard Time");
 
-        CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl("trigger", IntervalUnit.Day, 1)
+        CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl
         {
+            Key = new TriggerKey("trigger"),
+            RepeatIntervalUnit = IntervalUnit.Day,
+            RepeatInterval = 1,
             TimeZone = timeZone,
             StartTimeUtc = new DateTimeOffset(2012, 11, 2, 12, 0, 0, TimeSpan.FromHours(-4))
         };
@@ -727,7 +730,14 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     {
         var startTime = DateTimeOffset.UtcNow;
         var endTime = DateTimeOffset.UtcNow.AddDays(1);
-        var trigger = new CalendarIntervalTriggerImpl("name", "group", startTime, endTime, IntervalUnit.Hour, 10);
+        var trigger = new CalendarIntervalTriggerImpl
+        {
+            Key = new TriggerKey("name", "group"),
+            StartTimeUtc = startTime,
+            EndTimeUtc = endTime,
+            RepeatIntervalUnit = IntervalUnit.Hour,
+            RepeatInterval = 10
+        };
         trigger.PreserveHourOfDayAcrossDaylightSavings = true;
         trigger.SkipDayIfHourDoesNotExist = true;
         trigger.TimeZone = TimeZoneInfo.Utc;

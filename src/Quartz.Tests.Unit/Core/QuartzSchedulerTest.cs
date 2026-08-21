@@ -67,7 +67,7 @@ public class QuartzSchedulerTest
             .Build();
 
         // Trigger the job to run on the next round minute
-        IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "group1", runTime);
+        IOperableTrigger trigger = new SimpleTriggerImpl { Key = new TriggerKey("trigger1", "group1"), StartTimeUtc = runTime };
 
         // set invalid calendar
         trigger.CalendarName = "FOOBAR";

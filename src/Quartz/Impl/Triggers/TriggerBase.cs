@@ -415,11 +415,6 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// </remarks>
     protected abstract bool HasMillisecondPrecision { get; }
 
-    protected TriggerBase()
-    {
-        this.timeProvider = TimeProvider.System;
-    }
-
     /// <summary>
     /// Create a <see cref="ITrigger" /> with no specified name, group, or <see cref="IJobDetail" />.
     /// </summary>
@@ -427,55 +422,10 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// Note that <see cref="Key" /> and <see cref="JobKey" /> must be set before
     /// the <see cref="ITrigger" /> can be placed into a <see cref="IScheduler" />.
     /// </remarks>
-    /// <param name="timeProvider">Time provider instance to use</param>
-    protected TriggerBase(TimeProvider timeProvider)
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
+    protected TriggerBase(TimeProvider? timeProvider = null)
     {
-        this.timeProvider = timeProvider;
-    }
-
-    /// <summary>
-    /// Create a <see cref="ITrigger" /> with the given name, and default group.
-    /// </summary>
-    /// <remarks>
-    /// Note that <see cref="JobKey" /> must be set before the <see cref="ITrigger" />
-    /// can be placed into a <see cref="IScheduler" />.
-    /// </remarks>
-    /// <param name="name">The name.</param>
-    /// <param name="timeProvider">Time provider instance to use</param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    protected TriggerBase(string name, TimeProvider timeProvider) : this(name, SchedulerConstants.DefaultGroup, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="ITrigger" /> with the given name, and group.
-    /// </summary>
-    /// <remarks>
-    /// Note that <see cref="JobKey" /> must be set before the <see cref="ITrigger" />
-    /// can be placed into a <see cref="IScheduler" />.
-    /// </remarks>
-    /// <param name="name">The name.</param>
-    /// <param name="group">The group.</param>
-    /// <param name="timeProvider">Time provider instance to use</param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    protected TriggerBase(string name, string group, TimeProvider timeProvider) : this(timeProvider)
-    {
-        Key = new TriggerKey(name, group);
-    }
-
-    /// <summary>
-    /// Create a <see cref="ITrigger" /> with the given name, and group.
-    /// </summary>
-    /// <param name="name">The name.</param>
-    /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
-    /// <param name="jobName">Name of the job.</param>
-    /// <param name="jobGroup">The job group.</param>
-    /// <param name="timeProvider">Time provider instance to use</param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    protected TriggerBase(string name, string group, string jobName, string jobGroup, TimeProvider timeProvider) : this(timeProvider)
-    {
-        Key = new TriggerKey(name, group);
-        JobKey = new JobKey(jobName, jobGroup);
+        this.timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>

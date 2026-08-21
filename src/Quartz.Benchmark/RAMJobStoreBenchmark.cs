@@ -438,7 +438,7 @@ public class RAMJobStoreBenchmark
         int misFirePolicy,
         DateTimeOffset? nextFireTimeUtc = null)
     {
-        return CreateTrigger<SimpleTriggerImpl>(triggerKey, job, repeatInterval, misFirePolicy, nextFireTimeUtc);
+        return Configure(new SimpleTriggerImpl(), triggerKey, job, repeatInterval, misFirePolicy, nextFireTimeUtc);
     }
 
     private static IOperableTrigger CreateTrigger<T>(
@@ -449,15 +449,23 @@ public class RAMJobStoreBenchmark
         DateTimeOffset? nextFireTimeUtc = null)
         where T : SimpleTriggerImpl, new()
     {
-        var trigger = (IOperableTrigger) new T
-        {
-            Key = triggerKey,
-            JobKey = job.Key,
-            StartTimeUtc = DateTimeOffset.UtcNow,
-            MisfireInstructionCode = misFirePolicy,
-            RepeatInterval = repeatInterval,
-            RepeatCount = SimpleTriggerImpl.RepeatIndefinitely
-        };
+        return Configure(new T(), triggerKey, job, repeatInterval, misFirePolicy, nextFireTimeUtc);
+    }
+
+    private static IOperableTrigger Configure(
+        SimpleTriggerImpl trigger,
+        TriggerKey triggerKey,
+        IJobDetail job,
+        TimeSpan repeatInterval,
+        int misFirePolicy,
+        DateTimeOffset? nextFireTimeUtc)
+    {
+        trigger.Key = triggerKey;
+        trigger.JobKey = job.Key;
+        trigger.StartTimeUtc = DateTimeOffset.UtcNow;
+        trigger.MisfireInstructionCode = misFirePolicy;
+        trigger.RepeatInterval = repeatInterval;
+        trigger.RepeatCount = SimpleTriggerImpl.RepeatIndefinitely;
 
         if (nextFireTimeUtc is not null)
         {

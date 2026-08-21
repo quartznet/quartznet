@@ -116,7 +116,7 @@ public sealed class NodeAffinityTest
     [Test]
     public void GetTriggerBuilder_AutoPinnedTrigger_RoundTripsAutoPin()
     {
-        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1") { JobKey = new JobKey("j1") };
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl { Key = new TriggerKey("t1", "g1"), StartTimeUtc = TimeProvider.System.GetUtcNow(), JobKey = new JobKey("j1") };
         // Simulates what the auto-pin claim in TriggerFired (and the database read) does
         trigger.SetPreferredNode(PreferredNode.ClaimedBy("nodeA"), markDirty: true);
 
@@ -131,7 +131,7 @@ public sealed class NodeAffinityTest
     [Test]
     public void PreferredNode_Setter_RecordsTheValueAsGiven()
     {
-        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl { Key = new TriggerKey("t1", "g1"), StartTimeUtc = TimeProvider.System.GetUtcNow() };
         trigger.SetPreferredNode(PreferredNode.ClaimedBy("nodeA"), markDirty: true);
         trigger.PreferredNode.IsAutomatic.Should().BeTrue();
 
@@ -144,14 +144,14 @@ public sealed class NodeAffinityTest
     [Test]
     public void PreferredNode_CopiedBetweenTriggers_KeepsItsAutoClaim()
     {
-        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl { Key = new TriggerKey("t1", "g1"), StartTimeUtc = TimeProvider.System.GetUtcNow() };
         trigger.SetPreferredNode(PreferredNode.ClaimedBy("nodeA"), markDirty: true);
 
         trigger.PreferredNode.Node.Should().Be("nodeA");
         trigger.PreferredNode.IsAutomatic.Should().BeTrue();
 
         // The value carries the auto-claim flag, so copying it is lossless
-        SimpleTriggerImpl other = new SimpleTriggerImpl("t2", "g2");
+        SimpleTriggerImpl other = new SimpleTriggerImpl { Key = new TriggerKey("t2", "g2"), StartTimeUtc = TimeProvider.System.GetUtcNow() };
         other.PreferredNode = trigger.PreferredNode;
 
         other.PreferredNode.Should().Be(trigger.PreferredNode);
@@ -161,7 +161,7 @@ public sealed class NodeAffinityTest
     [Test]
     public void PreferredNode_None_ClearsAutoClaim()
     {
-        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl { Key = new TriggerKey("t1", "g1"), StartTimeUtc = TimeProvider.System.GetUtcNow() };
         trigger.SetPreferredNode(PreferredNode.ClaimedBy("nodeA"), markDirty: true);
 
         trigger.PreferredNode = PreferredNode.None;
@@ -173,7 +173,7 @@ public sealed class NodeAffinityTest
     [Test]
     public void TriggerBase_PreferredNode_CloneCopiesValue()
     {
-        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl { Key = new TriggerKey("t1", "g1"), StartTimeUtc = TimeProvider.System.GetUtcNow() };
         trigger.SetPreferredNode(PreferredNode.ClaimedBy("node-1"), markDirty: true);
 
         SimpleTriggerImpl clone = (SimpleTriggerImpl) trigger.Clone();

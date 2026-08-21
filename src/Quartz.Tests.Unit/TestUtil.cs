@@ -62,7 +62,7 @@ public static class TestUtil
         IJobDetail jd = JobBuilder.Create<NoOpJob>()
             .WithIdentity(new JobKey("jobName", "jobGroup"))
             .Build();
-        IOperableTrigger trigger = new SimpleTriggerImpl("triggerName", "triggerGroup");
+        IOperableTrigger trigger = new SimpleTriggerImpl { Key = new TriggerKey("triggerName", "triggerGroup"), StartTimeUtc = TimeProvider.System.GetUtcNow() };
         TriggerFiredBundle retValue = new TriggerFiredBundle
         {
             JobDetail = jd,

@@ -46,131 +46,28 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     /// <summary>
     /// Create a <see cref="SimpleTriggerImpl" /> with no settings.
     /// </summary>
-    public SimpleTriggerImpl() : this(null)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="SimpleTriggerImpl" /> with no settings.
-    /// </summary>
+    /// <remarks>
+    /// Everything this trigger needs is a settable property, so the object-initializer form
+    /// <c>new SimpleTriggerImpl { Key = ..., StartTimeUtc = ..., RepeatCount = ... }</c> replaces
+    /// the constructor overloads that used to spell out each combination.
+    /// </remarks>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public SimpleTriggerImpl(TimeProvider? timeProvider = null) : base(timeProvider ?? TimeProvider.System)
+    public SimpleTriggerImpl(TimeProvider? timeProvider = null) : base(timeProvider)
     {
     }
 
     /// <summary>
-    /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
-    /// not repeat.
+    /// The constructor JSON deserialization uses.
     /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, TimeProvider? timeProvider = null) : this(name, SchedulerConstants.DefaultGroup, timeProvider)
+    /// <remarks>
+    /// Newtonsoft's <c>ConstructorHandling.AllowNonPublicDefaultConstructor</c> wants a genuinely
+    /// parameterless constructor; one whose single parameter merely has a default value is not one as
+    /// far as reflection is concerned. Without this, a trigger stored by the Newtonsoft serializer
+    /// cannot be read back.
+    /// </remarks>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0051:Remove unused private member", Justification = "Invoked reflectively by JSON deserialization.")]
+    private SimpleTriggerImpl() : base(timeProvider: null)
     {
-    }
-
-    /// <summary>
-    /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
-    /// not repeat.
-    /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, string group, TimeProvider? timeProvider = null)
-        : this(name, group, (timeProvider ?? TimeProvider.System).GetUtcNow(), endTimeUtc: null, repeatCount: 0, TimeSpan.Zero)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
-    /// repeat at the given interval the given number of times.
-    /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, int repeatCount, TimeSpan repeatInterval, TimeProvider? timeProvider = null)
-        : this(name, SchedulerConstants.DefaultGroup, repeatCount, repeatInterval, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
-    /// repeat at the given interval the given number of times.
-    /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, string group, int repeatCount, TimeSpan repeatInterval, TimeProvider? timeProvider = null)
-        : this(name, group, (timeProvider ?? TimeProvider.System).GetUtcNow(), endTimeUtc: null, repeatCount, repeatInterval)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
-    /// and not repeat.
-    /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, DateTimeOffset startTimeUtc, TimeProvider? timeProvider = null)
-        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
-    /// and not repeat.
-    /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, string group, DateTimeOffset startTimeUtc, TimeProvider? timeProvider = null)
-        : this(name, group, startTimeUtc, endTimeUtc: null, 0, TimeSpan.Zero, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
-    /// and repeat at the given interval the given number of times, or until
-    /// the given end time.
-    /// </summary>
-    /// <param name="name">The name.</param>
-    /// <param name="startTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
-    /// <param name="endTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />
-    /// to quit repeat firing.</param>
-    /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
-    /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
-    /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(
-        string name,
-        DateTimeOffset startTimeUtc,
-        DateTimeOffset? endTimeUtc,
-        int repeatCount,
-        TimeSpan repeatInterval,
-        TimeProvider? timeProvider = null)
-        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, repeatCount, repeatInterval, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
-    /// and repeat at the given interval the given number of times, or until
-    /// the given end time.
-    /// </summary>
-    /// <param name="name">The name.</param>
-    /// <param name="group">The group.</param>
-    /// <param name="startTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
-    /// <param name="endTimeUtc">A UTC <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />
-    /// to quit repeat firing.</param>
-    /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
-    /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
-    /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(
-        string name,
-        string group,
-        DateTimeOffset startTimeUtc,
-        DateTimeOffset? endTimeUtc,
-        int repeatCount,
-        TimeSpan repeatInterval,
-        TimeProvider? timeProvider = null)
-        : base(name, group, timeProvider ?? TimeProvider.System)
-    {
-        StartTimeUtc = startTimeUtc;
-        EndTimeUtc = endTimeUtc;
-        RepeatCount = repeatCount;
-        RepeatInterval = repeatInterval;
     }
 
     /// <summary>
@@ -201,8 +98,10 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
         int repeatCount,
         TimeSpan repeatInterval,
         TimeProvider? timeProvider = null)
-        : base(name, group, jobName, jobGroup, timeProvider ?? TimeProvider.System)
+        : base(timeProvider)
     {
+        Key = new TriggerKey(name, group);
+        JobKey = new JobKey(jobName, jobGroup);
         StartTimeUtc = startTimeUtc;
         EndTimeUtc = endTimeUtc;
         RepeatCount = repeatCount;

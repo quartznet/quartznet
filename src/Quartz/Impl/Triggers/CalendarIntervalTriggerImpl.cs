@@ -70,131 +70,31 @@ public sealed class CalendarIntervalTriggerImpl : TriggerBase, ICalendarInterval
         set => timeZone = value is null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
     }
 
-    public CalendarIntervalTriggerImpl() : base(TimeProvider.System)
-    {
-    }
-
     /// <summary>
     /// Create a <see cref="ICalendarIntervalTrigger" /> with no settings.
     /// </summary>
+    /// <remarks>
+    /// Everything this trigger needs is a settable property, so the object-initializer form
+    /// <c>new CalendarIntervalTriggerImpl { Key = ..., RepeatIntervalUnit = ..., RepeatInterval = ... }</c>
+    /// replaces the constructor overloads that used to spell out each combination.
+    /// </remarks>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public CalendarIntervalTriggerImpl(TimeProvider timeProvider) : base(timeProvider)
+    public CalendarIntervalTriggerImpl(TimeProvider? timeProvider = null) : base(timeProvider)
     {
     }
 
     /// <summary>
-    /// Create a <see cref="CalendarIntervalTriggerImpl" /> that will occur immediately, and
-    /// repeat at the given interval.
+    /// The constructor JSON deserialization uses.
     /// </summary>
-    /// <param name="name">Name for the trigger instance.</param>
-    /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
-    /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public CalendarIntervalTriggerImpl(string name, IntervalUnit intervalUnit, int repeatInterval, TimeProvider? timeProvider = null)
-        : this(name, SchedulerConstants.DefaultGroup, intervalUnit, repeatInterval, timeProvider)
+    /// <remarks>
+    /// Newtonsoft's <c>ConstructorHandling.AllowNonPublicDefaultConstructor</c> wants a genuinely
+    /// parameterless constructor; one whose single parameter merely has a default value is not one as
+    /// far as reflection is concerned. Without this, a trigger stored by the Newtonsoft serializer
+    /// cannot be read back.
+    /// </remarks>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0051:Remove unused private member", Justification = "Invoked reflectively by JSON deserialization.")]
+    private CalendarIntervalTriggerImpl() : base(timeProvider: null)
     {
-    }
-
-    /// <summary>
-    /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur immediately, and
-    /// repeat at the given interval
-    /// </summary>
-    /// <param name="name">Name for the trigger instance.</param>
-    /// <param name="group">Group for the trigger instance.</param>
-    /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
-    /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public CalendarIntervalTriggerImpl(
-        string name,
-        string group,
-        IntervalUnit intervalUnit,
-        int repeatInterval,
-        TimeProvider? timeProvider = null)
-        : this(name, group, (timeProvider ??TimeProvider.System).GetUtcNow(), null, intervalUnit, repeatInterval)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur at the given time,
-    /// and repeat at the given interval until the given end time.
-    /// </summary>
-    /// <param name="name">Name for the trigger instance.</param>
-    /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
-    /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
-    /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
-    /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public CalendarIntervalTriggerImpl(
-        string name,
-        DateTimeOffset startTimeUtc,
-        DateTimeOffset? endTimeUtc,
-        IntervalUnit intervalUnit,
-        int repeatInterval,
-        TimeProvider? timeProvider = null)
-        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, intervalUnit, repeatInterval, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur at the given time,
-    /// and repeat at the given interval until the given end time.
-    /// </summary>
-    /// <param name="name">Name for the trigger instance.</param>
-    /// <param name="group">Group for the trigger instance.</param>
-    /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
-    /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
-    /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
-    /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public CalendarIntervalTriggerImpl(string name,
-        string group,
-        DateTimeOffset startTimeUtc,
-        DateTimeOffset? endTimeUtc,
-        IntervalUnit intervalUnit,
-        int repeatInterval,
-        TimeProvider? timeProvider = null)
-        : base(name, group, timeProvider ?? TimeProvider.System)
-    {
-        StartTimeUtc = startTimeUtc;
-        EndTimeUtc = endTimeUtc;
-        RepeatIntervalUnit = intervalUnit;
-        RepeatInterval = repeatInterval;
-    }
-
-    /// <summary>
-    /// Create a <see cref="ICalendarIntervalTrigger" /> that will occur at the given time,
-    /// and repeat at the given interval until the given end time.
-    /// </summary>
-    /// <param name="name">Name for the trigger instance.</param>
-    /// <param name="group">Group for the trigger instance.</param>
-    /// <param name="jobName">Name of the associated job.</param>
-    /// <param name="jobGroup">Group of the associated job.</param>
-    /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to fire.</param>
-    /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
-    /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
-    /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    public CalendarIntervalTriggerImpl(
-        string name,
-        string group,
-        string jobName,
-        string jobGroup,
-        DateTimeOffset startTimeUtc,
-        DateTimeOffset? endTimeUtc,
-        IntervalUnit intervalUnit,
-        int repeatInterval,
-        TimeProvider? timeProvider = null)
-        : base(name, group, jobName, jobGroup, timeProvider ?? TimeProvider.System)
-    {
-        StartTimeUtc = startTimeUtc;
-        EndTimeUtc = endTimeUtc;
-        RepeatIntervalUnit = intervalUnit;
-        RepeatInterval = repeatInterval;
     }
 
     /// <summary>

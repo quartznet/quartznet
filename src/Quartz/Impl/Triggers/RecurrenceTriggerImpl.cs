@@ -34,8 +34,9 @@ public sealed class RecurrenceTriggerImpl : TriggerBase, IRecurrenceTrigger
     /// </summary>
     public RecurrenceTriggerImpl(string name, string group, string recurrenceRule,
         TimeProvider? timeProvider = null)
-        : base(name, group, timeProvider ?? TimeProvider.System)
+        : base(timeProvider)
     {
+        Key = new TriggerKey(name, group);
         RecurrenceRule = recurrenceRule;
     }
 

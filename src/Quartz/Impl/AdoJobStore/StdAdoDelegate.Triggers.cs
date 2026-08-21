@@ -133,11 +133,14 @@ public partial class StdAdoDelegate
                     int priority = Convert.ToInt32(rs[AdoConstants.ColumnPriority], CultureInfo.InvariantCulture);
                     DateTimeOffset firedTime = GetDateTimeFromDbValue(rs[AdoConstants.ColumnFiredTime]) ?? DateTimeOffset.MinValue;
                     DateTimeOffset scheduledTime = GetDateTimeFromDbValue(rs[AdoConstants.ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
-                    SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture),
-                        SchedulerConstants.DefaultRecoveryGroup, scheduledTime);
-                    rcvryTrig.JobKey = new JobKey(jobName, jobGroup);
-                    rcvryTrig.Priority = priority;
-                    rcvryTrig.MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy;
+                    SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl
+                    {
+                        Key = new TriggerKey("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture), SchedulerConstants.DefaultRecoveryGroup),
+                        StartTimeUtc = scheduledTime,
+                        JobKey = new JobKey(jobName, jobGroup),
+                        Priority = priority,
+                        MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy
+                    };
 
                     triggerData.Add((scheduledTime, firedTime));
                     triggers.Add(rcvryTrig);

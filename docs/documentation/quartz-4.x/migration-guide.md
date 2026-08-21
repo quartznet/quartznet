@@ -4097,6 +4097,7 @@ or through `WithTimeZone`, which returns a retimed copy.
 | `new CronExpression(s) { TimeZone = tz }` | `new CronExpression(s, tz)` |
 | `expr.GetTimeAfter(d)` | `expr.GetNextValidTimeAfter(d)` — the two were verbatim aliases; one name remains |
 | `expr.GetFinalFireTime()` | Removed — it was never implemented and always returned `null` |
+| `expr.Clone()` | Removed — the type is sealed and immutable, so reuse the instance |
 
 `null` still means the system's local time zone, and an expression that was never given a zone still
 serializes with the local zone's id, so persisted payloads keep their meaning.
@@ -4109,6 +4110,50 @@ already-built triggers keep the zone they were built with.
 
 `CronTriggerImpl.FinalFireTimeUtc` now returns `null` directly for a trigger with no end time, which is the
 value it always produced through `GetFinalFireTime`.
+
+`Clone()` went with the setter. A copy of an immutable sealed value is an allocation and nothing else, so
+the two places in Quartz that cloned one — `CronCalendar.Clone` and `CronTriggerImpl.Clone` — share the
+instance instead. If you called it, drop the call.
+
+### `CronExpression` parses without throwing, and says it is equatable
+
+`IsValidExpression` was a `try`/`catch` around the constructor, which is the shape `TryParse` exists to
+replace. It is one now, alongside `IParsable<CronExpression>` — the same pair `JobKey` and `TriggerKey`
+already had.
+
+```csharp
+if (CronExpression.TryParse(userInput, out CronExpression? expression))
+{
+    // expression is non-null here
+}
+
+CronExpression parsed = CronExpression.Parse(userInput);   // ArgumentNullException / FormatException
+```
+
+`IsValidExpression` is unchanged at the call site — it now delegates to `TryParse`. There are no
+`ReadOnlySpan<char>` overloads, deliberately: the type keeps its source string, so a span argument would
+only be copied back into one.
+
+Equality was already implemented; it is now declared. `CronExpression` states `IEquatable<CronExpression>`,
+and `Equals` takes a nullable argument, as the contract requires. `GetHashCode` hashes the `TimeZone`
+property that `Equals` compares rather than the nullable backing field, so an expression that was never
+given a zone and one given `TimeZoneInfo.Local` explicitly no longer hash apart while comparing equal.
+
+### The derived calendars declare the equality they implement
+
+`AnnualCalendar`, `CronCalendar`, `DailyCalendar`, `HolidayCalendar`, `MonthlyCalendar` and
+`WeeklyCalendar` each had a `public bool Equals(X obj)` that no interface asked for and that could not be
+handed a `null`. Each declares `IEquatable<X>` now, with the nullable parameter that entails — matching
+`BaseCalendar`, which always did it correctly. Existing calls compile unchanged; an override in a calendar
+of your own needs the `?` on its parameter.
+
+### `CronExpressionBuilder`'s list fields take a span
+
+The seven members that take a list of field values — `WithSeconds`, `WithMinutes`, `WithHours`,
+`WithDaysOfMonth`, `WithMonths`, `WithDaysOfWeek`, `WithYears` — gained `params ReadOnlySpan<…>`
+overloads, so the common call no longer allocates an array per field. The `params` array overloads stay,
+so an argument that is already a collection still binds. Nothing at an existing call site changes: C# 13
+prefers the span overload in expanded form, and both do the same thing.
 
 ### `ITrigger` is Quartz-implemented
 
@@ -4123,6 +4168,69 @@ names the type and says what to do instead. `ITrigger`'s own documentation state
 `IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>` — the scheduler validates and
 downcasts the caller's triggers before the store sees them, so a custom store no longer casts each
 `ITrigger` itself. `IScheduler.ScheduleJobs` is unchanged.
+
+## The trigger implementations construct, then initialize
+
+The four `*TriggerImpl` types carried thirty-two constructors between them, spelling out every combination
+of name, group, job name, job group, start time, end time and schedule. Every value they set is a settable
+property, so each combination was a second way to say the same thing — and the longest of them took nine
+positional arguments, most of which read as anonymous at the call site.
+
+Each type now has one no-settings constructor taking an optional `TimeProvider`, and at most one
+convenience constructor. Everything else is an object initializer.
+
+| type | constructors before | constructors now |
+|---|---|---|
+| `SimpleTriggerImpl` | 11 | `(TimeProvider? = null)`, and `(name, group, jobName, jobGroup, startTimeUtc, endTimeUtc, repeatCount, repeatInterval, TimeProvider? = null)` |
+| `CronTriggerImpl` | 9 | `(TimeProvider? = null)`, and `(name, group, cronExpression, TimeProvider? = null)` |
+| `CalendarIntervalTriggerImpl` | 6 | `(TimeProvider? = null)` |
+| `DailyTimeIntervalTriggerImpl` | 6 | `(TimeProvider? = null)` |
+| `TriggerBase` (protected) | 5 | `(TimeProvider? = null)` |
+
+The recipe is mechanical: the name and group become `Key`, the job name and group become `JobKey`, and the
+rest keep their property names.
+
+```diff
+- var trigger = new SimpleTriggerImpl("nightly", "reports", startAt, endAt, 5, TimeSpan.FromHours(1));
++ var trigger = new SimpleTriggerImpl
++ {
++     Key = new TriggerKey("nightly", "reports"),
++     StartTimeUtc = startAt,
++     EndTimeUtc = endAt,
++     RepeatCount = 5,
++     RepeatInterval = TimeSpan.FromHours(1)
++ };
+```
+
+Set `StartTimeUtc` before `EndTimeUtc`: each setter validates against the other, exactly as the
+constructors did in that order.
+
+One behavioural detail to carry over. The overloads that took no start time — `SimpleTriggerImpl(name)`,
+`(name, group)`, `(name, repeatCount, repeatInterval)`, `(name, group, repeatCount, repeatInterval)`, and
+the `CalendarIntervalTriggerImpl` / `DailyTimeIntervalTriggerImpl` equivalents — set `StartTimeUtc` to *now*
+rather than leaving it at its default. Write that out if you relied on it:
+
+```diff
+- var trigger = new SimpleTriggerImpl("nightly", "reports");
++ var trigger = new SimpleTriggerImpl
++ {
++     Key = new TriggerKey("nightly", "reports"),
++     StartTimeUtc = TimeProvider.System.GetUtcNow()
++ };
+```
+
+`CronTriggerImpl`'s surviving constructors already set `StartTimeUtc` to the time provider's now and
+`TimeZone` to `TimeZoneInfo.Local`, as they always did.
+
+`SimpleTriggerImpl` and `CalendarIntervalTriggerImpl` had both a parameterless constructor and a
+`TimeProvider` one; those merged into a single `(TimeProvider? timeProvider = null)`, matching the shape
+`CronTriggerImpl` and `DailyTimeIntervalTriggerImpl` already had. `new SimpleTriggerImpl()` still compiles.
+What no longer works is a `where T : new()` constraint or `Activator.CreateInstance(type)` over these types
+— an all-optional constructor is not a parameterless one as far as the runtime is concerned. Derive a type
+of your own and it gets an implicit parameterless constructor, which satisfies both again.
+
+The `[Serializable]` blob contract pins fields, not constructors, so persisted binary payloads are
+unaffected.
 
 ## Nine `UsingJobData` overloads became one
 
