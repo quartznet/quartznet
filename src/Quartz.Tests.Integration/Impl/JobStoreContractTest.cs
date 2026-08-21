@@ -39,8 +39,8 @@ namespace Quartz.Tests.Integration.Impl;
 /// which way it behaves and both branches are asserted, so the divergence is written down and can be
 /// found by anyone deciding whether to close it. The hooks are
 /// <see cref="ReportsJobGroupPauseState" />, <see cref="AllGroupsPausedSentinel" />,
-/// <see cref="PauseOverwritesTheErrorState" />, <see cref="ResumeAllForgetsPausedButEmptyGroups" />
-/// and <see cref="DuplicateCalendarException" />.
+/// <see cref="ResumeAllForgetsPausedButEmptyGroups" /> and
+/// <see cref="DuplicateCalendarException" />.
 /// </para>
 /// </remarks>
 public abstract class JobStoreContractTest
@@ -89,11 +89,6 @@ public abstract class JobStoreContractTest
     /// <see langword="null" /> when it lists only real groups.
     /// </summary>
     protected virtual string AllGroupsPausedSentinel => null;
-
-    /// <summary>
-    /// Whether pausing a trigger that is in <see cref="TriggerState.Error" /> overwrites the error.
-    /// </summary>
-    protected virtual bool PauseOverwritesTheErrorState => false;
 
     /// <summary>
     /// Whether <see cref="IJobStore.ResumeAll" /> un-pauses a group that is paused but holds no
@@ -475,26 +470,17 @@ public abstract class JobStoreContractTest
 
         await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(trigger.Key.Group));
 
-        if (PauseOverwritesTheErrorState)
-        {
-            // Pinned, not endorsed. The in-memory store pauses a trigger from any state but Complete,
-            // Error included, so pausing the group throws the error away: the failure is no longer
-            // visible to a listing, and there is nothing left for ResetTriggerFromErrorState to do.
-            (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
-                "the in-memory store overwrites the error with the pause");
-            (await Store.ResetTriggerFromErrorState(trigger.Key)).Should().BeFalse(
-                "the error the operator meant to reset was already overwritten");
-        }
-        else
-        {
-            // The ADO store only writes PAUSED over WAITING, ACQUIRED or BLOCKED, so the error
-            // survives the pause and can still be reset — into the pause, rather than past it.
-            (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Error,
-                "a trigger in error is not a trigger a group pause may quietly clear");
-            (await Store.ResetTriggerFromErrorState(trigger.Key)).Should().BeTrue();
-            (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
-                "the group is paused, so the trigger comes out of error into the pause");
-        }
+        // Only WAITING, ACQUIRED and BLOCKED are pausable, so the error survives the pause and can
+        // still be reset — into the pause, rather than past it.
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Error,
+            "a trigger in error is not a trigger a group pause may quietly clear");
+
+        (await Store.PauseTrigger(trigger.Key)).Should().BeFalse(
+            "there was no pausable trigger to move, so the pause reports it moved nothing");
+
+        (await Store.ResetTriggerFromErrorState(trigger.Key)).Should().BeTrue();
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
+            "the group is paused, so the trigger comes out of error into the pause");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
