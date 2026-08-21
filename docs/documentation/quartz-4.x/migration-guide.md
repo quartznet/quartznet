@@ -1655,6 +1655,27 @@ ship on 3.x as well, so upgrading is not what fixes them. One part of #3294 *is*
   success into a throw on a released branch. If you reschedule onto a calendar you intend to add
   afterwards, add the calendar first.
 
+## The two job stores answer the same way
+
+`RAMJobStore` and the ADO.NET job store implement one interface, and on 3.x they quietly disagreed
+about a handful of answers — each had its own tests, written against whatever the store in front of
+the author happened to do. `JobStoreContractTest` runs one set of assertions against both stores, and
+closing the disagreements it found changed behaviour a 3.x application could have depended on. Each
+of these is a 3.x behaviour, not a 4.x regression:
+
+- **A prefix `PauseTriggers` pauses every group it matches.** `RAMJobStore` recorded the *matcher's
+  text* rather than the group it matched, so `PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("report"))`
+  paused the triggers of only the first matching group, returned that one group, and left a phantom
+  entry named `report` in the paused-group set — which then paused anything later added to a group
+  literally called `report`. It now records each matched group and pauses all of their triggers, which
+  is what the ADO store always did. `ResumeTriggers` with a non-equality matcher forgets those groups
+  again; it previously only ever cleared an exact-name pause.
+
+  The semantics both stores now share: a pause remembers the **groups the matcher matched**, not the
+  pattern. A trigger added afterwards to a matched group is born paused; a trigger added to a group
+  that *would* have matched but did not exist at pause time is not. To pause a group before it
+  exists, pause it by exact name — `GroupEquals` deliberately records a group that holds nothing yet.
+
 ## JobKey and TriggerKey Null Validation
 
 `JobKey` and `TriggerKey` now throw `ArgumentNullException` when you specify `null` for `name` or `group`. Triggers can no longer be constructed with a null group name. If your code was relying on null group names, switch to an explicit group name.

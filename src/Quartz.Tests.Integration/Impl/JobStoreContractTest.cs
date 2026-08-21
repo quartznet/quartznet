@@ -38,10 +38,9 @@ namespace Quartz.Tests.Integration.Impl;
 /// Where the two genuinely disagree the difference is a hook, not a missing assertion: each store says
 /// which way it behaves and both branches are asserted, so the divergence is written down and can be
 /// found by anyone deciding whether to close it. The hooks are
-/// <see cref="ReportsJobGroupPauseState" />, <see cref="PausesEveryTriggerGroupAPrefixMatcherMatches" />,
-/// <see cref="AllGroupsPausedSentinel" />, <see cref="PauseOverwritesTheErrorState" />,
-/// <see cref="ResumeAllForgetsPausedButEmptyGroups" /> and
-/// <see cref="DuplicateCalendarException" />.
+/// <see cref="ReportsJobGroupPauseState" />, <see cref="AllGroupsPausedSentinel" />,
+/// <see cref="PauseOverwritesTheErrorState" />, <see cref="ResumeAllForgetsPausedButEmptyGroups" />
+/// and <see cref="DuplicateCalendarException" />.
 /// </para>
 /// </remarks>
 public abstract class JobStoreContractTest
@@ -84,12 +83,6 @@ public abstract class JobStoreContractTest
     /// <see cref="IJobStore.QueryJobGroups" />.
     /// </summary>
     protected abstract bool ReportsJobGroupPauseState { get; }
-
-    /// <summary>
-    /// Whether <see cref="IJobStore.PauseTriggers" /> with a prefix matcher pauses every group the
-    /// matcher matches rather than only one of them.
-    /// </summary>
-    protected virtual bool PausesEveryTriggerGroupAPrefixMatcherMatches => true;
 
     /// <summary>
     /// The pseudo group name a store lists as paused after <see cref="IJobStore.PauseAll" />, or
@@ -270,35 +263,42 @@ public abstract class JobStoreContractTest
 
         List<string> paused = await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("tg"));
 
-        if (PausesEveryTriggerGroupAPrefixMatcherMatches)
-        {
-            paused.Should().BeEquivalentTo([TriggerGroupA, TriggerGroupB],
-                "a prefix matcher pauses every group whose name starts with it");
-            (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Paused);
-            (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Paused);
-        }
-        else
-        {
-            // Pinned, not endorsed. RAMJobStore.PauseTriggersNoLock's prefix branch guards the result
-            // with `pausedTriggerGroups.Add(matcher.CompareToValue)` — the matcher's own text, not the
-            // group it matched — so the set rejects the second matching group and only the first one
-            // is ever paused. The ADO store pauses both. Whichever group comes first is a dictionary
-            // ordering, so the assertion names neither.
-            paused.Should().HaveCount(1,
-                "the in-memory store's prefix branch stops after the first group it matches");
-
-            List<TriggerState> states =
-            [
-                await Store.GetTriggerState(first.Key),
-                await Store.GetTriggerState(second.Key)
-            ];
-
-            states.Should().Contain(TriggerState.Paused).And.Contain(TriggerState.Normal,
-                "exactly one of the two matching groups is actually paused");
-        }
+        paused.Should().BeEquivalentTo([TriggerGroupA, TriggerGroupB],
+            "a prefix matcher pauses every group whose name starts with it");
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Paused);
 
         (await Store.GetTriggerState(untouched.Key)).Should().Be(TriggerState.Normal,
             "a group the prefix does not match is never touched");
+
+        (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items
+            .Select(x => x.Name).Should().BeEquivalentTo([TriggerGroupA, TriggerGroupB],
+                "what a prefix pause records is the groups it matched, never the pattern itself");
+
+        // A group that would have matched the pattern but held no triggers when the pause ran was
+        // never one of the matched groups, so nothing imposes the pause on it afterwards. Pausing a
+        // group that does not exist yet is what the equality matcher is for.
+        IJobDetail lateJob = CreateJob("late", JobGroupA);
+        IOperableTrigger late = CreateTrigger("late", "tg-late", lateJob.Key);
+        await Store.ScheduleJob(lateJob, late);
+
+        (await Store.GetTriggerState(late.Key)).Should().Be(TriggerState.Normal,
+            "the prefix pause matched groups, not a pattern the store keeps applying");
+
+        // A trigger joining a group that *was* matched is born paused, because that group is recorded.
+        IJobDetail joiningJob = CreateJob("joining", JobGroupA);
+        IOperableTrigger joining = CreateTrigger("joining", TriggerGroupA, joiningJob.Key);
+        await Store.ScheduleJob(joiningJob, joining);
+
+        (await Store.GetTriggerState(joining.Key)).Should().Be(TriggerState.Paused,
+            "a group the prefix pause matched is a paused group like any other");
+
+        await Store.ResumeTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("tg"));
+
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Normal);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Normal);
+        (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items.Should().BeEmpty(
+            "the same prefix that paused the groups takes the pause off them again");
     }
 
     [Test]
