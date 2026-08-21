@@ -3253,6 +3253,13 @@ public abstract class AdoJobStoreBase : IJobStore
     /// runs again for every retry rather than once per <see cref="AcquireNextTriggers" /> call.
     /// </para>
     /// <para>
+    /// An override may lower <see cref="TriggerAcquisitionCriteria.MaxCount" /> but must never raise it
+    /// above the request's: the choice between lock-free and locked acquisition was already made from the
+    /// request before this factory runs, so a raised count is only caught by post-acquisition validation
+    /// and the surplus is released and retried — a performance hazard rather than corruption, but a
+    /// silent one.
+    /// </para>
+    /// <para>
     /// <see cref="TriggerAcquisitionCriteria" />'s remarks state the contract a new filter has to
     /// keep: it is another optional property on that record, defaulting to "no additional filtering".
     /// </para>
