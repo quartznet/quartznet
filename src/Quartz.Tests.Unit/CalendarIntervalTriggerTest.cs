@@ -1190,6 +1190,52 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             "Should skip to the next fire time strictly after now");
     }
 
+    private static readonly DateTimeOffset MisfireStartTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset MisfireNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
+
+    /// <summary>
+    /// A calendar-interval trigger firing every two minutes from 10:00, whose misfire handling runs
+    /// at 10:02:30 with 10:00 past due.
+    /// </summary>
+    private static CalendarIntervalTriggerImpl CreateMisfiredTrigger(int misfireInstruction)
+    {
+        CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl(new FixedTimeProvider(MisfireNow))
+        {
+            Key = new TriggerKey("test", "test"),
+            StartTimeUtc = MisfireStartTime,
+            RepeatInterval = 2,
+            RepeatIntervalUnit = IntervalUnit.Minute,
+            MisfireInstructionCode = misfireInstruction
+        };
+        trigger.ComputeFirstFireTimeUtc(null);
+        trigger.NextFireTimeUtc.Should().Be(MisfireStartTime, "the fixture depends on the trigger being past due");
+        return trigger;
+    }
+
+    [Test]
+    public void SmartPolicy_AfterMisfire_IsFireOnceNow()
+    {
+        CalendarIntervalTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SmartPolicy);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow,
+            "the calendar-interval family resolves SmartPolicy to FireOnceNow, which schedules the trigger for exactly now");
+        trigger.GetFireTimeAfter(MisfireNow).Should().Be(new DateTimeOffset(2025, 1, 1, 10, 4, 0, TimeSpan.Zero),
+            "GetFireTimeAfter always recomputes from the start time, so the catch-up fire does not shift the interval grid");
+    }
+
+    [Test]
+    public void IgnoreMisfirePolicy_AfterMisfire_LeavesThePastDueFireTimeAlone()
+    {
+        CalendarIntervalTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.IgnoreMisfirePolicy);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireStartTime,
+            "ignoring misfires means the past-due fire time stays put so the trigger fires its way back up to date");
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
