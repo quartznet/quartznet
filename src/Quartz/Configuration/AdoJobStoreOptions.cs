@@ -156,8 +156,23 @@ public sealed class AdoJobStoreOptions
     public bool PerformSchemaValidation { get; set; } = true;
 
     /// <summary>
-    /// Overrides the SQL statement used to acquire the row lock.
+    /// Overrides the SQL statement used to acquire the row lock. Defaulted for SQL Server to its
+    /// <c>WITH (UPDLOCK,ROWLOCK)</c> form.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Read only when the job store builds a database-locking handler for itself, which is what it does
+    /// when <see cref="UseDbLocks"/> is on — through clustering, enlisted transactions, or the setting
+    /// itself — and no lock handler was supplied. A handler chosen with <c>UseLockHandler</c> takes its
+    /// statement through its own constructor, and the store logs a warning at startup if this is set as
+    /// well, since the value would silently do nothing.
+    /// </para>
+    /// <para>
+    /// The statement must select the row in <c>{0}LOCKS</c> matching the <c>@schedulerName</c> and
+    /// <c>@lockName</c> parameters, taking whatever lock the database needs to serialize the callers;
+    /// <c>{0}</c> is the table prefix.
+    /// </para>
+    /// </remarks>
     public string? SelectWithLockSql { get; set; }
 
     /// <summary>

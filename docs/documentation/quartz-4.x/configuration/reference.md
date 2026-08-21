@@ -137,7 +137,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `DoubleCheckLockMisfireHandler` | bool | `true` | Re-checks the lock before handling misfires. |
 | `UseBackgroundThreads` | bool | `false` | Runs the misfire handler and cluster manager on background threads, which do not keep the process alive. These two are the only real threads Quartz creates. |
 | `PerformSchemaValidation` | bool | `true` | Verifies the expected tables exist at startup. |
-| `SelectWithLockSql` | string? | none | Overrides the row-lock statement. |
+| `SelectWithLockSql` | string? | none | Overrides the row-lock statement, defaulted to SQL Server's `WITH (UPDLOCK,ROWLOCK)` form when that is the database. Read only when the store builds a database-locking handler for itself — see [Locking](#locking). |
 | `OpenConnection` | bool | `false` | Whether `ExternalTransactionJobStore` opens the connections it creates; read only by that store. |
 
 A custom trigger persistence delegate is registered with
@@ -238,6 +238,10 @@ Leave the lock handler unset and the store chooses one for itself once it knows 
 talking to: database row locks when clustered or when `UseDbLocks` is on, and an in-process monitor
 otherwise. `UseLockHandler<T>()` overrides that choice, and `UseLockHandler(factory)` does the same for a
 handler that needs building — as `UseRedisLockHandler()` does.
+
+`SelectWithLockSql` belongs to the handler the store builds for itself. A handler chosen with
+`UseLockHandler` takes its statement through its own constructor instead, so setting both leaves the
+option doing nothing — the store logs a warning at startup when it finds that combination.
 
 Both this and `UseSerializer` register against the scheduler that owns the store. Registering
 `ISemaphore` or `IObjectSerializer` directly against `Services` registers it for the container, which a

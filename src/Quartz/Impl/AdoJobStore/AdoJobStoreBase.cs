@@ -366,6 +366,9 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <remarks>
     /// Configured through <see cref="AdoJobStoreOptions.SelectWithLockSql" />, and defaulted by
     /// <see cref="Initialize" /> to the SQL Server specific statement when that is the database in use.
+    /// Read only when this store builds a database-locking handler for itself: a handler supplied
+    /// through <c>UseLockHandler</c> was given its statement by whoever built it, and
+    /// <see cref="Initialize" /> warns when both are configured.
     /// </remarks>
     /// <seealso cref="SelectForUpdateSemaphore" />
     protected internal string? SelectWithLockSql { get; internal set; }
@@ -753,6 +756,23 @@ public abstract class AdoJobStoreBase : IJobStore
         }
         else
         {
+            // A lock handler that was chosen explicitly carries its own statement, through its
+            // constructor. SelectWithLockSql only ever reached a handler this store built for itself, so
+            // configuring both leaves the statement doing nothing and the drift is invisible.
+            if (SelectWithLockSql is not null)
+            {
+                if (LockHandler is SQLiteSemaphore)
+                {
+                    // SQLite arrives here with a handler the store installed rather than one the caller
+                    // chose, so this is a property of the database rather than a configuration to undo.
+                    Logger.LogWarning("A row-lock statement is configured, but SQLite serializes callers in process rather than by locking a row, so the statement is ignored.");
+                }
+                else
+                {
+                    Logger.LogWarning("A row-lock statement is configured, but lock handler {LockHandlerType} was supplied rather than built by the job store, so the statement is ignored. Pass it to the handler's constructor, or remove the lock handler and let the store choose one.", LockHandler.GetType().Name);
+                }
+            }
+
             // be ready to give a friendly warning if locks would be released before the application commits
             if (AcceptEnlistedTransactions && !LockHandler.RequiresConnection)
             {
