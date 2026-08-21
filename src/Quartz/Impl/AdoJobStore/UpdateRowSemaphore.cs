@@ -145,9 +145,9 @@ public class UpdateRowSemaphore : DbSemaphore
         string sql,
         CancellationToken cancellationToken)
     {
-        using DbCommand cmd = AdoUtil.PrepareCommand(conn, sql);
-        AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
+        using DbCommand cmd = PrepareCommand(conn, sql);
+        AddCommandParameter(cmd, "schedulerName", SchedulerName);
+        AddCommandParameter(cmd, "lockName", lockName);
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
@@ -173,9 +173,9 @@ public class UpdateRowSemaphore : DbSemaphore
             logger.LogDebug("Inserting new lock row for lock: '{LockName}' being obtained: {RequestorId}", lockName, requestorId);
         }
 
-        using var cmd = AdoUtil.PrepareCommand(conn, sql);
-        AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
+        using var cmd = PrepareCommand(conn, sql);
+        AddCommandParameter(cmd, "schedulerName", SchedulerName);
+        AddCommandParameter(cmd, "lockName", lockName);
 
         if (await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
         {

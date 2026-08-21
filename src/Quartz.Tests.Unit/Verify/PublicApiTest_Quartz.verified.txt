@@ -2079,9 +2079,11 @@ namespace Quartz.Impl.AdoJobStore
         public string? SchedulerName { get; }
         public string TablePrefix { get; }
         protected System.TimeProvider TimeProvider { get; }
+        protected void AddCommandParameter(System.Data.Common.DbCommand command, string paramName, object? paramValue) { }
         protected abstract System.Threading.Tasks.ValueTask ExecuteSql(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql, System.Threading.CancellationToken cancellationToken = default);
         public void Initialize(Quartz.Impl.AdoJobStore.SemaphoreContext context) { }
         public System.Threading.Tasks.ValueTask<bool> ObtainLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
+        protected System.Data.Common.DbCommand PrepareCommand(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string commandText) { }
         public System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class DriverDelegateContext : System.IEquatable<Quartz.Impl.AdoJobStore.DriverDelegateContext>

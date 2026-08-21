@@ -20,6 +20,7 @@
 #endregion
 
 using System.Collections.Concurrent;
+using System.Data.Common;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
@@ -232,9 +233,47 @@ public abstract class DbSemaphore : ISemaphore
     /// </summary>
     protected TimeProvider TimeProvider { get; private set; } = TimeProvider.System;
 
+    /// <summary>
+    /// Prepares one of this semaphore's statements against the unit of work
+    /// <see cref="ExecuteSql" /> was handed, attached to its connection and transaction and carrying the
+    /// store's command timeout.
+    /// </summary>
+    /// <remarks>
+    /// This and <see cref="AddCommandParameter" /> are what a semaphore of your own issues its lock
+    /// statement through. The accessor behind them stays out of reach — how a command is minted and how
+    /// a parameter is named differ by driver, and are not a contract — but a subclass that could not
+    /// prepare a command at all had no way to implement <see cref="ExecuteSql" />, which is the one
+    /// method it exists to implement.
+    /// </remarks>
+    /// <param name="conn">The unit of work the statement runs in.</param>
+    /// <param name="commandText">The statement, with its table prefix already folded in.</param>
+    protected DbCommand PrepareCommand(ConnectionAndTransactionHolder conn, string commandText)
+    {
+        return adoUtil.PrepareCommand(conn, commandText);
+    }
+
+    /// <summary>
+    /// Binds a parameter to a command prepared by <see cref="PrepareCommand" />, rewriting the
+    /// statement's <c>@name</c> placeholder for drivers that do not use <c>@</c> or that bind by
+    /// position.
+    /// </summary>
+    /// <remarks>
+    /// There is no overload taking a provider-specific data type or a size, because a lock statement
+    /// binds a scheduler name and a lock name and both are strings. A semaphore that needs to bind
+    /// something else is not locking a Quartz lock row.
+    /// </remarks>
+    /// <param name="command">The command to bind to.</param>
+    /// <param name="paramName">Name of the parameter, without the driver's prefix.</param>
+    /// <param name="paramValue">Value to bind; <see langword="null" /> binds as <see cref="DBNull" />.</param>
+    protected void AddCommandParameter(DbCommand command, string paramName, object? paramValue)
+    {
+        adoUtil.AddCommandParameter(command, paramName, paramValue);
+    }
+
     /// <remarks>
     /// <c>private protected</c> because <see cref="IAdoUtil" /> is an implementation detail: command
     /// preparation and parameter naming are not something an out-of-assembly semaphore should reach into.
+    /// <see cref="PrepareCommand" /> and <see cref="AddCommandParameter" /> are what it uses instead.
     /// </remarks>
     private protected IAdoUtil AdoUtil => adoUtil;
 

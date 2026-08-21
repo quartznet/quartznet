@@ -2047,7 +2047,20 @@ statement is not a contract. Build the statement your dialect needs, or override
 which are unchanged.
 
 `DbSemaphore.AdoUtil` is `private protected` for the same reason, so a semaphore written outside Quartz no
-longer sees it — derive from `DbSemaphore` and use `IDbProvider`, or implement `ISemaphore` directly.
+longer sees it. What such a semaphore needs from it — preparing a statement and binding a parameter — is
+`protected` on `DbSemaphore` itself:
+
+```csharp
+protected DbCommand PrepareCommand(ConnectionAndTransactionHolder conn, string commandText);
+protected void AddCommandParameter(DbCommand command, string paramName, object? paramValue);
+```
+
+`ExecuteSql` is the one method a `DbSemaphore` subclass exists to implement, and it could not be
+implemented without these; both shipped row-lock handlers now issue their statements through them, so
+`SelectForUpdateSemaphore` and `UpdateRowSemaphore` are literal example code for one of your own. There
+is no overload taking a provider-specific data type or a size, because a lock statement binds a scheduler
+name and a lock name and both are strings. A handler that does not lock in a database implements
+`ISemaphore` directly instead.
 
 **Three trigger persistence delegates became public**, so a custom delegate list can name all five built-ins:
 `CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and
@@ -5926,6 +5939,7 @@ Parameters and behavior are unchanged:
 | Row-lock semaphore SQL fields are `protected const` and consistently named | `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateRowSemaphore.UpdateForLock` / `.InsertLock`; `SelectForUpdateSemaphore.SelectForLock` / `.InsertLock` keep their member names |
 | `ISemaphore.Initialize(SemaphoreContext)` replaces `ITablePrefixAware` | Identity arrives through one initialization call instead of a property pair; the default implementation does nothing — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
 | `SemaphoreContext` also carries `TimeProvider` and `CommandTimeout` | The environment a handler locks in, beside the identity it locks under. `DbSemaphore` exposes the clock as a `protected TimeProvider` and both shipped row-lock handlers back off on it, so a retry is observable without waiting out the real second |
+| `DbSemaphore.PrepareCommand` / `.AddCommandParameter` are `protected` | The two things a subclass needs to implement `ExecuteSql`, which `private protected AdoUtil` had left it unable to do at all — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
 | `SelectForUpdateSemaphore.MaxRetry` / `.RetryPeriod` are `init`-only | Assign them in an object initializer. `quartz.jobStore.lockHandler.maxRetry` / `.retryPeriod` still reach them — the property bridge writes by reflection, which an init accessor does not stop |
 | `UpdateRowSemaphore.RetryPeriod` added | Its backoff was a literal one second, so it ignored `quartz.jobStore.lockHandler.retryPeriod` while its sibling honoured it. The default is unchanged at one second |
 | `AdoJobStoreBase.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
