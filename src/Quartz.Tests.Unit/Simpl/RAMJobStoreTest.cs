@@ -968,6 +968,35 @@ public class RAMJobStoreTest
     }
 
     /// <summary>
+    /// The other side of that coin, and a regression test for #3294: the dashboard's reschedule
+    /// wrote CALENDAR_NAME='' instead of NULL. The store gates its calendar lookup on a non-null
+    /// name, so the empty string passed the gate, resolved to no calendar, and the trigger silently
+    /// never fired again.
+    /// </summary>
+    [Test]
+    public async Task TriggersFired_StillProducesABundle_WhenTheCalendarNameIsBlank()
+    {
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("blankCalendarTrigger", d);
+        trigger.CalendarName = "";
+        await fJobStore.AddTrigger(trigger, false);
+
+        (await fJobStore.GetTrigger(trigger.Key))!.CalendarName.Should().BeNull(
+            "a blank name is stored as no calendar, so nothing is ever looked up for it");
+
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
+        acquired.Should().HaveCount(1);
+
+        var fired = await fJobStore.TriggersFired(acquired);
+
+        fired.Should().HaveCount(1);
+        fired[0].TriggerFiredBundle.Should().NotBeNull(
+            "a trigger with no calendar has to fire; naming the empty string is naming no calendar");
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Executing);
+    }
+
+    /// <summary>
     /// Releasing after the fire was recorded has to drop the record: the scheduler releases the whole
     /// batch when <c>TriggersFired</c> fails part-way, and no completion will arrive for the fires it had
     /// already recorded. Uses a concurrency-allowed job so the answer is not masked by the blocking

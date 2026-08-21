@@ -1463,6 +1463,33 @@ trigger describes its own schedule to the base class — which rounds the start 
 is false — and nothing outside the trigger acted on it. A custom trigger changes `public override` to
 `protected override`; to test the behaviour, assert on `StartTimeUtc.Millisecond` instead of on the flag.
 
+## A blank calendar name is no calendar name
+
+`TriggerBase.CalendarName` stores an empty or whitespace-only name as `null`, and so do
+`TriggerBuilder.WithCalendarName` and `TriggerDetailsUpdate.WithCalendarName`, which assign through
+it. The name is not trimmed — a calendar is looked up by the exact name it was registered under —
+only blanks collapse.
+
+This closes a trap rather than changing a working behaviour. Every job store reads a non-null
+calendar name as "this trigger observes a calendar", looks it up, and drops the fire when it is not
+found. A trigger holding `""` therefore never fired again, and said so only through a single
+`Couldn't find calendar with name ''` line from the ADO delegate — nothing at all under
+`RAMJobStore`. Oracle hid the problem entirely, since `''` is `NULL` there.
+
+If a database already holds `CALENDAR_NAME = ''` rows — the dashboard's reschedule wrote them before
+[#3294](https://github.com/quartznet/quartznet/issues/3294) was fixed — **no migration script is
+needed**. Such a row rehydrates as "no calendar", so the trigger starts firing again on the next
+acquisition, and the column is written back as `NULL` the next time the trigger is persisted.
+
+The normalization and the missing-calendar warning both job stores now log are not 4.x-only: they
+ship on 3.x as well, so upgrading is not what fixes them. One part of #3294 *is* specific to 4.x:
+
+- `IScheduler.RescheduleJob` throws `SchedulerException` when the new trigger names a calendar that
+  does not exist, the way `ScheduleJob` always has. On 3.x it stores the trigger and leaves it
+  permanently unfireable, and that was left alone there rather than turning a long-standing silent
+  success into a throw on a released branch. If you reschedule onto a calendar you intend to add
+  afterwards, add the calendar first.
+
 ## JobKey and TriggerKey Null Validation
 
 `JobKey` and `TriggerKey` now throw `ArgumentNullException` when you specify `null` for `name` or `group`. Triggers can no longer be constructed with a null group name. If your code was relying on null group names, switch to an explicit group name.

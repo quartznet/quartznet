@@ -73,10 +73,15 @@ public sealed class TriggerDetailsUpdate
     /// <summary>
     /// Set the trigger's associated calendar name, or <c>null</c> to disassociate.
     /// </summary>
+    /// <remarks>
+    /// A blank name disassociates as well. The store checks that a non-null name exists before it
+    /// assigns it, so without this a blank name would be rejected as a missing calendar rather than
+    /// clearing the association.
+    /// </remarks>
     public TriggerDetailsUpdate WithCalendarName(string? calendarName)
     {
         HasCalendarName = true;
-        CalendarName = calendarName;
+        CalendarName = string.IsNullOrWhiteSpace(calendarName) ? null : calendarName;
         return this;
     }
 
