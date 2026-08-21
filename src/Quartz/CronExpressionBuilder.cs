@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Text;
+
 namespace Quartz;
 
 /// <summary>
@@ -97,6 +99,12 @@ public sealed class CronExpressionBuilder
     /// </summary>
     /// <param name="seconds">the seconds to fire on (each 0-59)</param>
     /// <returns>the updated CronExpressionBuilder</returns>
+    public CronExpressionBuilder WithSeconds(params ReadOnlySpan<int> seconds)
+    {
+        return SetSecond(JoinValues(seconds, 0, 59, "second", nameof(seconds)));
+    }
+
+    /// <inheritdoc cref="WithSeconds(ReadOnlySpan{int})" />
     public CronExpressionBuilder WithSeconds(params int[] seconds)
     {
         return SetSecond(JoinValues(seconds, 0, 59, "second", nameof(seconds)));
@@ -147,6 +155,12 @@ public sealed class CronExpressionBuilder
     /// </summary>
     /// <param name="minutes">the minutes to fire on (each 0-59)</param>
     /// <returns>the updated CronExpressionBuilder</returns>
+    public CronExpressionBuilder WithMinutes(params ReadOnlySpan<int> minutes)
+    {
+        return SetMinute(JoinValues(minutes, 0, 59, "minute", nameof(minutes)));
+    }
+
+    /// <inheritdoc cref="WithMinutes(ReadOnlySpan{int})" />
     public CronExpressionBuilder WithMinutes(params int[] minutes)
     {
         return SetMinute(JoinValues(minutes, 0, 59, "minute", nameof(minutes)));
@@ -197,6 +211,12 @@ public sealed class CronExpressionBuilder
     /// </summary>
     /// <param name="hours">the hours to fire on (each 0-23)</param>
     /// <returns>the updated CronExpressionBuilder</returns>
+    public CronExpressionBuilder WithHours(params ReadOnlySpan<int> hours)
+    {
+        return SetHour(JoinValues(hours, 0, 23, "hour", nameof(hours)));
+    }
+
+    /// <inheritdoc cref="WithHours(ReadOnlySpan{int})" />
     public CronExpressionBuilder WithHours(params int[] hours)
     {
         return SetHour(JoinValues(hours, 0, 23, "hour", nameof(hours)));
@@ -249,6 +269,12 @@ public sealed class CronExpressionBuilder
     /// </summary>
     /// <param name="days">the days of month to fire on (each 1-31)</param>
     /// <returns>the updated CronExpressionBuilder</returns>
+    public CronExpressionBuilder WithDaysOfMonth(params ReadOnlySpan<int> days)
+    {
+        return SetDayOfMonth(JoinValues(days, 1, 31, "day-of-month", nameof(days)));
+    }
+
+    /// <inheritdoc cref="WithDaysOfMonth(ReadOnlySpan{int})" />
     public CronExpressionBuilder WithDaysOfMonth(params int[] days)
     {
         return SetDayOfMonth(JoinValues(days, 1, 31, "day-of-month", nameof(days)));
@@ -324,6 +350,12 @@ public sealed class CronExpressionBuilder
     /// </summary>
     /// <param name="months">the months to fire on (each 1-12)</param>
     /// <returns>the updated CronExpressionBuilder</returns>
+    public CronExpressionBuilder WithMonths(params ReadOnlySpan<int> months)
+    {
+        return SetMonth(JoinValues(months, 1, 12, "month", nameof(months)));
+    }
+
+    /// <inheritdoc cref="WithMonths(ReadOnlySpan{int})" />
     public CronExpressionBuilder WithMonths(params int[] months)
     {
         return SetMonth(JoinValues(months, 1, 12, "month", nameof(months)));
@@ -364,9 +396,9 @@ public sealed class CronExpressionBuilder
     /// </summary>
     /// <param name="daysOfWeek">the days of the week to fire on</param>
     /// <returns>the updated CronExpressionBuilder</returns>
-    public CronExpressionBuilder WithDaysOfWeek(params DayOfWeek[] daysOfWeek)
+    public CronExpressionBuilder WithDaysOfWeek(params ReadOnlySpan<DayOfWeek> daysOfWeek)
     {
-        if (daysOfWeek is null || daysOfWeek.Length == 0)
+        if (daysOfWeek.IsEmpty)
         {
             throw new ArgumentException("At least one day-of-week must be specified.", nameof(daysOfWeek));
         }
@@ -378,6 +410,12 @@ public sealed class CronExpressionBuilder
         }
 
         return SetDayOfWeek(string.Join(",", names));
+    }
+
+    /// <inheritdoc cref="WithDaysOfWeek(ReadOnlySpan{DayOfWeek})" />
+    public CronExpressionBuilder WithDaysOfWeek(params DayOfWeek[] daysOfWeek)
+    {
+        return WithDaysOfWeek(daysOfWeek.AsSpan());
     }
 
     /// <summary>
@@ -486,6 +524,12 @@ public sealed class CronExpressionBuilder
     /// </summary>
     /// <param name="years">the years to fire on (each 1970 to circa 100 years from now)</param>
     /// <returns>the updated CronExpressionBuilder</returns>
+    public CronExpressionBuilder WithYears(params ReadOnlySpan<int> years)
+    {
+        return SetYear(JoinValues(years, TriggerConstants.EarliestYear, MaxYear, "year", nameof(years)));
+    }
+
+    /// <inheritdoc cref="WithYears(ReadOnlySpan{int})" />
     public CronExpressionBuilder WithYears(params int[] years)
     {
         return SetYear(JoinValues(years, TriggerConstants.EarliestYear, MaxYear, "year", nameof(years)));
@@ -618,9 +662,9 @@ public sealed class CronExpressionBuilder
 
     private static void ValidateYear(int year, string paramName) => ValidateRange(year, TriggerConstants.EarliestYear, MaxYear, "year", paramName);
 
-    private static string JoinValues(int[] values, int min, int max, string description, string paramName)
+    private static string JoinValues(ReadOnlySpan<int> values, int min, int max, string description, string paramName)
     {
-        if (values is null || values.Length == 0)
+        if (values.IsEmpty)
         {
             throw new ArgumentException($"At least one {description} must be specified.", paramName);
         }
@@ -630,6 +674,17 @@ public sealed class CronExpressionBuilder
             ValidateRange(value, min, max, description, paramName);
         }
 
-        return string.Join(",", values);
+        StringBuilder builder = new StringBuilder();
+        foreach (int value in values)
+        {
+            if (builder.Length > 0)
+            {
+                builder.Append(',');
+            }
+
+            builder.Append(value);
+        }
+
+        return builder.ToString();
     }
 }
