@@ -2503,7 +2503,7 @@ namespace Quartz.Impl.AdoJobStore
         protected System.ValueTuple<string, string> MatchGroup<T>(Quartz.GroupMatcher<T> matcher, string equalsSql, string likeSql)
             where T : Quartz.Key<T> { }
         public virtual System.Data.Common.DbCommand PrepareCommand(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder cth, string commandText) { }
-        protected virtual System.Threading.Tasks.ValueTask<byte[]?> ReadBytesFromBlob(System.Data.IDataReader dr, int colIndex, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<byte[]?> ReadBytesFromBlob(System.Data.Common.DbDataReader rs, int colIndex, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> RepinTriggersFromDeadNode(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string oldPreferredNode, string newPreferredNode, System.Threading.CancellationToken cancellationToken = default) { }
         protected string ReplaceTablePrefix(string query) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.ICalendar?> SelectCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }

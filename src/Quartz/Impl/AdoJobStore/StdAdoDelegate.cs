@@ -575,21 +575,38 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         return obj;
     }
 
-    protected virtual ValueTask<byte[]?> ReadBytesFromBlob(
-        IDataReader dr,
+    /// <summary>
+    /// Reads a BLOB column as bytes. Overridden by a delegate whose driver needs special handling for
+    /// large objects.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This was the last member of the ADO.NET surface still speaking the legacy
+    /// <see cref="IDataReader" />. Every reader the store hands it is a <see cref="DbDataReader" />, and
+    /// the synchronous interface meant this one read blocked its thread and ignored the cancellation
+    /// token it was handed.
+    /// </para>
+    /// <para>
+    /// It also read the column twice — once with a null buffer to learn the length, once to fill it —
+    /// which is a documented <see cref="IDataRecord.GetBytes" /> idiom but two trips through the
+    /// provider's blob handling. <see cref="DbDataReader.GetFieldValueAsync{T}(int, CancellationToken)" />
+    /// asks for the whole value once and lets the provider size it.
+    /// </para>
+    /// </remarks>
+    /// <param name="rs">The data reader, already queued to the correct row.</param>
+    /// <param name="colIndex">The column index for the BLOB.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    protected virtual async ValueTask<byte[]?> ReadBytesFromBlob(
+        DbDataReader rs,
         int colIndex,
         CancellationToken cancellationToken = default)
     {
-        if (dr.IsDBNull(colIndex))
+        if (await rs.IsDBNullAsync(colIndex, cancellationToken).ConfigureAwait(false))
         {
-            return new ValueTask<byte[]?>();
+            return null;
         }
 
-        // If you pass a buffer that is null, GetBytes returns the length of the entire field in bytes, not the remaining size based on the buffer offset parameter.
-        var length = dr.GetBytes(colIndex, 0, null!, 0, int.MaxValue);
-        byte[] outbyte = new byte[length];
-        dr.GetBytes(colIndex, 0, outbyte, 0, outbyte.Length);
-        return new ValueTask<byte[]?>(outbyte);
+        return await rs.GetFieldValueAsync<byte[]>(colIndex, cancellationToken).ConfigureAwait(false);
     }
 
     public virtual DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
