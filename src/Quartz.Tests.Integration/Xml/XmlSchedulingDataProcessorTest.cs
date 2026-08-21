@@ -66,6 +66,12 @@ public class XmlSchedulingDataProcessorTest
 
     }
 
+    [TearDown]
+    public async Task TearDown()
+    {
+        await mockScheduler.DisposeAsync();
+    }
+
     [Test]
     public async Task TestScheduling_MinimalConfiguration()
     {

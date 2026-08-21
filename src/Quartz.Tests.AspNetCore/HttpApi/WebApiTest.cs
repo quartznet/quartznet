@@ -22,6 +22,10 @@ public abstract class WebApiTest
     public async Task OneTimeTearDown()
     {
         ClearSchedulerRepository();
+
+        // A no-op that pointedly does not shut the remote scheduler down; see HttpScheduler.DisposeAsync.
+        await HttpScheduler.DisposeAsync();
+
         if (WebApplicationFactory is not null)
         {
             await WebApplicationFactory.DisposeAsync();
@@ -35,6 +39,12 @@ public abstract class WebApiTest
         ClearSchedulerRepository();
         FakeScheduler = CreateFakeScheduler();
         WebApplicationFactory.Services.GetRequiredService<ISchedulerRepository>().Bind(FakeScheduler);
+    }
+
+    [TearDown]
+    public async Task TearDown()
+    {
+        await FakeScheduler.DisposeAsync();
     }
 
     protected WebApplicationFactory<Program> WebApplicationFactory { get; private set; } = null!;

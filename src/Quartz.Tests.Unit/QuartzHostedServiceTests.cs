@@ -63,6 +63,8 @@ public class QuartzHostedServiceTests
         public IListenerManager ListenerManager { get; }
         public bool IsStarted { get; private set; }
 
+        public ValueTask DisposeAsync() => default;
+
         public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();

@@ -53,6 +53,7 @@ public class QueryEndpointsTest : WebApiTest
     [TearDown]
     public async Task ShutDownScheduler()
     {
+        await client.DisposeAsync();
         await scheduler.Shutdown(waitForJobsToComplete: false);
     }
 

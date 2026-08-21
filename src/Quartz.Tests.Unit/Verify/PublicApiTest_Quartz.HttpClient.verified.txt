@@ -14,7 +14,7 @@ namespace Quartz
         public System.Text.Json.JsonSerializerOptions? JsonSerializerOptions { get; set; }
         public string SchedulerName { get; set; }
     }
-    public sealed class HttpScheduler : Quartz.IScheduler
+    public sealed class HttpScheduler : Quartz.IScheduler, System.IAsyncDisposable
     {
         public HttpScheduler(string schedulerName, System.Net.Http.HttpClient httpClient, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null, Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry? serializerRegistry = null) { }
         public Quartz.SchedulerContext Context { get; }
@@ -30,6 +30,7 @@ namespace Quartz
         public System.Threading.Tasks.ValueTask<bool> DeleteCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> DeleteJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> DeleteJobs(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask DisposeAsync() { }
         public System.Threading.Tasks.ValueTask<bool> Exists(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> Exists(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.ICalendar?> GetCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
