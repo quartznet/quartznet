@@ -63,7 +63,13 @@ public sealed class SystemTextJsonSerializerRegistry
     /// <summary>
     /// Adds a serializer for a custom calendar type.
     /// </summary>
-    public SystemTextJsonSerializerRegistry AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer) where TCalendar : ICalendar
+    /// <remarks>
+    /// The serializer is the typed <see cref="CalendarSerializer{TCalendar}" /> for this very calendar,
+    /// so a mismatched pairing is a compile error rather than an <see cref="InvalidCastException" /> on
+    /// the first calendar that round-trips. <typeparamref name="TCalendar" /> is inferred from the
+    /// argument, so the type argument can be left off.
+    /// </remarks>
+    public SystemTextJsonSerializerRegistry AddCalendarSerializer<TCalendar>(CalendarSerializer<TCalendar> serializer) where TCalendar : ICalendar
     {
         ArgumentNullException.ThrowIfNull(serializer);
 
