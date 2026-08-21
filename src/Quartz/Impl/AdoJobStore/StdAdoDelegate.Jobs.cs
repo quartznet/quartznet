@@ -116,7 +116,7 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<IJobDetail?> SelectJobDetail(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
-        ITypeLoadHelper loadHelper,
+        ITypeLoader typeLoader,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectJobDetail));
@@ -128,7 +128,7 @@ public partial class StdAdoDelegate
 
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            job = await ReadJobDetail(rs, loadHelper).ConfigureAwait(false);
+            job = await ReadJobDetail(rs, typeLoader).ConfigureAwait(false);
         }
 
         return job;
@@ -138,7 +138,7 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<List<IJobDetail>> SelectJobDetails(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<JobKey> jobKeys,
-        ITypeLoadHelper loadHelper,
+        ITypeLoader typeLoader,
         CancellationToken cancellationToken = default)
     {
         List<IJobDetail> jobs = new(jobKeys.Count);
@@ -159,7 +159,7 @@ public partial class StdAdoDelegate
             using DbDataReader rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
             while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                jobs.Add(await ReadJobDetail(rs, loadHelper).ConfigureAwait(false));
+                jobs.Add(await ReadJobDetail(rs, typeLoader).ConfigureAwait(false));
             }
         }
 
@@ -198,14 +198,14 @@ public partial class StdAdoDelegate
     /// Reads the current row of a job detail select. Shared by the single-job and batch read paths so
     /// the two cannot drift apart.
     /// </summary>
-    private async ValueTask<IJobDetail> ReadJobDetail(DbDataReader rs, ITypeLoadHelper loadHelper)
+    private async ValueTask<IJobDetail> ReadJobDetail(DbDataReader rs, ITypeLoader typeLoader)
     {
         // Due to CommandBehavior.SequentialAccess, columns must be read in order.
 
         var jobBuilder = JobBuilder.Create()
             .WithIdentity(new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!))
             .WithDescription(rs.GetString(AdoConstants.ColumnDescription))
-            .OfType(CreateJobType(rs.GetString(AdoConstants.ColumnJobClass)!, loadHelper))
+            .OfType(CreateJobType(rs.GetString(AdoConstants.ColumnJobClass)!, typeLoader))
             .StoreDurably(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsDurable]))
             .RequestRecovery(GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]));
 
@@ -224,7 +224,7 @@ public partial class StdAdoDelegate
 
     /// <summary>
     /// Builds the job type for a stored <c>JOB_CLASS_NAME</c>, resolved through the scheduler's
-    /// <see cref="ITypeLoadHelper" /> rather than by <see cref="Type.GetType(string)" /> alone.
+    /// <see cref="ITypeLoader" /> rather than by <see cref="Type.GetType(string)" /> alone.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -239,14 +239,14 @@ public partial class StdAdoDelegate
     /// the stored spelling, so reading a job never rewrites the column behind the user's back.
     /// </para>
     /// </remarks>
-    private static JobType CreateJobType(string jobClassName, ITypeLoadHelper loadHelper)
+    private static JobType CreateJobType(string jobClassName, ITypeLoader typeLoader)
     {
         return new JobType(jobClassName, name =>
         {
             Type? resolved;
             try
             {
-                resolved = loadHelper.LoadType(name);
+                resolved = typeLoader.LoadType(name);
             }
             catch (TypeLoadException)
             {
@@ -264,7 +264,7 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<IJobDetail?> SelectJobForTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        ITypeLoadHelper loadHelper,
+        ITypeLoader typeLoader,
         bool loadJobType,
         CancellationToken cancellationToken = default)
     {
@@ -280,12 +280,12 @@ public partial class StdAdoDelegate
             var jobBuilder = JobBuilder.Create()
                 .WithIdentity(new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!))
                 .RequestRecovery(GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]))
-                .OfType(CreateJobType(jobClassName, loadHelper))
+                .OfType(CreateJobType(jobClassName, typeLoader))
                 .StoreDurably(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsDurable]));
 
             if (loadJobType)
             {
-                jobBuilder.OfType(loadHelper.LoadType(jobClassName)!);
+                jobBuilder.OfType(typeLoader.LoadType(jobClassName)!);
             }
 
             return jobBuilder.Build();

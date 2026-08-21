@@ -296,7 +296,7 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
     /// </summary>
     /// <remarks>
     /// A name read back out of a job store may be spelled the way an older Quartz wrote it, and only the
-    /// scheduler's type load helper knows what such a spelling means today. Handing the resolution over
+    /// scheduler's type loader knows what such a spelling means today. Handing the resolution over
     /// rather than the resolved type keeps the stored name as it was stored.
     /// </remarks>
     /// <param name="jobType">the job type, with whatever resolution it was constructed with</param>

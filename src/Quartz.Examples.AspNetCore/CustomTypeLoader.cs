@@ -2,7 +2,7 @@ using Quartz.Extensibility;
 
 namespace Quartz.Examples.AspNetCore;
 
-public class CustomTypeLoader : ITypeLoadHelper
+public class CustomTypeLoader : ITypeLoader
 {
     private readonly ILogger<CustomTypeLoader> logger;
 

@@ -310,7 +310,7 @@ public class JsonSchedulingTests
         services.AddLogging();
         services.AddQuartz("CustomLoader", config, c =>
         {
-            c.UseTypeLoader<AliasTypeLoadHelper>();
+            c.UseTypeLoader<AliasTypeLoader>();
         });
 
         var provider = services.BuildServiceProvider();
@@ -353,12 +353,12 @@ public class JsonSchedulingTests
     }
 
     /// <summary>
-    /// A type load helper that maps the alias "MyApp.AliasedJob" to NativeJob,
+    /// A type loader that maps the alias "MyApp.AliasedJob" to NativeJob,
     /// proving the custom loader was used instead of the default.
     /// </summary>
-    private sealed class AliasTypeLoadHelper : Quartz.Extensibility.ITypeLoadHelper
+    private sealed class AliasTypeLoader : Quartz.Extensibility.ITypeLoader
     {
-        private readonly Quartz.Impl.SimpleTypeLoadHelper inner = new();
+        private readonly Quartz.Impl.SimpleTypeLoader inner = new();
 
         public Type LoadType(string name)
         {

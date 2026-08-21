@@ -92,7 +92,7 @@ public class StdAdoDelegateGroupMatcherTest
             TablePrefix = "QRTZ_",
             InstanceName = "TESTSCHED",
             InstanceId = "INSTANCE",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             DbProvider = dbProvider
         });
 

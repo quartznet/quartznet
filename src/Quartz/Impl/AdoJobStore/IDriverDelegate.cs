@@ -177,13 +177,13 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB Connection</param>
     /// <param name="jobKey">The key identifying the job.</param>
-    /// <param name="loadHelper">The type load helper.</param>
+    /// <param name="typeLoader">The type loader.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The populated JobDetail object</returns>
     ValueTask<IJobDetail?> SelectJobDetail(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
-        ITypeLoadHelper loadHelper,
+        ITypeLoader typeLoader,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -454,7 +454,7 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB Connection</param>
     /// <param name="triggerKey">The key identifying the trigger.</param>
-    /// <param name="loadHelper">The type load helper.</param>
+    /// <param name="typeLoader">The type loader.</param>
     /// <param name="loadJobType">
     /// Whether to load the job's actual type. Removal does not need it, and in many cases the type no
     /// longer exists by then, so removal passes <c>false</c> and gets a job detail carrying only the
@@ -463,7 +463,7 @@ public interface IDriverDelegate
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        ITypeLoadHelper loadHelper,
+        ITypeLoader typeLoader,
         bool loadJobType,
         CancellationToken cancellationToken = default);
 
@@ -1056,12 +1056,12 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="jobKeys">The keys of the jobs to select.</param>
-    /// <param name="loadHelper">The type load helper.</param>
+    /// <param name="typeLoader">The type loader.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<List<IJobDetail>> SelectJobDetails(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<JobKey> jobKeys,
-        ITypeLoadHelper loadHelper,
+        ITypeLoader typeLoader,
         CancellationToken cancellationToken = default);
 
     /// <summary>

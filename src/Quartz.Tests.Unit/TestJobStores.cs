@@ -78,7 +78,7 @@ public static class TestJobStores
 
     public static ISchedulerSignaler Signaler() => new NoOpSchedulerSignaler();
 
-    public static ITypeLoadHelper TypeLoader() => new SimpleTypeLoadHelper();
+    public static ITypeLoader TypeLoader() => new SimpleTypeLoader();
 
     public static RAMJobStore Ram(ISchedulerSignaler? signaler = null, TimeProvider? timeProvider = null)
     {
@@ -90,14 +90,14 @@ public static class TestJobStores
 
     public static LocalTransactionJobStore Tx(
         ISchedulerSignaler? signaler = null,
-        ITypeLoadHelper? typeLoadHelper = null,
+        ITypeLoader? typeLoader = null,
         TimeProvider? timeProvider = null,
         string instanceName = "TestScheduler",
         string instanceId = "TestInstance")
     {
         return new LocalTransactionJobStore(
             signaler ?? new NoOpSchedulerSignaler(),
-            typeLoadHelper ?? new SimpleTypeLoadHelper(),
+            typeLoader ?? new SimpleTypeLoader(),
             timeProvider ?? TimeProvider.System,
             SchedulerOptions(instanceName, instanceId),
             StoreOptions(),
@@ -111,12 +111,12 @@ public static class TestJobStores
 
     public static ExternalTransactionJobStore Cmt(
         ISchedulerSignaler? signaler = null,
-        ITypeLoadHelper? typeLoadHelper = null,
+        ITypeLoader? typeLoader = null,
         TimeProvider? timeProvider = null)
     {
         return new ExternalTransactionJobStore(
             signaler ?? new NoOpSchedulerSignaler(),
-            typeLoadHelper ?? new SimpleTypeLoadHelper(),
+            typeLoader ?? new SimpleTypeLoader(),
             timeProvider ?? TimeProvider.System,
             SchedulerOptions(),
             StoreOptions(),

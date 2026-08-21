@@ -115,10 +115,10 @@ public interface IQuartzBuilder
     IQuartzBuilder UseJobFactory(IJobFactory jobFactory);
 
     /// <summary>
-    /// Uses a specific type load helper, which decides how type names are resolved.
+    /// Uses a specific type loader, which decides how type names are resolved.
     /// </summary>
     IQuartzBuilder UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
-        where T : class, ITypeLoadHelper;
+        where T : class, ITypeLoader;
 
     /// <summary>
     /// Uses a specific time provider. Useful for testing time-dependent scheduling.

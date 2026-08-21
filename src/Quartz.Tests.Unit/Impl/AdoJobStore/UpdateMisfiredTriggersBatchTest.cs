@@ -150,7 +150,7 @@ public class UpdateMisfiredTriggersBatchTest
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
             InstanceName = "INSTANCE",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider,
             ObjectSerializer = A.Fake<IObjectSerializer>(),

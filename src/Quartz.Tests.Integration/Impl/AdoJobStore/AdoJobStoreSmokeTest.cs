@@ -212,7 +212,7 @@ public class AdoJobStoreSmokeTest
             var driverDelegateType = extraProperties?["quartz.jobStore.driverDelegateType"];
             if (!string.IsNullOrWhiteSpace(driverDelegateType))
             {
-                var type = new SimpleTypeLoadHelper().LoadType(driverDelegateType)!;
+                var type = new SimpleTypeLoader().LoadType(driverDelegateType)!;
                 store.Services.Replace(ServiceDescriptor.Singleton(typeof(IDriverDelegate), type));
             }
 
@@ -569,7 +569,7 @@ public class AdoJobStoreSmokeTest
         }
     }
 
-    public class SpecialClassLoadHelper : ITypeLoadHelper
+    public class SpecialClassLoadHelper : ITypeLoader
     {
         public Type LoadType(string name)
         {

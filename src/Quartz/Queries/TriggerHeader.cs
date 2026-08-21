@@ -33,7 +33,7 @@ namespace Quartz;
 /// returns. It is a discriminator, <em>not</em> a type name, and so is deliberately not called one:
 /// contrast <see cref="JobHeader.JobTypeName" /> and
 /// <see cref="Quartz.Impl.AdoJobStore.TriggerAcquireResult.JobTypeName" />, both of which carry a CLR
-/// type name that a type load helper can resolve.</param>
+/// type name that a type loader can resolve.</param>
 /// <param name="State">The trigger's current state.</param>
 /// <param name="StartTimeUtc">The time the trigger's schedule comes into effect.</param>
 /// <param name="EndTimeUtc">The time the trigger's schedule ends, if bounded.</param>

@@ -51,7 +51,7 @@ public sealed class JobType : IEquatable<JobType>
     /// <remarks>
     /// A name read out of a job store was written by whichever version of Quartz stored it, so resolving
     /// it may need the same rename fallbacks that a configured type name gets - which live in an
-    /// <see cref="Extensibility.ITypeLoadHelper" />, not in the runtime. The name itself is kept exactly
+    /// <see cref="Extensibility.ITypeLoader" />, not in the runtime. The name itself is kept exactly
     /// as given: <see cref="FullName" /> reports the stored spelling however the type was found, so
     /// reading a job never rewrites what is persisted for it.
     /// </remarks>

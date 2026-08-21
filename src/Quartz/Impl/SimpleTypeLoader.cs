@@ -25,12 +25,12 @@ using Quartz.Extensibility;
 namespace Quartz.Impl;
 
 /// <summary>
-/// A <see cref="ITypeLoadHelper" /> that simply calls <see cref="Type.GetType(string)" />.
+/// A <see cref="ITypeLoader" /> that simply calls <see cref="Type.GetType(string)" />.
 /// </summary>
-/// <seealso cref="ITypeLoadHelper" />
+/// <seealso cref="ITypeLoader" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
+internal sealed class SimpleTypeLoader : ITypeLoader
 {
     private const string QuartzAssemblyTypePostfix = ", Quartz";
     private const string QuartzJobsAssemblyTypePostfix = ", Quartz.Jobs";
@@ -62,6 +62,7 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
         ("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore", "Quartz.Impl.AdoJobStore.UpdateRowSemaphore"),
         ("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT", "Quartz.Impl.AdoJobStore.SqlServerMemoryOptimizedUpdateRowSemaphore"),
         ("Quartz.Impl.HostnameInstanceIdGenerator", "Quartz.Impl.HostNameInstanceIdGenerator"),
+        ("Quartz.Impl.SimpleTypeLoadHelper", "Quartz.Impl.SimpleTypeLoader"),
         ("Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin", "Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin"),
     ];
 
@@ -77,7 +78,7 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
         ", Quartz.Serialization.SystemTextJson",
     ];
 
-    private readonly ILogger<SimpleTypeLoadHelper> logger = LogProvider.CreateLogger<SimpleTypeLoadHelper>();
+    private readonly ILogger<SimpleTypeLoader> logger = LogProvider.CreateLogger<SimpleTypeLoader>();
 
     /// <inheritdoc />
     public Type? LoadType(string name)

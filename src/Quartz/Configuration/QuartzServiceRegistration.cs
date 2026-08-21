@@ -56,7 +56,7 @@ internal static class QuartzServiceRegistration
         Meters.Configure();
 
         services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton<ITypeLoadHelper, SimpleTypeLoadHelper>();
+        services.TryAddSingleton<ITypeLoader, SimpleTypeLoader>();
         // The repository and the connection manager belong to this container and nothing else. Neither has
         // a process-wide instance any more, so "which repository am I in" is answered by which container
         // built the scheduler rather than by how it was built.

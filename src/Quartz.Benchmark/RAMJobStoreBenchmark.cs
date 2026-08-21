@@ -522,7 +522,7 @@ public class RAMJobStoreBenchmark
         }
     }
 
-    private sealed class NullJobTypeLoader : ITypeLoadHelper
+    private sealed class NullJobTypeLoader : ITypeLoader
     {
         public Type? LoadType(string name)
         {

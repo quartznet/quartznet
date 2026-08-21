@@ -68,7 +68,7 @@ public interface IJobStore
     /// Called before the <see cref="IJobStore" /> is used, to give it a chance to initialize.
     /// </summary>
     /// <remarks>
-    /// Everything a job store needs — its scheduler's identity, the type load helper, the signaler,
+    /// Everything a job store needs — its scheduler's identity, the type loader, the signaler,
     /// the time provider — is supplied through its constructor. What remains here is work that has to
     /// happen before the scheduler runs and that cannot be done during construction, such as verifying
     /// a database schema.

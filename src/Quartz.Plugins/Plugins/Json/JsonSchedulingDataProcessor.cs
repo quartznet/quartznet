@@ -60,9 +60,9 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
     public JsonSchedulingDataProcessor(
         ILogger<JsonSchedulingDataProcessor> logger,
-        ITypeLoadHelper typeLoadHelper,
+        ITypeLoader typeLoader,
         TimeProvider timeProvider)
-        : base(LogProvider.CreateLogger<XMLSchedulingDataProcessor>(), typeLoadHelper, timeProvider)
+        : base(LogProvider.CreateLogger<XMLSchedulingDataProcessor>(), typeLoader, timeProvider)
     {
         this.logger = logger;
         this.timeProvider = timeProvider;
@@ -249,7 +249,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             var jobTypeName = jobDef.JobType?.TrimEmptyToNull()
                 ?? throw new SchedulerConfigException($"JSON job definition '{jobName}' is missing required 'JobType' property.");
 
-            var jobType = TypeLoadHelper.LoadType(jobTypeName)
+            var jobType = TypeLoader.LoadType(jobTypeName)
                 ?? throw new SchedulerConfigException($"JSON job definition '{jobName}': could not load type '{jobTypeName}'.");
 
             var jobGroup = NormalizeEmpty(jobDef.Group);

@@ -50,7 +50,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     private string schedulerName = null!;
     private bool useProperties;
 
-    private ITypeLoadHelper typeLoadHelper = null!;
+    private ITypeLoader typeLoader = null!;
     private AdoUtil adoUtil = null!;
 
     private readonly List<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new();
@@ -72,7 +72,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         schedulerName = args.InstanceName;
         instanceId = args.InstanceId;
         DbProvider = args.DbProvider;
-        typeLoadHelper = args.TypeLoadHelper;
+        typeLoader = args.TypeLoader;
         useProperties = args.UseProperties;
         adoUtil = new AdoUtil(args.DbProvider);
         objectSerializer = args.ObjectSerializer!;

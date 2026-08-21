@@ -60,7 +60,7 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// Initializes a new instance of the <see cref="XmlSchedulingDataProcessorPlugin"/> class.
     /// </summary>
     public XmlSchedulingDataProcessorPlugin()
-        : this(LogProvider.CreateLogger<XmlSchedulingDataProcessorPlugin>(), new SimpleTypeLoadHelper(), TimeProvider.System)
+        : this(LogProvider.CreateLogger<XmlSchedulingDataProcessorPlugin>(), new SimpleTypeLoader(), TimeProvider.System)
     {
     }
 
@@ -69,19 +69,19 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// </summary>
     public XmlSchedulingDataProcessorPlugin(
         ILogger<XmlSchedulingDataProcessorPlugin> logger,
-        ITypeLoadHelper typeLoadHelper,
+        ITypeLoader typeLoader,
         TimeProvider timeProvider)
     {
         this.logger = logger;
         this.timeProvider = timeProvider;
-        TypeLoadHelper = typeLoadHelper;
+        TypeLoader = typeLoader;
     }
 
     public string Name { get; private set; } = null!;
 
     public IScheduler Scheduler { get; private set; } = null!;
 
-    protected ITypeLoadHelper TypeLoadHelper { get; private set; }
+    protected ITypeLoader TypeLoader { get; private set; }
 
     /// <summary>
     /// Comma separated list of file names (with paths) to the XML files that should be read.
@@ -306,7 +306,7 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
         {
             XMLSchedulingDataProcessor processor = new(
                 LogProvider.CreateLogger<XMLSchedulingDataProcessor>(),
-                TypeLoadHelper,
+                TypeLoader,
                 timeProvider);
 
             processor.AddJobGroupToNeverDelete(JobInitializationPluginName);

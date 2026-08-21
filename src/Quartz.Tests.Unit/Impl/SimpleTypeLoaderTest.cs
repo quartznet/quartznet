@@ -13,54 +13,54 @@ namespace Quartz.Tests.Unit.Impl;
 /// The 4.0 namespace and type renames are invisible to the compiler when a type is named by a
 /// configuration string, so the fallback that keeps those strings resolving needs a test of its own.
 /// </summary>
-public class SimpleTypeLoadHelperTest
+public class SimpleTypeLoaderTest
 {
-    private ITypeLoadHelper loadHelper;
+    private ITypeLoader typeLoader;
 
     [SetUp]
     public void SetUp()
     {
-        loadHelper = new SimpleTypeLoadHelper();
+        typeLoader = new SimpleTypeLoader();
     }
 
     [Test]
     public void ShouldLoadTypeByItsCurrentName()
     {
-        loadHelper.LoadType("Quartz.Impl.DefaultThreadPool, Quartz").Should().Be<DefaultThreadPool>();
+        typeLoader.LoadType("Quartz.Impl.DefaultThreadPool, Quartz").Should().Be<DefaultThreadPool>();
     }
 
     [Test]
     public void ShouldLoadTypeNamedByItsPre40Namespace()
     {
-        loadHelper.LoadType("Quartz.Simpl.DefaultThreadPool, Quartz").Should().Be<DefaultThreadPool>(
+        typeLoader.LoadType("Quartz.Simpl.DefaultThreadPool, Quartz").Should().Be<DefaultThreadPool>(
             "configuration naming the old Quartz.Simpl namespace has to keep working");
     }
 
     [Test]
     public void ShouldLoadSpiTypeNamedByItsPre40Namespace()
     {
-        loadHelper.LoadType("Quartz.Spi.IJobStore, Quartz").Should().Be<IJobStore>(
+        typeLoader.LoadType("Quartz.Spi.IJobStore, Quartz").Should().Be<IJobStore>(
             "configuration naming the old Quartz.Spi namespace has to keep working");
     }
 
     [Test]
     public void ShouldLoadBuiltInJobNamedByItsPre40Namespace()
     {
-        loadHelper.LoadType("Quartz.Job.NoOpJob, Quartz.Jobs").Should().Be<NoOpJob>(
+        typeLoader.LoadType("Quartz.Job.NoOpJob, Quartz.Jobs").Should().Be<NoOpJob>(
             "a stored JOB_CLASS_NAME naming the old Quartz.Job namespace has to keep firing");
     }
 
     [Test]
     public void ShouldLoadBuiltInJobNamedByItsPre40NamespaceAndAssembly()
     {
-        loadHelper.LoadType("Quartz.Job.NoOpJob, Quartz").Should().Be<NoOpJob>(
+        typeLoader.LoadType("Quartz.Job.NoOpJob, Quartz").Should().Be<NoOpJob>(
             "a 3.x name carries both the old namespace and the pre-split assembly, and the fallbacks must compose");
     }
 
     [Test]
     public void ShouldLoadPluginNamedByItsPre40Namespace()
     {
-        loadHelper.LoadType("Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins")
+        typeLoader.LoadType("Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins")
             .Should().Be<LoggingJobHistoryPlugin>(
                 "quartz.plugin.<name>.type naming the old singular namespace has to keep working");
     }
@@ -68,7 +68,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldLoadListenerNamedByItsPre40Namespace()
     {
-        loadHelper.LoadType("Quartz.Listener.BroadcastJobListener, Quartz")
+        typeLoader.LoadType("Quartz.Listener.BroadcastJobListener, Quartz")
             .Should().Be<BroadcastJobListener>(
                 "quartz.jobListener.<name>.type naming the old singular namespace has to keep working");
     }
@@ -76,7 +76,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldLoadTheXmlPluginNamedByItsPre40Casing()
     {
-        loadHelper.LoadType("Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins")
+        typeLoader.LoadType("Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins")
             .Should().Be<XmlSchedulingDataProcessorPlugin>(
                 "the namespace and the type were both respelled, and the two fallbacks must compose");
     }
@@ -84,7 +84,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldLoadTheRedisLockHandlerNamedByItsPre40Namespace()
     {
-        loadHelper.LoadType("Quartz.Impl.Redis.RedisSemaphore, Quartz.Extensions.Redis")
+        typeLoader.LoadType("Quartz.Impl.Redis.RedisSemaphore, Quartz.Extensions.Redis")
             .Should().Be<RedisSemaphore>(
                 "quartz.jobStore.lockHandler.type naming the old namespace has to keep working");
     }
@@ -92,7 +92,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldLoadTypeNamedByAMergedAssembly()
     {
-        loadHelper.LoadType("Quartz.Impl.MicrosoftDependencyInjectionJobFactory, Quartz.Extensions.DependencyInjection")
+        typeLoader.LoadType("Quartz.Impl.MicrosoftDependencyInjectionJobFactory, Quartz.Extensions.DependencyInjection")
             .Should().Be<MicrosoftDependencyInjectionJobFactory>(
                 "configuration naming an assembly that merged into the core package has to keep working");
     }
@@ -100,7 +100,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldLoadTypeNamedByBothItsPre40NamespaceAndAMergedAssembly()
     {
-        loadHelper.LoadType("Quartz.Simpl.MicrosoftDependencyInjectionJobFactory, Quartz.Extensions.DependencyInjection")
+        typeLoader.LoadType("Quartz.Simpl.MicrosoftDependencyInjectionJobFactory, Quartz.Extensions.DependencyInjection")
             .Should().Be<MicrosoftDependencyInjectionJobFactory>(
                 "a 3.x configuration string carries both the old namespace and the old assembly, and the fallbacks must compose");
     }
@@ -108,7 +108,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldLoadSerializerNamedByItsPre40NamespaceAndAssembly()
     {
-        loadHelper.LoadType("Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz.Serialization.SystemTextJson")
+        typeLoader.LoadType("Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz.Serialization.SystemTextJson")
             .Should().Be<SystemTextJsonObjectSerializer>(
                 "the System.Text.Json serializer merged into the core package in 4.0");
     }
@@ -116,7 +116,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldLoadTheJobStoreNamedByItsPre40TypeName()
     {
-        loadHelper.LoadType("Quartz.Impl.AdoJobStore.JobStoreTX, Quartz")
+        typeLoader.LoadType("Quartz.Impl.AdoJobStore.JobStoreTX, Quartz")
             .Should().Be<LocalTransactionJobStore>(
                 "quartz.jobStore.type is the one type name almost every persistent configuration spells out");
     }
@@ -124,7 +124,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldLoadTheContainerManagedJobStoreNamedByItsPre40TypeName()
     {
-        loadHelper.LoadType("Quartz.Impl.AdoJobStore.JobStoreCMT, Quartz")
+        typeLoader.LoadType("Quartz.Impl.AdoJobStore.JobStoreCMT, Quartz")
             .Should().Be<ExternalTransactionJobStore>(
                 "quartz.jobStore.type is the one type name almost every persistent configuration spells out");
     }
@@ -132,7 +132,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldLoadTheJobStoreNamedByItsPre40TypeNameWithoutAnAssembly()
     {
-        loadHelper.LoadType("Quartz.Impl.AdoJobStore.JobStoreTX")
+        typeLoader.LoadType("Quartz.Impl.AdoJobStore.JobStoreTX")
             .Should().Be<LocalTransactionJobStore>(
                 "the assembly is optional in a configured type name when the type lives in the calling assembly's dependencies");
     }
@@ -144,7 +144,7 @@ public class SimpleTypeLoadHelperTest
     [TestCase("Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore", typeof(PostgreSqlSelectForUpdateSemaphore))]
     public void ShouldLoadALockHandlerNamedByItsPre40TypeName(string configured, Type expected)
     {
-        loadHelper.LoadType(configured)
+        typeLoader.LoadType(configured)
             .Should().Be(expected,
                 "quartz.jobStore.lockHandler.type spells these as strings, so the 3.x names must keep resolving");
     }
@@ -152,7 +152,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldNotRewriteATypeWhoseNameMerelyStartsWithARenamedOne()
     {
-        var act = () => loadHelper.LoadType("Quartz.Impl.AdoJobStore.JobStoreTXExtras, Quartz");
+        var act = () => typeLoader.LoadType("Quartz.Impl.AdoJobStore.JobStoreTXExtras, Quartz");
 
         act.Should().Throw<TypeLoadException>().WithMessage("*JobStoreTXExtras*",
             "the rename applies to the whole type name, not to anything that happens to begin with it");
@@ -161,7 +161,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldStillFailForATypeThatDoesNotExistUnderEitherName()
     {
-        var act = () => loadHelper.LoadType("Quartz.Simpl.NoSuchThing, Quartz");
+        var act = () => typeLoader.LoadType("Quartz.Simpl.NoSuchThing, Quartz");
 
         act.Should().Throw<TypeLoadException>().WithMessage("*Quartz.Simpl.NoSuchThing*");
     }
@@ -169,7 +169,7 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldStillFailForATypeThatDoesNotExistInAMergedAssemblyEither()
     {
-        var act = () => loadHelper.LoadType("Quartz.Simpl.NoSuchThing, Quartz.Extensions.Hosting");
+        var act = () => typeLoader.LoadType("Quartz.Simpl.NoSuchThing, Quartz.Extensions.Hosting");
 
         act.Should().Throw<TypeLoadException>().WithMessage("*Quartz.Simpl.NoSuchThing*");
     }
@@ -177,6 +177,6 @@ public class SimpleTypeLoadHelperTest
     [Test]
     public void ShouldReturnNullForAnEmptyName()
     {
-        loadHelper.LoadType("").Should().BeNull();
+        typeLoader.LoadType("").Should().BeNull();
     }
 }

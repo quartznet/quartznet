@@ -82,11 +82,11 @@ public class XMLSchedulingDataProcessor
     /// </summary>
     public XMLSchedulingDataProcessor(
         ILogger<XMLSchedulingDataProcessor> logger,
-        ITypeLoadHelper typeLoadHelper,
+        ITypeLoader typeLoader,
         TimeProvider timeProvider)
     {
         this.logger = logger;
-        TypeLoadHelper = typeLoadHelper;
+        TypeLoader = typeLoader;
         this.timeProvider = timeProvider;
 
         OverwriteExistingData = true;
@@ -126,7 +126,7 @@ public class XMLSchedulingDataProcessor
 
     protected virtual List<ITrigger> LoadedTriggers => new List<ITrigger>(loadedTriggers);
 
-    protected ITypeLoadHelper TypeLoadHelper { get; }
+    protected ITypeLoader TypeLoader { get; }
 
     /// <summary>
     /// Process the xml file in the default location (a file named
@@ -311,7 +311,7 @@ public class XMLSchedulingDataProcessor
             var jobDescription = jobDefinition.Description.TrimEmptyToNull();
             var jobTypeName = jobDefinition.JobType.TrimEmptyToNull();
 
-            Type jobType = TypeLoadHelper.LoadType(jobTypeName!)!;
+            Type jobType = TypeLoader.LoadType(jobTypeName!)!;
 
             IJobDetail jobDetail = JobBuilder.Create().OfType(jobType)
                 .WithIdentity(jobName!, jobGroup)

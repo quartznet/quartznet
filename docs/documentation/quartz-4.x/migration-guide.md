@@ -298,7 +298,7 @@ loses its parameters:
 + ValueTask Initialize(CancellationToken cancellationToken = default);
 ```
 
-Take what you need — `ISchedulerSignaler`, `ITypeLoadHelper`, `TimeProvider`,
+Take what you need — `ISchedulerSignaler`, `ITypeLoader`, `TimeProvider`,
 `IOptions<QuartzSchedulerOptions>` — through your constructor. What remains in `Initialize` is work
 that has to happen before the scheduler runs and cannot be done while constructing, such as verifying
 a database schema.
@@ -483,7 +483,7 @@ reaching for one of them. Each had a reason that the container now covers direct
 | `Instantiate(QuartzSchedulerResources, QuartzScheduler)` (3.x) | nothing; both types are internal and the container builds the graph |
 | `InstantiateType<T>(Type?)` (3.x) | register the implementation in the container — this was the seam a container had to patch, and it is the container now |
 | `IsSupportedConfigurationKey(string)` | set `quartz.checkConfiguration` to `false` to allow keys of your own |
-| `LoadType(string?)` | `ITypeLoadHelper`, selected with `UseTypeLoader<T>()` |
+| `LoadType(string?)` | `ITypeLoader`, selected with `UseTypeLoader<T>()` |
 | `ValidateConfiguration()` (3.x) | `quartz.checkConfiguration` for the keys, and `IValidateOptions<T>` for the typed options |
 
 ## The standalone builder is the same builder
@@ -4967,6 +4967,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Spi.IRemotableSchedulerProxyFactory` | Removed | Nothing; `Quartz.HttpClient` talks to a remote scheduler over HTTP — see [Remoting a scheduler is not a Quartz concern](#remoting-a-scheduler-is-not-a-quartz-concern) |
 | `Quartz.Spi.ISchedulerExporter` | Removed | Nothing; `AddQuartzHttpApi` / `MapQuartzHttpApi` serve a scheduler over HTTP — see [Remoting a scheduler is not a Quartz concern](#remoting-a-scheduler-is-not-a-quartz-concern) |
 | `Quartz.IServiceCollectionQuartzConfigurator` | Renamed `IQuartzBuilder` | The same members, on one interface shared with the standalone builder — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
+| `Quartz.Spi.ITypeLoadHelper` | Renamed `Quartz.Extensibility.ITypeLoader` | The last `*Helper` left in the public surface; the builder method `UseTypeLoader<T>()` already had the new spelling. `Initialize()` is gone; `LoadType` is the whole interface. `AdoJobStoreBase.TypeLoadHelper` and `DelegateInitializationArgs.TypeLoadHelper` are `TypeLoader` to match |
 | `Quartz.Impl.JobDetailImpl` | Internal | `JobBuilder.Create<TJob>()`; read an `IJobDetail` |
 | `Quartz.JobFactoryOptions` | Removed | Nothing; both of its properties were already `[Obsolete]` no-ops in 3.x — see [The job factory hands out a scope](#the-job-factory-hands-out-a-scope) |
 | `Quartz.Core.JobRunShell` | Internal | No replacement; use `IJobListener` to observe a fire |
@@ -5008,7 +5009,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Simpl.SimpleInstanceIdGenerator` | Internal | It is still the default; register your own `IInstanceIdGenerator` to replace it |
 | `Quartz.SimpleScheduleTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.Impl.AdoJobStore.SimpleSemaphore` | Internal | It is the in-process lock the ADO.NET store falls back to when database locking is off; implement `ISemaphore` for a lock of your own — see [Locks are a `SchedulerLock`, not a string](#locks-are-a-schedulerlock-not-a-string) |
-| `Quartz.Simpl.SimpleTypeLoadHelper` | Internal | Register your own `ITypeLoadHelper` |
+| `Quartz.Simpl.SimpleTypeLoadHelper` | Internal, renamed `SimpleTypeLoader` | Register your own `ITypeLoader`; a configuration string naming the old type still resolves, with a warning |
 | `Quartz.Impl.AdoJobStore.StdAdoConstants` | Internal | `AdoConstants` for table, column and state names; statement text is not a contract — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
 | `Quartz.Impl.AdoJobStore.StdRowLockSemaphore` | Renamed `SelectForUpdateSemaphore` | The old spelling still resolves in configuration, with a warning — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | `Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore` | Renamed `PostgreSqlSelectForUpdateSemaphore` | As above |

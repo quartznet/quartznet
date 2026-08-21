@@ -73,7 +73,7 @@ public class JobDetailTest
     {
         var type = typeof(GenericJob<IJobSubType>);
         var typeString = type.AssemblyQualifiedNameWithoutVersion();
-        var loadedType = new SimpleTypeLoadHelper().LoadType(typeString);
+        var loadedType = new SimpleTypeLoader().LoadType(typeString);
 
         Assert.Multiple(() =>
         {

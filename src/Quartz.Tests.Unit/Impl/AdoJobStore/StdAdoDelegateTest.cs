@@ -57,7 +57,7 @@ public class StdAdoDelegateTest
             InstanceName = "TESTSCHED",
             InstanceId = "INSTANCE",
             DbProvider = new DbProvider(TestConstants.DefaultSqlServerProvider, ""),
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             ObjectSerializer = serializer
         };
 
@@ -98,7 +98,7 @@ public class StdAdoDelegateTest
             TablePrefix = "QRTZ_",
             InstanceId = "INSTANCE",
             InstanceName = "TESTSCHED",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             DbProvider = new DbProvider(TestConstants.DefaultSqlServerProvider, ""),
             ObjectSerializer = serializer
         });
@@ -146,7 +146,7 @@ public class StdAdoDelegateTest
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
             InstanceName = "INSTANCE",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
         };
@@ -206,7 +206,7 @@ public class StdAdoDelegateTest
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
             InstanceName = "INSTANCE",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
         };
@@ -287,7 +287,7 @@ public class StdAdoDelegateTest
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
             InstanceName = "INSTANCE",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
         };
@@ -300,7 +300,7 @@ public class StdAdoDelegateTest
         var jobDetail = await adoDelegate.SelectJobDetail(
             conn,
             jobKey,
-            new SimpleTypeLoadHelper(), // resolves the stored JOB_CLASS_NAME
+            new SimpleTypeLoader(), // resolves the stored JOB_CLASS_NAME
             CancellationToken.None);
 
         Assert.Multiple(() =>
@@ -334,12 +334,12 @@ public class StdAdoDelegateTest
 
     /// <summary>
     /// A table carried over from 2.x or 3.x names job types the way those versions spelled them, and
-    /// only the type load helper knows what such a spelling means today. Resolving the stored name
+    /// only the type loader knows what such a spelling means today. Resolving the stored name
     /// without it leaves the job loading and listing perfectly well - the type is resolved lazily -
     /// and then failing at its first fire.
     /// </summary>
     [Test]
-    public async Task SelectJobDetailResolvesAPre40JobClassNameThroughTheTypeLoadHelper()
+    public async Task SelectJobDetailResolvesAPre40JobClassNameThroughTheTypeLoader()
     {
         const string StoredJobClassName = "Quartz.Jobs.NoOpJob, Quartz";
 
@@ -383,7 +383,7 @@ public class StdAdoDelegateTest
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
             InstanceName = "INSTANCE",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider,
             ObjectSerializer = serializer
@@ -392,14 +392,14 @@ public class StdAdoDelegateTest
         IJobDetail jobDetail = await adoDelegate.SelectJobDetail(
             conn,
             new JobKey("job", "group"),
-            new SimpleTypeLoadHelper(),
+            new SimpleTypeLoader(),
             CancellationToken.None);
 
         jobDetail.Should().NotBeNull();
         jobDetail.JobType.FullName.Should().Be(StoredJobClassName,
             "reading a job must not rewrite the JOB_CLASS_NAME that is persisted for it");
         jobDetail.JobType.Type.Should().Be<global::Quartz.Jobs.NoOpJob>(
-            "a job class name stored before the jobs moved to their own assembly has to resolve through the load helper");
+            "a job class name stored before the jobs moved to their own assembly has to resolve through the type loader");
     }
 
     private sealed class TestJob : IJob
@@ -450,7 +450,7 @@ public class StdAdoDelegateTest
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
             InstanceName = "INSTANCE",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
         };
@@ -531,7 +531,7 @@ public class StdAdoDelegateTest
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
             InstanceName = "INSTANCE",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
         });
@@ -608,7 +608,7 @@ public class StdAdoDelegateTest
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
             InstanceName = "INSTANCE",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider
         });
@@ -635,7 +635,7 @@ public class StdAdoDelegateTest
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
             InstanceName = "INSTANCE",
-            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             TriggerPersistenceDelegates = [new TestTriggerPersistenceDelegate(), new TestTriggerPersistenceDelegate()],
             DbProvider = A.Fake<IDbProvider>()

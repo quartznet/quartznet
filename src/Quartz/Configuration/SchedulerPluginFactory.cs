@@ -28,7 +28,7 @@ namespace Quartz.Configuration;
 /// </remarks>
 internal static class SchedulerPluginFactory
 {
-    private static readonly SimpleTypeLoadHelper typeLoadHelper = new();
+    private static readonly SimpleTypeLoader typeLoader = new();
 
     /// <summary>
     /// Creates the plugins for a scheduler, paired with the names they were configured under.
@@ -63,7 +63,7 @@ internal static class SchedulerPluginFactory
             plugins.Add((chosenNames.TryGetValue(type, out var name) ? name : type.Name, plugin));
         }
 
-        var loader = provider.GetService<ITypeLoadHelper>() ?? typeLoadHelper;
+        var loader = provider.GetService<ITypeLoader>() ?? typeLoader;
 
         foreach (var name in PluginNames(properties))
         {
@@ -94,7 +94,7 @@ internal static class SchedulerPluginFactory
     /// Loads the type a plugin entry names. A missing type key means the entry configures a plugin that
     /// was never added, since one added in code would have been matched by name already.
     /// </summary>
-    private static Type ResolveType(NameValueCollection properties, string prefix, string name, ITypeLoadHelper loader)
+    private static Type ResolveType(NameValueCollection properties, string prefix, string name, ITypeLoader loader)
     {
         var typeName = properties[$"{prefix}.{LegacyPropertyKeys.PluginType}"];
         if (string.IsNullOrWhiteSpace(typeName))
