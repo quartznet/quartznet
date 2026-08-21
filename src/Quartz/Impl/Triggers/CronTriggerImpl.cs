@@ -213,6 +213,21 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     }
 
     /// <summary>
+    /// The constructor JSON deserialization uses.
+    /// </summary>
+    /// <remarks>
+    /// Newtonsoft's <c>ConstructorHandling.AllowNonPublicDefaultConstructor</c> wants a genuinely
+    /// parameterless constructor; one whose single parameter merely has a default value is not one as
+    /// far as reflection is concerned. Without this, a trigger stored by the Newtonsoft serializer
+    /// cannot be read back. It sets no start time and no time zone on purpose - the payload carries
+    /// both, and defaulting them here would overwrite what is about to be read.
+    /// </remarks>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0051:Remove unused private member", Justification = "Invoked reflectively by JSON deserialization.")]
+    private CronTriggerImpl() : base(timeProvider: null)
+    {
+    }
+
+    /// <summary>
     /// Create a <see cref="CronTriggerImpl" /> with the given name, group and
     /// expression.
     /// </summary>
