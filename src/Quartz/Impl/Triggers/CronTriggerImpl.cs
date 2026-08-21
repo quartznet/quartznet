@@ -206,38 +206,7 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// will be set to the system's default time zone.
     /// </remarks>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public CronTriggerImpl(TimeProvider? timeProvider = null) : base(timeProvider ?? TimeProvider.System)
-    {
-        StartTimeUtc = TimeProvider.GetUtcNow();
-        TimeZone = TimeZoneInfo.Local;
-    }
-
-    /// <summary>
-    /// Create a <see cref="CronTriggerImpl" /> with the given name and default group.
-    /// </summary>
-    /// <remarks>
-    /// The start-time will also be set to the current time, and the time zone
-    /// will be set to the system's default time zone.
-    /// </remarks>
-    /// <param name="name">The name of the <see cref="ITrigger" /></param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public CronTriggerImpl(string name, TimeProvider? timeProvider = null) : this(name, SchedulerConstants.DefaultGroup, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="CronTriggerImpl" /> with the given name and group.
-    /// </summary>
-    /// <remarks>
-    /// The start-time will also be set to the current time, and the time zone
-    /// will be set to the system's default time zone.
-    /// </remarks>
-    /// <param name="name">The name of the <see cref="ITrigger" /></param>
-    /// <param name="group">The group of the <see cref="ITrigger" /></param>
-    /// <param name="timeProvider">A <see cref="TimeProvider" /> to use, if not specified defaults to TimeProvider.System</param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public CronTriggerImpl(string name, string group, TimeProvider? timeProvider = null) : base(name, group, timeProvider ?? TimeProvider.System)
+    public CronTriggerImpl(TimeProvider? timeProvider = null) : base(timeProvider)
     {
         StartTimeUtc = TimeProvider.GetUtcNow();
         TimeZone = TimeZoneInfo.Local;
@@ -249,180 +218,22 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// </summary>
     /// <remarks>
     /// The start-time will also be set to the current time, and the time zone
-    /// will be set to the system's default time zone.
+    /// will be set to the system's default time zone. Everything else this trigger
+    /// needs is a settable property, so the object-initializer form
+    /// <c>new CronTriggerImpl { Key = ..., JobKey = ..., EndTimeUtc = ... }</c> replaces
+    /// the constructor overloads that used to spell out each combination.
     /// </remarks>
     /// <param name="name">The name of the <see cref="ITrigger" /></param>
     /// <param name="group">The group of the <see cref="ITrigger" /></param>
     /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
     /// <param name="timeProvider">A <see cref="TimeProvider" /> to use, if not specified defaults to TimeProvider.System</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public CronTriggerImpl(string name, string group, string cronExpression, TimeProvider? timeProvider = null) : base(name, group, timeProvider ?? TimeProvider.System)
+    public CronTriggerImpl(string name, string group, string cronExpression, TimeProvider? timeProvider = null) : base(timeProvider)
     {
+        Key = new TriggerKey(name, group);
         CronExpressionString = cronExpression;
         StartTimeUtc = TimeProvider.GetUtcNow();
         TimeZone = TimeZoneInfo.Local;
-
-    }
-
-    /// <summary>
-    /// Create a <see cref="CronTriggerImpl" /> with the given name and group, and
-    /// associated with the identified <see cref="IJobDetail" />.
-    /// StartTime will be set to TimeProvider.System.GetUtcNow()
-    /// </summary>
-    /// <remarks>
-    /// The start-time will also be set to the current time, and the time zone
-    /// will be set to the system's default time zone.
-    /// </remarks>
-    /// <param name="name">The name of the <see cref="ITrigger" />.</param>
-    /// <param name="group">The group of the <see cref="ITrigger" /></param>
-    /// <param name="jobName">name of the <see cref="IJobDetail" /> executed on firetime</param>
-    /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    public CronTriggerImpl(
-        string name,
-        string group,
-        string jobName,
-        string jobGroup,
-        TimeProvider? timeProvider = null) : this(name, group, jobName, jobGroup, TimeProvider.System.GetUtcNow(), endTime: null, cronExpression: null, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="ICronTrigger" /> with the given name and group,
-    /// associated with the identified <see cref="IJobDetail" />,
-    /// and with the given "cron" expression.
-    /// </summary>
-    /// <remarks>
-    /// The start-time will also be set to the current time, and the time zone
-    /// will be set to the system's default time zone.
-    /// </remarks>
-    /// <param name="name">The name of the <see cref="ITrigger" /></param>
-    /// <param name="group">The group of the <see cref="ITrigger" /></param>
-    /// <param name="jobName">name of the <see cref="IJobDetail" /> executed on firetime</param>
-    /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
-    /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    public CronTriggerImpl(
-        string name,
-        string group,
-        string jobName,
-        string jobGroup,
-        string cronExpression,
-        TimeProvider? timeProvider = null)
-        : this(name, group, jobName, jobGroup, TimeProvider.System.GetUtcNow(), endTime: null, cronExpression, TimeZoneInfo.Local, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="ICronTrigger" /> with the given name and group,
-    /// associated with the identified <see cref="IJobDetail" />,
-    /// and with the given "cron" expression resolved with respect to the <see cref="TimeZone" />.
-    /// </summary>
-    /// <param name="name">The name of the <see cref="ITrigger" /></param>
-    /// <param name="group">The group of the <see cref="ITrigger" /></param>
-    /// <param name="jobName">name of the <see cref="IJobDetail" /> executed on firetime</param>
-    /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
-    /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
-    /// <param name="timeZone">
-    /// Specifies for which time zone the cronExpression should be interpreted,
-    /// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
-    /// </param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    public CronTriggerImpl(
-        string name,
-        string group,
-        string jobName,
-        string jobGroup,
-        string cronExpression,
-        TimeZoneInfo timeZone,
-        TimeProvider? timeProvider = null)
-        : this(name, group, jobName, jobGroup, TimeProvider.System.GetUtcNow(), endTime: null, cronExpression, timeZone, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="ICronTrigger" /> that will occur at the given time,
-    /// until the given end time.
-    /// TimeZone is set to Local.
-    /// <para>
-    /// If null, the start-time will also be set to the current time, the time
-    /// zone will be set to the system's default.
-    /// </para>
-    /// </summary>
-    /// <param name="name">The name of the <see cref="ITrigger" /></param>
-    /// <param name="group">The group of the <see cref="ITrigger" /></param>
-    /// <param name="jobName">name of the <see cref="IJobDetail" /> executed on firetime</param>
-    /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
-    /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="ITrigger" /> to start firing.</param>
-    /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
-    /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    public CronTriggerImpl(
-        string name,
-        string group,
-        string jobName,
-        string jobGroup,
-        DateTimeOffset startTimeUtc,
-        DateTimeOffset? endTime,
-        string? cronExpression,
-        TimeProvider? timeProvider = null) : this(name, group, jobName, jobGroup, startTimeUtc, endTime, cronExpression, TimeZoneInfo.Local, timeProvider)
-    {
-    }
-
-    /// <summary>
-    /// Create a <see cref="CronTriggerImpl" /> with fire time dictated by the
-    /// <paramref name="cronExpression" /> resolved with respect to the specified
-    /// <paramref name="timeZone" /> occurring from the <see cref="startTimeUtc" /> until
-    /// the given <paramref name="endTime" />.
-    /// </summary>
-    /// <param name="name">The name of the <see cref="ITrigger" /></param>
-    /// <param name="group">The group of the <see cref="ITrigger" /></param>
-    /// <param name="jobName">name of the <see cref="IJobDetail" /> executed on firetime</param>
-    /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
-    /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the <see cref="ITrigger" /> to start firing.</param>
-    /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
-    /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
-    /// <param name="timeZone">
-    /// Specifies for which time zone the cronExpression should be interpreted,
-    /// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
-    /// </param>
-    /// <param name="timeProvider">A <see cref="TimeProvider" /> to use, if not specified defaults to TimeProvider.System</param>
-    /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    public CronTriggerImpl(
-        string name,
-        string group,
-        string jobName,
-        string jobGroup,
-        DateTimeOffset startTimeUtc,
-        DateTimeOffset? endTime,
-        string? cronExpression,
-        TimeZoneInfo? timeZone = null,
-        TimeProvider? timeProvider = null) : base(name, group, jobName, jobGroup, timeProvider ?? TimeProvider.System)
-    {
-        CronExpressionString = cronExpression;
-
-        if (startTimeUtc == DateTimeOffset.MinValue)
-        {
-            startTimeUtc = TimeProvider.GetUtcNow();
-        }
-        StartTimeUtc = startTimeUtc;
-
-        if (endTime.HasValue)
-        {
-            EndTimeUtc = endTime;
-        }
-        if (timeZone is null)
-        {
-            TimeZone = TimeZoneInfo.Local;
-        }
-        else
-        {
-            TimeZone = timeZone;
-        }
     }
 
     /// <summary>

@@ -4409,14 +4409,15 @@ public abstract class AdoJobStoreBase : IJobStore
                             // executed..
                             if (await JobExists(conn, jKey!, cancellationToken).ConfigureAwait(false))
                             {
-                                SimpleTriggerImpl rcvryTrig =
-                                    new SimpleTriggerImpl(
-                                        $"recover_{rec.SchedulerInstanceId}_{recoverIds++}",
-                                        SchedulerConstants.DefaultRecoveryGroup, ftRec.FireTimestamp);
+                                SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl
+                                {
+                                    Key = new TriggerKey($"recover_{rec.SchedulerInstanceId}_{recoverIds++}", SchedulerConstants.DefaultRecoveryGroup),
+                                    StartTimeUtc = ftRec.FireTimestamp,
+                                    JobKey = jKey!,
+                                    MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow,
+                                    Priority = ftRec.Priority
+                                };
 
-                                rcvryTrig.JobKey = jKey!;
-                                rcvryTrig.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow;
-                                rcvryTrig.Priority = ftRec.Priority;
                                 JobDataMap jd = await Delegate.SelectTriggerJobDataMap(conn, tKey, cancellationToken).ConfigureAwait(false);
                                 jd[SchedulerConstants.FailedJobOriginalTriggerName] = tKey.Name;
                                 jd[SchedulerConstants.FailedJobOriginalTriggerGroup] = tKey.Group;

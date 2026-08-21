@@ -74,7 +74,7 @@ namespace Quartz
         public bool Enabled { get; set; }
     }
     [System.Serializable]
-    public sealed class CronExpression : System.Runtime.Serialization.ISerializable
+    public sealed class CronExpression : System.IEquatable<Quartz.CronExpression>, System.IParsable<Quartz.CronExpression>, System.Runtime.Serialization.ISerializable
     {
         public CronExpression(string cronExpression) { }
         public CronExpression(string cronExpression, System.TimeZoneInfo? timeZone) { }
@@ -82,8 +82,7 @@ namespace Quartz
         public CronExpression(string cronExpression, string hashKey) { }
         public string CronExpressionString { get; }
         public System.TimeZoneInfo TimeZone { get; }
-        public Quartz.CronExpression Clone() { }
-        public bool Equals(Quartz.CronExpression other) { }
+        public bool Equals(Quartz.CronExpression? other) { }
         public override bool Equals(object? obj) { }
         public string GetExpressionSummary() { }
         public override int GetHashCode() { }
@@ -97,8 +96,10 @@ namespace Quartz
         public Quartz.CronExpression WithTimeZone(System.TimeZoneInfo? timeZone) { }
         public static bool IsValidExpression(string cronExpression) { }
         public static bool IsValidExpression(string cronExpression, string hashKey) { }
+        public static Quartz.CronExpression Parse(string cronExpression) { }
         public static string ResolveHash(string cronExpression, int hashSeed) { }
         public static string ResolveHash(string cronExpression, string hashKey) { }
+        public static bool TryParse(string? cronExpression, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
         public static void ValidateExpression(string cronExpression) { }
         public static void ValidateExpression(string cronExpression, string hashKey) { }
     }
@@ -117,27 +118,34 @@ namespace Quartz
         public Quartz.CronExpressionBuilder WithDayOfMonthRange(int start, int end) { }
         public Quartz.CronExpressionBuilder WithDayOfWeekIncrements(System.DayOfWeek start, int increment) { }
         public Quartz.CronExpressionBuilder WithDayOfWeekRange(System.DayOfWeek start, System.DayOfWeek end) { }
+        public Quartz.CronExpressionBuilder WithDaysOfMonth([System.Runtime.CompilerServices.ParamCollection] [System.Runtime.CompilerServices.ScopedRef] System.ReadOnlySpan<int> days) { }
         public Quartz.CronExpressionBuilder WithDaysOfMonth(params int[] days) { }
         public Quartz.CronExpressionBuilder WithDaysOfWeek(params System.DayOfWeek[] daysOfWeek) { }
+        public Quartz.CronExpressionBuilder WithDaysOfWeek([System.Runtime.CompilerServices.ParamCollection] [System.Runtime.CompilerServices.ScopedRef] System.ReadOnlySpan<System.DayOfWeek> daysOfWeek) { }
         public Quartz.CronExpressionBuilder WithHour(int hour) { }
         public Quartz.CronExpressionBuilder WithHourIncrements(int start, int increment) { }
         public Quartz.CronExpressionBuilder WithHourRange(int start, int end) { }
+        public Quartz.CronExpressionBuilder WithHours([System.Runtime.CompilerServices.ParamCollection] [System.Runtime.CompilerServices.ScopedRef] System.ReadOnlySpan<int> hours) { }
         public Quartz.CronExpressionBuilder WithHours(params int[] hours) { }
         public Quartz.CronExpressionBuilder WithMinute(int minute) { }
         public Quartz.CronExpressionBuilder WithMinuteIncrements(int start, int increment) { }
         public Quartz.CronExpressionBuilder WithMinuteRange(int start, int end) { }
+        public Quartz.CronExpressionBuilder WithMinutes([System.Runtime.CompilerServices.ParamCollection] [System.Runtime.CompilerServices.ScopedRef] System.ReadOnlySpan<int> minutes) { }
         public Quartz.CronExpressionBuilder WithMinutes(params int[] minutes) { }
         public Quartz.CronExpressionBuilder WithMonth(int month) { }
         public Quartz.CronExpressionBuilder WithMonthIncrements(int start, int increment) { }
         public Quartz.CronExpressionBuilder WithMonthRange(int start, int end) { }
+        public Quartz.CronExpressionBuilder WithMonths([System.Runtime.CompilerServices.ParamCollection] [System.Runtime.CompilerServices.ScopedRef] System.ReadOnlySpan<int> months) { }
         public Quartz.CronExpressionBuilder WithMonths(params int[] months) { }
         public Quartz.CronExpressionBuilder WithSecond(int second) { }
         public Quartz.CronExpressionBuilder WithSecondIncrements(int start, int increment) { }
         public Quartz.CronExpressionBuilder WithSecondRange(int start, int end) { }
+        public Quartz.CronExpressionBuilder WithSeconds([System.Runtime.CompilerServices.ParamCollection] [System.Runtime.CompilerServices.ScopedRef] System.ReadOnlySpan<int> seconds) { }
         public Quartz.CronExpressionBuilder WithSeconds(params int[] seconds) { }
         public Quartz.CronExpressionBuilder WithYear(int year) { }
         public Quartz.CronExpressionBuilder WithYearIncrements(int start, int increment) { }
         public Quartz.CronExpressionBuilder WithYearRange(int start, int end) { }
+        public Quartz.CronExpressionBuilder WithYears([System.Runtime.CompilerServices.ParamCollection] [System.Runtime.CompilerServices.ScopedRef] System.ReadOnlySpan<int> years) { }
         public Quartz.CronExpressionBuilder WithYears(params int[] years) { }
         public static Quartz.CronExpressionBuilder Create() { }
     }
@@ -2644,14 +2652,14 @@ namespace Quartz.Impl.AdoJobStore.Common
 namespace Quartz.Impl.Calendar
 {
     [System.Serializable]
-    public sealed class AnnualCalendar : Quartz.Impl.Calendar.BaseCalendar
+    public sealed class AnnualCalendar : Quartz.Impl.Calendar.BaseCalendar, System.IEquatable<Quartz.Impl.Calendar.AnnualCalendar>
     {
         public AnnualCalendar() { }
         public AnnualCalendar(Quartz.ICalendar baseCalendar) { }
         public System.Collections.Generic.IReadOnlySet<Quartz.MonthDay> DaysExcluded { get; }
         public bool AddExcludedDay(Quartz.MonthDay day) { }
         public override Quartz.ICalendar Clone() { }
-        public bool Equals(Quartz.Impl.Calendar.AnnualCalendar obj) { }
+        public bool Equals(Quartz.Impl.Calendar.AnnualCalendar? other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override System.DateTimeOffset GetNextIncludedTimeUtc(System.DateTimeOffset timeStampUtc) { }
@@ -2683,7 +2691,7 @@ namespace Quartz.Impl.Calendar
         public virtual bool IsTimeIncluded(System.DateTimeOffset timeStampUtc) { }
     }
     [System.Serializable]
-    public sealed class CronCalendar : Quartz.Impl.Calendar.BaseCalendar
+    public sealed class CronCalendar : Quartz.Impl.Calendar.BaseCalendar, System.IEquatable<Quartz.Impl.Calendar.CronCalendar>
     {
         public CronCalendar(string expression) { }
         public CronCalendar(Quartz.ICalendar? baseCalendar, string expression) { }
@@ -2691,7 +2699,7 @@ namespace Quartz.Impl.Calendar
         public Quartz.CronExpression CronExpression { get; set; }
         public override System.TimeZoneInfo TimeZone { get; set; }
         public override Quartz.ICalendar Clone() { }
-        public bool Equals(Quartz.Impl.Calendar.CronCalendar obj) { }
+        public bool Equals(Quartz.Impl.Calendar.CronCalendar? other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override System.DateTimeOffset GetNextIncludedTimeUtc(System.DateTimeOffset timeUtc) { }
@@ -2701,7 +2709,7 @@ namespace Quartz.Impl.Calendar
         public override string ToString() { }
     }
     [System.Serializable]
-    public sealed class DailyCalendar : Quartz.Impl.Calendar.BaseCalendar
+    public sealed class DailyCalendar : Quartz.Impl.Calendar.BaseCalendar, System.IEquatable<Quartz.Impl.Calendar.DailyCalendar>
     {
         public DailyCalendar(System.TimeOnly rangeStart, System.TimeOnly rangeEnd, Quartz.ICalendar? baseCalendar = null) { }
         public bool InvertTimeRange { get; set; }
@@ -2710,7 +2718,7 @@ namespace Quartz.Impl.Calendar
                 "End"})]
         public System.ValueTuple<System.TimeOnly, System.TimeOnly> TimeRange { get; set; }
         public override Quartz.ICalendar Clone() { }
-        public bool Equals(Quartz.Impl.Calendar.DailyCalendar obj) { }
+        public bool Equals(Quartz.Impl.Calendar.DailyCalendar? other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override System.DateTimeOffset GetNextIncludedTimeUtc(System.DateTimeOffset timeUtc) { }
@@ -2722,14 +2730,14 @@ namespace Quartz.Impl.Calendar
         public override string ToString() { }
     }
     [System.Serializable]
-    public sealed class HolidayCalendar : Quartz.Impl.Calendar.BaseCalendar
+    public sealed class HolidayCalendar : Quartz.Impl.Calendar.BaseCalendar, System.IEquatable<Quartz.Impl.Calendar.HolidayCalendar>
     {
         public HolidayCalendar() { }
         public HolidayCalendar(Quartz.ICalendar baseCalendar) { }
         public System.Collections.Generic.IReadOnlySet<System.DateOnly> DaysExcluded { get; }
         public bool AddExcludedDay(System.DateOnly day) { }
         public override Quartz.ICalendar Clone() { }
-        public bool Equals(Quartz.Impl.Calendar.HolidayCalendar obj) { }
+        public bool Equals(Quartz.Impl.Calendar.HolidayCalendar? other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override System.DateTimeOffset GetNextIncludedTimeUtc(System.DateTimeOffset timeUtc) { }
@@ -2740,7 +2748,7 @@ namespace Quartz.Impl.Calendar
         public bool RemoveExcludedDay(System.DateOnly day) { }
     }
     [System.Serializable]
-    public sealed class MonthlyCalendar : Quartz.Impl.Calendar.BaseCalendar
+    public sealed class MonthlyCalendar : Quartz.Impl.Calendar.BaseCalendar, System.IEquatable<Quartz.Impl.Calendar.MonthlyCalendar>
     {
         public MonthlyCalendar() { }
         public MonthlyCalendar(Quartz.ICalendar baseCalendar) { }
@@ -2748,7 +2756,7 @@ namespace Quartz.Impl.Calendar
         public bool AddExcludedDay(int day) { }
         public bool AreAllDaysExcluded() { }
         public override Quartz.ICalendar Clone() { }
-        public bool Equals(Quartz.Impl.Calendar.MonthlyCalendar obj) { }
+        public bool Equals(Quartz.Impl.Calendar.MonthlyCalendar? other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override System.DateTimeOffset GetNextIncludedTimeUtc(System.DateTimeOffset timeUtc) { }
@@ -2759,7 +2767,7 @@ namespace Quartz.Impl.Calendar
         public bool RemoveExcludedDay(int day) { }
     }
     [System.Serializable]
-    public sealed class WeeklyCalendar : Quartz.Impl.Calendar.BaseCalendar
+    public sealed class WeeklyCalendar : Quartz.Impl.Calendar.BaseCalendar, System.IEquatable<Quartz.Impl.Calendar.WeeklyCalendar>
     {
         public WeeklyCalendar() { }
         public WeeklyCalendar(Quartz.ICalendar baseCalendar) { }
@@ -2767,7 +2775,7 @@ namespace Quartz.Impl.Calendar
         public bool AddExcludedDay(System.DayOfWeek day) { }
         public bool AreAllDaysExcluded() { }
         public override Quartz.ICalendar Clone() { }
-        public bool Equals(Quartz.Impl.Calendar.WeeklyCalendar obj) { }
+        public bool Equals(Quartz.Impl.Calendar.WeeklyCalendar? other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override System.DateTimeOffset GetNextIncludedTimeUtc(System.DateTimeOffset timeUtc) { }
@@ -3067,13 +3075,7 @@ namespace Quartz.Impl.Triggers
     [System.Serializable]
     public sealed class CalendarIntervalTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.ICalendarIntervalTrigger, Quartz.ITrigger
     {
-        public CalendarIntervalTriggerImpl() { }
-        public CalendarIntervalTriggerImpl(System.TimeProvider timeProvider) { }
-        public CalendarIntervalTriggerImpl(string name, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public CalendarIntervalTriggerImpl(string name, string group, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public CalendarIntervalTriggerImpl(string name, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public CalendarIntervalTriggerImpl(string name, string group, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public CalendarIntervalTriggerImpl(string name, string group, string jobName, string jobGroup, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
+        public CalendarIntervalTriggerImpl(System.TimeProvider? timeProvider = null) { }
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         protected override bool HasMillisecondPrecision { get; }
@@ -3101,14 +3103,7 @@ namespace Quartz.Impl.Triggers
     public class CronTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.ICronTrigger, Quartz.ITrigger
     {
         public CronTriggerImpl(System.TimeProvider? timeProvider = null) { }
-        public CronTriggerImpl(string name, System.TimeProvider? timeProvider = null) { }
-        public CronTriggerImpl(string name, string group, System.TimeProvider? timeProvider = null) { }
         public CronTriggerImpl(string name, string group, string cronExpression, System.TimeProvider? timeProvider = null) { }
-        public CronTriggerImpl(string name, string group, string jobName, string jobGroup, System.TimeProvider? timeProvider = null) { }
-        public CronTriggerImpl(string name, string group, string jobName, string jobGroup, string cronExpression, System.TimeProvider? timeProvider = null) { }
-        public CronTriggerImpl(string name, string group, string jobName, string jobGroup, string cronExpression, System.TimeZoneInfo timeZone, System.TimeProvider? timeProvider = null) { }
-        public CronTriggerImpl(string name, string group, string jobName, string jobGroup, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTime, string? cronExpression, System.TimeProvider? timeProvider = null) { }
-        public CronTriggerImpl(string name, string group, string jobName, string jobGroup, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTime, string? cronExpression, System.TimeZoneInfo? timeZone = null, System.TimeProvider? timeProvider = null) { }
         public Quartz.CronExpression? CronExpression { get; set; }
         public string? CronExpressionString { get; set; }
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
@@ -3138,11 +3133,6 @@ namespace Quartz.Impl.Triggers
     {
         public const int RepeatIndefinitely = -1;
         public DailyTimeIntervalTriggerImpl(System.TimeProvider? timeProvider = null) { }
-        public DailyTimeIntervalTriggerImpl(string name, System.TimeOnly startTimeOfDay, System.TimeOnly endTimeOfDay, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public DailyTimeIntervalTriggerImpl(string name, string group, System.TimeOnly startTimeOfDay, System.TimeOnly endTimeOfDay, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public DailyTimeIntervalTriggerImpl(string name, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, System.TimeOnly startTimeOfDay, System.TimeOnly endTimeOfDay, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public DailyTimeIntervalTriggerImpl(string name, string group, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, System.TimeOnly startTimeOfDay, System.TimeOnly endTimeOfDay, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public DailyTimeIntervalTriggerImpl(string name, string group, string jobName, string jobGroup, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, System.TimeOnly startTimeOfDay, System.TimeOnly endTimeOfDay, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
         public System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> DaysOfWeek { get; set; }
         public System.TimeOnly EndTimeOfDay { get; set; }
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
@@ -3196,16 +3186,7 @@ namespace Quartz.Impl.Triggers
     public class SimpleTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.ISimpleTrigger, Quartz.ITrigger
     {
         public const int RepeatIndefinitely = -1;
-        public SimpleTriggerImpl() { }
         public SimpleTriggerImpl(System.TimeProvider? timeProvider = null) { }
-        public SimpleTriggerImpl(string name, System.TimeProvider? timeProvider = null) { }
-        public SimpleTriggerImpl(string name, System.DateTimeOffset startTimeUtc, System.TimeProvider? timeProvider = null) { }
-        public SimpleTriggerImpl(string name, string group, System.TimeProvider? timeProvider = null) { }
-        public SimpleTriggerImpl(string name, int repeatCount, System.TimeSpan repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public SimpleTriggerImpl(string name, string group, System.DateTimeOffset startTimeUtc, System.TimeProvider? timeProvider = null) { }
-        public SimpleTriggerImpl(string name, string group, int repeatCount, System.TimeSpan repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public SimpleTriggerImpl(string name, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, int repeatCount, System.TimeSpan repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public SimpleTriggerImpl(string name, string group, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, int repeatCount, System.TimeSpan repeatInterval, System.TimeProvider? timeProvider = null) { }
         public SimpleTriggerImpl(string name, string group, string jobName, string jobGroup, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, int repeatCount, System.TimeSpan repeatInterval, System.TimeProvider? timeProvider = null) { }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         protected override bool HasMillisecondPrecision { get; }
@@ -3230,11 +3211,7 @@ namespace Quartz.Impl.Triggers
     [System.Serializable]
     public abstract class TriggerBase : Quartz.Extensibility.IMutableTrigger, Quartz.Extensibility.IOperableTrigger, Quartz.ITrigger, System.IEquatable<Quartz.Impl.Triggers.TriggerBase>
     {
-        protected TriggerBase() { }
-        protected TriggerBase(System.TimeProvider timeProvider) { }
-        protected TriggerBase(string name, System.TimeProvider timeProvider) { }
-        protected TriggerBase(string name, string group, System.TimeProvider timeProvider) { }
-        protected TriggerBase(string name, string group, string jobName, string jobGroup, System.TimeProvider timeProvider) { }
+        protected TriggerBase(System.TimeProvider? timeProvider = null) { }
         public virtual string? CalendarName { get; set; }
         public virtual string? Description { get; set; }
         public virtual System.DateTimeOffset? EndTimeUtc { get; set; }

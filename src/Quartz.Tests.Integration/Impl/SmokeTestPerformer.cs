@@ -40,7 +40,13 @@ public class SmokeTestPerformer
                 calendar.AddExcludedDay(new MonthDay(7, 4));
                 await scheduler.AddCalendar("annualCalendar", calendar, new AddCalendarOptions { UpdateTriggers = true });
 
-                IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromHours(2));
+                IOperableTrigger calendarsTrigger = new SimpleTriggerImpl
+                {
+                    Key = new TriggerKey("calendarsTrigger", "test"),
+                    StartTimeUtc = TimeProvider.System.GetUtcNow(),
+                    RepeatCount = 20,
+                    RepeatInterval = TimeSpan.FromHours(2)
+                };
                 calendarsTrigger.CalendarName = "annualCalendar";
 
                 var jd = JobBuilder.Create<NoOpJob>()
@@ -93,7 +99,13 @@ public class SmokeTestPerformer
                     .Build();
                 // ask scheduler to re-Execute this job if it was in progress when
                 // the scheduler went down...
-                IOperableTrigger trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
+                IOperableTrigger trigger = new SimpleTriggerImpl
+                {
+                    Key = new TriggerKey("trig_" + count, schedId),
+                    StartTimeUtc = TimeProvider.System.GetUtcNow(),
+                    RepeatCount = 20,
+                    RepeatInterval = TimeSpan.FromSeconds(5)
+                };
                 trigger.JobDataMap.Add("key", "value");
                 trigger.EndTimeUtc = DateTime.UtcNow.AddYears(10);
 
@@ -124,7 +136,13 @@ public class SmokeTestPerformer
                     .Build();
                 // ask scheduler to re-Execute this job if it was in progress when
                 // the scheduler went down...
-                trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
+                trigger = new SimpleTriggerImpl
+                {
+                    Key = new TriggerKey("trig_" + count, schedId),
+                    StartTimeUtc = TimeProvider.System.GetUtcNow(),
+                    RepeatCount = 20,
+                    RepeatInterval = TimeSpan.FromSeconds(5)
+                };
                 trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(2000L);
                 await scheduler.ScheduleJob(job, trigger);
 
@@ -136,7 +154,13 @@ public class SmokeTestPerformer
                     .Build();
                 // ask scheduler to re-Execute this job if it was in progress when
                 // the scheduler went down...
-                trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(3));
+                trigger = new SimpleTriggerImpl
+                {
+                    Key = new TriggerKey("trig_" + count, schedId),
+                    StartTimeUtc = TimeProvider.System.GetUtcNow(),
+                    RepeatCount = 20,
+                    RepeatInterval = TimeSpan.FromSeconds(3)
+                };
                 trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
                 await scheduler.ScheduleJob(job, trigger);
 
@@ -148,7 +172,13 @@ public class SmokeTestPerformer
                     .Build();
                 // ask scheduler to re-Execute this job if it was in progress when
                 // the scheduler went down...
-                trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(4));
+                trigger = new SimpleTriggerImpl
+                {
+                    Key = new TriggerKey("trig_" + count, schedId),
+                    StartTimeUtc = TimeProvider.System.GetUtcNow(),
+                    RepeatCount = 20,
+                    RepeatInterval = TimeSpan.FromSeconds(4)
+                };
                 trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
                 await scheduler.ScheduleJob(job, trigger);
 
@@ -160,7 +190,13 @@ public class SmokeTestPerformer
                     .Build();
                 // ask scheduler to re-Execute this job if it was in progress when
                 // the scheduler went down...
-                trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
+                trigger = new SimpleTriggerImpl
+                {
+                    Key = new TriggerKey("trig_" + count, schedId),
+                    StartTimeUtc = TimeProvider.System.GetUtcNow(),
+                    RepeatCount = 20,
+                    RepeatInterval = TimeSpan.FromMilliseconds(4500)
+                };
                 await scheduler.ScheduleJob(job, trigger);
 
                 count++;
@@ -189,7 +225,15 @@ public class SmokeTestPerformer
                 var timeZone1 = TimeZones.FindById("Central European Standard Time");
                 var timeZone2 = TimeZones.FindById("Mountain Standard Time");
 
-                DailyTimeIntervalTriggerImpl nt = new DailyTimeIntervalTriggerImpl("nth_trig_" + count, schedId, new TimeOnly(1, 1, 1), new TimeOnly(23, 30, 0), IntervalUnit.Hour, 1);
+                DailyTimeIntervalTriggerImpl nt = new DailyTimeIntervalTriggerImpl
+                {
+                    Key = new TriggerKey("nth_trig_" + count, schedId),
+                    StartTimeUtc = TimeProvider.System.GetUtcNow(),
+                    RepeatIntervalUnit = IntervalUnit.Hour,
+                    RepeatInterval = 1,
+                    StartTimeOfDay = new TimeOnly(1, 1, 1),
+                    EndTimeOfDay = new TimeOnly(23, 30, 0)
+                };
                 nt.StartTimeUtc = DateTime.Now.Date.AddMilliseconds(1000);
                 nt.TimeZone = timeZone1;
 
@@ -229,13 +273,14 @@ public class SmokeTestPerformer
                 Assert.That(triggerFromDb.EndTimeOfDay.Minute, Is.EqualTo(3));
                 Assert.That(triggerFromDb.EndTimeOfDay.Second, Is.EqualTo(4));
 
-                CalendarIntervalTriggerImpl intervalTrigger = new CalendarIntervalTriggerImpl(
-                    "calint_trig_" + count,
-                    schedId,
-                    DateTime.UtcNow.AddMilliseconds(300),
-                    DateTime.UtcNow.AddMinutes(1),
-                    IntervalUnit.Second,
-                    8);
+                CalendarIntervalTriggerImpl intervalTrigger = new CalendarIntervalTriggerImpl
+                {
+                    Key = new TriggerKey("calint_trig_" + count, schedId),
+                    StartTimeUtc = DateTime.UtcNow.AddMilliseconds(300),
+                    EndTimeUtc = DateTime.UtcNow.AddMinutes(1),
+                    RepeatIntervalUnit = IntervalUnit.Second,
+                    RepeatInterval = 8
+                };
                 intervalTrigger.JobKey = job.Key;
 
                 await scheduler.ScheduleJob(intervalTrigger);
@@ -291,7 +336,13 @@ public class SmokeTestPerformer
                 IJobDetail detail = JobBuilder.Create<SimpleRecoveryJob>()
                     .WithIdentity(new JobKey("job_" + count, schedId))
                     .Build();
-                ITrigger simple = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
+                ITrigger simple = new SimpleTriggerImpl
+                {
+                    Key = new TriggerKey("trig_" + count, schedId),
+                    StartTimeUtc = TimeProvider.System.GetUtcNow(),
+                    RepeatCount = 20,
+                    RepeatInterval = TimeSpan.FromMilliseconds(4500)
+                };
                 var triggers = new List<ITrigger>();
                 triggers.Add(simple);
                 info[detail] = triggers;

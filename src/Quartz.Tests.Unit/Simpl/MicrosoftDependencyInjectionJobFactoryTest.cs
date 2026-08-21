@@ -179,7 +179,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
     {
         return TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(
             typeof(T),
-            new SimpleTriggerImpl("triggerName", "triggerGroup"));
+            new SimpleTriggerImpl { Key = new TriggerKey("triggerName", "triggerGroup"), StartTimeUtc = TimeProvider.System.GetUtcNow() });
     }
 
     private static IScheduler NewScheduler()

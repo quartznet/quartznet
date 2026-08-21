@@ -73,7 +73,7 @@ public class LoggingJobHistoryPluginTest
 
     protected virtual IJobExecutionContext CreateJobExecutionContext()
     {
-        IOperableTrigger t = new SimpleTriggerImpl("name", "group");
+        IOperableTrigger t = new SimpleTriggerImpl { Key = new TriggerKey("name", "group"), StartTimeUtc = TimeProvider.System.GetUtcNow() };
         TriggerFiredBundle firedBundle = TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t);
         IJobExecutionContext ctx = new JobExecutionContextImpl(null, firedBundle, null);
         return ctx;

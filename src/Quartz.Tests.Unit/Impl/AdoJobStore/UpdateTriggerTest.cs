@@ -61,7 +61,7 @@ public class UpdateTriggerTest
     public async Task CronTrigger_AfterTriggerUpdate_Retains_Cron_Type()
     {
         //Arrange
-        var cronTriggerImpl = new CronTriggerImpl("Trigger", "Trigger.Group", "JobName", "JobGroup", "0 15 23 * * ?");
+        var cronTriggerImpl = new CronTriggerImpl("Trigger", "Trigger.Group", "0 15 23 * * ?") { JobKey = new JobKey("JobName", "JobGroup") };
         cronTriggerImpl.CalendarName = "calName";
         cronTriggerImpl.MisfireInstructionCode = 1;
         cronTriggerImpl.Description = "Description";
@@ -145,7 +145,7 @@ public class UpdateTriggerTest
     public async Task CronTrigger_WhenExistingTriggerIsSimple_SwitchesTypeToCron()
     {
         //Arrange
-        var cronTriggerImpl = new CronTriggerImpl("Trigger", "Trigger.Group", "JobName", "JobGroup", "0 15 23 * * ?");
+        var cronTriggerImpl = new CronTriggerImpl("Trigger", "Trigger.Group", "0 15 23 * * ?") { JobKey = new JobKey("JobName", "JobGroup") };
         cronTriggerImpl.CalendarName = "calName";
         cronTriggerImpl.MisfireInstructionCode = 1;
         cronTriggerImpl.Description = "Description";

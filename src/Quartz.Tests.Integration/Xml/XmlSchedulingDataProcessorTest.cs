@@ -106,7 +106,14 @@ public class XmlSchedulingDataProcessorTest
     {
         DateTimeOffset startTime = new DateTimeOffset(2012, 12, 30, 1, 0, 0, TimeSpan.Zero);
         DateTimeOffset previousFireTime = new DateTimeOffset(2013, 2, 15, 15, 0, 0, TimeSpan.Zero);
-        SimpleTriggerImpl existing = new SimpleTriggerImpl("triggerToReplace", "groupToReplace", startTime, null, SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromHours(1));
+        SimpleTriggerImpl existing = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("triggerToReplace", "groupToReplace"),
+            StartTimeUtc = startTime,
+            EndTimeUtc = null,
+            RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+            RepeatInterval = TimeSpan.FromHours(1)
+        };
         existing.JobKey = new JobKey("jobName1", "jobGroup1");
         existing.PreviousFireTimeUtc = previousFireTime;
 

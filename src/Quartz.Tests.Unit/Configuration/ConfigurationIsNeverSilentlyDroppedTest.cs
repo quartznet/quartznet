@@ -378,8 +378,8 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
         // The built-ins are still there in both, which is what makes registering a custom serializer an
         // addition rather than a replacement.
-        a.Serialize<ITrigger>(NewTrigger<SimpleTriggerImpl>()).Should().NotBeEmpty();
-        b.Serialize<ITrigger>(NewTrigger<SimpleTriggerImpl>()).Should().NotBeEmpty();
+        a.Serialize<ITrigger>(NewTrigger()).Should().NotBeEmpty();
+        b.Serialize<ITrigger>(NewTrigger()).Should().NotBeEmpty();
     }
 
     [Test]
@@ -980,12 +980,21 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
     private static TTrigger NewTrigger<TTrigger>() where TTrigger : SimpleTriggerImpl, new()
     {
-        return new TTrigger
-        {
-            Key = new TriggerKey("trigger", "group"),
-            JobKey = new JobKey("job", "group"),
-            StartTimeUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
-        };
+        return Identify(new TTrigger());
+    }
+
+    // SimpleTriggerImpl itself takes an optional TimeProvider, so it does not satisfy new().
+    private static SimpleTriggerImpl NewTrigger()
+    {
+        return Identify(new SimpleTriggerImpl());
+    }
+
+    private static TTrigger Identify<TTrigger>(TTrigger trigger) where TTrigger : SimpleTriggerImpl
+    {
+        trigger.Key = new TriggerKey("trigger", "group");
+        trigger.JobKey = new JobKey("job", "group");
+        trigger.StartTimeUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        return trigger;
     }
 
     private sealed class TriggerKnownToA : SimpleTriggerImpl;

@@ -124,8 +124,10 @@ public class UpdateMisfiredTriggersBatchTest
         var updates = new List<MisfiredTriggerUpdate>();
         for (var i = 0; i < count; i++)
         {
-            var trigger = new SimpleTriggerImpl("t" + i, "g", DateTimeOffset.UtcNow)
+            var trigger = new SimpleTriggerImpl
             {
+                Key = new TriggerKey("t" + i, "g"),
+                StartTimeUtc = DateTimeOffset.UtcNow,
                 JobKey = new JobKey("j" + i, "jg"),
                 RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
                 RepeatInterval = TimeSpan.FromMinutes(1)

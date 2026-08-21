@@ -23,11 +23,14 @@ public class SimpleTriggerImplBenchmark
     [GlobalSetup]
     public void GlobalSetup()
     {
-        _trigger1 = new SimpleTriggerImpl("1",
-            new DateTimeOffset(2, 1, 1, 0, 0, 0, 0, TimeSpan.Zero),
-            null,
-            SimpleTriggerImpl.RepeatIndefinitely,
-            TimeSpan.FromTicks(1000));
+        _trigger1 = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("1"),
+            StartTimeUtc = new DateTimeOffset(2, 1, 1, 0, 0, 0, 0, TimeSpan.Zero),
+            EndTimeUtc = null,
+            RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+            RepeatInterval = TimeSpan.FromTicks(1000)
+        };
         _trigger1.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
         _trigger1.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
@@ -39,11 +42,14 @@ public class SimpleTriggerImplBenchmark
         _trigger1Legacy.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
         _trigger1Legacy.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
-        _trigger2 = new SimpleTriggerImpl("1",
-            DateTimeOffset.MinValue,
-            DateTimeOffset.MaxValue,
-            SimpleTriggerImpl.RepeatIndefinitely,
-            TimeSpan.FromTicks(1000));
+        _trigger2 = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("1"),
+            StartTimeUtc = DateTimeOffset.MinValue,
+            EndTimeUtc = DateTimeOffset.MaxValue,
+            RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+            RepeatInterval = TimeSpan.FromTicks(1000)
+        };
         _trigger2.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
 
         _trigger2Legacy = new SimpleTriggerImplLegacy("1",
@@ -53,11 +59,14 @@ public class SimpleTriggerImplBenchmark
             TimeSpan.FromTicks(1000));
         _trigger2Legacy.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
 
-        _trigger3 = new SimpleTriggerImpl("1",
-            DateTimeOffset.MinValue,
-            DateTimeOffset.MaxValue,
-            0,
-            TimeSpan.FromTicks(1000));
+        _trigger3 = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("1"),
+            StartTimeUtc = DateTimeOffset.MinValue,
+            EndTimeUtc = DateTimeOffset.MaxValue,
+            RepeatCount = 0,
+            RepeatInterval = TimeSpan.FromTicks(1000)
+        };
         _trigger3.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
 
         _trigger3Legacy = new SimpleTriggerImplLegacy("1",
@@ -67,11 +76,14 @@ public class SimpleTriggerImplBenchmark
             TimeSpan.FromTicks(1000));
         _trigger3Legacy.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
 
-        _trigger4 = new SimpleTriggerImpl("1",
-            DateTimeOffset.MinValue,
-            DateTimeOffset.MinValue,
-            SimpleTriggerImpl.RepeatIndefinitely,
-            TimeSpan.FromTicks(1000));
+        _trigger4 = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("1"),
+            StartTimeUtc = DateTimeOffset.MinValue,
+            EndTimeUtc = DateTimeOffset.MinValue,
+            RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+            RepeatInterval = TimeSpan.FromTicks(1000)
+        };
         _trigger4.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow;
         _trigger4.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
@@ -83,11 +95,14 @@ public class SimpleTriggerImplBenchmark
         _trigger4Legacy.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow;
         _trigger4Legacy.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
-        _trigger5 = new SimpleTriggerImpl("1",
-            DateTimeOffset.MinValue,
-            DateTimeOffset.MaxValue,
-            5,
-            TimeSpan.FromTicks(1000));
+        _trigger5 = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("1"),
+            StartTimeUtc = DateTimeOffset.MinValue,
+            EndTimeUtc = DateTimeOffset.MaxValue,
+            RepeatCount = 5,
+            RepeatInterval = TimeSpan.FromTicks(1000)
+        };
         _trigger5.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
 
         _trigger5Legacy = new SimpleTriggerImplLegacy("1",
@@ -97,11 +112,14 @@ public class SimpleTriggerImplBenchmark
             TimeSpan.FromTicks(1000));
         _trigger5Legacy.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
 
-        _trigger6 = new SimpleTriggerImpl("1",
-            DateTimeOffset.MinValue,
-            DateTimeOffset.MaxValue,
-            int.MaxValue,
-            TimeSpan.FromDays(1));
+        _trigger6 = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("1"),
+            StartTimeUtc = DateTimeOffset.MinValue,
+            EndTimeUtc = DateTimeOffset.MaxValue,
+            RepeatCount = int.MaxValue,
+            RepeatInterval = TimeSpan.FromDays(1)
+        };
         _trigger6.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow;
         _trigger6.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
@@ -435,8 +453,9 @@ public class SimpleTriggerImplBenchmark
             DateTimeOffset? endTimeUtc,
             int repeatCount,
             TimeSpan repeatInterval)
-            : base(name, group, TimeProvider.System)
+            : base(TimeProvider.System)
         {
+            Key = new TriggerKey(name, group);
             StartTimeUtc = startTimeUtc;
             EndTimeUtc = endTimeUtc;
             RepeatCount = repeatCount;
@@ -463,8 +482,10 @@ public class SimpleTriggerImplBenchmark
         public SimpleTriggerImplLegacy(string name, string group, string jobName, string jobGroup, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc,
             int repeatCount, TimeSpan repeatInterval)
-            : base(name, group, jobName, jobGroup, TimeProvider.System)
+            : base(TimeProvider.System)
         {
+            Key = new TriggerKey(name, group);
+            JobKey = new JobKey(jobName, jobGroup);
             StartTimeUtc = startTimeUtc;
             EndTimeUtc = endTimeUtc;
             RepeatCount = repeatCount;

@@ -187,7 +187,13 @@ public class CronTriggerTest
     {
         var startTime = DateTimeOffset.UtcNow;
         var endTime = DateTimeOffset.UtcNow.AddDays(1);
-        var trigger = new CronTriggerImpl("name", "group", "jobname", "jobgroup", startTime, endTime, "0 0 12 * * ?", TimeZoneInfo.Utc);
+        var trigger = new CronTriggerImpl("name", "group", "0 0 12 * * ?")
+        {
+            JobKey = new JobKey("jobname", "jobgroup"),
+            StartTimeUtc = startTime,
+            EndTimeUtc = endTime,
+            TimeZone = TimeZoneInfo.Utc
+        };
         trigger.MisfireInstructionCode = MisfireInstruction.CronTrigger.FireOnceNow;
         var scheduleBuilder = trigger.GetScheduleBuilder();
 

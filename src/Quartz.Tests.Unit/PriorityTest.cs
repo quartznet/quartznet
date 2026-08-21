@@ -64,8 +64,8 @@ public class PriorityTest
         DateTime n = DateTime.UtcNow;
         DateTime date = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
-        IMutableTrigger trig1 = new SimpleTriggerImpl("T1", date);
-        IMutableTrigger trig2 = new SimpleTriggerImpl("T2", date);
+        IMutableTrigger trig1 = new SimpleTriggerImpl { Key = new TriggerKey("T1"), StartTimeUtc = date };
+        IMutableTrigger trig2 = new SimpleTriggerImpl { Key = new TriggerKey("T2"), StartTimeUtc = date };
 
         JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof(TestJob));
 
@@ -96,10 +96,10 @@ public class PriorityTest
         DateTime n = DateTime.UtcNow.AddSeconds(1);
         DateTime date = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
-        IOperableTrigger trig1 = new SimpleTriggerImpl("T1", date);
+        IOperableTrigger trig1 = new SimpleTriggerImpl { Key = new TriggerKey("T1"), StartTimeUtc = date };
         trig1.Priority = 5;
 
-        IOperableTrigger trig2 = new SimpleTriggerImpl("T2", date);
+        IOperableTrigger trig2 = new SimpleTriggerImpl { Key = new TriggerKey("T2"), StartTimeUtc = date };
         trig2.Priority = 10;
 
         JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof(TestJob));

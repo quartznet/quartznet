@@ -62,7 +62,7 @@ public class JobExecutionContextTest
             .UsingJobData("shared", "fromJob")
             .Build();
 
-        IOperableTrigger trigger = new SimpleTriggerImpl("triggerName", "triggerGroup");
+        IOperableTrigger trigger = new SimpleTriggerImpl { Key = new TriggerKey("triggerName", "triggerGroup"), StartTimeUtc = TimeProvider.System.GetUtcNow() };
         trigger.JobDataMap["triggerOnly"] = "triggerValue";
         trigger.JobDataMap["shared"] = "fromTrigger";
 

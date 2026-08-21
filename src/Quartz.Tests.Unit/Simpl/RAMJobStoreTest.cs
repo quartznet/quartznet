@@ -246,7 +246,7 @@ public class RAMJobStoreTest
 
         string trName = "StoreTriggerReplacesTrigger";
         string trGroup = "StoreTriggerReplacesTriggerGroup";
-        IOperableTrigger tr = new SimpleTriggerImpl(trName, trGroup, DateTimeOffset.Now);
+        IOperableTrigger tr = new SimpleTriggerImpl { Key = new TriggerKey(trName, trGroup), StartTimeUtc = DateTimeOffset.Now };
         tr.JobKey = new JobKey(jobName, jobGroup);
         tr.CalendarName = null;
 
@@ -293,7 +293,7 @@ public class RAMJobStoreTest
 
         string trName = "PauseJobGroupPausesNewJobTrigger";
         string trGroup = "PauseJobGroupPausesNewJobTriggerGroup";
-        IOperableTrigger tr = new SimpleTriggerImpl(trName, trGroup, DateTimeOffset.UtcNow);
+        IOperableTrigger tr = new SimpleTriggerImpl { Key = new TriggerKey(trName, trGroup), StartTimeUtc = DateTimeOffset.UtcNow };
         tr.JobKey = new JobKey(jobName2, jobGroup);
         await fJobStore.AddTrigger(tr, false);
         Assert.That(await fJobStore.GetTriggerState(tr.Key), Is.EqualTo(TriggerState.Paused));
@@ -312,7 +312,7 @@ public class RAMJobStoreTest
         await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
         await fJobStore.ResumeJob(job.Key);
 
-        IOperableTrigger tr = new SimpleTriggerImpl("newTrigger", "triggerGroup", DateTimeOffset.UtcNow);
+        IOperableTrigger tr = new SimpleTriggerImpl { Key = new TriggerKey("newTrigger", "triggerGroup"), StartTimeUtc = DateTimeOffset.UtcNow };
         tr.JobKey = job.Key;
         await fJobStore.AddTrigger(tr, false);
 
@@ -337,11 +337,11 @@ public class RAMJobStoreTest
         await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
         await fJobStore.ResumeJob(job1.Key);
 
-        IOperableTrigger tr1 = new SimpleTriggerImpl("trigger1", "triggerGroup", DateTimeOffset.UtcNow);
+        IOperableTrigger tr1 = new SimpleTriggerImpl { Key = new TriggerKey("trigger1", "triggerGroup"), StartTimeUtc = DateTimeOffset.UtcNow };
         tr1.JobKey = job1.Key;
         await fJobStore.AddTrigger(tr1, false);
 
-        IOperableTrigger tr2 = new SimpleTriggerImpl("trigger2", "triggerGroup", DateTimeOffset.UtcNow);
+        IOperableTrigger tr2 = new SimpleTriggerImpl { Key = new TriggerKey("trigger2", "triggerGroup"), StartTimeUtc = DateTimeOffset.UtcNow };
         tr2.JobKey = job2.Key;
         await fJobStore.AddTrigger(tr2, false);
 
@@ -363,7 +363,7 @@ public class RAMJobStoreTest
         await fJobStore.ResumeJob(job.Key);
         await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
 
-        IOperableTrigger tr = new SimpleTriggerImpl("newTrigger", "triggerGroup", DateTimeOffset.UtcNow);
+        IOperableTrigger tr = new SimpleTriggerImpl { Key = new TriggerKey("newTrigger", "triggerGroup"), StartTimeUtc = DateTimeOffset.UtcNow };
         tr.JobKey = job.Key;
         await fJobStore.AddTrigger(tr, false);
 
@@ -392,7 +392,7 @@ public class RAMJobStoreTest
             .Build();
         await fJobStore.AddJob(laterJob, false);
 
-        IOperableTrigger tr = new SimpleTriggerImpl("newTrigger", "triggerGroup", DateTimeOffset.UtcNow);
+        IOperableTrigger tr = new SimpleTriggerImpl { Key = new TriggerKey("newTrigger", "triggerGroup"), StartTimeUtc = DateTimeOffset.UtcNow };
         tr.JobKey = laterJob.Key;
         await fJobStore.AddTrigger(tr, false);
 
@@ -1245,7 +1245,7 @@ public class RAMJobStoreTest
         Assert.That(stored, Is.InstanceOf<ISimpleTrigger>(), "Initial trigger should be a SimpleTrigger");
 
         // Now replace with a cron trigger using the same trigger key
-        var cronTrigger = new CronTriggerImpl("trigger-switch", "group1", job.Key.Name, job.Key.Group, "0 0 * * * ?");
+        var cronTrigger = new CronTriggerImpl("trigger-switch", "group1", "0 0 * * * ?") { JobKey = new JobKey(job.Key.Name, job.Key.Group) };
         cronTrigger.ComputeFirstFireTimeUtc(null);
 
         var triggersAndJobs = new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>

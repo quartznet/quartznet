@@ -274,7 +274,13 @@ public class AdoJobStoreSmokeTest
             .UsingJobData("testkey", "testvalue")
             .Build();
 
-        IOperableTrigger triggerWithData = new SimpleTriggerImpl("datatrigger", "triggergroup", 20, TimeSpan.FromSeconds(5));
+        IOperableTrigger triggerWithData = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("datatrigger", "triggergroup"),
+            StartTimeUtc = TimeProvider.System.GetUtcNow(),
+            RepeatCount = 20,
+            RepeatInterval = TimeSpan.FromSeconds(5)
+        };
         triggerWithData.JobDataMap.Add("testkey", "testvalue");
         triggerWithData.EndTimeUtc = DateTime.UtcNow.AddYears(10);
         triggerWithData.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
@@ -346,7 +352,13 @@ public class AdoJobStoreSmokeTest
 
                 for (int i = 0; i < 100000; ++i)
                 {
-                    ITrigger trigger = new SimpleTriggerImpl("calendarsTrigger", "test", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
+                    ITrigger trigger = new SimpleTriggerImpl
+                    {
+                        Key = new TriggerKey("calendarsTrigger", "test"),
+                        StartTimeUtc = TimeProvider.System.GetUtcNow(),
+                        RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+                        RepeatInterval = TimeSpan.FromSeconds(1)
+                    };
                     var jd = JobBuilder.Create<NoOpJob>()
                         .WithIdentity(new JobKey("testJob", "test"))
                         .Build();
@@ -512,14 +524,20 @@ public class AdoJobStoreSmokeTest
 
             for (int i = 0; i < 100000; ++i)
             {
-                IOperableTrigger trigger = new SimpleTriggerImpl("stressing_simple", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
+                IOperableTrigger trigger = new SimpleTriggerImpl
+                {
+                    Key = new TriggerKey("stressing_simple"),
+                    StartTimeUtc = TimeProvider.System.GetUtcNow(),
+                    RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+                    RepeatInterval = TimeSpan.FromSeconds(1)
+                };
                 trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
                 await scheduler.ScheduleJob(job, trigger);
             }
 
             for (int i = 0; i < 100000; ++i)
             {
-                IOperableTrigger ct = new CronTriggerImpl("stressing_cron", "0/1 * * * * ?");
+                IOperableTrigger ct = new CronTriggerImpl("stressing_cron", SchedulerConstants.DefaultGroup, "0/1 * * * * ?");
                 ct.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
                 await scheduler.ScheduleJob(job, ct);
             }

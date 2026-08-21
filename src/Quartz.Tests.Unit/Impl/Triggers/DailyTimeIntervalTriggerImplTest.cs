@@ -962,14 +962,21 @@ public class DailyTimeIntervalTriggerImplTest
     }
 
     [Test]
-    public void TestExtraConstructors()
+    public void TestObjectInitializerSetsEveryProperty()
     {
-        // A test case for QTZ-389 - some extra constructors didn't set all parameters
-        DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl(
-            "triggerName", "triggerGroup", "jobName", "jobGroup",
-            dateOf(8, 0, 0, 1, 1, 2012), null,
-            new TimeOnly(8, 0, 0), new TimeOnly(17, 0, 0),
-            IntervalUnit.Hour, 1);
+        // Descended from QTZ-389, where some of the extra constructors quietly dropped a parameter.
+        // Those constructors are gone; this now guards the object-initializer form that replaced them.
+        DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl
+        {
+            Key = new TriggerKey("triggerName", "triggerGroup"),
+            JobKey = new JobKey("jobName", "jobGroup"),
+            StartTimeUtc = dateOf(8, 0, 0, 1, 1, 2012),
+            EndTimeUtc = null,
+            RepeatIntervalUnit = IntervalUnit.Hour,
+            RepeatInterval = 1,
+            StartTimeOfDay = new TimeOnly(8, 0, 0),
+            EndTimeOfDay = new TimeOnly(17, 0, 0)
+        };
 
         Assert.Multiple(() =>
         {
@@ -987,11 +994,16 @@ public class DailyTimeIntervalTriggerImplTest
             Assert.That(trigger.RepeatInterval, Is.EqualTo(1));
         });
 
-        trigger = new DailyTimeIntervalTriggerImpl(
-            "triggerName", "triggerGroup",
-            dateOf(8, 0, 0, 1, 1, 2012), null,
-            new TimeOnly(8, 0, 0), new TimeOnly(17, 0, 0),
-            IntervalUnit.Hour, 1);
+        trigger = new DailyTimeIntervalTriggerImpl
+        {
+            Key = new TriggerKey("triggerName", "triggerGroup"),
+            StartTimeUtc = dateOf(8, 0, 0, 1, 1, 2012),
+            EndTimeUtc = null,
+            RepeatIntervalUnit = IntervalUnit.Hour,
+            RepeatInterval = 1,
+            StartTimeOfDay = new TimeOnly(8, 0, 0),
+            EndTimeOfDay = new TimeOnly(17, 0, 0)
+        };
 
         Assert.Multiple(() =>
         {
@@ -1123,7 +1135,16 @@ public class DailyTimeIntervalTriggerImplTest
         var endTime = DateTimeOffset.UtcNow.AddDays(1);
         var startTimeOfDay = new TimeOnly(1, 2, 3);
         var endTimeOfDay = new TimeOnly(3, 2, 1);
-        var trigger = new DailyTimeIntervalTriggerImpl("name", "group", startTime, endTime, startTimeOfDay, endTimeOfDay, IntervalUnit.Hour, 10);
+        var trigger = new DailyTimeIntervalTriggerImpl
+        {
+            Key = new TriggerKey("name", "group"),
+            StartTimeUtc = startTime,
+            EndTimeUtc = endTime,
+            RepeatIntervalUnit = IntervalUnit.Hour,
+            RepeatInterval = 10,
+            StartTimeOfDay = startTimeOfDay,
+            EndTimeOfDay = endTimeOfDay
+        };
         trigger.RepeatCount = 12;
         trigger.DaysOfWeek = new List<DayOfWeek>
         {
