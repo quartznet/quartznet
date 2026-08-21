@@ -364,6 +364,71 @@ public class CronTriggerTest
             "Should skip all past-due fire times and reschedule strictly after now");
     }
 
+    private static readonly DateTimeOffset MisfireStartTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset MisfireNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
+
+    /// <summary>
+    /// A cron trigger firing every two minutes from 10:00, sitting on the past-due 10:00 fire time
+    /// while misfire handling runs at 10:02:30.
+    /// </summary>
+    /// <remarks>
+    /// The past-due fire time has to be written back by hand. <see cref="CronTriggerImpl.ComputeFirstFireTimeUtc" />
+    /// advances any computed time that is already behind 'now', so it never leaves a cron trigger in
+    /// the state misfire handling exists to deal with - the state the store hands back after the
+    /// scheduler was down. A fixture that only calls <c>ComputeFirstFireTimeUtc</c> would have the
+    /// rescheduled time already in place before <c>UpdateAfterMisfire</c> is ever called, and would
+    /// therefore pass no matter what that method did.
+    /// </remarks>
+    private static CronTriggerImpl CreateMisfiredTrigger(int misfireInstruction)
+    {
+        CronTriggerImpl trigger = new CronTriggerImpl(new FixedTimeProvider(MisfireNow))
+        {
+            Key = new TriggerKey("test", "test"),
+            CronExpressionString = "0 0/2 * * * ?",
+            StartTimeUtc = MisfireStartTime,
+            MisfireInstructionCode = misfireInstruction
+        };
+        trigger.ComputeFirstFireTimeUtc(null);
+        trigger.NextFireTimeUtc = MisfireStartTime;
+        return trigger;
+    }
+
+    [Test]
+    public void DoNothing_AfterMisfire_SkipsTheFireTimeTheStoreStillHolds()
+    {
+        CronTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.CronTrigger.DoNothing);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(new DateTimeOffset(2025, 1, 1, 10, 4, 0, TimeSpan.Zero),
+            "DoNothing recomputes from 'now', dropping the 10:00 fire the store was still holding");
+    }
+
+    [Test]
+    public void SmartPolicy_AfterMisfire_IsFireOnceNow()
+    {
+        CronTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SmartPolicy);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow,
+            "the cron family resolves SmartPolicy to FireOnceNow, which schedules the trigger for exactly now");
+        trigger.GetFireTimeAfter(MisfireNow).Should().Be(new DateTimeOffset(2025, 1, 1, 10, 4, 0, TimeSpan.Zero),
+            "the catch-up fire is off the cron grid, but it does not move the schedule that follows it");
+    }
+
+    [Test]
+    public void IgnoreMisfirePolicy_AfterMisfire_LeavesThePastDueFireTimeAlone()
+    {
+        CronTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.IgnoreMisfirePolicy);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireStartTime,
+            "ignoring misfires means the past-due fire time stays put so the trigger fires its way back up to date; " +
+            "UpdateAfterMisfire has no branch for the code, and reaching none of them is what makes it a no-op");
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;

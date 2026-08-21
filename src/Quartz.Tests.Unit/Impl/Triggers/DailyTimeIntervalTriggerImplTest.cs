@@ -1250,6 +1250,54 @@ public class DailyTimeIntervalTriggerImplTest
             "Should skip to the next fire time strictly after now");
     }
 
+    private static readonly DateTimeOffset MisfireStartTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset MisfireNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
+
+    /// <summary>
+    /// A daily-time-interval trigger firing every two minutes all day from 10:00, whose misfire
+    /// handling runs at 10:02:30 with 10:00 past due.
+    /// </summary>
+    private static DailyTimeIntervalTriggerImpl CreateMisfiredTrigger(int misfireInstruction)
+    {
+        DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl(new FixedTimeProvider(MisfireNow))
+        {
+            Key = new TriggerKey("test", "test"),
+            StartTimeUtc = MisfireStartTime,
+            StartTimeOfDay = new TimeOnly(0, 0, 0),
+            EndTimeOfDay = new TimeOnly(23, 59, 59),
+            RepeatInterval = 2,
+            RepeatIntervalUnit = IntervalUnit.Minute,
+            MisfireInstructionCode = misfireInstruction
+        };
+        trigger.ComputeFirstFireTimeUtc(null);
+        trigger.NextFireTimeUtc.Should().Be(MisfireStartTime, "the fixture depends on the trigger being past due");
+        return trigger;
+    }
+
+    [Test]
+    public void SmartPolicy_AfterMisfire_IsFireOnceNow()
+    {
+        DailyTimeIntervalTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SmartPolicy);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow,
+            "the daily-time-interval family resolves SmartPolicy to FireOnceNow, which schedules the trigger for exactly now");
+        trigger.GetFireTimeAfter(MisfireNow).Should().Be(new DateTimeOffset(2025, 1, 1, 10, 4, 0, TimeSpan.Zero),
+            "the catch-up fire is off the interval grid, but it does not move the schedule that follows it");
+    }
+
+    [Test]
+    public void IgnoreMisfirePolicy_AfterMisfire_LeavesThePastDueFireTimeAlone()
+    {
+        DailyTimeIntervalTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.IgnoreMisfirePolicy);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireStartTime,
+            "ignoring misfires means the past-due fire time stays put so the trigger fires its way back up to date");
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;

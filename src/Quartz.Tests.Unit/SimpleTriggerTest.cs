@@ -489,6 +489,148 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         Assert.That(trigger.TimesTriggered, Is.EqualTo(3));
     }
 
+    private static readonly DateTimeOffset MisfireStartTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
+
+    /// <summary>
+    /// Misfire handling runs five minutes after the schedule started, so 10:00, 10:02 and 10:04 are
+    /// all past due and 'now' sits between two fire times rather than on one.
+    /// </summary>
+    private static readonly DateTimeOffset MisfireNow = new DateTimeOffset(2025, 1, 1, 10, 5, 0, TimeSpan.Zero);
+
+    /// <summary>
+    /// A simple trigger firing every two minutes from <see cref="MisfireStartTime" />, past due by the
+    /// time the frozen <see cref="MisfireNow" /> clock is read.
+    /// </summary>
+    private static SimpleTriggerImpl CreateMisfiredTrigger(int misfireInstruction, int repeatCount)
+    {
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl(new FixedTimeProvider(MisfireNow))
+        {
+            Key = new TriggerKey("test", "test"),
+            StartTimeUtc = MisfireStartTime,
+            RepeatInterval = TimeSpan.FromMinutes(2),
+            RepeatCount = repeatCount,
+            MisfireInstructionCode = misfireInstruction
+        };
+        trigger.ComputeFirstFireTimeUtc(null);
+        trigger.NextFireTimeUtc.Should().Be(MisfireStartTime, "the fixture depends on the trigger being past due");
+        return trigger;
+    }
+
+    [Test]
+    public void SmartPolicy_AfterMisfire_IsFireNowForAOneShotTrigger()
+    {
+        SimpleTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SmartPolicy, repeatCount: 0);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow,
+            "SmartPolicy on a trigger that never repeats resolves to FireNow, which is simply 'catch up once'");
+        trigger.StartTimeUtc.Should().Be(MisfireStartTime, "FireNow is the one reschedule-now policy that does not re-anchor the start time");
+    }
+
+    [Test]
+    public void SmartPolicy_AfterMisfire_IsRescheduleNextWithRemainingCountForAnIndefiniteTrigger()
+    {
+        SimpleTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SmartPolicy, SimpleTriggerImpl.RepeatIndefinitely);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(new DateTimeOffset(2025, 1, 1, 10, 6, 0, TimeSpan.Zero),
+            "SmartPolicy on an endlessly repeating trigger resolves to RescheduleNextWithRemainingCount, which resumes on the grid rather than firing now");
+        trigger.StartTimeUtc.Should().Be(MisfireStartTime, "the 'next' policies leave the interval grid where it was");
+        trigger.TimesTriggered.Should().Be(3,
+            "the three fires between 10:00 and 10:06 were skipped, and the count is advanced as though they had happened");
+    }
+
+    [Test]
+    public void SmartPolicy_AfterMisfire_IsRescheduleNowWithExistingCountForACountedTrigger()
+    {
+        SimpleTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SmartPolicy, repeatCount: 6);
+        trigger.TimesTriggered = 1;
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow,
+            "SmartPolicy on a trigger with a finite repeat count resolves to RescheduleNowWithExistingRepeatCount");
+        trigger.StartTimeUtc.Should().Be(MisfireNow, "the interval grid is re-anchored to now, which is why the policy 'forgets' the original start time");
+        trigger.RepeatCount.Should().Be(5, "the one fire already made is deducted, and the rest are still owed");
+        trigger.TimesTriggered.Should().Be(0, "the count restarts along with the start time");
+    }
+
+    [Test]
+    public void IgnoreMisfirePolicy_AfterMisfire_LeavesThePastDueFireTimeAlone()
+    {
+        SimpleTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.IgnoreMisfirePolicy, SimpleTriggerImpl.RepeatIndefinitely);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireStartTime,
+            "ignoring misfires means the past-due fire time stays put so the trigger fires its way back up to date; " +
+            "UpdateAfterMisfire has no branch for the code, and reaching none of them is what makes it a no-op");
+        trigger.StartTimeUtc.Should().Be(MisfireStartTime);
+        trigger.TimesTriggered.Should().Be(0);
+    }
+
+    [Test]
+    public void FireNow_AfterMisfire_FiresNowForAOneShotTrigger()
+    {
+        // The repeating case is rewritten to RescheduleNowWithRemainingRepeatCount, which
+        // TriggerDstMisfireTests covers. This is the one that stays FireNow.
+        SimpleTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SimpleTrigger.FireNow, repeatCount: 0);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow, "a one-shot trigger simply fires as soon as it can");
+        trigger.StartTimeUtc.Should().Be(MisfireStartTime, "nothing about the schedule is rewritten, because there is no schedule left");
+        trigger.RepeatCount.Should().Be(0);
+    }
+
+    [Test]
+    public void RescheduleNowWithExistingRepeatCount_AfterMisfire_RestartsTheScheduleAtNow()
+    {
+        SimpleTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount, repeatCount: 10);
+        trigger.TimesTriggered = 2;
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow, "the policy fires now and rebuilds the schedule from there");
+        trigger.StartTimeUtc.Should().Be(MisfireNow);
+        trigger.RepeatCount.Should().Be(8,
+            "'existing count' means the fires already made are deducted and the missed ones are not, so all eight remaining fires still happen");
+        trigger.TimesTriggered.Should().Be(0);
+    }
+
+    [Test]
+    public void RescheduleNowWithRemainingRepeatCount_AfterMisfire_DropsTheMissedFiresFromTheCount()
+    {
+        SimpleTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount, repeatCount: 10);
+        trigger.TimesTriggered = 1;
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow);
+        trigger.StartTimeUtc.Should().Be(MisfireNow);
+        trigger.RepeatCount.Should().Be(7,
+            "one fire was made and two more were missed between 10:00 and 10:05, and 'remaining count' writes both off - " +
+            "this is what separates the policy from RescheduleNowWithExistingRepeatCount");
+        trigger.TimesTriggered.Should().Be(0);
+    }
+
+    [Test]
+    public void RescheduleNowWithRemainingRepeatCount_AfterMisfire_CompletesTheTriggerPastItsEndTime()
+    {
+        SimpleTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount, repeatCount: 10);
+        trigger.EndTimeUtc = new DateTimeOffset(2025, 1, 1, 10, 3, 0, TimeSpan.Zero);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().BeNull("the end time passed before misfire handling ran, so there is nothing to reschedule");
+        trigger.StartTimeUtc.Should().Be(MisfireStartTime, "the start time is only re-anchored on the branch that actually reschedules");
+        trigger.RepeatCount.Should().Be(8,
+            "the repeat count is recomputed before the end time is consulted, so a trigger that will never fire again still has its count rewritten - " +
+            "harmless because the null fire time completes it, but it means RepeatCount is not a safe record of the original schedule");
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         /// <summary>
