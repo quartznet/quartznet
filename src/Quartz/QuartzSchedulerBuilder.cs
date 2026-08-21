@@ -215,7 +215,7 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
 
     /// <inheritdoc />
     public IQuartzBuilder UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
-        where T : class, ITypeLoadHelper => inner.UseTypeLoader<T>();
+        where T : class, ITypeLoader => inner.UseTypeLoader<T>();
 
     /// <inheritdoc />
     public IQuartzBuilder UseTimeProvider(TimeProvider timeProvider) => inner.UseTimeProvider(timeProvider);

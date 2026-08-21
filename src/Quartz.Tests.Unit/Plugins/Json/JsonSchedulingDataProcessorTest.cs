@@ -11,7 +11,7 @@ namespace Quartz.Tests.Unit.Plugin.Json;
 public class JsonSchedulingDataProcessorTest
 {
     private static JsonSchedulingDataProcessor CreateProcessor() =>
-        new(NullLogger<JsonSchedulingDataProcessor>.Instance, new SimpleTypeLoadHelper(), TimeProvider.System);
+        new(NullLogger<JsonSchedulingDataProcessor>.Instance, new SimpleTypeLoader(), TimeProvider.System);
 
     [Test]
     public void ParsesCronTrigger()

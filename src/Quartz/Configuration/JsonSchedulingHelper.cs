@@ -46,10 +46,10 @@ internal static class JsonSchedulingHelper
             SchedulerContent.Register(services, name, serviceProvider =>
             {
                 var options = serviceProvider.GetRequiredService<IOptionsMonitor<QuartzOptions>>().Get(name);
-                var typeLoadHelper = ResolveTypeLoadHelper(options, serviceProvider);
+                var typeLoader = ResolveTypeLoader(options, serviceProvider);
 
                 var content = new SchedulerContent();
-                foreach (var job in ReadJobs(scheduleSection.GetSection("Jobs"), typeLoadHelper))
+                foreach (var job in ReadJobs(scheduleSection.GetSection("Jobs"), typeLoader))
                 {
                     content.Add(job);
                 }
@@ -64,7 +64,7 @@ internal static class JsonSchedulingHelper
         }
     }
 
-    internal static List<IJobDetail> ReadJobs(IConfigurationSection jobsSection, ITypeLoadHelper typeLoadHelper)
+    internal static List<IJobDetail> ReadJobs(IConfigurationSection jobsSection, ITypeLoader typeLoader)
     {
         var jobs = new List<IJobDetail>();
 
@@ -93,7 +93,7 @@ internal static class JsonSchedulingHelper
             var durable = ParseBool(jobSection[nameof(JsonJobDefinition.Durable)]);
             var recover = ParseBool(jobSection[nameof(JsonJobDefinition.Recover)]);
 
-            var jobType = typeLoadHelper.LoadType(jobTypeName!)
+            var jobType = typeLoader.LoadType(jobTypeName!)
                 ?? throw new SchedulerConfigException($"JSON job definition '{name}': could not load type '{jobTypeName}'.");
 
             var builder = JobBuilder.Create().OfType(jobType);
@@ -469,26 +469,26 @@ internal static class JsonSchedulingHelper
     }
 
     /// <summary>
-    /// Resolves the <see cref="ITypeLoadHelper"/> to use for loading job types from JSON configuration.
+    /// Resolves the <see cref="ITypeLoader"/> to use for loading job types from JSON configuration.
     /// Checks the scheduler-specific property first (set via <c>UseTypeLoader&lt;T&gt;()</c>),
-    /// then falls back to the DI-registered singleton, then to <see cref="SimpleTypeLoadHelper"/>.
+    /// then falls back to the DI-registered singleton, then to <see cref="SimpleTypeLoader"/>.
     /// </summary>
-    private static ITypeLoadHelper ResolveTypeLoadHelper(QuartzOptions options, IServiceProvider serviceProvider)
+    private static ITypeLoader ResolveTypeLoader(QuartzOptions options, IServiceProvider serviceProvider)
     {
-        ITypeLoadHelper typeLoadHelper;
+        ITypeLoader typeLoader;
 
-        if (options.Properties.TryGetValue(LegacyPropertyKeys.SchedulerTypeLoadHelperType, out var typeName)
+        if (options.Properties.TryGetValue(LegacyPropertyKeys.SchedulerTypeLoaderType, out var typeName)
             && !string.IsNullOrWhiteSpace(typeName))
         {
             var type = Type.GetType(typeName, throwOnError: true)!;
-            typeLoadHelper = ObjectUtils.InstantiateType<ITypeLoadHelper>(type);
+            typeLoader = ObjectUtils.InstantiateType<ITypeLoader>(type);
         }
         else
         {
-            typeLoadHelper = serviceProvider.GetService<ITypeLoadHelper>() ?? new SimpleTypeLoadHelper();
+            typeLoader = serviceProvider.GetService<ITypeLoader>() ?? new SimpleTypeLoader();
         }
 
-        return typeLoadHelper;
+        return typeLoader;
     }
 
     /// <summary>

@@ -120,7 +120,7 @@ public class UpdateTriggerTest
             InstanceName = "TESTSCHED",
             InstanceId = "INSTANCE",
             DbProvider = dbProvider,
-            TypeLoadHelper = new SimpleTypeLoadHelper()
+            TypeLoader = new SimpleTypeLoader()
         };
 
         var adoDelegate = new StdAdoDelegate();
@@ -207,7 +207,7 @@ public class UpdateTriggerTest
             InstanceName = "TESTSCHED",
             InstanceId = "INSTANCE",
             DbProvider = dbProvider,
-            TypeLoadHelper = new SimpleTypeLoadHelper()
+            TypeLoader = new SimpleTypeLoader()
         };
 
         var adoDelegate = new StdAdoDelegate();

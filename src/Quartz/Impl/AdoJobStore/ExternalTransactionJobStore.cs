@@ -50,7 +50,7 @@ public class ExternalTransactionJobStore : AdoJobStoreBase
     /// </summary>
     public ExternalTransactionJobStore(
         ISchedulerSignaler schedulerSignaler,
-        ITypeLoadHelper typeLoadHelper,
+        ITypeLoader typeLoader,
         TimeProvider timeProvider,
         IOptions<QuartzSchedulerOptions> schedulerOptions,
         IOptions<AdoJobStoreOptions> storeOptions,
@@ -61,7 +61,7 @@ public class ExternalTransactionJobStore : AdoJobStoreBase
         IDriverDelegate driverDelegate,
         ISemaphore? lockHandler = null,
         IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null)
-        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates)
+        : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates)
     {
         openConnection = storeOptions.Value.OpenConnection;
     }

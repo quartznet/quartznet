@@ -46,7 +46,7 @@ public class LocalTransactionJobStore : AdoJobStoreBase
     /// </summary>
     public LocalTransactionJobStore(
         ISchedulerSignaler schedulerSignaler,
-        ITypeLoadHelper typeLoadHelper,
+        ITypeLoader typeLoader,
         TimeProvider timeProvider,
         IOptions<QuartzSchedulerOptions> schedulerOptions,
         IOptions<AdoJobStoreOptions> storeOptions,
@@ -57,7 +57,7 @@ public class LocalTransactionJobStore : AdoJobStoreBase
         IDriverDelegate driverDelegate,
         ISemaphore? lockHandler = null,
         IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null)
-        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates)
+        : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates)
     {
     }
 

@@ -25,7 +25,7 @@ namespace Quartz.Extensibility;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public interface ITypeLoadHelper
+public interface ITypeLoader
 {
     /// <summary>
     /// Return the type with the given name.

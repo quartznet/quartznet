@@ -27,7 +27,7 @@ namespace Quartz.Configuration;
 /// </remarks>
 internal static class PropertyListenerFactory
 {
-    private static readonly SimpleTypeLoadHelper typeLoadHelper = new();
+    private static readonly SimpleTypeLoader typeLoader = new();
 
     /// <summary>
     /// Creates the listeners of one kind, paired with the names they were configured under.
@@ -45,7 +45,7 @@ internal static class PropertyListenerFactory
     {
         var listeners = new List<TListener>();
         var start = prefix + ".";
-        var loader = provider.GetService<ITypeLoadHelper>() ?? typeLoadHelper;
+        var loader = provider.GetService<ITypeLoader>() ?? typeLoader;
 
         foreach (var name in Names(properties, start))
         {

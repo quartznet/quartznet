@@ -283,7 +283,7 @@ public class AdoJobStoreBaseTest
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
         A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
@@ -308,7 +308,7 @@ public class AdoJobStoreBaseTest
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
         A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(false));
@@ -328,7 +328,7 @@ public class AdoJobStoreBaseTest
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
         await jobStoreSupport.CallTriggerFired(conn, trigger);
@@ -375,7 +375,7 @@ public class AdoJobStoreBaseTest
             .Returns(new ValueTask<StoredTriggerState>(originalState));
         A.CallTo(() => driverDelegate.TriggerExists(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, jobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, jobKey, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
         // Act
@@ -471,7 +471,7 @@ public class AdoJobStoreBaseTest
 
         A.CallTo(() => driverDelegate.TriggerExists(conn, A<TriggerKey>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, jobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, jobKey, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
         // Act
@@ -1062,7 +1062,7 @@ public class AdoJobStoreBaseTest
                 }
                 return new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired);
             });
-        A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, trigger.JobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, trigger.JobKey, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
         List<TriggerFiredResult> results = await store.TriggersFired(new[] { trigger });
@@ -1149,7 +1149,7 @@ public class AdoJobStoreBaseTest
                 return new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired);
             });
 
-        A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
         List<TriggerFiredResult> results = await store.TriggersFired(new[] { triggerA, triggerB });
@@ -1904,7 +1904,7 @@ public class AdoJobStoreBaseTest
             .Returns(new ValueTask<JobDataMap>(new JobDataMap()));
 
         IJobDetail job = JobBuilder.Create<ConcurrentTestJob>().WithIdentity(jobKey).RequestRecovery().Build();
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, jobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, jobKey, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
         IOperableTrigger recovery = null;
@@ -2099,7 +2099,7 @@ public class AdoJobStoreBaseTest
         A.CallTo(() => driverDelegate.SelectJobForTrigger(
                 A<ConnectionAndTransactionHolder>.Ignored,
                 A<TriggerKey>.Ignored,
-                A<ITypeLoadHelper>.Ignored,
+                A<ITypeLoader>.Ignored,
                 A<bool>.Ignored,
                 A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>((IJobDetail) null));

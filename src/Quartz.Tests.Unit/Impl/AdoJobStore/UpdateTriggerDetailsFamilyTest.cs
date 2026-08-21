@@ -76,7 +76,7 @@ public class UpdateTriggerDetailsFamilyTest
             .Returns(new ValueTask<IOperableTrigger>(stored));
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, TestTrigger, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Waiting));
-        A.CallTo(() => driverDelegate.SelectJobForTrigger(conn, TestTrigger, A<ITypeLoadHelper>.Ignored, true, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobForTrigger(conn, TestTrigger, A<ITypeLoader>.Ignored, true, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
         stored.MisfireInstructionCode.Should().Be(MisfireInstruction.SmartPolicy,

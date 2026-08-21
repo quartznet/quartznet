@@ -144,10 +144,10 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     }
 
     public IQuartzBuilder UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
-        where T : class, ITypeLoadHelper
+        where T : class, ITypeLoader
     {
         // Type loading is a container-wide concern rather than a per-scheduler one.
-        Services.Replace(ServiceDescriptor.Singleton<ITypeLoadHelper, T>());
+        Services.Replace(ServiceDescriptor.Singleton<ITypeLoader, T>());
         return this;
     }
 

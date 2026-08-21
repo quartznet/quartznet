@@ -31,7 +31,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </remarks>
 /// <param name="TriggerKey">The key of the trigger that could be fired.</param>
 /// <param name="JobTypeName">The name of the job's type, as the trigger's job row stores it — the same
-/// thing <see cref="JobHeader.JobTypeName" /> carries, and what the type load helper is handed to load
+/// thing <see cref="JobHeader.JobTypeName" /> carries, and what the type loader is handed to load
 /// the job. Not to be confused with <see cref="TriggerHeader.TriggerType" />, which is a store
 /// discriminator rather than a type name.</param>
 /// <param name="ExecutionGroup">The trigger's execution group, if it has one.</param>

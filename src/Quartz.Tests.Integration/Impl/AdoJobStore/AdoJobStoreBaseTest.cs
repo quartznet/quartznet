@@ -40,7 +40,7 @@ public class AdoJobStoreBaseTest
     {
         public TestAdoJobStoreBase(
             ISchedulerSignaler schedulerSignaler,
-            ITypeLoadHelper typeLoadHelper,
+            ITypeLoader typeLoader,
             TimeProvider timeProvider,
             IOptions<QuartzSchedulerOptions> schedulerOptions,
         IOptions<AdoJobStoreOptions> storeOptions,
@@ -50,7 +50,7 @@ public class AdoJobStoreBaseTest
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
         ISemaphore lockHandler)
-            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
+            : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
         {
         }
 

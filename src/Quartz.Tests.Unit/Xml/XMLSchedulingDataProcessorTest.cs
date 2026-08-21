@@ -105,7 +105,7 @@ public class XMLSchedulingDataProcessorTest
     private sealed class TestProcessor : XMLSchedulingDataProcessor
     {
         public TestProcessor(TimeProvider timeProvider)
-            : base(NullLogger<XMLSchedulingDataProcessor>.Instance, new SimpleTypeLoadHelper(), timeProvider)
+            : base(NullLogger<XMLSchedulingDataProcessor>.Instance, new SimpleTypeLoader(), timeProvider)
         {
         }
 

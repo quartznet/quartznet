@@ -38,7 +38,7 @@ public sealed record DelegateInitializationArgs
     /// <summary>
     /// The type loading strategy.
     /// </summary>
-    public required ITypeLoadHelper TypeLoadHelper { get; init; }
+    public required ITypeLoader TypeLoader { get; init; }
 
     /// <summary>
     /// Object serializer and deserializer strategy to use.

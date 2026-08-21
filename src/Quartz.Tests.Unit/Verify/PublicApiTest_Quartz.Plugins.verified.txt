@@ -136,7 +136,7 @@ namespace Quartz.Plugins.Json
     public sealed class JsonSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Jobs.IFileScanListener
     {
         public JsonSchedulingDataProcessorPlugin() { }
-        public JsonSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.Json.JsonSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
+        public JsonSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.Json.JsonSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoader typeLoader, System.TimeProvider timeProvider) { }
         public bool FailOnFileNotFound { get; set; }
         public bool FailOnSchedulingError { get; set; }
         public string FileNames { get; set; }
@@ -166,7 +166,7 @@ namespace Quartz.Plugins.Xml
     public class XmlSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Jobs.IFileScanListener
     {
         public XmlSchedulingDataProcessorPlugin() { }
-        public XmlSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
+        public XmlSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoader typeLoader, System.TimeProvider timeProvider) { }
         public bool FailOnFileNotFound { get; set; }
         public virtual bool FailOnSchedulingError { get; set; }
         public string FileNames { get; set; }
@@ -174,7 +174,7 @@ namespace Quartz.Plugins.Xml
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Seconds)]
         public System.TimeSpan ScanInterval { get; set; }
         public Quartz.IScheduler Scheduler { get; }
-        protected Quartz.Extensibility.ITypeLoadHelper TypeLoadHelper { get; }
+        protected Quartz.Extensibility.ITypeLoader TypeLoader { get; }
         public virtual System.Threading.Tasks.ValueTask FileUpdated(string fileName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ProcessFile(string filePath, System.Threading.CancellationToken cancellationToken = default) { }

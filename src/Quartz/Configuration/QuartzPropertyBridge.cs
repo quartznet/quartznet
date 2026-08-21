@@ -39,7 +39,7 @@ namespace Quartz.Configuration;
 /// </remarks>
 internal static class QuartzPropertyBridge
 {
-    private static readonly SimpleTypeLoadHelper typeLoadHelper = new();
+    private static readonly SimpleTypeLoader typeLoader = new();
 
     /// <summary>
     /// Applies a flat property collection as both typed options and service registrations.
@@ -102,10 +102,10 @@ internal static class QuartzPropertyBridge
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(properties);
 
-        // The type load helper is resolved first and then used to load every other configured type, so
+        // The type loader is resolved first and then used to load every other configured type, so
         // an application that keeps its job types in an assembly only its own helper can find gets that
         // helper consulted rather than the built-in one failing on the very next key.
-        var parser = new PropertyReader(properties, ConfiguredTypeLoadHelper(services, properties));
+        var parser = new PropertyReader(properties, ConfiguredTypeLoader(services, properties));
 
         // The serializer goes in before the job store, because the store's persistent branch registers
         // the built-in serializer as a fallback and registration is first-wins.
@@ -234,22 +234,22 @@ internal static class QuartzPropertyBridge
     }
 
     /// <summary>
-    /// Builds the type load helper the configuration names, if it names one.
+    /// Builds the type loader the configuration names, if it names one.
     /// </summary>
     /// <remarks>
     /// This runs while the service collection is still open, so the helper cannot be resolved from a
     /// container that does not exist yet — it is constructed directly. A helper that needs services of
     /// its own is therefore not supported here, which is the same limit the properties format always had.
     /// </remarks>
-    private static ITypeLoadHelper? ConfiguredTypeLoadHelper(IServiceCollection services, NameValueCollection properties)
+    private static ITypeLoader? ConfiguredTypeLoader(IServiceCollection services, NameValueCollection properties)
     {
-        var configured = new PropertyReader(properties).Type(LegacyPropertyKeys.SchedulerTypeLoadHelperType);
+        var configured = new PropertyReader(properties).Type(LegacyPropertyKeys.SchedulerTypeLoaderType);
         if (configured is null)
         {
             return null;
         }
 
-        var helper = (ITypeLoadHelper) Activator.CreateInstance(configured)!;
+        var helper = (ITypeLoader) Activator.CreateInstance(configured)!;
 
         // Container-wide rather than per-scheduler, and replaced rather than tried, because the built-in
         // default may already have been registered by an earlier scheduler in the same container — and a
@@ -283,7 +283,7 @@ internal static class QuartzPropertyBridge
 
         Register<IJobFactory>(services, schedulerName, parser.Type(LegacyPropertyKeys.SchedulerJobFactoryType));
 
-        // Container-wide and replaced rather than tried, for the same reason as the type load helper.
+        // Container-wide and replaced rather than tried, for the same reason as the type loader.
         if (parser.Type(LegacyPropertyKeys.TimeProviderType) is { } timeProviderType)
         {
             services.Replace(ServiceDescriptor.Singleton(typeof(TimeProvider), timeProviderType));
@@ -583,7 +583,7 @@ internal static class QuartzPropertyBridge
                 Type? delegateType;
                 try
                 {
-                    delegateType = typeLoadHelper.LoadType(trimmed);
+                    delegateType = typeLoader.LoadType(trimmed);
                 }
                 catch (TypeLoadException e)
                 {
@@ -661,8 +661,8 @@ internal static class QuartzPropertyBridge
         var serializerType = configured.ToLowerInvariant() switch
         {
             "stj" or "json" => typeof(SystemTextJsonObjectSerializer),
-            "newtonsoft" => typeLoadHelper.LoadType("Quartz.Impl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft"),
-            _ => typeLoadHelper.LoadType(configured),
+            "newtonsoft" => typeLoader.LoadType("Quartz.Impl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft"),
+            _ => typeLoader.LoadType(configured),
         };
 
         if (serializerType is null)
@@ -778,13 +778,13 @@ internal static class QuartzPropertyBridge
     {
         private readonly NameValueCollection properties;
 
-        public PropertyReader(NameValueCollection properties, ITypeLoadHelper? loader = null)
+        public PropertyReader(NameValueCollection properties, ITypeLoader? loader = null)
         {
             this.properties = properties;
-            this.loader = loader ?? typeLoadHelper;
+            this.loader = loader ?? typeLoader;
         }
 
-        private readonly ITypeLoadHelper loader;
+        private readonly ITypeLoader loader;
 
         public string? String(string key)
         {

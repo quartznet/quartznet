@@ -22,11 +22,11 @@ internal sealed class ContainerConfigurationProcessor : XMLSchedulingDataProcess
     /// </remarks>
     public ContainerConfigurationProcessor(
         ILogger<XMLSchedulingDataProcessor> logger,
-        ITypeLoadHelper typeLoadHelper,
+        ITypeLoader typeLoader,
         TimeProvider timeProvider,
         QuartzOptions options,
         IEnumerable<ISchedulerContent> content)
-        : base(logger, typeLoadHelper, timeProvider)
+        : base(logger, typeLoader, timeProvider)
     {
         this.options = options;
 

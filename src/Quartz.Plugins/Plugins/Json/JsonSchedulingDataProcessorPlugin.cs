@@ -52,23 +52,23 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
     private bool started;
 
     public JsonSchedulingDataProcessorPlugin()
-        : this(LogProvider.CreateLogger<JsonSchedulingDataProcessorPlugin>(), new SimpleTypeLoadHelper(), TimeProvider.System)
+        : this(LogProvider.CreateLogger<JsonSchedulingDataProcessorPlugin>(), new SimpleTypeLoader(), TimeProvider.System)
     {
     }
 
     public JsonSchedulingDataProcessorPlugin(
         ILogger<JsonSchedulingDataProcessorPlugin> logger,
-        ITypeLoadHelper typeLoadHelper,
+        ITypeLoader typeLoader,
         TimeProvider timeProvider)
     {
         this.logger = logger;
         this.timeProvider = timeProvider;
-        TypeLoadHelper = typeLoadHelper;
+        TypeLoader = typeLoader;
     }
 
     public string Name { get; private set; } = null!;
     public IScheduler Scheduler { get; private set; } = null!;
-    private ITypeLoadHelper TypeLoadHelper { get; }
+    private ITypeLoader TypeLoader { get; }
 
     public string FileNames { get; set; } = JsonSchedulingDataProcessor.QuartzJsonFileName;
 
@@ -195,7 +195,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         try
         {
             var processor = new JsonSchedulingDataProcessor(
-                LogProvider.CreateLogger<JsonSchedulingDataProcessor>(), TypeLoadHelper, timeProvider);
+                LogProvider.CreateLogger<JsonSchedulingDataProcessor>(), TypeLoader, timeProvider);
 
             processor.AddJobGroupToNeverDelete(PluginName);
             processor.AddTriggerGroupToNeverDelete(PluginName);

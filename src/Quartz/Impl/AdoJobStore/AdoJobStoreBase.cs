@@ -50,7 +50,7 @@ public abstract class AdoJobStoreBase : IJobStore
 
     private ClusterManager? clusterManager;
     private MisfireHandler? misfireHandler;
-    private readonly ITypeLoadHelper typeLoadHelper;
+    private readonly ITypeLoader typeLoader;
     private readonly ISchedulerSignaler schedSignaler;
     internal readonly TimeProvider timeProvider;
 
@@ -64,7 +64,7 @@ public abstract class AdoJobStoreBase : IJobStore
     /// </summary>
     protected AdoJobStoreBase(
         ISchedulerSignaler schedulerSignaler,
-        ITypeLoadHelper typeLoadHelper,
+        ITypeLoader typeLoader,
         TimeProvider timeProvider,
         IOptions<QuartzSchedulerOptions> schedulerOptions,
         IOptions<AdoJobStoreOptions> storeOptions,
@@ -78,7 +78,7 @@ public abstract class AdoJobStoreBase : IJobStore
     {
         schedSignaler = schedulerSignaler;
         ObjectSerializer = objectSerializer;
-        this.typeLoadHelper = typeLoadHelper;
+        this.typeLoader = typeLoader;
         this.timeProvider = timeProvider;
         InstanceName = schedulerOptions.Value.InstanceName;
         InstanceId = schedulerOptions.Value.InstanceId;
@@ -377,7 +377,7 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <seealso cref="SelectForUpdateSemaphore" />
     protected internal string? SelectWithLockSql { get; internal set; }
 
-    protected ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
+    protected ITypeLoader TypeLoader => typeLoader;
 
     /// <summary>
     /// Whether the threads spawned by this JobStore are
@@ -634,7 +634,7 @@ public abstract class AdoJobStoreBase : IJobStore
             InstanceName = InstanceName,
             InstanceId = InstanceId,
             DbProvider = DbProvider,
-            TypeLoadHelper = typeLoadHelper,
+            TypeLoader = typeLoader,
             ObjectSerializer = ObjectSerializer,
             TriggerPersistenceDelegates = triggerPersistenceDelegates,
             TimeProvider = timeProvider,
@@ -1754,7 +1754,7 @@ public abstract class AdoJobStoreBase : IJobStore
     {
         try
         {
-            var job = await Delegate.SelectJobDetail(conn, jobKey, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
+            var job = await Delegate.SelectJobDetail(conn, jobKey, TypeLoader, cancellationToken).ConfigureAwait(false);
             return job;
         }
         catch (TypeLoadException e)
@@ -1864,7 +1864,7 @@ public abstract class AdoJobStoreBase : IJobStore
         return removedTrigger;
     }
 
-    private sealed class NullJobTypeLoader : ITypeLoadHelper
+    private sealed class NullJobTypeLoader : ITypeLoader
     {
         public Type? LoadType(string name)
         {
@@ -1899,7 +1899,7 @@ public abstract class AdoJobStoreBase : IJobStore
         try
         {
             // this must be called before we delete the trigger, obviously
-            var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, loadJobType: true, cancellationToken).ConfigureAwait(false);
+            var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoader, loadJobType: true, cancellationToken).ConfigureAwait(false);
 
             if (job is null)
             {
@@ -2023,7 +2023,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
 
             StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, loadJobType: true, cancellationToken).ConfigureAwait(false);
+            IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoader, loadJobType: true, cancellationToken).ConfigureAwait(false);
 
             if (job is null)
             {
@@ -2629,7 +2629,7 @@ public abstract class AdoJobStoreBase : IJobStore
     {
         try
         {
-            return await Delegate.SelectJobDetails(conn, jobKeys, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
+            return await Delegate.SelectJobDetails(conn, jobKeys, TypeLoader, cancellationToken).ConfigureAwait(false);
         }
         catch (TypeLoadException e)
         {
@@ -3334,7 +3334,7 @@ public abstract class AdoJobStoreBase : IJobStore
                     Type jobType;
                     try
                     {
-                        jobType = typeLoadHelper.LoadType(result.JobTypeName)!;
+                        jobType = typeLoader.LoadType(result.JobTypeName)!;
                     }
                     catch (Exception e)
                     {

@@ -466,7 +466,7 @@ public class RAMJobStoreTest
     public async Task TestAcquireTriggers()
     {
         ISchedulerSignaler schedSignaler = new SampleSignaler();
-        ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
+        ITypeLoader typeLoader = new SimpleTypeLoader();
 
         RAMJobStore store = TestJobStores.Ram();
         await store.Initialize();
@@ -508,7 +508,7 @@ public class RAMJobStoreTest
     public async Task TestAcquireTriggersInBatch()
     {
         ISchedulerSignaler schedSignaler = new SampleSignaler();
-        ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
+        ITypeLoader typeLoader = new SimpleTypeLoader();
 
         RAMJobStore store = TestJobStores.Ram();
         await store.Initialize();

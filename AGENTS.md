@@ -157,7 +157,7 @@ before assuming the code is missing.
 
 Directory layout follows: `src/Quartz/SPI/` → `src/Quartz/Extensibility/`, `src/Quartz/Simpl/` →
 `src/Quartz/Impl/`. String-typed configuration naming the old namespaces still resolves through a
-fallback in `SimpleTypeLoadHelper`, with a warning.
+fallback in `SimpleTypeLoader`, with a warning.
 
 ### Contracts that changed shape
 
@@ -174,7 +174,7 @@ fallback in `SimpleTypeLoadHelper`, with a warning.
 | `IThreadPool.RunInThread` / `BlockForAvailableThreads` | `TryRun(Func<ValueTask>)` / `WaitForAvailableThreads`, both `ValueTask` |
 | `IThreadPool.InstanceId` / `InstanceName` | removed — nothing read them |
 | `IObjectSerializer.DeSerialize` | `Deserialize`; `Initialize()` gone (options built on first use) |
-| `ITypeLoadHelper.Initialize()` | gone |
+| `ITypeLoadHelper` | `ITypeLoader`; its `Initialize()` is gone |
 | `IInstanceIdGenerator` → `ValueTask<string?>` | `ValueTask<string>` |
 | `IRemotableSchedulerProxyFactory` | `ISchedulerProxyFactory` |
 | `ISchedulerListener.SchedulerShuttingdown` | `SchedulerShuttingDown` |

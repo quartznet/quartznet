@@ -57,7 +57,7 @@ internal static class LegacyPropertyKeys
     internal const string SchedulerMaxBatchSize = "quartz.scheduler.batchTriggerAcquisitionMaxCount";
     internal const string SchedulerIdleWaitTime = "quartz.scheduler.idleWaitTime";
     internal const string SchedulerMakeSchedulerThreadDaemon = "quartz.scheduler.makeSchedulerThreadDaemon";
-    internal const string SchedulerTypeLoadHelperType = "quartz.scheduler.typeLoadHelper.type";
+    internal const string SchedulerTypeLoaderType = "quartz.scheduler.typeLoadHelper.type";
     internal const string SchedulerJobFactoryPrefix = "quartz.scheduler.jobFactory";
     internal const string SchedulerJobFactoryType = SchedulerJobFactoryPrefix + ".type";
     internal const string SchedulerInterruptJobsOnShutdown = "quartz.scheduler.interruptJobsOnShutdown";
@@ -104,7 +104,7 @@ internal static class LegacyPropertyKeys
         SchedulerMaxBatchSize,
         SchedulerIdleWaitTime,
         SchedulerMakeSchedulerThreadDaemon,
-        SchedulerTypeLoadHelperType,
+        SchedulerTypeLoaderType,
         SchedulerJobFactoryPrefix,
         SchedulerInterruptJobsOnShutdown,
         SchedulerInterruptJobsOnShutdownWithWait,
