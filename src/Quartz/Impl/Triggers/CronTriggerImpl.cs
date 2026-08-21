@@ -553,23 +553,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     }
 
     /// <summary>
-    /// <para>
-    /// Determines whether the date and (optionally) time of the given Calendar
-    /// instance falls on a scheduled fire-time of this trigger.
-    /// </para>
-    ///
-    /// <para>
-    /// Equivalent to calling <see cref="WillFireOn(DateTimeOffset, bool)" />.
-    /// </para>
-    /// </summary>
-    /// <param name="timeUtc">The time to compare.</param>
-    /// <returns></returns>
-    public bool WillFireOn(DateTimeOffset timeUtc)
-    {
-        return WillFireOn(timeUtc, false);
-    }
-
-    /// <summary>
     /// Determines whether the date and (optionally) time of the given Calendar
     /// instance falls on a scheduled fire-time of this trigger.
     /// <para>
@@ -582,7 +565,7 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// trigger will fire during the day represented by the given Calendar
     /// (hours, minutes and seconds will be ignored).</param>
     /// <returns></returns>
-    public bool WillFireOn(DateTimeOffset timeUtc, bool dayOnly)
+    public bool WillFireOn(DateTimeOffset timeUtc, bool dayOnly = false)
     {
         if (dayOnly)
         {

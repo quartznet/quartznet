@@ -201,6 +201,30 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     }
 
     [Test]
+    public void BooleansAndCharsRoundTripThroughPutAsString()
+    {
+        // Neither is IFormattable, so each has an overload of its own rather than riding the generic one.
+        JobDataMap map = new JobDataMap();
+        map.PutAsString("flag", true);
+        map.PutAsString("letter", 'q');
+
+        map.GetString("flag").Should().Be("True");
+        map.GetBoolean("flag").Should().BeTrue();
+        map.GetString("letter").Should().Be("q");
+        map.GetChar("letter").Should().Be('q');
+    }
+
+    [Test]
+    public void FormattableTypesThatAreNotConvertibleRoundTripThroughPutAsString()
+    {
+        // Int128 and friends never implemented IConvertible, so the old constraint locked them out.
+        JobDataMap map = new JobDataMap();
+        map.PutAsString("big", Int128.MaxValue);
+
+        map.GetString("big").Should().Be(Int128.MaxValue.ToString(CultureInfo.InvariantCulture));
+    }
+
+    [Test]
     public void EnumsRoundTripThroughPutAsString()
     {
         JobDataMap map = new JobDataMap();

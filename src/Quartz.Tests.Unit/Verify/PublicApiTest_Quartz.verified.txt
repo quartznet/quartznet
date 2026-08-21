@@ -792,7 +792,7 @@ namespace Quartz
         public void CopyTo(System.Collections.Generic.KeyValuePair<string, object?>[] array, int arrayIndex) { }
         public bool Equals(Quartz.JobDataMap? other) { }
         public override bool Equals(object? obj) { }
-        public System.Collections.Generic.Dictionary<string, object?>.Enumerator GetEnumerator() { }
+        public System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<string, object?>> GetEnumerator() { }
         public override int GetHashCode() { }
         public void PutAsString(string key, System.DateOnly value) { }
         public void PutAsString(string key, System.DateTime value) { }
@@ -800,8 +800,10 @@ namespace Quartz
         public void PutAsString(string key, System.Guid value) { }
         public void PutAsString(string key, System.TimeOnly value) { }
         public void PutAsString(string key, System.TimeSpan value) { }
+        public void PutAsString(string key, bool value) { }
+        public void PutAsString(string key, char value) { }
         public void PutAsString<T>(string key, T value)
-            where T : System.IConvertible { }
+            where T : System.IFormattable { }
         public bool Remove(string key) { }
         public bool TryGetValue(string key, out object? value) { }
     }
@@ -2931,7 +2933,7 @@ namespace Quartz.Impl
         public System.DateTimeOffset FireTimeUtc { get; }
         public Quartz.IJobDetail JobDetail { get; }
         public Quartz.IJob JobInstance { get; }
-        public System.TimeSpan JobRunTime { get; set; }
+        public System.TimeSpan JobRunTime { get; }
         public Quartz.JobDataMap MergedJobDataMap { get; }
         public System.DateTimeOffset? NextFireTimeUtc { get; }
         public System.DateTimeOffset? PreviousFireTimeUtc { get; }
@@ -2943,7 +2945,6 @@ namespace Quartz.Impl
         public Quartz.IScheduler Scheduler { get; }
         public Quartz.ITrigger Trigger { get; }
         public void Dispose() { }
-        public void IncrementRefireCount() { }
         public override string ToString() { }
     }
     public class MicrosoftDependencyInjectionJobFactory : Quartz.Impl.PropertySettingJobFactory
@@ -3134,8 +3135,7 @@ namespace Quartz.Impl.Triggers
         public override void UpdateAfterMisfire(Quartz.ICalendar? calendar) { }
         public override void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold) { }
         protected override bool ValidateMisfireInstruction(int misfireInstruction) { }
-        public bool WillFireOn(System.DateTimeOffset timeUtc) { }
-        public bool WillFireOn(System.DateTimeOffset timeUtc, bool dayOnly) { }
+        public bool WillFireOn(System.DateTimeOffset timeUtc, bool dayOnly = false) { }
     }
     [System.Serializable]
     public sealed class DailyTimeIntervalTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.IDailyTimeIntervalTrigger, Quartz.ITrigger
