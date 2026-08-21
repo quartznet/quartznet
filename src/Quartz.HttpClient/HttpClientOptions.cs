@@ -33,20 +33,33 @@ public sealed class HttpClientOptions
     public string SchedulerName { get; set; } = null!;
 
     /// <summary>
-    /// If given, IHttpClientFactory is used to fetch HttpClient with this name.
+    /// The name the client is registered under with <c>AddHttpClient</c>, resolved through
+    /// <see cref="System.Net.Http.IHttpClientFactory"/>.
     /// </summary>
     /// <remarks>
-    /// Either this or HttpClient must be given
+    /// Either this or <see cref="CreateHttpClient"/> must be given, and not both. This is the shape to
+    /// reach for: the factory pools and recycles handlers, which is what keeps a long-lived client from
+    /// pinning stale DNS.
     /// </remarks>
     public string? HttpClientName { get; set; }
 
     /// <summary>
-    /// If given this HttpClient will be used
+    /// Builds the client to call the remote scheduler with, for a client that is not registered by name.
     /// </summary>
     /// <remarks>
-    /// Either this or HttpClientName must be given
+    /// <para>
+    /// Either this or <see cref="HttpClientName"/> must be given, and not both. It runs once, when the
+    /// scheduler is first resolved, and is handed the container so that a client assembled from other
+    /// services — a handler, a token provider — can be built here.
+    /// </para>
+    /// <para>
+    /// The client it returns is not disposed by the scheduler: whoever created it owns it. This is a
+    /// factory rather than a client for that reason — an options object is bound, cached and shared, and
+    /// a live <see cref="System.Net.Http.HttpClient"/> sitting in one is a disposable resource with no
+    /// owner and no way to bind it from configuration.
+    /// </para>
     /// </remarks>
-    public System.Net.Http.HttpClient? HttpClient { get; set; }
+    public Func<IServiceProvider, System.Net.Http.HttpClient>? CreateHttpClient { get; set; }
 
     /// <summary>
     /// Optional json serializer options to be used by the HTTP scheduler
@@ -77,15 +90,15 @@ internal sealed class HttpClientOptionsValidator : IValidateOptions<HttpClientOp
         }
 
         var hasName = !string.IsNullOrWhiteSpace(options.HttpClientName);
-        if (!hasName && options.HttpClient is null)
+        if (!hasName && options.CreateHttpClient is null)
         {
             (failures ??= []).Add(
-                $"Either {nameof(HttpClientOptions.HttpClientName)} or {nameof(HttpClientOptions.HttpClient)} is required.");
+                $"Either {nameof(HttpClientOptions.HttpClientName)} or {nameof(HttpClientOptions.CreateHttpClient)} is required.");
         }
-        else if (hasName && options.HttpClient is not null)
+        else if (hasName && options.CreateHttpClient is not null)
         {
             (failures ??= []).Add(
-                $"{nameof(HttpClientOptions.HttpClientName)} and {nameof(HttpClientOptions.HttpClient)} are both set, and only one can be.");
+                $"{nameof(HttpClientOptions.HttpClientName)} and {nameof(HttpClientOptions.CreateHttpClient)} are both set, and only one can be.");
         }
 
         return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);

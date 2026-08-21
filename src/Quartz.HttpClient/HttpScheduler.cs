@@ -179,9 +179,9 @@ public sealed class HttpScheduler : IScheduler
     /// <see cref="Shutdown(bool, CancellationToken)" /> to stop the remote scheduler, deliberately.
     /// </para>
     /// <para>
-    /// The <see cref="System.Net.Http.HttpClient" /> is not disposed either. It is the caller's, or the
-    /// container's when <c>AddQuartzHttpClient</c> made it, and disposing something handed in is how a
-    /// client shared with the rest of an application stops working.
+    /// The <see cref="System.Net.Http.HttpClient" /> is not disposed either — it belongs to whoever made
+    /// it, an <see cref="System.Net.Http.IHttpClientFactory" /> or the caller, and disposing something
+    /// handed in is how a client shared with the rest of an application stops working.
     /// </para>
     /// </remarks>
     public ValueTask DisposeAsync()

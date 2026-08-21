@@ -12,7 +12,9 @@ builder.Services.AddHttpClient("QuartzHttpClient", client =>
     client.DefaultRequestHeaders.Add("X-Quartz-ApiKey", "MySuperSecretApiKey");
 });
 
-// You can also use AddQuartzHttpClient(schedulerName, HttpClient) override if you do not want to use HttpClientFactory (AddHttpClient method call above)
+// If you do not want to use HttpClientFactory (the AddHttpClient call above), the other overload takes
+// a factory instead of a name: AddQuartzHttpClient(schedulerName, provider => BuildMyClient(provider)).
+// The client it returns belongs to whoever made it - the scheduler never disposes it.
 builder.Services.AddQuartzHttpClient("Quartz ASP.NET Core Sample Scheduler", "QuartzHttpClient");
 
 using IHost host = builder.Build();

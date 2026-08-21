@@ -45,27 +45,6 @@ namespace Quartz;
 public static class QuartzHttpClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers a scheduler that drives a remote one over HTTP.
-    /// </summary>
-    /// <param name="services">The service collection to register into.</param>
-    /// <param name="schedulerName">The scheduler's name, which must match the remote scheduler's.</param>
-    /// <param name="httpClient">The client to call the remote scheduler with.</param>
-    /// <param name="jsonSerializerOptions">Optional serializer options for the HTTP scheduler.</param>
-    public static IServiceCollection AddQuartzHttpClient(
-        this IServiceCollection services,
-        string schedulerName,
-        HttpClient httpClient,
-        JsonSerializerOptions? jsonSerializerOptions = null)
-    {
-        return services.AddQuartzHttpClient(options =>
-        {
-            options.SchedulerName = schedulerName;
-            options.HttpClient = httpClient;
-            options.JsonSerializerOptions = jsonSerializerOptions;
-        });
-    }
-
-    /// <summary>
     /// Registers a scheduler that drives a remote one over HTTP, using a named
     /// <see cref="IHttpClientFactory"/> client.
     /// </summary>
@@ -83,6 +62,32 @@ public static class QuartzHttpClientServiceCollectionExtensions
         {
             options.SchedulerName = schedulerName;
             options.HttpClientName = httpClientName;
+            options.JsonSerializerOptions = jsonSerializerOptions;
+        });
+    }
+
+    /// <summary>
+    /// Registers a scheduler that drives a remote one over HTTP, with a client built by the given
+    /// factory rather than resolved by name.
+    /// </summary>
+    /// <remarks>
+    /// The factory runs once, when the scheduler is first resolved, and is handed the container. The
+    /// client it returns belongs to whoever created it and is never disposed by the scheduler.
+    /// </remarks>
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="schedulerName">The scheduler's name, which must match the remote scheduler's.</param>
+    /// <param name="createHttpClient">Builds the client to call the remote scheduler with.</param>
+    /// <param name="jsonSerializerOptions">Optional serializer options for the HTTP scheduler.</param>
+    public static IServiceCollection AddQuartzHttpClient(
+        this IServiceCollection services,
+        string schedulerName,
+        Func<IServiceProvider, HttpClient> createHttpClient,
+        JsonSerializerOptions? jsonSerializerOptions = null)
+    {
+        return services.AddQuartzHttpClient(options =>
+        {
+            options.SchedulerName = schedulerName;
+            options.CreateHttpClient = createHttpClient;
             options.JsonSerializerOptions = jsonSerializerOptions;
         });
     }
@@ -114,7 +119,9 @@ public static class QuartzHttpClientServiceCollectionExtensions
 
         services.AddKeyedSingleton<IScheduler>(options.SchedulerName, (serviceProvider, _) =>
         {
-            var httpClient = options.HttpClient ?? serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(options.HttpClientName!);
+            var httpClient = options.CreateHttpClient is not null
+                ? options.CreateHttpClient(serviceProvider)
+                : serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(options.HttpClientName!);
             IScheduler scheduler = new HttpScheduler(
                 options.SchedulerName,
                 httpClient,
