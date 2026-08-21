@@ -3199,6 +3199,25 @@ taking an optional record whose defaults are the conservative choice (`Replace =
 `AddCalendarOptions` too; `IJobStore.AddJob` keeps its single `bool replace`, because durability is a
 scheduler-level rule the store never sees.
 
+Both are `readonly record struct`s, and the parameter is `AddJobOptions options = default` rather than
+`AddJobOptions? options = null`. The defaults already were the conservative choice, so `default` *is* what
+passing nothing has always meant — and the signature stops claiming three states (not given, empty,
+configured) where there are two. Four implementations independently wrote `options ??= new()` to discover
+that for themselves; a store of your own no longer has to.
+
+```diff
+- await scheduler.AddJob(job, null);
++ await scheduler.AddJob(job);
+
+- AddJobOptions? options = null;
++ AddJobOptions options = default;
+```
+
+`new AddJobOptions { Replace = true }` and `new AddCalendarOptions { … }` are unchanged, and so is every
+call that omits the argument. What stops compiling is passing an explicit `null`, or declaring a nullable
+local of the type and handing it in — and a `CalendarConfiguration.Options` read that expected `null` to
+mean "the scheduler's own defaults", which it never did.
+
 The DI-time builders — `q.AddJob<T>(…)` and `q.AddCalendar<T>(…)` on `IQuartzBuilder` — are unchanged.
 
 ## Overloads that differed only by a default

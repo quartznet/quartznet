@@ -8,7 +8,7 @@ internal sealed class CalendarConfiguration
     public CalendarConfiguration(
         string name,
         ICalendar calendar,
-        AddCalendarOptions? options)
+        AddCalendarOptions options)
     {
         Name = name;
         Calendar = calendar;
@@ -19,7 +19,7 @@ internal sealed class CalendarConfiguration
     public ICalendar Calendar { get; }
 
     /// <summary>
-    /// How the calendar is added, or <see langword="null"/> for the scheduler's own defaults.
+    /// How the calendar is added.
     /// </summary>
-    public AddCalendarOptions? Options { get; }
+    public AddCalendarOptions Options { get; }
 }

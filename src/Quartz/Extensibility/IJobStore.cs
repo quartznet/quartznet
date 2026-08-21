@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -274,7 +274,7 @@ public interface IJobStore
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>  ObjectAlreadyExistsException </throws>
-    ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default);
+    ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="ICalendar" /> with the

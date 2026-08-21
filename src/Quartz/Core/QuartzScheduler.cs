@@ -634,12 +634,10 @@ internal sealed class QuartzScheduler
     /// </summary>
     public async ValueTask AddJob(
         IJobDetail jobDetail,
-        AddJobOptions? options = null,
+        AddJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
-
-        options ??= new AddJobOptions();
 
         if (!options.StoreNonDurableWhileAwaitingScheduling && !jobDetail.Durable)
         {
@@ -1503,7 +1501,7 @@ internal sealed class QuartzScheduler
     public ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
-        AddCalendarOptions? options = null,
+        AddCalendarOptions options = default,
         CancellationToken cancellationToken = default)
     {
         ValidateState();

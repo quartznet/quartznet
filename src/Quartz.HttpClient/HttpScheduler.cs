@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -315,9 +315,8 @@ public sealed class HttpScheduler : IScheduler
         return builder.Build();
     }
 
-    public ValueTask AddJob(IJobDetail jobDetail, AddJobOptions? options = null, CancellationToken cancellationToken = default)
+    public ValueTask AddJob(IJobDetail jobDetail, AddJobOptions options = default, CancellationToken cancellationToken = default)
     {
-        options ??= new AddJobOptions();
         var request = new AddJobRequest(
             Job: JobDetailDto.Create(jobDetail),
             Replace: options.Replace,
@@ -611,7 +610,7 @@ public sealed class HttpScheduler : IScheduler
         return result.Applied;
     }
 
-    public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default)
+    public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(calendarName))
         {
@@ -620,7 +619,6 @@ public sealed class HttpScheduler : IScheduler
 
         ArgumentNullException.ThrowIfNull(calendar);
 
-        options ??= new AddCalendarOptions();
         var requestContent = new AddCalendarRequest(calendarName, calendar, options.Replace, options.UpdateTriggers);
         return httpClient.Post(CalendarEndpointUrl(), requestContent, jsonSerializerOptions, cancellationToken);
     }

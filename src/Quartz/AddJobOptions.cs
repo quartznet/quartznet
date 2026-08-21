@@ -25,10 +25,13 @@ namespace Quartz;
 /// How a job is added to the scheduler when it is stored without a trigger.
 /// </summary>
 /// <remarks>
-/// Defaults are the conservative ones: nothing is replaced, and a non-durable job is rejected.
+/// Defaults are the conservative ones: nothing is replaced, and a non-durable job is rejected. So
+/// <see langword="default"/> — which is what omitting the argument gives — is "add it, change nothing
+/// else", and there is no third state between "not given" and "all defaults" for an implementer to
+/// have to guess about.
 /// </remarks>
 /// <seealso cref="IScheduler.AddJob" />
-public sealed record AddJobOptions
+public readonly record struct AddJobOptions
 {
     /// <summary>
     /// Whether an already stored job with the same key is over-written. When false, storing a job

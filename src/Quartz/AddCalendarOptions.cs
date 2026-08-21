@@ -23,10 +23,13 @@ namespace Quartz;
 /// How a calendar is added to the scheduler.
 /// </summary>
 /// <remarks>
-/// Defaults are the conservative ones: nothing is replaced, and no trigger is touched.
+/// Defaults are the conservative ones: nothing is replaced, and no trigger is touched. So
+/// <see langword="default"/> — which is what omitting the argument gives — is "register it, change
+/// nothing else", and there is no third state between "not given" and "all defaults" for an
+/// implementer to have to guess about.
 /// </remarks>
 /// <seealso cref="IScheduler.AddCalendar" />
-public sealed record AddCalendarOptions
+public readonly record struct AddCalendarOptions
 {
     /// <summary>
     /// Whether an already registered calendar with the same name is over-written. When false,

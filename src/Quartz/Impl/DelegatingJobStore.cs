@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -160,7 +160,7 @@ public class DelegatingJobStore : IJobStore
         return jobStore.Clear(cancellationToken);
     }
 
-    public virtual ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default)
+    public virtual ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
     {
         return jobStore.AddCalendar(calendarName, calendar, options, cancellationToken);
     }

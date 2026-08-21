@@ -427,7 +427,7 @@ public class JobEndpointsTest : WebApiTest
     {
         await HttpScheduler.AddJob(TestData.JobDetail, new AddJobOptions { Replace = true });
         A.CallTo(() => FakeScheduler.AddJob(A<IJobDetail>._, A<AddJobOptions>._, A<CancellationToken>._))
-            .WhenArgumentsMatch((IJobDetail jobDetail, AddJobOptions? options, CancellationToken _) =>
+            .WhenArgumentsMatch((IJobDetail jobDetail, AddJobOptions options, CancellationToken _) =>
             {
                 jobDetail.Should().BeEquivalentTo(TestData.JobDetail);
                 return options is { Replace: true, StoreNonDurableWhileAwaitingScheduling: false };
@@ -436,7 +436,7 @@ public class JobEndpointsTest : WebApiTest
 
         await HttpScheduler.AddJob(TestData.JobDetail, new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true });
         A.CallTo(() => FakeScheduler.AddJob(A<IJobDetail>._, A<AddJobOptions>._, A<CancellationToken>._))
-            .WhenArgumentsMatch((IJobDetail jobDetail, AddJobOptions? options, CancellationToken _) =>
+            .WhenArgumentsMatch((IJobDetail jobDetail, AddJobOptions options, CancellationToken _) =>
             {
                 jobDetail.Should().BeEquivalentTo(TestData.JobDetail);
                 return options is { Replace: true, StoreNonDurableWhileAwaitingScheduling: true };
@@ -454,7 +454,7 @@ public class JobEndpointsTest : WebApiTest
         await HttpScheduler.AddJob(jobDetailWithUnresolvableType);
 
         A.CallTo(() => FakeScheduler.AddJob(A<IJobDetail>._, A<AddJobOptions>._, A<CancellationToken>._))
-            .WhenArgumentsMatch((IJobDetail jobDetail, AddJobOptions? options, CancellationToken _) =>
+            .WhenArgumentsMatch((IJobDetail jobDetail, AddJobOptions options, CancellationToken _) =>
             {
                 jobDetail.JobType.FullName.Should().Be(TestData.UnresolvableJobTypeName);
                 return true;

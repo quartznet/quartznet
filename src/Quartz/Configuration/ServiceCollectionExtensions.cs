@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 
@@ -596,7 +596,7 @@ public static class ServiceCollectionExtensions
     public static IQuartzBuilder AddCalendar<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         this IQuartzBuilder builder,
         string name,
-        AddCalendarOptions? options = null,
+        AddCalendarOptions options = default,
         Action<T>? configure = null) where T : ICalendar, new()
     {
         return builder.AddCalendar<T>(name, options, (_, calendar) => configure?.Invoke(calendar));
@@ -606,7 +606,7 @@ public static class ServiceCollectionExtensions
     public static IQuartzBuilder AddCalendar<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         this IQuartzBuilder builder,
         string name,
-        AddCalendarOptions? options,
+        AddCalendarOptions options,
         Action<IServiceProvider, T> configure) where T : ICalendar, new()
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -635,7 +635,7 @@ public static class ServiceCollectionExtensions
         this IQuartzBuilder builder,
         string name,
         ICalendar calendar,
-        AddCalendarOptions? options = null)
+        AddCalendarOptions options = default)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);

@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -901,10 +901,9 @@ public sealed class RAMJobStore : IJobStore
     public async ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
-        AddCalendarOptions? options = null,
+        AddCalendarOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        options ??= new AddCalendarOptions();
         calendar = calendar.Clone();
 
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
