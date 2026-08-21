@@ -99,7 +99,7 @@ public sealed class RAMJobStore : IJobStore
     public TimeSpan MisfireThreshold
     {
         get => misfireThreshold;
-        set
+        internal set
         {
             if (value.TotalMilliseconds < 1)
             {

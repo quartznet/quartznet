@@ -714,6 +714,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             {
                 ["quartz.scheduler.instanceName"] = "plugin-settings",
                 ["quartz.plugin.recorder.someSetting"] = "configured",
+                ["quartz.plugin.recorder.internalSetting"] = "also configured",
             },
             q => q.AddPlugin(_ => new RecordingPlugin(), "recorder"));
 
@@ -724,6 +725,8 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             var plugin = provider.GetServices<ISchedulerPlugin>().OfType<RecordingPlugin>().Single();
 
             plugin.SomeSetting.Should().Be("configured");
+            plugin.InternalSetting.Should().Be("also configured",
+                "the shipped plugins' settings are internal now, so the flat-key binder has to see a non-public setter");
             plugin.Name.Should().Be("recorder",
                 "some plugins derive persisted job keys from their name, so it has to be the name it was added under");
         }
@@ -943,6 +946,13 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     private sealed class RecordingPlugin : ISchedulerPlugin
     {
         public string SomeSetting { get; set; } = "";
+
+        /// <summary>
+        /// A shipped component's settings are public on its options type and internal on the component
+        /// itself, and the flat <c>quartz.plugin.&lt;name&gt;.*</c> keys write the component directly.
+        /// This is that shape.
+        /// </summary>
+        public string InternalSetting { get; internal set; } = "";
 
         public string Name { get; private set; } = "";
 

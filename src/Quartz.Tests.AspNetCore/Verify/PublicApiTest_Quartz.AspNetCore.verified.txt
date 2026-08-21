@@ -13,7 +13,7 @@ namespace Quartz
         public QuartzHealthCheckOptions() { }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; }
         public string Name { get; set; }
-        public System.Collections.Generic.IReadOnlyCollection<string> Tags { get; set; }
+        public System.Collections.Generic.List<string> Tags { get; }
     }
     public sealed class QuartzHttpApiOptions
     {

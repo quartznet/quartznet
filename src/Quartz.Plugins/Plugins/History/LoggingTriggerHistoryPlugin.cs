@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -233,17 +233,17 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// Get or set the message that is printed upon the completion of a trigger's
     /// firing.
     /// </summary>
-    public virtual string TriggerCompleteMessage { get; set; } = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
+    public virtual string TriggerCompleteMessage { get; internal set; } = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
 
     /// <summary>
     /// Get or set the message that is printed upon a trigger's firing.
     /// </summary>
-    public virtual string TriggerFiredMessage { get; set; } = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
+    public virtual string TriggerFiredMessage { get; internal set; } = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Get or set the message that is printed upon a trigger's mis-firing.
     /// </summary>
-    public virtual string TriggerMisfiredMessage { get; set; } = "Trigger {1}.{0} misfired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
+    public virtual string TriggerMisfiredMessage { get; internal set; } = "Trigger {1}.{0} misfired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Get the name of the <see cref="ITriggerListener" />.

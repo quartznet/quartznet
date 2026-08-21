@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -37,7 +37,7 @@ public static class PluginConfigurationExtensions
         {
             // Left unset, the plugin keeps its own default file name rather than being handed an empty
             // one, which it would try to open as a path.
-            if (options.Files.Length > 0)
+            if (options.Files.Count > 0)
             {
                 plugin.FileNames = string.Join(",", options.Files);
             }
@@ -63,7 +63,7 @@ public static class PluginConfigurationExtensions
 
         return builder.AddConfiguredPlugin<JsonSchedulingDataProcessorPlugin>("json", plugin =>
         {
-            if (options.Files.Length > 0)
+            if (options.Files.Count > 0)
             {
                 plugin.FileNames = string.Join(",", options.Files);
             }
@@ -93,19 +93,48 @@ public static class PluginConfigurationExtensions
     /// <summary>
     /// Logs job execution history using structured message templates.
     /// </summary>
-    public static IQuartzBuilder UseStructuredJobLogging(this IQuartzBuilder builder)
+    /// <remarks>
+    /// The templates name their values — <c>{JobGroup}</c>, <c>{FireTime}</c> — so a structured log
+    /// pipeline can index them, which is why this is the better default. They are overridable for the
+    /// same reason the numbered ones are.
+    /// </remarks>
+    public static IQuartzBuilder UseStructuredJobLogging(
+        this IQuartzBuilder builder,
+        Action<JobHistoryLoggingOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.AddPlugin<StructuredLoggingJobHistoryPlugin>();
+
+        JobHistoryLoggingOptions options = new JobHistoryLoggingOptions();
+        configure?.Invoke(options);
+
+        return builder.AddConfiguredPlugin<StructuredLoggingJobHistoryPlugin>("structuredJobHistory", plugin =>
+        {
+            Apply(options.JobSuccessMessage, value => plugin.JobSuccessMessage = value);
+            Apply(options.JobFailedMessage, value => plugin.JobFailedMessage = value);
+            Apply(options.JobToBeFiredMessage, value => plugin.JobToBeFiredMessage = value);
+            Apply(options.JobWasVetoedMessage, value => plugin.JobWasVetoedMessage = value);
+        });
     }
 
     /// <summary>
     /// Logs trigger firing history using structured message templates.
     /// </summary>
-    public static IQuartzBuilder UseStructuredTriggerLogging(this IQuartzBuilder builder)
+    /// <inheritdoc cref="UseStructuredJobLogging" path="/remarks" />
+    public static IQuartzBuilder UseStructuredTriggerLogging(
+        this IQuartzBuilder builder,
+        Action<TriggerHistoryLoggingOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.AddPlugin<StructuredLoggingTriggerHistoryPlugin>();
+
+        TriggerHistoryLoggingOptions options = new TriggerHistoryLoggingOptions();
+        configure?.Invoke(options);
+
+        return builder.AddConfiguredPlugin<StructuredLoggingTriggerHistoryPlugin>("structuredTriggerHistory", plugin =>
+        {
+            Apply(options.TriggerFiredMessage, value => plugin.TriggerFiredMessage = value);
+            Apply(options.TriggerMisfiredMessage, value => plugin.TriggerMisfiredMessage = value);
+            Apply(options.TriggerCompleteMessage, value => plugin.TriggerCompleteMessage = value);
+        });
     }
 
     /// <summary>
@@ -265,7 +294,12 @@ public sealed class FileSchedulingOptions
     /// <summary>
     /// The files to load the schedule from.
     /// </summary>
-    public string[] Files { get; set; } = [];
+    /// <remarks>
+    /// Get-only with an in-place initializer, like <c>QuartzOptions.Properties</c>: a configuration
+    /// binder binds into a non-null collection without needing a setter, and one <c>configure</c>
+    /// callback cannot discard what another added.
+    /// </remarks>
+    public List<string> Files { get; } = [];
 
     /// <summary>
     /// Whether a missing file is an error rather than something to ignore.

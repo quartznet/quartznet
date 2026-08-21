@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
@@ -70,7 +70,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     public TaskScheduler Scheduler
     {
         get => scheduler;
-        set
+        protected internal set
         {
             if (!isInitialized)
             {
@@ -104,7 +104,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     public int MaxConcurrency
     {
         get => maxConcurrency;
-        set
+        protected internal set
         {
             if (!isInitialized)
             {

@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -66,17 +66,17 @@ public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, IT
     /// <summary>
     /// Gets or sets the message that is logged when a trigger fires.
     /// </summary>
-    public string TriggerFiredMessage { get; set; } = "Trigger {TriggerGroup}.{TriggerName} fired job {JobGroup}.{JobName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}";
+    public string TriggerFiredMessage { get; internal set; } = "Trigger {TriggerGroup}.{TriggerName} fired job {JobGroup}.{JobName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a trigger misfires.
     /// </summary>
-    public string TriggerMisfiredMessage { get; set; } = "Trigger {TriggerGroup}.{TriggerName} misfired job {JobGroup}.{JobName} at {FireTime}. Should have fired at {ScheduledFireTime} next fire at {NextFireTime}";
+    public string TriggerMisfiredMessage { get; internal set; } = "Trigger {TriggerGroup}.{TriggerName} misfired job {JobGroup}.{JobName} at {FireTime}. Should have fired at {ScheduledFireTime} next fire at {NextFireTime}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a trigger completes.
     /// </summary>
-    public string TriggerCompleteMessage { get; set; } = "Trigger {TriggerGroup}.{TriggerName} completed firing job {JobGroup}.{JobName} at {CompletedTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} with instruction {TriggerInstructionCode}";
+    public string TriggerCompleteMessage { get; internal set; } = "Trigger {TriggerGroup}.{TriggerName} completed firing job {JobGroup}.{JobName} at {CompletedTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} with instruction {TriggerInstructionCode}";
 
     /// <summary>
     /// Get the name of the <see cref="ITriggerListener" />.

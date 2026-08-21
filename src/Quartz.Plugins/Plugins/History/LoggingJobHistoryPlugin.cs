@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -272,24 +272,24 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// Get or sets the message that is logged when a Job successfully completes its
     /// execution.
     /// </summary>
-    public virtual string JobSuccessMessage { get; set; } = "Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
+    public virtual string JobSuccessMessage { get; internal set; } = "Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
 
     /// <summary>
     /// Get or sets the message that is logged when a Job fails its
     /// execution.
     /// </summary>
-    public virtual string JobFailedMessage { get; set; } = "Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
+    public virtual string JobFailedMessage { get; internal set; } = "Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a Job is about to Execute.
     /// </summary>
-    public virtual string JobToBeFiredMessage { get; set; } = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
+    public virtual string JobToBeFiredMessage { get; internal set; } = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a Job execution is vetoed by a
     /// trigger listener.
     /// </summary>
-    public virtual string JobWasVetoedMessage { get; set; } = "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
+    public virtual string JobWasVetoedMessage { get; internal set; } = "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Get the name of the <see cref="IJobListener" />.

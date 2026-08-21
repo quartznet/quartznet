@@ -145,6 +145,49 @@ Work in an overridden `StartAsync` moves into `StartingAsync` or `StartedAsync`,
 is now a member of its own: `protected IReadOnlyList<IScheduler> Schedulers`, a snapshot of the
 schedulers the service is running.
 
+### A shipped component is configured through its options type, and only there
+
+Every configurable component Quartz ships published its settings twice: once on an options type bound
+from configuration and validated, and once as public settable properties on the component itself,
+assignable on a live instance with nothing saying which wins or when. The component-side setters are
+`internal` now, leaving the options type as the one public way:
+
+| Component | Configure through |
+|---|---|
+| `RAMJobStore.MisfireThreshold` | `UseInMemoryStore(o => o.MisfireThreshold = …)` |
+| `AdoJobStoreBase.MisfireThreshold` | `UsePersistentStore(store => store.Configure(o => o.MisfireThreshold = …))` |
+| `TaskSchedulingThreadPool.MaxConcurrency`, `.Scheduler` | `UseDefaultThreadPool(maxConcurrency: …)`; both setters are `protected internal`, so a pool of your own can still set them |
+| `RedisSemaphore.RedisConfiguration`, `.KeyPrefix`, `.LockTimeToLive`, `.LockRetryInterval` | `UseRedisLockHandler(o => …)` |
+| The history plugins' message templates | `UseJobHistoryLogging(o => …)`, `UseTriggerHistoryLogging(o => …)`, and now `UseStructuredJobLogging(o => …)` / `UseStructuredTriggerLogging(o => …)` |
+| `JobInterruptMonitorPlugin.DefaultMaxRunTime` | `UseJobAutoInterrupt(o => …)` |
+| The scheduling-data plugins' `FileNames`, `ScanInterval`, `FailOn*` | `UseXmlSchedulingConfiguration(o => …)` / `UseJsonSchedulingConfiguration(o => …)` |
+| `ShutdownHookPlugin.CleanShutdown` | `UseShutdownHook(cleanShutdown: …)` |
+
+`SelectForUpdateSemaphore` and `UpdateRowSemaphore` keep their `MaxRetry` and `RetryPeriod` setters.
+
+**Flat-key configuration is unaffected.** `quartz.plugin.<name>.<property>` and
+`quartz.jobStore.lockHandler.<property>` write the component directly through reflection, and that
+binder now binds non-public setters — so every string configuration that worked keeps working, and
+only the code path that bypassed the options type is closed.
+
+`UseStructuredJobLogging` and `UseStructuredTriggerLogging` gain the `configure` delegate their
+non-structured siblings always had.
+
+Two collections stop being assignable, for the reason `QuartzOptions.Properties` never was — one
+`configure` callback must not be able to discard what another added, and the configuration binder needs
+no setter to bind into a non-null collection:
+
+```diff
+- x.Files = ["~/quartz_jobs.xml"];
++ x.Files.Add("~/quartz_jobs.xml");
+
+- options.Tags = ["ready", "live"];
++ options.Tags.AddRange(["ready", "live"]);
+```
+
+`FileSchedulingOptions.Files` is a `List<string>` rather than a `string[]`, and
+`QuartzHealthCheckOptions.Tags` a `List<string>` rather than an `IReadOnlyCollection<string>`.
+
 ### The provider names have constants
 
 `DataSourceOptions.Provider` is a string naming an ADO.NET driver description, and the eight names

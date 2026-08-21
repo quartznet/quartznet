@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json.Serialization;
 
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -224,7 +224,7 @@ public class Startup
             // also add XML configuration and poll it for changes
             q.UseXmlSchedulingConfiguration(x =>
             {
-                x.Files = ["~/quartz_jobs.config"];
+                x.Files.Add("~/quartz_jobs.config");
                 x.ScanInterval = TimeSpan.FromMinutes(1);
                 x.FailOnFileNotFound = true;
                 x.FailOnSchedulingError = true;

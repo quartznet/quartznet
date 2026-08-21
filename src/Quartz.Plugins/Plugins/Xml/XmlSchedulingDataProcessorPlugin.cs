@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -86,7 +86,7 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// <summary>
     /// Comma separated list of file names (with paths) to the XML files that should be read.
     /// </summary>
-    public string FileNames { get; set; } = XmlSchedulingDataProcessor.QuartzXmlFileName;
+    public string FileNames { get; internal set; } = XmlSchedulingDataProcessor.QuartzXmlFileName;
 
     /// <summary>
     /// The interval at which to scan for changes to the file.
@@ -94,19 +94,19 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// value for the interval is 0, which disables scanning.
     /// </summary>
     [TimeSpanParseRule(TimeSpanParseRule.Seconds)]
-    public TimeSpan ScanInterval { get; set; } = TimeSpan.Zero;
+    public TimeSpan ScanInterval { get; internal set; } = TimeSpan.Zero;
 
     /// <summary>
     /// Whether or not initialization of the plugin should fail (throw an
     /// exception) if the file cannot be found. Default is <see langword="true" />.
     /// </summary>
-    public bool FailOnFileNotFound { get; set; } = true;
+    public bool FailOnFileNotFound { get; internal set; } = true;
 
     /// <summary>
     /// Whether or not starting of the plugin should fail (throw an
     /// exception) if the file cannot be handled. Default is <see langword="false" />.
     /// </summary>
-    public virtual bool FailOnSchedulingError { get; set; }
+    public virtual bool FailOnSchedulingError { get; internal set; }
 
     internal IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 

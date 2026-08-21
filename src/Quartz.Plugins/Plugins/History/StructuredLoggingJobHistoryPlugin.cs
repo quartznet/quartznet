@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -68,22 +68,22 @@ public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobLi
     /// <summary>
     /// Gets or sets the message that is logged when a Job is about to be executed.
     /// </summary>
-    public string JobToBeFiredMessage { get; set; } = "Job {JobGroup}.{JobName} fired by trigger {TriggerGroup}.{TriggerName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}";
+    public string JobToBeFiredMessage { get; internal set; } = "Job {JobGroup}.{JobName} fired by trigger {TriggerGroup}.{TriggerName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a Job successfully completes its execution.
     /// </summary>
-    public string JobSuccessMessage { get; set; } = "Job {JobGroup}.{JobName} execution complete at {FireTime} triggered by {TriggerGroup}.{TriggerName} with result {Result}";
+    public string JobSuccessMessage { get; internal set; } = "Job {JobGroup}.{JobName} execution complete at {FireTime} triggered by {TriggerGroup}.{TriggerName} with result {Result}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a Job fails its execution.
     /// </summary>
-    public string JobFailedMessage { get; set; } = "Job {JobGroup}.{JobName} execution failed at {FireTime} triggered by {TriggerGroup}.{TriggerName} with exception message {ExceptionMessage}";
+    public string JobFailedMessage { get; internal set; } = "Job {JobGroup}.{JobName} execution failed at {FireTime} triggered by {TriggerGroup}.{TriggerName} with exception message {ExceptionMessage}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a Job execution is vetoed by a trigger listener.
     /// </summary>
-    public string JobWasVetoedMessage { get; set; } = "Job {JobGroup}.{JobName} was vetoed. It was to be fired by trigger {TriggerGroup}.{TriggerName} at {FireTime}";
+    public string JobWasVetoedMessage { get; internal set; } = "Job {JobGroup}.{JobName} was vetoed. It was to be fired by trigger {TriggerGroup}.{TriggerName} at {FireTime}";
 
     /// <summary>
     /// Get the name of the <see cref="IJobListener" />.
