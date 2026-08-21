@@ -83,9 +83,53 @@ builder.Services.AddQuartz("Scheduler2", q =>
 });
 ```
 
-## Accessing Named Schedulers Programmatically
+## Injecting a Named Scheduler
 
-Every scheduler registered in a container is bound into that container's `ISchedulerRepository`, so you can retrieve any of them by name from the repository:
+A scheduler's name is the service key it is registered under, so a named scheduler is injected the way
+any other keyed service is:
+
+```csharp
+public class MyService
+{
+    private readonly IScheduler scheduler;
+
+    public MyService([FromKeyedServices("FastScheduler")] IScheduler scheduler)
+    {
+        this.scheduler = scheduler;
+    }
+
+    public async Task DoWork()
+    {
+        await scheduler.TriggerJob(new JobKey("my-job"));
+    }
+}
+```
+
+Resolved directly, it is the same thing:
+
+```csharp
+var fast = provider.GetRequiredKeyedService<IScheduler>("FastScheduler");
+var standard = provider.GetRequiredService<IScheduler>();   // the default scheduler, if one is registered
+```
+
+Everything a named scheduler is built from is registered under that key, so `ISchedulerFactory` and the
+rest are reachable the same way -- `GetRequiredKeyedService<ISchedulerFactory>("FastScheduler")` -- while
+the unkeyed registrations belong to the default scheduler.
+
+::: warning
+What is injected is a handle that builds the scheduler on first use, because building one is
+asynchronous and a container constructs synchronously. Every asynchronous member awaits it being built,
+so they are always safe. The synchronous ones -- `IsStarted`, `InStandbyMode`, `IsShutdown`,
+`SchedulerInstanceId`, `Context` and `ListenerManager` -- can only answer once the scheduler exists, and
+throw `InvalidOperationException` if reading one would have to build it. Under
+`AddQuartzHostedService()` that cannot happen: every scheduler in the container is built and started
+before the application runs. `SchedulerName` never builds anything.
+:::
+
+### Finding a scheduler at runtime
+
+Where the name is not known until runtime -- a dashboard listing what is running, a request naming the
+scheduler it is for -- the container's `ISchedulerRepository` holds every scheduler that has been built:
 
 ```csharp
 public class MyService
@@ -99,44 +143,26 @@ public class MyService
 
     public async Task DoWork()
     {
-        // Get a specific named scheduler
         var scheduler = schedulerRepository.Lookup("FastScheduler");
         if (scheduler != null)
         {
             await scheduler.TriggerJob(new JobKey("my-job"));
         }
 
-        // Or get all schedulers
+        // Or every scheduler this container has built
         var all = schedulerRepository.LookupAll();
     }
 }
 ```
 
-If you also have a default scheduler (registered via unnamed `AddQuartz()`), you can inject `ISchedulerFactory` and use `LookupScheduler(name)`:
-
-```csharp
-public class MyService
-{
-    private readonly ISchedulerFactory schedulerFactory;
-
-    public MyService(ISchedulerFactory schedulerFactory)
-    {
-        this.schedulerFactory = schedulerFactory;
-    }
-
-    public async Task DoWork()
-    {
-        var scheduler = await schedulerFactory.LookupScheduler("FastScheduler");
-    }
-}
-```
-
 ::: warning
-Named schedulers are only available after the hosted service has created and started them. During application startup, they may not yet be in the repository.
+The repository holds schedulers that have been *built*, so during application startup it may not yet
+hold them all -- injecting them by key does not have that problem, since the handle builds the scheduler
+it names.
 
-`ISchedulerFactory` is only available from DI when a default (unnamed) `AddQuartz()` call has been made. If you only use named schedulers, inject `ISchedulerRepository` instead.
-
-The repository is scoped to the container, not the process. A scheduler built by a `QuartzSchedulerBuilder` of its own is not in it -- see [the migration guide](../migration-guide.md#no-process-global-scheduler-or-connection-state).
+The repository is scoped to the container, not the process. A scheduler built by a
+`QuartzSchedulerBuilder` of its own is not in it -- see
+[the migration guide](../migration-guide.md#no-process-global-scheduler-or-connection-state).
 :::
 
 ## Mixing Default and Named Schedulers
@@ -177,6 +203,8 @@ A named scheduler's configuration can come from a section. Pass the root `Quartz
 scheduler's own settings are resolved out of `Schedulers:{name}`:
 
 ```csharp
+builder.AddQuartz("DurableScheduler");
+// or, naming the section yourself:
 builder.Services.AddQuartz("DurableScheduler", builder.Configuration.GetSection("Quartz"));
 ```
 
@@ -184,6 +212,8 @@ To register every scheduler the section describes rather than one of them, call
 `AddQuartzSchedulers`, which registers one named scheduler per child of `Schedulers`:
 
 ```csharp
+builder.AddQuartzSchedulers();
+// or:
 builder.Services.AddQuartzSchedulers(builder.Configuration.GetSection("Quartz"));
 ```
 
