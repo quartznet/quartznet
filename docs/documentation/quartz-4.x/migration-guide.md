@@ -145,6 +145,18 @@ Work in an overridden `StartAsync` moves into `StartingAsync` or `StartedAsync`,
 is now a member of its own: `protected IReadOnlyList<IScheduler> Schedulers`, a snapshot of the
 schedulers the service is running.
 
+### The provider names have constants
+
+`DataSourceOptions.Provider` is a string naming an ADO.NET driver description, and the eight names
+Quartz ships one for were discoverable only from a documentation table or by reading a property file.
+They are constants now — `DataSourceOptions.Providers.SqlServer`, `.Npgsql`, `.MySql`,
+`.MySqlConnector`, `.Oracle`, `.Sqlite`, `.SystemDataSqlite`, `.Firebird` — and the `UseSqlServer` /
+`UsePostgres` / … extensions pass them rather than repeating literals.
+
+The property stays a `string`: the set is not closed, since a driver Quartz knows nothing about is
+describable through `UseGenericDatabase`. The values are unchanged, so a configuration file naming one
+of them is unaffected.
+
 ### The standalone builder reads a configuration section
 
 `QuartzSchedulerBuilder.UseConfiguration(IConfiguration)` is new, and is the standalone counterpart of
