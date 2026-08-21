@@ -91,6 +91,80 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         return this;
     }
 
+    public IPersistentStoreBuilder UseConnectionProvider<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IDbProvider
+    {
+        return ReplaceProvider(provider => ActivatorUtilities.CreateInstance<T>(provider));
+    }
+
+    public IPersistentStoreBuilder UseConnectionProvider(Func<IServiceProvider, IDbProvider> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        return ReplaceProvider(factory);
+    }
+
+    /// <summary>
+    /// Registers a connection provider that beats whichever one the database choice registered,
+    /// whichever order the two were called in.
+    /// </summary>
+    /// <remarks>
+    /// The rest of this builder defers to what is already registered, which works because each of its
+    /// methods answers a different question. <c>UseSqlServer</c> and <c>UseConnectionProvider</c> answer
+    /// the same one, so first-wins would make the result depend on call order — and the call that loses
+    /// is silently the one that said something Quartz could not have worked out for itself. Removing
+    /// first and adding is what makes it order-independent; the data-source path stays <c>TryAdd</c>, so
+    /// it can never overwrite this.
+    /// </remarks>
+    private IPersistentStoreBuilder ReplaceProvider(Func<IServiceProvider, IDbProvider> factory)
+    {
+        RemoveProviderRegistrations();
+
+        if (schedulerKey is null)
+        {
+            Services.AddSingleton(factory);
+        }
+        else
+        {
+            Services.AddKeyedSingleton<IDbProvider>(
+                schedulerKey,
+                (provider, key) => factory(SchedulerScopedServiceProvider.For(provider, key)));
+        }
+
+        // The provider carries everything needed to reach the database, but the store still refuses to
+        // start without a data source name. Name it after the scheduler, exactly as UseDataSource would,
+        // so UseConnectionProvider on its own is a complete configuration.
+        return Configure(options => options.DataSource = DataSourceName);
+    }
+
+    /// <summary>
+    /// Drops this scheduler's connection provider registrations, and only this scheduler's.
+    /// </summary>
+    /// <remarks>
+    /// The default scheduler's provider is unkeyed and a named one's is keyed by its name, so the two
+    /// tests are different — and a named scheduler must not remove the default scheduler's provider,
+    /// nor another named scheduler's.
+    /// </remarks>
+    private void RemoveProviderRegistrations()
+    {
+        for (int i = Services.Count - 1; i >= 0; i--)
+        {
+            ServiceDescriptor descriptor = Services[i];
+            if (descriptor.ServiceType != typeof(IDbProvider))
+            {
+                continue;
+            }
+
+            bool ours = schedulerKey is null
+                ? !descriptor.IsKeyedService
+                : descriptor.IsKeyedService && Equals(descriptor.ServiceKey, schedulerKey);
+
+            if (ours)
+            {
+                Services.RemoveAt(i);
+            }
+        }
+    }
+
     /// <summary>
     /// The name this scheduler's data source is registered under.
     /// </summary>

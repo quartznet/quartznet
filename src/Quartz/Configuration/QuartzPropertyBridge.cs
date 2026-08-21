@@ -447,6 +447,8 @@ internal static class QuartzPropertyBridge
         // returning early on a missing quartz.jobStore.type would drop it.
         Register<IDriverDelegate>(services, schedulerName, parser.Type("quartz.jobStore.driverDelegateType"));
 
+        RegisterConnectionProvider(services, parser, schedulerName);
+
         RegisterInitStringTriggerPersistenceDelegates(services, parser, schedulerName);
 
         if (parser.Type(LegacyPropertyKeys.JobStoreLockHandlerType) is { } lockHandlerType)
@@ -521,6 +523,44 @@ internal static class QuartzPropertyBridge
 
             return jobStore;
         });
+    }
+
+    /// <summary>
+    /// Translates <c>quartz.dataSource.&lt;name&gt;.connectionProvider.type</c> into the registration
+    /// <c>UsePersistentStore(s =&gt; s.UseConnectionProvider&lt;T&gt;())</c> produces.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only the data source this scheduler reads through is consulted. The key is declared under a data
+    /// source rather than under the job store, but a provider is a scheduler's, and a configuration can
+    /// declare data sources this scheduler never touches.
+    /// </para>
+    /// <para>
+    /// Registered here rather than inside the persistent branch below, and before it, for the same two
+    /// reasons the driver delegate is: a store chosen in code still has its provider named in a
+    /// configuration file, and the branch's own provider registration is the connection-string fallback
+    /// this key exists to replace.
+    /// </para>
+    /// </remarks>
+    private static void RegisterConnectionProvider(
+        IServiceCollection services,
+        PropertyReader parser,
+        string? schedulerName)
+    {
+        var dataSourceName = parser.String("quartz.jobStore.dataSource") ?? PersistentStoreBuilder.DefaultDataSourceName;
+        var providerType = parser.Type($"{LegacyPropertyKeys.DataSourcePrefix}.{dataSourceName}.connectionProvider.type");
+        if (providerType is null)
+        {
+            return;
+        }
+
+        if (!typeof(IDbProvider).IsAssignableFrom(providerType))
+        {
+            Throw.SchedulerConfigException(
+                $"Connection provider type '{providerType.FullName}' does not implement IDbProvider.");
+        }
+
+        Register<IDbProvider>(services, schedulerName, providerType);
     }
 
     private static void MapInMemoryJobStore(InMemoryJobStoreOptions options, PropertyReader parser)

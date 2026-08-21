@@ -3,6 +3,7 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Extensibility;
 
 namespace Quartz;
@@ -54,10 +55,10 @@ public interface IPersistentStoreBuilder
     /// scheduler that already configured it.
     /// </para>
     /// <para>
-    /// The name defaults to the scheduler's name, or <c>quartz</c> for the default scheduler. Connection
-    /// providers are held per process, so two default schedulers in one process — two standalone
-    /// <see cref="QuartzSchedulerBuilder"/>s, say — would otherwise share the one name and the second
-    /// would replace the first's connection provider. Name them and they stay apart.
+    /// The name defaults to the scheduler's name, or <c>quartz</c> for the default scheduler, so it never
+    /// has to be invented or kept in step by hand. Naming one explicitly is for the cases where the name
+    /// itself matters: two stores that should read the same <c>Quartz:DataSource:&lt;name&gt;</c>
+    /// settings, or settings that live under a name the application chose.
     /// </para>
     /// <para>
     /// Call this before choosing the database, since the name is fixed when the data source is
@@ -82,6 +83,40 @@ public interface IPersistentStoreBuilder
     /// </para>
     /// </remarks>
     IPersistentStoreBuilder UseDataSource(Action<DataSourceOptions> configure);
+
+    /// <summary>
+    /// Uses a connection provider of your own, which decides how connections and commands are made
+    /// rather than leaving that to a connection string and a driver description.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the code spelling of 3.x's
+    /// <c>quartz.dataSource.&lt;name&gt;.connectionProvider.type</c>, and of
+    /// <c>DBConnectionManager.AddConnectionProvider</c> before it. Reach for it when connections have to
+    /// come from somewhere Quartz cannot describe — a pooled or credential-rotating factory, or a driver
+    /// whose connections need setting up after they are created.
+    /// </para>
+    /// <para>
+    /// Unlike the rest of this builder, this <em>replaces</em> rather than defers: it wins over the
+    /// provider <c>UseSqlServer</c> and its siblings register, in either order, so there is no call
+    /// sequence to get right. It also names this store's data source, so a store configured this way
+    /// needs no <see cref="UseDataSource(Action{DataSourceOptions})"/> call — though one is still
+    /// useful for the driver delegate the database-specific methods select.
+    /// </para>
+    /// <para>
+    /// The provider belongs to this scheduler alone. Registering <c>IDbProvider</c> against
+    /// <see cref="Services"/> instead would be invisible to a named scheduler, which resolves its
+    /// provider under its own key.
+    /// </para>
+    /// </remarks>
+    IPersistentStoreBuilder UseConnectionProvider<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IDbProvider;
+
+    /// <summary>
+    /// Uses a connection provider the caller builds, for cases where it needs configuring first.
+    /// </summary>
+    /// <inheritdoc cref="UseConnectionProvider{T}()" path="/remarks" />
+    IPersistentStoreBuilder UseConnectionProvider(Func<IServiceProvider, IDbProvider> factory);
 
     /// <summary>
     /// Uses a specific driver delegate, which adapts Quartz's SQL to a particular database.

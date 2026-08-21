@@ -226,11 +226,11 @@ The same thing can be said as properties, which is the form 3.x used and which n
 }
 ```
 
-A store's data source is named after the scheduler that owns it, or `quartz` for the default scheduler.
-Connection providers are held per process, so if you run two default schedulers in one process — two
-standalone `QuartzSchedulerBuilder`s against different databases — name them apart with
-`store.UseDataSourceName("reporting-db")` before choosing the database. Otherwise the second replaces
-the first's connection provider and both end up talking to the same database.
+A store's data source is named after the scheduler that owns it, or `quartz` for the default scheduler,
+so the name never has to be invented or kept in step by hand. Name one explicitly with
+`store.UseDataSourceName("reporting-db")` — before choosing the database, since the name is fixed once
+the data source is configured — when two stores should read the same `Quartz:DataSource:<name>`
+settings, or when the settings live under a name of the application's choosing.
 
 ### Locking
 
@@ -286,6 +286,39 @@ There are three entry points for a data source and they say different things.
 database methods above are shorthands for it. `UseDataSourceName(name)` **refers to** one by name,
 which is how a store picks up settings registered elsewhere, such as a `Quartz:DataSource:<name>`
 section. Where the connection itself comes from is `DataSourceOptions`' to say, not a fourth method's.
+
+#### Bringing your own connection provider
+
+When connections cannot be described at all — a pooled or credential-rotating factory, or a driver
+whose connections need setting up after they are created — hand Quartz the object that makes them:
+
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseSqlServer(connectionString);          // still selects the driver delegate
+    store.UseConnectionProvider<MyDbProvider>();   // …but connections come from here
+}));
+```
+
+`UseConnectionProvider(factory)` does the same for a provider that needs building first. This is the
+one method on the builder that **replaces** rather than defers: it wins over the provider the database
+method registered, in either order, so there is no call sequence to get right. It also names this
+store's data source, so `UseConnectionProvider` on its own is a complete configuration — the database
+method above it is only there to select the driver delegate.
+
+The provider belongs to the scheduler that owns the store. Registering `IDbProvider` against `Services`
+instead registers it for the container, which a named scheduler will not see.
+
+The same thing as properties, which is the 3.x spelling and still read:
+
+```json
+{
+  "Quartz": {
+    "quartz.jobStore.dataSource": "myDs",
+    "quartz.dataSource.myDs.connectionProvider.type": "MyNamespace.MyDbProvider, MyAssembly"
+  }
+}
+```
 
 ### Clustering
 

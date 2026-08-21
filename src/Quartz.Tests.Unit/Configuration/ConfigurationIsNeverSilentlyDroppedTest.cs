@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Collections.Specialized;
+using System.Data.Common;
 using System.Text.Json;
 
 using Microsoft.Extensions.Configuration;
@@ -649,6 +650,25 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     }
 
     [Test]
+    public void AConnectionProviderKeyAppliesWhenTheStoreIsChosenInCode()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.jobStore.dataSource"] = "test",
+                ["quartz.dataSource.test.connectionProvider.type"] = typeof(CountingDbProvider).AssemblyQualifiedName,
+            },
+            q => q.UsePersistentStore(store => store.Configure(options => options.DataSource = "test")));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IDbProvider>().Should().BeOfType<CountingDbProvider>(
+            "a provider named by quartz.dataSource.<name>.connectionProvider.type was how 3.x brought its "
+            + "own connections, and dropping it silently falls back to a connection string that may not exist");
+    }
+
+    [Test]
     public void UseClusteringKeepsIntervalsThatCameFromConfiguration()
     {
         var services = new ServiceCollection();
@@ -1037,5 +1057,24 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         public byte[] Serialize<T>(T obj) where T : class => [];
 
         public T? Deserialize<T>(byte[] data) where T : class => null;
+    }
+
+    /// <summary>
+    /// A provider that never connects, told apart from <see cref="StubDbProvider"/> only by its type,
+    /// which is what a registration test asserts on.
+    /// </summary>
+    private sealed class CountingDbProvider : IDbProvider
+    {
+        public string ConnectionString => "";
+
+        public DbMetadata Metadata { get; } = new();
+
+        public DbCommand CreateCommand() => throw new NotSupportedException();
+
+        public DbConnection CreateConnection() => throw new NotSupportedException();
+
+        public void Shutdown()
+        {
+        }
     }
 }

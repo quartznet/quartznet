@@ -808,16 +808,22 @@ order to take effect.
   });
 ```
 
-What is left says three different things:
+What is left says four different things:
 
 | Member | Role |
 |---|---|
 | `UseDataSource(configure)` | **defines** a data source — which driver, and how to reach the database. The database methods such as `UseSqlServer` are shorthands for it |
 | `UseDataSourceName(name)` | **refers to** a data source by name, picking up settings registered elsewhere, such as a `Quartz:DataSource:<name>` section |
 | `DataSourceOptions.UseRegisteredDataSource` | takes connections from a `DbDataSource` the application registered in the container, instead of from a connection string |
+| `UseConnectionProvider<T>()` / `UseConnectionProvider(factory)` | **replaces** the connection provider outright, for connections Quartz cannot describe. The code spelling of `quartz.dataSource.<name>.connectionProvider.type` |
 
-Where connections come from is a property of the data source, so it is said in `DataSourceOptions`
-alongside `ConnectionString` and `ConnectionStringName`, and it wins over both.
+Where connections come from is a property of the data source, so the first three are said in
+`DataSourceOptions` alongside `ConnectionString` and `ConnectionStringName`, and
+`UseRegisteredDataSource` wins over both. `UseConnectionProvider` is the one that is not a data source
+setting, because it does not describe a database — it hands over the object that reaches one. It is
+therefore also the one method here that replaces rather than defers: it beats whatever `UseSqlServer`
+and its siblings registered, whichever order the two were called in, and names this store's data
+source so it needs no `UseDataSource` call of its own.
 
 ### `AddDataSourceProvider()` went with it
 
