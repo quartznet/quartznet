@@ -58,8 +58,8 @@ public sealed class SQLiteJobStoreContractTest : JobStoreContractTest
             await command.ExecuteNonQueryAsync();
         }
 
-        // The store publishes whatever provider it is handed into its own connection manager, so the
-        // test only has to build the provider.
+        // The store reads through the provider it is constructed with, so the test only has to build
+        // one.
         IDbProvider dbProvider = new DbProvider("SQLite-Microsoft", $"Data Source={dbFileName};");
 
         LocalTransactionJobStore store = new LocalTransactionJobStore(
@@ -70,7 +70,6 @@ public sealed class SQLiteJobStoreContractTest : JobStoreContractTest
             TestJobStores.StoreOptions(DataSourceName),
             TestJobStores.ClusteringOptions(),
             TestJobStores.Serializer(),
-            TestJobStores.ConnectionManager(),
             dbProvider,
             new SQLiteDelegate(),
             TestJobStores.LockHandler());

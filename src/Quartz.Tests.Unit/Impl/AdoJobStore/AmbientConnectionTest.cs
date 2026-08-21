@@ -420,7 +420,6 @@ public sealed class AmbientConnectionTest
                 storeOptions,
                 TestJobStores.ClusteringOptions(),
                 TestJobStores.Serializer(),
-                TestJobStores.ConnectionManager(),
                 dbProvider,
                 TestJobStores.DriverDelegate(),
                 TestJobStores.LockHandler())

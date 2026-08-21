@@ -170,7 +170,7 @@ public class MisfireHandlerTest
         public TestAdoJobStoreBase()
         // A short misfire handler frequency so that if the Run loop starts, it quickly checks the
         // cancellation token and exits, letting shutdown tests complete faster.
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(configure: options => options.MisfireHandlerFrequency = TimeSpan.FromMilliseconds(100)), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(configure: options => options.MisfireHandlerFrequency = TimeSpan.FromMilliseconds(100)), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
         }
 

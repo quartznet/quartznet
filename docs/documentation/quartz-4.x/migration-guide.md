@@ -404,8 +404,8 @@ reads — so a scheduler name set through it was accepted and then silently igno
 | `IPersistentStoreBuilder.UseDataSourceConnectionProvider()` | `DataSourceOptions.UseRegisteredDataSource` |
 | `AdoJobStoreOptions.Clustered`, `.ClusterCheckinInterval`, `.ClusterCheckinMisfireThreshold` | `ClusteringOptions` — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
 | `SchedulerRepository.Instance` | `ISchedulerRepository` resolved from the container |
-| `DBConnectionManager.Instance` | `IDbConnectionManager` resolved from the container |
-| `StdSchedulerFactory.GetDbConnectionManager()`, `.GetSchedulerRepository()` | `IDbConnectionManager` / `ISchedulerRepository` resolved from the container |
+| `DBConnectionManager.Instance` | nothing; register a provider with `UseConnectionProvider` and resolve `IDbProvider` from the container — see [The connection manager is gone](#the-connection-manager-is-gone) |
+| `StdSchedulerFactory.GetDbConnectionManager()`, `.GetSchedulerRepository()` | `IDbProvider`, keyed by scheduler name / `ISchedulerRepository`, both resolved from the container |
 
 ### Deferred configuration
 
@@ -461,19 +461,25 @@ service, rather than deriving from `PropertiesSetter` to write string keys.
 
 ### No process-global scheduler or connection state
 
-`SchedulerRepository.Instance` and `DBConnectionManager.Instance` are gone. Both are ordinary container
-registrations now, which means **a scheduler is only visible in the repository belonging to the container
-that built it**:
+`SchedulerRepository.Instance` and `DBConnectionManager.Instance` are gone. The repository is an ordinary
+container registration now, which means **a scheduler is only visible in the repository belonging to the
+container that built it**:
 
 ```diff
 - var scheduler = SchedulerRepository.Instance.Lookup("reporting");
 + var scheduler = serviceProvider.GetRequiredService<ISchedulerRepository>().Lookup("reporting");
 ```
 
+The connection manager did not become a container registration — it *was* one, holding a copy of what the
+container already knew, and it is removed outright. Registering a connection provider is a store
+configuration call, and reading one back is container resolution:
+
 ```diff
 - DBConnectionManager.Instance.AddConnectionProvider("default", myProvider);
-+ serviceProvider.GetRequiredService<IDbConnectionManager>().AddDbProvider("default", myProvider);
++ services.AddQuartz(q => q.UsePersistentStore(store => store.UseConnectionProvider(_ => myProvider)));
 ```
+
+See [The connection manager is gone](#the-connection-manager-is-gone) for the full picture.
 
 The observable consequence is that schedulers built different ways no longer find each other. Given a
 scheduler registered with `AddQuartz` and another built by a `QuartzSchedulerBuilder` in the same
@@ -497,7 +503,8 @@ services.AddQuartz(/* ... */);
 
 A `QuartzSchedulerBuilder` owns the container it creates, so its repository holds only the schedulers it
 built. `StdSchedulerFactory.GetSchedulerRepository()` and `GetDbConnectionManager()` went with the class;
-resolve `ISchedulerRepository` or `IDbConnectionManager` from the container instead.
+resolve `ISchedulerRepository` from the container instead, and a scheduler's `IDbProvider` from the same
+container under the scheduler's name as the service key.
 
 ## `StdSchedulerFactory` is gone
 
@@ -586,7 +593,7 @@ write instead, and the typed option that is usually the better answer.
 | `PropertyDataSourceConnectionString` | `connectionString` (under a data source) | `DataSourceOptions.ConnectionString` |
 | `PropertyDataSourceConnectionStringName` | `connectionStringName` (under a data source) | `DataSourceOptions.ConnectionStringName` |
 | `PropertyDbProvider` | `quartz.dbprovider` | the metadata factory on `UseGenericDatabase` |
-| `PropertyDbProviderType` | `connectionProvider.type` (under a data source) | register `IDbProvider`, or `DataSourceOptions.UseRegisteredDataSource` |
+| `PropertyDbProviderType` | `connectionProvider.type` (under a data source) | `UseConnectionProvider<T>()`, or `DataSourceOptions.UseRegisteredDataSource` — the key itself is still read |
 | `PropertyExecutionLimitPrefix` | `quartz.executionLimit` | `UseExecutionLimits(limits => …)` |
 | `PropertyPluginPrefix` | `quartz.plugin` | `AddPlugin<T>()` |
 | `PropertyPluginType` | `type` (under a plugin) | `AddPlugin<T>()` |
@@ -625,7 +632,7 @@ reaching for one of them. Each had a reason that the container now covers direct
 | `static GetDefaultScheduler()` | build a scheduler where the application starts and hold it, or inject `IScheduler` |
 | `Dispose()`, `Dispose(bool)` | the factory `Build()` returns owns its container and implements `IDisposable` and `IAsyncDisposable`; cast to dispose it |
 | `GetSchedulerRepository()` | `ISchedulerRepository`, resolved from the container |
-| `GetDBConnectionManager()` (3.x) | `IDbConnectionManager`, resolved from the container |
+| `GetDBConnectionManager()` (3.x) | nothing; the container is the provider registry — see [The connection manager is gone](#the-connection-manager-is-gone) |
 | `GetNamedConnectionString(string)` (3.x) | `DataSourceOptions.ConnectionStringName`, resolved from `IConfiguration`'s connection strings |
 | `Instantiate(QuartzSchedulerResources, QuartzScheduler)` (3.x) | nothing; both types are internal and the container builds the graph |
 | `InstantiateType<T>(Type?)` (3.x) | register the implementation in the container — this was the seam a container had to patch, and it is the container now |
@@ -2951,7 +2958,7 @@ a public setter. Writing one after the store had started did nothing useful in m
 diverged from the options everything else reads — and reading store configuration through a downcast
 `IJobStore` was a second currency for options that are already injectable. They are get-only and no
 longer public: the mirrors a derived store legitimately reads while doing its work are `protected`
-(`AcquireTriggersWithinLock`, `CanUseProperties`, `ClusterCheckinMisfireThreshold`, `ConnectionManager`,
+(`AcquireTriggersWithinLock`, `CanUseProperties`, `ClusterCheckinMisfireThreshold`,
 `DataSource`, `DoubleCheckLockMisfireHandler`, `LockOnInsert`, `MaxMisfiresToHandleAtATime`,
 `MaxTransientRetries`, `ObjectSerializer`, `PerformSchemaValidation`, `SelectWithLockSql`, `TablePrefix`,
 `TransientRetryInterval`, `TxIsolationLevelSerializable`, `UseDbLocks`), and the ones only the store's
@@ -3239,27 +3246,47 @@ The node-affinity parameters the statement now always carries are bound for you 
 still does not have to know their names or the order they are bound in. The cutoff parameter is a
 `DateTimeOffset`; the binder converts it to the stored tick value itself.
 
-## The connection manager lives with the other ADO.NET types
+## The connection manager is gone
 
-`IDbConnectionManager` and `DbConnectionManager` were in `Quartz.Util`, two namespaces away from the
-`IDbProvider` instances they hold. They are in `Quartz.Impl.AdoJobStore.Common` now, next to `IDbProvider`,
-`DbProvider` and `DbMetadata`, and the two members that said "connection provider" say `DbProvider`, which
-is the type they actually take:
+`DBConnectionManager` was a name-keyed registry of `IDbProvider`s, reached through a process-wide
+`Instance`. The container is that registry now: a scheduler's provider is registered under the
+scheduler's own name as the service key, and the job store is handed the one it was built with. The
+manager was left holding a copy of what the container already knew, which nothing read back — and two
+schedulers whose data sources happened to share a name silently overwrote each other in it.
 
-| 3.x / earlier 4.0 preview | 4.0 |
-|---|---|
-| `Quartz.Util.IDbConnectionManager` | `Quartz.Impl.AdoJobStore.Common.IDbConnectionManager` |
-| `Quartz.Util.DbConnectionManager` | `Quartz.Impl.AdoJobStore.Common.DbConnectionManager` |
-| `AddConnectionProvider(name, provider)` | `AddDbProvider(name, provider)` |
-| `GetConnectionProvider(name)` | `GetDbProvider(name)` |
+`IDbConnectionManager`, `DbConnectionManager` and `DBConnectionManager.Instance` are removed, with no
+replacement type. The two things they were used for have separate answers.
+
+**Registering a connection provider of your own** is a store configuration call. `UseConnectionProvider`
+is where the `quartz.dataSource.<name>.connectionProvider.type` key lands too, so the configuration and
+the code spelling say the same thing:
 
 ```diff
-- using Quartz.Util;
-+ using Quartz.Impl.AdoJobStore.Common;
-
-- serviceProvider.GetRequiredService<IDbConnectionManager>().AddConnectionProvider("default", myProvider);
-+ serviceProvider.GetRequiredService<IDbConnectionManager>().AddDbProvider("default", myProvider);
+- DBConnectionManager.Instance.AddConnectionProvider("default", new MyDbProvider());
++ services.AddQuartz(q => q.UsePersistentStore(store => store.UseConnectionProvider<MyDbProvider>()));
 ```
+
+```diff
+- DBConnectionManager.Instance.AddConnectionProvider("default", myProvider);
++ services.AddQuartz(q => q.UsePersistentStore(store => store.UseConnectionProvider(_ => myProvider)));
+```
+
+The provider replaces whichever one the database choice registered, in either order — `UseSqlServer`
+before or after `UseConnectionProvider` gives the same result — and it belongs to this scheduler alone.
+It also names the data source for you, so a store configured this way needs no `UseDataSource` call.
+
+**Reading a provider back out** is container resolution. The default scheduler's provider is unkeyed and
+a named scheduler's is keyed by its name:
+
+```diff
+- var provider = DBConnectionManager.Instance.GetConnectionProvider("default");
++ var provider = serviceProvider.GetRequiredService<IDbProvider>();
++ var reporting = serviceProvider.GetRequiredKeyedService<IDbProvider>("reporting");
+```
+
+The manager's other three members have no equivalent, because each was one call on the provider:
+`GetConnection(name)` is `provider.CreateConnection()`, `GetDbMetadata(name)` is `provider.Metadata`, and
+`Shutdown(name)` is `provider.Shutdown()`.
 
 `IDbProvider` itself is constructor-shaped: `Initialize()` is gone (every implementation resolved its
 driver description during construction, so the member was an empty ritual), and `ConnectionString` is
@@ -3876,7 +3903,6 @@ called out.
 | `QuartzScheduler.JobStoreClass`, `.ThreadPoolClass` | `JobStoreType`, `ThreadPoolType` (they return a `Type`; the type is internal now) |
 | `JobStoreSupport.UseDBLocks`, `.SelectWithLockSQL` | `UseDbLocks`, `SelectWithLockSql` |
 | `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `LockSql`, `InsertSql` (both readable now), `ExecuteSql` — see [The semaphores were tidied](#the-semaphores-were-tidied) |
-| `Quartz.Util.DBConnectionManager` | `Quartz.Impl.AdoJobStore.Common.DbConnectionManager` |
 | `DbMetadata.Init()` | Gone entirely: `DbMetadata` is an init-only record now, and `DbBinaryType` / `ParameterDbTypeProperty` derive from the described values instead of being produced by a second phase. `UseGenericDatabase`'s describing overloads take a `Func<DbMetadata>` returning `new DbMetadata { … }`; the dead `ParameterIsNullableProperty` went too |
 | `AdoConstants.ColumnMifireInstruction` | `ColumnMisfireInstruction` (a typo; the column name is unchanged) |
 | `SchedulerConstants.FailedJobOriginalTriggerFiretime`, `…ScheduledFiretime` | `…TriggerFireTime`, `…ScheduledFireTime` (the string values are unchanged) |
@@ -5574,7 +5600,7 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.ValidateSchema` added | Schema validation was a `StdAdoDelegate` method reached by type test, so a delegate of your own silently skipped it — see [`ValidateSchema` is part of `IDriverDelegate`](#validateschema-is-part-of-idriverdelegate) |
 | `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |
 | `GetSelectNextTriggerToAcquireWith*Sql` removed | The `…WithExecutionGroupSql`, `…WithPreferredNodeSql` and `…WithPreferredNodeOnlySql` hooks, on `StdAdoDelegate` and all six dialect delegates. One statement covers every case now, so a dialect delegate keeps only its `GetSelectNextTriggerToAcquireSql` override — see [The three extra acquisition SQL hooks went with them](#the-three-extra-acquisition-sql-hooks-went-with-them) |
-| `IDbConnectionManager` / `DbConnectionManager` moved to `Quartz.Impl.AdoJobStore.Common` | And `AddConnectionProvider` / `GetConnectionProvider` are `AddDbProvider` / `GetDbProvider` — see [The connection manager lives with the other ADO.NET types](#the-connection-manager-lives-with-the-other-ado-net-types) |
+| `IDbConnectionManager` / `DbConnectionManager` removed | The container is the provider registry, keyed by scheduler name; register a provider with `UseConnectionProvider` — see [The connection manager is gone](#the-connection-manager-is-gone) |
 | `DbMetadataFactory` is internal | Every implementation was already internal and no public member accepted one; describe a driver through `UseGenericDatabase`'s metadata factory |
 | `DbProvider.PropertyDbProvider` and `.DbProviderResourceName` removed | Two `protected const`s nothing read, left over from the process-wide provider registry |
 | `SimplePropertiesTriggerPersistenceDelegateBase`'s four SQL statements are private | `SelectSimplePropsTrigger`, `DeleteSimplePropsTrigger`, `InsertSimplePropsTrigger` and `UpdateSimplePropsTrigger` name every column the base class binds, so replacing one could not work. The table and column name constants stay `protected` — they are the schema contract |
@@ -5618,7 +5644,7 @@ Parameters and behavior are unchanged:
 | `TimeZoneUtil` became `Quartz.TimeZones` | `FindTimeZoneById` — now `FindById` — and the wall-clock `GetUtcOffset` are scheduling API, not utilities — see [`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones) |
 | `Quartz.Util.ObjectExtensions` is internal | `AssemblyQualifiedNameWithoutVersion()` is how Quartz spells a type name into a blob or onto the wire, not a general-purpose helper |
 | `Quartz.Diagnostics.ActivityOptions` is `ActivityTags` | It holds `Activity` tag names, not options, and `*Options` names an options type everywhere else. It replaced 3.x's `DiagnosticHeaders`; the tag names and values are unchanged |
-| `DBSemaphore` is `DbSemaphore` | The last `DB` spelling, with `DBConnectionManager` → `DbConnectionManager`. The type is abstract and is never named in configuration |
+| `DBSemaphore` is `DbSemaphore` | The last `DB` spelling left in the ADO.NET surface. The type is abstract and is never named in configuration |
 | `StartingDailyAt` / `EndingDailyAt` take a `timeOfDay` | The parameter was `timeOfDayUtc`, and the value is wall-clock in the trigger's time zone rather than UTC — the property it sets, `StartTimeOfDay`, never claimed otherwise. `DailyTimeIntervalTriggerImpl`'s five constructors say `startTimeOfDay` / `endTimeOfDay` for the same reason |
 | `ITriggerSerializer.TriggerTypeForJson` is `TriggerTypeName` | `ICalendarSerializer.CalendarTypeName` names the same concept; both JSON serializers changed |
 | `IDriverDelegate.SelectNumTriggersForJob` is `CountTriggersForJob` | Matching `CountMisfiredTriggersInState`, and spelling out the last `Num` |
@@ -5668,7 +5694,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.CronScheduleTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.DailyTimeIntervalTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.Util.DataReaderExtensions` | Internal | No replacement; they were `IDataReader` conveniences Quartz used on its own reads |
-| `Quartz.Util.DBConnectionManager` | Renamed `Quartz.Impl.AdoJobStore.Common.DbConnectionManager` | Resolve `IDbConnectionManager` from the container; `.Instance` is gone — see [The connection manager lives with the other ADO.NET types](#the-connection-manager-lives-with-the-other-ado-net-types) |
+| `Quartz.Util.DBConnectionManager` | Removed | Register a provider with `UseConnectionProvider`, and resolve `IDbProvider` from the container; `.Instance` is gone — see [The connection manager is gone](#the-connection-manager-is-gone) |
 | `Quartz.Impl.AdoJobStore.Common.DbMetadataFactory` | Internal | The metadata factory on `UseGenericDatabase` |
 | `Quartz.Impl.AdoJobStore.DBSemaphore` | Renamed `DbSemaphore` | Same abstract base, still public — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | `Quartz.Simpl.DedicatedThreadPool` | Internal | `IQuartzBuilder.UseThreadPool(IThreadPool)` for a pool of your own — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
