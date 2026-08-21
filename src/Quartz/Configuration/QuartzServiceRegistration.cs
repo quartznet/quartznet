@@ -175,7 +175,7 @@ internal static class QuartzServiceRegistration
                 BatchTimeWindow = options.BatchTriggerAcquisitionFireAheadTimeWindow,
                 InterruptJobsOnShutdown = options.InterruptJobsOnShutdown,
                 InterruptJobsOnShutdownWithWait = options.InterruptJobsOnShutdownWithWait,
-                TimeProvider = provider.GetRequiredService<TimeProvider>(),
+                TimeProvider = provider.GetSchedulerTimeProvider(key),
                 ThreadPool = provider.GetScheduler<IThreadPool>(key),
                 JobStore = provider.GetScheduler<IJobStore>(key),
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
@@ -189,7 +189,7 @@ internal static class QuartzServiceRegistration
 
         services.TryAddKeyed<QuartzScheduler>(key, static (provider, key) => new QuartzScheduler(
             provider.GetScheduler<QuartzSchedulerResources>(key),
-            provider.GetRequiredService<TimeProvider>()));
+            provider.GetSchedulerTimeProvider(key)));
 
         // The jobs, triggers, listeners and calendars a scheduler should carry are per-scheduler, so these
         // are keyed too, and are handed this scheduler's own key, content and properties rather than
@@ -275,6 +275,22 @@ internal static class QuartzServiceRegistration
     internal static IEnumerable<T> GetSchedulerServices<T>(this IServiceProvider provider, object? key)
     {
         return key is null ? provider.GetServices<T>() : provider.GetKeyedServices<T>(key);
+    }
+
+    /// <summary>
+    /// Resolves the clock a scheduler runs on.
+    /// </summary>
+    /// <remarks>
+    /// Three answers in order of how specifically they were meant: the one this scheduler was given with
+    /// <c>UseTimeProvider</c>, the one the container holds, and the system clock. A named scheduler
+    /// therefore inherits an application-wide clock without having to be told about it, while a clock
+    /// given to one scheduler stays that scheduler's.
+    /// </remarks>
+    internal static TimeProvider GetSchedulerTimeProvider(this IServiceProvider provider, object? key)
+    {
+        return (key is null ? null : provider.GetKeyedService<TimeProvider>(key))
+            ?? provider.GetService<TimeProvider>()
+            ?? TimeProvider.System;
     }
 
     /// <summary>

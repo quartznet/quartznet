@@ -169,6 +169,14 @@ internal sealed class SchedulerScopedServiceProvider
             return inner.GetKeyedService(serviceType, key);
         }
 
+        // A scheduler's clock is the one it was given, or the container's, or the system one. It is not
+        // in the set above because the fallback is what makes a named scheduler inherit an
+        // application-wide TimeProvider it was never told about, rather than be handed nothing.
+        if (serviceType == typeof(TimeProvider))
+        {
+            return inner.GetKeyedService(serviceType, key) ?? inner.GetService(serviceType);
+        }
+
         // The trigger persistence delegates are one service type registered several times, so they
         // resolve as an enumerable rather than through the single-service set above. The container's
         // own answer for an IEnumerable is the unkeyed registrations, which for a named scheduler
@@ -270,6 +278,12 @@ internal sealed class SchedulerScopedServiceProvider
         if (schedulerScoped.Contains(serviceType))
         {
             return IsKeyedService(serviceType, key);
+        }
+
+        if (serviceType == typeof(TimeProvider))
+        {
+            return IsKeyedService(serviceType, key)
+                || (inner.GetService<IServiceProviderIsService>()?.IsService(serviceType) ?? false);
         }
 
         if (NamedOptions(serviceType) is not null

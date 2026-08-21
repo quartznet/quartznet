@@ -158,8 +158,43 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     public IQuartzBuilder UseTimeProvider(TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
-        Services.Replace(ServiceDescriptor.Singleton(timeProvider));
+
+        // Registered at this scheduler's slot, like every other component. A container-wide replacement
+        // would re-time every other scheduler in the container from one scheduler's configuration — and
+        // a test that hands one scheduler a fake clock does not mean the others should start lying too.
+        if (schedulerKey is null)
+        {
+            Services.Replace(ServiceDescriptor.Singleton(timeProvider));
+        }
+        else
+        {
+            RemoveKeyed<TimeProvider>();
+            Services.AddKeyedSingleton(schedulerKey, timeProvider);
+        }
+
         return this;
+    }
+
+    /// <summary>
+    /// Removes this scheduler's registrations of a service, so one made here replaces rather than joins
+    /// them.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ServiceCollectionDescriptorExtensions.Replace"/>'s counterpart for a keyed
+    /// registration: it matches on the service type alone, so it would remove some other scheduler's.
+    /// </remarks>
+    private void RemoveKeyed<TService>()
+    {
+        for (var i = Services.Count - 1; i >= 0; i--)
+        {
+            ServiceDescriptor descriptor = Services[i];
+            if (descriptor.ServiceType == typeof(TService)
+                && descriptor.IsKeyedService
+                && Equals(descriptor.ServiceKey, schedulerKey))
+            {
+                Services.RemoveAt(i);
+            }
+        }
     }
 
     public IQuartzBuilder ConfigureOptions<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(

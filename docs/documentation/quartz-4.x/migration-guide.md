@@ -1334,6 +1334,37 @@ Under a host, the same call goes on the `AddQuartz` builder:
 services.AddQuartz(q => q.UseTimeProvider(new FakeTimeProvider()));
 ```
 
+### A clock belongs to one scheduler
+
+`UseTimeProvider` used to replace the container's `TimeProvider` registration, so calling it on one named
+scheduler re-timed every scheduler in the container. It now registers at the scheduler's own slot, and one
+scheduler can be driven by a fake clock while the rest keep real time:
+
+```csharp
+services.AddQuartz("reporting", q => q.UseTimeProvider(new FakeTimeProvider()));
+services.AddQuartz("billing", q => …);   // still on the system clock
+```
+
+A scheduler that was not given a clock of its own asks the container, so an application-wide
+`TimeProvider` registration is inherited by every scheduler exactly as it was. In full, most specific
+first:
+
+| Where the clock comes from | Beats |
+|---|---|
+| `UseTimeProvider(...)` on that scheduler's builder | everything below |
+| a `TimeProvider` registered in the container | the key and the default |
+| `quartz.timeProvider.type` | the default |
+| `TimeProvider.System` | — |
+
+The third row is the fix to a precedence inversion: `quartz.timeProvider.type` was applied by replacing
+the registration *after* the configuration callback had run, so a leftover key in a configuration file
+silently overrode the clock the application had chosen in code. It is now tried rather than replaced, like
+every other implementation a flat key names — code beats strings in both directions, opposite orders
+notwithstanding.
+
+Triggers built by `q.AddTrigger(...)` and `q.ScheduleJob(...)` are built with their scheduler's clock, so
+a trigger given no start time starts at the time that scheduler thinks it is.
+
 ## Logging
 
 LibLog has been replaced with `Microsoft.Extensions.Logging.Abstractions`.
