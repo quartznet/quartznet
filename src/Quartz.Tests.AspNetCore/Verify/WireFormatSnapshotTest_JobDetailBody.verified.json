@@ -1,0 +1,13 @@
+﻿{
+  "name": "DummyJob",
+  "group": "DummyGroup",
+  "jobType": "Quartz.Tests.AspNetCore.Support.DummyJob, Quartz.Tests.AspNetCore",
+  "description": "Dummy job description",
+  "durable": true,
+  "requestsRecovery": true,
+  "concurrentExecutionDisallowed": true,
+  "persistJobDataAfterExecution": true,
+  "jobDataMap": {
+    "TestKey": "TestValue"
+  }
+}

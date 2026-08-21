@@ -1,0 +1,15 @@
+﻿{
+  "type": "HolidayCalendar",
+  "description": "Test HolidayCalendar",
+  "timeZoneId": "UTC",
+  "baseCalendar": {
+    "type": "BaseCalendar",
+    "description": "Test BaseCalendar",
+    "timeZoneId": "UTC",
+    "baseCalendar": null
+  },
+  "excludedDates": [
+    "2024-12-24",
+    "2024-12-25"
+  ]
+}

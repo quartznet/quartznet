@@ -1,0 +1,19 @@
+﻿{
+  "schedulerInstanceId": "TEST_NON_CLUSTERED",
+  "name": "TestScheduler",
+  "status": 1,
+  "threadPool": {
+    "type": "Quartz.Impl.DefaultThreadPool, Quartz",
+    "size": 10
+  },
+  "jobStore": {
+    "type": "Quartz.Impl.RAMJobStore, Quartz",
+    "clustered": false,
+    "persistent": false
+  },
+  "statistics": {
+    "version": "1.2.3",
+    "runningSince": "2024-07-01T12:00:00+00:00",
+    "jobsExecuted": 1000000
+  }
+}

@@ -1,0 +1,26 @@
+﻿{
+  "triggerType": "RecurrenceTrigger",
+  "key": {
+    "name": "RecurrenceTriggerKey",
+    "group": "RecurrenceTriggerGroup"
+  },
+  "jobKey": {
+    "name": "RecurrenceJobKey",
+    "group": "RecurrenceJobGroup"
+  },
+  "description": "RecurrenceTrigger description",
+  "calendarName": null,
+  "jobDataMap": {},
+  "misfireInstruction": 0,
+  "startTimeUtc": "2024-07-01T12:00:00+00:00",
+  "endTimeUtc": "2025-07-01T12:00:00+00:00",
+  "priority": 5,
+  "nextFireTimeUtc": "2024-08-01T12:30:00+00:00",
+  "previousFireTimeUtc": "2024-08-01T06:30:00+00:00",
+  "executionGroup": null,
+  "preferredNode": null,
+  "preferredNodeAuto": false,
+  "recurrenceRule": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR",
+  "timeZone": "UTC",
+  "timesTriggered": 0
+}
