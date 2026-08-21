@@ -100,13 +100,23 @@ public class SelectForUpdateSemaphore : DbSemaphore
     /// <summary>
     /// Maximum retry attempts, defaults to 3.
     /// </summary>
-    public int MaxRetry { get; set; } = 3;
+    /// <remarks>
+    /// <inheritdoc cref="RetryPeriod" path="/remarks" />
+    /// </remarks>
+    public int MaxRetry { get; init; } = 3;
 
     /// <summary>
     /// Sleep between attempts, defaults to 1 second.
     /// </summary>
+    /// <remarks>
+    /// Init-only: how many times a lock attempt is retried is fixed for the life of the handler, and a
+    /// setter invited changing it while a contended lock was mid-retry. The flat
+    /// <c>quartz.jobStore.lockHandler.maxRetry</c> and <c>…retryPeriod</c> keys still reach it — the
+    /// property bridge writes the handler by reflection, and an init accessor is a setter as far as
+    /// reflection is concerned.
+    /// </remarks>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan RetryPeriod { get; set; } = TimeSpan.FromMilliseconds(1000);
+    public TimeSpan RetryPeriod { get; init; } = TimeSpan.FromMilliseconds(1000);
 
     /// <summary>
     /// Execute the SQL select for update that will lock the proper database row.
@@ -164,7 +174,7 @@ public class SelectForUpdateSemaphore : DbSemaphore
                         if (count < maxRetryLocal)
                         {
                             // pause a bit to give another thread some time to commit the insert of the new lock row
-                            await Task.Delay(retryPeriodLocal, cancellationToken).ConfigureAwait(false);
+                            await Task.Delay(retryPeriodLocal, TimeProvider, cancellationToken).ConfigureAwait(false);
 
                             // try again ...
                             continue;
@@ -193,7 +203,7 @@ public class SelectForUpdateSemaphore : DbSemaphore
                 if (count < maxRetryLocal)
                 {
                     // pause a bit to give another thread some time to commit the insert of the new lock row
-                    await Task.Delay(retryPeriodLocal, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(retryPeriodLocal, TimeProvider, cancellationToken).ConfigureAwait(false);
 
                     // try again ...
                     continue;

@@ -826,6 +826,8 @@ public abstract class AdoJobStoreBase : IJobStore
             SchedulerName = InstanceName,
             InstanceId = InstanceId,
             TablePrefix = TablePrefix,
+            TimeProvider = timeProvider,
+            CommandTimeout = CommandTimeout,
         });
 
         activityTracer.SetSchedulerContext(InstanceName, InstanceId);

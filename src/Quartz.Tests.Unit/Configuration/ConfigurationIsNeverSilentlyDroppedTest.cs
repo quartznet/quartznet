@@ -934,6 +934,38 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             .Which.Marker.Should().Be("configured");
     }
 
+    /// <summary>
+    /// The row-lock retry knobs are <c>init</c>-only, which no caller can assign after construction —
+    /// but the property bridge is not a caller, it is reflection, and an init accessor is an ordinary
+    /// setter to <see cref="System.Reflection.PropertyInfo.SetValue" />. This pins that, because the two
+    /// facts that make it work — <c>CanWrite</c> being true for an init accessor, and
+    /// <c>GetSetMethod</c> returning it — live in <c>ObjectUtils</c> and could be tightened by someone
+    /// who reasonably believed init-only properties were not settable.
+    /// </summary>
+    [Test]
+    public void TheRowLockRetryKnobsAreStillReachableThroughTheirLegacyKeys()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.jobStore.lockHandler.type"] = typeof(SelectForUpdateSemaphore).AssemblyQualifiedName,
+                ["quartz.jobStore.lockHandler.maxRetry"] = "7",
+                ["quartz.jobStore.lockHandler.retryPeriod"] = "2500",
+            },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        var semaphore = provider.GetRequiredService<ISemaphore>().Should().BeOfType<SelectForUpdateSemaphore>().Subject;
+
+        semaphore.MaxRetry.Should().Be(7,
+            "quartz.jobStore.lockHandler.maxRetry has always reached this property, and making it "
+            + "init-only must not have quietly stopped that");
+        semaphore.RetryPeriod.Should().Be(TimeSpan.FromMilliseconds(2500),
+            "the [TimeSpanParseRule] on the property says the key is milliseconds");
+    }
+
     [Test]
     public void TwoPluginEntriesOfOneTypeStayTwoPlugins()
     {

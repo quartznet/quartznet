@@ -3316,11 +3316,33 @@ public interface ISemaphore
 }
 ```
 
-`SemaphoreContext` carries `SchedulerName`, `InstanceId` and `TablePrefix`. The job store calls
+`SemaphoreContext` carries the identity a handler locks under — `SchedulerName`, `InstanceId` and
+`TablePrefix` — and the environment it locks in: `TimeProvider`, the clock a handler backs off on
+between attempts, and `CommandTimeout`, how long its statements may run. The job store calls
 `Initialize` once, before the semaphore is used, whether the store built the handler itself or the
 container or configuration supplied it. The default implementation does nothing, so a handler that does
 not key its locks by scheduler identity implements nothing. `DbSemaphore` overrides it to re-expand its
-statements with the table prefix; its `TablePrefix` and `SchedulerName` properties are read-only now.
+statements with the table prefix and rebuild its accessor with the timeout; its `TablePrefix` and
+`SchedulerName` properties are read-only now, and it exposes the clock as a `protected TimeProvider`.
+
+Both shipped row-lock handlers wait on that clock rather than on wall time, so their retry behaviour is
+finally testable — the backoff was a `Task.Delay(TimeSpan, CancellationToken)`, which meant the only way
+to watch a retry was to sit out the real second, and neither retry loop had a test. `UpdateRowSemaphore`
+picked up a `RetryPeriod` in the process: its backoff was a literal `TimeSpan.FromSeconds(1)`, so it
+ignored `quartz.jobStore.lockHandler.retryPeriod` while `SelectForUpdateSemaphore` beside it honoured
+the same key.
+
+`SelectForUpdateSemaphore.MaxRetry` and `.RetryPeriod` are `init`-only. How many times a contended lock
+is retried is fixed for the life of the handler, and a setter invited changing it mid-retry. The flat
+`quartz.jobStore.lockHandler.maxRetry` / `.retryPeriod` keys still reach them: the property bridge writes
+the handler by reflection, and an init accessor is an ordinary setter to reflection. Code that assigned
+them after construction moves the values into the object initializer:
+
+```diff
+- var semaphore = new SelectForUpdateSemaphore(dbProvider);
+- semaphore.MaxRetry = 5;
++ var semaphore = new SelectForUpdateSemaphore(dbProvider) { MaxRetry = 5 };
+```
 
 A custom handler that implemented `ITablePrefixAware` replaces the property pair with `Initialize` and
 reads the same values from the context:
@@ -5903,6 +5925,9 @@ Parameters and behavior are unchanged:
 | The row-lock semaphores are named for the SQL they issue | `StdRowLockSemaphore` is `SelectForUpdateSemaphore`, `UpdateLockRowSemaphore` is `UpdateRowSemaphore`, `PostgreSQLRowLockSemaphore` is `PostgreSqlSelectForUpdateSemaphore`, `UpdateLockRowSemaphoreMOT` is `SqlServerMemoryOptimizedUpdateRowSemaphore`. `quartz.jobStore.lockHandler.type` naming an old one still resolves, with a warning — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | Row-lock semaphore SQL fields are `protected const` and consistently named | `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateRowSemaphore.UpdateForLock` / `.InsertLock`; `SelectForUpdateSemaphore.SelectForLock` / `.InsertLock` keep their member names |
 | `ISemaphore.Initialize(SemaphoreContext)` replaces `ITablePrefixAware` | Identity arrives through one initialization call instead of a property pair; the default implementation does nothing — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
+| `SemaphoreContext` also carries `TimeProvider` and `CommandTimeout` | The environment a handler locks in, beside the identity it locks under. `DbSemaphore` exposes the clock as a `protected TimeProvider` and both shipped row-lock handlers back off on it, so a retry is observable without waiting out the real second |
+| `SelectForUpdateSemaphore.MaxRetry` / `.RetryPeriod` are `init`-only | Assign them in an object initializer. `quartz.jobStore.lockHandler.maxRetry` / `.retryPeriod` still reach them — the property bridge writes by reflection, which an init accessor does not stop |
+| `UpdateRowSemaphore.RetryPeriod` added | Its backoff was a literal one second, so it ignored `quartz.jobStore.lockHandler.retryPeriod` while its sibling honoured it. The default is unchanged at one second |
 | `AdoJobStoreBase.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
 | `ConnectionAndTransactionHolder` gained an ownership-aware constructor and `OwnsResources` | `(connection, transaction, ownsResources)` for a store running on a connection it did not open |
 | `ConnectionAndTransactionHolder` is `IAsyncDisposable` | `await using` is the form to prefer in an async method — the provider closes its connection without blocking a thread. Purely additive; `using` keeps working, and both disposal paths now log failures at debug instead of swallowing them |
