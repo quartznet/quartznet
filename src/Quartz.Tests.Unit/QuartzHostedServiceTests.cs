@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 
 using Quartz.Extensibility;
 
@@ -63,12 +63,12 @@ public class QuartzHostedServiceTests
         public IListenerManager ListenerManager { get; }
         public bool IsStarted { get; private set; }
 
-        public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = null, CancellationToken cancellationToken = default)
+        public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask AddJob(IJobDetail jobDetail, AddJobOptions options = null, CancellationToken cancellationToken = default)
+        public ValueTask AddJob(IJobDetail jobDetail, AddJobOptions options = default, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

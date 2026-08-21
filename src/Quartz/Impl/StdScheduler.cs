@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -198,7 +198,7 @@ internal sealed class StdScheduler : IScheduler
     /// </summary>
     public ValueTask AddJob(
         IJobDetail jobDetail,
-        AddJobOptions? options = null,
+        AddJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
         return scheduler.AddJob(jobDetail, options, cancellationToken);
@@ -521,7 +521,7 @@ internal sealed class StdScheduler : IScheduler
     public ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
-        AddCalendarOptions? options = null,
+        AddCalendarOptions options = default,
         CancellationToken cancellationToken = default)
     {
         return scheduler.AddCalendar(calendarName, calendar, options, cancellationToken);

@@ -1,4 +1,4 @@
-using Quartz.Extensibility;
+﻿using Quartz.Extensibility;
 
 namespace Quartz.Impl;
 
@@ -107,7 +107,7 @@ public class DelegatingScheduler : IScheduler
         return scheduler.GetExecutionLimits(cancellationToken);
     }
 
-    public virtual ValueTask AddJob(IJobDetail jobDetail, AddJobOptions? options = null, CancellationToken cancellationToken = default)
+    public virtual ValueTask AddJob(IJobDetail jobDetail, AddJobOptions options = default, CancellationToken cancellationToken = default)
     {
         return scheduler.AddJob(jobDetail, options, cancellationToken);
     }
@@ -232,7 +232,7 @@ public class DelegatingScheduler : IScheduler
         return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);
     }
 
-    public virtual ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default)
+    public virtual ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
     {
         return scheduler.AddCalendar(calendarName, calendar, options, cancellationToken);
     }

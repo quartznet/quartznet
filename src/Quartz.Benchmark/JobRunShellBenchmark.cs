@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
@@ -330,7 +330,7 @@ public class JobRunShellBenchmark
             return default;
         }
 
-        public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default)
+        public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

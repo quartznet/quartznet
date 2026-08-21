@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -385,7 +385,7 @@ public interface IScheduler
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask AddJob(
         IJobDetail jobDetail,
-        AddJobOptions? options = null,
+        AddJobOptions options = default,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -719,7 +719,7 @@ public interface IScheduler
     ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
-        AddCalendarOptions? options = null,
+        AddCalendarOptions options = default,
         CancellationToken cancellationToken = default);
 
     /// <summary>

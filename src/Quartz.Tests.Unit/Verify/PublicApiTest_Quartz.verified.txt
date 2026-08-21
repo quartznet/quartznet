@@ -1,15 +1,13 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
 namespace Quartz
 {
-    public sealed class AddCalendarOptions : System.IEquatable<Quartz.AddCalendarOptions>
+    public readonly struct AddCalendarOptions : System.IEquatable<Quartz.AddCalendarOptions>
     {
-        public AddCalendarOptions() { }
         public bool Replace { get; init; }
         public bool UpdateTriggers { get; init; }
     }
-    public sealed class AddJobOptions : System.IEquatable<Quartz.AddJobOptions>
+    public readonly struct AddJobOptions : System.IEquatable<Quartz.AddJobOptions>
     {
-        public AddJobOptions() { }
         public bool Replace { get; init; }
         public bool StoreNonDurableWhileAwaitingScheduling { get; init; }
     }
@@ -553,8 +551,8 @@ namespace Quartz
         Quartz.IListenerManager ListenerManager { get; }
         string SchedulerInstanceId { get; }
         string SchedulerName { get; }
-        System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, Quartz.AddJobOptions? options = null, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, Quartz.AddJobOptions options = default, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> DeleteCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> DeleteJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
@@ -1223,10 +1221,10 @@ namespace Quartz
     }
     public static class ServiceCollectionExtensions
     {
-        public static Quartz.IQuartzBuilder AddCalendar(this Quartz.IQuartzBuilder builder, string name, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null) { }
-        public static Quartz.IQuartzBuilder AddCalendar<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(this Quartz.IQuartzBuilder builder, string name, Quartz.AddCalendarOptions? options, System.Action<System.IServiceProvider, T> configure)
+        public static Quartz.IQuartzBuilder AddCalendar(this Quartz.IQuartzBuilder builder, string name, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default) { }
+        public static Quartz.IQuartzBuilder AddCalendar<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(this Quartz.IQuartzBuilder builder, string name, Quartz.AddCalendarOptions options, System.Action<System.IServiceProvider, T> configure)
             where T : Quartz.ICalendar, new () { }
-        public static Quartz.IQuartzBuilder AddCalendar<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(this Quartz.IQuartzBuilder builder, string name, Quartz.AddCalendarOptions? options = null, System.Action<T>? configure = null)
+        public static Quartz.IQuartzBuilder AddCalendar<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(this Quartz.IQuartzBuilder builder, string name, Quartz.AddCalendarOptions options = default, System.Action<T>? configure = null)
             where T : Quartz.ICalendar, new () { }
         public static Quartz.IQuartzBuilder AddJob(this Quartz.IQuartzBuilder builder, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type jobType, System.Action<Quartz.IJobConfigurator<Quartz.IJob>> configure) { }
         public static Quartz.IQuartzBuilder AddJob(this Quartz.IQuartzBuilder builder, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type jobType, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<Quartz.IJob>> configure) { }
@@ -1555,7 +1553,7 @@ namespace Quartz.Extensibility
         System.TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; }
         bool SupportsPersistence { get; }
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail job, bool replace, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask AddTrigger(Quartz.Extensibility.IOperableTrigger trigger, bool replace, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default);
@@ -1833,7 +1831,7 @@ namespace Quartz.Impl.AdoJobStore
         protected bool UseDbLocks { get; }
         protected System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask AddCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail job, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask AddJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.IJobDetail newJob, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2746,7 +2744,7 @@ namespace Quartz.Impl
         protected Quartz.Extensibility.IJobStore InnerJobStore { get; }
         public virtual bool SupportsPersistence { get; }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail job, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask AddTrigger(Quartz.Extensibility.IOperableTrigger trigger, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default) { }
@@ -2805,8 +2803,8 @@ namespace Quartz.Impl
         public virtual Quartz.IListenerManager ListenerManager { get; }
         public virtual string SchedulerInstanceId { get; }
         public virtual string SchedulerName { get; }
-        public virtual System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, Quartz.AddJobOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, Quartz.AddJobOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> DeleteCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> DeleteJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2915,7 +2913,7 @@ namespace Quartz.Impl
         public System.TimeSpan MisfireThreshold { get; set; }
         public bool SupportsPersistence { get; }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail job, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask AddTrigger(Quartz.Extensibility.IOperableTrigger trigger, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default) { }

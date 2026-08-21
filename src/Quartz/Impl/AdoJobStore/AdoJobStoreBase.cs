@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -2179,10 +2179,9 @@ public abstract class AdoJobStoreBase : IJobStore
     public async ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
-        AddCalendarOptions? options = null,
+        AddCalendarOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        options ??= new AddCalendarOptions();
         await activityTracer.Trace(
             OperationName.JobStore.AddCalendar,
             () => ExecuteInLock(
