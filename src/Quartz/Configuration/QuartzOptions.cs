@@ -35,12 +35,21 @@ public sealed class QuartzOptions
     /// How the jobs, triggers and calendars a scheduler is configured with are applied to it.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// These are directives about applying a schedule rather than settings of a component, so they have
     /// no options type of their own to bind onto: <c>ContainerConfigurationProcessor</c> reads them from
     /// here, and the <c>Quartz:Scheduling</c> configuration section binds onto them. They stay on this
     /// type for that reason, while the settings that duplicated a typed option have gone.
+    /// </para>
+    /// <para>
+    /// Get-only, like <see cref="Properties"/>. Options callbacks compose by running in order over one
+    /// instance, and assignment is the one operation that is not additive: a callback assigning a fresh
+    /// <see cref="SchedulingOptions"/> would silently discard whatever <c>Quartz:Scheduling</c> — or an
+    /// earlier callback — had put there. The configuration binder binds into a non-null complex
+    /// property without needing a setter, so the section keeps working unchanged.
+    /// </para>
     /// </remarks>
-    public SchedulingOptions Scheduling { get; set; } = new();
+    public SchedulingOptions Scheduling { get; } = new();
 
     /// <summary>
     /// Returns the flat keys in the form the property readers take.

@@ -1026,7 +1026,7 @@ namespace Quartz
     {
         public QuartzOptions() { }
         public System.Collections.Generic.Dictionary<string, string?> Properties { get; }
-        public Quartz.SchedulingOptions Scheduling { get; set; }
+        public Quartz.SchedulingOptions Scheduling { get; }
         public System.Collections.Specialized.NameValueCollection ToNameValueCollection() { }
     }
     public sealed class QuartzSchedulerBuilder : Quartz.IQuartzBuilder

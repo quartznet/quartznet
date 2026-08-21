@@ -1,6 +1,6 @@
 namespace Quartz;
 
-public class QuartzHttpApiOptions
+public sealed class QuartzHttpApiOptions
 {
     public string ApiPath { get; set; } = "/quartz-api";
     public bool IncludeStackTraceInProblemDetails { get; set; }

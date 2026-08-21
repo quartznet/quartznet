@@ -15,7 +15,7 @@ namespace Quartz
         public string Name { get; set; }
         public System.Collections.Generic.IReadOnlyCollection<string> Tags { get; set; }
     }
-    public class QuartzHttpApiOptions
+    public sealed class QuartzHttpApiOptions
     {
         public QuartzHttpApiOptions() { }
         public string ApiPath { get; set; }
