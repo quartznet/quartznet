@@ -128,6 +128,20 @@ public sealed class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeInterv
     }
 
     /// <summary>
+    /// The constructor JSON deserialization uses.
+    /// </summary>
+    /// <remarks>
+    /// Newtonsoft's <c>ConstructorHandling.AllowNonPublicDefaultConstructor</c> wants a genuinely
+    /// parameterless constructor; one whose single parameter merely has a default value is not one as
+    /// far as reflection is concerned. Without this, a trigger stored by the Newtonsoft serializer
+    /// cannot be read back.
+    /// </remarks>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0051:Remove unused private member", Justification = "Invoked reflectively by JSON deserialization.")]
+    private DailyTimeIntervalTriggerImpl() : base(timeProvider: null)
+    {
+    }
+
+    /// <summary>
     /// The time at which the <see cref="IDailyTimeIntervalTrigger" /> should occur.
     /// </summary>
     public override DateTimeOffset StartTimeUtc

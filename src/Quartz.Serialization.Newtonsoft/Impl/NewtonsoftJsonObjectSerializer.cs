@@ -95,7 +95,7 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
             },
             ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
             TypeNameHandling = TypeNameHandling.Auto,
-            ContractResolver = new ImmutableKeyContractResolver(),
+            ContractResolver = new QuartzContractResolver(),
             NullValueHandling = NullValueHandling.Ignore,
             DateParseHandling = DateParseHandling.DateTimeOffset
         };
