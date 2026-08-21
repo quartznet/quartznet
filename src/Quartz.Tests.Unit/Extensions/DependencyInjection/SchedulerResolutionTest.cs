@@ -74,6 +74,32 @@ public sealed class SchedulerResolutionTest
         await reporting.Shutdown();
     }
 
+    /// <summary>
+    /// A scheduler whose parts all initialize synchronously is built on the spot, so its synchronous
+    /// members answer without anything having been awaited first.
+    /// </summary>
+    /// <remarks>
+    /// This is the common case rather than a guarantee: it holds for the in-memory store, and for a
+    /// database-backed one it holds only if nothing about opening the store actually goes asynchronous.
+    /// The contract stays "await something first, or resolve after the host has started" — which under
+    /// the hosted service is always true — because a caller cannot tell which case it is in.
+    /// </remarks>
+    [Test]
+    public async Task SynchronousMembers_AnswerWhenTheSchedulerCanBeBuiltWithoutWaiting()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UseInMemoryStore());
+
+        await using var provider = services.BuildServiceProvider();
+
+        var scheduler = provider.GetRequiredService<IScheduler>();
+
+        scheduler.IsStarted.Should().BeFalse();
+        scheduler.IsShutdown.Should().BeFalse();
+        scheduler.SchedulerInstanceId.Should().Be("NON_CLUSTERED");
+        scheduler.ListenerManager.Should().NotBeNull();
+    }
+
     [Test]
     public void SchedulerName_IsAnsweredWithoutBuildingTheScheduler()
     {
