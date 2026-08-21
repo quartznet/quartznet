@@ -314,7 +314,7 @@ internal static class QuartzServiceRegistration
     internal static NameValueCollection GetSchedulerProperties(this IServiceProvider provider, string optionsName)
     {
         var options = provider.GetService<IOptionsMonitor<QuartzOptions>>();
-        return options is null ? [] : options.Get(optionsName).ToNameValueCollection();
+        return options is null ? [] : QuartzConfigurationHelper.ToNameValueCollection(options.Get(optionsName).Properties);
     }
 
 }

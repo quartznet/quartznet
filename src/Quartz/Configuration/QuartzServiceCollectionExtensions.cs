@@ -38,11 +38,35 @@ public static partial class QuartzServiceCollectionExtensions
     /// <inheritdoc cref="AddQuartz(IServiceCollection, IConfiguration, Action{IQuartzBuilder})" path="/remarks" />
     /// <param name="services">The service collection to register into.</param>
     /// <param name="properties">
-    /// The flat <c>quartz.*</c> properties. They are checked against the keys Quartz reads, as they are
-    /// on the standalone builder, so a misspelling — or a key 4.0 stopped reading — is reported rather
-    /// than silently ignored. Set <c>quartz.checkConfiguration</c> to <see langword="false"/> to allow
-    /// keys of your own.
+    /// The flat <c>quartz.*</c> properties, in the shape every dictionary already has — a
+    /// <see cref="Dictionary{TKey,TValue}"/>, an <see cref="IReadOnlyDictionary{TKey,TValue}"/> and
+    /// <see cref="QuartzOptions.Properties"/> all go in without a conversion step. They are checked
+    /// against the keys Quartz reads, as they are on the standalone builder, so a misspelling — or a key
+    /// 4.0 stopped reading — is reported rather than silently ignored. Set
+    /// <c>quartz.checkConfiguration</c> to <see langword="false"/> to allow keys of your own.
     /// </param>
+    /// <param name="configure">Configures the scheduler.</param>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        IEnumerable<KeyValuePair<string, string?>> properties,
+        Action<IQuartzBuilder>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(properties);
+        return AddQuartzScheduler(services, schedulerName: null, PropertyBag(properties), configure);
+    }
+
+    /// <summary>
+    /// Registers a Quartz scheduler, seeded with flat <c>quartz.*</c> properties held in a
+    /// <see cref="NameValueCollection"/>.
+    /// </summary>
+    /// <remarks>
+    /// A <see cref="NameValueCollection"/> is what a caller migrating from 3.x already holds — it is what
+    /// <c>StdSchedulerFactory</c> took — so it stays a single call. Everything else about it is
+    /// <see cref="AddQuartz(IServiceCollection, IEnumerable{KeyValuePair{string, string}}, Action{IQuartzBuilder})"/>,
+    /// which this forwards to.
+    /// </remarks>
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="properties">The flat <c>quartz.*</c> properties.</param>
     /// <param name="configure">Configures the scheduler.</param>
     public static IServiceCollection AddQuartz(
         this IServiceCollection services,
@@ -50,8 +74,7 @@ public static partial class QuartzServiceCollectionExtensions
         Action<IQuartzBuilder>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(properties);
-        LegacyPropertyKeys.Validate(properties);
-        return AddQuartzScheduler(services, schedulerName: null, properties, configure);
+        return AddQuartzScheduler(services, schedulerName: null, PropertyBag(properties), configure);
     }
 
     /// <summary>
@@ -190,7 +213,23 @@ public static partial class QuartzServiceCollectionExtensions
     /// <summary>
     /// Registers a named Quartz scheduler, seeded with flat <c>quartz.*</c> properties.
     /// </summary>
-    /// <inheritdoc cref="AddQuartz(IServiceCollection, NameValueCollection, Action{IQuartzBuilder})" path="/param[@name='properties']" />
+    /// <inheritdoc cref="AddQuartz(IServiceCollection, IEnumerable{KeyValuePair{string, string}}, Action{IQuartzBuilder})" path="/param[@name='properties']" />
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        string name,
+        IEnumerable<KeyValuePair<string, string?>> properties,
+        Action<IQuartzBuilder>? configure = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(properties);
+        return AddQuartzScheduler(services, name, PropertyBag(properties), configure);
+    }
+
+    /// <summary>
+    /// Registers a named Quartz scheduler, seeded with flat <c>quartz.*</c> properties held in a
+    /// <see cref="NameValueCollection"/>.
+    /// </summary>
+    /// <inheritdoc cref="AddQuartz(IServiceCollection, NameValueCollection, Action{IQuartzBuilder})" path="/remarks" />
     public static IServiceCollection AddQuartz(
         this IServiceCollection services,
         string name,
@@ -199,8 +238,7 @@ public static partial class QuartzServiceCollectionExtensions
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(properties);
-        LegacyPropertyKeys.Validate(properties);
-        return AddQuartzScheduler(services, name, properties, configure);
+        return AddQuartzScheduler(services, name, PropertyBag(properties), configure);
     }
 
     /// <summary>
@@ -224,6 +262,32 @@ public static partial class QuartzServiceCollectionExtensions
         JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, effective, name);
         AddQuartzScheduler(services, name, LegacyProperties(effective), configure);
         return services;
+    }
+
+    /// <summary>
+    /// Takes the caller's own property bag as the flat collection the readers use, and checks its keys.
+    /// </summary>
+    /// <remarks>
+    /// Copied rather than captured. The registration phases read the bag from closures that run later —
+    /// some of them only when the container resolves options — so a caller that went on to change its own
+    /// collection would change what the scheduler was configured with, long after <c>AddQuartz</c>
+    /// returned. The standalone builder has always copied for this reason, and these doors now agree.
+    /// </remarks>
+    private static NameValueCollection PropertyBag(IEnumerable<KeyValuePair<string, string?>> properties)
+    {
+        return Checked(QuartzConfigurationHelper.ToNameValueCollection(properties));
+    }
+
+    /// <inheritdoc cref="PropertyBag(IEnumerable{KeyValuePair{string, string}})" />
+    private static NameValueCollection PropertyBag(NameValueCollection properties)
+    {
+        return Checked(new NameValueCollection(properties));
+    }
+
+    private static NameValueCollection Checked(NameValueCollection properties)
+    {
+        LegacyPropertyKeys.Validate(properties);
+        return properties;
     }
 
     /// <summary>

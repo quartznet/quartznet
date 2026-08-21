@@ -111,6 +111,47 @@ Set `quartz.checkConfiguration` to `false` to allow keys of your own. The `IConf
 are still unchecked, because flattening a section invents `quartz.*` keys whether Quartz reads them
 or not.
 
+### A property bag is any dictionary
+
+`NameValueCollection` is a .NET Framework type from the `<appSettings>` era, and requiring it at the
+front door made every caller who already had a dictionary build one to get in. The parameter is now
+`IEnumerable<KeyValuePair<string, string?>>` — the shape `Dictionary<string, string?>`,
+`IReadOnlyDictionary<string, string?>` and `QuartzOptions.Properties` all already have, and the one
+`AddInMemoryCollection` takes.
+
+```csharp
+services.AddQuartz(new Dictionary<string, string?>
+{
+    ["quartz.scheduler.instanceName"] = "core",
+    ["quartz.threadPool.maxConcurrency"] = "10"
+});
+```
+
+A `NameValueCollection` still goes in unchanged, in one call. It is exactly what a 3.x application
+holds — `StdSchedulerFactory` took one — so both `UseProperties` and `AddQuartz` keep an overload for
+it that forwards to the primary shape.
+
+| Member | 3.x / earlier 4.x | Now |
+|---|---|---|
+| `QuartzSchedulerBuilder.UseProperties` | `UseProperties(NameValueCollection)` | `UseProperties(IEnumerable<KeyValuePair<string, string?>>)`, plus the `NameValueCollection` overload |
+| `AddQuartz(services, properties, …)` | `NameValueCollection` | `IEnumerable<KeyValuePair<string, string?>>`, plus the `NameValueCollection` overload |
+| `AddQuartz(services, name, properties, …)` | `NameValueCollection` | `IEnumerable<KeyValuePair<string, string?>>`, plus the `NameValueCollection` overload |
+| `QuartzOptions.ToNameValueCollection()` | returned a `NameValueCollection` | `QuartzOptions.ToProperties()`, returning a `Dictionary<string, string?>` that goes straight back into either of the above |
+
+`KeyValuePair<TKey, TValue>` is a struct, so `IEnumerable<KeyValuePair<string, string>>` is not
+convertible to `IEnumerable<KeyValuePair<string, string?>>`. A `Dictionary<string, string>` whose
+values are genuinely never null therefore needs one conversion:
+
+```diff
+- services.AddQuartz(settings);
++ services.AddQuartz(settings.ToDictionary(x => x.Key, x => (string?) x.Value));
+```
+
+`AddQuartz(services, properties)` also copies the bag now, as `UseProperties` always has. The
+registration phases read it from closures that run later, some only when the container resolves
+options, so a caller that reused its own collection could reconfigure the scheduler long after
+`AddQuartz` returned.
+
 ### A setting stops wearing a verb
 
 `IPersistentStoreBuilder.AcceptEnlistedTransactions()` was exactly
@@ -892,7 +933,8 @@ were a third spelling of a setting that already had two.
 `MisfireThreshold` also had a round-trip problem of its own: it stored a `TimeSpan` as a string of
 whole milliseconds, so a value with sub-millisecond precision did not read back as it was written.
 
-`Properties`, `ToNameValueCollection()` and `Scheduling` stay. `Scheduling` is the exception that proves
+`Properties`, `ToProperties()` — which is what `ToNameValueCollection()` became, see "A property bag is
+any dictionary" — and `Scheduling` stay. `Scheduling` is the exception that proves
 the rule — its three directives say how a configured schedule is applied to a scheduler rather than how
 a component is configured, and they have no options type of their own to bind onto, so this is where
 they live.
@@ -5822,7 +5864,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.SchedulerMetaData` | Renamed `SchedulerMetadata` | A `sealed record`, returned by `IScheduler.GetMetadata()` — see [`SchedulerMetadata` replaces `SchedulerMetaData`](#schedulermetadata-replaces-schedulermetadata) |
 | `Quartz.SchedulerPluginConfigurationExtensions` | Removed | `IQuartzBuilder.AddPlugin<T>()` — see [Plugins are registered like listeners](#plugins-are-registered-like-listeners) |
 | `Quartz.Core.SchedulerSignalerImpl` | Internal | Take `ISchedulerSignaler` through your constructor — see [SPI changes](#spi-changes) |
-| `Quartz.Configuration.QuartzConfigurationHelper` | Internal | Hand the section to `AddQuartz(configuration)`, or to `QuartzSchedulerBuilder.UseConfiguration(configuration)` without a host — both flatten it themselves. `QuartzOptions.ToNameValueCollection()` stays for a caller that holds a `QuartzOptions`. This empties the public `Quartz.Configuration` namespace |
+| `Quartz.Configuration.QuartzConfigurationHelper` | Internal | Hand the section to `AddQuartz(configuration)`, or to `QuartzSchedulerBuilder.UseConfiguration(configuration)` without a host — both flatten it themselves. `QuartzOptions.ToProperties()` stays for a caller that holds a `QuartzOptions`. This empties the public `Quartz.Configuration` namespace |
 | `Quartz.ServiceCollectionExtensions` | Split into `Quartz.QuartzServiceCollectionExtensions` and `Quartz.QuartzBuilderExtensions` | Extension-form call sites are unaffected; only a static-form call (`ServiceCollectionExtensions.AddQuartz(services, …)`) has to change. `ServiceCollectionExtensions` is the most common helper-class name in .NET, and claiming it in `Quartz` gave CS0104 in any file that had one of its own and a `using Quartz;` |
 | `Quartz.Simpl.SimpleInstanceIdGenerator` | Internal | It is still the default; register your own `IInstanceIdGenerator` to replace it |
 | `Quartz.SimpleScheduleTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |

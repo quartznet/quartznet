@@ -6,7 +6,8 @@ using Microsoft.Extensions.Configuration;
 namespace Quartz.Configuration;
 
 /// <summary>
-/// Converts hierarchical <see cref="IConfiguration"/> sections into flat Quartz property keys.
+/// Produces the flat <see cref="NameValueCollection"/> the property readers take, from whichever shape
+/// the caller had: a hierarchical <see cref="IConfiguration"/> section, or a sequence of key/value pairs.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -39,6 +40,27 @@ internal static class QuartzConfigurationHelper
         var properties = new NameValueCollection();
         PopulateProperties(configuration, properties);
         return properties;
+    }
+
+    /// <summary>
+    /// Copies key/value pairs into the flat <see cref="NameValueCollection"/> the property readers take.
+    /// </summary>
+    /// <remarks>
+    /// Every pair is copied, including ones whose value is <see langword="null"/> or whitespace. Deciding
+    /// that an empty value means "not configured" belongs to the reader, which is where it happens; a
+    /// converter that dropped keys of its own accord would make a key set to an empty string
+    /// indistinguishable from one that was never given. A key given twice keeps the last value rather
+    /// than accumulating both, which is what assignment means and what a dictionary source would produce.
+    /// </remarks>
+    internal static NameValueCollection ToNameValueCollection(IEnumerable<KeyValuePair<string, string?>> properties)
+    {
+        NameValueCollection collection = properties.TryGetNonEnumeratedCount(out int count) ? new NameValueCollection(count) : [];
+        foreach (KeyValuePair<string, string?> pair in properties)
+        {
+            collection[pair.Key] = pair.Value;
+        }
+
+        return collection;
     }
 
     /// <summary>
