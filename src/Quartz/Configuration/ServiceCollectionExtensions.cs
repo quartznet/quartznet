@@ -32,12 +32,21 @@ public static class ServiceCollectionExtensions
     /// Registers a Quartz scheduler, seeded with flat <c>quartz.*</c> properties.
     /// </summary>
     /// <inheritdoc cref="AddQuartz(IServiceCollection, IConfiguration, Action{IQuartzBuilder})" path="/remarks" />
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="properties">
+    /// The flat <c>quartz.*</c> properties. They are checked against the keys Quartz reads, as they are
+    /// on the standalone builder, so a misspelling — or a key 4.0 stopped reading — is reported rather
+    /// than silently ignored. Set <c>quartz.checkConfiguration</c> to <see langword="false"/> to allow
+    /// keys of your own.
+    /// </param>
+    /// <param name="configure">Configures the scheduler.</param>
     public static IServiceCollection AddQuartz(
         this IServiceCollection services,
         NameValueCollection properties,
         Action<IQuartzBuilder>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(properties);
+        LegacyPropertyKeys.Validate(properties);
         return AddQuartzScheduler(services, schedulerName: null, properties, configure);
     }
 
@@ -177,6 +186,7 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Registers a named Quartz scheduler, seeded with flat <c>quartz.*</c> properties.
     /// </summary>
+    /// <inheritdoc cref="AddQuartz(IServiceCollection, NameValueCollection, Action{IQuartzBuilder})" path="/param[@name='properties']" />
     public static IServiceCollection AddQuartz(
         this IServiceCollection services,
         string name,
@@ -185,6 +195,7 @@ public static class ServiceCollectionExtensions
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(properties);
+        LegacyPropertyKeys.Validate(properties);
         return AddQuartzScheduler(services, name, properties, configure);
     }
 

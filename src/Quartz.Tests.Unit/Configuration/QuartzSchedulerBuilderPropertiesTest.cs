@@ -21,6 +21,8 @@
 
 using System.Collections.Specialized;
 
+using Microsoft.Extensions.DependencyInjection;
+
 namespace Quartz.Tests.Unit.Configuration;
 
 /// <summary>
@@ -95,6 +97,49 @@ public class QuartzSchedulerBuilderPropertiesTest
 
         act.Should().Throw<SchedulerConfigException>()
             .WithMessage("*quartz.jobStore.lockHandler.schedulerName*ISemaphore.Initialize*");
+    }
+
+    [Test]
+    public void ShouldRejectTheDeadSchedulerThreadKeysAndSayWhyTheyDied()
+    {
+        NameValueCollection properties = new NameValueCollection();
+        properties["quartz.scheduler.threadName"] = "my-thread";
+
+        Action act = () => QuartzSchedulerBuilder.Create().UseProperties(properties);
+
+        act.Should().Throw<SchedulerConfigException>(
+                "the key set something real in 3.x, so the error has to say the loop is a Task rather than read like a typo")
+            .WithMessage("*quartz.scheduler.threadName*Task*");
+
+        properties = new NameValueCollection();
+        properties["quartz.scheduler.makeSchedulerThreadDaemon"] = "true";
+
+        act = () => QuartzSchedulerBuilder.Create().UseProperties(properties);
+
+        act.Should().Throw<SchedulerConfigException>()
+            .WithMessage("*quartz.scheduler.makeSchedulerThreadDaemon*quartz.jobStore.makeThreadsDaemons*");
+    }
+
+    [Test]
+    public void ShouldCheckKeysHandedToAddQuartzTheSameWayAsTheStandaloneBuilder()
+    {
+        NameValueCollection properties = new NameValueCollection();
+        properties["quartz.jobstore.type"] = "";
+
+        Action act = () => new ServiceCollection().AddQuartz(properties);
+
+        act.Should().Throw<SchedulerConfigException>(
+                "a NameValueCollection is written by the caller, so a misspelling in it is a mistake wherever it is handed in")
+            .WithMessage("*quartz.jobstore.type*");
+
+        act = () => new ServiceCollection().AddQuartz("reporting", properties);
+
+        act.Should().Throw<SchedulerConfigException>().WithMessage("*quartz.jobstore.type*");
+
+        properties["quartz.checkConfiguration"] = "false";
+
+        act = () => new ServiceCollection().AddQuartz(properties);
+        act.Should().NotThrow("the escape hatch is the same one the standalone builder honours");
     }
 
     [Test]

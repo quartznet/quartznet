@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,20 +34,16 @@ public class QuartzPropertyBridgeTest
         {
             ["quartz.scheduler.instanceName"] = "legacy",
             ["quartz.scheduler.instanceId"] = "node-7",
-            ["quartz.scheduler.threadName"] = "custom-thread",
             ["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "12",
             ["quartz.scheduler.interruptJobsOnShutdown"] = "true",
-            ["quartz.scheduler.makeSchedulerThreadDaemon"] = "true",
         });
 
         var options = Options<QuartzSchedulerOptions>(provider);
 
         options.InstanceName.Should().Be("legacy");
         options.InstanceId.Should().Be("node-7");
-        options.ThreadName.Should().Be("custom-thread");
         options.MaxBatchSize.Should().Be(12);
         options.InterruptJobsOnShutdown.Should().BeTrue();
-        options.MakeSchedulerThreadDaemon.Should().BeTrue();
     }
 
     [Test]

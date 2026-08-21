@@ -163,11 +163,9 @@ internal static class QuartzServiceRegistration
             {
                 Name = instanceName,
                 InstanceId = options.InstanceId,
-                ThreadName = options.ThreadName ?? $"{instanceName}_QuartzSchedulerThread",
                 IdleWaitTime = options.IdleWaitTime,
                 MaxBatchSize = options.MaxBatchSize,
                 BatchTimeWindow = options.BatchTriggerAcquisitionFireAheadTimeWindow,
-                MakeSchedulerThreadDaemon = options.MakeSchedulerThreadDaemon,
                 InterruptJobsOnShutdown = options.InterruptJobsOnShutdown,
                 InterruptJobsOnShutdownWithWait = options.InterruptJobsOnShutdownWithWait,
                 TimeProvider = provider.GetRequiredService<TimeProvider>(),

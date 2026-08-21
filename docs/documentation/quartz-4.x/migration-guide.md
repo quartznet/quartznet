@@ -95,6 +95,44 @@ If you configure Quartz from `appsettings.json` or a `NameValueCollection` of `q
 keeps working. The keys are translated into the typed options, and both spellings of a setting always
 produce the same result. You do not have to migrate configuration files to move to 4.x.
 
+### A flat property bag is checked for keys nobody reads
+
+`AddQuartz(services, properties)` and `AddQuartz(services, name, properties)` check the bag the same
+way `QuartzSchedulerBuilder.UseProperties` always has: a `quartz.*` key Quartz does not read throws
+`SchedulerConfigException` at registration instead of being silently ignored, and a key 4.0 stopped
+reading is reported by name with the replacement. That is the commonest shape a 3.x application
+arrives in, so it is the one the advice is written for — `quartz.jobstore.type` differs from
+`quartz.jobStore.type` by one letter and used to turn a database-backed scheduler into an in-memory
+one without a word.
+
+Set `quartz.checkConfiguration` to `false` to allow keys of your own. The `IConfiguration` overloads
+are still unchecked, because flattening a section invents `quartz.*` keys whether Quartz reads them
+or not.
+
+### Two scheduler thread settings were dead and are gone
+
+The scheduling loop is a long-running `Task`, not a `Thread`, so neither of these ever did anything
+in 4.0 — one named a thread that does not exist, the other tried to stop a thread that does not exist
+from keeping the process alive.
+
+| Removed | Use instead |
+|---|---|
+| `QuartzSchedulerOptions.ThreadName` / `quartz.scheduler.threadName` | nothing |
+| `QuartzSchedulerOptions.MakeSchedulerThreadDaemon` / `quartz.scheduler.makeSchedulerThreadDaemon` | nothing for the scheduler; `AdoJobStoreOptions.UseBackgroundThreads` for the store's threads |
+
+Both keys are in the removed-key table, so a properties bag that still carries one is told why rather
+than told it is unknown.
+
+The setting that does still matter is the job store's, and it is renamed to say what .NET calls it:
+
+| Before | After |
+|---|---|
+| `AdoJobStoreOptions.MakeThreadsDaemons` | `AdoJobStoreOptions.UseBackgroundThreads` |
+
+The flat key `quartz.jobStore.makeThreadsDaemons` is unchanged and still sets it. It governs the
+misfire handler and the cluster manager, which are the only real threads Quartz creates — so it is now
+the whole answer to "do Quartz's threads hold my console application open".
+
 ### Code-first configuration is typed
 
 Settings that used to be write-only properties on the configurator are now options:
@@ -410,7 +448,7 @@ write instead, and the typed option that is usually the better answer.
 | `PropertySchedulerInstanceId` | `quartz.scheduler.instanceId` | `QuartzSchedulerOptions.InstanceId` |
 | `PropertySchedulerInstanceIdGeneratorPrefix` | `quartz.scheduler.instanceIdGenerator` | constructor injection into your `IInstanceIdGenerator` |
 | `PropertySchedulerInstanceIdGeneratorType` | `quartz.scheduler.instanceIdGenerator.type` | register `IInstanceIdGenerator` in the container |
-| `PropertySchedulerThreadName` | `quartz.scheduler.threadName` | `QuartzSchedulerOptions.ThreadName` |
+| `PropertySchedulerThreadName` | `quartz.scheduler.threadName` | nothing; the key is rejected rather than ignored. The scheduling loop is a `Task`, not a `Thread`, so there is no thread of its own to name |
 | `PropertySchedulerBatchTimeWindow` | `quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow` | `QuartzSchedulerOptions.BatchTriggerAcquisitionFireAheadTimeWindow` |
 | `PropertySchedulerMaxBatchSize` | `quartz.scheduler.batchTriggerAcquisitionMaxCount` | `QuartzSchedulerOptions.MaxBatchSize` |
 | `PropertySchedulerExporterPrefix` | `quartz.scheduler.exporter` | nothing; remoting is not supported on modern .NET |
@@ -418,7 +456,7 @@ write instead, and the typed option that is usually the better answer.
 | `PropertySchedulerProxy` | `quartz.scheduler.proxy` | `Quartz.HttpClient` for talking to a remote scheduler |
 | `PropertySchedulerProxyType` | `quartz.scheduler.proxy.type` | `Quartz.HttpClient`; the key is now rejected rather than ignored |
 | `PropertySchedulerIdleWaitTime` | `quartz.scheduler.idleWaitTime` | `QuartzSchedulerOptions.IdleWaitTime` |
-| `PropertySchedulerMakeSchedulerThreadDaemon` | `quartz.scheduler.makeSchedulerThreadDaemon` | `QuartzSchedulerOptions.MakeSchedulerThreadDaemon` |
+| `PropertySchedulerMakeSchedulerThreadDaemon` | `quartz.scheduler.makeSchedulerThreadDaemon` | nothing; the key is rejected rather than ignored. The scheduling loop is a `Task`, not a `Thread`, so it never held a process open. For the store's misfire and cluster threads use `quartz.jobStore.makeThreadsDaemons` / `AdoJobStoreOptions.UseBackgroundThreads` |
 | `PropertySchedulerTypeLoadHelperType` | `quartz.scheduler.typeLoadHelper.type` | `UseTypeLoader<T>()`, or `UseSimpleTypeLoader()` |
 | `PropertySchedulerJobFactoryPrefix` | `quartz.scheduler.jobFactory` | constructor injection into your `IJobFactory` |
 | `PropertySchedulerJobFactoryType` | `quartz.scheduler.jobFactory.type` | `UseJobFactory<T>()` |
@@ -2460,7 +2498,7 @@ longer public: the mirrors a derived store legitimately reads while doing its wo
 `MaxTransientRetries`, `ObjectSerializer`, `PerformSchemaValidation`, `SelectWithLockSql`, `TablePrefix`,
 `TransientRetryInterval`, `TxIsolationLevelSerializable`, `UseDbLocks`), and the ones only the store's
 own cluster and misfire machinery reads are internal (`AcceptEnlistedTransactions`,
-`ClusterCheckinInterval`, `DbRetryInterval`, `InstanceId`, `InstanceName`, `MakeThreadsDaemons`,
+`ClusterCheckinInterval`, `DbRetryInterval`, `InstanceId`, `InstanceName`, `UseBackgroundThreads`,
 `MisfireHandlerFrequency`, `RetryableActionErrorLogThreshold`). `Clustered`, `SupportsPersistence` and
 `EstimatedTimeToReleaseAndAcquireTrigger` stay public — they are `IJobStore` members.
 

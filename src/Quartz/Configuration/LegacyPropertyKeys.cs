@@ -99,11 +99,9 @@ internal static class LegacyPropertyKeys
         SchedulerInstanceName,
         SchedulerInstanceId,
         SchedulerInstanceIdGeneratorPrefix,
-        SchedulerThreadName,
         SchedulerBatchTimeWindow,
         SchedulerMaxBatchSize,
         SchedulerIdleWaitTime,
-        SchedulerMakeSchedulerThreadDaemon,
         SchedulerTypeLoaderType,
         SchedulerJobFactoryPrefix,
         SchedulerInterruptJobsOnShutdown,
@@ -144,6 +142,14 @@ internal static class LegacyPropertyKeys
         (JobStoreLockHandlerPrefix + ".schedulerName",
             "The job store tells the lock handler which scheduler it locks for through "
             + "ISemaphore.Initialize, using the scheduler's own instance name. Remove this key."),
+        (SchedulerThreadName,
+            "The scheduling loop is a Task rather than a Thread, so there is no thread of its own to "
+            + "name and this key had no effect in 4.0. Remove it."),
+        (SchedulerMakeSchedulerThreadDaemon,
+            "The scheduling loop is a Task rather than a Thread, so it never kept a process alive and "
+            + "this key had no effect in 4.0. Remove it. For the job store's misfire and cluster "
+            + "threads, which are real threads, set 'quartz.jobStore.makeThreadsDaemons' or "
+            + "AdoJobStoreOptions.UseBackgroundThreads."),
     ];
 
     /// <summary>
@@ -157,8 +163,11 @@ internal static class LegacyPropertyKeys
     /// to allow keys of your own — a third-party component configured through this bag, for instance.
     /// </para>
     /// <para>
-    /// Only applied where flat properties are the whole configuration, which is
-    /// <see cref="QuartzSchedulerBuilder.UseProperties"/>. Keys flattened out of an
+    /// Applied wherever a caller hands Quartz a flat property bag it wrote itself:
+    /// <see cref="QuartzSchedulerBuilder.UseProperties"/> and the two
+    /// <c>AddQuartz(services, NameValueCollection, …)</c> overloads. That last pair is the commonest
+    /// shape a 3.x application migrates in, so it is exactly the caller the removed-key advice is
+    /// written for. Keys flattened out of an
     /// <see cref="Microsoft.Extensions.Configuration.IConfiguration"/> section are not checked, because
     /// there every section becomes a <c>quartz.*</c> key whether Quartz reads it or not.
     /// </para>

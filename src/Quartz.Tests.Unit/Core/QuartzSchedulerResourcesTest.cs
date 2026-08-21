@@ -1,4 +1,4 @@
-using Quartz.Core;
+﻿using Quartz.Core;
 
 namespace Quartz.Tests.Unit.Core;
 
@@ -25,12 +25,10 @@ public class QuartzSchedulerResourcesTest
             Assert.That(resources.InterruptJobsOnShutdownWithWait, Is.False);
             Assert.That(resources.JobRunShellFactory, Is.Null);
             Assert.That(resources.JobStore, Is.Null);
-            Assert.That(resources.MakeSchedulerThreadDaemon, Is.False);
             Assert.That(resources.MaxBatchSize, Is.EqualTo(1));
             Assert.That(resources.Name, Is.Null);
             Assert.That(resources.SchedulerPlugins, Is.Not.Null);
             Assert.That(resources.SchedulerPlugins, Is.Empty);
-            Assert.That(resources.ThreadName, Is.Null);
             Assert.That(resources.ThreadPool, Is.Null);
         });
     }

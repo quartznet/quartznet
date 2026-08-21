@@ -36,7 +36,6 @@ internal sealed class QuartzSchedulerResources
 
     private string name = null!;
     private string instanceId = null!;
-    private string threadName = null!;
     private IThreadPool threadPool = null!;
     private IJobStore jobStore = null!;
     private IJobRunShellFactory jobRunShellFactory = null!;
@@ -73,12 +72,6 @@ internal sealed class QuartzSchedulerResources
             }
 
             name = value;
-
-            if (threadName is null)
-            {
-                // thread name not already set, use default thread name
-                ThreadName = $"{value}_QuartzSchedulerThread";
-            }
         }
     }
 
@@ -102,26 +95,6 @@ internal sealed class QuartzSchedulerResources
         }
     }
 
-
-    /// <summary>
-    /// Get or set the name for the <see cref="QuartzSchedulerThread" />.
-    /// </summary>
-    /// <exception cref="ArgumentException">
-    /// if name is null or empty.
-    /// </exception>
-    public string ThreadName
-    {
-        get => threadName;
-        set
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                Throw.ArgumentException("Scheduler thread name cannot be empty.");
-            }
-
-            threadName = value;
-        }
-    }
 
     /// <summary>
     /// Get or set the <see cref="ThreadPool" /> for the <see cref="QuartzScheduler" />
@@ -221,14 +194,6 @@ internal sealed class QuartzSchedulerResources
     /// </summary>
     /// <returns></returns>
     public List<ISchedulerPlugin> SchedulerPlugins { get; } = new List<ISchedulerPlugin>(10);
-
-    /// <summary>
-    /// Gets or sets a value indicating whether to make scheduler thread daemon.
-    /// </summary>
-    /// <value>
-    /// 	<c>true</c> if scheduler should be thread daemon; otherwise, <c>false</c>.
-    /// </value>
-    public bool MakeSchedulerThreadDaemon { get; set; }
 
     /// <summary>
     /// Gets or sets a value that determines how long the scheduler should wait before checking again

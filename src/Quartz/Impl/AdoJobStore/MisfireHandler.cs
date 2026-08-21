@@ -28,7 +28,7 @@ internal sealed class MisfireHandler
         logger = LogProvider.CreateLogger<MisfireHandler>();
 
         string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_MisfireHandler";
-        taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
+        taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !jobStoreSupport.UseBackgroundThreads);
         cancellationTokenSource = new CancellationTokenSource();
     }
 
