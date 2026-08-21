@@ -25,6 +25,7 @@ using System.Data;
 using FakeItEasy;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
@@ -57,7 +58,7 @@ public class XmlSchedulingDataProcessorTest
     [SetUp]
     public void SetUp()
     {
-        logger = A.Fake<ILogger<XmlSchedulingDataProcessor>>();
+        logger = NullLogger<XmlSchedulingDataProcessor>.Instance;
         processor = new XmlSchedulingDataProcessor(logger, new SimpleTypeLoader(), TimeProvider.System);
         mockScheduler = A.Fake<IScheduler>();
         A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(new ValueTask<IJobDetail>());
