@@ -753,6 +753,16 @@ the rule — its three directives say how a configured schedule is applied to a 
 a component is configured, and they have no options type of their own to bind onto, so this is where
 they live.
 
+`Scheduling` is get-only, like `Properties`. Options callbacks run in order over one instance, so
+assigning a fresh `SchedulingOptions` threw away whatever `Quartz:Scheduling` — or an earlier callback —
+had already set, with nothing to show for it. Set the properties instead; the configuration binder needs
+no setter to bind into a non-null complex property.
+
+```diff
+- services.Configure<QuartzOptions>(options => options.Scheduling = new SchedulingOptions { IgnoreDuplicates = true });
++ services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates = true);
+```
+
 ## `AddJob` registers the job with the container
 
 `AddJob<T>()`, `AddJob(type, …)` and `ScheduleJob<T>()` now register the job type as a **scoped**
@@ -1448,8 +1458,10 @@ longer sees it — derive from `DbSemaphore` and use `IDbProvider`, or implement
 `RecurrenceTriggerPersistenceDelegate`. All five are `sealed`; write your own against
 `SimplePropertiesTriggerPersistenceDelegateBase` or `ITriggerPersistenceDelegate`.
 
-**`SchedulerConstants` is a static class** rather than a struct, and `QuartzOptions`, `SchedulingOptions`
-and `QuartzHostedServiceOptions` are `sealed`. **`MisfireInstruction` is internal** — see
+**`SchedulerConstants` is a static class** rather than a struct, and every public options type is
+`sealed` — `QuartzOptions`, `SchedulingOptions`, `QuartzHostedServiceOptions`, `QuartzHttpApiOptions`
+and `HttpClientOptions` among them. None ever had a virtual member, and Quartz constructs each of them
+itself inside a `configure` callback, so a derived type was never going to be seen. **`MisfireInstruction` is internal** — see
 [the enums are the vocabulary](#the-enums-are-the-vocabulary).
 
 **`HttpScheduler` is `sealed`.** It is a wire client — every member turns a call into an HTTP request — so
@@ -4822,7 +4834,8 @@ Parameters and behavior are unchanged:
 | Trigger persistence delegates are all public and `sealed` | `CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and `DailyTimeIntervalTriggerPersistenceDelegate` were internal; derive from `SimplePropertiesTriggerPersistenceDelegateBase` for a delegate of your own |
 | `SchedulerConstants` is a `static class` | It was a `struct` holding only `const`s; constant references are unchanged |
 | `MisfireInstruction` is internal | The five per-family enums are the vocabulary; every constant has an enum member with the same value |
-| `QuartzOptions`, `SchedulingOptions`, `QuartzHostedServiceOptions` are `sealed` | `QuartzHostedService` itself stays open for `AddQuartzHostedService<T>` |
+| Every public `*Options` type is `sealed`, including `QuartzHttpApiOptions` and `HttpClientOptions` | None had a virtual member, and Quartz constructs each of them itself, so a subclass was never resolved. `QuartzHostedService` itself stays open for `AddQuartzHostedService<T>` |
+| `QuartzOptions.Scheduling` is get-only | Set its properties rather than assigning a new instance; assignment discarded what other callbacks and `Quartz:Scheduling` had already set |
 | `InternalTriggerState.Executing` removed | It was never assigned or read; RAMJobStore counts executions separately from the state that drives scheduling |
 | `ScheduleBuilder<T>` removed | The five schedule builders implement `IScheduleBuilder` directly — see [`ScheduleBuilder<T>` is gone](#schedulebuilder-t-is-gone) |
 | `DailyTimeIntervalScheduleBuilder`'s day-set fields are internal | `AllDaysOfTheWeek`, `MondayThroughFriday` and `SaturdayAndSunday` are reached through `OnEveryDay()`, `OnMondayThroughFriday()` and `OnSaturdayAndSunday()` |

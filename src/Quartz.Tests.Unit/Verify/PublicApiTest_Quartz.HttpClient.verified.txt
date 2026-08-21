@@ -6,7 +6,7 @@ namespace Quartz
         public HttpClientException(string message) { }
         public HttpClientException(string message, System.Exception? innerException) { }
     }
-    public class HttpClientOptions
+    public sealed class HttpClientOptions
     {
         public HttpClientOptions() { }
         public System.Net.Http.HttpClient? HttpClient { get; set; }

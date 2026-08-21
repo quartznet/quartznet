@@ -23,7 +23,7 @@ using System.Text.Json;
 
 namespace Quartz;
 
-public class HttpClientOptions
+public sealed class HttpClientOptions
 {
     /// <summary>
     /// Name of the scheduler, must be same as the remote scheduler.
