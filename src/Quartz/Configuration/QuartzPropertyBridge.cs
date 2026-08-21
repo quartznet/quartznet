@@ -283,11 +283,54 @@ internal static class QuartzPropertyBridge
 
         Register<IJobFactory>(services, schedulerName, parser.Type(LegacyPropertyKeys.SchedulerJobFactoryType));
 
-        // Container-wide and replaced rather than tried, for the same reason as the type loader.
-        if (parser.Type(LegacyPropertyKeys.TimeProviderType) is { } timeProviderType)
+        RegisterTimeProvider(services, schedulerName, parser.Type(LegacyPropertyKeys.TimeProviderType));
+    }
+
+    /// <summary>
+    /// Registers the clock a <c>quartz.timeProvider.type</c> key names, at this scheduler's slot.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Tried rather than replaced, which is what makes <c>UseTimeProvider</c> win: the callback that
+    /// calls it runs before this does, and replacing here would have meant a leftover key in a
+    /// configuration file silently overriding the clock the application chose in code. Code beats
+    /// strings here as it does everywhere else, opposite orders notwithstanding.
+    /// </para>
+    /// <para>
+    /// The one registration it does displace is Quartz's own <see cref="TimeProvider.System"/> fallback,
+    /// which an earlier <c>AddQuartz</c> call in the same container may already have made. Losing to that
+    /// would mean the key was read and then quietly ignored, which is the one outcome no configuration
+    /// key is allowed to have.
+    /// </para>
+    /// </remarks>
+    private static void RegisterTimeProvider(IServiceCollection services, string? schedulerName, Type? timeProviderType)
+    {
+        if (timeProviderType is null)
         {
-            services.Replace(ServiceDescriptor.Singleton(typeof(TimeProvider), timeProviderType));
+            return;
         }
+
+        for (var i = services.Count - 1; i >= 0; i--)
+        {
+            ServiceDescriptor descriptor = services[i];
+            if (descriptor.ServiceType != typeof(TimeProvider))
+            {
+                continue;
+            }
+
+            var isDefaultFallback = descriptor.IsKeyedService
+                ? schedulerName is not null
+                  && Equals(descriptor.ServiceKey, schedulerName)
+                  && ReferenceEquals(descriptor.KeyedImplementationInstance, TimeProvider.System)
+                : schedulerName is null && ReferenceEquals(descriptor.ImplementationInstance, TimeProvider.System);
+
+            if (isDefaultFallback)
+            {
+                services.RemoveAt(i);
+            }
+        }
+
+        Register<TimeProvider>(services, schedulerName, timeProviderType);
     }
 
     private static void MapScheduler(QuartzSchedulerOptions options, PropertyReader parser, string? schedulerName)

@@ -131,6 +131,24 @@ public interface IQuartzBuilder
     /// <summary>
     /// Uses a specific time provider. Useful for testing time-dependent scheduling.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The clock belongs to this scheduler. Handing one to a named scheduler leaves the others on
+    /// whatever they were using, which is what lets one scheduler in a container be driven by a fake
+    /// clock while the rest keep real time.
+    /// </para>
+    /// <para>
+    /// A scheduler that was not given one asks the container, and falls back to
+    /// <see cref="TimeProvider.System"/>. In full, most specific first:
+    /// </para>
+    /// <list type="number">
+    /// <item><description>the provider this scheduler was given here;</description></item>
+    /// <item><description>a <see cref="TimeProvider"/> registered in the container;</description></item>
+    /// <item><description>a <c>quartz.timeProvider.type</c> key, which loses to both — code beats
+    /// strings here as it does everywhere else;</description></item>
+    /// <item><description><see cref="TimeProvider.System"/>.</description></item>
+    /// </list>
+    /// </remarks>
     IQuartzBuilder UseTimeProvider(TimeProvider timeProvider);
 
     /// <summary>
