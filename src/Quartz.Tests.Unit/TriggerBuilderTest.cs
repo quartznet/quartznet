@@ -1,6 +1,8 @@
 using System;
 using System.Threading.Tasks;
 
+using Quartz.Spi;
+
 namespace Quartz.Tests.Unit;
 
 [NonParallelizable]
@@ -95,5 +97,52 @@ public class TriggerBuilderTest
             .Build();
 
         Assert.That(trigger.JobDataMap["key"], Is.EqualTo("overwritingvalue"));
+    }
+
+    [Test(Description = "https://github.com/quartznet/quartznet/issues/3294")]
+    public void ModifiedByCalendar_TreatsABlankNameAsNoCalendar()
+    {
+        TriggerBuilder.Create().ModifiedByCalendar("holidays").Build()
+            .CalendarName.Should().Be("holidays");
+
+        TriggerBuilder.Create().ModifiedByCalendar(null).Build()
+            .CalendarName.Should().BeNull();
+
+        TriggerBuilder.Create().ModifiedByCalendar("").Build()
+            .CalendarName.Should().BeNull(
+                "every job store gates its calendar lookup on a non-null name, so a blank one would be looked up, not found, and the trigger would silently stop firing");
+
+        TriggerBuilder.Create().ModifiedByCalendar("   ").Build()
+            .CalendarName.Should().BeNull();
+
+        TriggerBuilder.Create().ModifiedByCalendar(" holidays ").Build()
+            .CalendarName.Should().Be(" holidays ",
+                "a calendar is looked up by the exact name it was stored under, so trimming would break a calendar genuinely registered with padding");
+    }
+
+    [Test(Description = "https://github.com/quartznet/quartznet/issues/3294")]
+    public void CalendarName_TreatsABlankNameAsNoCalendar_WhenSetDirectly()
+    {
+        // The builder is not the only writer: the JSON converters, the ADO store and plain user code
+        // all assign the property, so the normalization has to live in the setter.
+        IMutableTrigger trigger = (IMutableTrigger) TriggerBuilder.Create().ModifiedByCalendar("holidays").Build();
+
+        trigger.CalendarName = "";
+        trigger.CalendarName.Should().BeNull();
+
+        trigger.CalendarName = "   ";
+        trigger.CalendarName.Should().BeNull();
+
+        trigger.CalendarName = "holidays";
+        trigger.CalendarName.Should().Be("holidays");
+    }
+
+    [Test(Description = "https://github.com/quartznet/quartznet/issues/3294")]
+    public void GetTriggerBuilder_DoesNotResurrectABlankCalendarName()
+    {
+        IMutableTrigger trigger = (IMutableTrigger) TriggerBuilder.Create().WithIdentity("t1").Build();
+        trigger.CalendarName = "";
+
+        trigger.GetTriggerBuilder().Build().CalendarName.Should().BeNull();
     }
 }

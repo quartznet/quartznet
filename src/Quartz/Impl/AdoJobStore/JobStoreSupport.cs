@@ -4328,6 +4328,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             cal = await RetrieveCalendar(conn, trigger.CalendarName, cancellationToken).ConfigureAwait(false);
             if (cal == null)
             {
+                Log.Warn($"Trigger {trigger.Key} references calendar '{trigger.CalendarName}', which does not exist - the fire was skipped and the trigger will not run until the calendar is added or the reference is cleared.");
                 return null;
             }
         }

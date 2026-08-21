@@ -89,10 +89,6 @@
                OnCancel="CancelUnscheduleAsync" />
 
 @code {
-    private static readonly JsonSerializerOptions requestSerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
     private bool _isLoading = true;
     private string? _error;
     private object? _trigger;
@@ -236,7 +232,13 @@
             return;
         }
 
-        JsonElement newTrigger = BuildRescheduleTriggerPayload(cronExpression);
+        if (_trigger is not JsonElement triggerJson
+            || !TriggerPayloadBuilder.TryWithCronExpression(triggerJson, cronExpression, out JsonElement newTrigger))
+        {
+            Toasts.Error("This trigger cannot be rescheduled from the dashboard.");
+            return;
+        }
+
         RescheduleRequest request = new(newTrigger);
         _ = await ExecuteMutatingActionAsync(
             () => Api.RescheduleJob(schedulerName, Group, Name, request),
@@ -249,68 +251,6 @@
     {
         _editedCronExpression = _cronExpression ?? string.Empty;
         return Task.CompletedTask;
-    }
-
-    private JsonElement BuildRescheduleTriggerPayload(string cronExpression)
-    {
-        string jobName = DisplayValueHelper.GetString(_trigger, "JobKey.Name", "jobKey.name");
-        string jobGroup = DisplayValueHelper.GetString(_trigger, "JobKey.Group", "jobKey.group");
-        object? jobKey = string.IsNullOrWhiteSpace(jobName) || string.IsNullOrWhiteSpace(jobGroup)
-            ? null
-            : new { name = jobName, group = jobGroup };
-
-        string timeZone = DisplayValueHelper.GetString(_trigger, "TimeZone.Id", "timeZone.id", "TimeZone", "timeZone");
-        if (string.IsNullOrWhiteSpace(timeZone) || timeZone.StartsWith('{'))
-        {
-            timeZone = TimeZoneInfo.Utc.Id;
-        }
-
-        DateTimeOffset startTime = DisplayValueHelper.GetDateTimeOffset(_trigger, "StartTimeUtc", "startTimeUtc") ?? DateTimeOffset.UtcNow;
-        DateTimeOffset? endTime = DisplayValueHelper.GetDateTimeOffset(_trigger, "EndTimeUtc", "endTimeUtc");
-        int misfireInstruction = ParseIntOrDefault(_trigger, 0, "MisfireInstruction", "misfireInstruction");
-        int priority = ParseIntOrDefault(_trigger, 5, "Priority", "priority");
-        JsonElement jobDataMap = GetJobDataMapElement(_trigger);
-
-        object payload = new
-        {
-            triggerType = "CronTrigger",
-            key = new { name = Name, group = Group },
-            jobKey,
-            description = DisplayValueHelper.GetString(_trigger, "Description", "description"),
-            calendarName = DisplayValueHelper.GetString(_trigger, "CalendarName", "calendarName"),
-            jobDataMap,
-            misfireInstruction,
-            startTimeUtc = startTime,
-            endTimeUtc = endTime,
-            priority,
-            timeZone,
-            cronExpressionString = cronExpression,
-            executionGroup = DisplayValueHelper.GetString(_trigger, "ExecutionGroup", "executionGroup")
-        };
-
-        return JsonSerializer.SerializeToElement(payload, requestSerializerOptions);
-    }
-
-    private static int ParseIntOrDefault(object? source, int defaultValue, params string[] paths)
-    {
-        string value = DisplayValueHelper.GetString(source, paths);
-        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedValue))
-        {
-            return parsedValue;
-        }
-
-        return defaultValue;
-    }
-
-    private static JsonElement GetJobDataMapElement(object? source)
-    {
-        object? value = DisplayValueHelper.GetObject(source, "JobDataMap", "jobDataMap");
-        if (value is JsonElement element)
-        {
-            return element.Clone();
-        }
-
-        return JsonSerializer.SerializeToElement(new Dictionary<string, object?>(), requestSerializerOptions);
     }
 
     private void PromptUnschedule()

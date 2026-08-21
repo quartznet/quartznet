@@ -42,7 +42,8 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            // payload mirrors TriggerDetail.razor BuildRescheduleTriggerPayload
+            // a hand-written payload, to pin the shape the HTTP API accepts independently of
+            // whatever TriggerDetail.razor happens to send
             object payload = new
             {
                 triggerType = "CronTrigger",
@@ -69,6 +70,55 @@ public class InProcessQuartzApiClientTest
             cronTrigger.JobKey.Should().Be(jobKey);
             cronTrigger.Description.Should().Be("updated by dashboard");
             cronTrigger.ExecutionGroup.Should().Be("imports");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task RescheduleFromTriggerDetailPayloadChangesNothingButTheSchedule()
+    {
+        // regression test for #3294 - the detail page rebuilt the trigger from its display strings,
+        // so a trigger with no calendar came back with CALENDAR_NAME='', which every job store reads
+        // as a calendar it then cannot find. The trigger silently never fired again. The node pin
+        // was dropped outright, because the hand-written payload never listed it.
+        IScheduler scheduler = await CreateScheduler("RescheduleRoundTripTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            IJobDetail job = JobBuilder.Create<NoOpJob>()
+                .WithIdentity(jobKey)
+                .StoreDurably()
+                .Build();
+            TriggerKey triggerKey = new("trigger1", "group1");
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(jobKey)
+                .WithCronSchedule("0 0 1 * * ?")
+                .WithPreferredNode("node-a")
+                .Build();
+            await scheduler.ScheduleJob(job, trigger);
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            // exactly what TriggerDetail.razor does: read the trigger, then edit its cron expression
+            TriggerDetailDto detail = await client.GetTrigger(scheduler.SchedulerName, triggerKey.Group, triggerKey.Name);
+            TriggerPayloadBuilder.TryWithCronExpression(detail.Value, "0 0 2 * * ?", out JsonElement newTrigger)
+                .Should().BeTrue();
+
+            await client.RescheduleJob(scheduler.SchedulerName, triggerKey.Group, triggerKey.Name, new RescheduleRequest(newTrigger));
+
+            ITrigger? updated = await scheduler.GetTrigger(triggerKey);
+            CronTriggerImpl cronTrigger = updated.Should().BeOfType<CronTriggerImpl>().Subject;
+            cronTrigger.CronExpressionString.Should().Be("0 0 2 * * ?");
+            cronTrigger.JobKey.Should().Be(jobKey);
+            cronTrigger.CalendarName.Should().BeNull(
+                "the trigger never had a calendar, and an empty name would name one that cannot be found");
+            cronTrigger.Description.Should().BeNull();
+            cronTrigger.PreferredNode.Should().Be("node-a", "editing a schedule must not unpin the trigger");
+            cronTrigger.GetNextFireTimeUtc().Should().NotBeNull("a rescheduled trigger has to keep firing");
         }
         finally
         {

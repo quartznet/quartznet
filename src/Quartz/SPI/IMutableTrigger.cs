@@ -19,7 +19,9 @@ public interface IMutableTrigger : ITrigger
     new string? Description { get; set; }
 
     /// <summary>
-    /// Associate the <see cref="ICalendar" /> with the given name with this Trigger.
+    /// Associate the <see cref="ICalendar" /> with the given name with this Trigger. Use
+    /// <see langword="null" /> - or a blank name, which the built-in triggers store as
+    /// <see langword="null" /> - to dis-associate any calendar.
     /// </summary>
     new string? CalendarName { set; get; }
 

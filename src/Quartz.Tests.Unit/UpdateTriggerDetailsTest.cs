@@ -201,6 +201,27 @@ public class UpdateTriggerDetailsTest
         Assert.IsNull(retrieved.CalendarName);
     }
 
+    [Test(Description = "https://github.com/quartznet/quartznet/issues/3294")]
+    public async Task CalendarName_BlankClearsCalendarRatherThanFailingTheUpdate()
+    {
+        DateTimeOffset start = DateBuilder.EvenMinuteDateAfterNow();
+        IOperableTrigger trigger = new CronTriggerImpl("t1", "g1", jobDetail.Name, jobDetail.Group, start, null, "0/30 * * * * ?");
+        trigger.CalendarName = "myCal";
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        await jobStore.StoreCalendar("myCal", new BaseCalendar(), false, false);
+        await jobStore.StoreTrigger(trigger, false);
+
+        TriggerDetailsUpdate update = new TriggerDetailsUpdate()
+            .WithCalendarName("");
+
+        bool result = await jobStore.UpdateTriggerDetails(trigger.Key, update);
+
+        result.Should().BeTrue("a blank name means no calendar, so there is nothing whose existence to check");
+        IOperableTrigger retrieved = await jobStore.RetrieveTrigger(trigger.Key);
+        retrieved.CalendarName.Should().BeNull();
+    }
+
     [Test]
     public async Task CalendarName_SetsValidCalendar()
     {
