@@ -434,7 +434,9 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
         CronTriggerImpl copy = (CronTriggerImpl) MemberwiseClone();
         if (cronEx is not null)
         {
-            copy.CronExpression = cronEx.Clone();
+            // CronExpression is immutable, so the copy shares this instance; assigning through the
+            // property keeps the copy's own time zone field in step with it.
+            copy.CronExpression = cronEx;
         }
         return copy;
     }

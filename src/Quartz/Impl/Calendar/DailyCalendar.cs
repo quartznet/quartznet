@@ -51,7 +51,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Aaron Craven</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed class DailyCalendar : BaseCalendar
+public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
 {
     private const long OneMillis = 1;
 
@@ -402,18 +402,18 @@ public sealed class DailyCalendar : BaseCalendar
         return HashCode.Combine(rangeStart, rangeEnd, baseHash);
     }
 
-    public bool Equals(DailyCalendar obj)
+    public bool Equals(DailyCalendar? other)
     {
-        if (obj is null)
+        if (other is null)
         {
             return false;
         }
-        bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
 
         return baseEqual
-               && InvertTimeRange == obj.InvertTimeRange
-               && rangeStart == obj.rangeStart
-               && rangeEnd == obj.rangeEnd;
+               && InvertTimeRange == other.InvertTimeRange
+               && rangeStart == other.rangeStart
+               && rangeEnd == other.rangeEnd;
     }
 
     public override bool Equals(object? obj)

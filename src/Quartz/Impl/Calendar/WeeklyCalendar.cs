@@ -33,7 +33,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Juergen Donnerstag</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed class WeeklyCalendar : BaseCalendar
+public sealed class WeeklyCalendar : BaseCalendar, IEquatable<WeeklyCalendar>
 {
     private const int DaysInWeek = 7;
 
@@ -233,15 +233,15 @@ public sealed class WeeklyCalendar : BaseCalendar
         return excludeDays.Count + 5 * baseHash;
     }
 
-    public bool Equals(WeeklyCalendar obj)
+    public bool Equals(WeeklyCalendar? other)
     {
-        if (obj is null)
+        if (other is null)
         {
             return false;
         }
-        bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
 
-        return baseEqual && excludeDays.SetEquals(obj.excludeDays);
+        return baseEqual && excludeDays.SetEquals(other.excludeDays);
     }
 
     public override bool Equals(object? obj)

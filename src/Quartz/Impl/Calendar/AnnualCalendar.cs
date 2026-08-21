@@ -33,7 +33,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Juergen Donnerstag</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed class AnnualCalendar : BaseCalendar
+public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
 {
     private SortedSet<MonthDay> excludeDays = new SortedSet<MonthDay>();
 
@@ -239,16 +239,16 @@ public sealed class AnnualCalendar : BaseCalendar
         return excludeDays.Count + 5 * baseHash;
     }
 
-    public bool Equals(AnnualCalendar obj)
+    public bool Equals(AnnualCalendar? other)
     {
-        if (obj is null)
+        if (other is null)
         {
             return false;
         }
 
-        bool toReturn = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
+        bool toReturn = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
 
-        return toReturn && excludeDays.SetEquals(obj.excludeDays);
+        return toReturn && excludeDays.SetEquals(other.excludeDays);
     }
 
     public override bool Equals(object? obj)

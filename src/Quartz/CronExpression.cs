@@ -20,6 +20,7 @@
 #endregion
 
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
@@ -209,7 +210,7 @@ namespace Quartz;
 /// <author>Refactoring from CronTrigger to CronExpression by Aaron Craven</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed partial class CronExpression : ISerializable
+public sealed partial class CronExpression : ISerializable, IEquatable<CronExpression>, IParsable<CronExpression>
 {
     private const string DayOfWeekRangeMessage =
         "Day-of-Week values must be between 1 and 7, with 1 = Sunday and 7 = Saturday. "
@@ -489,6 +490,55 @@ public sealed partial class CronExpression : ISerializable
     }
 
     /// <summary>
+    /// Parses a cron expression string into a <see cref="CronExpression" />.
+    /// </summary>
+    /// <param name="cronExpression">String representation of the cron expression.</param>
+    /// <returns>The parsed expression.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="cronExpression"/> is <see langword="null" />.</exception>
+    /// <exception cref="FormatException"><paramref name="cronExpression"/> is not a valid cron expression.</exception>
+    public static CronExpression Parse(string cronExpression)
+    {
+        ArgumentNullException.ThrowIfNull(cronExpression);
+        return new CronExpression(cronExpression);
+    }
+
+    /// <summary>
+    /// Attempts to parse a cron expression string into a <see cref="CronExpression" />.
+    /// </summary>
+    /// <param name="cronExpression">String representation of the cron expression; may be <see langword="null" />.</param>
+    /// <param name="result">The parsed expression, or <see langword="null" /> when parsing failed.</param>
+    /// <returns><see langword="true" /> when <paramref name="cronExpression"/> is a valid cron expression.</returns>
+    public static bool TryParse(string? cronExpression, [NotNullWhen(true)] out CronExpression? result)
+    {
+        if (cronExpression is null)
+        {
+            result = null;
+            return false;
+        }
+
+        try
+        {
+            result = new CronExpression(cronExpression);
+            return true;
+        }
+        catch (FormatException)
+        {
+            result = null;
+            return false;
+        }
+    }
+
+    static CronExpression IParsable<CronExpression>.Parse(string s, IFormatProvider? provider)
+    {
+        return Parse(s);
+    }
+
+    static bool IParsable<CronExpression>.TryParse(string? s, IFormatProvider? provider, [MaybeNullWhen(false)] out CronExpression result)
+    {
+        return TryParse(s, out result);
+    }
+
+    /// <summary>
     /// Indicates whether the specified cron expression can be parsed into a
     /// valid cron expression
     /// </summary>
@@ -497,16 +547,7 @@ public sealed partial class CronExpression : ISerializable
     ///         expression</returns>
     public static bool IsValidExpression(string cronExpression)
     {
-        try
-        {
-            var _ = new CronExpression(cronExpression);
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-
-        return true;
+        return TryParse(cronExpression, out _);
     }
 
     public static void ValidateExpression(string cronExpression)
@@ -520,16 +561,19 @@ public sealed partial class CronExpression : ISerializable
     /// </summary>
     public static bool IsValidExpression(string cronExpression, string hashKey)
     {
+        if (cronExpression is null || hashKey is null)
+        {
+            return false;
+        }
+
         try
         {
-            var _ = new CronExpression(cronExpression, hashKey);
+            return TryParse(ResolveHash(cronExpression, hashKey), out _);
         }
         catch (FormatException)
         {
             return false;
         }
-
-        return true;
     }
 
     /// <summary>
@@ -2631,28 +2675,17 @@ public sealed partial class CronExpression : ISerializable
     }
 
     /// <summary>
-    /// Creates a new <see cref="CronExpression" /> that is a copy of the current instance.
-    /// </summary>
-    /// <returns>
-    /// A new <see cref="CronExpression" /> that is a copy of this instance.
-    /// </returns>
-    public CronExpression Clone()
-    {
-        return new CronExpression(CronExpressionString, timeZone);
-    }
-
-    /// <summary>
     /// Determines whether the specified <see cref="CronExpression"/> is equal to the current <see cref="CronExpression"/>.
     /// </summary>
     /// <returns>
     /// true if the specified <see cref="CronExpression"/> is equal to the current <see cref="CronExpression"/>; otherwise, false.
     /// </returns>
     /// <param name="other">The <see cref="CronExpression"/> to compare with the current <see cref="CronExpression"/>. </param>
-    public bool Equals(CronExpression other)
+    public bool Equals(CronExpression? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
-        return Equals(other.CronExpressionString, CronExpressionString) && Equals(other.TimeZone, TimeZone);
+        return string.Equals(other.CronExpressionString, CronExpressionString, StringComparison.Ordinal) && Equals(other.TimeZone, TimeZone);
     }
 
     /// <summary>
@@ -2664,10 +2697,7 @@ public sealed partial class CronExpression : ISerializable
     /// <param name="obj">The <see cref="System.Object"/> to compare with the current <see cref="System.Object"/>. </param>
     public override bool Equals(object? obj)
     {
-        if (obj is null) return false;
-        if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != typeof(CronExpression)) return false;
-        return Equals((CronExpression) obj);
+        return Equals(obj as CronExpression);
     }
 
     /// <summary>
@@ -2679,10 +2709,7 @@ public sealed partial class CronExpression : ISerializable
     /// <filterpriority>2</filterpriority>
     public override int GetHashCode()
     {
-        unchecked
-        {
-            return ((CronExpressionString is not null ? CronExpressionString.GetHashCode() : 0) * 397) ^ (timeZone is not null ? timeZone.GetHashCode() : 0);
-        }
+        return HashCode.Combine(CronExpressionString, TimeZone);
     }
 }
 

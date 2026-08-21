@@ -33,7 +33,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Juergen Donnerstag</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed class MonthlyCalendar : BaseCalendar
+public sealed class MonthlyCalendar : BaseCalendar, IEquatable<MonthlyCalendar>
 {
     private const int MaxDaysInMonth = 31;
 
@@ -249,7 +249,7 @@ public sealed class MonthlyCalendar : BaseCalendar
         return excludeDays.Count + 5 * baseHash;
     }
 
-    public bool Equals(MonthlyCalendar obj)
+    public bool Equals(MonthlyCalendar? other)
     {
         //a little trick here : Monthly calendar knows nothing
         //about the precise month it is dealing with, so
@@ -258,13 +258,13 @@ public sealed class MonthlyCalendar : BaseCalendar
         //but that's not going to be a problem since
         //there's no need to redefine default value of false
         //for such days
-        if (obj is null)
+        if (other is null)
         {
             return false;
         }
-        bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
 
-        return baseEqual && excludeDays.SetEquals(obj.excludeDays);
+        return baseEqual && excludeDays.SetEquals(other.excludeDays);
     }
 
     public override bool Equals(object? obj)
