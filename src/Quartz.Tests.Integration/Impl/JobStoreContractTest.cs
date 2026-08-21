@@ -37,9 +37,9 @@ namespace Quartz.Tests.Integration.Impl;
 /// <para>
 /// Where the two genuinely disagree the difference is a hook, not a missing assertion: each store says
 /// which way it behaves and both branches are asserted, so the divergence is written down and can be
-/// found by anyone deciding whether to close it. The hooks are
-/// <see cref="ReportsJobGroupPauseState" />, <see cref="AllGroupsPausedSentinel" /> and
-/// <see cref="DuplicateCalendarException" />.
+/// found by anyone deciding whether to close it. One hook is left,
+/// <see cref="ReportsJobGroupPauseState" />: the ADO schema has a paused-groups table for triggers and
+/// none for jobs, so closing it is a schema change rather than a code change.
 /// </para>
 /// </remarks>
 public abstract class JobStoreContractTest
@@ -82,17 +82,6 @@ public abstract class JobStoreContractTest
     /// <see cref="IJobStore.QueryJobGroups" />.
     /// </summary>
     protected abstract bool ReportsJobGroupPauseState { get; }
-
-    /// <summary>
-    /// The pseudo group name a store lists as paused after <see cref="IJobStore.PauseAll" />, or
-    /// <see langword="null" /> when it lists only real groups.
-    /// </summary>
-    protected virtual string AllGroupsPausedSentinel => null;
-
-    /// <summary>
-    /// The exception adding a calendar over an existing name raises when replacing was not asked for.
-    /// </summary>
-    protected virtual Type DuplicateCalendarException => typeof(ObjectAlreadyExistsException);
 
     [SetUp]
     public async Task BuildStoreUnderTest()
@@ -300,23 +289,14 @@ public abstract class JobStoreContractTest
         (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Paused);
         (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Paused);
 
-        List<string> pausedGroups = (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true }))
-            .Items.Select(x => x.Name).ToList();
+        PagedResult<TriggerGroup> pausedGroups = await Store.QueryTriggerGroups(
+            new TriggerGroupQuery { Paused = true, IncludeTotalCount = true });
 
-        pausedGroups.Should().Contain([TriggerGroupA, TriggerGroupB]);
-
-        if (AllGroupsPausedSentinel is null)
-        {
-            pausedGroups.Should().HaveCount(2, "only real groups are paused");
-        }
-        else
-        {
-            // The ADO store records "everything is paused" as a row in the paused-groups table, and
-            // the listing reads that table without filtering the marker out, so the caller sees a
-            // group name no trigger will ever belong to. The in-memory store has no such row.
-            pausedGroups.Should().Contain(AllGroupsPausedSentinel,
-                "the ADO store keeps its all-groups marker in the same table it lists paused groups from");
-        }
+        // Whatever a store records to mean "everything is paused" stays its own business: a listing
+        // reports groups, and a caller must never be handed a name no trigger can belong to.
+        pausedGroups.Items.Select(x => x.Name).Should().BeEquivalentTo([TriggerGroupA, TriggerGroupB],
+            "only real groups are paused");
+        pausedGroups.TotalCount.Should().Be(2, "the count matches the listing it counts");
 
         await Store.ResumeAll();
 
@@ -466,6 +446,37 @@ public abstract class JobStoreContractTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Storing over something that is already there
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task StoringOverAJobOrTriggerWithoutReplacingRaisesTheSpecificException()
+    {
+        IJobDetail job = CreateJob("taken", JobGroupA);
+        IOperableTrigger trigger = CreateTrigger("taken", TriggerGroupA, job.Key);
+        await Store.ScheduleJob(job, trigger);
+
+        // ObjectAlreadyExistsException derives from JobPersistenceException, so a store that wraps it
+        // still satisfies a catch of the base type — and silently costs the caller the only thing that
+        // told "already there" apart from "the store broke".
+        Func<Task> addingTheJobAgain = async () => await Store.AddJob(CreateJob("taken", JobGroupA), replace: false);
+        await addingTheJobAgain.Should().ThrowAsync<ObjectAlreadyExistsException>(
+            "storing over a job without asking to replace it names the mistake");
+
+        Func<Task> addingTheTriggerAgain = async () => await Store.AddTrigger(
+            CreateTrigger("taken", TriggerGroupA, job.Key), replace: false);
+        await addingTheTriggerAgain.Should().ThrowAsync<ObjectAlreadyExistsException>();
+
+        Func<Task> replacing = async () =>
+        {
+            await Store.AddJob(CreateJob("taken", JobGroupA), replace: true);
+            await Store.AddTrigger(CreateTrigger("taken", TriggerGroupA, job.Key), replace: true);
+        };
+
+        await replacing.Should().NotThrowAsync("replacing is what the flag asks for");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Calendars
     //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -489,13 +500,11 @@ public abstract class JobStoreContractTest
         replacement.AddExcludedDay(christmas);
 
         Func<Task> addingAgain = async () => await Store.AddCalendar("holidays", replacement);
-        Exception thrown = (await addingAgain.Should().ThrowAsync<JobPersistenceException>(
-            "adding over a calendar without asking to replace it is a mistake, not an update")).Which;
 
-        // The stores raise different exceptions for the same mistake: the in-memory store throws the
-        // specific ObjectAlreadyExistsException, while the ADO store's blanket catch re-wraps it as a
-        // plain JobPersistenceException. Only the base type is common, so only it can be caught.
-        thrown.Should().BeOfType(DuplicateCalendarException);
+        // The specific type, on every store: "there is already one of those" is an answer a caller
+        // catches by type, and a store that re-wrapped it would make that catch store-dependent.
+        await addingAgain.Should().ThrowAsync<ObjectAlreadyExistsException>(
+            "adding over a calendar without asking to replace it is a mistake, not an update");
 
         await Store.AddCalendar("holidays", replacement, new AddCalendarOptions { Replace = true });
 

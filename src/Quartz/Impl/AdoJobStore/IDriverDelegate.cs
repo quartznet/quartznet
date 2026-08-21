@@ -1029,7 +1029,9 @@ public interface IDriverDelegate
     /// </summary>
     /// <remarks>
     /// A query for paused groups only reads PAUSED_TRIGGER_GRPS, so it reports a paused group that
-    /// currently has no triggers as well.
+    /// currently has no triggers as well. It must not report
+    /// <see cref="AdoConstants.AllGroupsPaused" />: that row records "everything is paused" and is not
+    /// a group any trigger can belong to.
     /// </remarks>
     /// <param name="conn">The DB connection.</param>
     /// <param name="query">What to select and which page of it to return.</param>

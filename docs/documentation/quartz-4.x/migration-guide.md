@@ -49,8 +49,10 @@ returning `PagedResult<T>` of headers; [misfire instructions are enums](#misfire
 [the driver delegate speaks in records](#the-driver-delegate-speaks-in-records);
 [the optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone)
 and the [schema migration](#database-schema-migration) that goes with that is mandatory;
-[`RAMJobStore` is sealed](#ramjobstore-is-sealed); and
-[a job store of your own can join your transaction](#a-job-store-of-your-own-can-join-your-transaction).
+[`RAMJobStore` is sealed](#ramjobstore-is-sealed);
+[a job store of your own can join your transaction](#a-job-store-of-your-own-can-join-your-transaction);
+and the two stores, held to one contract test, now
+[answer the same way](#the-two-job-stores-answer-the-same-way) where they used to disagree.
 
 **5. Configuration and hosting.** The container builds the scheduler:
 [`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone),
@@ -1696,6 +1698,22 @@ of these is a 3.x behaviour, not a 4.x regression:
   way to see why short of reading the table. `ResumeAll` clears the whole table for the scheduler
   now, which is what `RAMJobStore` always did. The 3.x row can be removed by hand with
   `DELETE FROM QRTZ_PAUSED_TRIGGER_GRPS WHERE SCHED_NAME = '…'` if a database carries one.
+
+- **The all-groups-paused marker is no longer listed as a group.** The ADO store records `PauseAll`
+  as a row named `_$_ALL_GROUPS_PAUSED_$_` in the same table it lists paused groups from, so
+  `GetPausedTriggerGroups()` — and `QueryTriggerGroups(new TriggerGroupQuery { Paused = true })` —
+  handed back a group name no trigger can ever belong to. Code that displayed the list showed it to
+  operators, and code that looped it called `ResumeTriggers` on a group that does not exist. The
+  listing and its count filter the marker out now; the marker itself is unchanged, so nothing about
+  the schema or about how a pause is recorded moves. `RAMJobStore` never had such a row.
+
+- **A duplicate says so on both stores.** `AddCalendar` over an existing name without
+  `Replace = true`, and `AddJob` over an existing key without `replace: true`, raise
+  `ObjectAlreadyExistsException` on the ADO store as they always did on `RAMJobStore`. Both calls
+  passed through a blanket `catch` that re-wrapped it as a plain `JobPersistenceException` with the
+  real exception in `InnerException`, so `catch (ObjectAlreadyExistsException)` worked against one
+  store and not the other. `ObjectAlreadyExistsException` derives from `JobPersistenceException`, so
+  code catching the base type is unaffected.
 
 ## JobKey and TriggerKey Null Validation
 

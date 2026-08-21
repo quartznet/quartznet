@@ -529,11 +529,20 @@ internal static class StdAdoConstants
     public static readonly string SqlCountTriggerGroups =
         Invariant($"SELECT COUNT(DISTINCT t.{AdoConstants.ColumnTriggerGroup}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t WHERE t.{AdoConstants.ColumnSchedulerName} = @schedulerName");
 
+    /// <summary>
+    /// Excludes the "everything is paused" marker <see cref="AdoConstants.AllGroupsPaused" /> from a
+    /// listing. Only the listings that read PAUSED_TRIGGER_GRPS need it: the marker is a row in that
+    /// table but no trigger belongs to it, so it is not a group and must not be reported as one. The
+    /// other group listings read TRIGGERS, where it cannot appear.
+    /// </summary>
+    private static readonly string ExceptAllGroupsPausedMarker =
+        Invariant($" AND {AdoConstants.ColumnTriggerGroup} <> '{AdoConstants.AllGroupsPaused}'");
+
     public static readonly string SqlSelectPausedTriggerGroups =
-        Invariant($"SELECT {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+        Invariant($"SELECT {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName{ExceptAllGroupsPausedMarker}");
 
     public static readonly string SqlCountPausedTriggerGroups =
-        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName{ExceptAllGroupsPausedMarker}");
 
     public static readonly string SqlSelectUnpausedTriggerGroups =
         Invariant($"SELECT DISTINCT t.{AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t WHERE t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND NOT EXISTS ({PausedTriggerGroupExists})");
