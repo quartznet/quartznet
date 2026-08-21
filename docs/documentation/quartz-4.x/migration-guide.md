@@ -3240,6 +3240,41 @@ mean "the scheduler's own defaults", which it never did.
 
 The DI-time builders — `q.AddJob<T>(…)` and `q.AddCalendar<T>(…)` on `IQuartzBuilder` — are unchanged.
 
+## A component of your own can have options of its own
+
+`IQuartzBuilder.ConfigureOptions<TOptions>(Action<TOptions>?)` is new. It registers the callback under
+this scheduler's options name and declares the type as belonging to the scheduler, so a component the
+container builds — which asks for `IOptions<TOptions>` and would otherwise be handed the *unnamed*
+instance — sees what was configured for its own scheduler.
+
+That mechanism existed; it was reachable only through `AddPlugin<T, TOptions>()`, which is now sugar
+over it. Everything else built by the container — a thread pool, a job store, a lock handler, a
+listener, a job factory — had no way to reach it, and under `AddQuartz("name", …)` quietly saw defaults.
+
+```csharp
+services.AddQuartz("reporting", q =>
+{
+    q.ConfigureOptions<MyThreadPoolOptions>(options => options.Slots = 20);
+    q.UseThreadPool<MyThreadPool>();
+});
+```
+
+It is a default interface implementation, so an `IQuartzBuilder` implemented outside Quartz keeps
+compiling — and the default body is the whole mechanism rather than a stub, because the scheduler's
+options name is its `SchedulerName` (`Options.DefaultName` is the empty string, which is what
+`SchedulerName` is for the unnamed scheduler).
+
+With a replacement to point at, `UseThreadPool<T>()` drops its `Action<ThreadPoolOptions>` parameter:
+
+| Before | After |
+|---|---|
+| `UseThreadPool<T>(options => options.MaxConcurrency = 20)` | `UseDefaultThreadPool(maxConcurrency: 20)`, or `ConfigureOptions<TOwnOptions>(…)` for a pool of your own |
+
+The parameter was honoured for exactly one implementation — `TaskSchedulingThreadPool` and its
+descendants, which is what `MaxConcurrency` means. `UseThreadPool<AnythingElse>(o => o.MaxConcurrency = 5)`
+compiled, registered the callback and did nothing with it. `UseDefaultThreadPool` keeps the parameter,
+because that is where the options are read.
+
 ## Overloads that differed only by a default
 
 | 3.x | 4.x |

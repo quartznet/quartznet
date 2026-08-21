@@ -49,17 +49,17 @@ internal sealed class QuartzBuilder : IQuartzBuilder
 
     public IQuartzBuilder UseDefaultThreadPool(Action<ThreadPoolOptions>? configure = null)
     {
-        return UseThreadPool<DefaultThreadPool>(configure);
-    }
-
-    public IQuartzBuilder UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Action<ThreadPoolOptions>? configure = null) where T : class, IThreadPool
-    {
         if (configure is not null)
         {
             Services.Configure(OptionsName, configure);
         }
 
+        return UseThreadPool<DefaultThreadPool>();
+    }
+
+    public IQuartzBuilder UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IThreadPool
+    {
         RegisterConfigured<IThreadPool>((provider, key) =>
         {
             var threadPool = ActivatorUtilities.CreateInstance<T>(SchedulerScopedServiceProvider.For(provider, key));
@@ -158,6 +158,26 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return this;
     }
 
+    public IQuartzBuilder ConfigureOptions<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure = null) where TOptions : class
+    {
+        if (configure is not null)
+        {
+            Services.Configure(OptionsName, configure);
+        }
+
+        // The options are configured under this scheduler's name, but the component is built by
+        // ActivatorUtilities and so asks for IOptions<TOptions>, which resolves the unnamed instance.
+        // This says the type is a scheduler's own, the way the built-in options types are declared to
+        // be, so the component is handed what was configured for it rather than defaults. Registered
+        // whether or not a callback was given: where the options come from is not something adding one
+        // should change.
+        Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<SchedulerNamedOptions>(new SchedulerNamedOptions<TOptions>()));
+
+        return this;
+    }
+
     public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         string? name = null)
         where T : class, ISchedulerPlugin
@@ -203,19 +223,9 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         where T : class, ISchedulerPlugin
         where TOptions : class
     {
-        if (configure is not null)
-        {
-            Services.Configure(OptionsName, configure);
-        }
-
-        // The options are configured under this scheduler's name, but the plugin is built by
-        // ActivatorUtilities and so asks for IOptions<TOptions>, which resolves the unnamed instance. This
-        // says the type is a scheduler's own, the way the built-in options types are declared to be, so
-        // the plugin is handed what was configured for it rather than defaults. Registered whether or not
-        // a callback was given: where the options come from is not something adding one should change.
-        Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<SchedulerNamedOptions>(new SchedulerNamedOptions<TOptions>()));
-
+        // Sugar over the general mechanism: a plugin's options are declared the same way any other
+        // component's are.
+        ConfigureOptions(configure);
         return AddPlugin<T>(name);
     }
 

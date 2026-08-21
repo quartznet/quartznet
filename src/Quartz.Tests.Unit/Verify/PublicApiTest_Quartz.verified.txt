@@ -512,6 +512,8 @@ namespace Quartz
             where T :  class, Quartz.ITriggerListener;
         Quartz.IQuartzBuilder AddTriggerListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(T listener, params Quartz.IMatcher<Quartz.TriggerKey>[] matchers)
             where T :  class, Quartz.ITriggerListener;
+        Quartz.IQuartzBuilder ConfigureOptions<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]  TOptions>(System.Action<TOptions>? configure = null)
+            where TOptions :  class;
         Quartz.IQuartzBuilder ConfigureScheduler(System.Action<Quartz.QuartzSchedulerOptions> configure);
         Quartz.IQuartzBuilder UseDefaultThreadPool(System.Action<Quartz.ThreadPoolOptions>? configure = null);
         Quartz.IQuartzBuilder UseDefaultThreadPool(int maxConcurrency);
@@ -525,7 +527,7 @@ namespace Quartz
         Quartz.IQuartzBuilder UsePersistentStore<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Action<Quartz.IPersistentStoreBuilder> configure)
             where T :  class, Quartz.Extensibility.IJobStore;
         Quartz.IQuartzBuilder UseThreadPool(Quartz.Extensibility.IThreadPool threadPool);
-        Quartz.IQuartzBuilder UseThreadPool<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Action<Quartz.ThreadPoolOptions>? configure = null)
+        Quartz.IQuartzBuilder UseThreadPool<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
             where T :  class, Quartz.Extensibility.IThreadPool;
         Quartz.IQuartzBuilder UseTimeProvider(System.TimeProvider timeProvider);
         Quartz.IQuartzBuilder UseTypeLoader<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
@@ -1060,6 +1062,8 @@ namespace Quartz
             where T :  class, Quartz.ITriggerListener { }
         public Quartz.StandaloneSchedulerFactory Build() { }
         public System.Threading.Tasks.ValueTask<Quartz.IScheduler> BuildScheduler(System.Threading.CancellationToken cancellationToken = default) { }
+        public Quartz.QuartzSchedulerBuilder ConfigureOptions<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]  TOptions>(System.Action<TOptions>? configure = null)
+            where TOptions :  class { }
         public Quartz.QuartzSchedulerBuilder ConfigureScheduler(System.Action<Quartz.QuartzSchedulerOptions> configure) { }
         public Quartz.QuartzSchedulerBuilder UseDefaultThreadPool(System.Action<Quartz.ThreadPoolOptions>? configure = null) { }
         public Quartz.QuartzSchedulerBuilder UseDefaultThreadPool(int maxConcurrency) { }
@@ -1074,7 +1078,7 @@ namespace Quartz
             where T :  class, Quartz.Extensibility.IJobStore { }
         public Quartz.QuartzSchedulerBuilder UseProperties(System.Collections.Specialized.NameValueCollection properties) { }
         public Quartz.QuartzSchedulerBuilder UseThreadPool(Quartz.Extensibility.IThreadPool threadPool) { }
-        public Quartz.QuartzSchedulerBuilder UseThreadPool<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Action<Quartz.ThreadPoolOptions>? configure = null)
+        public Quartz.QuartzSchedulerBuilder UseThreadPool<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
             where T :  class, Quartz.Extensibility.IThreadPool { }
         public Quartz.QuartzSchedulerBuilder UseTimeProvider(System.TimeProvider timeProvider) { }
         public Quartz.QuartzSchedulerBuilder UseTypeLoader<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
