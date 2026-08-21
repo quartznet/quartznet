@@ -106,7 +106,7 @@ public abstract class AdoJobStoreBase : IJobStore
         UseDbLocks = options.UseDbLocks;
         LockOnInsert = options.LockOnInsert;
         AcquireTriggersWithinLock = options.AcquireTriggersWithinLock;
-        TxIsolationLevelSerializable = options.TxIsolationLevelSerializable;
+        TransactionIsolationLevel = options.TransactionIsolationLevel;
         AcceptEnlistedTransactions = options.AcceptEnlistedTransactions;
         DoubleCheckLockMisfireHandler = options.DoubleCheckLockMisfireHandler;
         UseBackgroundThreads = options.UseBackgroundThreads;
@@ -330,13 +330,15 @@ public abstract class AdoJobStoreBase : IJobStore
     internal TimeSpan MisfireHandlerFrequency => misfirehandlerFrequence.GetValueOrDefault(MisfireThreshold);
 
     /// <summary>
-    /// Whether the transaction isolation level of the connections this store opens is serializable.
+    /// The isolation level the transactions this store begins for itself run at, or
+    /// <see langword="null" /> for Quartz's default of <see cref="IsolationLevel.ReadCommitted" />.
     /// </summary>
     /// <remarks>
-    /// Configured through <see cref="AdoJobStoreOptions.TxIsolationLevelSerializable" />, and turned on
-    /// by <see cref="Initialize" /> for SQLite, which needs it.
+    /// Configured through <see cref="AdoJobStoreOptions.TransactionIsolationLevel" />, and forced to
+    /// <see cref="IsolationLevel.Serializable" /> by <see cref="Initialize" /> for SQLite, which needs
+    /// it.
     /// </remarks>
-    protected internal bool TxIsolationLevelSerializable { get; internal set; }
+    protected internal IsolationLevel? TransactionIsolationLevel { get; internal set; }
 
     /// <summary>
     /// Whether or not the query and update to acquire a Trigger for firing
@@ -558,14 +560,12 @@ public abstract class AdoJobStoreBase : IJobStore
 
         try
         {
-            if (TxIsolationLevelSerializable)
-            {
-                tx = await conn.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                tx = await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken).ConfigureAwait(false);
-            }
+            // Quartz's own default rather than the provider's, which varies -- MySQL's is repeatable
+            // read -- and would make the store behave differently depending on which database it is
+            // talking to.
+            tx = await conn.BeginTransactionAsync(
+                TransactionIsolationLevel ?? IsolationLevel.ReadCommitted,
+                cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -682,10 +682,12 @@ public abstract class AdoJobStoreBase : IJobStore
                 Logger.LogInformation("With SQLite we need to set AcquireTriggersWithinLock to true, changing");
                 AcquireTriggersWithinLock = true;
             }
-            if (!TxIsolationLevelSerializable)
+            if (TransactionIsolationLevel != IsolationLevel.Serializable)
             {
-                Logger.LogInformation("Detected usage of SQLiteDelegate - defaulting 'txIsolationLevelSerializable' to 'true'");
-                TxIsolationLevelSerializable = true;
+                // Not a default but a requirement: concurrent SQLite transactions at a lower level fail
+                // with "database is locked", so an explicit lower level is overridden rather than kept.
+                Logger.LogInformation("Detected usage of SQLiteDelegate - forcing transaction isolation level to 'Serializable'");
+                TransactionIsolationLevel = IsolationLevel.Serializable;
             }
             if (!LockAllOperations)
             {
@@ -696,9 +698,9 @@ public abstract class AdoJobStoreBase : IJobStore
 
         // The job store own connections still honour this; a connection the application enlisted was
         // begun at whatever level the application chose, and cannot be changed after the fact.
-        if (AcceptEnlistedTransactions && TxIsolationLevelSerializable && Delegate is not SQLiteDelegate)
+        if (AcceptEnlistedTransactions && TransactionIsolationLevel is not null && Delegate is not SQLiteDelegate)
         {
-            Logger.LogWarning("'quartz.jobStore.txIsolationLevelSerializable' applies only to connections the job store opens itself: an operation running on a connection enlisted by the application uses that transaction isolation level instead.");
+            Logger.LogWarning("The configured transaction isolation level applies only to connections the job store opens itself: an operation running on a connection enlisted by the application uses that transaction's isolation level instead.");
         }
 
         // If the user hasn't specified an explicit lock handler, then

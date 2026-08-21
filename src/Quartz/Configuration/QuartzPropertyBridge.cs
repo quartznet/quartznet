@@ -1,4 +1,5 @@
 ﻿using System.Collections.Specialized;
+using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -599,7 +600,11 @@ internal static class QuartzPropertyBridge
         parser.Bool("quartz.jobStore.lockOnInsert", value => options.LockOnInsert = value);
         parser.Bool("quartz.jobStore.acquireTriggersWithinLock", value => options.AcquireTriggersWithinLock = value);
         parser.Bool("quartz.jobStore.acceptEnlistedTransactions", value => options.AcceptEnlistedTransactions = value);
-        parser.Bool("quartz.jobStore.txIsolationLevelSerializable", value => options.TxIsolationLevelSerializable = value);
+        // The legacy key is a flag with two meanings: serializable, or say nothing. "Say nothing" has to
+        // stay null rather than becoming ReadCommitted, because the SQLite defaulting reads it.
+        parser.Bool(
+            "quartz.jobStore.txIsolationLevelSerializable",
+            value => options.TransactionIsolationLevel = value ? IsolationLevel.Serializable : null);
         parser.Bool("quartz.jobStore.doubleCheckLockMisfireHandler", value => options.DoubleCheckLockMisfireHandler = value);
         parser.Bool("quartz.jobStore.performSchemaValidation", value => options.PerformSchemaValidation = value);
         parser.String("quartz.jobStore.selectWithLockSQL", value => options.SelectWithLockSql = value);

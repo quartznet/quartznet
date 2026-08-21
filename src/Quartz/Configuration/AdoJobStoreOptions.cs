@@ -1,3 +1,5 @@
+using System.Data;
+
 namespace Quartz;
 
 /// <summary>
@@ -84,9 +86,29 @@ public sealed class AdoJobStoreOptions
     public bool AcquireTriggersWithinLock { get; set; }
 
     /// <summary>
-    /// Whether transactions use the serializable isolation level.
+    /// The isolation level the job store begins its own transactions at. Left unset, they are
+    /// <see cref="IsolationLevel.ReadCommitted"/>.
     /// </summary>
-    public bool TxIsolationLevelSerializable { get; set; }
+    /// <remarks>
+    /// <para>
+    /// This replaced a <c>TxIsolationLevelSerializable</c> flag, which could say only "serializable" or
+    /// "the default" and so could not express <see cref="IsolationLevel.Snapshot"/>,
+    /// <see cref="IsolationLevel.RepeatableRead"/> or a deliberate
+    /// <see cref="IsolationLevel.ReadUncommitted"/>. <see langword="null"/> means Quartz's default rather
+    /// than the provider's, because those differ — MySQL's is repeatable read — and inheriting the
+    /// provider's would silently change how the store behaves depending on which database it is talking
+    /// to.
+    /// </para>
+    /// <para>
+    /// SQLite is the exception: the store forces serializable there whatever this says, because
+    /// concurrent SQLite transactions at a lower level fail with "database is locked".
+    /// </para>
+    /// <para>
+    /// This applies only to connections the job store opens itself. An operation running on a connection
+    /// the application enlisted uses whatever isolation level that transaction was begun at.
+    /// </para>
+    /// </remarks>
+    public IsolationLevel? TransactionIsolationLevel { get; set; }
 
     /// <summary>
     /// Whether the job store may take part in a transaction the application owns, rather than
