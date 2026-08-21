@@ -54,6 +54,31 @@ public class QuartzSchedulerBuilderTest
     }
 
     /// <summary>
+    /// The chain keeps its concrete type, so it reaches <c>BuildScheduler</c>. This compiling at all is
+    /// the assertion: before the explicit interface implementation, every configuration member returned
+    /// <see cref="IQuartzBuilder"/> and a standalone scheduler took two statements.
+    /// </summary>
+    [Test]
+    public async Task ConfigurationMembersChainIntoTheTerminalMethods()
+    {
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .ConfigureScheduler(options => options.InstanceName = "standalone-chains")
+            .UseDefaultThreadPool(maxConcurrency: 2)
+            .UseInMemoryStore()
+            .UseTimeProvider(TimeProvider.System)
+            .BuildScheduler();
+
+        try
+        {
+            scheduler.SchedulerName.Should().Be("standalone-chains");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
     /// Flat properties and code-first configuration are two spellings of one configuration model, so
     /// they land on the same options — and what the code says wins, so a properties file cannot quietly
     /// override a decision the application made.

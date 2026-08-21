@@ -541,23 +541,31 @@ does not.
 -     })
 -     .UseDefaultThreadPool(maxConcurrency: 20)
 -     .BuildScheduler();
-+ var builder = QuartzSchedulerBuilder.Create();
-+ builder.UseDefaultThreadPool(maxConcurrency: 20)
++ var scheduler = await QuartzSchedulerBuilder.Create()
++     .UseDefaultThreadPool(maxConcurrency: 20)
 +     .UsePersistentStore(store => store.UseSqlServer(connectionString))
-+     .AddJob<ReportJob>(j => j.WithIdentity("report"));
-+
-+ var scheduler = await builder.BuildScheduler();
++     .BuildScheduler();
 ```
 
 Everything on `IQuartzBuilder` — jobs, triggers, calendars, listeners, plugins, execution limits — is
-now available on the standalone builder without a wrapper, which is the point. The cost is that
-`Build()` and `BuildScheduler()` cannot be reached by chaining: the configuration members are declared
-to return `IQuartzBuilder`, and C# has no covariant returns for interface implementations, so hold the
-builder in a variable and build from it. That is how `WebApplicationBuilder` is used, and it is why
-`Create()` is a separate statement in every sample above.
+now available on the standalone builder without a wrapper, which is the point.
 
-`UseProperties(NameValueCollection)` is the exception — it belongs to the standalone builder only, so it
-returns `QuartzSchedulerBuilder` and still chains into `BuildScheduler()`.
+Each of those members is declared on `QuartzSchedulerBuilder` returning `QuartzSchedulerBuilder`, with
+`IQuartzBuilder` implemented explicitly underneath — which is how C# spells a covariant return on an
+interface implementation. So the chain keeps its concrete type and reaches `Build()` and
+`BuildScheduler()`, and a standalone scheduler is one expression. A local typed `IQuartzBuilder` still
+works; a `var` local now holds the concrete type, which is strictly more useful.
+
+The `IQuartzBuilder` **extension** methods — `AddJob`, `AddTrigger`, `ScheduleJob`, `AddCalendar`,
+`UseSimpleTypeLoader` — still return `IQuartzBuilder`, because an extension method cannot be covariant
+in its receiver. Put them at the end of a chain, or in a statement of their own:
+
+```csharp
+var builder = QuartzSchedulerBuilder.Create().UseDefaultThreadPool(maxConcurrency: 20);
+builder.AddJob<ReportJob>(j => j.WithIdentity("report"));
+
+var scheduler = await builder.BuildScheduler();
+```
 
 ### `Build()` returns something you can dispose
 
