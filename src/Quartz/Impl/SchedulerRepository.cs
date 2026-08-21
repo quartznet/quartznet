@@ -78,6 +78,13 @@ public sealed class SchedulerRepository : ISchedulerRepository
         {
             if (schedulers.TryGetValue(scheduler.SchedulerName, out List<SchedulerEntry>? list))
             {
+                // A dead entry must not block its replacement. Eviction otherwise happens on reads, and
+                // re-binding after a shutdown is exactly the sequence with no read in between.
+                EvictShutdown(scheduler.SchedulerName, list);
+            }
+
+            if (schedulers.TryGetValue(scheduler.SchedulerName, out list))
+            {
                 foreach (SchedulerEntry entry in list)
                 {
                     if (string.Equals(entry.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase))
