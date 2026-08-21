@@ -375,4 +375,172 @@ public class RecurrenceTriggerImplTest
         DateTimeOffset? next = trigger.GetFireTimeAfter(new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero));
         Assert.IsNull(next);
     }
+
+    #region UpdateAfterMisfire
+
+    /// <summary>
+    /// The schedule every misfire test below starts from: daily at 09:00 UTC from 2025-01-01.
+    /// </summary>
+    private static readonly DateTimeOffset MisfireStartTime = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+    /// <summary>
+    /// The frozen clock misfire handling runs on. It is four days and three hours past the schedule's
+    /// first fire, so the trigger is badly past due and every rescheduling policy has to move it.
+    /// </summary>
+    private static readonly DateTimeOffset MisfireNow = new DateTimeOffset(2025, 1, 5, 12, 0, 0, TimeSpan.Zero);
+
+    /// <summary>
+    /// A daily trigger whose one computed fire time, <see cref="MisfireStartTime" />, is long past by
+    /// the time the frozen <see cref="MisfireNow" /> clock is read - the state the misfire handler
+    /// finds a trigger in.
+    /// </summary>
+    private static RecurrenceTriggerImpl CreateMisfiredTrigger(int misfireInstruction, string rule = "FREQ=DAILY")
+    {
+        RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl("misfired", "test", rule, new FixedTimeProvider(MisfireNow))
+        {
+            TimeZone = TimeZoneInfo.Utc,
+            StartTimeUtc = MisfireStartTime,
+            MisfireInstructionCode = misfireInstruction
+        };
+        trigger.ComputeFirstFireTimeUtc(null);
+        trigger.NextFireTimeUtc.Should().Be(MisfireStartTime, "the fixture depends on the trigger being past due");
+        return trigger;
+    }
+
+    [Test]
+    public void UpdateAfterMisfire_DoNothing_SkipsThePastDueFiresAndResumesAfterNow()
+    {
+        RecurrenceTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.RecurrenceTrigger.DoNothing);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(new DateTimeOffset(2025, 1, 6, 9, 0, 0, TimeSpan.Zero),
+            "DoNothing recomputes from 'now', and the first daily 09:00 after 2025-01-05 12:00 is the next day");
+        trigger.TimesTriggered.Should().Be(0, "the fires that were skipped never happened, so none of them may count against COUNT");
+        trigger.PreviousFireTimeUtc.Should().BeNull("misfire handling is not a firing");
+    }
+
+    [Test]
+    public void UpdateAfterMisfire_FireOnceNow_SchedulesTheTriggerForExactlyNow()
+    {
+        RecurrenceTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.RecurrenceTrigger.FireOnceNow);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow, "FireOnceNow catches up with a single fire, taken from the trigger's clock");
+        trigger.TimesTriggered.Should().Be(0);
+    }
+
+    [Test]
+    public void UpdateAfterMisfire_SmartPolicy_IsFireOnceNow()
+    {
+        RecurrenceTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.SmartPolicy);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow,
+            "the recurrence family resolves SmartPolicy to FireOnceNow, which RecurrenceTriggerMisfireInstruction.SmartPolicy documents");
+    }
+
+    [Test]
+    public void UpdateAfterMisfire_IgnoreMisfirePolicy_LeavesTheScheduleUntouched()
+    {
+        RecurrenceTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.IgnoreMisfirePolicy);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireStartTime,
+            "ignoring misfires means the past-due fire time stays put, so the trigger fires its way back up to date");
+        trigger.TimesTriggered.Should().Be(0);
+        trigger.PreviousFireTimeUtc.Should().BeNull();
+    }
+
+    [Test]
+    public void UpdateAfterMisfire_DoNothing_SkipsCalendarExcludedFireTimes()
+    {
+        RecurrenceTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.RecurrenceTrigger.DoNothing);
+
+        // The day DoNothing would land on is excluded, so it has to walk on to the seventh.
+        AnnualCalendar calendar = new AnnualCalendar { TimeZone = TimeZoneInfo.Utc };
+        calendar.AddExcludedDay(new MonthDay(1, 6));
+
+        trigger.UpdateAfterMisfire(calendar);
+
+        trigger.NextFireTimeUtc.Should().Be(new DateTimeOffset(2025, 1, 7, 9, 0, 0, TimeSpan.Zero),
+            "2025-01-06 is excluded, so the rescheduled fire time is the next included occurrence");
+    }
+
+    [Test]
+    public void UpdateAfterMisfire_DoNothing_ClearsTheFireTimeWhenTheEndTimeHasPassed()
+    {
+        RecurrenceTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.RecurrenceTrigger.DoNothing);
+
+        // The end time expired while the scheduler was down, so there is nothing left to resume at.
+        trigger.EndTimeUtc = new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().BeNull("no occurrence remains after 'now' and before the end time");
+        trigger.MayFireAgain.Should().BeFalse("a null fire time is how the stores learn the trigger is complete");
+    }
+
+    [Test]
+    public void UpdateAfterMisfire_DoNothing_ClearsTheFireTimeWhenTheCountIsExhausted()
+    {
+        RecurrenceTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.RecurrenceTrigger.DoNothing, "FREQ=DAILY;COUNT=3");
+        trigger.TimesTriggered = 3;
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().BeNull(
+            "TimesTriggered is the single source of truth for COUNT, and it is already at the limit");
+        trigger.MayFireAgain.Should().BeFalse();
+    }
+
+    [Test]
+    public void UpdateAfterMisfire_FireOnceNow_FiresPastTheEndTime()
+    {
+        RecurrenceTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.RecurrenceTrigger.FireOnceNow);
+        trigger.EndTimeUtc = new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero);
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow,
+            "FireOnceNow assigns 'now' without consulting the end time - the same shape cron, calendar-interval and " +
+            "daily-time-interval triggers have, and unlike SimpleTrigger's reschedule-now policies, which do check it");
+    }
+
+    [Test]
+    public void UpdateAfterMisfire_FireOnceNow_FiresEvenWithTheCountExhausted()
+    {
+        RecurrenceTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.RecurrenceTrigger.FireOnceNow, "FREQ=DAILY;COUNT=3");
+        trigger.TimesTriggered = 3;
+
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(MisfireNow,
+            "FireOnceNow never asks the rule for a time, so an exhausted COUNT does not stop the catch-up fire; " +
+            "the fire after it is null, which is where the trigger completes");
+        trigger.GetFireTimeAfter(MisfireNow).Should().BeNull();
+    }
+
+    [Test]
+    public void UpdateAfterMisfire_DoNothing_IsIdempotent()
+    {
+        RecurrenceTriggerImpl trigger = CreateMisfiredTrigger(MisfireInstruction.RecurrenceTrigger.DoNothing);
+
+        trigger.UpdateAfterMisfire(null);
+        DateTimeOffset? afterFirst = trigger.NextFireTimeUtc;
+        trigger.UpdateAfterMisfire(null);
+
+        trigger.NextFireTimeUtc.Should().Be(afterFirst,
+            "the recomputation reads 'now' rather than the current fire time, so a repeated recovery pass must not walk the schedule forward");
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    #endregion
 }
