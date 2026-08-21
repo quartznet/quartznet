@@ -1,3 +1,5 @@
+﻿using System.Diagnostics.CodeAnalysis;
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -49,6 +51,31 @@ internal static class QuartzTypedOptions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ClusteringOptions>, ClusteringOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<DataSourceOptions>, DataSourceOptionsValidator>());
 
+        return services;
+    }
+
+    /// <summary>
+    /// Asks the host to validate one options type when it starts, rather than when whatever reads it is
+    /// first resolved.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only for options a scheduler certainly resolves. Validating one it might not — <see
+    /// cref="AdoJobStoreOptions"/> under an in-memory store, for instance — would turn settings nobody
+    /// asked for into a startup failure, so those are declared where they are chosen instead.
+    /// </para>
+    /// <para>
+    /// The host is what runs the validation: <c>Host.Build()</c> resolves <c>IStartupValidator</c> and
+    /// calls it. In the container <see cref="QuartzSchedulerBuilder"/> builds there is nothing to do
+    /// that, so this is inert there — <c>ValidateOnBuild</c> covers the object graph, not the values,
+    /// and a bad value surfaces when the component reading it is built.
+    /// </para>
+    /// </remarks>
+    internal static IServiceCollection ValidateOnStart<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        this IServiceCollection services,
+        string? schedulerName) where TOptions : class
+    {
+        services.AddOptions<TOptions>(schedulerName ?? Options.DefaultName).ValidateOnStart();
         return services;
     }
 

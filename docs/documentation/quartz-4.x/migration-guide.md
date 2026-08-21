@@ -1858,6 +1858,38 @@ scheduler.ListenerManager.AddJobListener(myJobStoreListener);
 * Negative values for `IdleWaitTime` or `BatchTimeWindow` are rejected.
 * `MaxBatchSize` values less than or equal to zero are rejected.
 
+### Validation happens at startup, through one mechanism
+
+Options validation used to fire when the options were first resolved — which is inside a scheduler
+factory, so the stack trace pointed at Quartz internals rather than at the registration line — and only
+if something resolved them at all. Every Quartz options type is now registered with `ValidateOnStart`,
+so a bad value fails `Host.Build()` with every failure listed.
+
+Which types are checked follows what the scheduler actually reads. `QuartzSchedulerOptions` and
+`ThreadPoolOptions` always; `InMemoryJobStoreOptions` when `UseInMemoryStore` was called;
+`AdoJobStoreOptions` and `ClusteringOptions` when `UsePersistentStore` was; `DataSourceOptions` when a
+data source was configured. Validating the ADO options for an in-memory scheduler would have turned an
+unset `DataSource` into a startup failure for a configuration nobody wrote.
+
+The two satellite packages that validated differently now use `IValidateOptions<T>` like everything
+else, so one exception type — `OptionsValidationException` — reports every configuration mistake:
+
+| Before | After |
+|---|---|
+| `AddOptions<QuartzHttpApiOptions>().Validate(lambda, message)` | `QuartzHttpApiOptionsValidator`, with `ValidateOnStart()` |
+| `HttpClientOptions.AssertValid()` throwing `InvalidOperationException` | `HttpClientOptionsValidator`, throwing `OptionsValidationException` from `AddQuartzHttpClient` |
+
+`ValidateOnStart` is inert in the container `QuartzSchedulerBuilder` builds, because nothing there plays
+the host's part of resolving `IStartupValidator`. `Build()` passes `ValidateOnBuild`, which checks the
+object graph rather than the values, so a bad value there still surfaces when the component reading it
+is built.
+
+### `UseClustering(c => c.Enabled = false)` is now an error
+
+It used to be undefined: the builder turned clustering on, the callback turned it off, and the store was
+left with database locking on, no cluster manager and no check-in row — with nothing said. It fails
+validation now. A scheduler that should not cluster does not call `UseClustering`.
+
 ## Cron Parser Enhancements
 
 The cron expression parser now supports additional syntax:

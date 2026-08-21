@@ -95,6 +95,10 @@ internal sealed class QuartzBuilder : IQuartzBuilder
             Services.Configure(OptionsName, configure);
         }
 
+        // Chosen, so it will be read — which makes a bad value in it something the host can report at
+        // startup rather than when the store is built.
+        Services.ValidateOnStart<InMemoryJobStoreOptions>(schedulerKey);
+
         RegisterConfigured<IJobStore>((provider, key) =>
         {
             var jobStore = ActivatorUtilities.CreateInstance<RAMJobStore>(SchedulerScopedServiceProvider.For(provider, key));

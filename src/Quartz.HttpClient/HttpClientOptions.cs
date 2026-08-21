@@ -21,6 +21,8 @@
 
 using System.Text.Json;
 
+using Microsoft.Extensions.Options;
+
 namespace Quartz;
 
 public sealed class HttpClientOptions
@@ -51,21 +53,56 @@ public sealed class HttpClientOptions
     /// </summary>
     public JsonSerializerOptions? JsonSerializerOptions { get; set; }
 
-    internal void AssertValid()
+}
+
+/// <summary>
+/// Validates <see cref="HttpClientOptions"/>.
+/// </summary>
+/// <remarks>
+/// An <see cref="IValidateOptions{TOptions}"/> rather than a private <c>AssertValid</c> throwing
+/// <see cref="InvalidOperationException"/>, so a misconfigured HTTP client reports itself the same way
+/// every other Quartz options type does. It is run where the options are built, since
+/// <c>AddQuartzHttpClient</c> constructs them at registration rather than resolving them from the
+/// container.
+/// </remarks>
+internal sealed class HttpClientOptionsValidator : IValidateOptions<HttpClientOptions>
+{
+    public ValidateOptionsResult Validate(string? name, HttpClientOptions options)
     {
-        if (string.IsNullOrWhiteSpace(SchedulerName))
+        List<string>? failures = null;
+
+        if (string.IsNullOrWhiteSpace(options.SchedulerName))
         {
-            throw new InvalidOperationException("Scheduler name required");
+            (failures ??= []).Add($"{nameof(HttpClientOptions.SchedulerName)} is required, and must match the remote scheduler's name.");
         }
 
-        if (string.IsNullOrWhiteSpace(HttpClientName) && HttpClient is null)
+        var hasName = !string.IsNullOrWhiteSpace(options.HttpClientName);
+        if (!hasName && options.HttpClient is null)
         {
-            throw new InvalidOperationException($"Either {nameof(HttpClientName)} or {nameof(HttpClient)} instance is required");
+            (failures ??= []).Add(
+                $"Either {nameof(HttpClientOptions.HttpClientName)} or {nameof(HttpClientOptions.HttpClient)} is required.");
+        }
+        else if (hasName && options.HttpClient is not null)
+        {
+            (failures ??= []).Add(
+                $"{nameof(HttpClientOptions.HttpClientName)} and {nameof(HttpClientOptions.HttpClient)} are both set, and only one can be.");
         }
 
-        if (!string.IsNullOrWhiteSpace(HttpClientName) && HttpClient is not null)
+        return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+
+    /// <summary>
+    /// Validates the options and throws the same exception the options pattern would.
+    /// </summary>
+    internal static void ThrowIfInvalid(HttpClientOptions options)
+    {
+        var result = new HttpClientOptionsValidator().Validate(Options.DefaultName, options);
+        if (result.Failed)
         {
-            throw new InvalidOperationException($"Both {nameof(HttpClientName)} and {nameof(HttpClient)} instance have been set, only one can be set");
+            throw new OptionsValidationException(
+                Options.DefaultName,
+                typeof(HttpClientOptions),
+                result.Failures ?? []);
         }
     }
 }

@@ -24,6 +24,13 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     {
         Services = services;
         this.schedulerKey = schedulerKey;
+
+        // A persistent store is being chosen, so these two will be read — which is what makes it safe to
+        // have the host check them at startup. A scheduler on the in-memory store never resolves them,
+        // and validating them there would make an unset DataSource a startup failure for a
+        // configuration nobody wrote.
+        services.ValidateOnStart<AdoJobStoreOptions>(schedulerKey);
+        services.ValidateOnStart<ClusteringOptions>(schedulerKey);
     }
 
     public IServiceCollection Services { get; }
@@ -47,6 +54,7 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         // invented by the caller or kept in step by hand.
         dataSourceConfigured = true;
         Services.Configure(DataSourceName, configure);
+        Services.ValidateOnStart<DataSourceOptions>(DataSourceName);
         Configure(options => options.DataSource = DataSourceName);
 
         var name = DataSourceName;
@@ -124,6 +132,11 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
             options.Enabled = true;
             configure?.Invoke(options);
         });
+
+        // Asking for clustering and then switching it off inside the callback used to leave a store
+        // with database locking on, no cluster manager, and no complaint. It is a contradiction, so it
+        // is reported as one.
+        Services.AddSingleton<IValidateOptions<ClusteringOptions>>(new ClusteringStaysEnabledValidator(OptionsName));
 
         // Clustering has never worked without database locking, so enabling one enables the other
         // rather than leaving a configuration nobody meant to write.

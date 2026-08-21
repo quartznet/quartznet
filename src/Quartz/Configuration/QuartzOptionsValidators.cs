@@ -192,6 +192,46 @@ internal sealed class ClusteringOptionsValidator : IValidateOptions<ClusteringOp
 }
 
 /// <summary>
+/// Refuses a scheduler that asked for clustering and then turned it off.
+/// </summary>
+/// <remarks>
+/// Registered by <c>UseClustering</c>, so it exists only for a scheduler that asked. Turning
+/// <see cref="ClusteringOptions.Enabled"/> off inside the callback — or in a later
+/// <c>Configure&lt;ClusteringOptions&gt;</c> — leaves the store with database locking on, no cluster
+/// manager and no check-in row, which is a configuration nobody means to write. Not clustering at all
+/// is spelled by not calling <c>UseClustering</c>.
+/// </remarks>
+internal sealed class ClusteringStaysEnabledValidator : IValidateOptions<ClusteringOptions>
+{
+    private readonly string optionsName;
+
+    public ClusteringStaysEnabledValidator(string optionsName)
+    {
+        this.optionsName = optionsName;
+    }
+
+    public ValidateOptionsResult Validate(string? name, ClusteringOptions options)
+    {
+        // Only this scheduler's options; another scheduler in the same container may legitimately have
+        // clustering off.
+        if (!string.Equals(name ?? Options.DefaultName, optionsName, StringComparison.Ordinal))
+        {
+            return ValidateOptionsResult.Skip;
+        }
+
+        if (options.Enabled)
+        {
+            return ValidateOptionsResult.Success;
+        }
+
+        return ValidateOptionsResult.Fail(
+            $"{nameof(ClusteringOptions.Enabled)} is false, but UseClustering() was called for this "
+            + "scheduler. Remove the UseClustering() call to run un-clustered; setting Enabled to false "
+            + "inside it leaves database locking on with no cluster manager and no check-in.");
+    }
+}
+
+/// <summary>
 /// Validates <see cref="DataSourceOptions"/>.
 /// </summary>
 internal sealed class DataSourceOptionsValidator : IValidateOptions<DataSourceOptions>
