@@ -114,10 +114,10 @@ public class UpdateTriggerTest
 
         A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata());
 
-        DelegateInitializationArgs args = new DelegateInitializationArgs
+        DriverDelegateContext args = new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
-            InstanceName = "TESTSCHED",
+            SchedulerName = "TESTSCHED",
             InstanceId = "INSTANCE",
             DbProvider = dbProvider,
             TypeLoader = new SimpleTypeLoader()
@@ -201,10 +201,10 @@ public class UpdateTriggerTest
 
         A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata());
 
-        DelegateInitializationArgs args = new DelegateInitializationArgs
+        DriverDelegateContext args = new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
-            InstanceName = "TESTSCHED",
+            SchedulerName = "TESTSCHED",
             InstanceId = "INSTANCE",
             DbProvider = dbProvider,
             TypeLoader = new SimpleTypeLoader()

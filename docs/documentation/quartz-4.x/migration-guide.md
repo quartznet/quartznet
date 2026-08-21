@@ -3063,8 +3063,10 @@ said so, and the interface said `instanceId` while the implementation said `inst
 | `SelectSchedulerStateRecords(conn, string? instanceName, …)` | `instanceId` |
 
 **Column names are unchanged**: `SCHED_NAME` still holds the scheduler name and `INSTANCE_NAME` the
-instance id. `ITriggerPersistenceDelegate.Initialize`'s `schedulerName` keeps its name — that one really is
-the scheduler name.
+instance id. `TriggerPersistenceDelegateContext.SchedulerName` and `DriverDelegateContext.SchedulerName`
+keep that spelling — those two really are the scheduler name, and the second one was
+`DelegateInitializationArgs.InstanceName` — see
+[The initialization seams are context records](#the-initialization-seams-are-context-records).
 
 ### Three parameter shapes were fixed
 
@@ -3389,7 +3391,7 @@ are records now, and say what they hold.
 |---|---|
 | `FiredTriggerRecord` | `sealed record`, `[Serializable]` dropped, `FireInstanceState` is a `StoredTriggerState` |
 | `RecoverMisfiredJobsResult` | `sealed record`; the property is `EarliestNewTimeUtc`, matching its constructor argument |
-| `DelegateInitializationArgs` | `sealed record` with `required` / `init` members |
+| `DelegateInitializationArgs` | Renamed `DriverDelegateContext`; `sealed record` with `required` / `init` members, and `InstanceName` is `SchedulerName` — see [The initialization seams are context records](#the-initialization-seams-are-context-records) |
 | `TriggerAcquireResult` | carries a `TriggerKey` instead of `TriggerName` + `TriggerGroup` |
 | `TriggerStatus` | replaced by `StoredTriggerHeader`, returned by `SelectTriggerHeader` |
 
@@ -3416,6 +3418,46 @@ tell `PausedBlocked` from `Paused` and the reported state does not.
 `FiredTriggerQuery` stays unpaged, deliberately, and now says so in its own doc comment: FIRED_TRIGGERS holds
 one row per firing in flight, and every caller is a maintenance pass — recovery, cluster failover, blocked
 state checks — that has to see the whole set. Handing one of those a page would leave the rest unrecovered.
+
+## The initialization seams are context records
+
+The ADO.NET store has three things it initializes after construction, and each of them used to say so
+differently: a lock handler took a `SemaphoreContext`, a driver delegate took a bag called
+`DelegateInitializationArgs`, and a trigger persistence delegate took three loose positional arguments.
+All three take a context record now, and the records agree on what the scheduler's name is called:
+
+| Seam | 4.0 |
+|---|---|
+| `ISemaphore.Initialize` | `SemaphoreContext` — unchanged |
+| `IDriverDelegate.Initialize` | `DriverDelegateContext` (was `DelegateInitializationArgs`), whose `InstanceName` is `SchedulerName` |
+| `ITriggerPersistenceDelegate.Initialize` | `TriggerPersistenceDelegateContext` (was `(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)`) |
+
+```diff
+- public void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)
++ public void Initialize(TriggerPersistenceDelegateContext context)
+  {
+-     TablePrefix = tablePrefix;
+-     SchedulerName = schedulerName;
+-     DbAccessor = dbAccessor;
++     TablePrefix = context.TablePrefix;
++     SchedulerName = context.SchedulerName;
++     DbAccessor = context.DbAccessor;
+  }
+```
+
+`DelegateInitializationArgs.InstanceName` held the scheduler name, which is the confusion
+[One term for a scheduler instance](#one-term-for-a-scheduler-instance) settled everywhere else, so it is
+`SchedulerName` — matching `SemaphoreContext.SchedulerName` beside it. `InstanceId` keeps its name and its
+meaning: the node's identity within the cluster.
+
+Neither of the two delegate seams has a default implementation, unlike `ISemaphore.Initialize`. A lock
+handler that ignores its context is a legitimate handler — one that does not key its locks by scheduler
+identity has nothing to read. A delegate that ignores its context has no table prefix, no provider and no
+accessor, so a do-nothing default would only move the failure from startup to the first statement.
+
+Both stay two-phase rather than moving to constructor injection, because `InstanceId` may be *generated*
+rather than configured: the store is built before the id generator has run, so the value does not exist
+when the container constructs the delegate.
 
 ## `ValidateSchema` is part of `IDriverDelegate`
 
@@ -4440,7 +4482,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 
 The delimited `quartz.jobStore.driverDelegateInitString` format this replaces — split on `|` or `\`,
 one supported setting under two spellings, type names instantiated by reflection — is gone from the
-API: `DelegateInitializationArgs.InitString` was replaced by a typed `TriggerPersistenceDelegates`
+API: `DelegateInitializationArgs.InitString` was replaced by a typed `DriverDelegateContext.TriggerPersistenceDelegates`
 collection, and `AdoJobStoreOptions.DriverDelegateInitString` went with it (as did the
 `AdoJobStoreBase` property mirroring it). **The legacy key itself keeps working**: the property bridge
 translates `quartz.jobStore.driverDelegateInitString = triggerPersistenceDelegateTypes=...` (and the
@@ -5864,8 +5906,10 @@ Parameters and behavior are unchanged:
 | `AdoJobStoreBase.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
 | `ConnectionAndTransactionHolder` gained an ownership-aware constructor and `OwnsResources` | `(connection, transaction, ownsResources)` for a store running on a connection it did not open |
 | `ConnectionAndTransactionHolder` is `IAsyncDisposable` | `await using` is the form to prefer in an async method — the provider closes its connection without blocking a thread. Purely additive; `using` keeps working, and both disposal paths now log failures at debug instead of swallowing them |
-| `FiredTriggerRecord`, `RecoverMisfiredJobsResult`, `DelegateInitializationArgs` are `sealed record`s | Immutable, with `required` / `init` members instead of settable ones — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
-| `DelegateInitializationArgs.InitString` replaced by `TriggerPersistenceDelegates` | The delimited string became a typed collection; register delegates with `UseTriggerPersistenceDelegate<T>()`. The legacy `quartz.jobStore.driverDelegateInitString` key still translates |
+| `FiredTriggerRecord`, `RecoverMisfiredJobsResult`, `DriverDelegateContext` are `sealed record`s | Immutable, with `required` / `init` members instead of settable ones — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
+| `DelegateInitializationArgs` is `DriverDelegateContext`, and its `InstanceName` is `SchedulerName` | It holds the scheduler name, not the instance id, and the three ADO.NET initialization seams now agree on the term — see [The initialization seams are context records](#the-initialization-seams-are-context-records) |
+| `ITriggerPersistenceDelegate.Initialize` takes a `TriggerPersistenceDelegateContext` | It took `(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)` — two transposable strings and an accessor. Neither delegate seam has a default implementation, because a delegate that skips initialization has nothing to issue a statement with — see [The initialization seams are context records](#the-initialization-seams-are-context-records) |
+| `DriverDelegateContext.InitString` replaced by `TriggerPersistenceDelegates` | The delimited string became a typed collection; register delegates with `UseTriggerPersistenceDelegate<T>()`. The legacy `quartz.jobStore.driverDelegateInitString` key still translates |
 | `FiredTriggerRecord.FireInstanceState` is a `StoredTriggerState` | The last raw `AdoConstants.State*` comparisons in the store; `[Serializable]` is gone with it, and the always-populated members are non-nullable |
 | `StoredTriggerState` moved to `Quartz.Extensibility`; `TriggerStateResolver.Resolve` is public | The stored-state vocabulary and its reporting precedence belong to every job store, not just the ADO one; members and stored strings are unchanged, so a delegate updates a `using` directive — see [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate) |
 | `RecoverMisfiredJobsResult.EarliestNewTime` is `EarliestNewTimeUtc` | The property and its constructor argument disagreed about the `Utc` suffix |
@@ -5998,7 +6042,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Spi.IRemotableSchedulerProxyFactory` | Removed | Nothing; `Quartz.HttpClient` talks to a remote scheduler over HTTP — see [Remoting a scheduler is not a Quartz concern](#remoting-a-scheduler-is-not-a-quartz-concern) |
 | `Quartz.Spi.ISchedulerExporter` | Removed | Nothing; `AddQuartzHttpApi` / `MapQuartzHttpApi` serve a scheduler over HTTP — see [Remoting a scheduler is not a Quartz concern](#remoting-a-scheduler-is-not-a-quartz-concern) |
 | `Quartz.IServiceCollectionQuartzConfigurator` | Renamed `IQuartzBuilder` | The same members, on one interface shared with the standalone builder — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
-| `Quartz.Spi.ITypeLoadHelper` | Renamed `Quartz.Extensibility.ITypeLoader` | The last `*Helper` left in the public surface; the builder method `UseTypeLoader<T>()` already had the new spelling. `Initialize()` is gone; `LoadType` is the whole interface. `AdoJobStoreBase.TypeLoadHelper` and `DelegateInitializationArgs.TypeLoadHelper` are `TypeLoader` to match |
+| `Quartz.Spi.ITypeLoadHelper` | Renamed `Quartz.Extensibility.ITypeLoader` | The last `*Helper` left in the public surface; the builder method `UseTypeLoader<T>()` already had the new spelling. `Initialize()` is gone; `LoadType` is the whole interface. `AdoJobStoreBase.TypeLoadHelper` and `DriverDelegateContext.TypeLoadHelper` are `TypeLoader` to match |
 | `Quartz.Impl.JobDetailImpl` | Internal | `JobBuilder.Create<TJob>()`; read an `IJobDetail` |
 | `Quartz.JobFactoryOptions` | Removed | Nothing; both of its properties were already `[Obsolete]` no-ops in 3.x — see [The job factory hands out a scope](#the-job-factory-hands-out-a-scope) |
 | `Quartz.Core.JobRunShell` | Internal | No replacement; use `IJobListener` to observe a fire |

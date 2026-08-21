@@ -147,11 +147,11 @@ public class UpdateMisfiredTriggersBatchTest
         A.CallTo(() => dbProvider.CreateCommand()).ReturnsLazily(() => new StubDbCommand());
 
         var del = new CountingDelegate();
-        del.Initialize(new DelegateInitializationArgs
+        del.Initialize(new DriverDelegateContext
         {
             TablePrefix = "QRTZ_",
             InstanceId = "TESTSCHED",
-            InstanceName = "INSTANCE",
+            SchedulerName = "INSTANCE",
             TypeLoader = new SimpleTypeLoader(),
             UseProperties = false,
             DbProvider = dbProvider,

@@ -38,11 +38,11 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
 
     private string SchedulerName { get; set; } = null!;
 
-    public void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)
+    public void Initialize(TriggerPersistenceDelegateContext context)
     {
-        TablePrefix = tablePrefix;
-        SchedulerName = schedulerName;
-        DbAccessor = dbAccessor;
+        TablePrefix = context.TablePrefix;
+        SchedulerName = context.SchedulerName;
+        DbAccessor = context.DbAccessor;
     }
 
     public string GetHandledTriggerTypeDiscriminator()

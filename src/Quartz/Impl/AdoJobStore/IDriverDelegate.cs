@@ -44,10 +44,15 @@ namespace Quartz.Impl.AdoJobStore;
 public interface IDriverDelegate
 {
     /// <summary>
-    /// Initializes the driver delegate with configuration data.
+    /// Initializes the driver delegate with the settings it works from.
     /// </summary>
-    /// <param name="args"></param>
-    void Initialize(DelegateInitializationArgs args);
+    /// <remarks>
+    /// Called once by the job store before the delegate is used. There is no default implementation:
+    /// a delegate that does not read the context has no table prefix, provider or serializer, and
+    /// would fail at its first statement rather than at startup.
+    /// </remarks>
+    /// <param name="context">The settings the store was configured with.</param>
+    void Initialize(DriverDelegateContext context);
 
     /// <summary>
     /// Update all triggers having one of the given states, to the given new state.

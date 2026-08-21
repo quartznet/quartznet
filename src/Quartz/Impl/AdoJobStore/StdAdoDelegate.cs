@@ -65,22 +65,22 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// <summary>
     /// Initializes the driver delegate.
     /// </summary>
-    public virtual void Initialize(DelegateInitializationArgs args)
+    public virtual void Initialize(DriverDelegateContext context)
     {
         logger = LogProvider.CreateLogger<StdAdoDelegate>();
-        tablePrefix = args.TablePrefix;
-        schedulerName = args.InstanceName;
-        instanceId = args.InstanceId;
-        DbProvider = args.DbProvider;
-        typeLoader = args.TypeLoader;
-        useProperties = args.UseProperties;
-        adoUtil = new AdoUtil(args.DbProvider);
-        objectSerializer = args.ObjectSerializer!;
-        timeProvider = args.TimeProvider;
+        tablePrefix = context.TablePrefix;
+        schedulerName = context.SchedulerName;
+        instanceId = context.InstanceId;
+        DbProvider = context.DbProvider;
+        typeLoader = context.TypeLoader;
+        useProperties = context.UseProperties;
+        adoUtil = new AdoUtil(context.DbProvider);
+        objectSerializer = context.ObjectSerializer!;
+        timeProvider = context.TimeProvider;
 
         AddDefaultTriggerPersistenceDelegates();
 
-        foreach (ITriggerPersistenceDelegate persistenceDelegate in args.TriggerPersistenceDelegates)
+        foreach (ITriggerPersistenceDelegate persistenceDelegate in context.TriggerPersistenceDelegates)
         {
             AddTriggerPersistenceDelegate(persistenceDelegate);
         }

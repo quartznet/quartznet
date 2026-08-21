@@ -34,11 +34,11 @@ namespace Quartz.Impl.AdoJobStore;
 /// <see cref="ICronTrigger"/>
 public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 {
-    public void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)
+    public void Initialize(TriggerPersistenceDelegateContext context)
     {
-        TablePrefix = tablePrefix;
-        DbAccessor = dbAccessor;
-        SchedulerName = schedulerName;
+        TablePrefix = context.TablePrefix;
+        DbAccessor = context.DbAccessor;
+        SchedulerName = context.SchedulerName;
     }
 
     private string TablePrefix { get; set; } = null!;

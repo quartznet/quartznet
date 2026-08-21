@@ -1344,7 +1344,12 @@ public partial class StdAdoDelegate
     public virtual void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate persistenceDelegate)
     {
         logger.LogDebug("Adding TriggerPersistenceDelegate of type: {Type}", persistenceDelegate.GetType());
-        persistenceDelegate.Initialize(tablePrefix, schedulerName, this);
+        persistenceDelegate.Initialize(new TriggerPersistenceDelegateContext
+        {
+            SchedulerName = schedulerName,
+            TablePrefix = tablePrefix,
+            DbAccessor = this,
+        });
         triggerPersistenceDelegates.Add(persistenceDelegate);
     }
 

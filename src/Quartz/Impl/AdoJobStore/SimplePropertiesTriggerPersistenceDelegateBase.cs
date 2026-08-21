@@ -89,11 +89,11 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
                                                       + " AND " + AdoConstants.ColumnTriggerName
                                                       + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
 
-    public void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)
+    public void Initialize(TriggerPersistenceDelegateContext context)
     {
-        TablePrefix = tablePrefix;
-        DbAccessor = dbAccessor;
-        SchedulerName = schedulerName;
+        TablePrefix = context.TablePrefix;
+        DbAccessor = context.DbAccessor;
+        SchedulerName = context.SchedulerName;
     }
 
     /// <summary>
