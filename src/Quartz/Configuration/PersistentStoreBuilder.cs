@@ -67,7 +67,19 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
             var metadata = provider.GetRequiredService<DbMetadataResolver>().Resolve(options.Provider);
 
             // Where the connection comes from is the data source's own setting, decided here rather than
-            // by a second entry point that had to be called in the right order to take effect.
+            // by a second entry point that had to be called in the right order to take effect. Most
+            // specific first: a data source the caller builds, then one registered under a key of its
+            // own, then the container's single unkeyed one.
+            if (options.DataSourceFactory is { } dataSourceFactory)
+            {
+                return new DataSourceDbProvider(metadata, dataSourceFactory(provider));
+            }
+
+            if (options.DataSourceServiceKey is { } dataSourceKey)
+            {
+                return new DataSourceDbProvider(metadata, provider.GetRequiredKeyedService<DbDataSource>(dataSourceKey));
+            }
+
             if (options.UseRegisteredDataSource)
             {
                 return new DataSourceDbProvider(metadata, provider.GetRequiredService<DbDataSource>());

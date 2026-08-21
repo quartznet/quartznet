@@ -86,8 +86,22 @@ public class DbProvider : IDbProvider
     public virtual DbCommand CreateCommand()
     {
         DbCommand command = (DbCommand) commandConstructor.Invoke([]);
-        commandBindByNamePropertySetter?.Invoke(command, [Metadata.BindByName]);
+        ApplyDriverCommandSettings(command);
         return command;
+    }
+
+    /// <summary>
+    /// Applies the command settings the driver description carries, whichever way the command was
+    /// minted.
+    /// </summary>
+    /// <remarks>
+    /// Only <c>BindByName</c> so far, which the managed Oracle driver needs in order to bind parameters
+    /// by name rather than by position. It is a property of the driver rather than of the command, so a
+    /// command that came from a connection needs it set just as much as one this class constructed.
+    /// </remarks>
+    private protected void ApplyDriverCommandSettings(DbCommand command)
+    {
+        commandBindByNamePropertySetter?.Invoke(command, [Metadata.BindByName]);
     }
 
     /// <inheritdoc />

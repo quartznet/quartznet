@@ -25,4 +25,28 @@ internal sealed class DataSourceDbProvider : DbProvider
     {
         return source.CreateConnection();
     }
+
+    /// <summary>
+    /// Mints a command on the connection the unit of work is running on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A data source configures the connections it hands out — <c>NpgsqlDataSource</c> attaches its type
+    /// mappers, its logging and its composite type registrations — and a command reaches those through
+    /// the connection it belongs to. A command constructed by reflection over
+    /// <see cref="DbMetadata.CommandType"/> starts out attached to nothing, so it would be given the
+    /// connection afterwards and miss whatever the data source configured before that point. Asking the
+    /// connection for the command is what keeps the data source's configuration in play.
+    /// </para>
+    /// <para>
+    /// Deliberately not <see cref="DbDataSource.CreateCommand"/>: those commands open and close a
+    /// connection of their own, which cannot join the transaction Quartz's unit of work is running in.
+    /// </para>
+    /// </remarks>
+    internal DbCommand CreateCommand(DbConnection connection)
+    {
+        DbCommand command = connection.CreateCommand();
+        ApplyDriverCommandSettings(command);
+        return command;
+    }
 }

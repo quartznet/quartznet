@@ -252,7 +252,9 @@ named scheduler will not see.
 | `Provider` | string | Names the description of the ADO.NET driver to use. Set for you by the database methods above; the names Quartz ships a description for are constants on `DataSourceOptions.Providers`, and see [Describing a driver Quartz does not know](#describing-a-driver-quartz-does-not-know) for anything else. |
 | `ConnectionString` | string? | The connection string. Takes precedence over `ConnectionStringName`. |
 | `ConnectionStringName` | string? | A connection string to resolve from `IConfiguration`. |
-| `UseRegisteredDataSource` | bool | Connections come from a `DbDataSource` in the container. Wins over both connection string settings. |
+| `UseRegisteredDataSource` | bool | Connections come from the container's unkeyed `DbDataSource`. Wins over both connection string settings. |
+| `DataSourceServiceKey` | object? | The service key the `DbDataSource` is registered under, for a container that holds more than one. Implies `UseRegisteredDataSource`. Code only — a binder cannot produce a service key. |
+| `DataSourceFactory` | Func&lt;IServiceProvider, DbDataSource&gt;? | Supplies the `DbDataSource` directly. Wins over both of the above. Code only. |
 
 The provider names Quartz ships a description for, as constants rather than as strings to copy out of
 this table:
@@ -280,6 +282,35 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
     store.UsePostgres(db => db.UseRegisteredDataSource = true);
 }));
 ```
+
+`UseRegisteredDataSource` asks for the container's one unkeyed `DbDataSource`, which is exactly right
+for an application with one database. A container that holds several — a scheduler per tenant, or a
+reporting scheduler beside the application's own — keys them apart, and `DataSourceServiceKey` says
+which key is this store's:
+
+```csharp
+services.AddNpgsqlDataSource(tenantA, serviceKey: "tenant-a");
+services.AddNpgsqlDataSource(tenantB, serviceKey: "tenant-b");
+
+services.AddQuartz("tenant-a", q => q.UsePersistentStore(store =>
+    store.UsePostgres(db => db.DataSourceServiceKey = "tenant-a")));
+services.AddQuartz("tenant-b", q => q.UsePersistentStore(store =>
+    store.UsePostgres(db => db.DataSourceServiceKey = "tenant-b")));
+```
+
+A data source that is built rather than registered goes in `DataSourceFactory`, which wins over both:
+
+```csharp
+store.UsePostgres(db => db.DataSourceFactory = _ => BuildDataSource());
+```
+
+Both are set from code rather than from configuration, because a service key can be any object and a
+factory is a delegate — neither is something a configuration binder can produce. Either one means Quartz
+needs no connection string of its own, so neither is asked for.
+
+Commands on this path are made by the connection rather than from the driver description, so whatever
+the data source configured on its connections — an `NpgsqlDataSource`'s type mappers, its logging, its
+composite type registrations — is in play for Quartz's statements too.
 
 There are three entry points for a data source and they say different things.
 `UseDataSource(configure)` **defines** one — which driver, and how to reach the database — and the
