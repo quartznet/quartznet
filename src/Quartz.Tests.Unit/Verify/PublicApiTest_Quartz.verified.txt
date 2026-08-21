@@ -1040,6 +1040,16 @@ namespace Quartz
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder UseSimpleTypeLoader(this Quartz.IQuartzBuilder builder) { }
     }
+    public static class QuartzHostApplicationBuilderExtensions
+    {
+        public static Microsoft.Extensions.Hosting.IHostApplicationBuilder AddQuartz(this Microsoft.Extensions.Hosting.IHostApplicationBuilder builder, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
+        public static Microsoft.Extensions.Hosting.IHostApplicationBuilder AddQuartz(this Microsoft.Extensions.Hosting.IHostApplicationBuilder builder, string name, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
+        public static Microsoft.Extensions.Hosting.IHostApplicationBuilder AddQuartzHostedService(this Microsoft.Extensions.Hosting.IHostApplicationBuilder builder, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null) { }
+        public static Microsoft.Extensions.Hosting.IHostApplicationBuilder AddQuartzHostedService(this Microsoft.Extensions.Hosting.IHostApplicationBuilder builder, string schedulerName, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null) { }
+        public static Microsoft.Extensions.Hosting.IHostApplicationBuilder AddQuartzHostedService<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  T>(this Microsoft.Extensions.Hosting.IHostApplicationBuilder builder, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null)
+            where T : Quartz.QuartzHostedService { }
+        public static Microsoft.Extensions.Hosting.IHostApplicationBuilder AddQuartzSchedulers(this Microsoft.Extensions.Hosting.IHostApplicationBuilder builder, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
+    }
     public class QuartzHostedService : Microsoft.Extensions.Hosting.IHostedLifecycleService, Microsoft.Extensions.Hosting.IHostedService
     {
         public QuartzHostedService(Microsoft.Extensions.Hosting.IHostApplicationLifetime applicationLifetime, System.IServiceProvider serviceProvider, Microsoft.Extensions.Options.IOptionsMonitor<Quartz.QuartzHostedServiceOptions> options) { }
