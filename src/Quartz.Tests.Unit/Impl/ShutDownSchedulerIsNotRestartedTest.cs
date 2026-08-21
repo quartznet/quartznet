@@ -35,25 +35,37 @@ public sealed class ShutDownSchedulerIsNotRestartedTest
     }
 
     [Test]
-    public async Task AShutDownSchedulerStillBoundInTheRepositoryThrowsToo()
+    public async Task ARepositoryStillHoldingAShutDownSchedulerIsNotTrusted()
     {
-        // A scheduler removes itself from its repository as it shuts down, so the entry is normally gone
-        // by the time anyone asks again. Between 'closed' being set and that removal it is not, and a
-        // scheduler bound by hand into another container's repository never leaves at all.
-        await using ServiceProvider provider = BuildContainer("StillBoundScheduler");
-
+        // The repository Quartz ships drops a scheduler that has shut down as soon as a read notices, so
+        // this path is only reachable through a repository of the application's own — which is a
+        // documented registration, every Quartz registration being TryAdd.
         IScheduler dead = A.Fake<IScheduler>();
         A.CallTo(() => dead.SchedulerName).Returns("StillBoundScheduler");
         A.CallTo(() => dead.SchedulerInstanceId).Returns("NON_CLUSTERED");
         A.CallTo(() => dead.IsShutdown).Returns(true);
 
-        provider.GetRequiredService<ISchedulerRepository>().Bind(dead);
+        ISchedulerRepository repository = A.Fake<ISchedulerRepository>();
+        A.CallTo(() => repository.Lookup("StillBoundScheduler", A<string>._)).Returns(dead);
+
+        ServiceCollection services = new();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+        services.AddSingleton(repository);
+        services.AddQuartz(q =>
+        {
+            q.ConfigureScheduler(options => options.InstanceName = "StillBoundScheduler");
+            q.UseInMemoryStore();
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
 
         Func<Task> act = async () => await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
 
         await act.Should().ThrowAsync<SchedulerException>()
             .WithMessage("*StillBoundScheduler*has been shut down*",
-                "the repository entry is checked before the scheduler is built, so both paths refuse alike");
+                "a repository entry is checked before it is handed out, so a repository that keeps its dead "
+                + "does not turn one into a working scheduler");
     }
 
     [Test]

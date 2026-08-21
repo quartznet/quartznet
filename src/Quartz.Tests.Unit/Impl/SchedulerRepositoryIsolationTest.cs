@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Tests.Unit.Impl;
@@ -105,6 +106,29 @@ public sealed class SchedulerRepositoryIsolationTest
             await firstScheduler.Shutdown();
             await secondScheduler.Shutdown();
         }
+    }
+
+    [Test]
+    public async Task ASchedulerBoundIntoAnotherRepository_DoesNotOutliveItsShutdown()
+    {
+        await using ServiceProvider container = BuildContainer("VisitingScheduler");
+        IScheduler scheduler = await container.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        // Binding by hand is how a scheduler is made visible where it was not built — a dashboard's
+        // container, or a standalone scheduler shown beside the container's own.
+        SchedulerRepository visited = new();
+        visited.Bind(scheduler);
+        visited.LookupAll().Should().ContainSingle().Which.Should().BeSameAs(scheduler);
+
+        await scheduler.Shutdown(waitForJobsToComplete: false);
+
+        visited.LookupAll().Should().BeEmpty(
+            "a scheduler unbinds itself from its own container's repository and from no other, so any "
+            + "repository it was bound into has to notice the shutdown by itself");
+        visited.Lookup("VisitingScheduler").Should().BeNull();
+
+        container.GetRequiredService<ISchedulerRepository>().LookupAll().Should().BeEmpty(
+            "the scheduler's own repository drops it too, as it always did");
     }
 
     [Test]
