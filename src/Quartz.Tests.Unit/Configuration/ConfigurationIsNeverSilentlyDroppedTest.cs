@@ -883,7 +883,8 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         });
 
         using var provider = services.BuildServiceProvider();
-        var properties = provider.GetRequiredService<IOptions<QuartzOptions>>().Value.ToNameValueCollection();
+        var properties = Quartz.Configuration.QuartzConfigurationHelper.ToNameValueCollection(
+            provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties);
 
         var plugins = Quartz.Configuration.SchedulerPluginFactory.Create(provider, [], properties, "");
 
@@ -925,7 +926,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         options.Properties["quartz.plugin.dev.blank"] = "   ";
         options.Properties["quartz.plugin.dev.someSetting"] = "dev";
 
-        var properties = options.ToNameValueCollection();
+        var properties = Quartz.Configuration.QuartzConfigurationHelper.ToNameValueCollection(options.Properties);
 
         properties.AllKeys.Should().BeEquivalentTo(
             ["quartz.plugin.dev.type", "quartz.plugin.dev.blank", "quartz.plugin.dev.someSetting"],
@@ -935,6 +936,72 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
         properties["quartz.plugin.dev.type"].Should().BeNull();
         properties["quartz.plugin.dev.blank"].Should().Be("   ");
+
+        options.ToProperties().Should().BeEquivalentTo(options.Properties,
+            "the public snapshot has to say the same thing the readers are given, empty values included");
+    }
+
+    [Test]
+    public void APropertySnapshotIsACopy()
+    {
+        var options = new QuartzOptions();
+        options.Properties["quartz.scheduler.instanceName"] = "before";
+
+        var snapshot = options.ToProperties();
+        options.Properties["quartz.scheduler.instanceName"] = "after";
+
+        snapshot["quartz.scheduler.instanceName"].Should().Be("before",
+            "a snapshot handed to another scheduler must not keep changing under it as this one is configured on");
+    }
+
+    [Test]
+    public void APropertyBagIsCopiedWhenItIsHandedIn()
+    {
+        var properties = new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = "before"
+        };
+
+        var services = new ServiceCollection();
+        services.AddQuartz(properties);
+
+        // The registration phases read the bag from closures that run later, so a caller that reuses its
+        // own collection must not be able to reconfigure the scheduler after the fact.
+        properties["quartz.scheduler.instanceName"] = "after";
+
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.InstanceName
+            .Should().Be("before", "the bag was copied when it was handed in, not captured");
+    }
+
+    [Test]
+    public void ADictionaryIsAcceptedWhereverANameValueCollectionIs()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(new Dictionary<string, string?>
+        {
+            ["quartz.scheduler.instanceName"] = "FromADictionary"
+        });
+
+        using var provider = services.BuildServiceProvider();
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.InstanceName
+            .Should().Be("FromADictionary",
+                "a dictionary is the shape a modern caller holds, and it must not need converting first");
+    }
+
+    [Test]
+    public void ADictionaryHandedInIsCheckedTheSameWayAsANameValueCollection()
+    {
+        var services = new ServiceCollection();
+
+        var act = () => services.AddQuartz(new Dictionary<string, string?>
+        {
+            ["quartz.jobstore.type"] = "Quartz.Impl.RAMJobStore, Quartz"
+        });
+
+        act.Should().Throw<SchedulerConfigException>()
+            .WithMessage("*quartz.jobstore.type*",
+                "a misspelling is a mistake in whichever shape of bag it was written in");
     }
 
     public sealed class MarkedTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateBase

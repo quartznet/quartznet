@@ -1,5 +1,3 @@
-using System.Collections.Specialized;
-
 namespace Quartz;
 
 /// <summary>
@@ -52,22 +50,18 @@ public sealed class QuartzOptions
     public SchedulingOptions Scheduling { get; } = new();
 
     /// <summary>
-    /// Returns the flat keys in the form the property readers take.
+    /// Returns a snapshot of the flat keys, in the shape <c>UseProperties</c> and <c>AddQuartz</c> take.
     /// </summary>
     /// <remarks>
-    /// Every key is copied, including ones whose value is <see langword="null"/> or whitespace. Deciding
-    /// that an empty value means "not configured" belongs to the reader, which is where it happens; a
+    /// <see cref="Properties"/> is the live bag this options instance goes on being configured through,
+    /// so a caller that wants to hand one scheduler's keys to another takes a copy here rather than
+    /// passing that one along. Every key is copied, including ones whose value is <see langword="null"/>
+    /// or whitespace: deciding that an empty value means "not configured" belongs to the reader, and a
     /// converter that dropped keys of its own accord would make a key set to an empty string
     /// indistinguishable from one that was never given.
     /// </remarks>
-    public NameValueCollection ToNameValueCollection()
+    public Dictionary<string, string?> ToProperties()
     {
-        var collection = new NameValueCollection(Properties.Count);
-        foreach (var pair in Properties)
-        {
-            collection[pair.Key] = pair.Value;
-        }
-
-        return collection;
+        return new Dictionary<string, string?>(Properties, StringComparer.Ordinal);
     }
 }

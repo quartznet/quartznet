@@ -229,7 +229,8 @@ internal static class QuartzPropertyBridge
                 return;
             }
 
-            var properties = provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>().Get(this.name).ToNameValueCollection();
+            var properties = QuartzConfigurationHelper.ToNameValueCollection(
+                provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>().Get(this.name).Properties);
             map(options, new PropertyReader(properties));
         }
     }

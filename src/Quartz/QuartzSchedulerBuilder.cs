@@ -73,10 +73,15 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is the code-free path a properties file or an environment-derived
-    /// <see cref="NameValueCollection"/> takes, and the standalone counterpart of
-    /// <c>AddQuartz(properties)</c>. The keys are translated into the same typed options and
-    /// registrations everything else produces, so a scheduler configured this way is the same scheduler.
+    /// This is the code-free path a properties file or an environment-derived bag takes, and the
+    /// standalone counterpart of <c>AddQuartz(properties)</c>. The keys are translated into the same
+    /// typed options and registrations everything else produces, so a scheduler configured this way is
+    /// the same scheduler.
+    /// </para>
+    /// <para>
+    /// The parameter is the shape every dictionary already has, so a
+    /// <see cref="Dictionary{TKey,TValue}"/>, an <see cref="IReadOnlyDictionary{TKey,TValue}"/> and
+    /// <see cref="QuartzOptions.Properties"/> all go in without a conversion step.
     /// </para>
     /// <para>
     /// Configuration written in code wins, whichever order the two are applied in: values from the
@@ -90,14 +95,35 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     /// </para>
     /// </remarks>
     /// <param name="properties">The flat <c>quartz.*</c> properties.</param>
+    public QuartzSchedulerBuilder UseProperties(IEnumerable<KeyValuePair<string, string?>> properties)
+    {
+        ArgumentNullException.ThrowIfNull(properties);
+        return UsePropertyBag(QuartzConfigurationHelper.ToNameValueCollection(properties));
+    }
+
+    /// <summary>
+    /// Configures the scheduler from flat <c>quartz.*</c> property keys held in a
+    /// <see cref="NameValueCollection"/>.
+    /// </summary>
+    /// <remarks>
+    /// A <see cref="NameValueCollection"/> is what a caller migrating from 3.x already holds — it is what
+    /// <c>StdSchedulerFactory</c> took — so it stays a single call. Everything else about it is
+    /// <see cref="UseProperties(IEnumerable{KeyValuePair{string, string}})"/>, which this forwards to.
+    /// </remarks>
+    /// <param name="properties">The flat <c>quartz.*</c> properties.</param>
     public QuartzSchedulerBuilder UseProperties(NameValueCollection properties)
     {
         ArgumentNullException.ThrowIfNull(properties);
-        LegacyPropertyKeys.Validate(properties);
 
         // Copied, so a caller that goes on to reuse its collection cannot change what this scheduler
         // was configured with after the fact.
-        this.properties = new NameValueCollection(properties);
+        return UsePropertyBag(new NameValueCollection(properties));
+    }
+
+    private QuartzSchedulerBuilder UsePropertyBag(NameValueCollection properties)
+    {
+        LegacyPropertyKeys.Validate(properties);
+        this.properties = properties;
         return this;
     }
 
@@ -167,7 +193,7 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     /// last-wins, so the property-derived ones are inserted at the front of the collection and anything
     /// configured in code is applied over them. Registrations are first-wins, so the implementations the
     /// properties name are appended, and an implementation chosen in code beats one named by a string.
-    /// Applying them where <see cref="UseProperties"/> was called would instead make precedence depend
+    /// Applying them where <c>UseProperties</c> was called would instead make precedence depend
     /// on the order the builder happened to be told things in.
     /// </para>
     /// <para>

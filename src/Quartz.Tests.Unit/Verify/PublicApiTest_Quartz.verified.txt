@@ -1106,7 +1106,7 @@ namespace Quartz
         public QuartzOptions() { }
         public System.Collections.Generic.Dictionary<string, string?> Properties { get; }
         public Quartz.SchedulingOptions Scheduling { get; }
-        public System.Collections.Specialized.NameValueCollection ToNameValueCollection() { }
+        public System.Collections.Generic.Dictionary<string, string?> ToProperties() { }
     }
     public sealed class QuartzSchedulerBuilder : Quartz.IQuartzBuilder
     {
@@ -1166,6 +1166,7 @@ namespace Quartz
         public Quartz.QuartzSchedulerBuilder UsePersistentStore(System.Action<Quartz.IPersistentStoreBuilder> configure) { }
         public Quartz.QuartzSchedulerBuilder UsePersistentStore<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Action<Quartz.IPersistentStoreBuilder> configure)
             where T :  class, Quartz.Extensibility.IJobStore { }
+        public Quartz.QuartzSchedulerBuilder UseProperties(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>> properties) { }
         public Quartz.QuartzSchedulerBuilder UseProperties(System.Collections.Specialized.NameValueCollection properties) { }
         public Quartz.QuartzSchedulerBuilder UseThreadPool(Quartz.Extensibility.IThreadPool threadPool) { }
         public Quartz.QuartzSchedulerBuilder UseThreadPool<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
@@ -1194,9 +1195,11 @@ namespace Quartz
     {
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration configuration, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>> properties, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Collections.Specialized.NameValueCollection properties, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, Microsoft.Extensions.Configuration.IConfiguration configuration, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string?>> properties, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, System.Collections.Specialized.NameValueCollection properties, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string schedulerName, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null) { }

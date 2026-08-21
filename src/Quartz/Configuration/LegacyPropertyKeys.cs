@@ -164,10 +164,9 @@ internal static class LegacyPropertyKeys
     /// </para>
     /// <para>
     /// Applied wherever a caller hands Quartz a flat property bag it wrote itself:
-    /// <see cref="QuartzSchedulerBuilder.UseProperties"/> and the two
-    /// <c>AddQuartz(services, NameValueCollection, …)</c> overloads. That last pair is the commonest
-    /// shape a 3.x application migrates in, so it is exactly the caller the removed-key advice is
-    /// written for. Keys flattened out of an
+    /// <c>QuartzSchedulerBuilder.UseProperties</c> and the <c>AddQuartz(services, properties, …)</c>
+    /// overloads. That last group is the commonest shape a 3.x application migrates in, so it is exactly
+    /// the caller the removed-key advice is written for. Keys flattened out of an
     /// <see cref="Microsoft.Extensions.Configuration.IConfiguration"/> section are not checked, because
     /// there every section becomes a <c>quartz.*</c> key whether Quartz reads it or not.
     /// </para>
