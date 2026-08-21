@@ -446,7 +446,7 @@ public class AdoJobStoreSmokeTest
         {
             goodTrigger
         });
-        await scheduler.ScheduleJobs(toSchedule, true);
+        await scheduler.ScheduleJobs(toSchedule, new ScheduleJobOptions { Replace = true });
 
         manualResetEvent.Wait(TimeSpan.FromSeconds(20));
 

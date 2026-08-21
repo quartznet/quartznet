@@ -347,7 +347,7 @@ public class SmokeTestPerformer
                 triggers.Add(simple);
                 info[detail] = triggers;
 
-                await scheduler.ScheduleJobs(info, true);
+                await scheduler.ScheduleJobs(info, new ScheduleJobOptions { Replace = true });
 
                 Assert.That(await scheduler.Exists(detail.Key), Is.True);
                 Assert.That(await scheduler.Exists(simple.Key), Is.True);

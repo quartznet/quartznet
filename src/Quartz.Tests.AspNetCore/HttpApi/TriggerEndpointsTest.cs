@@ -415,9 +415,9 @@ public class TriggerEndpointsTest : WebApiTest
     [Test]
     public async Task ScheduleJobsShouldWork()
     {
-        await HttpScheduler.ScheduleJob(TestData.JobDetail, [TestData.CronTrigger, TestData.SimpleTrigger], replace: true);
-        A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<bool>._, A<CancellationToken>._))
-            .WhenArgumentsMatch((IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken _) =>
+        await HttpScheduler.ScheduleJob(TestData.JobDetail, [TestData.CronTrigger, TestData.SimpleTrigger], new ScheduleJobOptions { Replace = true });
+        A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<ScheduleJobOptions>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options, CancellationToken _) =>
             {
                 // WhenArgumentsMatch is probably not intended for asserts, but this works so...
                 triggersAndJobs.Count.Should().Be(1);
@@ -428,7 +428,7 @@ public class TriggerEndpointsTest : WebApiTest
                 triggersForJob.Single(x => x.Key.Equals(TestData.CronTrigger.Key)).Should().BeEquivalentTo(TestData.CronTrigger);
                 triggersForJob.Single(x => x.Key.Equals(TestData.SimpleTrigger.Key)).Should().BeEquivalentTo(TestData.SimpleTrigger);
 
-                return replace;
+                return options.Replace;
             })
             .MustHaveHappened(1, Times.Exactly);
 
@@ -439,9 +439,9 @@ public class TriggerEndpointsTest : WebApiTest
             { TestData.JobDetail2, [TestData.CalendarIntervalTrigger] }
         };
 
-        await HttpScheduler.ScheduleJobs(requestJobs, replace: false);
-        A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<bool>._, A<CancellationToken>._))
-            .WhenArgumentsMatch((IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken _) =>
+        await HttpScheduler.ScheduleJobs(requestJobs, new ScheduleJobOptions { Replace = false });
+        A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<ScheduleJobOptions>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options, CancellationToken _) =>
             {
                 triggersAndJobs.Count.Should().Be(2);
                 var (jobDetail, triggersForJob) = triggersAndJobs.Single(x => x.Key.Key.Equals(TestData.JobDetail.Key));
@@ -455,7 +455,7 @@ public class TriggerEndpointsTest : WebApiTest
                 triggersForJob.Count.Should().Be(1);
                 triggersForJob.ToArray()[0].Should().BeEquivalentTo(TestData.CalendarIntervalTrigger);
 
-                return !replace;
+                return !options.Replace;
             })
             .MustHaveHappened(1, Times.Exactly);
 
@@ -467,10 +467,10 @@ public class TriggerEndpointsTest : WebApiTest
             .Build();
 
         Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> requestWithUnresolvableType = new() { { jobDetailWithUnresolvableType, [TestData.CronTrigger] } };
-        await HttpScheduler.ScheduleJobs(requestWithUnresolvableType, replace: true);
+        await HttpScheduler.ScheduleJobs(requestWithUnresolvableType, new ScheduleJobOptions { Replace = true });
 
-        A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<bool>._, A<CancellationToken>._))
-            .WhenArgumentsMatch((IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken _) =>
+        A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<ScheduleJobOptions>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options, CancellationToken _) =>
             {
                 triggersAndJobs.Single().Key.JobType.FullName.Should().Be(TestData.UnresolvableJobTypeName);
                 return true;
@@ -487,10 +487,10 @@ public class TriggerEndpointsTest : WebApiTest
             .Build();
 
         Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> request = new() { { jobDetailWithEmptyType, [TestData.CronTrigger] } };
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJobs(request, replace: true).AsTask())!
+        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJobs(request, new ScheduleJobOptions { Replace = true }).AsTask())!
             .Message.Should().ContainEquivalentOf("malformed job type");
 
-        A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<bool>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<ScheduleJobOptions>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]

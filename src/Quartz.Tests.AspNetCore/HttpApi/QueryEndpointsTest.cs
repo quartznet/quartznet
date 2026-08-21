@@ -329,11 +329,11 @@ public class QueryEndpointsTest : WebApiTest
         await scheduler.AddCalendar("cal-b", new HolidayCalendar(), new AddCalendarOptions { Replace = true });
         await scheduler.AddCalendar("cal-c", new HolidayCalendar(), new AddCalendarOptions { Replace = true });
 
-        await scheduler.ScheduleJob(Job(alphaJobOne), [Trigger(alphaTriggerOne, alphaJobOne), Trigger(alphaTriggerTwo, alphaJobOne, calendarName: "cal-a")], replace: true);
-        await scheduler.ScheduleJob(Job(alphaJobTwo), [Trigger(alphaTriggerThree, alphaJobTwo)], replace: true);
-        await scheduler.ScheduleJob(Job(alphaJobThree), [Trigger(alphaTriggerFour, alphaJobThree)], replace: true);
-        await scheduler.ScheduleJob(Job(betaJobOne), [Trigger(betaTriggerOne, betaJobOne)], replace: true);
-        await scheduler.ScheduleJob(Job(betaJobTwo), [Trigger(betaTriggerTwo, betaJobTwo)], replace: true);
+        await scheduler.ScheduleJob(Job(alphaJobOne), [Trigger(alphaTriggerOne, alphaJobOne), Trigger(alphaTriggerTwo, alphaJobOne, calendarName: "cal-a")], new ScheduleJobOptions { Replace = true });
+        await scheduler.ScheduleJob(Job(alphaJobTwo), [Trigger(alphaTriggerThree, alphaJobTwo)], new ScheduleJobOptions { Replace = true });
+        await scheduler.ScheduleJob(Job(alphaJobThree), [Trigger(alphaTriggerFour, alphaJobThree)], new ScheduleJobOptions { Replace = true });
+        await scheduler.ScheduleJob(Job(betaJobOne), [Trigger(betaTriggerOne, betaJobOne)], new ScheduleJobOptions { Replace = true });
+        await scheduler.ScheduleJob(Job(betaJobTwo), [Trigger(betaTriggerTwo, betaJobTwo)], new ScheduleJobOptions { Replace = true });
 
         await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("beta"));
         await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("beta"));

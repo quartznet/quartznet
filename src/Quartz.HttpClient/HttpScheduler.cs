@@ -193,12 +193,12 @@ public sealed class HttpScheduler : IScheduler
         return result.FirstFireTimeUtc;
     }
 
-    public ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(triggersAndJobs);
 
         var requestItems = triggersAndJobs.Select(CreateRequestItem).ToArray();
-        var request = new ScheduleJobsRequest(requestItems, replace);
+        var request = new ScheduleJobsRequest(requestItems, options.Replace);
 
         return httpClient.Post($"{TriggerEndpointUrl()}/schedule-multiple", request, jsonSerializerOptions, cancellationToken);
 
@@ -209,14 +209,14 @@ public sealed class HttpScheduler : IScheduler
         }
     }
 
-    public ValueTask ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, bool replace, CancellationToken cancellationToken = default)
+    public ValueTask ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         var triggersAndJobs = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>
         {
             { jobDetail, triggersForJob }
         };
 
-        return ScheduleJobs(triggersAndJobs, replace, cancellationToken);
+        return ScheduleJobs(triggersAndJobs, options, cancellationToken);
     }
 
     public async ValueTask<bool> UnscheduleJob(TriggerKey triggerKey, CancellationToken cancellationToken = default)

@@ -278,7 +278,7 @@ public abstract class AbstractSchedulerTest
             .WithCronSchedule("0/5 * * * * ?")
             .Build();
 
-        await scheduler.ScheduleJob(job, [trigger], true);
+        await scheduler.ScheduleJob(job, [trigger], new ScheduleJobOptions { Replace = true });
 
         trigger = await scheduler.GetTrigger(new TriggerKey("t1"));
 
@@ -294,7 +294,7 @@ public abstract class AbstractSchedulerTest
             CronExpression = new CronExpression("0/10 * * * * ?")
         };
 
-        await scheduler.ScheduleJob(job, [blobTrigger], true);
+        await scheduler.ScheduleJob(job, [blobTrigger], new ScheduleJobOptions { Replace = true });
 
         trigger = await scheduler.GetTrigger(new TriggerKey("t1"));
 
@@ -311,7 +311,7 @@ public abstract class AbstractSchedulerTest
                 x.WithInterval(5, IntervalUnit.Day))
             .Build();
 
-        await scheduler.ScheduleJob(job, [trigger], true);
+        await scheduler.ScheduleJob(job, [trigger], new ScheduleJobOptions { Replace = true });
 
         trigger = await scheduler.GetTrigger(new TriggerKey("t1"));
 
@@ -330,7 +330,7 @@ public abstract class AbstractSchedulerTest
                 x.WithInterval(30, IntervalUnit.Minute))
             .Build();
 
-        await scheduler.ScheduleJob(job, [trigger], true);
+        await scheduler.ScheduleJob(job, [trigger], new ScheduleJobOptions { Replace = true });
 
         trigger = await scheduler.GetTrigger(new TriggerKey("t1"));
 
@@ -456,7 +456,7 @@ public abstract class AbstractSchedulerTest
         triggersForJob.Add(trigger2);
 
         IScheduler scheduler = await CreateScheduler("testScheduleMultipleTriggersForAJob", 5);
-        await scheduler.ScheduleJob(job, triggersForJob, true);
+        await scheduler.ScheduleJob(job, triggersForJob, new ScheduleJobOptions { Replace = true });
 
         var triggersOfJob = await scheduler.GetTriggersOfJob(job.Key);
         Assert.That(triggersOfJob.Count, Is.EqualTo(2));

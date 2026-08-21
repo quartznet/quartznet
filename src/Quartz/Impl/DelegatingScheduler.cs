@@ -67,14 +67,14 @@ public class DelegatingScheduler : IScheduler
         return scheduler.ScheduleJob(trigger, cancellationToken);
     }
 
-    public virtual ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public virtual ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
-        return scheduler.ScheduleJobs(triggersAndJobs, replace, cancellationToken);
+        return scheduler.ScheduleJobs(triggersAndJobs, options, cancellationToken);
     }
 
-    public virtual ValueTask ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, bool replace, CancellationToken cancellationToken = default)
+    public virtual ValueTask ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
-        return scheduler.ScheduleJob(jobDetail, triggersForJob, replace, cancellationToken);
+        return scheduler.ScheduleJob(jobDetail, triggersForJob, options, cancellationToken);
     }
 
     public virtual ValueTask<bool> UnscheduleJob(TriggerKey triggerKey, CancellationToken cancellationToken = default)
