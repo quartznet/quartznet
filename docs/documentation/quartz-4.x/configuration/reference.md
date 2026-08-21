@@ -72,8 +72,25 @@ services.AddQuartz(q => q.UseDefaultThreadPool(maxConcurrency: 20));
 To supply your own implementation:
 
 ```csharp
-services.AddQuartz(q => q.UseThreadPool<MyThreadPool>(options => options.MaxConcurrency = 20));
+services.AddQuartz(q => q.UseThreadPool<MyThreadPool>());
 ```
+
+`ThreadPoolOptions` belongs to the built-in pools — they are what read `MaxConcurrency` — so
+`UseThreadPool<T>()` takes no callback for it. A pool of your own has options of its own:
+
+```csharp
+services.AddQuartz(q =>
+{
+    q.ConfigureOptions<MyThreadPoolOptions>(options => options.Slots = 20);
+    q.UseThreadPool<MyThreadPool>();
+});
+```
+
+`ConfigureOptions<TOptions>` registers the callback under this scheduler's options name and declares the
+type as the scheduler's own, so a component that takes `IOptions<MyThreadPoolOptions>` through its
+constructor is handed what was configured for *its* scheduler rather than the unnamed instance. It works
+for any container-built component — a job store, a lock handler, a listener, a job factory — and
+`AddPlugin<T, TOptions>()` is sugar over it.
 
 ## In-memory job store
 

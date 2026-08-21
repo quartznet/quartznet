@@ -197,11 +197,11 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         return this;
     }
 
-    /// <inheritdoc cref="IQuartzBuilder.UseThreadPool{T}(Action{ThreadPoolOptions})" />
-    public QuartzSchedulerBuilder UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Action<ThreadPoolOptions>? configure = null) where T : class, IThreadPool
+    /// <inheritdoc cref="IQuartzBuilder.UseThreadPool{T}()" />
+    public QuartzSchedulerBuilder UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IThreadPool
     {
-        inner.UseThreadPool<T>(configure);
+        inner.UseThreadPool<T>();
         return this;
     }
 
@@ -268,6 +268,14 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     public QuartzSchedulerBuilder UseTimeProvider(TimeProvider timeProvider)
     {
         inner.UseTimeProvider(timeProvider);
+        return this;
+    }
+
+    /// <inheritdoc cref="IQuartzBuilder.ConfigureOptions{TOptions}" />
+    public QuartzSchedulerBuilder ConfigureOptions<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure = null) where TOptions : class
+    {
+        inner.ConfigureOptions(configure);
         return this;
     }
 
@@ -391,8 +399,7 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
 
     IQuartzBuilder IQuartzBuilder.UseDefaultThreadPool(Action<ThreadPoolOptions>? configure) => UseDefaultThreadPool(configure);
 
-    IQuartzBuilder IQuartzBuilder.UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Action<ThreadPoolOptions>? configure) => UseThreadPool<T>(configure);
+    IQuartzBuilder IQuartzBuilder.UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() => UseThreadPool<T>();
 
     IQuartzBuilder IQuartzBuilder.UseThreadPool(IThreadPool threadPool) => UseThreadPool(threadPool);
 
@@ -412,6 +419,9 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     IQuartzBuilder IQuartzBuilder.UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() => UseTypeLoader<T>();
 
     IQuartzBuilder IQuartzBuilder.UseTimeProvider(TimeProvider timeProvider) => UseTimeProvider(timeProvider);
+
+    IQuartzBuilder IQuartzBuilder.ConfigureOptions<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure) => ConfigureOptions(configure);
 
     IQuartzBuilder IQuartzBuilder.AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         string? name) => AddPlugin<T>(name);

@@ -1,7 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
+using Quartz.Configuration;
 using Quartz.Extensibility;
 
 namespace Quartz;
@@ -56,8 +58,14 @@ public interface IQuartzBuilder
     /// <summary>
     /// Uses a specific thread pool implementation.
     /// </summary>
-    IQuartzBuilder UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Action<ThreadPoolOptions>? configure = null) where T : class, IThreadPool;
+    /// <remarks>
+    /// A pool of your own has options of its own: declare them with
+    /// <see cref="ConfigureOptions{TOptions}"/> and take <c>IOptions&lt;TOptions&gt;</c> through its
+    /// constructor. <see cref="ThreadPoolOptions"/> belongs to the built-in pools, so it is configured
+    /// on <see cref="UseDefaultThreadPool(Action{ThreadPoolOptions})"/> where it is read.
+    /// </remarks>
+    IQuartzBuilder UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IThreadPool;
 
     /// <summary>
     /// Uses a thread pool the caller has already built.
@@ -124,6 +132,50 @@ public interface IQuartzBuilder
     /// Uses a specific time provider. Useful for testing time-dependent scheduling.
     /// </summary>
     IQuartzBuilder UseTimeProvider(TimeProvider timeProvider);
+
+    /// <summary>
+    /// Configures an options type belonging to this scheduler, so a component of your own can have
+    /// settings that follow the scheduler it was registered for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A component the container builds asks for <c>IOptions&lt;TOptions&gt;</c>, which by itself
+    /// resolves the <em>unnamed</em> instance — so under <c>AddQuartz("reporting", …)</c> it would be
+    /// handed the default scheduler's settings, or defaults. This says the type is a scheduler's own:
+    /// the callback is registered under this scheduler's options name, and the type is declared so that
+    /// resolving it through the scheduler hands back the named instance.
+    /// </para>
+    /// <para>
+    /// Registered whether or not a callback is given: where the options come from is not something
+    /// adding one should change. Calling it repeatedly is harmless — each callback is applied in turn,
+    /// and the declaration is deduplicated.
+    /// </para>
+    /// <para>
+    /// This is the mechanism <see cref="AddPlugin{T, TOptions}"/> is built from, available to every
+    /// component: a thread pool, a job store, a lock handler, a listener, a job factory.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TOptions">
+    /// The options type. It is resolved through <c>IOptions&lt;TOptions&gt;</c>, so it must keep its
+    /// public parameterless constructor when the application is trimmed.
+    /// </typeparam>
+    /// <param name="configure">Configures the options.</param>
+    IQuartzBuilder ConfigureOptions<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure = null) where TOptions : class
+    {
+        // A default implementation, so an IQuartzBuilder written outside Quartz keeps compiling. It is
+        // the whole mechanism, not a stub: SchedulerName is the options name — Options.DefaultName is
+        // the empty string, which is what SchedulerName is for the unnamed scheduler.
+        if (configure is not null)
+        {
+            Services.Configure(SchedulerName, configure);
+        }
+
+        Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<SchedulerNamedOptions>(new SchedulerNamedOptions<TOptions>()));
+
+        return this;
+    }
 
     /// <summary>
     /// Adds a plugin, which extends the scheduler's behaviour for its whole lifetime.
