@@ -31,7 +31,7 @@ namespace Quartz.Xml;
 /// <para>
 /// This is the shape of the document and nothing more: every value that the schema declares as a
 /// number is kept as the text it was written as, so that the one place that turns text into a job or
-/// a trigger — <see cref="XMLSchedulingDataProcessor" /> — stays the only place that decides what a
+/// a trigger — <see cref="XmlSchedulingDataProcessor" /> — stays the only place that decides what a
 /// missing or malformed value means.
 /// </para>
 /// <para>

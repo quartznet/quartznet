@@ -67,13 +67,18 @@ services.AddQuartz(Configuration.GetSection("Quartz"), q =>
 
 ### Usage without DI
 
+`QuartzSchedulerBuilder` reads the same section. There is no flattening step to write: hand it the
+`IConfiguration` and it binds the typed options and translates the flat keys itself, exactly as
+`AddQuartz` does.
+
 ```csharp
-var properties = QuartzConfigurationHelper.ToNameValueCollection(
-    Configuration.GetSection("Quartz"));
 ISchedulerFactory factory = QuartzSchedulerBuilder.Create()
-    .UseProperties(properties)
+    .UseConfiguration(Configuration.GetSection("Quartz"))
     .Build();
 ```
+
+A `NameValueCollection` you built yourself — from a properties file, from environment variables —
+still goes in through `UseProperties(properties)`.
 
 ### Backward Compatibility
 

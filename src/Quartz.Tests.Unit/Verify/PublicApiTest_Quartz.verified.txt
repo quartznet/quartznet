@@ -1088,6 +1088,7 @@ namespace Quartz
         public Quartz.QuartzSchedulerBuilder ConfigureOptions<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]  TOptions>(System.Action<TOptions>? configure = null)
             where TOptions :  class { }
         public Quartz.QuartzSchedulerBuilder ConfigureScheduler(System.Action<Quartz.QuartzSchedulerOptions> configure) { }
+        public Quartz.QuartzSchedulerBuilder UseConfiguration(Microsoft.Extensions.Configuration.IConfiguration configuration) { }
         public Quartz.QuartzSchedulerBuilder UseDefaultThreadPool(System.Action<Quartz.ThreadPoolOptions>? configure = null) { }
         public Quartz.QuartzSchedulerBuilder UseDefaultThreadPool(int maxConcurrency) { }
         public Quartz.QuartzSchedulerBuilder UseExecutionLimits(System.Action<Quartz.ExecutionLimitsBuilder> configure) { }
@@ -1470,13 +1471,6 @@ namespace Quartz
         Blocked = 4,
         None = 5,
         Executing = 6,
-    }
-}
-namespace Quartz.Configuration
-{
-    public static class QuartzConfigurationHelper
-    {
-        public static System.Collections.Specialized.NameValueCollection ToNameValueCollection(Microsoft.Extensions.Configuration.IConfiguration configuration) { }
     }
 }
 namespace Quartz.Diagnostics
@@ -3381,45 +3375,5 @@ namespace Quartz.Serialization.SystemTextJson.Triggers
         public abstract Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
         protected virtual void DeserializeFields(TTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
         protected abstract void SerializeFields(System.Text.Json.Utf8JsonWriter writer, TTrigger trigger, System.Text.Json.JsonSerializerOptions options);
-    }
-}
-namespace Quartz.Xml
-{
-    public class XMLSchedulingDataProcessor
-    {
-        public const string QuartzXmlFileName = "quartz_jobs.xml";
-        public const string QuartzXsdResourceName = "Quartz.Xml.job_scheduling_data_2_0.xsd";
-        public XMLSchedulingDataProcessor(Microsoft.Extensions.Logging.ILogger<Quartz.Xml.XMLSchedulingDataProcessor> logger, Quartz.Extensibility.ITypeLoader typeLoader, System.TimeProvider timeProvider) { }
-        public virtual bool IgnoreDuplicates { get; set; }
-        protected virtual System.Collections.Generic.List<Quartz.IJobDetail> LoadedJobs { get; }
-        protected virtual System.Collections.Generic.List<Quartz.ITrigger> LoadedTriggers { get; }
-        public virtual bool OverwriteExistingData { get; set; }
-        public virtual bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
-        protected Quartz.Extensibility.ITypeLoader TypeLoader { get; }
-        public void AddJobGroupToNeverDelete(string jobGroupName) { }
-        protected virtual void AddJobToSchedule(Quartz.IJobDetail job) { }
-        public void AddTriggerGroupToNeverDelete(string triggerGroupName) { }
-        protected virtual void AddTriggerToSchedule(Quartz.Extensibility.IMutableTrigger trigger) { }
-        protected virtual void AddValidationException(System.Xml.XmlException e) { }
-        protected virtual System.Collections.Generic.Dictionary<Quartz.JobKey, System.Collections.Generic.List<Quartz.Extensibility.IMutableTrigger>> BuildTriggersByFullyQualifiedJobNameMap(System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger> triggers) { }
-        protected virtual void ClearValidationExceptions() { }
-        protected System.Threading.Tasks.ValueTask ExecutePreProcessCommands(Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual void MaybeThrowValidationException() { }
-        protected virtual Quartz.IntervalUnit ParseDateIntervalTriggerIntervalUnit(string? intervalUnit) { }
-        protected virtual int ParseSimpleTriggerRepeatCount(string repeatCount) { }
-        protected virtual void PrepareForProcessing() { }
-        public virtual System.Threading.Tasks.ValueTask ProcessFile(System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask ProcessFile(string fileName, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask ProcessFile(string fileName, string systemId, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask ProcessFileAndScheduleJobs(Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask ProcessFileAndScheduleJobs(Quartz.IScheduler scheduler, bool overwriteExistingJobs, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask ProcessFileAndScheduleJobs(string fileName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask ProcessFileAndScheduleJobs(string fileName, string systemId, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual void ProcessInternal(string xml) { }
-        public virtual System.Threading.Tasks.ValueTask ProcessStream(System.IO.Stream stream, string? systemId, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask ProcessStreamAndScheduleJobs(System.IO.Stream stream, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask ScheduleJobs(Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual bool TryParseEnum<T>(string value, out T result)
-            where T :  struct { }
     }
 }

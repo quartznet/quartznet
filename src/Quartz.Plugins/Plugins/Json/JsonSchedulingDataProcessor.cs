@@ -34,9 +34,9 @@ namespace Quartz.Plugins.Json;
 /// <summary>
 /// Parses a JSON file that declares jobs and their schedules (triggers),
 /// and schedules them with the scheduler. This is the JSON analog of
-/// <see cref="XMLSchedulingDataProcessor"/>.
+/// <see cref="XmlSchedulingDataProcessor"/>.
 /// </summary>
-internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
+internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
 {
     public const string QuartzJsonFileName = "quartz_jobs.json";
 
@@ -62,7 +62,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         ILogger<JsonSchedulingDataProcessor> logger,
         ITypeLoader typeLoader,
         TimeProvider timeProvider)
-        : base(LogProvider.CreateLogger<XMLSchedulingDataProcessor>(), typeLoader, timeProvider)
+        : base(LogProvider.CreateLogger<XmlSchedulingDataProcessor>(), typeLoader, timeProvider)
     {
         this.logger = logger;
         this.timeProvider = timeProvider;

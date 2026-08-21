@@ -86,7 +86,7 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// <summary>
     /// Comma separated list of file names (with paths) to the XML files that should be read.
     /// </summary>
-    public string FileNames { get; set; } = XMLSchedulingDataProcessor.QuartzXmlFileName;
+    public string FileNames { get; set; } = XmlSchedulingDataProcessor.QuartzXmlFileName;
 
     /// <summary>
     /// The interval at which to scan for changes to the file.
@@ -304,8 +304,8 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
 
         try
         {
-            XMLSchedulingDataProcessor processor = new(
-                LogProvider.CreateLogger<XMLSchedulingDataProcessor>(),
+            XmlSchedulingDataProcessor processor = new(
+                LogProvider.CreateLogger<XmlSchedulingDataProcessor>(),
                 TypeLoader,
                 timeProvider);
 
@@ -350,7 +350,7 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     }
 
     /// <summary>
-    /// Information about a file that should be processed by <see cref="XMLSchedulingDataProcessor" />.
+    /// Information about a file that should be processed by <see cref="XmlSchedulingDataProcessor" />.
     /// </summary>
     internal sealed class JobFile
     {

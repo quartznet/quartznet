@@ -32,7 +32,7 @@ using Quartz.Xml;
 namespace Quartz.Tests.Unit.Xml;
 
 /// <summary>
-/// Covers the XML to object model to scheduling path of <see cref="XMLSchedulingDataProcessor" />.
+/// Covers the XML to object model to scheduling path of <see cref="XmlSchedulingDataProcessor" />.
 /// </summary>
 /// <remarks>
 /// The processor's only other coverage is database-backed and therefore Docker-bound, which leaves
@@ -40,7 +40,7 @@ namespace Quartz.Tests.Unit.Xml;
 /// their defaults, and schema validation — without a fast test loop. Everything here runs against a
 /// fake scheduler or no scheduler at all, so the XML contract can be exercised on its own.
 /// </remarks>
-public class XMLSchedulingDataProcessorTest
+public class XmlSchedulingDataProcessorTest
 {
     private const string JobType = "Quartz.Jobs.NoOpJob, Quartz.Jobs";
 
@@ -102,10 +102,10 @@ public class XMLSchedulingDataProcessorTest
     /// <summary>
     /// Exposes the loaded jobs and triggers, which the processor itself only offers to subclasses.
     /// </summary>
-    private sealed class TestProcessor : XMLSchedulingDataProcessor
+    private sealed class TestProcessor : XmlSchedulingDataProcessor
     {
         public TestProcessor(TimeProvider timeProvider)
-            : base(NullLogger<XMLSchedulingDataProcessor>.Instance, new SimpleTypeLoader(), timeProvider)
+            : base(NullLogger<XmlSchedulingDataProcessor>.Instance, new SimpleTypeLoader(), timeProvider)
         {
         }
 

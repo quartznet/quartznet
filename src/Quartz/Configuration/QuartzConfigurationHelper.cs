@@ -17,7 +17,7 @@ namespace Quartz.Configuration;
 /// Keys that already start with "quartz." at the root level are passed through unchanged for backward compatibility.
 /// </para>
 /// </remarks>
-public static class QuartzConfigurationHelper
+internal static class QuartzConfigurationHelper
 {
     private static readonly HashSet<string> reservedSectionNames = new(StringComparer.OrdinalIgnoreCase)
     {

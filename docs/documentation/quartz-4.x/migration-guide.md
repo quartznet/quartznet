@@ -109,6 +109,22 @@ Set `quartz.checkConfiguration` to `false` to allow keys of your own. The `IConf
 are still unchecked, because flattening a section invents `quartz.*` keys whether Quartz reads them
 or not.
 
+### The standalone builder reads a configuration section
+
+`QuartzSchedulerBuilder.UseConfiguration(IConfiguration)` is new, and is the standalone counterpart of
+`AddQuartz(configuration)`: it binds the typed options, reads a `Schedule` section, and translates the
+flat `quartz.*` keys, exactly as the hosted path does.
+
+```diff
+- var properties = QuartzConfigurationHelper.ToNameValueCollection(configuration.GetSection("Quartz"));
+- var factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
++ var factory = QuartzSchedulerBuilder.Create().UseConfiguration(configuration.GetSection("Quartz")).Build();
+```
+
+`QuartzConfigurationHelper` — whose one public method existed for that flatten-then-configure sample —
+is internal. `UseProperties(NameValueCollection)` is unchanged and is still the way in for a bag you
+built yourself, from a properties file or from environment variables.
+
 ### Two scheduler thread settings were dead and are gone
 
 The scheduling loop is a long-running `Task`, not a `Thread`, so neither of these ever did anything
@@ -1479,8 +1495,8 @@ generated from `job_scheduling_data_2_0.xsd` — `QuartzXmlConfiguration20`, `ab
 `preprocessingcommandsTypeDeletetrigger`, `processingdirectivesType`, `simpleTriggerType` and
 `triggerType`. They were public only because `XmlSerializer` cannot serialize internal types; nothing
 in Quartz took or returned one, and their names never followed .NET conventions because a code
-generator picked them. `XMLSchedulingDataProcessor` reads the document itself now, so the model is
-internal.
+generator picked them. The processor reads the document itself now, so the model is internal — and so,
+from this release, is the processor.
 
 **The XML format has not changed** — the schema, the file, and every element and attribute in it are
 exactly as they were, and `job_scheduling_data_2_0.xsd` still validates the document before it is
@@ -3399,12 +3415,10 @@ called out.
 | `DbMetadata.Init()` | Gone entirely: `DbMetadata` is an init-only record now, and `DbBinaryType` / `ParameterDbTypeProperty` derive from the described values instead of being produced by a second phase. `UseGenericDatabase`'s describing overloads take a `Func<DbMetadata>` returning `new DbMetadata { … }`; the dead `ParameterIsNullableProperty` went too |
 | `AdoConstants.ColumnMifireInstruction` | `ColumnMisfireInstruction` (a typo; the column name is unchanged) |
 | `SchedulerConstants.FailedJobOriginalTriggerFiretime`, `…ScheduledFiretime` | `…TriggerFireTime`, `…ScheduledFireTime` (the string values are unchanged) |
-| `XMLSchedulingDataProcessor.OverWriteExistingData`, `SchedulingOptions.OverWriteExistingData` | `OverwriteExistingData`. The configuration key is spelled `Quartz:Scheduling:OverwriteExistingData` now; keys are matched case-insensitively, so an existing file keeps binding, but code assigning the property has to change |
-| `XMLSchedulingDataProcessor.PrepForProcessing`, `.BuildTriggersByFQJobNameMap` | `PrepareForProcessing`, `BuildTriggersByFullyQualifiedJobNameMap` |
+| `SchedulingOptions.OverWriteExistingData` | `OverwriteExistingData`. The configuration key is spelled `Quartz:Scheduling:OverwriteExistingData` now; keys are matched case-insensitively, so an existing file keeps binding, but code assigning the property has to change |
 | `RedisSemaphore.LockTtlMilliseconds`, `.LockRetryIntervalMilliseconds` | `LockTimeToLive`, `LockRetryInterval`, both `TimeSpan` — **also the config keys `lockTtlMilliseconds` → `lockTimeToLive` and `lockRetryIntervalMilliseconds` → `lockRetryInterval`** |
 | `IObjectSerializer.DeSerialize` | `Deserialize` |
 | `TriggerFiredBundle.PrevFireTimeUtc` | `PreviousFireTimeUtc`, matching the spelling used everywhere else. The type is a required-init record now: the eight-positional constructor ended in three interchangeable `DateTimeOffset?` values, so transposing `scheduledFireTimeUtc` and `previousFireTimeUtc` compiled cleanly and reported wrong fire times to every listener. A custom job store's `TriggerFired` writes `new TriggerFiredBundle { JobDetail = …, Trigger = …, Recovering = …, FireTimeUtc = …, ScheduledFireTimeUtc = …, PreviousFireTimeUtc = …, NextFireTimeUtc = … }`; only `Calendar` is optional |
-| `XMLSchedulingDataProcessor.OverWriteExistingJobs` argument `overWriteExistingJobs` | `overwriteExistingJobs` |
 | `Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin` | `Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin` — the namespace moved and the casing follows .NET rules. A `quartz.plugin.<name>.type` naming either old spelling still resolves, with a warning. Its nested `JobFile` class and its `JobFiles` property are internal now: they are how the plugin tracks what it has read, not something to call |
 | `Quartz.Xml.ValidationException` | `Quartz.SchedulingDataValidationException`. The old name collided with `System.ComponentModel.DataAnnotations.ValidationException` in any file that used both, and it was never XML-specific — the JSON processor throws it too. Its `ValidationExceptions` is an `IReadOnlyList<Exception>`; it was a `List<Exception>` a caller could add to |
 
@@ -3999,8 +4013,9 @@ warning naming the policy the value actually selects; a name whose code is out o
 rejected with a message listing the names that work, where it used to fail later with
 "The misfire instruction code is invalid for this type of trigger".
 
-`XMLSchedulingDataProcessor.ReadMisfireInstructionFromString` was `protected virtual` and is now private: it
-could not tell the families apart, because it was not told which one it was reading. XML itself is unaffected
+The XML processor's `ReadMisfireInstructionFromString` was `protected virtual` and is now private — as is
+the processor itself: it could not tell the families apart, because it was not told which one it was
+reading. XML itself is unaffected
 either way — `job_scheduling_data_2_0.xsd` restricts `misfire-instruction` per trigger type, so the schema
 rejects a foreign name before the resolver sees it.
 
@@ -5119,10 +5134,12 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.SchedulerMetaData` | Renamed `SchedulerMetadata` | A `sealed record`, returned by `IScheduler.GetMetadata()` — see [`SchedulerMetadata` replaces `SchedulerMetaData`](#schedulermetadata-replaces-schedulermetadata) |
 | `Quartz.SchedulerPluginConfigurationExtensions` | Removed | `IQuartzBuilder.AddPlugin<T>()` — see [Plugins are registered like listeners](#plugins-are-registered-like-listeners) |
 | `Quartz.Core.SchedulerSignalerImpl` | Internal | Take `ISchedulerSignaler` through your constructor — see [SPI changes](#spi-changes) |
+| `Quartz.Configuration.QuartzConfigurationHelper` | Internal | Hand the section to `AddQuartz(configuration)`, or to `QuartzSchedulerBuilder.UseConfiguration(configuration)` without a host — both flatten it themselves. `QuartzOptions.ToNameValueCollection()` stays for a caller that holds a `QuartzOptions`. This empties the public `Quartz.Configuration` namespace |
 | `Quartz.ServiceCollectionExtensions` | Split into `Quartz.QuartzServiceCollectionExtensions` and `Quartz.QuartzBuilderExtensions` | Extension-form call sites are unaffected; only a static-form call (`ServiceCollectionExtensions.AddQuartz(services, …)`) has to change. `ServiceCollectionExtensions` is the most common helper-class name in .NET, and claiming it in `Quartz` gave CS0104 in any file that had one of its own and a `using Quartz;` |
 | `Quartz.Simpl.SimpleInstanceIdGenerator` | Internal | It is still the default; register your own `IInstanceIdGenerator` to replace it |
 | `Quartz.SimpleScheduleTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.Impl.AdoJobStore.SimpleSemaphore` | Internal | It is the in-process lock the ADO.NET store falls back to when database locking is off; implement `ISemaphore` for a lock of your own — see [Locks are a `SchedulerLock`, not a string](#locks-are-a-schedulerlock-not-a-string) |
+| `Quartz.Xml.XMLSchedulingDataProcessor` | Internal, respelled `XmlSchedulingDataProcessor` | `UseXmlSchedulingConfiguration()` — the plugin *is* the supported entry point. The type's only constructor needed an `ITypeLoader`, whose every implementation is internal; `OverwriteExistingData = false` was reverted by any file carrying `<processing-directives>`; and `ProcessFile(fileName, systemId)` wanted an identifier from a specification Quartz no longer uses. With it goes the last public type in `Quartz.Xml` |
 | `Quartz.Simpl.SimpleTypeLoadHelper` | Internal, renamed `SimpleTypeLoader` | Register your own `ITypeLoader`; a configuration string naming the old type still resolves, with a warning |
 | `Quartz.Impl.AdoJobStore.StdAdoConstants` | Internal | `AdoConstants` for table, column and state names; statement text is not a contract — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
 | `Quartz.Impl.AdoJobStore.StdRowLockSemaphore` | Renamed `SelectForUpdateSemaphore` | The old spelling still resolves in configuration, with a warning — see [The semaphores were tidied](#the-semaphores-were-tidied) |

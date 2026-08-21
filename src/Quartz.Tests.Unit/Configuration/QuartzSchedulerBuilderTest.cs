@@ -1,5 +1,6 @@
 ﻿using System.Collections.Specialized;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
@@ -71,6 +72,43 @@ public class QuartzSchedulerBuilderTest
         try
         {
             scheduler.SchedulerName.Should().Be("standalone-chains");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// The standalone builder reads an <see cref="IConfiguration" /> section the same way
+    /// <c>AddQuartz(configuration)</c> does — both halves of it, the typed binder and the flat-key
+    /// adapter — so a console application needs no flattening step of its own.
+    /// </summary>
+    [Test]
+    public async Task AConfigurationSectionConfiguresTheStandaloneSchedulerToo()
+    {
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string>
+            {
+                ["Scheduler:InstanceName"] = "named-by-configuration",
+                ["ThreadPool:MaxConcurrency"] = "4",
+                // No options type of its own, so only the flat-key adapter reads it.
+                ["JobStore:Type"] = "Quartz.Impl.RAMJobStore, Quartz",
+            })
+            .Build();
+
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .UseConfiguration(configuration)
+            .BuildScheduler();
+
+        try
+        {
+            scheduler.SchedulerName.Should().Be("named-by-configuration");
+
+            SchedulerMetadata metadata = await scheduler.GetMetadata();
+            metadata.ThreadPoolSize.Should().Be(4);
+            metadata.JobStoreTypeName.Should().Contain(nameof(RAMJobStore),
+                "the flat-key half of the section has to be read as well as the typed half");
         }
         finally
         {

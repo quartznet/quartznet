@@ -36,20 +36,20 @@ using Quartz.Xml;
 namespace Quartz.Tests.Integration.Xml;
 
 /// <summary>
-/// Tests for <see cref="XMLSchedulingDataProcessor" />.
+/// Tests for <see cref="XmlSchedulingDataProcessor" />.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
 [TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
 [TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
 [NonParallelizable]
-public class XMLSchedulingDataProcessorTest
+public class XmlSchedulingDataProcessorTest
 {
     private readonly string provider;
-    private XMLSchedulingDataProcessor processor;
+    private XmlSchedulingDataProcessor processor;
     private IScheduler mockScheduler;
-    private ILogger<XMLSchedulingDataProcessor> logger;
+    private ILogger<XmlSchedulingDataProcessor> logger;
 
-    public XMLSchedulingDataProcessorTest(string provider)
+    public XmlSchedulingDataProcessorTest(string provider)
     {
         this.provider = provider;
     }
@@ -57,8 +57,8 @@ public class XMLSchedulingDataProcessorTest
     [SetUp]
     public void SetUp()
     {
-        logger = A.Fake<ILogger<XMLSchedulingDataProcessor>>();
-        processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoader(), TimeProvider.System);
+        logger = A.Fake<ILogger<XmlSchedulingDataProcessor>>();
+        processor = new XmlSchedulingDataProcessor(logger, new SimpleTypeLoader(), TimeProvider.System);
         mockScheduler = A.Fake<IScheduler>();
         A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(new ValueTask<IJobDetail>());
         A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(new ValueTask<ITrigger>());
@@ -137,11 +137,11 @@ public class XMLSchedulingDataProcessorTest
     }
 
     /// <summary>
-    /// The default XMLSchedulingDataProcessor will set OverwriteExistingData to true, and we want to
+    /// The default XmlSchedulingDataProcessor will set OverwriteExistingData to true, and we want to
     /// test programmatically overriding this value.
     /// </summary>
     /// <remarks>
-    /// Note that XMLSchedulingDataProcessor#processFileAndScheduleJobs(Scheduler,boolean) will only
+    /// Note that XmlSchedulingDataProcessor#processFileAndScheduleJobs(Scheduler,boolean) will only
     /// read default "quartz_data.xml" in current working directory. So to test this, we must create
     /// this file. If this file already exist, it will be overwritten!
     /// </remarks>
@@ -149,7 +149,7 @@ public class XMLSchedulingDataProcessorTest
     public async Task TestOverwriteFlag()
     {
         // create temp file
-        string tempFileName = XMLSchedulingDataProcessor.QuartzXmlFileName;
+        string tempFileName = XmlSchedulingDataProcessor.QuartzXmlFileName;
         // Use File.Create (as opposed to File.OpenWrite) so that if the file already exists, it will be completely
         // replaced instead of only overwriting the first N bytes (where N is the length of SimpleJobTrigger.xml)
         using (TextWriter writer = new StreamWriter(File.Create(tempFileName)))
@@ -175,7 +175,7 @@ public class XMLSchedulingDataProcessorTest
             ITrigger trigger = TriggerBuilder.Create().WithIdentity("job1").WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).RepeatForever()).Build();
             await scheduler.ScheduleJob(job, trigger);
 
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoader(), TimeProvider.System);
+            XmlSchedulingDataProcessor processor = new XmlSchedulingDataProcessor(logger, new SimpleTypeLoader(), TimeProvider.System);
             try
             {
                 await processor.ProcessFileAndScheduleJobs(scheduler, false);
@@ -217,7 +217,7 @@ public class XMLSchedulingDataProcessorTest
     public async Task TesDirectivesNoOverwriteWithIgnoreDups()
     {
         // create temp file
-        string tempFileName = XMLSchedulingDataProcessor.QuartzXmlFileName;
+        string tempFileName = XmlSchedulingDataProcessor.QuartzXmlFileName;
         using (TextWriter writer = new StreamWriter(File.OpenWrite(tempFileName)))
         {
             using (StreamReader reader = new StreamReader(ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml")))
@@ -256,7 +256,7 @@ public class XMLSchedulingDataProcessorTest
 
             // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
             ITypeLoader typeLoader = new SimpleTypeLoader();
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, typeLoader, TimeProvider.System);
+            XmlSchedulingDataProcessor processor = new XmlSchedulingDataProcessor(logger, typeLoader, TimeProvider.System);
             await processor.ProcessFileAndScheduleJobs(tempFileName, scheduler);
             var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
             Assert.That(jobKeys.Count, Is.EqualTo(2));
@@ -308,7 +308,7 @@ public class XMLSchedulingDataProcessorTest
     private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)
     {
         string fullName = "Quartz.Tests.Integration.Xml.TestData." + resourceName;
-        Stream stream = typeof(XMLSchedulingDataProcessorTest).Assembly.GetManifestResourceStream(fullName);
+        Stream stream = typeof(XmlSchedulingDataProcessorTest).Assembly.GetManifestResourceStream(fullName);
         Assert.That(stream, Is.Not.Null, "resource " + resourceName + " not found");
         return new StreamReader(stream).BaseStream;
     }
@@ -339,7 +339,7 @@ public class XMLSchedulingDataProcessorTest
 
             await ModifyStoredJobType();
 
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoader(), TimeProvider.System);
+            XmlSchedulingDataProcessor processor = new XmlSchedulingDataProcessor(logger, new SimpleTypeLoader(), TimeProvider.System);
 
             // when
             await processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("delete-no-job-class.xml"), scheduler);
@@ -396,7 +396,7 @@ public class XMLSchedulingDataProcessorTest
 
             await ModifyStoredJobType();
 
-            XMLSchedulingDataProcessor processor = new(logger, new SimpleTypeLoader(), TimeProvider.System);
+            XmlSchedulingDataProcessor processor = new(logger, new SimpleTypeLoader(), TimeProvider.System);
 
             await processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("overwrite-no-jobclass.xml"), scheduler);
 
@@ -447,7 +447,7 @@ public class XMLSchedulingDataProcessorTest
             await scheduler.ScheduleJob(job, trigger);
 
             // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoader(), TimeProvider.System);
+            XmlSchedulingDataProcessor processor = new XmlSchedulingDataProcessor(logger, new SimpleTypeLoader(), TimeProvider.System);
             await processor.ProcessStream(ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml"), "temp");
             var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
             Assert.That(jobKeys.Count, Is.EqualTo(2));

@@ -1,7 +1,9 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.Diagnostics.CodeAnalysis;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
 using Quartz.Extensibility;
@@ -45,6 +47,7 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     private readonly ServiceCollection services = [];
     private readonly QuartzBuilder inner;
     private NameValueCollection? properties;
+    private IConfiguration? configuration;
 
     private QuartzSchedulerBuilder()
     {
@@ -99,6 +102,32 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     }
 
     /// <summary>
+    /// Configures the scheduler from a configuration section, the standalone counterpart of
+    /// <c>AddQuartz(configuration)</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The section is read exactly as it is under a host: hierarchical sections such as
+    /// <c>Scheduler</c> and <c>ThreadPool</c> bind onto the typed options, a <c>Schedule</c> section
+    /// becomes jobs and triggers, and flat <c>quartz.*</c> keys still mean what they always did. There
+    /// is no flattening step for a caller to write.
+    /// </para>
+    /// <para>
+    /// Configuration written in code wins, as it does everywhere else: the section is applied before
+    /// anything the builder was told.
+    /// </para>
+    /// </remarks>
+    /// <param name="configuration">
+    /// The Quartz configuration section, typically <c>configuration.GetSection("Quartz")</c>.
+    /// </param>
+    public QuartzSchedulerBuilder UseConfiguration(IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        this.configuration = configuration;
+        return this;
+    }
+
+    /// <summary>
     /// Builds the scheduler factory, along with the container backing it.
     /// </summary>
     /// <remarks>
@@ -149,8 +178,28 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     /// </remarks>
     private void ApplyProperties()
     {
-        NameValueCollection configured = properties ?? [];
+        NameValueCollection configured = [];
         ServiceCollection seed = [];
+
+        if (configuration is not null)
+        {
+            // The typed binder first, then everything the section says in flat form — the same pair, in
+            // the same order, that AddQuartz(configuration) applies. Every section is flattened,
+            // including the ones that also bind, so a setting that has no options type of its own is
+            // still read.
+            seed.BindQuartzOptions(configuration);
+            JsonSchedulingHelper.ConfigureOptionsFromConfiguration(seed, configuration, Options.DefaultName);
+            QuartzConfigurationHelper.PopulateProperties(configuration, configured);
+        }
+
+        foreach (var key in properties?.AllKeys ?? [])
+        {
+            if (key is not null)
+            {
+                // A bag handed in by hand is the more specific of the two, so it wins where both speak.
+                configured[key] = properties![key];
+            }
+        }
 
         // Plugins, execution limits and scheduler content are read from QuartzOptions, so the property
         // bag has to be there as well as bound onto the typed options.
