@@ -44,7 +44,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Aaron Craven</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed class CronCalendar : BaseCalendar
+public sealed class CronCalendar : BaseCalendar, IEquatable<CronCalendar>
 {
     private CronExpression cronExpression = null!;
 
@@ -198,7 +198,8 @@ public sealed class CronCalendar : BaseCalendar
     public override ICalendar Clone()
     {
         var clone = new CronCalendar();
-        clone.cronExpression = cronExpression.Clone();
+        // CronExpression is immutable, so the clone shares this instance.
+        clone.cronExpression = cronExpression;
         CloneFields(clone);
         return clone;
     }
@@ -255,23 +256,23 @@ public sealed class CronCalendar : BaseCalendar
         return CronExpression.GetHashCode() + 5 * baseHash;
     }
 
-    public bool Equals(CronCalendar obj)
+    public bool Equals(CronCalendar? other)
     {
-        if (obj is null)
+        if (other is null)
         {
             return false;
         }
-        bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
 
-        return baseEqual && CronExpression.Equals(obj.CronExpression);
+        return baseEqual && CronExpression.Equals(other.CronExpression);
     }
 
     public override bool Equals(object? obj)
     {
-        if (!(obj is CronCalendar))
+        if (obj is not CronCalendar other)
         {
             return false;
         }
-        return Equals((CronCalendar) obj);
+        return Equals(other);
     }
 }

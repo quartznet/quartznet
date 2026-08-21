@@ -36,7 +36,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Juergen Donnerstag</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed class HolidayCalendar : BaseCalendar
+public sealed class HolidayCalendar : BaseCalendar, IEquatable<HolidayCalendar>
 {
     // A sorted set to store the holidays
     private SortedSet<DateOnly> dates = new SortedSet<DateOnly>();
@@ -216,16 +216,16 @@ public sealed class HolidayCalendar : BaseCalendar
         return dates.Count + 5 * baseHash;
     }
 
-    public bool Equals(HolidayCalendar obj)
+    public bool Equals(HolidayCalendar? other)
     {
-        if (obj is null)
+        if (other is null)
         {
             return false;
         }
 
-        bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = CalendarBase is null || CalendarBase.Equals(other.CalendarBase);
 
-        return baseEqual && dates.SetEquals(obj.dates);
+        return baseEqual && dates.SetEquals(other.dates);
     }
 
     public override bool Equals(object? obj)

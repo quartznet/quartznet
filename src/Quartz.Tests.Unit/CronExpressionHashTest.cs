@@ -301,13 +301,14 @@ public class CronExpressionHashTest
     }
 
     [Test]
-    public void Constructor_Clone_PreservesResolvedExpression()
+    public void Constructor_WithTimeZone_PreservesResolvedExpression()
     {
         CronExpression original = new CronExpression("H H * * * ?", "myTrigger");
-        CronExpression clone = original.Clone();
+        CronExpression copy = original.WithTimeZone(TimeZoneInfo.Utc);
 
-        Assert.AreEqual(original.CronExpressionString, clone.CronExpressionString);
-        Assert.AreEqual(original.TimeZone, clone.TimeZone);
+        copy.CronExpressionString.Should().Be(original.CronExpressionString,
+            "H tokens resolve once, at parse time, and a re-timed copy must not re-resolve them");
+        copy.TimeZone.Should().Be(TimeZoneInfo.Utc);
     }
 
     // --- Builder integration tests ---
