@@ -1,9 +1,11 @@
 using Quartz.Tests;
 using System.Data.Common;
+using System.Globalization;
 using System.Reflection;
 
 using FakeItEasy;
 
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
@@ -821,8 +823,8 @@ public class AdoJobStoreBaseTest
     public class TestAdoJobStoreBase : AdoJobStoreBase
     {
 
-    public TestAdoJobStoreBase(bool clustered = false)
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+    public TestAdoJobStoreBase(bool clustered = false, TimeProvider timeProvider = null)
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), timeProvider ?? TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
     {
     }
         protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
@@ -903,6 +905,37 @@ public class AdoJobStoreBaseTest
         internal ValueTask<PagedResult<TriggerGroup>> CallQueryTriggerGroups(ConnectionAndTransactionHolder conn, TriggerGroupQuery query)
         {
             return QueryTriggerGroups(conn, query, CancellationToken.None);
+        }
+
+        /// <summary>
+        /// Writes the private flag that tells the check-in path this is the node's first pass, which is
+        /// what gates self-recovery and the orphan sweep in <see cref="AdoJobStoreBase.FindFailedInstances" />.
+        /// </summary>
+        internal void SetFirstCheckIn(bool value)
+        {
+            FieldInfo fieldInfo = typeof(AdoJobStoreBase).GetField("firstCheckIn", BindingFlags.Instance | BindingFlags.NonPublic);
+            fieldInfo.Should().NotBeNull("the first-check-in branches of FindFailedInstances are gated on that field");
+            fieldInfo.SetValue(this, value);
+        }
+
+        internal ValueTask<List<SchedulerStateRecord>> CallFindFailedInstances(ConnectionAndTransactionHolder conn)
+        {
+            return FindFailedInstances(conn, CancellationToken.None);
+        }
+
+        internal DateTimeOffset CallCalcFailedIfAfter(SchedulerStateRecord rec)
+        {
+            return CalcFailedIfAfter(rec);
+        }
+
+        internal ValueTask<List<SchedulerStateRecord>> CallClusterCheckIn(ConnectionAndTransactionHolder conn)
+        {
+            return ClusterCheckIn(conn, CancellationToken.None);
+        }
+
+        internal ValueTask CallClusterRecover(ConnectionAndTransactionHolder conn, IReadOnlyCollection<SchedulerStateRecord> failedInstances)
+        {
+            return ClusterRecover(conn, failedInstances, CancellationToken.None);
         }
     }
 
@@ -1392,6 +1425,7 @@ public class AdoJobStoreBaseTest
     [Test]
     public async Task AcquireNextTriggers_ShouldBuildCriteriaFromTheRequest()
     {
+        FakeTimeProvider clock = GivenStoppedClock(ClusterNow);
         List<TriggerAcquisitionCriteria> received = GivenNoTriggersToAcquire(driverDelegate);
 
         ExecutionLimits limits = ExecutionLimitsBuilder.Create().ForGroup("batch", 2).Build();
@@ -1403,7 +1437,6 @@ public class AdoJobStoreBaseTest
             ExecutionLimits = limits,
         };
 
-        DateTimeOffset acquiredAt = DateTimeOffset.UtcNow;
         await jobStoreSupport.AcquireNextTriggers(request);
 
         TriggerAcquisitionCriteria criteria = received.Should().ContainSingle(
@@ -1414,8 +1447,8 @@ public class AdoJobStoreBaseTest
         criteria.MaxCount.Should().Be(request.MaxCount, "the request caps the batch size");
         criteria.ExecutionLimits.Should().BeSameAs(limits,
             "the caller's snapshot is handed through untouched, so a delegate counting slots down works on a copy");
-        criteria.LiveNodeCutoff.Should().BeCloseTo(acquiredAt - jobStoreSupport.ClusterCheckinMisfireThreshold, TimeSpan.FromSeconds(10),
-            "the cutoff is now less the check-in misfire threshold, and this store runs on TimeProvider.System so 'now' can only be pinned to a window around the call");
+        criteria.LiveNodeCutoff.Should().Be(clock.GetUtcNow() - jobStoreSupport.ClusterCheckinMisfireThreshold,
+            "the cutoff is exactly now less the check-in misfire threshold, so a node that checked in more recently than that keeps its pinned triggers");
     }
 
     [Test]
@@ -1448,6 +1481,730 @@ public class AdoJobStoreBaseTest
             return base.CreateAcquisitionCriteria(request) with { MaxCount = 1 };
         }
     }
+
+    #endregion
+
+    #region Cluster check-in and recovery
+
+    /// <summary>
+    /// The instant the clock stands still at for every cluster test. Failure detection, the deferred
+    /// recovery grace period and the check-in stamp are all arithmetic on "now", so the clock is stopped
+    /// and the expectations are written out in full rather than approximated.
+    /// </summary>
+    private static readonly DateTimeOffset ClusterNow = new(2026, 3, 1, 12, 0, 0, TimeSpan.Zero);
+
+    /// <summary>
+    /// The instance id <see cref="TestJobStores.SchedulerOptions" /> gives the store under test: what it
+    /// recognises as its own scheduler state row.
+    /// </summary>
+    private const string OwnInstanceId = "TestInstance";
+
+    private const string DeadInstanceId = "dead-node";
+
+    /// <summary>
+    /// A check-in interval short enough that the grace period arithmetic fits in a comment: two intervals
+    /// plus the misfire threshold, so 10s + 10s + the default 7.5s = 27.5s.
+    /// </summary>
+    private static readonly TimeSpan CheckinInterval = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Repoints <see cref="jobStoreSupport" /> at a store whose clock has stopped at
+    /// <paramref name="now" />, keeping the faked delegate <see cref="SetUp" /> arranged.
+    /// </summary>
+    private FakeTimeProvider GivenStoppedClock(DateTimeOffset now)
+    {
+        FakeTimeProvider clock = new(now);
+        jobStoreSupport = new TestAdoJobStoreBase(timeProvider: clock);
+        jobStoreSupport.DirectDelegate = driverDelegate;
+        jobStoreSupport.DirectSignaler = A.Fake<ISchedulerSignaler>();
+        return clock;
+    }
+
+    private static ConnectionAndTransactionHolder FakeConnection() => new(A.Fake<DbConnection>(), null);
+
+    /// <summary>
+    /// Arranges the scheduler state read the check-in path makes, which asks for every instance at once.
+    /// </summary>
+    private void GivenSchedulerStates(params SchedulerStateRecord[] states)
+    {
+        A.CallTo(() => driverDelegate.SelectSchedulerStateRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<SchedulerStateRecord>>(states.ToList()));
+    }
+
+    /// <summary>
+    /// Arranges the distinct instance names the orphan sweep reads out of the fired-triggers table.
+    /// </summary>
+    private void GivenFiredTriggerInstanceNames(params string[] names)
+    {
+        A.CallTo(() => driverDelegate.SelectFiredTriggerInstanceNames(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<string>>(names.ToList()));
+    }
+
+    /// <summary>
+    /// Arranges the two fired-trigger reads recovery makes: <paramref name="records" /> come back for the
+    /// failed instance, and the per-trigger read of the COMPLETE sweep finds nothing left behind.
+    /// </summary>
+    private void GivenFiredTriggersForInstance(string instanceId, params FiredTriggerRecord[] records)
+    {
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.That.Matches(query => query.InstanceId == instanceId),
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<FiredTriggerRecord>>(records.ToList()));
+
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.That.Matches(query => query.Trigger != null),
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<FiredTriggerRecord>>([]));
+    }
+
+    private static FiredTriggerRecord FiredTrigger(
+        string fireInstanceId,
+        StoredTriggerState state,
+        TriggerKey triggerKey,
+        JobKey jobKey = null,
+        bool disallowsConcurrentExecution = false,
+        bool requestsRecovery = false,
+        int priority = 5,
+        DateTimeOffset firedAt = default,
+        string instanceId = DeadInstanceId)
+    {
+        return new FiredTriggerRecord
+        {
+            FireInstanceId = fireInstanceId,
+            FireInstanceState = state,
+            TriggerKey = triggerKey,
+            JobKey = jobKey,
+            SchedulerInstanceId = instanceId,
+            JobDisallowsConcurrentExecution = disallowsConcurrentExecution,
+            JobRequestsRecovery = requestsRecovery,
+            Priority = priority,
+            FireTimestamp = firedAt == default ? ClusterNow - TimeSpan.FromMinutes(1) : firedAt,
+        };
+    }
+
+    #region FindFailedInstances
+
+    [Test]
+    public async Task FindFailedInstances_ShouldRecoverItsOwnRecordOnTheFirstCheckIn()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(true);
+
+        SchedulerStateRecord own = new(OwnInstanceId, ClusterNow - TimeSpan.FromSeconds(1), CheckinInterval);
+        GivenSchedulerStates(own);
+
+        List<SchedulerStateRecord> failed = await jobStoreSupport.CallFindFailedInstances(conn);
+
+        failed.Should().ContainSingle(
+                "a node starting up recovers whatever its own previous run left in flight, however recent that run's last check-in was")
+            .Which.Should().BeSameAs(own);
+
+        A.CallTo(() => driverDelegate.SelectSchedulerStateRecords(conn, null, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task FindFailedInstances_ShouldLeaveItsOwnRecordAloneAfterTheFirstCheckIn()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        jobStoreSupport.LastCheckin = ClusterNow;
+
+        GivenSchedulerStates(new SchedulerStateRecord(OwnInstanceId, ClusterNow - TimeSpan.FromSeconds(1), CheckinInterval));
+
+        List<SchedulerStateRecord> failed = await jobStoreSupport.CallFindFailedInstances(conn);
+
+        failed.Should().BeEmpty("a running node never recovers itself; only the first pass does, on behalf of the run before it");
+
+        A.CallTo(() => driverDelegate.SelectFiredTriggerInstanceNames(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task FindFailedInstances_ShouldReportOtherInstancesWhoseCheckInExpired()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+
+        // This node is itself healthy, so CalcFailedIfAfter allows each record its own check-in
+        // interval plus the misfire threshold: 17.5s of silence before it is declared dead.
+        jobStoreSupport.LastCheckin = ClusterNow;
+
+        SchedulerStateRecord live = new("live-node", ClusterNow - TimeSpan.FromSeconds(5), CheckinInterval);
+        SchedulerStateRecord dead = new(DeadInstanceId, ClusterNow - TimeSpan.FromSeconds(60), CheckinInterval);
+        GivenSchedulerStates(new SchedulerStateRecord(OwnInstanceId, ClusterNow, CheckinInterval), live, dead);
+
+        List<SchedulerStateRecord> failed = await jobStoreSupport.CallFindFailedInstances(conn);
+
+        failed.Should().ContainSingle("only the node that stopped checking in is dead")
+            .Which.Should().BeSameAs(dead);
+    }
+
+    [Test]
+    public async Task FindFailedInstances_ShouldSynthesizeOrphansForFiredTriggersWithNoStateRow()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(true);
+
+        GivenSchedulerStates(new SchedulerStateRecord(OwnInstanceId, ClusterNow, CheckinInterval));
+        GivenFiredTriggerInstanceNames(OwnInstanceId, "ghost-node");
+
+        List<SchedulerStateRecord> failed = await jobStoreSupport.CallFindFailedInstances(conn);
+
+        failed.Should().HaveCount(2, "the start-up pass returns this node's own record plus the orphan it found");
+
+        SchedulerStateRecord orphan = failed.Should().ContainSingle(rec => rec.SchedulerInstanceId == "ghost-node",
+            "a fired trigger whose instance has no scheduler state row belongs to a node that died without cleaning up").Subject;
+
+        orphan.CheckinTimestamp.Should().Be(default,
+            "an orphan has no check-in history to read, and ClusterRecover reads that zero back as 'never defer recovery'");
+        orphan.CheckinInterval.Should().Be(default,
+            "an orphan has no check-in history to read, and ClusterRecover reads that zero back as 'never defer recovery'");
+    }
+
+    [Test]
+    public async Task FindFailedInstances_ShouldTolerateItsOwnRecordHavingBeenRecoveredByAnotherNode()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        jobStoreSupport.LastCheckin = ClusterNow;
+
+        // No row for this node: another node decided it was dead and deleted its state.
+        GivenSchedulerStates(new SchedulerStateRecord("live-node", ClusterNow, CheckinInterval));
+
+        List<SchedulerStateRecord> failed = await jobStoreSupport.CallFindFailedInstances(conn);
+
+        failed.Should().BeEmpty(
+            "being recovered out from under itself is a warning, not a failure: the check-in that follows writes the row back");
+    }
+
+    [Test]
+    public async Task FindFailedInstances_ShouldWrapDelegateFailures()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        A.CallTo(() => driverDelegate.SelectSchedulerStateRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Throws(new InvalidOperationException("state table unavailable"));
+
+        Func<Task> act = async () => await jobStoreSupport.CallFindFailedInstances(conn);
+
+        await act.Should().ThrowAsync<JobPersistenceException>()
+            .WithMessage("*identifying failed instances*")
+            .WithInnerException<JobPersistenceException, InvalidOperationException>()
+            .WithMessage("state table unavailable");
+
+        jobStoreSupport.LastCheckin.Should().Be(ClusterNow,
+            "a failed scan still stamps the check-in, so the next CalcFailedIfAfter does not treat this node's own silence as elapsed time");
+    }
+
+    #endregion
+
+    #region CalcFailedIfAfter
+
+    [Test]
+    public void CalcFailedIfAfter_ShouldUseTheRecordsCheckInIntervalWhileThisNodeIsHealthy()
+    {
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.LastCheckin = ClusterNow - TimeSpan.FromSeconds(1);
+
+        SchedulerStateRecord rec = new("other-node", ClusterNow - TimeSpan.FromSeconds(30), CheckinInterval);
+
+        DateTimeOffset failedIfAfter = jobStoreSupport.CallCalcFailedIfAfter(rec);
+
+        failedIfAfter.Should().Be(rec.CheckinTimestamp + CheckinInterval + jobStoreSupport.ClusterCheckinMisfireThreshold,
+            "this node checked in a second ago, so the record's own interval is the longer of the two and sets the deadline");
+    }
+
+    [Test]
+    public void CalcFailedIfAfter_ShouldStretchTheDeadlineWhenThisNodesOwnCheckInsAreLate()
+    {
+        GivenStoppedClock(ClusterNow);
+
+        // This node has not checked in for a minute -- it was stalled, and every other node looks
+        // silent for exactly as long. Judging them on their own interval would declare the whole
+        // cluster dead, so the deadline stretches to cover this node's own outage instead.
+        TimeSpan ownOutage = TimeSpan.FromSeconds(60);
+        jobStoreSupport.LastCheckin = ClusterNow - ownOutage;
+
+        SchedulerStateRecord rec = new("other-node", ClusterNow - TimeSpan.FromSeconds(30), CheckinInterval);
+
+        DateTimeOffset failedIfAfter = jobStoreSupport.CallCalcFailedIfAfter(rec);
+
+        failedIfAfter.Should().Be(rec.CheckinTimestamp + ownOutage + jobStoreSupport.ClusterCheckinMisfireThreshold,
+            "the time this node was out is longer than the record's check-in interval, so it replaces it");
+    }
+
+    #endregion
+
+    #region ClusterCheckIn
+
+    [Test]
+    public async Task ClusterCheckIn_ShouldRecordThisNodesCheckInTime()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        GivenSchedulerStates(new SchedulerStateRecord(OwnInstanceId, ClusterNow - CheckinInterval, CheckinInterval));
+
+        A.CallTo(() => driverDelegate.UpdateSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<DateTimeOffset>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<int>(1));
+
+        await jobStoreSupport.CallClusterCheckIn(conn);
+
+        A.CallTo(() => driverDelegate.UpdateSchedulerState(conn, OwnInstanceId, ClusterNow, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.InsertSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<DateTimeOffset>.Ignored,
+                A<TimeSpan>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        jobStoreSupport.LastCheckin.Should().Be(ClusterNow,
+            "the stamp the other nodes will judge this one by is the time the row was written");
+    }
+
+    [Test]
+    public async Task ClusterCheckIn_ShouldInsertItsStateRowWhenTheUpdateMatchesNothing()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        GivenSchedulerStates();
+
+        A.CallTo(() => driverDelegate.UpdateSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<DateTimeOffset>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<int>(0));
+
+        await jobStoreSupport.CallClusterCheckIn(conn);
+
+        A.CallTo(() => driverDelegate.InsertSchedulerState(
+                conn, OwnInstanceId, ClusterNow, jobStoreSupport.ClusterCheckinInterval, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task ClusterCheckIn_ShouldWrapDelegateFailures()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        GivenSchedulerStates();
+
+        A.CallTo(() => driverDelegate.UpdateSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<DateTimeOffset>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Throws(new InvalidOperationException("state table unavailable"));
+
+        Func<Task> act = async () => await jobStoreSupport.CallClusterCheckIn(conn);
+
+        await act.Should().ThrowAsync<JobPersistenceException>()
+            .WithMessage("*updating scheduler state*")
+            .WithInnerException<JobPersistenceException, InvalidOperationException>()
+            .WithMessage("state table unavailable");
+
+        jobStoreSupport.LastCheckin.Should().NotBe(ClusterNow,
+            "a check-in that never reached the database must not claim to have happened, or this node would look alive to itself");
+    }
+
+    #endregion
+
+    #region ClusterRecover
+
+    [Test]
+    public async Task ClusterRecover_ShouldReleaseBlockedTriggersOfAFailedInstance()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        JobKey blockedJob = new("blocked", "jg");
+        JobKey pausedJob = new("paused", "jg");
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-blocked", StoredTriggerState.Blocked, new TriggerKey("t-blocked", "tg"), blockedJob),
+            FiredTrigger("fi-paused-blocked", StoredTriggerState.PausedBlocked, new TriggerKey("t-paused", "tg"), pausedJob));
+
+        await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
+                conn, blockedJob, StoredTriggerState.Waiting, StoredTriggerState.Blocked, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
+                conn, pausedJob, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task ClusterRecover_ShouldReleaseAcquiredTriggersOfAFailedInstance()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        TriggerKey acquired = new("t-acquired", "tg");
+
+        // An ACQUIRED row carries no job: acquisition writes the row before the job is loaded.
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-acquired", StoredTriggerState.Acquired, acquired));
+
+        await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
+                conn, acquired, StoredTriggerState.Waiting, StoredTriggerState.Acquired, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task ClusterRecover_ShouldScheduleARecoveryTriggerForAJobThatAsksForOne()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        FakeTimeProvider clock = GivenStoppedClock(ClusterNow);
+
+        TriggerKey original = new("t-original", "tg");
+        JobKey jobKey = new("recoverable", "jg");
+        DateTimeOffset firedAt = ClusterNow - TimeSpan.FromMinutes(3);
+
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, original, jobKey, requestsRecovery: true, priority: 17, firedAt: firedAt));
+
+        A.CallTo(() => driverDelegate.JobExists(conn, jobKey, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(true));
+
+        // A faked SelectTriggerJobDataMap has to hand back a real map: the recovery trigger writes the
+        // failed-job keys straight into whatever comes back, and production never sees a null there.
+        A.CallTo(() => driverDelegate.SelectTriggerJobDataMap(conn, original, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<JobDataMap>(new JobDataMap()));
+
+        IJobDetail job = JobBuilder.Create<ConcurrentTestJob>().WithIdentity(jobKey).RequestRecovery().Build();
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, jobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>(job));
+
+        IOperableTrigger recovery = null;
+        A.CallTo(() => driverDelegate.InsertTrigger(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IOperableTrigger>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<IJobDetail>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Invokes((ConnectionAndTransactionHolder _, IOperableTrigger trigger, StoredTriggerState _, IJobDetail _, CancellationToken _) =>
+            {
+                recovery = trigger;
+            });
+
+        long firstRecoverId = clock.GetTimestamp();
+
+        await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
+
+        recovery.Should().NotBeNull("a job that requests recovery is rescheduled rather than dropped");
+        recovery.Key.Should().Be(new TriggerKey($"recover_{DeadInstanceId}_{firstRecoverId}", SchedulerConstants.DefaultRecoveryGroup),
+            "the recovery trigger names the node it is recovering, and the numbering keeps sibling recoveries of one node apart");
+        recovery.JobKey.Should().Be(jobKey);
+        recovery.Priority.Should().Be(17, "the recovered firing keeps the priority the dying one had");
+        recovery.MisfireInstructionCode.Should().Be(MisfireInstruction.SimpleTrigger.FireNow,
+            "the recovery trigger's start time is already in the past, so it must fire now rather than be discarded as misfired");
+        recovery.StartTimeUtc.Should().Be(firedAt, "recovery resumes from the moment the original firing started");
+        recovery.NextFireTimeUtc.Should().NotBeNull("the first fire time is computed before the trigger is stored, or it would never be picked up");
+
+        recovery.JobDataMap.Should().ContainKey(SchedulerConstants.FailedJobOriginalTriggerName)
+            .WhoseValue.Should().Be(original.Name);
+        recovery.JobDataMap.Should().ContainKey(SchedulerConstants.FailedJobOriginalTriggerGroup)
+            .WhoseValue.Should().Be(original.Group);
+        recovery.JobDataMap.Should().ContainKey(SchedulerConstants.FailedJobOriginalTriggerFireTime)
+            .WhoseValue.Should().Be(Convert.ToString(firedAt, CultureInfo.InvariantCulture),
+                "the job reads the original fire time back out as a string, so the format is part of the contract");
+    }
+
+    [Test]
+    public async Task ClusterRecover_ShouldNotScheduleRecoveryForAJobThatNoLongerExists()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        TriggerKey original = new("t-original", "tg");
+        JobKey jobKey = new("deleted", "jg");
+
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, original, jobKey, requestsRecovery: true));
+
+        A.CallTo(() => driverDelegate.JobExists(conn, jobKey, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(false));
+
+        await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
+
+        A.CallTo(() => driverDelegate.InsertTrigger(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IOperableTrigger>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<IJobDetail>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        // The recovery trigger is never built at all, so its job data is never read.
+        A.CallTo(() => driverDelegate.SelectTriggerJobDataMap(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<TriggerKey>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task ClusterRecover_ShouldDeferRecoveryOfAnExecutingNonConcurrentJobWithinTheGracePeriod()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        // Grace period is two check-in intervals plus the misfire threshold: 27.5s. This node went
+        // quiet 20s ago, so it may simply be slow rather than dead (#2817).
+        SchedulerStateRecord rec = new(DeadInstanceId, ClusterNow - TimeSpan.FromSeconds(20), CheckinInterval);
+
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, new TriggerKey("t-executing", "tg"), new JobKey("serial", "jg"), disallowsConcurrentExecution: true),
+            FiredTrigger("fi-acquired", StoredTriggerState.Acquired, new TriggerKey("t-acquired", "tg")));
+
+        await jobStoreSupport.CallClusterRecover(conn, [rec]);
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(conn, "fi-executing", A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(conn, "fi-acquired", A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.That.Matches(query => query.InstanceId == DeadInstanceId),
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.DeleteSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.RepinTriggersFromDeadNode(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task ClusterRecover_ShouldCompleteRecoveryOnceTheGracePeriodHasExpired()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        // A minute of silence is past the 27.5s grace period, so the node really is gone.
+        SchedulerStateRecord rec = new(DeadInstanceId, ClusterNow - TimeSpan.FromSeconds(60), CheckinInterval);
+
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, new TriggerKey("t-executing", "tg"), new JobKey("serial", "jg"), disallowsConcurrentExecution: true));
+
+        await jobStoreSupport.CallClusterRecover(conn, [rec]);
+
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+                conn,
+                A<FiredTriggerQuery>.That.Matches(query => query.InstanceId == DeadInstanceId),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        // With nothing preserved the whole instance is cleared in one statement.
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.RepinTriggersFromDeadNode(
+                conn, DeadInstanceId, StdAdoConstants.AutoPinSentinel, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.DeleteSchedulerState(conn, DeadInstanceId, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task ClusterRecover_ShouldNeverDeferRecoveryForAnOrphanedInstance()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        // FindOrphanedFailedInstances leaves both fields at zero, and that is what tells recovery there
+        // is no check-in history to grant a grace period from.
+        SchedulerStateRecord orphan = new("ghost-node", CheckinTimestamp: default, CheckinInterval: default);
+
+        GivenFiredTriggersForInstance("ghost-node",
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, new TriggerKey("t-executing", "tg"), new JobKey("serial", "jg"), disallowsConcurrentExecution: true, instanceId: "ghost-node"));
+
+        await jobStoreSupport.CallClusterRecover(conn, [orphan]);
+
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+                conn,
+                A<FiredTriggerQuery>.That.Matches(query => query.InstanceId == "ghost-node"),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.DeleteSchedulerState(conn, "ghost-node", A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task ClusterRecover_ShouldDeleteTriggersLeftComplete()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        TriggerKey completed = new("t-complete", "tg");
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, completed, new JobKey("j", "jg")));
+
+        A.CallTo(() => driverDelegate.SelectTriggerState(conn, completed, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Complete));
+
+        A.CallTo(() => driverDelegate.SelectJobForTrigger(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<TriggerKey>.Ignored,
+                A<ITypeLoadHelper>.Ignored,
+                A<bool>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>((IJobDetail) null));
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(conn, completed, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<int>(1));
+
+        await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(conn, completed, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task ClusterRecover_ShouldLeaveItsOwnSchedulerStateRowInPlace()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        // The first check-in recovers this node's own previous run, and that run's state row is the one
+        // this node is about to check in against -- deleting it would erase the live registration.
+        SchedulerStateRecord own = new(OwnInstanceId, ClusterNow - TimeSpan.FromSeconds(60), CheckinInterval);
+
+        GivenFiredTriggersForInstance(OwnInstanceId,
+            FiredTrigger("fi-acquired", StoredTriggerState.Acquired, new TriggerKey("t-acquired", "tg"), instanceId: OwnInstanceId));
+
+        await jobStoreSupport.CallClusterRecover(conn, [own]);
+
+        // The leftover fired rows of the previous run are still cleaned up.
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+                conn,
+                A<FiredTriggerQuery>.That.Matches(query => query.InstanceId == OwnInstanceId),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.DeleteSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        // A node does not release its own pins to itself.
+        A.CallTo(() => driverDelegate.RepinTriggersFromDeadNode(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task ClusterRecover_ShouldUnblockNonConcurrentJobsOfAFailedInstance()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        JobKey serialJob = new("serial", "jg");
+        SchedulerStateRecord rec = new(DeadInstanceId, ClusterNow - TimeSpan.FromSeconds(60), CheckinInterval);
+
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, new TriggerKey("t-executing", "tg"), serialJob, disallowsConcurrentExecution: true));
+
+        await jobStoreSupport.CallClusterRecover(conn, [rec]);
+
+        // The siblings the dead firing blocked have to be let go, or the job never runs again --
+        // and paused siblings go back to paused rather than to waiting.
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
+                conn, serialJob, StoredTriggerState.Waiting, StoredTriggerState.Blocked, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
+                conn, serialJob, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task ClusterRecover_ShouldWrapDelegateFailures()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Throws(new InvalidOperationException("fired triggers table unavailable"));
+
+        Func<Task> act = async () => await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
+
+        await act.Should().ThrowAsync<JobPersistenceException>()
+            .WithMessage("*Failure recovering jobs*")
+            .WithInnerException<JobPersistenceException, InvalidOperationException>()
+            .WithMessage("fired triggers table unavailable");
+    }
+
+    /// <summary>
+    /// A node whose last check-in is far enough back that the deferred-recovery grace period has run out,
+    /// which is the ordinary case: recovery does everything it is going to do.
+    /// </summary>
+    private static SchedulerStateRecord DeadNode()
+    {
+        return new SchedulerStateRecord(DeadInstanceId, ClusterNow - TimeSpan.FromSeconds(60), CheckinInterval);
+    }
+
+    #endregion
 
     #endregion
 }
