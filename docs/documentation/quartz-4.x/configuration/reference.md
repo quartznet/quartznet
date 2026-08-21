@@ -130,7 +130,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `TablePrefix` | string | `QRTZ_` | Prefix on every Quartz table name. |
-| `UseProperties` | bool | `false` | Persists job data as name/value strings rather than serialized objects, which keeps stored data readable and version tolerant. |
+| `StoreJobDataAsStrings` | bool | `false` | Persists job data as name/value strings rather than serialized objects, which keeps stored data readable and version tolerant. |
 | `MisfireThreshold` | TimeSpan | `00:01:00` | How late a trigger may fire before it counts as misfired. |
 | `MisfireHandlerFrequency` | TimeSpan? | `MisfireThreshold` | How often misfires are handled. |
 | `MaxMisfiresToHandleAtATime` | int | `20` | How many misfired triggers are handled per pass. |
@@ -525,7 +525,7 @@ Two differences are worth knowing:
 | `quartz.jobStore.type` | `UseInMemoryStore()` / `UsePersistentStore<T>()` |
 | `quartz.jobStore.misfireThreshold` | `JobStore:MisfireThreshold` |
 | `quartz.jobStore.tablePrefix` | `JobStore:TablePrefix` |
-| `quartz.jobStore.useProperties` | `JobStore:UseProperties` |
+| `quartz.jobStore.useProperties` | `JobStore:StoreJobDataAsStrings` |
 | `quartz.jobStore.makeThreadsDaemons` | `JobStore:UseBackgroundThreads` |
 | `quartz.jobStore.clustered` | `JobStore:Clustering:Enabled`, or `UseClustering()` |
 | `quartz.jobStore.acceptEnlistedTransactions` | `JobStore:AcceptEnlistedTransactions` |

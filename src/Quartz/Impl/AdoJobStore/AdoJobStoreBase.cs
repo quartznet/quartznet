@@ -89,7 +89,7 @@ public abstract class AdoJobStoreBase : IJobStore
         var options = storeOptions.Value;
         DataSource = options.DataSource;
         TablePrefix = options.TablePrefix ?? "";
-        useProperties = options.UseProperties;
+        useProperties = options.StoreJobDataAsStrings;
         MisfireThreshold = options.MisfireThreshold;
         misfirehandlerFrequence = options.MisfireHandlerFrequency;
         MaxMisfiresToHandleAtATime = options.MaxMisfiresToHandleAtATime;

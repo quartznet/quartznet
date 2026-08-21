@@ -46,7 +46,15 @@ public sealed class QuartzDashboardOptions
     /// When set, this is used instead of deriving the base URL from the incoming HTTP request.
     /// This should be set to the root URL of the host application (e.g., "https://myapp.example.com/").
     /// </summary>
-    public string? BaseUrl { get; set; }
+    /// <remarks>
+    /// A <see cref="Uri"/> rather than a string, because that is what it becomes and the conversion can
+    /// fail: a malformed string used to be accepted at configuration time and throw
+    /// <see cref="UriFormatException"/> from inside the dashboard the first time it called its own API.
+    /// The configuration binder parses the string in <c>appsettings.json</c> into one, so a bad value is
+    /// now reported where it is configured. A relative URI is rejected for the same reason it was never
+    /// useful: this is the address the dashboard calls itself back on.
+    /// </remarks>
+    public Uri? BaseUrl { get; set; }
 
     /// <summary>
     /// <see cref="DashboardPath"/> normalized to a rooted path without a trailing slash,

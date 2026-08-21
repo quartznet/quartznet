@@ -33,7 +33,13 @@ public sealed class AdoJobStoreOptions
     /// When <see langword="true"/>, job data maps are persisted as name/value string pairs rather than
     /// serialized objects, which keeps stored data readable and version tolerant.
     /// </summary>
-    public bool UseProperties { get; set; }
+    /// <remarks>
+    /// This was <c>UseProperties</c>, which read as a verb and collided with
+    /// <c>QuartzSchedulerBuilder.UseProperties</c> and <c>AddQuartz(properties)</c> — an unrelated thing
+    /// about flat <c>quartz.*</c> configuration keys. The flat key that sets it is still
+    /// <c>quartz.jobStore.useProperties</c>.
+    /// </remarks>
+    public bool StoreJobDataAsStrings { get; set; }
 
     /// <summary>
     /// How far past its scheduled fire time a trigger may be before it is considered misfired.

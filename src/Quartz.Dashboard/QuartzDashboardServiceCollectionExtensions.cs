@@ -49,7 +49,12 @@ public static class QuartzDashboardServiceCollectionExtensions
                 "DashboardPath must be a simple URL path: it cannot contain '{', '}', '?', '#', '.' or '..' segments, or empty segments ('//')")
             .Validate(
                 options => !string.IsNullOrWhiteSpace(options.ApiPath) && options.ApiPath.StartsWith('/'),
-                "ApiPath must start with '/'");
+                "ApiPath must start with '/'")
+            .Validate(
+                // This is the address the dashboard calls its own API back on, so a relative one cannot
+                // be a base address. Rejecting it here beats a UriFormatException from the first request.
+                options => options.BaseUrl is null || options.BaseUrl.IsAbsoluteUri,
+                "BaseUrl must be an absolute URL, for example https://myapp.example.com/");
 
         if (configure is not null)
         {

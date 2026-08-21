@@ -89,7 +89,7 @@ public class ClusteringJobsExecutionExample : IExample
                 store.UseSystemTextJsonSerializer();
                 store.Configure(options =>
                 {
-                    options.UseProperties = true;
+                    options.StoreJobDataAsStrings = true;
                     options.MisfireThreshold = TimeSpan.FromSeconds(60);
                 });
             });

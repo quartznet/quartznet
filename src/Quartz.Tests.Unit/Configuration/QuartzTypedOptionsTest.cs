@@ -106,7 +106,7 @@ public class QuartzTypedOptionsTest
         {
             ["JobStore:DataSource"] = "default",
             ["JobStore:TablePrefix"] = "MY_",
-            ["JobStore:UseProperties"] = "true",
+            ["JobStore:StoreJobDataAsStrings"] = "true",
             ["JobStore:UseDbLocks"] = "true",
             ["JobStore:Clustering:Enabled"] = "true",
             ["JobStore:Clustering:CheckinInterval"] = "00:00:10",
@@ -116,7 +116,7 @@ public class QuartzTypedOptionsTest
 
         options.DataSource.Should().Be("default");
         options.TablePrefix.Should().Be("MY_");
-        options.UseProperties.Should().BeTrue();
+        options.StoreJobDataAsStrings.Should().BeTrue();
         options.UseDbLocks.Should().BeTrue();
         options.PerformSchemaValidation.Should().BeTrue("unset booleans keep their default");
 

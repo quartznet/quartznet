@@ -520,6 +520,26 @@ public class DashboardEndpointsTest
             + "options validator has already run by then");
     }
 
+    [Test]
+    public async Task ARelativeBaseUrlShouldFailValidation()
+    {
+        // This is the address the dashboard calls its own API back on, so a relative one is not a base
+        // address. It used to be a string that threw UriFormatException from the first request instead.
+        await using WebApplication app = CreateApp(options => options.BaseUrl = new Uri("/quartz", UriKind.Relative));
+
+        Action act = () => app.MapQuartzDashboard();
+        act.Should().Throw<Microsoft.Extensions.Options.OptionsValidationException>().WithMessage("*BaseUrl*absolute*");
+    }
+
+    [Test]
+    public async Task AnAbsoluteBaseUrlShouldPassValidation()
+    {
+        await using WebApplication app = CreateApp(options => options.BaseUrl = new Uri("https://myapp.example.com/"));
+
+        Action act = () => app.MapQuartzDashboard();
+        act.Should().NotThrow();
+    }
+
     [TestCase("/tenant{env}")]
     [TestCase("/ops/../quartz")]
     [TestCase("/ops?x=1")]

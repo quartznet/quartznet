@@ -599,7 +599,7 @@ internal static class QuartzPropertyBridge
     {
         parser.String("quartz.jobStore.dataSource", value => options.DataSource = value);
         parser.String("quartz.jobStore.tablePrefix", value => options.TablePrefix = value);
-        parser.Bool("quartz.jobStore.useProperties", value => options.UseProperties = value);
+        parser.Bool("quartz.jobStore.useProperties", value => options.StoreJobDataAsStrings = value);
         parser.Milliseconds("quartz.jobStore.misfireThreshold", value => options.MisfireThreshold = value);
         parser.Milliseconds("quartz.jobStore.misfireHandlerFrequency", value => options.MisfireHandlerFrequency = value);
         parser.Int("quartz.jobStore.maxMisfiresToHandleAtATime", value => options.MaxMisfiresToHandleAtATime = value);

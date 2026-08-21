@@ -72,7 +72,7 @@ builder.Services.AddQuartz(q =>
         {
             // store job data as strings, which avoids surprises when a serialized
             // type changes shape later
-            options.UseProperties = true;
+            options.StoreJobDataAsStrings = true;
         });
     });
 
