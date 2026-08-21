@@ -7,9 +7,9 @@ using Quartz.Xml;
 namespace Quartz.Configuration;
 
 /// <summary>
-/// Reuse logic for adding and removing items by using XMLSchedulingDataProcessor.
+/// Reuse logic for adding and removing items by using XmlSchedulingDataProcessor.
 /// </summary>
-internal sealed class ContainerConfigurationProcessor : XMLSchedulingDataProcessor
+internal sealed class ContainerConfigurationProcessor : XmlSchedulingDataProcessor
 {
     private readonly QuartzOptions options;
     private readonly List<IJobDetail> jobs;
@@ -21,7 +21,7 @@ internal sealed class ContainerConfigurationProcessor : XMLSchedulingDataProcess
     /// handed its own of both instead of every scheduler sharing the default scheduler's.
     /// </remarks>
     public ContainerConfigurationProcessor(
-        ILogger<XMLSchedulingDataProcessor> logger,
+        ILogger<XmlSchedulingDataProcessor> logger,
         ITypeLoader typeLoader,
         TimeProvider timeProvider,
         QuartzOptions options,

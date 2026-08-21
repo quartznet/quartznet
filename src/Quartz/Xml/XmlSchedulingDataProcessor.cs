@@ -53,7 +53,7 @@ namespace Quartz.Xml;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 /// <author>Christian Krumm (.NET Bugfix)</author>
-public class XMLSchedulingDataProcessor
+internal class XmlSchedulingDataProcessor
 {
     public const string QuartzXmlFileName = "quartz_jobs.xml";
     public const string QuartzXsdResourceName = "Quartz.Xml.job_scheduling_data_2_0.xsd";
@@ -74,14 +74,14 @@ public class XMLSchedulingDataProcessor
     private readonly List<string> jobGroupsToNeverDelete = new List<string>();
     private readonly List<string> triggerGroupsToNeverDelete = new List<string>();
 
-    private readonly ILogger<XMLSchedulingDataProcessor> logger;
+    private readonly ILogger<XmlSchedulingDataProcessor> logger;
     private readonly TimeProvider timeProvider;
 
     /// <summary>
-    /// Constructor for XMLSchedulingDataProcessor.
+    /// Constructor for XmlSchedulingDataProcessor.
     /// </summary>
-    public XMLSchedulingDataProcessor(
-        ILogger<XMLSchedulingDataProcessor> logger,
+    public XmlSchedulingDataProcessor(
+        ILogger<XmlSchedulingDataProcessor> logger,
         ITypeLoader typeLoader,
         TimeProvider timeProvider)
     {
@@ -520,7 +520,7 @@ public class XMLSchedulingDataProcessor
                                   | XmlSchemaValidationFlags.ReportValidationWarnings
             };
 
-            using var stream = typeof(XMLSchedulingDataProcessor).Assembly.GetManifestResourceStream(QuartzXsdResourceName);
+            using var stream = typeof(XmlSchedulingDataProcessor).Assembly.GetManifestResourceStream(QuartzXsdResourceName);
 
             if (stream is null)
             {
