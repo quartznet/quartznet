@@ -1,0 +1,31 @@
+﻿{
+  "triggerType": "CalendarIntervalTrigger",
+  "key": {
+    "name": "CalendarIntervalTriggerKey",
+    "group": "CalendarIntervalTriggerGroup"
+  },
+  "jobKey": {
+    "name": "CalendarIntervalJobKey",
+    "group": "CalendarIntervalJobGroup"
+  },
+  "description": "CalendarIntervalTrigger description",
+  "calendarName": "SomeCalendar",
+  "jobDataMap": {
+    "TestKey": "TestValue"
+  },
+  "misfireInstruction": 0,
+  "startTimeUtc": "2024-07-01T12:00:00+00:00",
+  "endTimeUtc": null,
+  "priority": 10,
+  "nextFireTimeUtc": "2024-08-01T12:30:00+00:00",
+  "previousFireTimeUtc": "2024-08-01T06:30:00+00:00",
+  "executionGroup": null,
+  "preferredNode": null,
+  "preferredNodeAuto": false,
+  "repeatInterval": 10,
+  "repeatIntervalUnit": "Minute",
+  "timeZone": "UTC",
+  "preserveHourOfDayAcrossDaylightSavings": true,
+  "skipDayIfHourDoesNotExist": false,
+  "timesTriggered": 0
+}

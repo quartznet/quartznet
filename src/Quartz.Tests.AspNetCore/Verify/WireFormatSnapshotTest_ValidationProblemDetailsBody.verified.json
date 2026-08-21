@@ -1,0 +1,6 @@
+﻿{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Request validation failed: Job detail is missing name"
+}

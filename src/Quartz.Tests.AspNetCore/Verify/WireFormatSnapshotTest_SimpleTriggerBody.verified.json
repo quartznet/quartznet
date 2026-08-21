@@ -1,0 +1,28 @@
+﻿{
+  "triggerType": "SimpleTrigger",
+  "key": {
+    "name": "SimpleTriggerKey",
+    "group": "SimpleTriggerGroup"
+  },
+  "jobKey": {
+    "name": "SimpleJobKey",
+    "group": "SimpleJobGroup"
+  },
+  "description": "SimpleTrigger description",
+  "calendarName": "SomeOtherCalendar",
+  "jobDataMap": {
+    "TestKey": "150"
+  },
+  "misfireInstruction": 0,
+  "startTimeUtc": "2024-07-01T12:00:00+00:00",
+  "endTimeUtc": "2025-07-01T12:00:00+00:00",
+  "priority": 150000,
+  "nextFireTimeUtc": "2024-08-01T12:30:00+00:00",
+  "previousFireTimeUtc": "2024-08-01T06:30:00+00:00",
+  "executionGroup": null,
+  "preferredNode": null,
+  "preferredNodeAuto": false,
+  "repeatCount": 1000,
+  "repeatIntervalTimeSpan": "120.02:30:59.9990000",
+  "timesTriggered": 0
+}

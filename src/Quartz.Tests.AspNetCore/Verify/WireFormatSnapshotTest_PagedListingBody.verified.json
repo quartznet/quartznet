@@ -1,0 +1,16 @@
+﻿{
+  "items": [
+    {
+      "name": "DummyJob",
+      "group": "DummyGroup",
+      "description": "Dummy job description",
+      "jobTypeName": "Quartz.Tests.AspNetCore.Support.DummyJob, Quartz.Tests.AspNetCore",
+      "durable": true,
+      "concurrentExecutionDisallowed": true,
+      "persistJobDataAfterExecution": true,
+      "requestsRecovery": true
+    }
+  ],
+  "hasMore": true,
+  "totalCount": 5
+}
