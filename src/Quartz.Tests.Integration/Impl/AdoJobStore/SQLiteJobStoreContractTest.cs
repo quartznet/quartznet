@@ -54,12 +54,6 @@ public sealed class SQLiteJobStoreContractTest : JobStoreContractTest
     protected override string AllGroupsPausedSentinel => AdoConstants.AllGroupsPaused;
 
     /// <summary>
-    /// Resuming everything walks the groups the trigger table knows about, which a paused-but-empty
-    /// group is not one of.
-    /// </summary>
-    protected override bool ResumeAllForgetsPausedButEmptyGroups => false;
-
-    /// <summary>
     /// The store's blanket catch re-wraps the specific exception as a plain
     /// <see cref="JobPersistenceException" />.
     /// </summary>

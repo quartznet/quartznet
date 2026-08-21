@@ -3170,7 +3170,10 @@ public abstract class AdoJobStoreBase : IJobStore
 
         try
         {
-            await Delegate.DeletePausedTriggerGroup(conn, GroupMatcher<TriggerKey>.GroupEquals(AdoConstants.AllGroupsPaused), cancellationToken).ConfigureAwait(false);
+            // Every paused group, not just the all-groups marker: the loop above only visits groups the
+            // trigger table knows about, so a group that was paused while empty would keep its row and
+            // go on pausing whatever was added to it after a resume-all resumed everything.
+            await Delegate.DeletePausedTriggerGroup(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
