@@ -316,11 +316,9 @@ internal static class QuartzPropertyBridge
             }
         });
 
-        parser.String(LegacyPropertyKeys.SchedulerThreadName, value => options.ThreadName = value);
         parser.Milliseconds(LegacyPropertyKeys.SchedulerIdleWaitTime, value => options.IdleWaitTime = value);
         parser.Int(LegacyPropertyKeys.SchedulerMaxBatchSize, value => options.MaxBatchSize = value);
         parser.Milliseconds(LegacyPropertyKeys.SchedulerBatchTimeWindow, value => options.BatchTriggerAcquisitionFireAheadTimeWindow = value);
-        parser.Bool(LegacyPropertyKeys.SchedulerMakeSchedulerThreadDaemon, value => options.MakeSchedulerThreadDaemon = value);
         parser.Bool(LegacyPropertyKeys.SchedulerInterruptJobsOnShutdown, value => options.InterruptJobsOnShutdown = value);
         parser.Bool(LegacyPropertyKeys.SchedulerInterruptJobsOnShutdownWithWait, value => options.InterruptJobsOnShutdownWithWait = value);
 
@@ -498,7 +496,7 @@ internal static class QuartzPropertyBridge
         parser.Int("quartz.jobStore.maxTransientRetries", value => options.MaxTransientRetries = value);
         parser.Milliseconds("quartz.jobStore.transientRetryInterval", value => options.TransientRetryInterval = value);
         parser.Int("quartz.jobStore.retryableActionErrorLogThreshold", value => options.RetryableActionErrorLogThreshold = value);
-        parser.Bool("quartz.jobStore.makeThreadsDaemons", value => options.MakeThreadsDaemons = value);
+        parser.Bool("quartz.jobStore.makeThreadsDaemons", value => options.UseBackgroundThreads = value);
         // Clustering has always implied database locking; the legacy format never made it a separate
         // decision, so keep it implied. Whether the scheduler is clustered at all is ClusteringOptions'
         // to say — see MapClustering — but the implication belongs to the store's own options, and it

@@ -40,11 +40,9 @@ which Quartz still accepts. See [Legacy property keys](#legacy-property-keys).
 | `InstanceName` | string | `QuartzScheduler` | Distinguishes schedulers in the same process. Every node in a cluster must share one name. |
 | `InstanceId` | string | `NON_CLUSTERED` | Must be unique among the nodes of a cluster. |
 | `GenerateInstanceId` | bool | `false` | Derives `InstanceId` at startup from the registered `IInstanceIdGenerator` instead of using the literal value. |
-| `ThreadName` | string | `{InstanceName}_QuartzSchedulerThread` | Name given to the scheduler's main thread. |
 | `IdleWaitTime` | TimeSpan | `00:00:30` | How long to wait before re-querying the job store when nothing is due. Must be at least one second. |
 | `MaxBatchSize` | int | `1` | How many triggers may be acquired at once. |
 | `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may be included in the current batch. |
-| `MakeSchedulerThreadDaemon` | bool | `false` | Runs the scheduler thread as a background thread, so it will not keep the process alive. |
 | `InterruptJobsOnShutdown` | bool | `false` | Signals cancellation to running jobs on shutdown. |
 | `InterruptJobsOnShutdownWithWait` | bool | `false` | Signals cancellation on a shutdown that waits for jobs to finish. |
 | `Context` | dictionary | empty | Values seeded into `SchedulerContext`. |
@@ -120,7 +118,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `TxIsolationLevelSerializable` | bool | `false` | Uses the serializable isolation level. |
 | `AcceptEnlistedTransactions` | bool | `false` | Lets the job store use a connection the application enlisted with `SchedulerEnlistmentExtensions.EnlistTransaction`, so scheduling commits with the application's own work. See [Joining an existing transaction](../tutorial/job-stores.md#joining-an-existing-transaction). |
 | `DoubleCheckLockMisfireHandler` | bool | `true` | Re-checks the lock before handling misfires. |
-| `MakeThreadsDaemons` | bool | `false` | Runs the store's background threads as background threads. |
+| `UseBackgroundThreads` | bool | `false` | Runs the misfire handler and cluster manager on background threads, which do not keep the process alive. These two are the only real threads Quartz creates. |
 | `PerformSchemaValidation` | bool | `true` | Verifies the expected tables exist at startup. |
 | `SelectWithLockSql` | string? | none | Overrides the row-lock statement. |
 | `OpenConnection` | bool | `false` | Whether `ExternalTransactionJobStore` opens the connections it creates; read only by that store. |
@@ -405,11 +403,9 @@ Two differences are worth knowing:
 |---|---|
 | `quartz.scheduler.instanceName` | `Scheduler:InstanceName` |
 | `quartz.scheduler.instanceId` | `Scheduler:InstanceId` (`AUTO` and `SYS_PROP` set `GenerateInstanceId`) |
-| `quartz.scheduler.threadName` | `Scheduler:ThreadName` |
 | `quartz.scheduler.idleWaitTime` | `Scheduler:IdleWaitTime` |
 | `quartz.scheduler.batchTriggerAcquisitionMaxCount` | `Scheduler:MaxBatchSize` |
 | `quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow` | `Scheduler:BatchTriggerAcquisitionFireAheadTimeWindow` |
-| `quartz.scheduler.makeSchedulerThreadDaemon` | `Scheduler:MakeSchedulerThreadDaemon` |
 | `quartz.scheduler.interruptJobsOnShutdown` | `Scheduler:InterruptJobsOnShutdown` |
 | `quartz.scheduler.interruptJobsOnShutdownWithWait` | `Scheduler:InterruptJobsOnShutdownWithWait` |
 | `quartz.context.key.NAME` | `Scheduler:Context:NAME` |
@@ -419,6 +415,7 @@ Two differences are worth knowing:
 | `quartz.jobStore.misfireThreshold` | `JobStore:MisfireThreshold` |
 | `quartz.jobStore.tablePrefix` | `JobStore:TablePrefix` |
 | `quartz.jobStore.useProperties` | `JobStore:UseProperties` |
+| `quartz.jobStore.makeThreadsDaemons` | `JobStore:UseBackgroundThreads` |
 | `quartz.jobStore.clustered` | `JobStore:Clustering:Enabled`, or `UseClustering()` |
 | `quartz.jobStore.acceptEnlistedTransactions` | `JobStore:AcceptEnlistedTransactions`, or `AcceptEnlistedTransactions()` |
 | `quartz.jobStore.clusterCheckinInterval` | `JobStore:Clustering:CheckinInterval` |
@@ -438,6 +435,12 @@ Two differences are worth knowing:
 
 A listener named by properties has no matchers to carry, so it listens to everything. The code-first
 methods take matchers, which is the reason to prefer them.
+
+Two `quartz.scheduler.*` keys are rejected rather than ignored, because they no longer configure
+anything: `quartz.scheduler.threadName` and `quartz.scheduler.makeSchedulerThreadDaemon`. The
+scheduling loop is a `Task` rather than a `Thread`, so it has no name to set and never held a
+process open. Remove them; for the job store's misfire and cluster threads, which are real threads,
+use `quartz.jobStore.makeThreadsDaemons` / `JobStore:UseBackgroundThreads`.
 
 Every key has both spellings. `quartz.jobStore.tablePrefix` and `JobStore:TablePrefix` are the same
 setting said two ways, and so are the ones that select an implementation rather than set a value —

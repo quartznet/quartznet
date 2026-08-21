@@ -111,7 +111,7 @@ public abstract class AdoJobStoreBase : IJobStore
         TxIsolationLevelSerializable = options.TxIsolationLevelSerializable;
         AcceptEnlistedTransactions = options.AcceptEnlistedTransactions;
         DoubleCheckLockMisfireHandler = options.DoubleCheckLockMisfireHandler;
-        MakeThreadsDaemons = options.MakeThreadsDaemons;
+        UseBackgroundThreads = options.UseBackgroundThreads;
         PerformSchemaValidation = options.PerformSchemaValidation;
         SelectWithLockSql = options.SelectWithLockSql;
 
@@ -384,7 +384,7 @@ public abstract class AdoJobStoreBase : IJobStore
     /// marked as daemon.  Possible threads include the <see cref="MisfireHandler" />
     /// and the <see cref="ClusterManager"/>.
     /// </summary>
-    internal bool MakeThreadsDaemons { get; }
+    internal bool UseBackgroundThreads { get; }
 
     /// <summary>
     /// Whether to check to see if there are Triggers that have misfired

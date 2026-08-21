@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -121,7 +121,6 @@ public class QuartzSchedulerBuilderTest
         threadPool.PoolSize.Should().Be(17);
         resources.Name.Should().Be("configured");
         resources.MaxBatchSize.Should().Be(9);
-        resources.ThreadName.Should().Be("configured_QuartzSchedulerThread");
     }
 
     [Test]

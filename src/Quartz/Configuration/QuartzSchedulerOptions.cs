@@ -40,12 +40,6 @@ public sealed class QuartzSchedulerOptions
     public bool GenerateInstanceId { get; set; }
 
     /// <summary>
-    /// The name given to the scheduler's main thread. Defaults to <see cref="InstanceName"/> suffixed
-    /// with <c>_QuartzSchedulerThread</c>.
-    /// </summary>
-    public string? ThreadName { get; set; }
-
-    /// <summary>
     /// How long the scheduler waits before re-querying the job store when it finds no triggers to fire.
     /// </summary>
     /// <remarks>Must be at least one second. Lower values increase job store load for little benefit.</remarks>
@@ -61,12 +55,6 @@ public sealed class QuartzSchedulerOptions
     /// acquisition batch.
     /// </summary>
     public TimeSpan BatchTriggerAcquisitionFireAheadTimeWindow { get; set; } = TimeSpan.Zero;
-
-    /// <summary>
-    /// Whether the scheduler's main thread runs as a background thread and therefore does not keep
-    /// the process alive on its own.
-    /// </summary>
-    public bool MakeSchedulerThreadDaemon { get; set; }
 
     /// <summary>
     /// Whether executing jobs have their cancellation token signalled when the scheduler shuts down.

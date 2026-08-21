@@ -702,7 +702,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
         options.MisfireHandlerFrequency.Should().Be(TimeSpan.FromSeconds(5));
         options.MaxTransientRetries.Should().Be(10);
-        options.MakeThreadsDaemons.Should().BeTrue();
+        options.UseBackgroundThreads.Should().BeTrue();
     }
 
     [Test]

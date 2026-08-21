@@ -116,9 +116,17 @@ public sealed class AdoJobStoreOptions
     public bool DoubleCheckLockMisfireHandler { get; set; } = true;
 
     /// <summary>
-    /// Whether the job store's background threads run as background threads.
+    /// Whether the misfire handler and cluster manager run on background threads, which do not keep
+    /// the process alive on their own.
     /// </summary>
-    public bool MakeThreadsDaemons { get; set; }
+    /// <remarks>
+    /// These two are the only real threads Quartz creates — the scheduling loop is a
+    /// <see cref="System.Threading.Tasks.Task"/> — so this is the whole of the "do Quartz's threads
+    /// hold my console application open" question. <c>UseBackgroundThreads</c> rather than
+    /// <c>MakeThreadsDaemons</c>: "daemon" is the Java word for what .NET calls
+    /// <see cref="System.Threading.Thread.IsBackground"/>.
+    /// </remarks>
+    public bool UseBackgroundThreads { get; set; }
 
     /// <summary>
     /// Whether the expected schema objects are verified to exist at startup.
