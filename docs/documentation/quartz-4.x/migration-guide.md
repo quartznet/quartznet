@@ -1404,10 +1404,28 @@ anything already charting them:
 
 | Instrument | 4.x type | Tags |
 |---|---|---|
-| `scheduling.quartz.execute` | `Counter<long>` | `trigger.group`, `trigger.name`, `job.group`, `job.name` |
-| `scheduling.quartz.execute.errors` | `Counter<long>` | the four identity tags **+ `error.type`** |
-| `scheduling.quartz.execute.active` | **`UpDownCounter<long>`** (was `Counter<long>`) | the four identity tags |
-| `scheduling.quartz.execute.duration` | `Histogram<double>` | the four identity tags, **+ `error.type`** when the execution failed |
+| `scheduling.quartz.execute` | `Counter<long>` | **`scheduler.name`**, `trigger.group`, `trigger.name`, `job.group`, `job.name` |
+| `scheduling.quartz.execute.errors` | `Counter<long>` | the five identity tags **+ `error.type`** |
+| `scheduling.quartz.execute.active` | **`UpDownCounter<long>`** (was `Counter<long>`) | the five identity tags |
+| `scheduling.quartz.execute.duration` | `Histogram<double>` | the five identity tags, **+ `error.type`** when the execution failed |
+
+**Every measurement is tagged with `scheduler.name`.** A process can run several schedulers — named
+registrations, or a host and a test harness side by side — and their measurements used to arrive as one
+undifferentiated series. Tagging them apart is a cardinality change: a backend stores one series per
+scheduler where it stored one in total, and a query that aggregated across everything now needs to say so
+(`sum without (scheduler_name)` in Prometheus, or the equivalent grouping in whatever reads these). One
+extra series per scheduler is the whole of the increase; the tag's values are the scheduler names an
+application configured, which is a fixed, small set.
+
+The instruments themselves are also created through the container's `IMeterFactory` when it has one,
+which every application on the generic host does. The meter used to be a process-wide static, so two
+containers in one process published to the same instruments; they now publish to their own, which is what
+makes `MetricCollector` — the `Microsoft.Extensions.Diagnostics.Testing` reader that collects one
+factory's instruments — able to see them at all. Nothing about the meter's name, the instrument names or
+what an exporter subscribes to changes, and an application that never calls `AddMetrics()` still gets a
+meter, created directly as before. Quartz does not register an `IMeterFactory` of its own: doing so would
+put Quartz's factory in the way of the application's wherever `AddMetrics()` happened to be called after
+`AddQuartz`.
 
 **`scheduling.quartz.execute.active` is an up-down counter.** The number of jobs running goes down as
 often as it goes up, and Quartz has always measured the decrement — but a `Counter` is monotonic by
@@ -5200,6 +5218,8 @@ Parameters and behavior are unchanged:
 | `QuartzOptions.SchedulerName`, `.SchedulerId`, `.MisfireThreshold` removed | Each duplicated a typed option — see [`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings) |
 | Job execution metrics are published by every scheduler | The meters were configured only by `StdSchedulerFactory`, so a scheduler registered with `AddQuartz` published none |
 | `scheduling.quartz.execute.active` is an `UpDownCounter<long>` | It was a `Counter<long>` receiving the `-1` that ends an execution, which an exporter aggregating a monotonic sum may drop — see [Job execution metrics](#job-execution-metrics) |
+| Every job execution measurement is tagged with `scheduler.name` | A process can run several schedulers, whose measurements used to arrive as one series. One series per scheduler where there was one in total: a query that aggregated across everything needs to say so — see [Job execution metrics](#job-execution-metrics) |
+| The meter is built from the container's `IMeterFactory` | It was a process-wide static, so two containers in one process shared one set of instruments and `MetricCollector` could not see them. Names and subscriptions are unchanged, and an application that never calls `AddMetrics()` still gets a meter — see [Job execution metrics](#job-execution-metrics) |
 | `scheduling.quartz.exception_type` is `error.type`, naming the exception the job threw | The tag was added to a copy of the tag list and discarded, so the counter said only that something failed — and the type it named was the `JobExecutionException` the run shell wraps everything in. It is OpenTelemetry's conventional name now, it is on the duration histogram and the execution's span too, and a query matching the old name or expecting the old value has to be rewritten — see [Job execution metrics](#job-execution-metrics) |
 | `XmlSchedulingOptions` and `JsonSchedulingOptions` merged | They were byte-for-byte identical and are now one type |
 | Constructing a scheduler no longer starts a thread | `QuartzScheduler` starts its scheduler thread from `Start()` rather than its constructor, so resolving the service graph, running a `ValidateOnBuild` pass or asserting on registrations no longer spins one up. The thread always started paused, so this changes when the thread exists, not when jobs run |

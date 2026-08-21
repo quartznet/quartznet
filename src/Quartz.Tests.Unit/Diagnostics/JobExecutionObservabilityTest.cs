@@ -23,6 +23,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.Metrics.Testing;
 
 using Quartz.Diagnostics;
 
@@ -38,12 +39,9 @@ namespace Quartz.Tests.Unit.Diagnostics;
 /// and the container — because that is precisely where the metrics used to be missing. Configuring the
 /// meter was wired to the properties-based factory alone, so every scheduler registered through
 /// dependency injection published nothing at all, and nothing noticed because the feature had no tests.
-/// Metric configuration is process-wide and idempotent, so within a whole-suite run no test can tell
-/// which construction path configured it; what these tests do assert is that a scheduler built the way
-/// nearly every application builds one emits, which fails the moment configuration is left out of that
-/// path again. Run this fixture on its own — <c>--filter FullyQualifiedName~JobExecutionObservability</c>
-/// — and nothing else in the process has built a scheduler, so <c>AddQuartz</c> is the only thing that
-/// could have configured the meter.
+/// The instruments belong to the container now rather than to the process, so a scheduler built any other
+/// way cannot stand in for one built this way: what these tests assert is that a scheduler built the way
+/// nearly every application builds one emits.
 /// </para>
 /// <para>
 /// Measurements are matched by the job key, which is unique per test, so a scheduler left running by
@@ -155,14 +153,74 @@ public sealed class JobExecutionObservabilityTest
 
         foreach (RecordedMeasurement measurement in published)
         {
-            measurement.Tags.Should().Contain(new KeyValuePair<string, object>(ActivityTags.TriggerGroup, execution.TriggerKey.Group))
+            measurement.Tags.Should().Contain(new KeyValuePair<string, object>(ActivityTags.SchedulerName, execution.SchedulerName))
+                .And.Contain(new KeyValuePair<string, object>(ActivityTags.TriggerGroup, execution.TriggerKey.Group))
                 .And.Contain(new KeyValuePair<string, object>(ActivityTags.TriggerName, execution.TriggerKey.Name))
                 .And.Contain(new KeyValuePair<string, object>(ActivityTags.JobGroup, execution.JobKey.Group))
                 .And.Contain(new KeyValuePair<string, object>(ActivityTags.JobName, execution.JobKey.Name));
 
-            measurement.Tags.Should().HaveCount(4,
-                "an execution is identified by its trigger and its job, and nothing else is added to it");
+            measurement.Tags.Should().HaveCount(5,
+                "an execution is identified by the scheduler that ran it, its trigger and its job, and "
+                + "nothing else is added to it");
         }
+    }
+
+    /// <summary>
+    /// The measurements a container's own <c>IMeterFactory</c> publishes, read the way an application's
+    /// tests read them.
+    /// </summary>
+    /// <remarks>
+    /// The meter used to be a static created once per process, so every scheduler in every container
+    /// published to the same one and <c>MetricCollector</c> — which collects the instruments belonging to
+    /// one factory — had nothing to collect. It is built from the container's factory now, which is what
+    /// makes this test possible at all, and the scheduler that ran the job is a tag rather than something
+    /// the reader has to infer.
+    /// </remarks>
+    [Test]
+    public async Task ExecutionMetrics_AreCollectableThroughTheContainersMeterFactory()
+    {
+        string id = Guid.NewGuid().ToString("N");
+        string schedulerName = $"collected-{id}";
+        ExecutionCompletionListener completion = new();
+
+        ServiceCollection services = new();
+        services.AddMetrics();
+        services.AddQuartz(quartz =>
+        {
+            quartz.ConfigureScheduler(options => options.InstanceName = schedulerName);
+            quartz.AddJobListener(completion);
+            quartz.ScheduleJob<SucceedingJob>(
+                trigger => trigger.WithIdentity($"trigger-{id}").StartNow(),
+                job => job.WithIdentity($"job-{id}"));
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        using MetricCollector<long> collector = new(
+            provider.GetRequiredService<IMeterFactory>(),
+            InstrumentationOptions.MeterName,
+            ExecuteCount);
+
+        // The scheduler is injected rather than built from its factory, which is the other half of what
+        // this fixture is for: an application asks the container for both of these.
+        IScheduler scheduler = provider.GetRequiredService<IScheduler>();
+        try
+        {
+            await scheduler.Start();
+            await collector.WaitForMeasurementsAsync(minCount: 1).WaitAsync(TimeSpan.FromSeconds(30));
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+
+        CollectedMeasurement<long> measurement = collector.LastMeasurement;
+        measurement.Should().NotBeNull("the container's meter factory published this execution");
+        measurement.Value.Should().Be(1);
+        measurement.Tags.Should().ContainKey(ActivityTags.SchedulerName)
+            .WhoseValue.Should().Be(schedulerName,
+                "a process can run several schedulers, and without the name their measurements are one "
+                + "series a dashboard cannot separate again");
     }
 
     [Test]

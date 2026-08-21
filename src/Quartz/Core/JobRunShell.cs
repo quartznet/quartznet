@@ -195,7 +195,7 @@ internal sealed class JobRunShell
                 long endTimestamp;
 
                 StartedActivity activity = QuartzActivitySource.StartJobExecute(context, timeProvider.GetUtcNow());
-                Instrumentation instrumentation = Meters.StartJobExecute(context);
+                Instrumentation instrumentation = qs.resources.Meters.StartJobExecute(context);
 
 
                 // Execute the job

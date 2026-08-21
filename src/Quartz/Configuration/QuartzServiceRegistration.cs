@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Metrics;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -51,9 +52,10 @@ internal static class QuartzServiceRegistration
         services.AddQuartzOptionsValidation();
         services.AddLogging();
 
-        // Job execution metrics were previously configured only by the properties-based factory, so a
-        // scheduler registered any other way published none. Every scheduler comes through here.
-        Meters.Configure();
+        // Job execution metrics. Built from the container's IMeterFactory when it has one — every
+        // application on the generic host calls AddMetrics() for itself — so the measurements belong to
+        // this container rather than to the process, and two hosts in one test run can be told apart.
+        services.TryAddSingleton(static provider => new Meters(provider.GetService<IMeterFactory>()));
 
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ITypeLoader, SimpleTypeLoader>();
@@ -176,6 +178,7 @@ internal static class QuartzServiceRegistration
                 InterruptJobsOnShutdown = options.InterruptJobsOnShutdown,
                 InterruptJobsOnShutdownWithWait = options.InterruptJobsOnShutdownWithWait,
                 TimeProvider = provider.GetSchedulerTimeProvider(key),
+                Meters = provider.GetRequiredService<Meters>(),
                 ThreadPool = provider.GetScheduler<IThreadPool>(key),
                 JobStore = provider.GetScheduler<IJobStore>(key),
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
