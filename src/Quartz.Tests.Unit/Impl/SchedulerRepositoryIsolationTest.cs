@@ -10,7 +10,7 @@ using Quartz.Impl.AdoJobStore.Common;
 namespace Quartz.Tests.Unit.Impl;
 
 /// <summary>
-/// The scheduler repository and the connection manager belong to the container that built a scheduler.
+/// The scheduler repository and the database provider belong to the container that built a scheduler.
 /// Neither has a process-wide instance any more (#3178), so two sets of schedulers in one process are
 /// independent of each other. That is observable, and these tests are what pin it down.
 /// </summary>
@@ -132,21 +132,31 @@ public sealed class SchedulerRepositoryIsolationTest
     }
 
     [Test]
-    public void TwoContainers_EachOwnTheirConnectionManager()
+    public void TwoContainers_EachOwnTheirDbProvider()
     {
-        using var first = BuildContainer("FirstConnectionScheduler");
-        using var second = BuildContainer("SecondConnectionScheduler");
+        // Same scheduler name on both sides, so the two data sources are named the same as well —
+        // which is exactly the collision the process-wide connection manager used to have.
+        using var first = BuildPersistentContainer("SharedName");
+        using var second = BuildPersistentContainer("SharedName");
 
-        var firstManager = first.GetRequiredService<IDbConnectionManager>();
-        var secondManager = second.GetRequiredService<IDbConnectionManager>();
+        var firstProvider = first.GetRequiredKeyedService<IDbProvider>("SharedName");
+        var secondProvider = second.GetRequiredKeyedService<IDbProvider>("SharedName");
 
-        firstManager.Should().NotBeSameAs(secondManager);
-
-        firstManager.AddDbProvider("shared-data-source-name", new StubDbProvider());
-
-        var act = () => secondManager.GetDbProvider("shared-data-source-name");
-        act.Should().Throw<ArgumentException>(
+        firstProvider.Should().NotBeSameAs(secondProvider,
             "a data source registered in one container must not leak into another");
+    }
+
+    private static ServiceProvider BuildPersistentContainer(string instanceName)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+        services.AddQuartz(instanceName, q => q.UsePersistentStore(store =>
+        {
+            store.Configure(options => options.DataSource = instanceName);
+            store.Services.AddKeyedSingleton<IDbProvider>(instanceName, new StubDbProvider());
+        }));
+        return services.BuildServiceProvider();
     }
 
     private static ServiceProvider BuildContainer(string instanceName)

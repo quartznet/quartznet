@@ -70,7 +70,6 @@ public abstract class AdoJobStoreBase : IJobStore
         IOptions<AdoJobStoreOptions> storeOptions,
         IOptions<ClusteringOptions> clusteringOptions,
         IObjectSerializer objectSerializer,
-        IDbConnectionManager connectionManager,
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
         ISemaphore? lockHandler = null,
@@ -86,7 +85,6 @@ public abstract class AdoJobStoreBase : IJobStore
         // Created from the runtime type, so LocalTransactionJobStore and ExternalTransactionJobStore log
         // under their own names rather than everything arriving as AdoJobStoreBase.
         Logger = LogProvider.CreateLogger(GetType().FullName!);
-        ConnectionManager = connectionManager;
 
         var options = storeOptions.Value;
         DataSource = options.DataSource;
@@ -120,12 +118,10 @@ public abstract class AdoJobStoreBase : IJobStore
         // delegate when it is initialized.
         this.triggerPersistenceDelegates = triggerPersistenceDelegates?.ToArray() ?? [];
 
-        // The store uses the provider it was given. It is also published to the connection manager under
-        // the data source name, because code outside the container still resolves providers by name --
-        // but the store never reads it back, so two schedulers whose data sources happen to share a name
-        // cannot end up talking to each other's database.
+        // The store uses the provider it was given, and nothing else needs to be told about it: the
+        // container is the registry, keyed by scheduler name, so two schedulers whose data sources
+        // happen to share a name cannot end up talking to each other's database.
         DbProvider = dbProvider;
-        ConnectionManager.AddDbProvider(DataSource, dbProvider);
 
         // The delegate and lock handler are chosen by configuration and built by the container, rather
         // than loaded from a type name here.
@@ -142,11 +138,6 @@ public abstract class AdoJobStoreBase : IJobStore
     /// The name of the data source this store reads and writes through.
     /// </summary>
     protected internal string DataSource { get; } = "";
-
-    /// <summary>
-    /// The database connection manager this store publishes its provider to.
-    /// </summary>
-    protected internal IDbConnectionManager ConnectionManager { get; }
 
     /// <summary>
     /// Gets the log.

@@ -114,8 +114,8 @@ internal static class QuartzTypedOptions
         // decision with two knobs attached to it rather than three independent ones.
         services.Configure<ClusteringOptions>(name, jobStoreSection.GetSection(ClusteringSection));
 
-        // Data sources are named after themselves rather than after the scheduler, matching the way
-        // the connection manager keys providers.
+        // Data sources are named after themselves rather than after the scheduler, because several
+        // schedulers can read through the same one.
         foreach (var dataSource in quartzSection.GetSection(DataSourceSection).GetChildren())
         {
             services.Configure<DataSourceOptions>(dataSource.Key, dataSource);

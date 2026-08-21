@@ -30,8 +30,7 @@ namespace Quartz.Tests.Unit.Configuration;
 /// had said nothing. Every test here is a case where that has already happened once.
 /// </para>
 /// <para>
-/// Marked non-parallelizable because building a persistent store publishes its provider to the
-/// process-wide connection manager.
+/// Marked non-parallelizable because several of these build a whole scheduler out of a container.
 /// </para>
 /// </remarks>
 [NonParallelizable]

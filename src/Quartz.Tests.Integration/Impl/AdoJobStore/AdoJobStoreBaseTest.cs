@@ -15,7 +15,7 @@ public class AdoJobStoreBaseTest
     [Test]
     public void CanDetectTransientException()
     {
-        var jobStoreSupport = new TestAdoJobStoreBase(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler());
+        var jobStoreSupport = new TestAdoJobStoreBase(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler());
         var npgsqlException = new NpgsqlException("timeout", new TimeoutException());
         Assert.That(jobStoreSupport.IsTransientPublic(npgsqlException), Is.True);
 
@@ -46,11 +46,10 @@ public class AdoJobStoreBaseTest
         IOptions<AdoJobStoreOptions> storeOptions,
         IOptions<ClusteringOptions> clusteringOptions,
         IObjectSerializer objectSerializer,
-        IDbConnectionManager connectionManager,
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
         ISemaphore lockHandler)
-            : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
+            : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, dbProvider, driverDelegate, lockHandler)
         {
         }
 

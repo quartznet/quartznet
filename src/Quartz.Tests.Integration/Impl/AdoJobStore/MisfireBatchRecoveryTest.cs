@@ -43,8 +43,8 @@ public class MisfireBatchRecoveryTest
             await command.ExecuteNonQueryAsync();
         }
 
-        // The store publishes whatever provider it is handed into its own connection manager, so the test
-        // only has to build the provider — there is no shared manager to register it with.
+        // The store reads through the provider it is constructed with, so the test only has to build
+        // one — there is no registry to publish it to.
         dbProvider = new DbProvider("SQLite-Microsoft", $"Data Source={dbFileName};");
 
         commandCounter = new CountingSQLiteDelegate.Counter();
@@ -287,7 +287,6 @@ public class MisfireBatchRecoveryTest
                 }),
                 TestJobStores.ClusteringOptions(),
                 serializer,
-                TestJobStores.ConnectionManager(),
                 dbProvider,
                 driverDelegate,
                 TestJobStores.LockHandler())

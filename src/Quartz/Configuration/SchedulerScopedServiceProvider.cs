@@ -25,7 +25,7 @@ namespace Quartz.Configuration;
 /// <para>
 /// Wrapping the provider fixes it in one place: while constructing a component for scheduler
 /// <c>reporting</c>, a request for <see cref="ISchedulerSignaler"/> resolves <c>reporting</c>'s
-/// signaler. Services that are genuinely shared, such as loggers and the connection manager, are
+/// signaler. Services that are genuinely shared, such as loggers and the scheduler repository, are
 /// resolved normally.
 /// </para>
 /// </remarks>

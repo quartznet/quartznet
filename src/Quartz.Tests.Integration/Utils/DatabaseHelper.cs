@@ -20,8 +20,8 @@ public static class DatabaseHelper
     }
 
     /// <summary>
-    /// A provider for the given database. Connection managers are per-container now, so a test that
-    /// wants to look at the database itself builds its own provider rather than borrowing a scheduler's.
+    /// A provider for the given database. Providers are per-scheduler container registrations now, so a
+    /// test that wants to look at the database itself builds its own rather than borrowing a scheduler's.
     /// </summary>
     public static IDbProvider CreateDbProvider(string provider)
     {

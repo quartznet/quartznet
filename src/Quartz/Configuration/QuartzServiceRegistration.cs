@@ -59,11 +59,10 @@ internal static class QuartzServiceRegistration
 
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ITypeLoader, SimpleTypeLoader>();
-        // The repository and the connection manager belong to this container and nothing else. Neither has
-        // a process-wide instance any more, so "which repository am I in" is answered by which container
-        // built the scheduler rather than by how it was built.
+        // The repository belongs to this container and nothing else. It has no process-wide instance any
+        // more, so "which repository am I in" is answered by which container built the scheduler rather
+        // than by how it was built.
         services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
-        services.TryAddSingleton<IDbConnectionManager, DbConnectionManager>();
 
         // The container-wide set of trigger and calendar serializers, holding the built-in types. This is
         // what the parts of Quartz that are not tied to one scheduler read — the HTTP API, the dashboard

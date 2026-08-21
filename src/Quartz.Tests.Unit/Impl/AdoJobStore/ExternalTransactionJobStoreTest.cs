@@ -16,8 +16,8 @@ public class ExternalTransactionJobStoreTest
     public void SetUp()
     {
         // The store opens connections through the provider it was constructed with, rather than looking
-        // one up by name in the process-wide connection manager — two schedulers whose data sources
-        // share a name would otherwise reach each other's database.
+        // one up by data source name — two schedulers whose data sources share a name would otherwise
+        // reach each other's database.
         dbProvider = A.Fake<IDbProvider>();
         jobStore = new TestExternalTransactionJobStore(dbProvider);
     }
@@ -25,7 +25,7 @@ public class ExternalTransactionJobStoreTest
     private sealed class TestExternalTransactionJobStore : ExternalTransactionJobStore
     {
         public TestExternalTransactionJobStore(IDbProvider dbProvider, bool openConnection = false)
-            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(configure: o => o.OpenConnection = openConnection), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), dbProvider, TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(configure: o => o.OpenConnection = openConnection), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), dbProvider, TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
         }
 

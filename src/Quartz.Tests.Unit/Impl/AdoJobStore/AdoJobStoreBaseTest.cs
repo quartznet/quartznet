@@ -824,7 +824,7 @@ public class AdoJobStoreBaseTest
     {
 
     public TestAdoJobStoreBase(bool clustered = false, TimeProvider timeProvider = null)
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), timeProvider ?? TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), timeProvider ?? TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
     {
     }
         protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
@@ -950,7 +950,7 @@ public class AdoJobStoreBaseTest
             {
                 options.MaxTransientRetries = maxTransientRetries;
                 options.TransientRetryInterval = TimeSpan.Zero;
-            }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+            }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
         }
 
@@ -1186,7 +1186,7 @@ public class AdoJobStoreBaseTest
         {
             options.MaxTransientRetries = maxTransientRetries;
             options.TransientRetryInterval = TimeSpan.Zero;
-        }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
             LockHandler = new SimpleSemaphore();
         }
@@ -1359,7 +1359,7 @@ public class AdoJobStoreBaseTest
         {
             options.MaxTransientRetries = maxTransientRetries;
             options.TransientRetryInterval = TimeSpan.Zero;
-        }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
             LockHandler = new SimpleSemaphore();
         }

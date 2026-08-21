@@ -52,12 +52,11 @@ public class LocalTransactionJobStore : AdoJobStoreBase
         IOptions<AdoJobStoreOptions> storeOptions,
         IOptions<ClusteringOptions> clusteringOptions,
         IObjectSerializer objectSerializer,
-        IDbConnectionManager connectionManager,
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
         ISemaphore? lockHandler = null,
         IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null)
-        : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates)
+        : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates)
     {
     }
 
