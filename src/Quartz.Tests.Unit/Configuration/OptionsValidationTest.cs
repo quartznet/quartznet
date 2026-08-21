@@ -113,6 +113,42 @@ public class OptionsValidationTest
     }
 
     /// <summary>
+    /// Zero would reach ADO.NET as "wait forever", which is the opposite of what anyone setting a
+    /// timeout means, and a negative value throws when it is assigned to the command. Both are caught
+    /// at startup rather than at the first statement.
+    /// </summary>
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void ACommandTimeoutThatIsNotPositiveIsAConfigurationError(int seconds)
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.Configure(options =>
+        {
+            options.DataSource = "test";
+            options.CommandTimeout = TimeSpan.FromSeconds(seconds);
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*CommandTimeout*");
+    }
+
+    [Test]
+    public void ACommandTimeoutLeftUnsetIsFine()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.Configure(options => options.DataSource = "test")));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow("an unset timeout means the provider's own default, not a mistake");
+    }
+
+    /// <summary>
     /// Asking for clustering and then switching it off leaves database locking on, no cluster manager
     /// and no check-in row — a shape nobody means to configure. Not clustering is spelled by not calling
     /// <c>UseClustering</c>.

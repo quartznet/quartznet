@@ -112,6 +112,7 @@ public abstract class AdoJobStoreBase : IJobStore
         UseBackgroundThreads = options.UseBackgroundThreads;
         PerformSchemaValidation = options.PerformSchemaValidation;
         SelectWithLockSql = options.SelectWithLockSql;
+        CommandTimeout = options.CommandTimeout;
 
         // Registered through UseTriggerPersistenceDelegate<T>() (or translated from the legacy
         // quartz.jobStore.driverDelegateInitString key by the property bridge) and handed to the driver
@@ -373,6 +374,17 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <seealso cref="SelectForUpdateSemaphore" />
     protected internal string? SelectWithLockSql { get; internal set; }
 
+    /// <summary>
+    /// How long a statement this store issues may run before the provider cancels it, or
+    /// <see langword="null" /> to leave each provider's own default in place.
+    /// </summary>
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.CommandTimeout" />, and handed on to both the
+    /// driver delegate and the lock handler so that every statement — including the one that takes the
+    /// row lock — is bounded by the same value.
+    /// </remarks>
+    protected internal TimeSpan? CommandTimeout { get; }
+
     protected ITypeLoader TypeLoader => typeLoader;
 
     /// <summary>
@@ -632,6 +644,7 @@ public abstract class AdoJobStoreBase : IJobStore
             ObjectSerializer = ObjectSerializer,
             TriggerPersistenceDelegates = triggerPersistenceDelegates,
             TimeProvider = timeProvider,
+            CommandTimeout = CommandTimeout,
         });
     }
 

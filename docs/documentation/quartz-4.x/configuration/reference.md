@@ -134,6 +134,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `MisfireThreshold` | TimeSpan | `00:01:00` | How late a trigger may fire before it counts as misfired. |
 | `MisfireHandlerFrequency` | TimeSpan? | `MisfireThreshold` | How often misfires are handled. |
 | `MaxMisfiresToHandleAtATime` | int | `20` | How many misfired triggers are handled per pass. |
+| `CommandTimeout` | TimeSpan? | provider default | How long a statement may run before the provider cancels it, applied to every statement the store issues including the lock handler's. Unset leaves each provider's own default, usually 30 seconds. ADO.NET counts whole seconds, so the value is rounded **up** — `00:00:01.500` is applied as 2 seconds, because rounding down would turn a sub-second value into `0`, which means "no timeout". |
 | `DbRetryInterval` | TimeSpan | `00:00:15` | How long to wait before retrying after a database failure. |
 | `MaxTransientRetries` | int | `3` | How many times a transient failure such as a deadlock is retried. |
 | `TransientRetryInterval` | TimeSpan | `00:00:01` | Delay between transient retries. |
