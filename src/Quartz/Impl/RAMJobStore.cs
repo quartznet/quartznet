@@ -2308,6 +2308,7 @@ public sealed class RAMJobStore : IJobStore
                     calendarsByName.TryGetValue(tw.Trigger.CalendarName, out calendar);
                     if (calendar is null)
                     {
+                        logger.LogWarning("Trigger {TriggerKey} references calendar '{CalendarName}', which does not exist - the fire was skipped and the trigger will not run until the calendar is added or the reference is cleared.", tw.Trigger.Key, tw.Trigger.CalendarName);
                         results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
                         continue;
                     }

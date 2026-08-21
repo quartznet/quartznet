@@ -3617,6 +3617,7 @@ public abstract class AdoJobStoreBase : IJobStore
             calendar = await GetCalendar(conn, trigger.CalendarName, cancellationToken).ConfigureAwait(false);
             if (calendar is null)
             {
+                Logger.LogWarning("Trigger {TriggerKey} references calendar '{CalendarName}', which does not exist - the fire was skipped and the trigger will not run until the calendar is added or the reference is cleared.", trigger.Key, trigger.CalendarName);
                 return null;
             }
         }

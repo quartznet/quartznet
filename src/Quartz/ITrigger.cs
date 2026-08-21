@@ -114,6 +114,11 @@ public interface ITrigger
     /// Get or set  the <see cref="ICalendar" /> with the given name with
     /// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
     /// </summary>
+    /// <remarks>
+    /// A blank name means no calendar: the built-in trigger implementations store an empty or
+    /// whitespace-only name as <see langword="null" />, because a name no calendar can be found
+    /// under would otherwise stop the trigger from ever firing.
+    /// </remarks>
     string? CalendarName { get; }
 
     /// <summary>

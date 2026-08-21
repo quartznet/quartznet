@@ -189,7 +189,17 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// Get or set  the <see cref="ICalendar" /> with the given name with
     /// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
     /// </summary>
-    public virtual string? CalendarName { get; set; }
+    /// <remarks>
+    /// An empty or whitespace-only name is stored as <see langword="null" />. Every job store reads
+    /// a non-null calendar name as "this trigger observes a calendar" and silently drops the fire
+    /// when no such calendar exists, so a blank name has to mean no calendar rather than a calendar
+    /// nothing can find. The value is not trimmed: a calendar is looked up by its exact stored name.
+    /// </remarks>
+    public virtual string? CalendarName
+    {
+        get;
+        set => field = string.IsNullOrWhiteSpace(value) ? null : value;
+    }
 
     /// <summary>
     /// Gets or sets the execution group for this trigger. Execution groups allow

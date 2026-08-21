@@ -31,7 +31,8 @@ namespace Quartz.Tests.Unit.Simpl;
 /// <summary>
 /// Both JSON serializers must keep reading the payload shapes written before 4.0 - those payloads
 /// are sitting in users' job store blobs, and an upgrade is not allowed to make them unreadable.
-/// The literals below are verbatim output from 3.x.
+/// The literals below are verbatim output from 3.x, including shapes an older Quartz wrote by
+/// mistake and still has to be read back sensibly.
 /// </summary>
 /// <remarks>
 /// Only reading is covered. Writing the new shape is deliberate, and the round trip through the
@@ -216,6 +217,34 @@ public class LegacyJsonPayloadTest
         }
         """;
 
+    /// <summary>
+    /// What the dashboard's reschedule wrote before #3294 was fixed: the detail page collapsed a
+    /// JSON null to an empty string, so text the trigger did not have arrived as "" rather than null.
+    /// </summary>
+    private const string BlankTextCronTrigger =
+        """
+        {
+          "TriggerType": "CronTrigger",
+          "Key": {
+            "Name": "BlankTextTriggerKey",
+            "Group": "BlankTextTriggerGroup"
+          },
+          "JobKey": null,
+          "Description": "",
+          "CalendarName": "",
+          "JobDataMap": {},
+          "MisfireInstruction": 0,
+          "StartTimeUtc": "2024-07-01T00:00:00+00:00",
+          "EndTimeUtc": null,
+          "Priority": 5,
+          "NextFireTimeUtc": "2024-07-01T03:35:00+00:00",
+          "PreviousFireTimeUtc": null,
+          "ExecutionGroup": "",
+          "CronExpressionString": "0 0/5 * * * ?",
+          "TimeZone": "UTC"
+        }
+        """;
+
     private const string LegacyCalendarIntervalTrigger =
         """
         {
@@ -387,6 +416,16 @@ public class LegacyJsonPayloadTest
         cron.Priority.Should().Be(7);
         cron.MisfireInstructionCode.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
         cron.EndTimeUtc.Should().BeNull();
+    }
+
+    [Test(Description = "https://github.com/quartznet/quartznet/issues/3294")]
+    public void BlankCalendarNameReadsBackAsNoCalendarAtAll()
+    {
+        var trigger = Deserialize<IOperableTrigger>(BlankTextCronTrigger);
+
+        trigger.CalendarName.Should().BeNull(
+            "every job store gates its calendar lookup on a non-null name, so a blank one would be looked up, not found, and the trigger would never fire again");
+        ((TriggerBase) trigger).ExecutionGroup.Should().BeNull("the execution group setter has always normalized blanks");
     }
 
     [Test]

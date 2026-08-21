@@ -864,6 +864,13 @@ internal sealed class QuartzScheduler
         if (newTrigger.CalendarName is not null)
         {
             calendar = await resources.JobStore.GetCalendar(newTrigger.CalendarName, cancellationToken).ConfigureAwait(false);
+            if (calendar is null)
+            {
+                // Rescheduling validates the calendar the same way scheduling does. Storing a
+                // trigger whose calendar cannot be found leaves it in place but never fires it,
+                // which is far harder to diagnose than a failed call.
+                Throw.SchedulerException($"Calendar not found: {newTrigger.CalendarName}");
+            }
         }
 
         DateTimeOffset? ft;
