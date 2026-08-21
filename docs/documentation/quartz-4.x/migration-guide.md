@@ -921,6 +921,56 @@ default scheduler's, and with only named schedulers it fails validation. Take th
 `IJobExecutionContext.Scheduler`, which is the scheduler that is actually running the job, or register
 the job yourself with a factory that resolves what it needs by key.
 
+## A component of your own is chosen the same way a shipped one is
+
+Three seams that had no code-first spelling at all, and one that only worked through a type-name string:
+
+```csharp
+q.UseJobStore<MyJobStore>();                                   // built by the container
+q.UseJobStore<MyJobStore, MyJobStoreOptions>(o => o.X = 1);     // with options of its own
+q.UseJobStore(provider => new MyJobStore(provider.GetRequiredService<ISchedulerSignaler>()));
+
+q.UseInstanceIdGenerator<HostNameInstanceIdGenerator>();
+```
+
+`UseJobStore<T>` is the seam for a store that keeps scheduling data somewhere Quartz has never heard of;
+`UseInMemoryStore` and `UsePersistentStore<T>` remain the way to select the stores Quartz ships, since
+they configure them as well as choose them. `UseJobStore(IJobStore)`, which takes a store you built
+yourself, is unchanged.
+
+`UseInstanceIdGenerator<T>()` replaces the pair of keys `quartz.scheduler.instanceId = AUTO` and
+`quartz.scheduler.instanceIdGenerator.type`, and it says both: choosing a generator sets
+`GenerateInstanceId`, because a generator that was chosen and then never called is configuration that
+says nothing. Only a clustered scheduler generates an id — the generator is not called otherwise — which
+is unchanged.
+
+The `<T, TOptions>` shapes are sugar over `ConfigureOptions<TOptions>`: the options are declared as that
+scheduler's, so a component that takes `IOptions<TOptions>` under `AddQuartz("reporting", …)` is handed
+what was configured for `reporting` rather than the unnamed instance.
+
+## Listener matchers are a collection
+
+The builder's nine listener overloads took `params IMatcher<T>[]`; they take
+`params IReadOnlyCollection<IMatcher<T>>`, which is what `IListenerManager.AddJobListener` and
+`AddTriggerListener` already took. Existing call sites are unaffected — loose arguments still bind, and
+an array is still a `IReadOnlyCollection<T>` — and a caller that holds a `List<IMatcher<JobKey>>` no
+longer has to call `ToArray()` on the way in.
+
+## `AddQuartzHttpApi` has an `IServiceCollection` overload
+
+The HTTP API serves every scheduler in the container through one set of endpoints, so it was never a
+scheduler's own setting; it just had nowhere else to be written:
+
+```diff
+- services.AddQuartz(q => q.AddQuartzHttpApi());
++ services.AddQuartzHttpApi();
+```
+
+The `IQuartzBuilder` overload still exists and is the same call written where a scheduler is being
+configured. `QuartzHttpApiOptions` stays singular for the same reason: `ApiPath` is a property of the
+process, and calling `AddQuartzHttpApi(configure)` from two `AddQuartz` callbacks configures the same
+options twice, last callback winning.
+
 ## One shape per registration method
 
 The `AddJob` / `AddTrigger` / `AddCalendar` grid had overloads that said the same thing twice, and
@@ -5245,6 +5295,10 @@ Parameters and behavior are unchanged:
 | `GetScheduler()` after `Shutdown()` throws | 3.x built a fresh scheduler, because the factory constructed every part itself. The container owns those lifetimes now, so the same call would re-initialize the thread pool and job store the shutdown just tore down and hand back the same closed instance. It throws `SchedulerException` instead. Use `Standby()`/`Start()` to pause and resume a scheduler, or build a new host or container for a fresh one |
 | `QuartzSchedulerBuilder` implements `IQuartzBuilder` | Its five duplicated members and `Configure(Action<IQuartzBuilder>)` are gone, and configuration members return `IQuartzBuilder`, so `Build()` is called on a builder held in a variable — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
 | `IQuartzBuilder` gained `UseThreadPool(IThreadPool)` and `UseJobStore(IJobStore)` | A pre-built part can be handed to a scheduler registered with `AddQuartz`, not only to a standalone one |
+| `IQuartzBuilder` gained `UseJobStore<T>` / `<T, TOptions>` / factory | The seam for a job store of your own, built by the container with its scheduler's collaborators — see [A component of your own is chosen the same way a shipped one is](#a-component-of-your-own-is-chosen-the-same-way-a-shipped-one-is) |
+| `IQuartzBuilder` gained `UseInstanceIdGenerator<T>` / `<T, TOptions>` / instance | Replaces `quartz.scheduler.instanceIdGenerator.type`, and sets `GenerateInstanceId` because choosing a generator means the id is generated |
+| The builder's listener overloads take `params IReadOnlyCollection<IMatcher<T>>` | Aligned with `IListenerManager`; existing call sites are unaffected |
+| `AddQuartzHttpApi` has an `IServiceCollection` overload | The API is container-wide, not one scheduler's — `services.AddQuartzHttpApi()` |
 | Clustering settings moved to `ClusteringOptions` | `AdoJobStoreOptions.Clustered` and the two `ClusterCheckin*` settings are gone; `IJobStore.Clustered` reports the state rather than setting it — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
 | `AdoJobStoreBase`'s constructor takes `IOptions<ClusteringOptions>` | Between `storeOptions` and `objectSerializer`; a job store deriving from it has to pass one on |
 | `UseSQLite` is `UseSystemDataSqlite`, `UseMicrosoftSQLite` is `UseSqlite` | **The short name changed meaning** — see [The SQLite extension methods swapped names](#the-sqlite-extension-methods-swapped-names) |

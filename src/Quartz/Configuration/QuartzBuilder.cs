@@ -88,6 +88,31 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return this;
     }
 
+    public IQuartzBuilder UseJobStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IJobStore
+    {
+        Register<IJobStore, T>();
+        return this;
+    }
+
+    public IQuartzBuilder UseJobStore<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure = null)
+        where T : class, IJobStore
+        where TOptions : class
+    {
+        ConfigureOptions(configure);
+        return UseJobStore<T>();
+    }
+
+    public IQuartzBuilder UseJobStore(Func<IServiceProvider, IJobStore> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        RegisterConfigured<IJobStore>((provider, key) => factory(SchedulerScopedServiceProvider.For(provider, key)));
+        return this;
+    }
+
     public IQuartzBuilder UseInMemoryStore(Action<InMemoryJobStoreOptions>? configure = null)
     {
         if (configure is not null)
@@ -153,6 +178,47 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         // Type loading is a container-wide concern rather than a per-scheduler one.
         Services.Replace(ServiceDescriptor.Singleton<ITypeLoader, T>());
         return this;
+    }
+
+    public IQuartzBuilder UseInstanceIdGenerator<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IInstanceIdGenerator
+    {
+        GenerateInstanceId();
+        Register<IInstanceIdGenerator, T>();
+        return this;
+    }
+
+    public IQuartzBuilder UseInstanceIdGenerator<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure = null)
+        where T : class, IInstanceIdGenerator
+        where TOptions : class
+    {
+        ConfigureOptions(configure);
+        return UseInstanceIdGenerator<T>();
+    }
+
+    public IQuartzBuilder UseInstanceIdGenerator(IInstanceIdGenerator generator)
+    {
+        ArgumentNullException.ThrowIfNull(generator);
+        GenerateInstanceId();
+        RegisterConfigured<IInstanceIdGenerator>((_, _) => generator);
+        return this;
+    }
+
+    /// <summary>
+    /// Says the instance id is to be generated, which is what choosing a generator means.
+    /// </summary>
+    /// <remarks>
+    /// The flat format spells this as <c>quartz.scheduler.instanceId = AUTO</c> beside the generator's
+    /// type name, and a generator named without it is never called. Two things to say for one intention
+    /// is one thing to forget, so choosing a generator says both. A scheduler that means the opposite can
+    /// still say so afterwards, since options are last-wins.
+    /// </remarks>
+    private void GenerateInstanceId()
+    {
+        Services.Configure<QuartzSchedulerOptions>(OptionsName, options => options.GenerateInstanceId = true);
     }
 
     public IQuartzBuilder UseTimeProvider(TimeProvider timeProvider)
@@ -308,44 +374,44 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     }
 
     public IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+        params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener
     {
-        AddContent(new JobListenerRegistration(typeof(T), matchers));
+        AddContent(new JobListenerRegistration(typeof(T), [.. matchers]));
         return this;
     }
 
     public IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        T listener, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+        T listener, params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener
     {
-        AddContent(new JobListenerRegistration(typeof(T), matchers, listenerInstance: listener));
+        AddContent(new JobListenerRegistration(typeof(T), [.. matchers], listenerInstance: listener));
         return this;
     }
 
     public IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Func<IServiceProvider, T> factory, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+        Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener
     {
-        AddContent(new JobListenerRegistration(typeof(T), matchers, listenerFactory: provider => factory(provider)));
+        AddContent(new JobListenerRegistration(typeof(T), [.. matchers], listenerFactory: provider => factory(provider)));
         return this;
     }
 
     public IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+        params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener
     {
-        AddContent(new TriggerListenerRegistration(typeof(T), matchers));
+        AddContent(new TriggerListenerRegistration(typeof(T), [.. matchers]));
         return this;
     }
 
     public IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        T listener, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+        T listener, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener
     {
-        AddContent(new TriggerListenerRegistration(typeof(T), matchers, listenerInstance: listener));
+        AddContent(new TriggerListenerRegistration(typeof(T), [.. matchers], listenerInstance: listener));
         return this;
     }
 
     public IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Func<IServiceProvider, T> factory, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+        Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener
     {
-        AddContent(new TriggerListenerRegistration(typeof(T), matchers, listenerFactory: provider => factory(provider)));
+        AddContent(new TriggerListenerRegistration(typeof(T), [.. matchers], listenerFactory: provider => factory(provider)));
         return this;
     }
 

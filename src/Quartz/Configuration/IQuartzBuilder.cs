@@ -94,10 +94,57 @@ public interface IQuartzBuilder
     /// </summary>
     /// <remarks>
     /// For a store that needs constructing with something the container cannot supply. A store the
-    /// container can build is better selected with <see cref="UsePersistentStore{T}"/> or
-    /// <see cref="UseInMemoryStore"/>, which configure it as well as choose it.
+    /// container can build is better selected with <see cref="UseJobStore{T}"/>,
+    /// <see cref="UsePersistentStore{T}"/> or <see cref="UseInMemoryStore"/>, which let it have
+    /// dependencies of its own.
     /// </remarks>
     IQuartzBuilder UseJobStore(IJobStore jobStore);
+
+    /// <summary>
+    /// Uses a job store of your own, built by the container.
+    /// </summary>
+    /// <remarks>
+    /// The seam for a store that keeps scheduling data somewhere Quartz has never heard of. It is
+    /// constructed with this scheduler's own collaborators — its signaler, its serializer, its type
+    /// loader — so a store written against them behaves the same under a named scheduler as under the
+    /// default one. <see cref="UseInMemoryStore"/> and <see cref="UsePersistentStore{T}"/> remain the way
+    /// to select the stores Quartz ships, since they configure them as well as choose them.
+    /// </remarks>
+    /// <typeparam name="T">The job store's type.</typeparam>
+    IQuartzBuilder UseJobStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IJobStore;
+
+    /// <summary>
+    /// Uses a job store of your own, with options of its own.
+    /// </summary>
+    /// <remarks>
+    /// Sugar over <see cref="UseJobStore{T}"/> and <see cref="ConfigureOptions{TOptions}"/>: the options
+    /// are declared as this scheduler's, so a store that takes <c>IOptions&lt;TOptions&gt;</c> is handed
+    /// what was configured for the scheduler it belongs to rather than the unnamed instance.
+    /// </remarks>
+    /// <typeparam name="T">The job store's type.</typeparam>
+    /// <typeparam name="TOptions">
+    /// The store's options type. It is resolved through <c>IOptions&lt;TOptions&gt;</c>, so it must keep
+    /// its public parameterless constructor when the application is trimmed.
+    /// </typeparam>
+    /// <param name="configure">Configures the store's options.</param>
+    IQuartzBuilder UseJobStore<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure = null)
+        where T : class, IJobStore
+        where TOptions : class;
+
+    /// <summary>
+    /// Uses a job store built by a factory of your own.
+    /// </summary>
+    /// <remarks>
+    /// For a store that needs something the container cannot construct on its own — a decorator around
+    /// another store, or one whose constructor takes values rather than services. The factory is given
+    /// this scheduler's view of the container and runs once, when the scheduler is built.
+    /// </remarks>
+    /// <param name="factory">Builds the job store.</param>
+    IQuartzBuilder UseJobStore(Func<IServiceProvider, IJobStore> factory);
 
     /// <summary>
     /// Uses a database-backed job store, so jobs and triggers survive restarts and can be clustered.
@@ -127,6 +174,50 @@ public interface IQuartzBuilder
     /// </summary>
     IQuartzBuilder UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, ITypeLoader;
+
+    /// <summary>
+    /// Uses a specific instance id generator, which names this node within a cluster.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Choosing a generator says the id is to be generated, so
+    /// <see cref="QuartzSchedulerOptions.GenerateInstanceId"/> is set — the counterpart of writing
+    /// <c>quartz.scheduler.instanceId = AUTO</c> beside the generator's type name. A generator that was
+    /// chosen and then never called would be the configuration equivalent of silence.
+    /// </para>
+    /// <para>
+    /// Only a clustered scheduler generates one: a scheduler that shares its database with nobody has
+    /// nothing to tell itself apart from, so the generator is not called and the id stays
+    /// <c>NON_CLUSTERED</c>.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="T">The generator's type.</typeparam>
+    IQuartzBuilder UseInstanceIdGenerator<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IInstanceIdGenerator;
+
+    /// <summary>
+    /// Uses an instance id generator with options of its own.
+    /// </summary>
+    /// <inheritdoc cref="UseInstanceIdGenerator{T}()" path="/remarks" />
+    /// <typeparam name="T">The generator's type.</typeparam>
+    /// <typeparam name="TOptions">
+    /// The generator's options type. It is resolved through <c>IOptions&lt;TOptions&gt;</c>, so it must
+    /// keep its public parameterless constructor when the application is trimmed.
+    /// </typeparam>
+    /// <param name="configure">Configures the generator's options.</param>
+    IQuartzBuilder UseInstanceIdGenerator<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure = null)
+        where T : class, IInstanceIdGenerator
+        where TOptions : class;
+
+    /// <summary>
+    /// Uses an instance id generator the caller has already built.
+    /// </summary>
+    /// <inheritdoc cref="UseInstanceIdGenerator{T}()" path="/remarks" />
+    /// <param name="generator">The generator.</param>
+    IQuartzBuilder UseInstanceIdGenerator(IInstanceIdGenerator generator);
 
     /// <summary>
     /// Uses a specific time provider. Useful for testing time-dependent scheduling.
@@ -254,22 +345,22 @@ public interface IQuartzBuilder
         Func<IServiceProvider, T> factory) where T : class, ISchedulerListener;
 
     IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        params IMatcher<JobKey>[] matchers) where T : class, IJobListener;
+        params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener;
 
     IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        T listener, params IMatcher<JobKey>[] matchers) where T : class, IJobListener;
+        T listener, params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener;
 
     IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Func<IServiceProvider, T> factory, params IMatcher<JobKey>[] matchers) where T : class, IJobListener;
+        Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener;
 
     IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener;
+        params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener;
 
     IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        T listener, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener;
+        T listener, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener;
 
     IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Func<IServiceProvider, T> factory, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener;
+        Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener;
 
     /// <summary>
     /// Configures per-node execution group limits, so resource-hungry jobs cannot saturate every thread.
