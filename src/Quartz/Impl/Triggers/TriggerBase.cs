@@ -423,7 +423,12 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// the <see cref="ITrigger" /> can be placed into a <see cref="IScheduler" />.
     /// </remarks>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
+    // S5766 (validate data in deserialization constructors): the [Serializable] attribute exists only
+    // for the documented BinaryFormatter blob-migration contract, whose deserialization is field-based
+    // and runs no constructor at all — this one initializes a clock and receives no external data.
+#pragma warning disable S5766
     protected TriggerBase(TimeProvider? timeProvider = null)
+#pragma warning restore S5766
     {
         this.timeProvider = timeProvider ?? TimeProvider.System;
     }
