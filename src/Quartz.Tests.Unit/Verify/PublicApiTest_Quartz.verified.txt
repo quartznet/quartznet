@@ -261,6 +261,17 @@ namespace Quartz
         public string? ConnectionStringName { get; set; }
         public string Provider { get; set; }
         public bool UseRegisteredDataSource { get; set; }
+        public static class Providers
+        {
+            public const string Firebird = "Firebird";
+            public const string MySql = "MySql";
+            public const string MySqlConnector = "MySqlConnector";
+            public const string Npgsql = "Npgsql";
+            public const string Oracle = "OracleODPManaged";
+            public const string SqlServer = "SqlServer";
+            public const string Sqlite = "SQLite-Microsoft";
+            public const string SystemDataSqlite = "SQLite";
+        }
     }
     public sealed class DateBuilder
     {

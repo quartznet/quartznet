@@ -249,10 +249,27 @@ named scheduler will not see.
 
 | Option | Type | Description |
 |---|---|---|
-| `Provider` | string | Names the description of the ADO.NET driver to use. Set for you by the database methods above; see [Describing a driver Quartz does not know](#describing-a-driver-quartz-does-not-know) for a driver Quartz ships no description for. |
+| `Provider` | string | Names the description of the ADO.NET driver to use. Set for you by the database methods above; the names Quartz ships a description for are constants on `DataSourceOptions.Providers`, and see [Describing a driver Quartz does not know](#describing-a-driver-quartz-does-not-know) for anything else. |
 | `ConnectionString` | string? | The connection string. Takes precedence over `ConnectionStringName`. |
 | `ConnectionStringName` | string? | A connection string to resolve from `IConfiguration`. |
 | `UseRegisteredDataSource` | bool | Connections come from a `DbDataSource` in the container. Wins over both connection string settings. |
+
+The provider names Quartz ships a description for, as constants rather than as strings to copy out of
+this table:
+
+| Constant | Value | Driver |
+|---|---|---|
+| `DataSourceOptions.Providers.SqlServer` | `SqlServer` | `Microsoft.Data.SqlClient` |
+| `DataSourceOptions.Providers.Npgsql` | `Npgsql` | `Npgsql` |
+| `DataSourceOptions.Providers.MySql` | `MySql` | `MySql.Data` |
+| `DataSourceOptions.Providers.MySqlConnector` | `MySqlConnector` | `MySqlConnector` |
+| `DataSourceOptions.Providers.Oracle` | `OracleODPManaged` | managed ODP.NET |
+| `DataSourceOptions.Providers.Sqlite` | `SQLite-Microsoft` | `Microsoft.Data.Sqlite` |
+| `DataSourceOptions.Providers.SystemDataSqlite` | `SQLite` | `System.Data.SQLite` |
+| `DataSourceOptions.Providers.Firebird` | `Firebird` | `FirebirdSql.Data.FirebirdClient` |
+
+`Provider` stays a string rather than becoming an enum because the set is not closed: a driver Quartz
+knows nothing about is describable, which is what `UseGenericDatabase` is for.
 
 To connect through a `DbDataSource` registered in the container, for example by `AddNpgsqlDataSource`:
 

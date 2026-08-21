@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -27,51 +27,51 @@ public static class PersistentStoreBuilderExtensions
 {
     /// <summary>Stores the schedule in Microsoft SQL Server.</summary>
     public static IPersistentStoreBuilder UseSqlServer(this IPersistentStoreBuilder builder, string connectionString)
-        => builder.UseDatabase<SqlServerDelegate>("SqlServer", connectionString);
+        => builder.UseDatabase<SqlServerDelegate>(DataSourceOptions.Providers.SqlServer, connectionString);
 
     /// <summary>Stores the schedule in Microsoft SQL Server.</summary>
     public static IPersistentStoreBuilder UseSqlServer(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
-        => builder.UseDatabase<SqlServerDelegate>("SqlServer", configure);
+        => builder.UseDatabase<SqlServerDelegate>(DataSourceOptions.Providers.SqlServer, configure);
 
     /// <summary>Stores the schedule in PostgreSQL.</summary>
     public static IPersistentStoreBuilder UsePostgres(this IPersistentStoreBuilder builder, string connectionString)
-        => builder.UseDatabase<PostgreSQLDelegate>("Npgsql", connectionString);
+        => builder.UseDatabase<PostgreSQLDelegate>(DataSourceOptions.Providers.Npgsql, connectionString);
 
     /// <summary>Stores the schedule in PostgreSQL.</summary>
     public static IPersistentStoreBuilder UsePostgres(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
-        => builder.UseDatabase<PostgreSQLDelegate>("Npgsql", configure);
+        => builder.UseDatabase<PostgreSQLDelegate>(DataSourceOptions.Providers.Npgsql, configure);
 
     /// <summary>Stores the schedule in MySQL, using the MySql.Data driver.</summary>
     public static IPersistentStoreBuilder UseMySql(this IPersistentStoreBuilder builder, string connectionString)
-        => builder.UseDatabase<MySQLDelegate>("MySql", connectionString);
+        => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySql, connectionString);
 
     /// <summary>Stores the schedule in MySQL, using the MySql.Data driver.</summary>
     public static IPersistentStoreBuilder UseMySql(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
-        => builder.UseDatabase<MySQLDelegate>("MySql", configure);
+        => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySql, configure);
 
     /// <summary>Stores the schedule in MySQL, using the MySqlConnector driver.</summary>
     public static IPersistentStoreBuilder UseMySqlConnector(this IPersistentStoreBuilder builder, string connectionString)
-        => builder.UseDatabase<MySQLDelegate>("MySqlConnector", connectionString);
+        => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySqlConnector, connectionString);
 
     /// <summary>Stores the schedule in MySQL, using the MySqlConnector driver.</summary>
     public static IPersistentStoreBuilder UseMySqlConnector(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
-        => builder.UseDatabase<MySQLDelegate>("MySqlConnector", configure);
+        => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySqlConnector, configure);
 
     /// <summary>Stores the schedule in Firebird.</summary>
     public static IPersistentStoreBuilder UseFirebird(this IPersistentStoreBuilder builder, string connectionString)
-        => builder.UseDatabase<FirebirdDelegate>("Firebird", connectionString);
+        => builder.UseDatabase<FirebirdDelegate>(DataSourceOptions.Providers.Firebird, connectionString);
 
     /// <summary>Stores the schedule in Firebird.</summary>
     public static IPersistentStoreBuilder UseFirebird(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
-        => builder.UseDatabase<FirebirdDelegate>("Firebird", configure);
+        => builder.UseDatabase<FirebirdDelegate>(DataSourceOptions.Providers.Firebird, configure);
 
     /// <summary>Stores the schedule in Oracle.</summary>
     public static IPersistentStoreBuilder UseOracle(this IPersistentStoreBuilder builder, string connectionString)
-        => builder.UseDatabase<OracleDelegate>("OracleODPManaged", connectionString);
+        => builder.UseDatabase<OracleDelegate>(DataSourceOptions.Providers.Oracle, connectionString);
 
     /// <summary>Stores the schedule in Oracle.</summary>
     public static IPersistentStoreBuilder UseOracle(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
-        => builder.UseDatabase<OracleDelegate>("OracleODPManaged", configure);
+        => builder.UseDatabase<OracleDelegate>(DataSourceOptions.Providers.Oracle, configure);
 
     /// <summary>Stores the schedule in SQLite, using the Microsoft.Data.Sqlite driver.</summary>
     /// <remarks>
@@ -80,11 +80,11 @@ public static class PersistentStoreBuilderExtensions
     /// System.Data.SQLite driver is <see cref="UseSystemDataSqlite(IPersistentStoreBuilder, string)"/>.
     /// </remarks>
     public static IPersistentStoreBuilder UseSqlite(this IPersistentStoreBuilder builder, string connectionString)
-        => builder.UseDatabase<SQLiteDelegate>("SQLite-Microsoft", connectionString);
+        => builder.UseDatabase<SQLiteDelegate>(DataSourceOptions.Providers.Sqlite, connectionString);
 
     /// <inheritdoc cref="UseSqlite(IPersistentStoreBuilder, string)"/>
     public static IPersistentStoreBuilder UseSqlite(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
-        => builder.UseDatabase<SQLiteDelegate>("SQLite-Microsoft", configure);
+        => builder.UseDatabase<SQLiteDelegate>(DataSourceOptions.Providers.Sqlite, configure);
 
     /// <summary>Stores the schedule in SQLite, using the legacy System.Data.SQLite driver.</summary>
     /// <remarks>
@@ -92,11 +92,11 @@ public static class PersistentStoreBuilderExtensions
     /// <see cref="UseSqlite(IPersistentStoreBuilder, string)"/> is the one to reach for.
     /// </remarks>
     public static IPersistentStoreBuilder UseSystemDataSqlite(this IPersistentStoreBuilder builder, string connectionString)
-        => builder.UseDatabase<SQLiteDelegate>("SQLite", connectionString);
+        => builder.UseDatabase<SQLiteDelegate>(DataSourceOptions.Providers.SystemDataSqlite, connectionString);
 
     /// <inheritdoc cref="UseSystemDataSqlite(IPersistentStoreBuilder, string)"/>
     public static IPersistentStoreBuilder UseSystemDataSqlite(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
-        => builder.UseDatabase<SQLiteDelegate>("SQLite", configure);
+        => builder.UseDatabase<SQLiteDelegate>(DataSourceOptions.Providers.SystemDataSqlite, configure);
 
     /// <summary>
     /// Stores the schedule in a database Quartz has no specific support for, using the generic SQL
