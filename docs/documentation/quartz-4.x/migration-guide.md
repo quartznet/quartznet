@@ -3416,8 +3416,29 @@ public class ContextMergingJobFactory : MicrosoftDependencyInjectionJobFactory
 
 The merge was also defective in ways the removal fixes: the DI integration seeds a service-provider
 entry into every scheduler context, which no job has a property for, so every container-hosted fire
-logged a property miss — and threw, with `ThrowIfPropertyNotFound = true`; and the factory
+logged a property miss — and threw, with `PropertyMismatchBehavior.Throw`; and the factory
 enumerated the context while plugins could still be writing to it.
+
+### One setting says what a property miss does
+
+`PropertySettingJobFactory` had two independent booleans for one three-way decision, and their fourth
+combination was unreachable: `ThrowIfPropertyNotFound` threw before `WarnIfPropertyNotFound` could log,
+so setting both meant "throw". They are one `PropertyMismatchBehavior` property now.
+
+| 3.x | 4.x |
+|---|---|
+| both `false` (the default) | `PropertyMismatchBehavior.Ignore` (the default) |
+| `WarnIfPropertyNotFound = true` | `PropertyMismatchBehavior.Warn` |
+| `ThrowIfPropertyNotFound = true` | `PropertyMismatchBehavior.Throw` |
+| both `true` | `PropertyMismatchBehavior.Throw` — the warning was never reached |
+
+```diff
+- var factory = new PropertySettingJobFactory { ThrowIfPropertyNotFound = true };
++ var factory = new PropertySettingJobFactory { PropertyMismatchBehavior = PropertyMismatchBehavior.Throw };
+```
+
+`PropertyMismatchBehavior` is in `Quartz.Impl`, beside the factory. Neither boolean ever had a
+`quartz.*` property key, so nothing in the legacy configuration bridge changes.
 
 ### The factory is set where the scheduler is built
 
