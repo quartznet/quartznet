@@ -1,3 +1,5 @@
+using System.Net.Http;
+
 using FakeItEasy;
 
 using Quartz.Impl;
@@ -222,6 +224,72 @@ public sealed class SchedulerRepositoryTest
 
         Assert.That(repository.Lookup("myscheduler"), Is.SameAs(scheduler));
         Assert.That(repository.Lookup("MYSCHEDULER"), Is.SameAs(scheduler));
+    }
+
+    [Test]
+    public void ShutDownSchedulerIsNoLongerFoundByLookup()
+    {
+        IScheduler scheduler = CreateFakeScheduler("MyCluster", "node-1");
+        repository.Bind(scheduler);
+
+        repository.Lookup("MyCluster").Should().BeSameAs(scheduler, "a live scheduler is what a lookup is for");
+        repository.LookupAll().Should().ContainSingle().Which.Should().BeSameAs(scheduler);
+        repository.LookupByName("MyCluster").Should().ContainSingle().Which.Should().BeSameAs(scheduler);
+
+        A.CallTo(() => scheduler.IsShutdown).Returns(true);
+
+        repository.LookupAll().Should().BeEmpty(
+            "a scheduler bound here by hand never unbinds itself, so a read is what has to notice it died");
+        repository.Lookup("MyCluster").Should().BeNull();
+        repository.LookupByName("MyCluster").Should().BeEmpty();
+    }
+
+    [Test]
+    public void ShutDownSchedulerIsEvictedRatherThanFilteredOut()
+    {
+        IScheduler dead = CreateFakeScheduler("MyCluster", "node-1");
+        repository.Bind(dead);
+        A.CallTo(() => dead.IsShutdown).Returns(true);
+
+        repository.LookupAll().Should().BeEmpty();
+
+        // Filtering would leave the entry in place, and the name and instance id are still taken.
+        IScheduler replacement = CreateFakeScheduler("MyCluster", "node-1");
+        Action act = () => repository.Bind(replacement);
+
+        act.Should().NotThrow<SchedulerException>(
+            "the dead entry was dropped, so its name is free for a scheduler that replaces it");
+        repository.Lookup("MyCluster").Should().BeSameAs(replacement);
+    }
+
+    [Test]
+    public void ShutDownSchedulerIsEvictedWithoutDisturbingItsLiveSiblings()
+    {
+        IScheduler dead = CreateFakeScheduler("MyCluster", "node-1");
+        IScheduler alive = CreateFakeScheduler("MyCluster", "node-2");
+
+        repository.Bind(dead);
+        repository.Bind(alive);
+
+        A.CallTo(() => dead.IsShutdown).Returns(true);
+
+        repository.LookupAll().Should().ContainSingle().Which.Should().BeSameAs(alive);
+        repository.Lookup("MyCluster", "node-1").Should().BeNull();
+        repository.Lookup("MyCluster", "node-2").Should().BeSameAs(alive,
+            "one node of a cluster going away must not take the others with it");
+    }
+
+    [Test]
+    public void ASchedulerThatCannotAnswerIsKept()
+    {
+        IScheduler unreachable = CreateFakeScheduler("Remote", "node-1");
+        A.CallTo(() => unreachable.IsShutdown).Throws(new HttpRequestException("no route to host"));
+
+        repository.Bind(unreachable);
+
+        repository.LookupAll().Should().ContainSingle().Which.Should().BeSameAs(unreachable,
+            "a remote scheduler answers IsShutdown over the network, and unreachable is not shut down");
+        repository.Lookup("Remote").Should().BeSameAs(unreachable);
     }
 
     private static IScheduler CreateFakeScheduler(string name, string instanceId)

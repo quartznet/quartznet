@@ -37,6 +37,12 @@ namespace Quartz.Impl;
 /// can coexist (e.g., remote proxies to different cluster nodes). Pass an instance ID to
 /// <see cref="Lookup"/> to disambiguate between them.
 /// </para>
+/// <para>
+/// A scheduler that has shut down is dropped as soon as a read notices it. A scheduler unbinds itself
+/// from the repository its own container owns, and from no other, so one bound here by hand — the way a
+/// standalone scheduler is made visible to a dashboard or the HTTP API — would otherwise stay listed as a
+/// live scheduler for the rest of the process.
+/// </para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class SchedulerRepository : ISchedulerRepository
@@ -118,6 +124,9 @@ public sealed class SchedulerRepository : ISchedulerRepository
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Schedulers registered under this name that have shut down are evicted rather than returned.
+    /// </remarks>
     public IScheduler? Lookup(string schedulerName, string? instanceId = null)
     {
         lock (syncRoot)
@@ -126,6 +135,8 @@ public sealed class SchedulerRepository : ISchedulerRepository
             {
                 return null;
             }
+
+            EvictShutdown(schedulerName, list);
 
             foreach (SchedulerEntry entry in list)
             {
@@ -140,34 +151,93 @@ public sealed class SchedulerRepository : ISchedulerRepository
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Schedulers registered under this name that have shut down are evicted rather than returned.
+    /// </remarks>
     public List<IScheduler> LookupByName(string schedulerName)
     {
         lock (syncRoot)
         {
-            if (schedulers.TryGetValue(schedulerName, out List<SchedulerEntry>? list))
+            if (!schedulers.TryGetValue(schedulerName, out List<SchedulerEntry>? list))
             {
-                return list.ConvertAll(e => e.Scheduler);
+                return [];
             }
 
-            return [];
+            EvictShutdown(schedulerName, list);
+            return list.ConvertAll(e => e.Scheduler);
         }
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Schedulers that have shut down are evicted rather than returned. This is the read that sweeps the
+    /// whole repository, so it is what a dashboard or the HTTP API listing schedulers cleans up with.
+    /// </remarks>
     public List<IScheduler> LookupAll()
     {
         lock (syncRoot)
         {
             List<IScheduler> result = new List<IScheduler>();
-            foreach (List<SchedulerEntry> list in schedulers.Values)
+            List<string>? emptied = null;
+
+            // The lists are mutated in place, which leaves the dictionary itself untouched and so safe to
+            // enumerate; the names whose lists ran dry are removed afterwards.
+            foreach ((string name, List<SchedulerEntry> list) in schedulers)
             {
+                list.RemoveAll(static entry => HasShutDown(entry.Scheduler));
+                if (list.Count == 0)
+                {
+                    (emptied ??= []).Add(name);
+                    continue;
+                }
+
                 foreach (SchedulerEntry entry in list)
                 {
                     result.Add(entry.Scheduler);
                 }
             }
 
+            if (emptied is not null)
+            {
+                foreach (string name in emptied)
+                {
+                    schedulers.Remove(name);
+                }
+            }
+
             return result;
+        }
+    }
+
+    /// <summary>
+    /// Drops the entries under one name whose schedulers have shut down. Called with the lock held.
+    /// </summary>
+    private void EvictShutdown(string schedulerName, List<SchedulerEntry> list)
+    {
+        if (list.RemoveAll(static entry => HasShutDown(entry.Scheduler)) > 0 && list.Count == 0)
+        {
+            schedulers.Remove(schedulerName);
+        }
+    }
+
+    /// <summary>
+    /// Asks a scheduler whether it has shut down, treating an unanswerable question as "no".
+    /// </summary>
+    /// <remarks>
+    /// A local scheduler reads a field. A remote one answers over the network and may simply be
+    /// unreachable — and unreachable is not shut down, so the entry stays. Evicting a proxy because a
+    /// request failed would lose the only handle the caller has to a scheduler that is probably still
+    /// running.
+    /// </remarks>
+    private static bool HasShutDown(IScheduler scheduler)
+    {
+        try
+        {
+            return scheduler.IsShutdown;
+        }
+        catch
+        {
+            return false;
         }
     }
 
