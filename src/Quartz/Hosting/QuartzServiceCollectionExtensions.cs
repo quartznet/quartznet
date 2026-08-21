@@ -6,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace Quartz;
 
-public static class QuartzServiceCollectionExtensions
+public static partial class QuartzServiceCollectionExtensions
 {
     /// <summary>
     /// Adds a <see cref="QuartzHostedService"/> to the <see cref="IServiceCollection"/>, which starts
