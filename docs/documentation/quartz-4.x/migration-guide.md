@@ -1132,22 +1132,35 @@ updated; the `Starting`/`Started`/`Stopping`/`Stopped` overrides are unchanged. 
 + app.MapQuartzHttpApi().RequireAuthorization();
 ```
 
-`AddQuartzHealthChecks` gained an `IQuartzBuilder` overload, so a named scheduler can register a health
-check that reports on *its* scheduler rather than the default one. It is named
+The health check composes with an application's other checks rather than needing a call of its own:
+
+```csharp
+services.AddHealthChecks()
+    .AddSqlServer(connectionString)
+    .AddQuartz()
+    .AddQuartz("Reporting");
+```
+
+`services.AddQuartzHealthChecks()` still works and is now shorthand for
+`services.AddHealthChecks().AddQuartz()`. A named scheduler can also ask for its own check from inside
+`AddQuartz`, and it reports on *its* scheduler rather than the default one; either way it is named
 `quartz-scheduler-<scheduler name>` unless you say otherwise:
 
 ```csharp
-services.AddQuartz("Reporting", q => q.AddQuartzHealthChecks(options => options.Tags = ["ready"]));
+services.AddQuartz("Reporting", q => q.AddQuartzHealthChecks(options => options.Tags.Add("ready")));
 ```
 
-`QuartzHealthCheckOptions.Tags` is a settable `IReadOnlyCollection<string>` rather than a get-only
-`List<string>`, so assign a collection instead of calling `Add`:
+`QuartzHealthCheckOptions` goes through the options pipeline. It used to be constructed and read inside
+the registration call, so `services.Configure<QuartzHealthCheckOptions>(...)` and a configuration section
+bound to the type silently did nothing; both now apply, whichever order they are written in. The options
+belong to the scheduler being checked, so a named scheduler's are configured under its name:
 
-```diff
-- options.Tags.Add("ready");
-- options.Tags.Add("live");
-+ options.Tags = ["ready", "live"];
+```csharp
+services.Configure<QuartzHealthCheckOptions>("Reporting", options => options.Tags.Add("ready"));
 ```
+
+`QuartzHealthCheckOptions.Name` is nullable, and left unset the check is named after the scheduler it
+reports on. Assigning a name still overrides that.
 
 ## The OpenAPI calendar schema names the properties the payload actually uses
 
@@ -5025,11 +5038,11 @@ now starts, and [The ASP.NET Core methods say Quartz once](#the-asp-net-core-met
 for the rest of that package.
 
 The health-check overload that took `IEnumerable<string> healthCheckTags` is gone with it; tags are
-`QuartzHealthCheckOptions.Tags`, which is assigned rather than added to:
+`QuartzHealthCheckOptions.Tags`, which is added to rather than assigned:
 
 ```diff
 - services.AddQuartzServer(configure, healthCheckTags: ["ready", "live"]);
-+ services.AddQuartzHealthChecks(options => options.Tags = ["ready", "live"]);
++ services.AddQuartzHealthChecks(options => options.Tags.AddRange(["ready", "live"]));
 ```
 
 ## The ambient logger factory stays ambient
@@ -5286,6 +5299,8 @@ Parameters and behavior are unchanged:
 | `QuartzHostedService` takes an `IServiceProvider` and an `IOptionsMonitor` | It resolves every scheduler in the container when the host starts — see [The hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler) |
 | `AddQuartzHostedService(string schedulerName, …)` added | `QuartzHostedServiceOptions` are named options; the unnamed call still configures every scheduler |
 | `IQuartzBuilder.AddHttpApi` / `MapQuartzApi` renamed | `AddQuartzHttpApi` / `MapQuartzHttpApi`; `AddQuartzHealthChecks` gained an `IQuartzBuilder` overload |
+| The health check is added on `IHealthChecksBuilder` | `AddHealthChecks().AddQuartz()` / `.AddQuartz("reporting")`, so it composes with an application's other checks. `AddQuartzHealthChecks()` is shorthand for the first — see [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once) |
+| `QuartzHealthCheckOptions` goes through the options pipeline | It was constructed and read inside the registration call, so `services.Configure<QuartzHealthCheckOptions>(...)` did nothing. `Name` is nullable and defaults to the scheduler's check name |
 | `QuartzHealthCheckOptions.Tags` is a settable `IReadOnlyCollection<string>` | Assign `["ready", "live"]` rather than calling `Add` twice |
 | `QuartzSchedulerBuilder.Build()` returns `StandaloneSchedulerFactory` | It is an `ISchedulerFactory` that is also `IAsyncDisposable` and `IDisposable`, so disposing the container needs no cast |
 | `JobBuilder<TJob>.Key` is public | Reports the identity the builder was given, or `null` when none was set, so a trigger registered alongside a job can agree with it |

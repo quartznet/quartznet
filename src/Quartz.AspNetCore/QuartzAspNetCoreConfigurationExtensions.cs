@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
 using Quartz.AspNetCore.HttpApi;
@@ -18,6 +19,10 @@ public static class QuartzAspNetCoreConfigurationExtensions
     /// Registers a health check for the default Quartz scheduler that reports unhealthy when the
     /// scheduler is not running or cannot reach its store.
     /// </summary>
+    /// <remarks>
+    /// Shorthand for <c>services.AddHealthChecks().AddQuartz(configure)</c>, for an application that has
+    /// no other health checks to compose with.
+    /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">
     /// Optional configuration for the health check registration, allowing the name, tags and failure
@@ -28,7 +33,8 @@ public static class QuartzAspNetCoreConfigurationExtensions
         Action<QuartzHealthCheckOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(services);
-        return AddCheck(services, schedulerName: null, configure);
+        services.AddHealthChecks().AddQuartz(configure);
+        return services;
     }
 
     /// <summary>
@@ -50,35 +56,97 @@ public static class QuartzAspNetCoreConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        AddCheck(
-            builder.Services,
-            builder.SchedulerName.Length == 0 ? null : builder.SchedulerName,
-            configure);
+        var checks = builder.Services.AddHealthChecks();
+        if (builder.SchedulerName.Length == 0)
+        {
+            checks.AddQuartz(configure);
+        }
+        else
+        {
+            checks.AddQuartz(builder.SchedulerName, configure);
+        }
 
         return builder;
     }
 
-    private static IServiceCollection AddCheck(
-        IServiceCollection services,
+    /// <summary>
+    /// Adds a health check for the default Quartz scheduler, alongside an application's other checks.
+    /// </summary>
+    /// <param name="builder">The health checks builder.</param>
+    /// <param name="configure">Configures the check's name, tags and failure status.</param>
+    public static IHealthChecksBuilder AddQuartz(
+        this IHealthChecksBuilder builder,
+        Action<QuartzHealthCheckOptions>? configure = null)
+    {
+        return AddQuartzCheck(builder, schedulerName: null, configure);
+    }
+
+    /// <summary>
+    /// Adds a health check for one named Quartz scheduler.
+    /// </summary>
+    /// <param name="builder">The health checks builder.</param>
+    /// <param name="schedulerName">The name the scheduler was registered under with <c>AddQuartz(name, …)</c>.</param>
+    /// <param name="configure">Configures the check's name, tags and failure status.</param>
+    public static IHealthChecksBuilder AddQuartz(
+        this IHealthChecksBuilder builder,
+        string schedulerName,
+        Action<QuartzHealthCheckOptions>? configure = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schedulerName);
+        return AddQuartzCheck(builder, schedulerName, configure);
+    }
+
+    /// <summary>
+    /// Registers the check, reading its settings from the options pipeline rather than from a callback
+    /// applied on the spot.
+    /// </summary>
+    /// <remarks>
+    /// The registration is built when the health check service is, by which time every source of
+    /// <see cref="QuartzHealthCheckOptions"/> has had its say — so
+    /// <c>services.Configure&lt;QuartzHealthCheckOptions&gt;(…)</c> and a configuration section bound to
+    /// the type mean something, which they did not while the options object was constructed and read
+    /// inside this method. A scheduler's check reads the options registered under that scheduler's name,
+    /// like every other per-scheduler setting.
+    /// </remarks>
+    private static IHealthChecksBuilder AddQuartzCheck(
+        IHealthChecksBuilder builder,
         string? schedulerName,
         Action<QuartzHealthCheckOptions>? configure)
     {
-        var options = new QuartzHealthCheckOptions
+        ArgumentNullException.ThrowIfNull(builder);
+
+        var optionsName = schedulerName ?? Options.DefaultName;
+
+        if (configure is not null)
         {
-            Name = schedulerName is null ? "quartz-scheduler" : $"quartz-scheduler-{schedulerName}",
-        };
+            builder.Services.Configure(optionsName, configure);
+        }
 
-        configure?.Invoke(options);
+        builder.Services
+            .AddOptions<HealthCheckServiceOptions>()
+            .Configure<IOptionsMonitor<QuartzHealthCheckOptions>>((healthChecks, quartz) =>
+            {
+                var options = quartz.Get(optionsName);
 
-        services
-            .AddHealthChecks()
-            .AddTypeActivatedCheck<QuartzHealthCheck>(
-                options.Name,
-                failureStatus: options.FailureStatus,
-                tags: options.Tags,
-                args: [new SchedulerHealthCheckTarget(schedulerName)]);
+                healthChecks.Registrations.Add(new HealthCheckRegistration(
+                    options.Name ?? DefaultCheckName(schedulerName),
+                    serviceProvider => ActivatorUtilities.CreateInstance<QuartzHealthCheck>(
+                        serviceProvider,
+                        new SchedulerHealthCheckTarget(schedulerName)),
+                    options.FailureStatus,
+                    options.Tags));
+            });
 
-        return services;
+        return builder;
+    }
+
+    /// <summary>
+    /// What a scheduler's check is called when nothing named it: distinct per scheduler, so several can
+    /// be registered side by side.
+    /// </summary>
+    private static string DefaultCheckName(string? schedulerName)
+    {
+        return schedulerName is null ? "quartz-scheduler" : $"quartz-scheduler-{schedulerName}";
     }
 
     /// <summary>
