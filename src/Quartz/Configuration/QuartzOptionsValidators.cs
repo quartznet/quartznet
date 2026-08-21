@@ -55,6 +55,48 @@ internal sealed class QuartzSchedulerOptionsValidator : IValidateOptions<QuartzS
 }
 
 /// <summary>
+/// Refuses a default scheduler configured with the name of a scheduler registered by
+/// <c>AddQuartz(name, …)</c>.
+/// </summary>
+/// <remarks>
+/// <see cref="SchedulerNameRegistry"/> only sees the named registrations, so this is the one collision it
+/// cannot catch where it is written. Without it the two schedulers agree right up until the second one
+/// binds itself, and the report is an <c>ArgumentException</c> about a duplicate name arriving from
+/// somewhere inside host start — naming neither of the two calls that disagreed.
+/// </remarks>
+internal sealed class DefaultSchedulerNameValidator : IValidateOptions<QuartzSchedulerOptions>
+{
+    private readonly SchedulerNameRegistry registry;
+
+    public DefaultSchedulerNameValidator(SchedulerNameRegistry registry)
+    {
+        this.registry = registry;
+    }
+
+    public ValidateOptionsResult Validate(string? name, QuartzSchedulerOptions options)
+    {
+        // Only the default scheduler can collide this way. A named scheduler's instance name is pinned to
+        // the name it was registered under, and the registry has already refused a second registration
+        // under that name.
+        if (!string.IsNullOrEmpty(name))
+        {
+            return ValidateOptionsResult.Skip;
+        }
+
+        if (registry.Find(options.InstanceName) is not { } registered)
+        {
+            return ValidateOptionsResult.Success;
+        }
+
+        return ValidateOptionsResult.Fail(
+            $"AddQuartz() configured InstanceName '{options.InstanceName}' but AddQuartz(\"{registered}\", ...) "
+            + "is also registered, and two schedulers cannot share a name — the repository indexes them by "
+            + "name, ignoring case. Give the default scheduler a different InstanceName, or move what "
+            + "AddQuartz() configures onto the named scheduler and register only that one.");
+    }
+}
+
+/// <summary>
 /// Validates <see cref="ThreadPoolOptions"/>.
 /// </summary>
 internal sealed class ThreadPoolOptionsValidator : IValidateOptions<ThreadPoolOptions>

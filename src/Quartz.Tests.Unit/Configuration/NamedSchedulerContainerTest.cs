@@ -113,6 +113,77 @@ public class NamedSchedulerContainerTest
         }
     }
 
+    [Test]
+    public async Task TheDefaultSchedulerCannotTakeANamedSchedulersName()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "tenant-1"));
+        services.AddQuartz("tenant-1", q => q.UseInMemoryStore());
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = async () => await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        await act.Should().ThrowAsync<SchedulerConfigException>()
+            .WithMessage("*AddQuartz() configured InstanceName 'tenant-1'*AddQuartz(\"tenant-1\", ...) is also registered*",
+                "the collision has to name both registrations, because it used to surface as a duplicate-name "
+                + "ArgumentException from the repository during host start, naming neither");
+    }
+
+    [Test]
+    public async Task TheDefaultSchedulersNameCollidesIgnoringCase()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "TENANT-1"));
+        services.AddQuartz("tenant-1", q => q.UseInMemoryStore());
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = async () => await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        await act.Should().ThrowAsync<SchedulerConfigException>()
+            .WithMessage("*AddQuartz(\"tenant-1\", ...)*",
+                "the repository indexes names ignoring case, so the check has to as well — and it reports the "
+                + "name as the registration spelled it");
+    }
+
+    [Test]
+    public void TwoNamedSchedulersCollideIgnoringCaseWhereTheyAreRegistered()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz("tenant-1", q => q.UseInMemoryStore());
+
+        var act = () => services.AddQuartz("TENANT-1", q => q.UseInMemoryStore());
+
+        act.Should().Throw<ArgumentException>().WithMessage("*already been registered*",
+            "two named schedulers whose names differ only by case would collide in the repository too");
+    }
+
+    [Test]
+    public async Task ANamedSchedulerIsNotAccusedOfCollidingWithItself()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz("tenant-1", q => q.UseInMemoryStore());
+        services.AddQuartz("tenant-2", q => q.UseInMemoryStore());
+
+        using var provider = services.BuildServiceProvider();
+
+        var first = await provider.GetRequiredKeyedService<ISchedulerFactory>("tenant-1").GetScheduler();
+        var second = await provider.GetRequiredKeyedService<ISchedulerFactory>("tenant-2").GetScheduler();
+
+        try
+        {
+            first.SchedulerName.Should().Be("tenant-1",
+                "a named scheduler's instance name is its registration name, so it always matches the registry");
+            second.SchedulerName.Should().Be("tenant-2");
+        }
+        finally
+        {
+            await first.Shutdown();
+            await second.Shutdown();
+        }
+    }
+
     public class NoOpJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;

@@ -313,17 +313,7 @@ public static class ServiceCollectionExtensions
 
         if (schedulerName is not null)
         {
-            var registry = services
-                .FirstOrDefault(d => d.ServiceType == typeof(SchedulerNameRegistry))?.ImplementationInstance
-                as SchedulerNameRegistry;
-
-            if (registry is null)
-            {
-                registry = new SchedulerNameRegistry();
-                services.AddSingleton(registry);
-            }
-
-            registry.Add(schedulerName);
+            SchedulerNameRegistry.For(services).Add(schedulerName);
         }
 
         return services;
