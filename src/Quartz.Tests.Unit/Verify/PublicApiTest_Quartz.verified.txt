@@ -2949,11 +2949,16 @@ namespace Quartz.Impl
         protected override System.Threading.Tasks.ValueTask<Quartz.Extensibility.JobScope> CreateJobInstance(Quartz.Extensibility.TriggerFiredBundle bundle, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public override System.Threading.Tasks.ValueTask ReturnJob(Quartz.Extensibility.JobScope scope, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public enum PropertyMismatchBehavior
+    {
+        Ignore = 0,
+        Warn = 1,
+        Throw = 2,
+    }
     public class PropertySettingJobFactory : Quartz.Impl.SimpleJobFactory
     {
         public PropertySettingJobFactory() { }
-        public virtual bool ThrowIfPropertyNotFound { get; set; }
-        public virtual bool WarnIfPropertyNotFound { get; set; }
+        public virtual Quartz.Impl.PropertyMismatchBehavior PropertyMismatchBehavior { get; set; }
         protected virtual Quartz.JobDataMap BuildJobDataMap(Quartz.Extensibility.TriggerFiredBundle bundle, Quartz.IScheduler scheduler) { }
         protected virtual object? ConvertValueIfNecessary(System.Type requiredType, object? newValue) { }
         public override System.Threading.Tasks.ValueTask<Quartz.Extensibility.JobScope> CreateJob(Quartz.Extensibility.TriggerFiredBundle bundle, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }

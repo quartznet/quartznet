@@ -38,7 +38,7 @@ public class PropertySettingJobFactoryTest
     {
         factory = new PropertySettingJobFactory
         {
-            ThrowIfPropertyNotFound = true
+            PropertyMismatchBehavior = PropertyMismatchBehavior.Throw
         };
     }
 
@@ -156,6 +156,26 @@ public class PropertySettingJobFactoryTest
         catch (SchedulerException)
         {
         }
+    }
+
+    [TestCase(PropertyMismatchBehavior.Ignore)]
+    [TestCase(PropertyMismatchBehavior.Warn)]
+    public void AnUnknownPropertyIsToleratedUnlessTheBehaviourIsThrow(PropertyMismatchBehavior behavior)
+    {
+        factory.PropertyMismatchBehavior = behavior;
+
+        JobDataMap jobDataMap = new JobDataMap();
+        jobDataMap["bogusValue"] = 1;
+
+        Action setting = () => factory.SetObjectProperties(new TestObject(), jobDataMap);
+
+        setting.Should().NotThrow("only PropertyMismatchBehavior.Throw fails the instantiation");
+    }
+
+    [Test]
+    public void TheDefaultBehaviourIsToIgnoreAnUnknownProperty()
+    {
+        new PropertySettingJobFactory().PropertyMismatchBehavior.Should().Be(PropertyMismatchBehavior.Ignore);
     }
 
     [Test]

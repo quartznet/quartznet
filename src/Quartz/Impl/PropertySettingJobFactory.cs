@@ -35,20 +35,18 @@ namespace Quartz.Impl;
 /// <see cref="JobDataMap" /> onto properties of the job.
 /// </summary>
 /// <remarks>
-/// Set the WarnIfPropertyNotFound property to true if you'd like noisy logging in
-/// the case of values in the <see cref="JobDataMap" /> not mapping to properties on your job
-/// class. This may be useful for troubleshooting typos of property names, etc.
-/// but very noisy if you regularly (and purposely) have extra things in your
-///  <see cref="JobDataMap" />.
-/// Also of possible interest is the ThrowIfPropertyNotFound property which
-/// will throw exceptions on unmatched JobDataMap keys.
+/// By default an entry in the <see cref="JobDataMap" /> that does not map to a property on your job
+/// class is ignored, because a map is allowed to carry values the job reads for itself. Set
+/// <see cref="PropertyMismatchBehavior" /> to <see cref="Quartz.Impl.PropertyMismatchBehavior.Warn" />
+/// to log those — useful for troubleshooting a misspelled property name, noisy if you regularly (and
+/// purposely) have extra things in your map — or to
+/// <see cref="Quartz.Impl.PropertyMismatchBehavior.Throw" /> to fail the instantiation outright.
 /// </remarks>
 /// <seealso cref="IJobFactory" />
 /// <seealso cref="SimpleJobFactory" />
 /// <seealso cref="SchedulerContext"/>
 /// <seealso cref="IJobExecutionContext.MergedJobDataMap" />
-/// <seealso cref="WarnIfPropertyNotFound" />
-/// <seealso cref="ThrowIfPropertyNotFound" />
+/// <seealso cref="PropertyMismatchBehavior" />
 /// <author>James Houser</author>
 /// <author>Marko Lahma (.NET)</author>
 public class PropertySettingJobFactory : SimpleJobFactory
@@ -61,18 +59,11 @@ public class PropertySettingJobFactory : SimpleJobFactory
     }
 
     /// <summary>
-    /// Whether the JobInstantiation should fail and throw and exception if
-    /// a key (name) and value (type) found in the JobDataMap does not
-    /// correspond to a property setter on the Job class.
+    /// What happens when a key (name) and value (type) found in the <see cref="JobDataMap" /> does not
+    /// correspond to a property setter on the job class. Defaults to
+    /// <see cref="PropertyMismatchBehavior.Ignore" />.
     /// </summary>
-    public virtual bool ThrowIfPropertyNotFound { get; set; }
-
-    /// <summary>
-    /// Get or set whether a warning should be logged if
-    /// a key (name) and value (type) found in the JobDataMap does not
-    /// correspond to a property setter on the Job class.
-    /// </summary>
-    public virtual bool WarnIfPropertyNotFound { get; set; }
+    public virtual PropertyMismatchBehavior PropertyMismatchBehavior { get; set; }
 
     /// <summary>
     /// Called by the scheduler at the time of the trigger firing, in order to
@@ -186,7 +177,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// <remarks>
     /// Until 4.0 the scheduler context was merged in as well, underneath both. That injected every
     /// context entry into every fire — including the service-provider entry the DI integration seeds,
-    /// which no job has a property for, so with <see cref="ThrowIfPropertyNotFound" /> every
+    /// which no job has a property for, so with <see cref="Quartz.Impl.PropertyMismatchBehavior.Throw" /> every
     /// container-hosted fire failed. A job that wants a context value reads
     /// <c>context.Scheduler.Context</c> in <see cref="IJob.Execute" />; a factory that wants the old
     /// behavior overrides this method, which is handed the scheduler for exactly that reason.
@@ -332,12 +323,12 @@ public class PropertySettingJobFactory : SimpleJobFactory
 
     private void HandleError(string message, Exception? e = null)
     {
-        if (ThrowIfPropertyNotFound)
+        if (PropertyMismatchBehavior == PropertyMismatchBehavior.Throw)
         {
             Throw.SchedulerException(message, e);
         }
 
-        if (WarnIfPropertyNotFound)
+        if (PropertyMismatchBehavior == PropertyMismatchBehavior.Warn)
         {
 #pragma warning disable CA2254
             if (e is null)
