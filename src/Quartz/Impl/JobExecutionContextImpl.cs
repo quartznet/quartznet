@@ -301,13 +301,18 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
 
             return jobRunTime.Value;
         }
-        set => jobRunTime = value;
+        internal set => jobRunTime = value;
     }
 
     /// <summary>
     /// Increments the refire count.
     /// </summary>
-    public void IncrementRefireCount()
+    /// <remarks>
+    /// Both this and the <see cref="JobRunTime" /> setter record what the scheduler observed while
+    /// running the job. <see cref="Core.JobRunShell" /> is the only caller, and a job or listener
+    /// writing either would be reporting a fire that never happened.
+    /// </remarks>
+    internal void IncrementRefireCount()
     {
         Interlocked.Increment(ref numRefires);
     }

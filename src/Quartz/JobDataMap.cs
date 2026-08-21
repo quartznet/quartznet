@@ -339,14 +339,9 @@ public sealed class JobDataMap : IDictionary<string, object?>, IReadOnlyDictiona
         map.CopyTo(array, arrayIndex);
     }
 
-    public Dictionary<string, object?>.Enumerator GetEnumerator()
+    public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
     {
         return map.GetEnumerator();
-    }
-
-    IEnumerator<KeyValuePair<string, object?>> IEnumerable<KeyValuePair<string, object?>>.GetEnumerator()
-    {
-        return ((IEnumerable<KeyValuePair<string, object?>>) map).GetEnumerator();
     }
 
     IEnumerator IEnumerable.GetEnumerator()
@@ -377,10 +372,42 @@ public sealed class JobDataMap : IDictionary<string, object?>, IReadOnlyDictiona
     /// <remarks>
     /// An enum lands here and stores its name (<c>DayOfWeek.Monday</c> stores <c>"Monday"</c>),
     /// which <c>TryGetEnum</c> reads back.
+    /// <para>
+    /// The constraint is <see cref="IFormattable" /> rather than the legacy
+    /// <see cref="IConvertible" />: formatting for a culture is what this does, and it lets through
+    /// every modern numeric type that never implemented <see cref="IConvertible" />. The types that
+    /// have a round-trip format worth pinning — dates, times, <see cref="Guid" /> — have their own
+    /// overloads below, which win over this one.
+    /// </para>
     /// </remarks>
-    public void PutAsString<T>(string key, T value) where T : IConvertible
+    public void PutAsString<T>(string key, T value) where T : IFormattable
     {
-        this[key] = value.ToString(CultureInfo.InvariantCulture);
+        this[key] = value.ToString(format: null, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="bool" /> value as <c>"True"</c> or <c>"False"</c> to the
+    /// <see cref="IJob" />'s data map, which <c>GetBoolean</c> and <c>TryGetBoolean</c> read back.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="bool" /> is not <see cref="IFormattable" /> — it has nothing to format for a culture —
+    /// so it needs an overload of its own to stay writable this way.
+    /// </remarks>
+    public void PutAsString(string key, bool value)
+    {
+        this[key] = value.ToString();
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="char" /> value as a one-character string to the
+    /// <see cref="IJob" />'s data map.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="char" />, like <see cref="bool" />, is not <see cref="IFormattable" />.
+    /// </remarks>
+    public void PutAsString(string key, char value)
+    {
+        this[key] = value.ToString();
     }
 
     /// <summary>

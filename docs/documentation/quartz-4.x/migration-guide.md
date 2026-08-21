@@ -163,7 +163,7 @@ assignable on a live instance with nothing saying which wins or when. The compon
 | The history plugins' message templates | `UseJobHistoryLogging(o => …)`, `UseTriggerHistoryLogging(o => …)`, and now `UseStructuredJobLogging(o => …)` / `UseStructuredTriggerLogging(o => …)` |
 | `JobInterruptMonitorPlugin.DefaultMaxRunTime` | `UseJobAutoInterrupt(o => …)` |
 | The scheduling-data plugins' `FileNames`, `ScanInterval`, `FailOn*` | `UseXmlSchedulingConfiguration(o => …)` / `UseJsonSchedulingConfiguration(o => …)` |
-| `ShutdownHookPlugin.CleanShutdown` | `UseShutdownHook(cleanShutdown: …)` |
+| `ShutdownHookPlugin.CleanShutdown` | `UseShutdownHook(o => o.CleanShutdown = …)` |
 
 `SelectForUpdateSemaphore` and `UpdateRowSemaphore` keep their `MaxRetry` and `RetryPeriod` setters.
 
@@ -5276,6 +5276,20 @@ the accessors parse both the old general form and "O" — but two edges are obse
   System.Text.Json serializer writes a boxed UTC `DateTime` as `"…Z"` and hands it back as a raw
   string.
 
+### `PutAsString<T>` is constrained to `IFormattable`
+
+The generic overload asked for `IConvertible`, the legacy conversion interface, and then only ever
+called its formatting member. It asks for `IFormattable` now, which is what it actually uses. The
+practical effect is a wider set of types, not a narrower one: `Int128`, `Half`, `BigInteger`, `Complex`
+and any formattable type of your own were never `IConvertible` and could not be written this way.
+
+`bool` and `char` are `IConvertible` but not `IFormattable` — neither has anything to format for a
+culture — so they gained dedicated overloads and keep writing exactly what they wrote before
+(`"True"` / `"False"`, and the single character). The six round-trip overloads are unchanged.
+
+`string` is the one type that loses the call: `map.PutAsString(key, someString)` no longer compiles.
+Write `map[key] = someString`, which is what it did.
+
 ### `PutAsString(string, Guid?)` is gone
 
 Passing `null` stored a present-but-null entry that nothing could read back — `TryGetGuid`
@@ -5447,6 +5461,10 @@ Parameters and behavior are unchanged:
 | `UsingJobData` takes an `object?` | The nine primitive overloads collapsed into one — see [Nine `UsingJobData` overloads became one](#nine-usingjobdata-overloads-became-one) |
 | `IDirectoryScanListener` is asynchronous | `FilesUpdatedOrAdded` and `FilesDeleted` return `ValueTask` and take a `CancellationToken` |
 | `SendMailJob.Send` is asynchronous | `protected virtual ValueTask Send(MailInfo mailInfo, CancellationToken cancellationToken = default)`. It uses `SmtpClient.SendMailAsync`, so a job fired on the scheduler's thread pool no longer blocks it for the length of an SMTP round trip, and `Execute` forwards its token. An override returns `default` where it used to return nothing |
+| `JobDataMap.GetEnumerator` returns the interface | `IEnumerator<KeyValuePair<string, object?>>` rather than `Dictionary<string, object?>.Enumerator`, matching `SchedulerContext`. `foreach` is unaffected; a variable declared as the concrete struct type needs retyping |
+| `CronTriggerImpl.WillFireOn` is one method | `WillFireOn(DateTimeOffset timeUtc, bool dayOnly = false)`. The two overloads differed only by that default. Both call shapes compile unchanged |
+| `JobExecutionContextImpl.IncrementRefireCount()` and the `JobRunTime` setter are internal | Both record what the scheduler observed while running the job; `JobRunShell` is the only caller, and writing either from a job or a listener reported a fire that never happened |
+| `UseShutdownHook` takes an options delegate | `UseShutdownHook(o => o.CleanShutdown = false)` replaces `UseShutdownHook(cleanShutdown: false)`, matching the seven other `Use*` plugin methods. `UseShutdownHook()` is unchanged, and `CleanShutdown` still defaults to `true` |
 | `LoggingJobHistoryPlugin.Name`, `LoggingTriggerHistoryPlugin.Name` are get-only | The name is handed to a plugin by `Initialize`; writing it afterwards did nothing |
 | `TimeSpanParseRuleAttribute` is public | It says how a bare number in configuration is read as a `TimeSpan`, which a component configured by the same keys needs to be able to say |
 | `TimeZoneUtil.CustomResolver` became `TimeZones.AddResolver(...)` | Returns an `IDisposable` whose disposal removes exactly that resolver; resolvers are consulted most recently added first — see [`CustomResolver` became `AddResolver`](#customresolver-became-addresolver) |
