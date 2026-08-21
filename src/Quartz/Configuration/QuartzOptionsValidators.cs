@@ -181,6 +181,14 @@ internal sealed class AdoJobStoreOptionsValidator : IValidateOptions<AdoJobStore
             (failures ??= []).Add($"{nameof(AdoJobStoreOptions.DbRetryInterval)} must not be negative.");
         }
 
+        // Zero is not "no timeout" here even though ADO.NET reads it that way, because nothing in the
+        // store wants to wait forever; a caller who does leaves this unset and gets the provider's own
+        // default.
+        if (options.CommandTimeout is { } commandTimeout && commandTimeout <= TimeSpan.Zero)
+        {
+            (failures ??= []).Add($"{nameof(AdoJobStoreOptions.CommandTimeout)} must be positive when set.");
+        }
+
         if (options.MaxMisfiresToHandleAtATime < 1)
         {
             (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MaxMisfiresToHandleAtATime)} must be at least 1.");

@@ -74,7 +74,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         DbProvider = context.DbProvider;
         typeLoader = context.TypeLoader;
         useProperties = context.UseProperties;
-        adoUtil = new AdoUtil(context.DbProvider);
+        adoUtil = new AdoUtil(context.DbProvider, context.CommandTimeout);
         objectSerializer = context.ObjectSerializer!;
         timeProvider = context.TimeProvider;
 

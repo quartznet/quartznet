@@ -1956,6 +1956,14 @@ public partial class StdAdoDelegate
         {
             using var batch = conn.CreateBatch();
 
+            // A batch is not prepared through AdoUtil, so the configured command timeout has to be
+            // applied here as well; otherwise this one round-trip would be the only statement the store
+            // issues that can outlive it.
+            if (adoUtil.CommandTimeoutSeconds is { } timeoutSeconds)
+            {
+                batch.Timeout = timeoutSeconds;
+            }
+
             // Providers are not required to implement DbBatchCommand.CreateParameter, so keep one
             // throwaway command around to mint parameter instances for those that do not.
             using var parameterFactory = DbProvider.CreateCommand();

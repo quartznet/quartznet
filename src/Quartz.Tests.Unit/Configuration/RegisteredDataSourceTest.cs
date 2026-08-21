@@ -205,6 +205,55 @@ public sealed class DataSourceCommandMintingTest
         command.Should().BeOfType<FakeCommand>().Which.BindByName.Should().BeFalse();
     }
 
+    [Test]
+    public void PrepareCommand_WithNoCommandTimeoutConfigured_LeavesTheProvidersDefaultAlone()
+    {
+        IDbProvider provider = new DbProvider(FakeDriver, "irrelevant");
+
+        var connection = new FakeConnection();
+        using var holder = new ConnectionAndTransactionHolder(connection, transaction: null);
+
+        using DbCommand command = new AdoUtil(provider).PrepareCommand(holder, "SELECT 1");
+
+        command.CommandTimeout.Should().Be(0,
+            "the fake's default is 0; a real provider's is its own, and neither should be overwritten "
+            + "when AdoJobStoreOptions.CommandTimeout is unset");
+    }
+
+    [Test]
+    public void PrepareCommand_WithACommandTimeout_PutsItOnTheCommand()
+    {
+        IDbProvider provider = new DbProvider(FakeDriver, "irrelevant");
+
+        var connection = new FakeConnection();
+        using var holder = new ConnectionAndTransactionHolder(connection, transaction: null);
+
+        using DbCommand command = new AdoUtil(provider, TimeSpan.FromSeconds(45)).PrepareCommand(holder, "SELECT 1");
+
+        command.CommandTimeout.Should().Be(45);
+    }
+
+    /// <summary>
+    /// <see cref="DbCommand.CommandTimeout" /> counts whole seconds, and rounding a sub-second value
+    /// down would produce <c>0</c> — which every provider reads as "no timeout at all", the exact
+    /// opposite of what was configured.
+    /// </summary>
+    [TestCase(1500, 2)]
+    [TestCase(1, 1)]
+    [TestCase(60_000, 60)]
+    public void PrepareCommand_RoundsAPartialSecondUp(int configuredMilliseconds, int expectedSeconds)
+    {
+        IDbProvider provider = new DbProvider(FakeDriver, "irrelevant");
+
+        var connection = new FakeConnection();
+        using var holder = new ConnectionAndTransactionHolder(connection, transaction: null);
+
+        using DbCommand command = new AdoUtil(provider, TimeSpan.FromMilliseconds(configuredMilliseconds))
+            .PrepareCommand(holder, "SELECT 1");
+
+        command.CommandTimeout.Should().Be(expectedSeconds);
+    }
+
     private sealed class FakeDataSource : DbDataSource
     {
         public override string ConnectionString => "";

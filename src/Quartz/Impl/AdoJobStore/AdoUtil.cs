@@ -58,12 +58,32 @@ internal sealed class AdoUtil : IAdoUtil
 {
     private readonly ILogger logger;
     private readonly IDbProvider dbProvider;
+    private readonly int? commandTimeoutSeconds;
 
-    public AdoUtil(IDbProvider dbProvider)
+    /// <param name="dbProvider">The provider commands are minted from.</param>
+    /// <param name="commandTimeout">
+    /// How long a prepared command may run before the provider cancels it, from
+    /// <see cref="AdoJobStoreOptions.CommandTimeout" />. <see langword="null" /> leaves whatever default
+    /// the provider gives a new command. <see cref="System.Data.Common.DbCommand.CommandTimeout" /> counts
+    /// whole seconds, so the value is rounded <em>up</em>: rounding down would turn anything under a
+    /// second into zero, which every provider reads as "no timeout at all".
+    /// </param>
+    public AdoUtil(IDbProvider dbProvider, TimeSpan? commandTimeout = null)
     {
         this.logger = LogProvider.CreateLogger<AdoUtil>();
         this.dbProvider = dbProvider;
+        commandTimeoutSeconds = commandTimeout is { } timeout
+            ? (int) Math.Ceiling(timeout.TotalSeconds)
+            : null;
     }
+
+    /// <summary>
+    /// The configured timeout in the whole seconds ADO.NET counts in, or <see langword="null" /> to leave
+    /// the provider's default alone. <see cref="PrepareCommand" /> applies it; a
+    /// <see cref="DbBatch" /> is not prepared here and its caller applies it to
+    /// <see cref="DbBatch.Timeout" />.
+    /// </summary>
+    internal int? CommandTimeoutSeconds => commandTimeoutSeconds;
 
     public void AddCommandParameter(IDbCommand cmd, string paramName, object? paramValue)
     {
@@ -440,6 +460,12 @@ internal sealed class AdoUtil : IAdoUtil
             : dbProvider.CreateCommand();
 
         cmd.CommandText = commandText;
+
+        if (commandTimeoutSeconds is { } timeoutSeconds)
+        {
+            cmd.CommandTimeout = timeoutSeconds;
+        }
+
         cth.Attach(cmd);
 
         if (logger.IsEnabled(LogLevel.Debug))

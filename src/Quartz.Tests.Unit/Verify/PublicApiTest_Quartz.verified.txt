@@ -17,6 +17,7 @@ namespace Quartz
         public AdoJobStoreOptions() { }
         public bool AcceptEnlistedTransactions { get; set; }
         public bool AcquireTriggersWithinLock { get; set; }
+        public System.TimeSpan? CommandTimeout { get; set; }
         public string DataSource { get; set; }
         public System.TimeSpan DbRetryInterval { get; set; }
         public bool DoubleCheckLockMisfireHandler { get; set; }
@@ -1884,6 +1885,7 @@ namespace Quartz.Impl.AdoJobStore
         protected bool CanUseProperties { get; }
         protected System.TimeSpan ClusterCheckinMisfireThreshold { get; }
         public bool Clustered { get; }
+        protected System.TimeSpan? CommandTimeout { get; }
         protected string DataSource { get; }
         protected Quartz.Impl.AdoJobStore.Common.DbMetadata DbMetadata { get; }
         protected Quartz.Impl.AdoJobStore.Common.IDbProvider DbProvider { get; }

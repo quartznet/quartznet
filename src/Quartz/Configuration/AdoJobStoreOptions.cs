@@ -57,6 +57,32 @@ public sealed class AdoJobStoreOptions
     public int MaxMisfiresToHandleAtATime { get; set; } = 20;
 
     /// <summary>
+    /// How long a statement the job store issues may run before the provider cancels it. Left unset,
+    /// each statement keeps whatever default the ADO.NET provider gives a new command — 30 seconds for
+    /// most of them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This covers every statement the store issues, including the ones the lock handler takes its row
+    /// lock with, which is where a timeout matters most: a node blocked on <c>QRTZ_LOCKS</c> behind a
+    /// peer that has stopped without releasing it waits for the provider's default before it can fail
+    /// and retry, and the scheduling loop is stalled for all of it.
+    /// </para>
+    /// <para>
+    /// There is deliberately no per-statement override. A timeout that varies by statement is a way of
+    /// saying some of the store's work is more expendable than the rest, and none of it is: every
+    /// statement runs inside a lock the rest of the cluster is waiting on.
+    /// </para>
+    /// <para>
+    /// ADO.NET's <see cref="System.Data.Common.DbCommand.CommandTimeout" /> counts whole seconds, so a
+    /// value is rounded <em>up</em> to the next second — a configured 1500ms is applied as 2 seconds.
+    /// Rounding up rather than down keeps a sub-second value from becoming zero, which every provider
+    /// reads as "wait forever".
+    /// </para>
+    /// </remarks>
+    public TimeSpan? CommandTimeout { get; set; }
+
+    /// <summary>
     /// How long to wait before retrying after a database failure.
     /// </summary>
     public TimeSpan DbRetryInterval { get; set; } = TimeSpan.FromSeconds(15);
