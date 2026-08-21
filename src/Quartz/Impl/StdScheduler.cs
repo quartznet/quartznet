@@ -173,6 +173,18 @@ internal sealed class StdScheduler : IScheduler
     }
 
     /// <summary>
+    /// Shuts the scheduler down without waiting for running jobs, which is what a local scheduler owns.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="QuartzScheduler.Shutdown"/> returns immediately once a shutdown has been started, so
+    /// disposing twice — or disposing after an explicit shutdown, waiting or not — does nothing.
+    /// </remarks>
+    public ValueTask DisposeAsync()
+    {
+        return scheduler.Shutdown(waitForJobsToComplete: false, CancellationToken.None);
+    }
+
+    /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
     public ValueTask<DateTimeOffset> ScheduleJob(

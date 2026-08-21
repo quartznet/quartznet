@@ -31,12 +31,12 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
     }
 
     [Test]
-    public void ShouldBeAbelToRegisterSchedulerUsingHttpClient()
+    public async Task ShouldBeAbelToRegisterSchedulerUsingHttpClient()
     {
         var services = new ServiceCollection();
         services.AddQuartzHttpClient("Scheduler", testClient);
 
-        using var serviceProvider = services.BuildServiceProvider();
+        await using var serviceProvider = services.BuildServiceProvider();
 
         var scheduler = serviceProvider.GetRequiredService<IScheduler>();
         scheduler.Should().NotBeNull();
@@ -45,13 +45,13 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
     }
 
     [Test]
-    public void ShouldRegisterSchedulersUnderTheirOwnNames()
+    public async Task ShouldRegisterSchedulersUnderTheirOwnNames()
     {
         var services = new ServiceCollection();
         services.AddQuartzHttpClient("Scheduler", testClient);
         services.AddQuartzHttpClient("SecondScheduler", testClient);
 
-        using var serviceProvider = services.BuildServiceProvider();
+        await using var serviceProvider = services.BuildServiceProvider();
 
         var scheduler = serviceProvider.GetRequiredKeyedService<IScheduler>("Scheduler");
         scheduler.Should().BeOfType<HttpScheduler>();
@@ -66,7 +66,7 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
     }
 
     [Test]
-    public void ShouldBeAbelToRegisterSchedulerUsingHttpClientFactor()
+    public async Task ShouldBeAbelToRegisterSchedulerUsingHttpClientFactor()
     {
         var httpClientFactory = A.Fake<IHttpClientFactory>();
         A.CallTo(() => httpClientFactory.CreateClient("MyHttpClient")).Returns(testClient);
@@ -75,7 +75,7 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
         services.AddSingleton(httpClientFactory);
         services.AddQuartzHttpClient("Scheduler", "MyHttpClient");
 
-        using var serviceProvider = services.BuildServiceProvider();
+        await using var serviceProvider = services.BuildServiceProvider();
 
         var scheduler = serviceProvider.GetRequiredService<IScheduler>();
         scheduler.Should().NotBeNull();
@@ -84,7 +84,7 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
     }
 
     [Test]
-    public void ShouldBeAbelToRegisterSchedulersUsingHttpClientFactoryUnderTheirOwnNames()
+    public async Task ShouldBeAbelToRegisterSchedulersUsingHttpClientFactoryUnderTheirOwnNames()
     {
         var httpClientFactory = A.Fake<IHttpClientFactory>();
         A.CallTo(() => httpClientFactory.CreateClient("MyHttpClient")).Returns(testClient);
@@ -94,7 +94,7 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
         services.AddQuartzHttpClient("Scheduler", "MyHttpClient");
         services.AddQuartzHttpClient("SecondScheduler", "MyHttpClient");
 
-        using var serviceProvider = services.BuildServiceProvider();
+        await using var serviceProvider = services.BuildServiceProvider();
 
         serviceProvider.GetRequiredKeyedService<IScheduler>("Scheduler").SchedulerName.Should().Be("Scheduler");
         serviceProvider.GetRequiredKeyedService<IScheduler>("SecondScheduler").SchedulerName.Should().Be("SecondScheduler");
@@ -107,7 +107,7 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
         services.AddQuartzHttpClient("Scheduler", testClient);
         services.AddQuartzHttpClient("SecondScheduler", testClient);
 
-        using var serviceProvider = services.BuildServiceProvider();
+        await using var serviceProvider = services.BuildServiceProvider();
 
         var repository = serviceProvider.GetRequiredService<ISchedulerRepository>();
         repository.LookupAll().Should().BeEmpty("nothing has asked for a scheduler yet");
@@ -124,7 +124,7 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
     }
 
     [Test]
-    public void EachContainerShouldGetItsOwnSchedulerRepository()
+    public async Task EachContainerShouldGetItsOwnSchedulerRepository()
     {
         var firstServices = new ServiceCollection();
         firstServices.AddQuartzHttpClient("Scheduler", testClient);
@@ -132,8 +132,8 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
         var secondServices = new ServiceCollection();
         secondServices.AddQuartzHttpClient("Scheduler", testClient);
 
-        using var first = firstServices.BuildServiceProvider();
-        using var second = secondServices.BuildServiceProvider();
+        await using var first = firstServices.BuildServiceProvider();
+        await using var second = secondServices.BuildServiceProvider();
 
         // Resolving the scheduler is what binds it into its container's repository.
         first.GetRequiredService<IScheduler>();

@@ -57,6 +57,21 @@ public class DelegatingScheduler : IScheduler
         return scheduler.Shutdown(waitForJobsToComplete, cancellationToken);
     }
 
+    /// <summary>
+    /// Disposes the scheduler this one forwards to, whose ownership rule therefore decides what happens.
+    /// </summary>
+    /// <remarks>
+    /// A decorator owns nothing of its own. Override this when a subclass acquires something it has to
+    /// release, and forward to <c>base.DisposeAsync()</c>.
+    /// </remarks>
+    public virtual ValueTask DisposeAsync()
+    {
+        // This type has no finalizer, but it is public and unsealed, so a subclass may introduce one;
+        // suppressing here saves that subclass from re-implementing disposal just to say so (CA1816).
+        GC.SuppressFinalize(this);
+        return scheduler.DisposeAsync();
+    }
+
     public virtual ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
     {
         return scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);

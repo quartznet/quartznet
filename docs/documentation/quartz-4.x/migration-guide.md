@@ -786,6 +786,58 @@ registered with `AddQuartz` can also be given a part that was built rather than 
 | `Configure(Action<IQuartzBuilder>)` | call the members directly on the builder |
 | `ConfigureScheduler`, `UseDefaultThreadPool` ×2, `UseJobFactory(IJobFactory)`, `UseInMemoryStore` | the identical `IQuartzBuilder` members, which the builder now implements |
 
+## `IScheduler` is `IAsyncDisposable`
+
+`IScheduler` now implements `IAsyncDisposable`, so a scheduler can be scoped with `await using` instead
+of a `try`/`finally` that remembers to shut it down:
+
+```diff
+  IScheduler scheduler = await factory.GetScheduler();
+- try
+- {
+-     await scheduler.Start();
+-     …
+- }
+- finally
+- {
+-     await scheduler.Shutdown(waitForJobsToComplete: false);
+- }
++ await using (scheduler)
++ {
++     await scheduler.Start();
++     …
++ }
+```
+
+Disposing releases what **that instance** owns, which is not the same thing for every scheduler:
+
+| Instance | Disposing it |
+|---|---|
+| A local scheduler | `Shutdown(waitForJobsToComplete: false)`. It owns the execution it drives. |
+| The `IScheduler` a container injects | disposes the scheduler it built, and does nothing at all if it never built one. |
+| A `DelegatingScheduler` | forwards to the scheduler it wraps. |
+| `HttpScheduler` | releases its own resources and **never** shuts the remote scheduler down. A client going away is not an instruction to stop scheduling for everybody else — call `Shutdown` for that. |
+
+Disposal is idempotent: disposing a scheduler that is already shut down does nothing. It is deliberately
+the non-waiting shutdown — `await using` means "stop this when the block ends", not "drain gracefully".
+Call `Shutdown(waitForJobsToComplete: true)` yourself when running jobs should be allowed to finish;
+disposing afterwards is then a no-op.
+
+### A container holding a scheduler is disposed asynchronously
+
+This is the one change that can surface as a runtime error. `ServiceProvider.Dispose()` throws when a
+singleton it created implements only `IAsyncDisposable`, so a container that resolved an `IScheduler`
+has to be disposed with `await using`:
+
+```diff
+- using var provider = services.BuildServiceProvider();
++ await using var provider = services.BuildServiceProvider();
+```
+
+Applications hosted by `IHost` need no change — the host already disposes its container asynchronously,
+and `AddQuartzHostedService` shuts the schedulers down before that anyway. This is about a container
+built by hand, which is mostly tests.
+
 ## Clustering is configured in one place
 
 `AdoJobStoreOptions` no longer carries `Clustered`, `ClusterCheckinInterval` and

@@ -166,6 +166,29 @@ public sealed class HttpScheduler : IScheduler
         return httpClient.Post($"{SchedulerEndpointUrl()}/shutdown?waitForJobsToComplete={waitForJobsToComplete}", jsonSerializerOptions, cancellationToken);
     }
 
+    /// <summary>
+    /// Releases what this client owns, which is nothing — and in particular does <b>not</b> shut the
+    /// remote scheduler down.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Disposing an <see cref="IScheduler" /> releases what that instance owns. A local scheduler owns
+    /// the execution it drives, so disposing it stops it. This one owns only a connection to a scheduler
+    /// running somewhere else, which other clients are using and which outlives this process: a client
+    /// going away is not an instruction to stop scheduling for everybody. Call
+    /// <see cref="Shutdown(bool, CancellationToken)" /> to stop the remote scheduler, deliberately.
+    /// </para>
+    /// <para>
+    /// The <see cref="System.Net.Http.HttpClient" /> is not disposed either. It is the caller's, or the
+    /// container's when <c>AddQuartzHttpClient</c> made it, and disposing something handed in is how a
+    /// client shared with the rest of an application stops working.
+    /// </para>
+    /// </remarks>
+    public ValueTask DisposeAsync()
+    {
+        return default;
+    }
+
     public ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(jobDetail);

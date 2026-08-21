@@ -147,6 +147,23 @@ internal sealed class DeferredScheduler : IScheduler
         await target.Shutdown(waitForJobsToComplete, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Disposes the scheduler if one was built, and does nothing at all if none was.
+    /// </summary>
+    /// <remarks>
+    /// This is the one member that must not resolve. Every other one builds the scheduler because a
+    /// caller asked it to do something; building one here would start a scheduler — and, under a
+    /// persistent store, open a database connection — on the way out of a container that never used it,
+    /// only to shut it straight back down.
+    /// </remarks>
+    public ValueTask DisposeAsync()
+    {
+        // The field, not Resolved: an in-flight build has not produced a scheduler to dispose, and
+        // waiting for one so it can be shut down is the same wasted work as starting one.
+        IScheduler? built = scheduler;
+        return built is null ? default : built.DisposeAsync();
+    }
+
     public async ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
