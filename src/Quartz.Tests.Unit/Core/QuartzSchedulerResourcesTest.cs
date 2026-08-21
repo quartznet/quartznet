@@ -21,8 +21,7 @@ public class QuartzSchedulerResourcesTest
         {
             Assert.That(resources.BatchTimeWindow, Is.EqualTo(TimeSpan.Zero));
             Assert.That(resources.InstanceId, Is.Null);
-            Assert.That(resources.InterruptJobsOnShutdown, Is.False);
-            Assert.That(resources.InterruptJobsOnShutdownWithWait, Is.False);
+            Assert.That(resources.ShutdownJobInterruption, Is.EqualTo(ShutdownJobInterruption.Never));
             Assert.That(resources.JobRunShellFactory, Is.Null);
             Assert.That(resources.JobStore, Is.Null);
             Assert.That(resources.MaxBatchSize, Is.EqualTo(1));

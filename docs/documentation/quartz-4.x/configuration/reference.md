@@ -43,9 +43,18 @@ which Quartz still accepts. See [Legacy property keys](#legacy-property-keys).
 | `IdleWaitTime` | TimeSpan | `00:00:30` | How long to wait before re-querying the job store when nothing is due. Must be at least one second. |
 | `MaxBatchSize` | int | `1` | How many triggers may be acquired at once. Only an upper bound — `BatchTriggerAcquisitionFireAheadTimeWindow` decides how many are actually taken — and it may not exceed `ThreadPool:MaxConcurrency`. See [Batching trigger acquisition](../tutorial/advanced-enterprise-features.md#batching-trigger-acquisition). |
 | `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may be included in the current batch. The other half of `MaxBatchSize`: at the default of zero, neither batches anything. |
-| `InterruptJobsOnShutdown` | bool | `false` | Signals cancellation to running jobs on shutdown. |
-| `InterruptJobsOnShutdownWithWait` | bool | `false` | Signals cancellation on a shutdown that waits for jobs to finish. |
+| `ShutdownJobInterruption` | `ShutdownJobInterruption` | `Never` | When a shutting-down scheduler signals cancellation to the jobs still executing. |
 | `Context` | dictionary | empty | Values seeded into `SchedulerContext`. |
+
+`ShutdownJobInterruption` has four values, because a shutdown either waits for running jobs or it
+does not and interrupting them is a reasonable thing to want in either case, or in only one of them:
+
+| Value | Meaning |
+|---|---|
+| `Never` | Running jobs are never interrupted. |
+| `WhenNotWaitingForJobs` | Interrupted only on a shutdown that does not wait for them. |
+| `WhenWaitingForJobs` | Interrupted only on a shutdown that waits — the wait still happens, so a job that checks its cancellation token gets to unwind cleanly. |
+| `Always` | Interrupted on every shutdown. |
 
 ```csharp
 services.AddQuartz(q => q.ConfigureScheduler(options =>
@@ -53,7 +62,7 @@ services.AddQuartz(q => q.ConfigureScheduler(options =>
     options.InstanceName = "core";
     options.InstanceId = "node-1";
     options.MaxBatchSize = 5;
-    options.InterruptJobsOnShutdown = true;
+    options.ShutdownJobInterruption = ShutdownJobInterruption.Always;
 }));
 ```
 
@@ -508,8 +517,8 @@ Two differences are worth knowing:
 | `quartz.scheduler.idleWaitTime` | `Scheduler:IdleWaitTime` |
 | `quartz.scheduler.batchTriggerAcquisitionMaxCount` | `Scheduler:MaxBatchSize` |
 | `quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow` | `Scheduler:BatchTriggerAcquisitionFireAheadTimeWindow` |
-| `quartz.scheduler.interruptJobsOnShutdown` | `Scheduler:InterruptJobsOnShutdown` |
-| `quartz.scheduler.interruptJobsOnShutdownWithWait` | `Scheduler:InterruptJobsOnShutdownWithWait` |
+| `quartz.scheduler.interruptJobsOnShutdown` | `Scheduler:ShutdownJobInterruption` — `true` alone means `WhenNotWaitingForJobs` |
+| `quartz.scheduler.interruptJobsOnShutdownWithWait` | `Scheduler:ShutdownJobInterruption` — `true` alone means `WhenWaitingForJobs`; both keys `true` means `Always` |
 | `quartz.context.key.NAME` | `Scheduler:Context:NAME` |
 | `quartz.threadPool.maxConcurrency` (or `threadCount`) | `ThreadPool:MaxConcurrency` |
 | `quartz.threadPool.type` | `UseThreadPool<T>()` |

@@ -439,8 +439,15 @@ internal sealed class QuartzScheduler
 
             await NotifySchedulerListenersShuttingDown(cancellationToken).ConfigureAwait(false);
 
-            if (resources.InterruptJobsOnShutdown && !waitForJobsToComplete
-                || resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete)
+            bool interruptRunningJobs = resources.ShutdownJobInterruption switch
+            {
+                ShutdownJobInterruption.Always => true,
+                ShutdownJobInterruption.WhenWaitingForJobs => waitForJobsToComplete,
+                ShutdownJobInterruption.WhenNotWaitingForJobs => !waitForJobsToComplete,
+                _ => false
+            };
+
+            if (interruptRunningJobs)
             {
                 var jobs = GetCurrentlyExecutingJobs().OfType<IInterruptableJobExecutionContext>();
                 foreach (var job in jobs)

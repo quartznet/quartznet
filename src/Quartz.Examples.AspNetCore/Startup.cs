@@ -98,11 +98,11 @@ public class Startup
             // handy when part of cluster or you want to otherwise identify multiple schedulers
             q.ConfigureScheduler(options => options.InstanceId = "Scheduler-Core");
 
-            // you can control whether job interruption happens for running jobs when scheduler is shutting down
-            q.ConfigureScheduler(options => options.InterruptJobsOnShutdown = true);
-
-            // when QuartzHostedServiceOptions.WaitForJobsToComplete = true or scheduler.Shutdown(waitForJobsToComplete: true)
-            q.ConfigureScheduler(options => options.InterruptJobsOnShutdownWithWait = true);
+            // you can control whether running jobs are interrupted when the scheduler shuts down, and
+            // whether that also covers a shutdown that waits for them to finish
+            // (QuartzHostedServiceOptions.WaitForJobsToComplete = true, or
+            // scheduler.Shutdown(waitForJobsToComplete: true))
+            q.ConfigureScheduler(options => options.ShutdownJobInterruption = ShutdownJobInterruption.Always);
 
             // we can change from the default of 1
             q.ConfigureScheduler(options => options.MaxBatchSize = 5);

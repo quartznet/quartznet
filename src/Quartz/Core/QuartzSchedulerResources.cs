@@ -262,9 +262,7 @@ internal sealed class QuartzSchedulerResources
         }
     }
 
-    public bool InterruptJobsOnShutdown { get; set; }
-
-    public bool InterruptJobsOnShutdownWithWait { get; set; }
+    public ShutdownJobInterruption ShutdownJobInterruption { get; set; }
 
     public TimeProvider TimeProvider { get; set; }
 

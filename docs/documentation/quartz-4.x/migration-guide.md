@@ -152,6 +152,38 @@ registration phases read it from closures that run later, some only when the con
 options, so a caller that reused its own collection could reconfigure the scheduler long after
 `AddQuartz` returned.
 
+### Interrupting jobs on shutdown is one setting with four answers
+
+`QuartzSchedulerOptions.InterruptJobsOnShutdown` and `InterruptJobsOnShutdownWithWait` were two
+booleans, one for a shutdown that waits for running jobs and one for a shutdown that does not. They
+were never independent — together they answered a single four-way question, and setting one without
+thinking about the other was the easy mistake, because `InterruptJobsOnShutdown = true` reads as "yes,
+interrupt" and means "only when not waiting".
+
+They are replaced by `ShutdownJobInterruption`, an enum with all four answers spelled out:
+
+| Value | Old pair |
+|---|---|
+| `Never` (default) | both `false` |
+| `WhenNotWaitingForJobs` | `InterruptJobsOnShutdown = true` |
+| `WhenWaitingForJobs` | `InterruptJobsOnShutdownWithWait = true` |
+| `Always` | both `true` |
+
+```diff
+  q.ConfigureScheduler(options =>
+  {
+-     options.InterruptJobsOnShutdown = true;
+-     options.InterruptJobsOnShutdownWithWait = true;
++     options.ShutdownJobInterruption = ShutdownJobInterruption.Always;
+  });
+```
+
+Configuration files need no change. Both flat keys still work and map onto the enum by the table above,
+and `Scheduler:InterruptJobsOnShutdown: true` in `appsettings.json` still means what it meant: the
+typed binder no longer knows that name, but every section is also flattened onto its `quartz.*` key,
+and the property bridge reads it there. `Scheduler:ShutdownJobInterruption: "Always"` is the new
+spelling, and binds directly.
+
 ### A setting stops wearing a verb
 
 `IPersistentStoreBuilder.AcceptEnlistedTransactions()` was exactly
@@ -299,7 +331,7 @@ Settings that used to be write-only properties on the configurator are now optio
 +         options.InstanceName = "core";
 +         options.InstanceId = "node-1";
 +         options.MaxBatchSize = 5;
-+         options.InterruptJobsOnShutdown = true;
++         options.ShutdownJobInterruption = ShutdownJobInterruption.WhenNotWaitingForJobs;
 +     });
   });
 ```
@@ -617,8 +649,8 @@ write instead, and the typed option that is usually the better answer.
 | `PropertySchedulerTypeLoadHelperType` | `quartz.scheduler.typeLoadHelper.type` | `UseTypeLoader<T>()`, or `UseSimpleTypeLoader()` |
 | `PropertySchedulerJobFactoryPrefix` | `quartz.scheduler.jobFactory` | constructor injection into your `IJobFactory` |
 | `PropertySchedulerJobFactoryType` | `quartz.scheduler.jobFactory.type` | `UseJobFactory<T>()` |
-| `PropertySchedulerInterruptJobsOnShutdown` | `quartz.scheduler.interruptJobsOnShutdown` | `QuartzSchedulerOptions.InterruptJobsOnShutdown` |
-| `PropertySchedulerInterruptJobsOnShutdownWithWait` | `quartz.scheduler.interruptJobsOnShutdownWithWait` | `QuartzSchedulerOptions.InterruptJobsOnShutdownWithWait` |
+| `PropertySchedulerInterruptJobsOnShutdown` | `quartz.scheduler.interruptJobsOnShutdown` | `QuartzSchedulerOptions.ShutdownJobInterruption` |
+| `PropertySchedulerInterruptJobsOnShutdownWithWait` | `quartz.scheduler.interruptJobsOnShutdownWithWait` | `QuartzSchedulerOptions.ShutdownJobInterruption` |
 | `PropertySchedulerContextPrefix` | `quartz.context.key` | `QuartzSchedulerOptions.Context` |
 | `PropertyThreadPoolPrefix` | `quartz.threadPool` | `ThreadPoolOptions` |
 | `PropertyThreadPoolType` | `quartz.threadPool.type` | `UseThreadPool<T>()`, or `UseThreadPool(instance)` |

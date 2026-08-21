@@ -1187,9 +1187,8 @@ namespace Quartz
         public System.TimeSpan IdleWaitTime { get; set; }
         public string InstanceId { get; set; }
         public string InstanceName { get; set; }
-        public bool InterruptJobsOnShutdown { get; set; }
-        public bool InterruptJobsOnShutdownWithWait { get; set; }
         public int MaxBatchSize { get; set; }
+        public Quartz.ShutdownJobInterruption ShutdownJobInterruption { get; set; }
     }
     public static class QuartzServiceCollectionExtensions
     {
@@ -1326,6 +1325,13 @@ namespace Quartz
         public bool IgnoreDuplicates { get; set; }
         public bool OverwriteExistingData { get; set; }
         public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
+    }
+    public enum ShutdownJobInterruption
+    {
+        Never = 0,
+        WhenNotWaitingForJobs = 1,
+        WhenWaitingForJobs = 2,
+        Always = 3,
     }
     public sealed class SimpleScheduleBuilder : Quartz.IScheduleBuilder
     {

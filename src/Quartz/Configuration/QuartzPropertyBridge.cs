@@ -364,8 +364,7 @@ internal static class QuartzPropertyBridge
         parser.Milliseconds(LegacyPropertyKeys.SchedulerIdleWaitTime, value => options.IdleWaitTime = value);
         parser.Int(LegacyPropertyKeys.SchedulerMaxBatchSize, value => options.MaxBatchSize = value);
         parser.Milliseconds(LegacyPropertyKeys.SchedulerBatchTimeWindow, value => options.BatchTriggerAcquisitionFireAheadTimeWindow = value);
-        parser.Bool(LegacyPropertyKeys.SchedulerInterruptJobsOnShutdown, value => options.InterruptJobsOnShutdown = value);
-        parser.Bool(LegacyPropertyKeys.SchedulerInterruptJobsOnShutdownWithWait, value => options.InterruptJobsOnShutdownWithWait = value);
+        MapShutdownJobInterruption(options, parser);
 
         var context = parser.Group(LegacyPropertyKeys.SchedulerContextPrefix);
         foreach (var key in context.AllKeys)
@@ -375,6 +374,32 @@ internal static class QuartzPropertyBridge
                 options.Context[key] = value;
             }
         }
+    }
+
+    /// <summary>
+    /// Folds the two legacy interrupt-on-shutdown booleans onto the one setting that replaced them.
+    /// </summary>
+    /// <remarks>
+    /// The current value is taken apart into the pair of answers it stands for, whichever keys are
+    /// present are applied to that pair, and the result is put back together. Reading the option first
+    /// is what keeps a bag that names only one of the two keys from silently clearing the other half —
+    /// which is exactly what setting one boolean used to leave alone.
+    /// </remarks>
+    private static void MapShutdownJobInterruption(QuartzSchedulerOptions options, PropertyReader parser)
+    {
+        bool whenNotWaiting = options.ShutdownJobInterruption is ShutdownJobInterruption.Always or ShutdownJobInterruption.WhenNotWaitingForJobs;
+        bool whenWaiting = options.ShutdownJobInterruption is ShutdownJobInterruption.Always or ShutdownJobInterruption.WhenWaitingForJobs;
+
+        parser.Bool(LegacyPropertyKeys.SchedulerInterruptJobsOnShutdown, value => whenNotWaiting = value);
+        parser.Bool(LegacyPropertyKeys.SchedulerInterruptJobsOnShutdownWithWait, value => whenWaiting = value);
+
+        options.ShutdownJobInterruption = (whenNotWaiting, whenWaiting) switch
+        {
+            (true, true) => ShutdownJobInterruption.Always,
+            (true, false) => ShutdownJobInterruption.WhenNotWaitingForJobs,
+            (false, true) => ShutdownJobInterruption.WhenWaitingForJobs,
+            (false, false) => ShutdownJobInterruption.Never
+        };
     }
 
     /// <summary>

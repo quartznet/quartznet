@@ -71,6 +71,37 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     }
 
     [Test]
+    public void TheBooleanSpellingsOfInterruptOnShutdownStillReach()
+    {
+        // The property they used to bind onto is an enum now, so the typed binder passes both keys by.
+        // Every section is also flattened onto its quartz.* key and read by the bridge, which is what
+        // keeps an appsettings.json written for the booleans saying what it always said. This suite
+        // exists because "accepted without complaint and then not used" is the failure worth a test.
+        (string, string, ShutdownJobInterruption)[] cases =
+        [
+            ("true", "false", ShutdownJobInterruption.WhenNotWaitingForJobs),
+            ("false", "true", ShutdownJobInterruption.WhenWaitingForJobs),
+            ("true", "true", ShutdownJobInterruption.Always),
+            ("false", "false", ShutdownJobInterruption.Never)
+        ];
+
+        foreach ((string onShutdown, string withWait, ShutdownJobInterruption expected) in cases)
+        {
+            var services = new ServiceCollection();
+            services.AddQuartz(Section(new Dictionary<string, string?>
+            {
+                ["Scheduler:InterruptJobsOnShutdown"] = onShutdown,
+                ["Scheduler:InterruptJobsOnShutdownWithWait"] = withWait,
+            }));
+
+            using var provider = services.BuildServiceProvider();
+
+            provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.ShutdownJobInterruption
+                .Should().Be(expected, $"InterruptJobsOnShutdown={onShutdown}, WithWait={withWait}");
+        }
+    }
+
+    [Test]
     public void AJobStoreChosenInCodeBeatsALegacyTypeKey()
     {
         var services = new ServiceCollection();
