@@ -38,8 +38,7 @@ namespace Quartz.Tests.Integration.Impl;
 /// Where the two genuinely disagree the difference is a hook, not a missing assertion: each store says
 /// which way it behaves and both branches are asserted, so the divergence is written down and can be
 /// found by anyone deciding whether to close it. The hooks are
-/// <see cref="ReportsJobGroupPauseState" />, <see cref="AllGroupsPausedSentinel" />,
-/// <see cref="ResumeAllForgetsPausedButEmptyGroups" /> and
+/// <see cref="ReportsJobGroupPauseState" />, <see cref="AllGroupsPausedSentinel" /> and
 /// <see cref="DuplicateCalendarException" />.
 /// </para>
 /// </remarks>
@@ -89,12 +88,6 @@ public abstract class JobStoreContractTest
     /// <see langword="null" /> when it lists only real groups.
     /// </summary>
     protected virtual string AllGroupsPausedSentinel => null;
-
-    /// <summary>
-    /// Whether <see cref="IJobStore.ResumeAll" /> un-pauses a group that is paused but holds no
-    /// triggers.
-    /// </summary>
-    protected virtual bool ResumeAllForgetsPausedButEmptyGroups => true;
 
     /// <summary>
     /// The exception adding a calendar over an existing name raises when replacing was not asked for.
@@ -380,22 +373,11 @@ public abstract class JobStoreContractTest
         IOperableTrigger late = CreateTrigger("late", "empty-group", job.Key);
         await Store.ScheduleJob(job, late);
 
-        if (ResumeAllForgetsPausedButEmptyGroups)
-        {
-            (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items.Should().BeEmpty();
-            (await Store.GetTriggerState(late.Key)).Should().Be(TriggerState.Normal,
-                "resume-all resumed everything, so there is no pause left to impose");
-        }
-        else
-        {
-            // Pinned, not endorsed. The ADO store's ResumeAll walks the groups it finds in the trigger
-            // table, and a paused-but-empty group is in no trigger row, so its paused marker survives
-            // a resume-all and goes on pausing triggers added to that group afterwards.
-            (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items
-                .Select(x => x.Name).Should().Contain("empty-group",
-                    "the ADO store's resume-all only visits groups that hold triggers");
-            (await Store.GetTriggerState(late.Key)).Should().Be(TriggerState.Paused);
-        }
+        // A resume-all reaches a group that is paused but holds no triggers, which the group listing
+        // could otherwise never show a caller a way to resume.
+        (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items.Should().BeEmpty();
+        (await Store.GetTriggerState(late.Key)).Should().Be(TriggerState.Normal,
+            "resume-all resumed everything, so there is no pause left to impose");
     }
 
     [Test]

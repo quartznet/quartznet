@@ -1688,6 +1688,15 @@ of these is a 3.x behaviour, not a 4.x regression:
   comes out of error into the pause rather than past it. If you have code that pauses a group to
   suppress a failing trigger, pause it and then reset it: the pause no longer does both.
 
+- **`ResumeAll` on the ADO store now resumes groups that hold no triggers.** It walked the groups it
+  found in `QRTZ_TRIGGERS` and cleared only those, plus its own all-groups marker. A group paused
+  while empty — `PauseTriggers(GroupEquals("nightly"))` before anything is scheduled into `nightly`,
+  which is a supported thing to do — is in no trigger row, so its `QRTZ_PAUSED_TRIGGER_GRPS` row
+  survived the resume and went on pausing everything scheduled into that group afterwards, with no
+  way to see why short of reading the table. `ResumeAll` clears the whole table for the scheduler
+  now, which is what `RAMJobStore` always did. The 3.x row can be removed by hand with
+  `DELETE FROM QRTZ_PAUSED_TRIGGER_GRPS WHERE SCHED_NAME = '…'` if a database carries one.
+
 ## JobKey and TriggerKey Null Validation
 
 `JobKey` and `TriggerKey` now throw `ArgumentNullException` when you specify `null` for `name` or `group`. Triggers can no longer be constructed with a null group name. If your code was relying on null group names, switch to an explicit group name.
