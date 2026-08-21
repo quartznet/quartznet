@@ -2078,6 +2078,7 @@ namespace Quartz.Impl.AdoJobStore
         public bool RequiresConnection { get; }
         public string? SchedulerName { get; }
         public string TablePrefix { get; }
+        protected System.TimeProvider TimeProvider { get; }
         protected abstract System.Threading.Tasks.ValueTask ExecuteSql(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql, System.Threading.CancellationToken cancellationToken = default);
         public void Initialize(Quartz.Impl.AdoJobStore.SemaphoreContext context) { }
         public System.Threading.Tasks.ValueTask<bool> ObtainLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2354,17 +2355,19 @@ namespace Quartz.Impl.AdoJobStore
         public SelectForUpdateSemaphore(Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
         public SelectForUpdateSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
         protected SelectForUpdateSemaphore(string tablePrefix, string? schedulerName, string? selectWithLockSql, string insertLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
-        public int MaxRetry { get; set; }
+        public int MaxRetry { get; init; }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
-        public System.TimeSpan RetryPeriod { get; set; }
+        public System.TimeSpan RetryPeriod { get; init; }
         protected override System.Threading.Tasks.ValueTask ExecuteSql(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class SemaphoreContext : System.IEquatable<Quartz.Impl.AdoJobStore.SemaphoreContext>
     {
         public SemaphoreContext() { }
+        public System.TimeSpan? CommandTimeout { get; init; }
         public required string InstanceId { get; init; }
         public required string SchedulerName { get; init; }
         public required string TablePrefix { get; init; }
+        public System.TimeProvider TimeProvider { get; init; }
     }
     public abstract class SimplePropertiesTriggerPersistenceDelegateBase : Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate
     {
@@ -2619,6 +2622,8 @@ namespace Quartz.Impl.AdoJobStore
         public UpdateRowSemaphore(Quartz.Impl.AdoJobStore.Common.IDbProvider provider) { }
         protected UpdateRowSemaphore(string tablePrefix, string? schedulerName, string updateForLockSql, string insertLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
         protected virtual int RetryCount { get; }
+        [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
+        public System.TimeSpan RetryPeriod { get; init; }
         protected override System.Threading.Tasks.ValueTask ExecuteSql(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }

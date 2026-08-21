@@ -60,6 +60,19 @@ public class UpdateRowSemaphore : DbSemaphore
     protected virtual int RetryCount => 2;
 
     /// <summary>
+    /// Sleep between attempts, defaults to 1 second.
+    /// </summary>
+    /// <remarks>
+    /// It was a literal <c>TimeSpan.FromSeconds(1)</c> in the retry loop, which meant this handler
+    /// ignored <c>quartz.jobStore.lockHandler.retryPeriod</c> while its sibling
+    /// <see cref="SelectForUpdateSemaphore" /> honoured it. Init-only for the same reason as there: the
+    /// value is fixed for the life of the handler, and the property bridge writes it by reflection,
+    /// which an init accessor does not stop.
+    /// </remarks>
+    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+    public TimeSpan RetryPeriod { get; init; } = TimeSpan.FromMilliseconds(1000);
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="UpdateRowSemaphore"/> class.
     /// </summary>
     public UpdateRowSemaphore(IDbProvider provider)
@@ -115,7 +128,7 @@ public class UpdateRowSemaphore : DbSemaphore
                         logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId} - will try again.", lockName, requestorId);
                     }
 
-                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(RetryPeriod, TimeProvider, cancellationToken).ConfigureAwait(false);
                 }
             }
         }

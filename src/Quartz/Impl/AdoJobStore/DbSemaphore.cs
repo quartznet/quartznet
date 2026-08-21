@@ -39,6 +39,7 @@ public abstract class DbSemaphore : ISemaphore
 
     private readonly string sql;
     private readonly string insertSql;
+    private readonly IDbProvider dbProvider;
 
     private string tablePrefix;
 
@@ -72,7 +73,8 @@ public abstract class DbSemaphore : ISemaphore
         this.tablePrefix = tablePrefix;
         this.sql = sql.Trim();
         this.insertSql = insertSql.Trim();
-        AdoUtil = new AdoUtil(dbProvider);
+        this.dbProvider = dbProvider;
+        adoUtil = new AdoUtil(dbProvider);
         SetExpandedSql();
     }
 
@@ -87,10 +89,16 @@ public abstract class DbSemaphore : ISemaphore
     /// both statements. The job store calls this once before the semaphore is used, whether the
     /// store built the handler itself or the container supplied it.
     /// </summary>
+    /// <remarks>
+    /// The command timeout arrives here too, so the accessor is rebuilt rather than reconfigured: it is
+    /// only ever replaced on this one call, before any lock has been taken.
+    /// </remarks>
     public void Initialize(SemaphoreContext context)
     {
         schedulerName = context.SchedulerName;
         tablePrefix = context.TablePrefix;
+        TimeProvider = context.TimeProvider;
+        adoUtil = new AdoUtil(dbProvider, context.CommandTimeout);
         SetExpandedSql();
     }
 
@@ -217,11 +225,20 @@ public abstract class DbSemaphore : ISemaphore
     /// </summary>
     public string TablePrefix => tablePrefix;
 
+    /// <summary>
+    /// The clock this semaphore backs off on between attempts, told to it through
+    /// <see cref="Initialize" />. Defaults to <see cref="System.TimeProvider.System" /> for a handler
+    /// used before the store has initialized it.
+    /// </summary>
+    protected TimeProvider TimeProvider { get; private set; } = TimeProvider.System;
+
     /// <remarks>
     /// <c>private protected</c> because <see cref="IAdoUtil" /> is an implementation detail: command
     /// preparation and parameter naming are not something an out-of-assembly semaphore should reach into.
     /// </remarks>
-    private protected IAdoUtil AdoUtil { get; }
+    private protected IAdoUtil AdoUtil => adoUtil;
+
+    private AdoUtil adoUtil;
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
     private readonly struct ThreadLockKey : IEquatable<ThreadLockKey>

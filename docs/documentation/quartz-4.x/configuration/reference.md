@@ -257,6 +257,12 @@ Both this and `UseSerializer` register against the scheduler that owns the store
 `ISemaphore` or `IObjectSerializer` directly against `Services` registers it for the container, which a
 named scheduler will not see.
 
+Whichever handler is in use, the store tells it which scheduler it locks for and the environment it
+locks in — its clock and the `CommandTimeout` above — through `ISemaphore.Initialize(SemaphoreContext)`,
+before the first lock is taken. A handler of your own does not need configuring for any of it. The
+timeout is worth setting for a clustered store: a node waiting on `QRTZ_LOCKS` behind a peer that
+stopped without releasing the row cannot schedule anything until the lock statement gives up.
+
 ### Data source
 
 `DataSourceOptions`, bound from `Quartz:DataSource`.

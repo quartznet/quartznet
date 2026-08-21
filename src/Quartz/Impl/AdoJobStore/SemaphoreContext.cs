@@ -22,7 +22,7 @@
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
-/// The identity of the scheduler a lock handler locks for, handed to
+/// The identity of the scheduler a lock handler locks for and the environment it locks in, handed to
 /// <see cref="ISemaphore.Initialize" /> once by the job store before the semaphore is used.
 /// </summary>
 public sealed record SemaphoreContext
@@ -42,4 +42,22 @@ public sealed record SemaphoreContext
     /// database ignores this.
     /// </summary>
     public required string TablePrefix { get; init; }
+
+    /// <summary>
+    /// The clock the store runs on, defaulting to <see cref="System.TimeProvider.System"/>. A handler
+    /// that backs off between attempts waits on this rather than on wall time, so its retry behaviour
+    /// can be tested without the test waiting too.
+    /// </summary>
+    public TimeProvider TimeProvider { get; init; } = TimeProvider.System;
+
+    /// <summary>
+    /// How long the handler's statements may run before the provider cancels them, from
+    /// <see cref="AdoJobStoreOptions.CommandTimeout" />. <see langword="null" /> leaves the provider's
+    /// own default in place, and a handler that does not lock in the database ignores this.
+    /// </summary>
+    /// <remarks>
+    /// The lock statement is where a timeout earns its keep: a node waiting on <c>QRTZ_LOCKS</c> behind
+    /// a peer that stopped without releasing the row cannot make progress until the statement gives up.
+    /// </remarks>
+    public TimeSpan? CommandTimeout { get; init; }
 }
