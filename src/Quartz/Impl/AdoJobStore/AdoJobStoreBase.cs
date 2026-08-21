@@ -436,8 +436,8 @@ public abstract class AdoJobStoreBase : IJobStore
         {
             Throw.JobPersistenceException(
                 $"A connection is enlisted for scheduler '{InstanceName}', but it is not configured to take part in "
-                + "transactions the application owns, so this operation would commit on its own. Call "
-                + "AcceptEnlistedTransactions() when configuring the persistent store, or set "
+                + "transactions the application owns, so this operation would commit on its own. Configure the "
+                + "persistent store with Configure(o => o.AcceptEnlistedTransactions = true), or set "
                 + "'quartz.jobStore.acceptEnlistedTransactions' to true.");
         }
 

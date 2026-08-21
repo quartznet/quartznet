@@ -466,7 +466,6 @@ namespace Quartz
     {
         string SchedulerName { get; }
         Microsoft.Extensions.DependencyInjection.IServiceCollection Services { get; }
-        Quartz.IPersistentStoreBuilder AcceptEnlistedTransactions();
         Quartz.IPersistentStoreBuilder Configure(System.Action<Quartz.AdoJobStoreOptions> configure);
         Quartz.IPersistentStoreBuilder UseClustering(System.Action<Quartz.ClusteringOptions>? configure = null);
         Quartz.IPersistentStoreBuilder UseDataSource(System.Action<Quartz.DataSourceOptions> configure);
@@ -1033,10 +1032,11 @@ namespace Quartz
     public class QuartzHostedService : Microsoft.Extensions.Hosting.IHostedLifecycleService, Microsoft.Extensions.Hosting.IHostedService
     {
         public QuartzHostedService(Microsoft.Extensions.Hosting.IHostApplicationLifetime applicationLifetime, System.IServiceProvider serviceProvider, Microsoft.Extensions.Options.IOptionsMonitor<Quartz.QuartzHostedServiceOptions> options) { }
-        public virtual System.Threading.Tasks.Task StartAsync(System.Threading.CancellationToken cancellationToken) { }
+        protected System.Collections.Generic.IReadOnlyList<Quartz.IScheduler> Schedulers { get; }
+        public System.Threading.Tasks.Task StartAsync(System.Threading.CancellationToken cancellationToken) { }
         public virtual System.Threading.Tasks.Task StartedAsync(System.Threading.CancellationToken cancellationToken) { }
         public virtual System.Threading.Tasks.Task StartingAsync(System.Threading.CancellationToken cancellationToken) { }
-        public virtual System.Threading.Tasks.Task StopAsync(System.Threading.CancellationToken cancellationToken) { }
+        public System.Threading.Tasks.Task StopAsync(System.Threading.CancellationToken cancellationToken) { }
         public virtual System.Threading.Tasks.Task StoppedAsync(System.Threading.CancellationToken cancellationToken) { }
         public virtual System.Threading.Tasks.Task StoppingAsync(System.Threading.CancellationToken cancellationToken) { }
     }

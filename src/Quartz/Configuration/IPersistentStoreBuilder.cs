@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,30 +41,6 @@ public interface IPersistentStoreBuilder
     /// section.
     /// </remarks>
     IPersistentStoreBuilder Configure(Action<AdoJobStoreOptions> configure);
-
-    /// <summary>
-    /// Lets the job store take part in a transaction the application owns, instead of always managing
-    /// an ADO.NET transaction of its own, so that scheduling commits together with the rest of the
-    /// application's work.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// The job store then uses a connection enlisted with
-    /// <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" /> or
-    /// <see cref="SchedulerEnlistmentExtensions.EnlistConnection" />. Handing over a connection is the
-    /// only way to take part, and the one that works on every provider: with the default
-    /// <see cref="Quartz.Impl.AdoJobStore.LocalTransactionJobStore" />, a connection the job store opens for itself
-    /// stays out of any ambient <see cref="System.Transactions.TransactionScope" />, since a second
-    /// connection in that transaction would require it to be promoted to a distributed one.
-    /// <see cref="Quartz.Impl.AdoJobStore.ExternalTransactionJobStore" /> is the exception, since running inside a
-    /// container-managed transaction is that store's contract.
-    /// </para>
-    /// <para>
-    /// Locks are held until the application commits, so keep such transactions short. This also
-    /// switches locking to database locks unless an explicit lock handler was configured.
-    /// </para>
-    /// </remarks>
-    IPersistentStoreBuilder AcceptEnlistedTransactions();
 
     /// <summary>
     /// Says which data source this store reads and writes through, by name.

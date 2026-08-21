@@ -205,7 +205,7 @@ builder.Services.AddQuartz(q =>
     q.UsePersistentStore(store =>
     {
         store.UsePostgres(connectionString);
-        store.AcceptEnlistedTransactions();
+        store.Configure(options => options.AcceptEnlistedTransactions = true);
     });
 });
 ```

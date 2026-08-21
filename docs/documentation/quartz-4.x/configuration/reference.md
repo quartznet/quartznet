@@ -434,7 +434,7 @@ Two differences are worth knowing:
 | `quartz.jobStore.useProperties` | `JobStore:UseProperties` |
 | `quartz.jobStore.makeThreadsDaemons` | `JobStore:UseBackgroundThreads` |
 | `quartz.jobStore.clustered` | `JobStore:Clustering:Enabled`, or `UseClustering()` |
-| `quartz.jobStore.acceptEnlistedTransactions` | `JobStore:AcceptEnlistedTransactions`, or `AcceptEnlistedTransactions()` |
+| `quartz.jobStore.acceptEnlistedTransactions` | `JobStore:AcceptEnlistedTransactions` |
 | `quartz.jobStore.clusterCheckinInterval` | `JobStore:Clustering:CheckinInterval` |
 | `quartz.jobStore.clusterCheckinMisfireThreshold` | `JobStore:Clustering:CheckinMisfireThreshold` |
 | `quartz.jobStore.dataSource` | set for you by the database methods |
