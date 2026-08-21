@@ -29,6 +29,10 @@ public sealed class QuartzDashboardOptions
     /// (the parameterless <c>MapQuartzDashboard()</c> overload). When integrating into an
     /// existing Blazor application the dashboard page routes are fixed at "/quartz".
     /// </summary>
+    /// <remarks>
+    /// <c>MapQuartzDashboard(pattern)</c> says the same thing where the endpoints are mapped, which is
+    /// where the rest of an application's routes are written, and a pattern given there wins over this.
+    /// </remarks>
     public string DashboardPath { get; set; } = DefaultDashboardPath;
 
     public string? AuthorizationPolicy { get; set; }

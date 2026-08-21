@@ -14,11 +14,17 @@ namespace Quartz;
 /// </remarks>
 public sealed class QuartzHttpApiOptions
 {
+    internal const string DefaultApiPath = "/quartz-api";
+
     /// <summary>
     /// The path the API is served under. It is a property of the process, not of a scheduler: every
     /// scheduler is reached under this one path.
     /// </summary>
-    public string ApiPath { get; set; } = "/quartz-api";
+    /// <remarks>
+    /// <c>MapQuartzHttpApi(pattern)</c> says the same thing where the endpoints are mapped, which is
+    /// where the rest of an application's routes are written, and a pattern given there wins over this.
+    /// </remarks>
+    public string ApiPath { get; set; } = DefaultApiPath;
 
     /// <summary>
     /// Whether a failure's stack trace is included in the problem details returned to the caller.
@@ -26,6 +32,15 @@ public sealed class QuartzHttpApiOptions
     public bool IncludeStackTraceInProblemDetails { get; set; }
 
     internal string TrimmedApiPath => ApiPath.TrimEnd('/');
+
+    /// <summary>
+    /// Whether a value is usable as the path the API is served under.
+    /// </summary>
+    /// <remarks>
+    /// Shared with <c>MapQuartzHttpApi(pattern)</c>, so a pattern given at the map site is held to the
+    /// same rule as one configured at registration — the options validator has already run by then.
+    /// </remarks>
+    internal static bool IsRoutableApiPath(string? path) => !string.IsNullOrWhiteSpace(path) && path.StartsWith('/');
 }
 
 /// <summary>
@@ -40,7 +55,7 @@ internal sealed class QuartzHttpApiOptionsValidator : IValidateOptions<QuartzHtt
 {
     public ValidateOptionsResult Validate(string? name, QuartzHttpApiOptions options)
     {
-        if (string.IsNullOrWhiteSpace(options.ApiPath) || !options.ApiPath.StartsWith('/'))
+        if (!QuartzHttpApiOptions.IsRoutableApiPath(options.ApiPath))
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(QuartzHttpApiOptions.ApiPath)} is required and must start with '/', was '{options.ApiPath}'.");

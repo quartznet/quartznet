@@ -449,6 +449,77 @@ public class DashboardEndpointsTest
         }
     }
 
+    [Test]
+    public async Task APatternGivenAtTheMapSiteServesTheDashboard()
+    {
+        await using WebApplication app = CreateApp();
+        app.MapQuartzDashboard("/ops/scheduler");
+
+        List<string?> patterns = GetRouteEndpoints(app).Select(e => e.RoutePattern.RawText).ToList();
+
+        patterns.Should().Contain("/ops/scheduler");
+        patterns.Should().Contain("/ops/scheduler/jobs");
+        patterns.Should().Contain("/ops/scheduler/hub");
+        patterns.Should().NotContain("/quartz",
+            "naming the path where the endpoints are mapped is the same act as configuring DashboardPath");
+    }
+
+    [Test]
+    public async Task APatternGivenAtTheMapSiteBeatsTheConfiguredPath()
+    {
+        await using WebApplication app = CreateApp(options => options.DashboardPath = "/configured");
+        app.MapQuartzDashboard("/mapped");
+
+        List<string?> patterns = GetRouteEndpoints(app).Select(e => e.RoutePattern.RawText).ToList();
+
+        patterns.Should().Contain("/mapped");
+        patterns.Should().NotContain("/configured", "the pattern at the map site is the more specific of the two");
+    }
+
+    [Test]
+    public async Task APatternGivenAtTheMapSiteReachesTheComponents()
+    {
+        // The pages build their links, their <base href> and their client-side route matching from the
+        // same options, so a path only the endpoints knew about would serve pages that navigate away.
+        await using WebApplication app = CreateApp(configureBuilder: builder => builder.Services.AddQuartz());
+
+        app.UseAntiforgery();
+        app.MapQuartzDashboard("/my-api/quartz");
+        await app.StartAsync();
+        try
+        {
+            using HttpClient client = app.GetTestClient();
+
+            using HttpResponseMessage response = await client.GetAsync("/my-api/quartz");
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            string body = await response.Content.ReadAsStringAsync();
+            body.Should().Contain("<base href=\"/my-api/quartz/\"");
+        }
+        finally
+        {
+            await app.StopAsync();
+        }
+    }
+
+    [TestCase("")]
+    [TestCase("quartz")]
+    [TestCase("/tenant{env}")]
+    [TestCase("/ops/../quartz")]
+    [TestCase("/ops?x=1")]
+    [TestCase("/ops#frag")]
+    [TestCase("/ops//scheduler")]
+    public async Task AnInvalidPatternAtTheMapSiteIsRejected(string pattern)
+    {
+        await using WebApplication app = CreateApp();
+
+        Action act = () => app.MapQuartzDashboard(pattern);
+
+        act.Should().Throw<ArgumentException>().WithParameterName("pattern",
+            "a pattern given at the map site is held to the same rule as the configured path, and the "
+            + "options validator has already run by then");
+    }
+
     [TestCase("/tenant{env}")]
     [TestCase("/ops/../quartz")]
     [TestCase("/ops?x=1")]

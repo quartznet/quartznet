@@ -357,12 +357,13 @@ public class Startup
                 Predicate = _ => true,
             });
 
-            // Map HTTP API endpoints
-            endpoints.MapQuartzHttpApi()
+            // Map HTTP API endpoints. The path can be named here, beside the other routes, or set
+            // through QuartzHttpApiOptions.ApiPath; a pattern given here wins over that.
+            endpoints.MapQuartzHttpApi("/quartz-api")
                 .RequireAuthorization();
 
             // Map Quartz.NET Dashboard UI at /quartz
-            endpoints.MapQuartzDashboard();
+            endpoints.MapQuartzDashboard("/quartz");
         });
     }
 

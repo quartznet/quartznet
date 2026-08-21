@@ -42,13 +42,68 @@ namespace Quartz;
 public static class QuartzDashboardEndpointRouteBuilderExtensions
 {
     /// <summary>
-    /// Maps the Quartz.NET Dashboard endpoints with its own Blazor component root.
+    /// Maps the Quartz.NET Dashboard endpoints with its own Blazor component root, under the path
+    /// <see cref="QuartzDashboardOptions.DashboardPath"/> configured — which defaults to <c>/quartz</c>.
     /// Use this overload when the host application does not have its own Blazor Server setup.
     /// </summary>
     public static RazorComponentsEndpointConventionBuilder MapQuartzDashboard(this IEndpointRouteBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        return MapStandaloneDashboard(builder);
+    }
+
+    /// <summary>
+    /// Maps the Quartz.NET Dashboard endpoints with its own Blazor component root, under the given route
+    /// pattern.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Naming the path where the endpoints are mapped is how the rest of ASP.NET Core reads —
+    /// <c>MapHealthChecks("/health")</c> — and it puts the route beside an application's other routes
+    /// rather than in a registration callback somewhere else.
+    /// </para>
+    /// <para>
+    /// The pattern given here wins over <see cref="QuartzDashboardOptions.DashboardPath"/>, whichever way
+    /// that was set, and is held to the same rule: a plain URL path starting with <c>/</c>, with no
+    /// <c>{</c>, <c>}</c>, <c>?</c>, <c>#</c>, <c>.</c> or <c>..</c> segments and no empty ones.
+    /// </para>
+    /// <para>
+    /// There is no counterpart on the overload that takes an existing components builder, because the
+    /// dashboard page routes are fixed at <c>/quartz</c> when integrating with an application's own
+    /// Blazor root — the same reason a custom <see cref="QuartzDashboardOptions.DashboardPath"/> is
+    /// rejected there.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The endpoint route builder.</param>
+    /// <param name="pattern">The path the dashboard is served under, for example <c>/admin/quartz</c>.</param>
+    public static RazorComponentsEndpointConventionBuilder MapQuartzDashboard(this IEndpointRouteBuilder builder, string pattern)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (string.IsNullOrWhiteSpace(pattern) || !pattern.StartsWith('/'))
+        {
+            throw new ArgumentException($"The route pattern is required and must start with '/', was '{pattern}'.", nameof(pattern));
+        }
+
+        if (!QuartzDashboardServiceCollectionExtensions.IsRoutableDashboardPath(pattern))
+        {
+            throw new ArgumentException(
+                "The route pattern must be a simple URL path: it cannot contain '{', '}', '?', '#', '.' or '..' segments, or empty segments ('//').",
+                nameof(pattern));
+        }
+
+        // Written onto the resolved options rather than kept locally: the dashboard's own components read
+        // the same instance to build their links, their <base href> and their client-side route matching,
+        // so a path that only the endpoints knew about would serve pages that navigate somewhere else.
+        QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
+        options.DashboardPath = pattern;
+
+        return MapStandaloneDashboard(builder);
+    }
+
+    private static RazorComponentsEndpointConventionBuilder MapStandaloneDashboard(IEndpointRouteBuilder builder)
+    {
         // Map Blazor components at root level — pages already have /quartz prefix in @page directives
         RazorComponentsEndpointConventionBuilder components = builder
             .MapRazorComponents<QuartzDashboardApp>()

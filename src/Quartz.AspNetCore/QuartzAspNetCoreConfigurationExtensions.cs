@@ -217,10 +217,46 @@ public static class QuartzAspNetCoreConfigurationExtensions
     }
 
     /// <summary>
-    /// Maps the Quartz HTTP API endpoints configured by
-    /// <see cref="AddQuartzHttpApi(IServiceCollection, Action{QuartzHttpApiOptions})" />.
+    /// Maps the Quartz HTTP API endpoints under the path
+    /// <see cref="AddQuartzHttpApi(IServiceCollection, Action{QuartzHttpApiOptions})" /> configured,
+    /// which defaults to <c>/quartz-api</c>.
     /// </summary>
     public static IEndpointConventionBuilder MapQuartzHttpApi(this IEndpointRouteBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        return MapApiEndpoints(builder, pattern: null);
+    }
+
+    /// <summary>
+    /// Maps the Quartz HTTP API endpoints under the given route pattern.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Naming the path where the endpoints are mapped is how the rest of ASP.NET Core reads —
+    /// <c>MapHealthChecks("/health")</c> — and it puts the route beside an application's other routes
+    /// rather than in a registration callback somewhere else.
+    /// </para>
+    /// <para>
+    /// The pattern given here wins over <see cref="QuartzHttpApiOptions.ApiPath" />, whichever way that
+    /// was set. It has to start with <c>/</c>, the same rule the option is validated against.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The endpoint route builder.</param>
+    /// <param name="pattern">The path the API is served under, for example <c>/quartz-api</c>.</param>
+    public static IEndpointConventionBuilder MapQuartzHttpApi(this IEndpointRouteBuilder builder, string pattern)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (!QuartzHttpApiOptions.IsRoutableApiPath(pattern))
+        {
+            throw new ArgumentException($"The route pattern is required and must start with '/', was '{pattern}'.", nameof(pattern));
+        }
+
+        return MapApiEndpoints(builder, pattern);
+    }
+
+    private static QuartzApiConventionBuilder MapApiEndpoints(IEndpointRouteBuilder builder, string? pattern)
     {
         var handler = builder.ServiceProvider.GetService<ExceptionHandler>();
         if (handler is null)
@@ -229,6 +265,12 @@ public static class QuartzAspNetCoreConfigurationExtensions
         }
 
         var options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzHttpApiOptions>>().Value;
+        if (pattern is not null)
+        {
+            // Written onto the resolved options rather than kept locally, so that anything reading them
+            // afterwards is told where the API actually is rather than where it was once asked to be.
+            options.ApiPath = pattern;
+        }
 
         var calendarEndpoints = CalendarEndpoints.MapEndpoints(builder, options).ToArray();
         foreach (var endpoint in calendarEndpoints)

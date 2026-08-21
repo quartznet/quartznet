@@ -1158,6 +1158,33 @@ configured. `QuartzHttpApiOptions` stays singular for the same reason: `ApiPath`
 process, and calling `AddQuartzHttpApi(configure)` from two `AddQuartz` callbacks configures the same
 options twice, last callback winning.
 
+## The route is named where the endpoints are mapped
+
+`MapQuartzHttpApi` and `MapQuartzDashboard` take a route pattern, which is how the rest of ASP.NET Core
+reads — `MapHealthChecks("/health")` — and it puts the path with the application's other routes instead
+of in a registration callback somewhere else:
+
+```diff
+- services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
+- services.AddQuartzDashboard(options => options.DashboardPath = "/ops/quartz");
+  …
+- endpoints.MapQuartzHttpApi();
+- endpoints.MapQuartzDashboard();
++ endpoints.MapQuartzHttpApi("/ops/api");
++ endpoints.MapQuartzDashboard("/ops/quartz");
+```
+
+Nothing is removed. `QuartzHttpApiOptions.ApiPath` and `QuartzDashboardOptions.DashboardPath` are still
+there and still the shape to use when the path comes from configuration, and the parameterless overloads
+read them. When both are given the pattern at the map site wins, being the more specific of the two. A
+pattern given there is held to the same rule as the option it overrides, and a bad one is an
+`ArgumentException` naming the parameter rather than an options-validation failure — by the time the
+endpoints are mapped, the validators have already run.
+
+There is no `MapQuartzDashboard(existingComponents, pattern)`: the dashboard page routes are fixed at
+`/quartz` when integrating with an application's own Blazor root, which is the same reason a custom
+`DashboardPath` is rejected in that mode.
+
 ## One shape per registration method
 
 The `AddJob` / `AddTrigger` / `AddCalendar` grid had overloads that said the same thing twice, and
