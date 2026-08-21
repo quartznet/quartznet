@@ -39,11 +39,6 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         return this;
     }
 
-    public IPersistentStoreBuilder AcceptEnlistedTransactions()
-    {
-        return Configure(options => options.AcceptEnlistedTransactions = true);
-    }
-
     public IPersistentStoreBuilder UseDataSource(Action<DataSourceOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);

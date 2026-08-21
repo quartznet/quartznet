@@ -109,6 +109,42 @@ Set `quartz.checkConfiguration` to `false` to allow keys of your own. The `IConf
 are still unchecked, because flattening a section invents `quartz.*` keys whether Quartz reads them
 or not.
 
+### A setting stops wearing a verb
+
+`IPersistentStoreBuilder.AcceptEnlistedTransactions()` was exactly
+`Configure(options => options.AcceptEnlistedTransactions = true)` — one assignment, no side effect —
+while the other nineteen `AdoJobStoreOptions` settings, `UseDbLocks` and `UseProperties` among them,
+are set through `Configure` like everything else. A reader of the interface reasonably concluded that
+the settings with verbs were the important ones.
+
+```diff
+  q.UsePersistentStore(store =>
+  {
+      store.UsePostgres(connectionString);
+-     store.AcceptEnlistedTransactions();
++     store.Configure(options => options.AcceptEnlistedTransactions = true);
+  });
+```
+
+The option, the configuration key `quartz.jobStore.acceptEnlistedTransactions` and the
+`JobStore:AcceptEnlistedTransactions` section entry are all unchanged. `UseClustering()` keeps its
+verb: it genuinely does more than one assignment, setting `Enabled` on `ClusteringOptions` and
+`UseDbLocks` on `AdoJobStoreOptions`.
+
+### The hosted service's extension point is its four hooks
+
+`QuartzHostedService.StartAsync` and `StopAsync` are no longer `virtual`. They maintain a private list
+of schedulers and an internal startup task, so an override that did not call base left the schedulers
+bound to the repository with nothing able to shut them down — a failure that surfaces at process exit,
+long after the code that caused it.
+
+The four lifecycle hooks `StartingAsync`, `StartedAsync`, `StoppingAsync` and `StoppedAsync` stay
+`virtual`; they are no-ops that exist for nothing else, and they are what #2386 and #2522 asked for.
+Work in an overridden `StartAsync` moves into `StartingAsync` or `StartedAsync`, and work in
+`StopAsync` into `StoppingAsync` or `StoppedAsync`. What a subclass was reaching into `StartAsync` for
+is now a member of its own: `protected IReadOnlyList<IScheduler> Schedulers`, a snapshot of the
+schedulers the service is running.
+
 ### The standalone builder reads a configuration section
 
 `QuartzSchedulerBuilder.UseConfiguration(IConfiguration)` is new, and is the standalone counterpart of
@@ -1865,7 +1901,7 @@ documentation always promised.
 * **`TriggerState.Executing`** — tell whether a trigger's job is running, across the whole cluster (see [Executing is a trigger state](#executing-is-a-trigger-state))
 * **`JobInstantiationException`** — a job that could not be built names the trigger, the job and the fire instance instead of only interpolating the job key into a message (see [Instantiation failures name the trigger](#instantiation-failures-name-the-trigger))
 * **`ISchedulerListener.TriggerInError` / `TriggersInError`** — observe a trigger being moved to `TriggerState.Error`, including two ADO store transitions that reached nothing at all before (see [Triggers entering the error state are reported](#triggers-entering-the-error-state-are-reported))
-* **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `AcceptEnlistedTransactions()` on the persistent store builder, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
+* **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.Configure(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
 * **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
 * **`TriggerDetailsUpdate.WithExecutionGroup`** — move a stored trigger into an execution group, or out of every group, without rescheduling it. `QRTZ_TRIGGERS.EXECUTION_GROUP` was already written by the generic trigger update, and `RAMJobStore` applies it in place the same way it applies a preferred node, so both stores behave alike
 
@@ -4929,7 +4965,7 @@ Parameters and behavior are unchanged:
 | `scheduling.quartz.exception_type` is `error.type`, naming the exception the job threw | The tag was added to a copy of the tag list and discarded, so the counter said only that something failed — and the type it named was the `JobExecutionException` the run shell wraps everything in. It is OpenTelemetry's conventional name now, it is on the duration histogram and the execution's span too, and a query matching the old name or expecting the old value has to be rewritten — see [Job execution metrics](#job-execution-metrics) |
 | `XmlSchedulingOptions` and `JsonSchedulingOptions` merged | They were byte-for-byte identical and are now one type |
 | Constructing a scheduler no longer starts a thread | `QuartzScheduler` starts its scheduler thread from `Start()` rather than its constructor, so resolving the service graph, running a `ValidateOnBuild` pass or asserting on registrations no longer spins one up. The thread always started paused, so this changes when the thread exists, not when jobs run |
-| `IPersistentStoreBuilder.AcceptEnlistedTransactions()` added | A breaking addition for anyone implementing the interface themselves — see [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction) |
+| `IPersistentStoreBuilder.AcceptEnlistedTransactions()` | Never shipped; the setting is `Configure(o => o.AcceptEnlistedTransactions = true)`, like the other nineteen `AdoJobStoreOptions` settings — see [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction) |
 | Group matchers translate to SQL correctly | `SelectTriggerGroups`, `DeletePausedTriggerGroup` and both `UpdateTriggerGroupStateFromOtherState(s)` members always built a `LIKE`, even for an equality matcher; they take the `=` path now, which is exact and index-friendly. `LIKE` patterns escape `%`, `_` and the escape character in the matcher's own text with an explicit `ESCAPE` clause, so a group literally named `50%` matches itself. The escape character is `!` rather than a backslash, because MySQL applies C-style escaping inside string literals and `ESCAPE '\'` is a syntax error there |
 | `StdAdoConstants` group and fired-trigger statements were split | `SqlDeletePausedTriggerGroup`, `SqlSelectTriggerGroupsFiltered`, `SqlUpdateTriggerGroupStateFromState` and `SqlUpdateTriggerGroupStateFromStates` are `…Equals` / `…Like` pairs, and the FIRED_TRIGGERS statements are one `SqlSelectFiredTriggers` / `SqlDeleteFiredTriggers` base plus `SqlFiredTrigger*Predicate` fragments. The type is internal |
 | `IDashboardAuthorizationFilter` and `QuartzDashboardOptions.AuthorizationFilter` removed | Nothing ever invoked the filter, so setting it bought a false sense of security. Use `AuthorizationPolicy`, which is enforced |

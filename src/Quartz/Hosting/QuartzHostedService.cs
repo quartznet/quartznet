@@ -23,6 +23,16 @@ namespace Quartz;
 /// <c>AddQuartzHostedService</c> and <c>AddQuartz</c> can be called in either order. Registering the
 /// hosted service first used to leave the default scheduler unstarted and say nothing about it.
 /// </para>
+/// <para>
+/// Deriving from this and registering the derived type with <c>AddQuartzHostedService&lt;T&gt;</c> is a
+/// supported extension point, but only through the four lifecycle hooks —
+/// <see cref="StartingAsync"/>, <see cref="StartedAsync"/>, <see cref="StoppingAsync"/> and
+/// <see cref="StoppedAsync"/> — which exist for nothing else.
+/// <see cref="StartAsync"/> and <see cref="StopAsync"/> are not overridable: they maintain state a
+/// subclass cannot see, and an override that did not call base left the schedulers bound to the
+/// repository with nothing left to shut them down. What a subclass would have overridden them for is
+/// reading the running schedulers, and that is <see cref="Schedulers"/>.
+/// </para>
 /// </remarks>
 public class QuartzHostedService : IHostedLifecycleService
 {
@@ -42,12 +52,24 @@ public class QuartzHostedService : IHostedLifecycleService
         this.options = options;
     }
 
+    /// <summary>
+    /// The schedulers this service is running, from the moment they are resolved until they are shut
+    /// down.
+    /// </summary>
+    /// <remarks>
+    /// A snapshot rather than a live view, so a hook cannot be handed a list that empties underneath it.
+    /// Empty before <see cref="StartAsync"/> has resolved them and after <see cref="StopAsync"/> has shut
+    /// them down, which makes <see cref="StartedAsync"/> and <see cref="StoppingAsync"/> the two hooks it
+    /// is worth reading from.
+    /// </remarks>
+    protected IReadOnlyList<IScheduler> Schedulers => schedulers.ConvertAll(static hosted => hosted.Scheduler);
+
     public virtual Task StartingAsync(CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
 
-    public virtual async Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -177,7 +199,7 @@ public class QuartzHostedService : IHostedLifecycleService
         return Task.CompletedTask;
     }
 
-    public virtual async Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
         // Stopped without having been started
         if (schedulers.Count == 0)

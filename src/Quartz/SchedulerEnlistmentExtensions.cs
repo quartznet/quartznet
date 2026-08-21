@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -34,7 +34,7 @@ namespace Quartz;
 /// <remarks>
 /// <para>
 /// Requires the job store to be configured to accept enlisted transactions -
-/// <c>AcceptEnlistedTransactions</c> on the persistent store builder, or
+/// <c>Configure(o =&gt; o.AcceptEnlistedTransactions = true)</c> on the persistent store builder, or
 /// <c>quartz.jobStore.acceptEnlistedTransactions</c>. Without it the job store keeps opening its own
 /// connection and managing its own transaction, and enlisting throws rather than being ignored.
 /// </para>
@@ -197,8 +197,8 @@ public static class SchedulerEnlistmentExtensions
         {
             throw new InvalidOperationException(
                 $"Scheduler '{scheduler.SchedulerName}' is not configured to take part in transactions the application owns, "
-                + "so the enlistment would be ignored and scheduling would commit on its own. Call "
-                + "AcceptEnlistedTransactions() when configuring the persistent store, or set "
+                + "so the enlistment would be ignored and scheduling would commit on its own. Configure the "
+                + "persistent store with Configure(o => o.AcceptEnlistedTransactions = true), or set "
                 + "'quartz.jobStore.acceptEnlistedTransactions' to true.");
         }
 
