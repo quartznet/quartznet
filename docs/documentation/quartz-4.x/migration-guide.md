@@ -188,7 +188,7 @@ spelling, and binds directly.
 
 `IPersistentStoreBuilder.AcceptEnlistedTransactions()` was exactly
 `Configure(options => options.AcceptEnlistedTransactions = true)` — one assignment, no side effect —
-while the other nineteen `AdoJobStoreOptions` settings, `UseDbLocks` and `UseProperties` among them,
+while the other nineteen `AdoJobStoreOptions` settings, `UseDbLocks` and `StoreJobDataAsStrings` among them,
 are set through `Configure` like everything else. A reader of the interface reasonably concluded that
 the settings with verbs were the important ones.
 
@@ -205,6 +205,38 @@ The option, the configuration key `quartz.jobStore.acceptEnlistedTransactions` a
 `JobStore:AcceptEnlistedTransactions` section entry are all unchanged. `UseClustering()` keeps its
 verb: it genuinely does more than one assignment, setting `Enabled` on `ClusteringOptions` and
 `UseDbLocks` on `AdoJobStoreOptions`.
+
+### Three names that said the wrong thing
+
+| Was | Is | Why |
+|---|---|---|
+| `AdoJobStoreOptions.UseProperties` | `AdoJobStoreOptions.StoreJobDataAsStrings` | `UseProperties` reads as a verb and collided with `QuartzSchedulerBuilder.UseProperties` and `AddQuartz(properties)`, which are about flat `quartz.*` configuration keys and have nothing to do with how job data is persisted |
+| `QuartzDashboardOptions.BaseUrl` is a `string?` | it is a `Uri?` | it is parsed into one on first use, and a malformed string used to be accepted at configuration time and throw from inside the dashboard the first time it called its own API |
+| `Matchers.Group<TKey>(@operator, …)` / `Matchers.Name<TKey>(@operator, …)` | the parameter is `matchOperator` | `operator` is a C# keyword, so naming the argument meant writing `@operator:` at the call site |
+
+```diff
+  q.UsePersistentStore(store =>
+  {
+      store.UseSqlServer(connectionString);
+-     store.Configure(options => options.UseProperties = true);
++     store.Configure(options => options.StoreJobDataAsStrings = true);
+  });
+
+- services.AddQuartzDashboard(options => options.BaseUrl = "https://myapp.example.com/");
++ services.AddQuartzDashboard(options => options.BaseUrl = new Uri("https://myapp.example.com/"));
+
+- Matchers.Group<JobKey>(@operator: StringOperator.StartsWith, compareTo: "reports");
++ Matchers.Group<JobKey>(matchOperator: StringOperator.StartsWith, compareTo: "reports");
+```
+
+The flat key is unchanged: `quartz.jobStore.useProperties` still sets `StoreJobDataAsStrings`. In
+`appsettings.json` the section entry follows the option, so `JobStore:UseProperties` becomes
+`JobStore:StoreJobDataAsStrings` — the old spelling still works, because every section is also flattened
+onto its `quartz.*` key and read there.
+
+`BaseUrl` in `appsettings.json` is unchanged: the configuration binder parses the string into a `Uri`.
+A relative one is now rejected at startup — it never worked, this being the address the dashboard calls
+its own API back on.
 
 ### The hosted service's extension point is its four hooks
 
@@ -351,7 +383,7 @@ A scheduler has one job store and therefore one database, so there is no name to
 -     store.UseSqlServer("sql-server-01", connectionString);
 +     store.UseSqlServer(connectionString);
       store.UseSystemTextJsonSerializer();
-+     store.Configure(options => options.UseProperties = true);
++     store.Configure(options => options.StoreJobDataAsStrings = true);
   });
 ```
 
@@ -4587,7 +4619,7 @@ methods the compiler picked, and it cost forty-four declarations across `IJobCon
 
 **Existing calls compile and store exactly what they stored before.** An `int` argument still lands in the map
 boxed as an `int`, a `Guid` as a `Guid`, a `null` as a `null`. Nothing is converted on the way in, and what a
-persistent store can hold is still whatever its serializer round-trips — AdoJobStore's `UseProperties` mode,
+persistent store can hold is still whatever its serializer round-trips — AdoJobStore's string-only mode,
 strings only.
 
 To store a value in a job property's own type — an `int` literal narrowed to the `byte` the property
@@ -5509,7 +5541,7 @@ and `SchedulerContext`), so the call sites read the same:
 | (none) | `GetString`, `TryGetString`, `GetDecimal`, `TryGetDecimal` |
 
 The `…FromString` half collapses because the retained accessors already convert: a value written as a
-string — which is what `UseProperties` forces, and what `PutAsString` writes — is parsed on the way
+string — which is what `StoreJobDataAsStrings` forces, and what `PutAsString` writes — is parsed on the way
 out, so one accessor covers both. `GetNullableGuidValue` is the only one without a direct
 replacement; it returned `null` both for "absent" and for "present but not a `Guid`", which
 `TryGetGuid` distinguishes.
@@ -5562,7 +5594,7 @@ Write `map[key] = someString`, which is what it did.
 ### `PutAsString(string, Guid?)` is gone
 
 Passing `null` stored a present-but-null entry that nothing could read back — `TryGetGuid`
-returned `false`, `GetGuid` threw, and under `UseProperties = true` the null was coerced to an
+returned `false`, `GetGuid` threw, and under `StoreJobDataAsStrings = true` the null was coerced to an
 empty string with the same outcome. An unreadable entry is worse than a missing key, so the
 overload is gone rather than fixed: call `PutAsString(key, value.Value)` when there is a value,
 and decide explicitly — usually `map.Remove(key)` — when there is not.
@@ -5723,7 +5755,7 @@ Parameters and behavior are unchanged:
 | `RecoveringTriggerKey` behavior | `IJobExecutionContext.RecoveringTriggerKey` now returns `null` when not recovering instead of throwing |
 | `DictionaryExtensions` removed | `Quartz.Util.DictionaryExtensions` type was removed |
 | `AdoJobStoreBase` connection methods | `GetLocalTransactionConnection` (was `GetNonManagedTXConnection`) and `GetConnection` now return `ValueTask<ConnectionAndTransactionHolder>` |
-| `JobStoreSupport.UseProperties` `string` setter removed | The `bool` `AdoJobStoreOptions.UseProperties` option and the read-only `CanUseProperties` remain; the property bridge parses the key |
+| `JobStoreSupport.UseProperties` `string` setter removed | The `bool` `AdoJobStoreOptions.StoreJobDataAsStrings` option and the read-only `CanUseProperties` remain; the property bridge parses the key |
 | Protected `AdoJobStoreBase` / `StdAdoDelegate` members take a `CancellationToken` | Overrides have to add the parameter; callers do not |
 | `ConnectionAndTransactionHolder.Close` takes a `CancellationToken` | `.Commit` and `.Rollback` took one too, and are now internal — see [A job store of your own can join your transaction](#a-job-store-of-your-own-can-join-your-transaction) |
 | `IJobConfigurator<TJob>` members return `IJobConfigurator<TJob>` | `JobBuilder<TJob>` implements them explicitly and keeps its own `JobBuilder<TJob>`-returning members, so `JobBuilder.Create()…` chains are unaffected — see [Job data can name the property](#job-data-can-name-the-property) for the type parameter |

@@ -5,7 +5,7 @@ title : Serialization (System.Text.Json)
 
 ::: tip
 JSON is the recommended persistent format to store data in a database for greenfield projects.
-You should also strongly consider setting `UseProperties` to true to restrict key-values to be strings.
+You should also strongly consider setting `StoreJobDataAsStrings` to true to restrict key-values to be strings.
 :::
 
 System.Text.Json serialization is built into the `Quartz` package - there is no separate
@@ -25,7 +25,7 @@ services.AddQuartz(q =>
 
         // it's generally recommended to stick with
         // string property keys and values when serializing
-        store.Configure(options => options.UseProperties = true);
+        store.Configure(options => options.StoreJobDataAsStrings = true);
 
         store.UseSystemTextJsonSerializer();
     });

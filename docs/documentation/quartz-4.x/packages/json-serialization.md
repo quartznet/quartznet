@@ -51,7 +51,7 @@ builder.UsePersistentStore(store =>
 
     // it's generally recommended to stick with
     // string property keys and values when serializing
-    store.Configure(options => options.UseProperties = true);
+    store.Configure(options => options.StoreJobDataAsStrings = true);
 
     store.UseNewtonsoftJsonSerializer();
 });

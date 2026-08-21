@@ -29,7 +29,7 @@ namespace Quartz;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A value can be stored either as its own type or — under <c>UseProperties = true</c>, where the
+/// A value can be stored either as its own type or — under <c>StoreJobDataAsStrings = true</c>, where the
 /// job store keeps everything as strings — as an invariant-culture string. Each accessor accepts
 /// both: the stored type is matched first, a string is parsed with
 /// <see cref="CultureInfo.InvariantCulture" />, and only an exotic stored type falls back to

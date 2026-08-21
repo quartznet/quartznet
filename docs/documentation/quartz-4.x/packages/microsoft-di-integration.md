@@ -277,7 +277,7 @@ public void ConfigureServices(IServiceCollection services)
         q.UsePersistentStore(s =>
         {
             s.PerformSchemaValidation = true; // default
-            s.UseProperties = true; // preferred, but not default
+            s.StoreJobDataAsStrings = true; // preferred, but not default
             s.RetryInterval = TimeSpan.FromSeconds(15);
             s.UseSqlServer(sqlServer =>
             {

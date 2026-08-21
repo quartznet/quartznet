@@ -491,10 +491,13 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         HttpClient client = httpClientFactory.CreateClient("QuartzDashboard");
 
         // Use the explicitly configured BaseUrl when available to avoid SSRF via Host header injection.
-        string? configuredBaseUrl = options.Value.BaseUrl;
-        if (!string.IsNullOrWhiteSpace(configuredBaseUrl))
+        Uri? configuredBaseUrl = options.Value.BaseUrl;
+        if (configuredBaseUrl is not null)
         {
-            client.BaseAddress = new Uri(configuredBaseUrl.TrimEnd('/') + "/");
+            // HttpClient only treats a base address as a prefix when it ends in '/', so a URL given
+            // without one would otherwise have its last segment replaced by every relative request.
+            string absolute = configuredBaseUrl.AbsoluteUri;
+            client.BaseAddress = absolute.EndsWith('/') ? configuredBaseUrl : new Uri(absolute + "/");
             return client;
         }
 

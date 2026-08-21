@@ -77,26 +77,26 @@ public static class Matchers
     /// A matcher that compares the group of a key with the given value.
     /// </summary>
     /// <typeparam name="TKey">Which kind of key to match: <see cref="JobKey" /> or <see cref="TriggerKey" />.</typeparam>
-    /// <param name="operator">How to compare, e.g. <see cref="StringOperator.Equality" /> or <see cref="StringOperator.StartsWith" />.</param>
+    /// <param name="matchOperator">How to compare, e.g. <see cref="StringOperator.Equality" /> or <see cref="StringOperator.StartsWith" />.</param>
     /// <param name="compareTo">The value to compare the group with.</param>
-    public static GroupMatcher<TKey> Group<TKey>(StringOperator @operator, string compareTo) where TKey : Key<TKey>
+    public static GroupMatcher<TKey> Group<TKey>(StringOperator matchOperator, string compareTo) where TKey : Key<TKey>
     {
-        ArgumentNullException.ThrowIfNull(@operator);
+        ArgumentNullException.ThrowIfNull(matchOperator);
         ArgumentNullException.ThrowIfNull(compareTo);
-        return new GroupMatcher<TKey>(compareTo, @operator);
+        return new GroupMatcher<TKey>(compareTo, matchOperator);
     }
 
     /// <summary>
     /// A matcher that compares the name of a key with the given value.
     /// </summary>
     /// <typeparam name="TKey">Which kind of key to match: <see cref="JobKey" /> or <see cref="TriggerKey" />.</typeparam>
-    /// <param name="operator">How to compare, e.g. <see cref="StringOperator.Equality" /> or <see cref="StringOperator.StartsWith" />.</param>
+    /// <param name="matchOperator">How to compare, e.g. <see cref="StringOperator.Equality" /> or <see cref="StringOperator.StartsWith" />.</param>
     /// <param name="compareTo">The value to compare the name with.</param>
-    public static NameMatcher<TKey> Name<TKey>(StringOperator @operator, string compareTo) where TKey : Key<TKey>
+    public static NameMatcher<TKey> Name<TKey>(StringOperator matchOperator, string compareTo) where TKey : Key<TKey>
     {
-        ArgumentNullException.ThrowIfNull(@operator);
+        ArgumentNullException.ThrowIfNull(matchOperator);
         ArgumentNullException.ThrowIfNull(compareTo);
-        return new NameMatcher<TKey>(compareTo, @operator);
+        return new NameMatcher<TKey>(compareTo, matchOperator);
     }
 
     /// <summary>

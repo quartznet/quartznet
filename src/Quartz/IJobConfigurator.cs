@@ -83,7 +83,7 @@ public interface IJobConfigurator<TJob> where TJob : IJob
     /// </summary>
     /// <remarks>
     /// The value is stored as given. A persistent job store can only hold what its serializer
-    /// round-trips, and AdoJobStore's <c>UseProperties</c> mode only strings.
+    /// round-trips, and AdoJobStore's <c>StoreJobDataAsStrings</c> mode only strings.
     /// </remarks>
     /// <param name="key">the key to store the value under</param>
     /// <param name="value">the value to store</param>
@@ -109,7 +109,7 @@ public interface IJobConfigurator<TJob> where TJob : IJob
     /// </para>
     /// <para>
     /// The same care applies as to any other job data: a persistent job store can only hold what its
-    /// serializer round-trips, and AdoJobStore's <c>UseProperties</c> mode only strings. Nothing beyond
+    /// serializer round-trips, and AdoJobStore's <c>StoreJobDataAsStrings</c> mode only strings. Nothing beyond
     /// enums is converted for you.
     /// </para>
     /// </remarks>

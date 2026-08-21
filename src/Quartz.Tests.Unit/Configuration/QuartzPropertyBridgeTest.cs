@@ -197,7 +197,8 @@ public class QuartzPropertyBridgeTest
 
         options.DataSource.Should().Be("primary");
         options.TablePrefix.Should().Be("QRTZ2_");
-        options.UseProperties.Should().BeTrue();
+        options.StoreJobDataAsStrings.Should().BeTrue(
+            "quartz.jobStore.useProperties is unchanged; only the option it sets was renamed");
         options.UseDbLocks.Should().BeTrue("clustering has always implied database locking");
         options.MisfireThreshold.Should().Be(TimeSpan.FromSeconds(90));
 

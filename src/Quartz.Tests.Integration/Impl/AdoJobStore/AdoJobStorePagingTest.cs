@@ -165,7 +165,7 @@ public class AdoJobStorePagingTest
         {
             store.Configure(o =>
             {
-                o.UseProperties = false;
+                o.StoreJobDataAsStrings = false;
                 o.PerformSchemaValidation = true;
             });
 

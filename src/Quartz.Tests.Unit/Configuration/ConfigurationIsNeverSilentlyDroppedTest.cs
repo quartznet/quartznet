@@ -102,6 +102,39 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     }
 
     [Test]
+    public void TheOldSpellingOfStoreJobDataAsStringsStillReaches()
+    {
+        // Same shape as the interrupt-on-shutdown keys: the typed binder no longer knows the old
+        // property name, and the flattened quartz.jobStore.useProperties key still carries it.
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["JobStore:DataSource"] = "default",
+            ["JobStore:UseProperties"] = "true",
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.StoreJobDataAsStrings
+            .Should().BeTrue("an appsettings.json written for the old name has to keep meaning what it meant");
+    }
+
+    [Test]
+    public void TheNewSpellingOfStoreJobDataAsStringsBindsDirectly()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["JobStore:DataSource"] = "default",
+            ["JobStore:StoreJobDataAsStrings"] = "true",
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.StoreJobDataAsStrings.Should().BeTrue();
+    }
+
+    [Test]
     public void AJobStoreChosenInCodeBeatsALegacyTypeKey()
     {
         var services = new ServiceCollection();
