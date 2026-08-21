@@ -103,7 +103,12 @@ public class DbSemaphoreRetryTest
         for (int i = 0; i < 500 && !task.IsCompleted; i++)
         {
             clock.Advance(step);
-            await Task.Yield();
+
+            // Real time, not Task.Yield(): the handler's continuation between the failed statement and
+            // its next Task.Delay registration runs on a thread-pool thread, and on a busy runner five
+            // hundred yields can pass in microseconds without that thread ever being scheduled - the
+            // advance then lands before the timer exists and releases nothing.
+            await Task.Delay(TimeSpan.FromMilliseconds(2));
         }
 
         // Asserted rather than left to hang: a handler that went back to waiting on wall time would
@@ -116,7 +121,7 @@ public class DbSemaphoreRetryTest
     {
         for (int i = 0; i < 500 && !condition() && !running.IsCompleted; i++)
         {
-            await Task.Yield();
+            await Task.Delay(TimeSpan.FromMilliseconds(2));
         }
 
         condition().Should().BeTrue("the handler was expected to have issued its first statement by now");
