@@ -1,6 +1,7 @@
 using System.Runtime.ExceptionServices;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 using Quartz.Extensibility;
 
@@ -13,10 +14,20 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
 {
     private readonly IServiceProvider serviceProvider;
     private readonly JobActivatorCache activatorCache = new();
+    private readonly JobFactoryOptions options;
 
-    public MicrosoftDependencyInjectionJobFactory(IServiceProvider serviceProvider)
+    /// <param name="serviceProvider">The container jobs are built from.</param>
+    /// <param name="options">
+    /// The factory's settings, which is where <see cref="JobFactoryOptions.ConfigureScope"/> arrives from.
+    /// Optional so that a derived factory constructing this one by hand does not have to supply it; the
+    /// container always does.
+    /// </param>
+    public MicrosoftDependencyInjectionJobFactory(
+        IServiceProvider serviceProvider,
+        IOptions<JobFactoryOptions>? options = null)
     {
         this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        this.options = options?.Value ?? new JobFactoryOptions();
     }
 
     /// <remarks>
@@ -102,10 +113,23 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
         return default;
     }
 
+    /// <summary>
+    /// Prepares the dependency injection scope a job is about to be built in.
+    /// </summary>
+    /// <remarks>
+    /// The configuration point for services that are scoped and need the ambient context of a job. It
+    /// runs before the job is resolved, and is synchronous so that an
+    /// <see cref="System.Threading.AsyncLocal{T}" /> set here survives into <c>Execute</c>.
+    /// <para>
+    /// Overriding this is no longer the only way to reach it:
+    /// <see cref="JobFactoryOptions.ConfigureScope" /> is the same hook as a delegate, for an application
+    /// that has no other reason to write a job factory. An override that does not call base takes the
+    /// delegate's place.
+    /// </para>
+    /// </remarks>
     protected virtual void ConfigureScope(IServiceScope scope, TriggerFiredBundle bundle, IScheduler scheduler)
     {
-        // Configuration point for Services that are Scoped and need
-        // the ambient context of a Job
+        options.ConfigureScope?.Invoke(scope, bundle, scheduler);
     }
 
     private (IJob Job, bool FromContainer) ResolveJob(TriggerFiredBundle bundle, IServiceProvider serviceProvider)

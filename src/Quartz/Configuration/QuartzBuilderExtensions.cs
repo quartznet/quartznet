@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Quartz.Configuration;
+using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Util;
 
@@ -33,6 +34,37 @@ public static class QuartzBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
         return builder.UseTypeLoader<SimpleTypeLoader>();
+    }
+
+    /// <summary>
+    /// Prepares the dependency injection scope each job is built in, so services that are scoped can be
+    /// given the ambient context of the job about to run.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The callback runs before the job is resolved, so anything it sets is in place while the job and
+    /// everything it injects are constructed. It is synchronous by design: an asynchronous hook would be
+    /// awaited, and the <see cref="System.Threading.ExecutionContext"/> restored on the way back would
+    /// discard exactly the <see cref="System.Threading.AsyncLocal{T}"/> values it exists to set.
+    /// </para>
+    /// <para>
+    /// Callbacks combine rather than replace, and run in the order they were added. This was previously
+    /// reachable only by deriving from <c>MicrosoftDependencyInjectionJobFactory</c> and overriding a
+    /// protected method, which is a great deal of ceremony for setting one ambient value.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="configure">
+    /// Prepares the scope, given the scope, the fire it was opened for and the scheduler firing it.
+    /// </param>
+    public static IQuartzBuilder ConfigureJobScope(
+        this IQuartzBuilder builder,
+        Action<IServiceScope, TriggerFiredBundle, IScheduler> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        return builder.ConfigureOptions<JobFactoryOptions>(options => options.ConfigureScope += configure);
     }
 
     /// <summary>
