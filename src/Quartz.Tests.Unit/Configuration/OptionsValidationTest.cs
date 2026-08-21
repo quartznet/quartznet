@@ -43,6 +43,45 @@ public class OptionsValidationTest
     }
 
     /// <summary>
+    /// The batch size and the pool size are configured through different builder methods and different
+    /// configuration sections, so the pair is only ever wrong by accident — which is what makes it worth
+    /// checking.
+    /// </summary>
+    [Test]
+    public void ABatchLargerThanTheThreadPoolFailsAtStartup()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q =>
+        {
+            q.UseDefaultThreadPool(maxConcurrency: 4);
+            q.ConfigureScheduler(options => options.MaxBatchSize = 10);
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*MaxBatchSize*MaxConcurrency*");
+    }
+
+    [Test]
+    public void ABatchThatFitsTheThreadPoolIsFine()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q =>
+        {
+            q.UseDefaultThreadPool(maxConcurrency: 10);
+            q.ConfigureScheduler(options => options.MaxBatchSize = 10);
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow();
+    }
+
+    /// <summary>
     /// The ADO.NET options are only checked for a scheduler that chose a persistent store. Validating
     /// them everywhere would make an unset <c>DataSource</c> a startup failure for every in-memory
     /// scheduler, which is a configuration nobody wrote.

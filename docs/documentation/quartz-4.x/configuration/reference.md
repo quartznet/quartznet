@@ -41,8 +41,8 @@ which Quartz still accepts. See [Legacy property keys](#legacy-property-keys).
 | `InstanceId` | string | `NON_CLUSTERED` | Must be unique among the nodes of a cluster. |
 | `GenerateInstanceId` | bool | `false` | Derives `InstanceId` at startup from the registered `IInstanceIdGenerator` instead of using the literal value. |
 | `IdleWaitTime` | TimeSpan | `00:00:30` | How long to wait before re-querying the job store when nothing is due. Must be at least one second. |
-| `MaxBatchSize` | int | `1` | How many triggers may be acquired at once. |
-| `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may be included in the current batch. |
+| `MaxBatchSize` | int | `1` | How many triggers may be acquired at once. Only an upper bound — `BatchTriggerAcquisitionFireAheadTimeWindow` decides how many are actually taken — and it may not exceed `ThreadPool:MaxConcurrency`. See [Batching trigger acquisition](../tutorial/advanced-enterprise-features.md#batching-trigger-acquisition). |
+| `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may be included in the current batch. The other half of `MaxBatchSize`: at the default of zero, neither batches anything. |
 | `InterruptJobsOnShutdown` | bool | `false` | Signals cancellation to running jobs on shutdown. |
 | `InterruptJobsOnShutdownWithWait` | bool | `false` | Signals cancellation on a shutdown that waits for jobs to finish. |
 | `Context` | dictionary | empty | Values seeded into `SchedulerContext`. |

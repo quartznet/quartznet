@@ -64,14 +64,14 @@ public class SchedulerScopedOptionsMonitorTest
         });
         services.AddQuartz("ingest", q =>
         {
-            q.ConfigureScheduler(options => options.MaxBatchSize = 11);
+            q.ConfigureScheduler(options => options.MaxBatchSize = 9);
             q.AddPlugin<WatchingPlugin>();
         });
 
         using var provider = services.BuildServiceProvider();
 
         Plugin<WatchingPlugin>(provider, "reporting").Monitor.CurrentValue.MaxBatchSize.Should().Be(7);
-        Plugin<WatchingPlugin>(provider, "ingest").Monitor.CurrentValue.MaxBatchSize.Should().Be(11,
+        Plugin<WatchingPlugin>(provider, "ingest").Monitor.CurrentValue.MaxBatchSize.Should().Be(9,
             "two schedulers watching the same options type must still each watch their own");
     }
 
@@ -85,12 +85,12 @@ public class SchedulerScopedOptionsMonitorTest
             q.ConfigureScheduler(options => options.MaxBatchSize = 7);
             q.AddPlugin<WatchingPlugin>();
         });
-        services.AddQuartz("ingest", q => q.ConfigureScheduler(options => options.MaxBatchSize = 11));
+        services.AddQuartz("ingest", q => q.ConfigureScheduler(options => options.MaxBatchSize = 9));
 
         using var provider = services.BuildServiceProvider();
         var monitor = Plugin<WatchingPlugin>(provider, "reporting").Monitor;
 
-        monitor.Get("ingest").MaxBatchSize.Should().Be(11,
+        monitor.Get("ingest").MaxBatchSize.Should().Be(9,
             "Get names the instance it wants, so it must not be rewritten to the scheduler's own name");
         monitor.Get(Options.DefaultName).MaxBatchSize.Should().Be(1);
         monitor.Get(null).MaxBatchSize.Should().Be(1, "a null name is the default one, as it is everywhere else");
@@ -188,7 +188,7 @@ public class SchedulerScopedOptionsMonitorTest
             q.ConfigureScheduler(options => options.MaxBatchSize = 7);
             q.AddPlugin<WatchingPlugin>();
         });
-        services.AddQuartz("ingest", q => q.ConfigureScheduler(options => options.MaxBatchSize = 11));
+        services.AddQuartz("ingest", q => q.ConfigureScheduler(options => options.MaxBatchSize = 9));
 
         using var provider = services.BuildServiceProvider();
         var monitor = Plugin<WatchingPlugin>(provider, "reporting").Monitor;
