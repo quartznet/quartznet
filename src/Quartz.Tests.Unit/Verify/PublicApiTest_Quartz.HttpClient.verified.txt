@@ -79,11 +79,5 @@ namespace Quartz
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHttpClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.HttpClientOptions> configure) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHttpClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string schedulerName, System.Net.Http.HttpClient httpClient, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHttpClient(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string schedulerName, string httpClientName, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null) { }
-        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHttpClient<TScheduler>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.HttpClientOptions> configure)
-            where TScheduler :  class, Quartz.IScheduler { }
-        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHttpClient<TScheduler>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string schedulerName, System.Net.Http.HttpClient httpClient, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null)
-            where TScheduler :  class, Quartz.IScheduler { }
-        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHttpClient<TScheduler>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string schedulerName, string httpClientName, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null)
-            where TScheduler :  class, Quartz.IScheduler { }
     }
 }

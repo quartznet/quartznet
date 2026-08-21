@@ -46,7 +46,7 @@ httpClient.DefaultRequestHeaders.Add("X-Quartz-ApiKey", "MySuperSecretApiKey");
 var httpScheduler = new Quartz.HttpScheduler("Quartz ASP.NET Core Sample Scheduler", httpClient);
 */
 
-/* You can register multiple schedulers by creating marker interfaces for those
+/* Several remote schedulers are told apart by name, which is the service key each is registered under
 var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices(services =>
     {
@@ -57,13 +57,15 @@ var host = Host.CreateDefaultBuilder(args)
         });
 
         services.AddQuartzHttpClient("Quartz ASP.NET Core Sample Scheduler", "QuartzHttpClient");
-        services.AddQuartzHttpClient<IMyScheduler>("MyScheduler", "QuartzHttpClient");
-        services.AddQuartzHttpClient<MyNamespace.IMySecondScheduler>("MySecondScheduler", "QuartzHttpClient");
+        services.AddQuartzHttpClient("MyScheduler", "QuartzHttpClient");
+        services.AddQuartzHttpClient("MySecondScheduler", "QuartzHttpClient");
     })
     .Build();
 
-var myScheduler = host.Services.GetRequiredService<IMyScheduler>();
-var mySecondScheduler = host.Services.GetRequiredService<MyNamespace.IMySecondScheduler>();
+var myScheduler = host.Services.GetRequiredKeyedService<IScheduler>("MyScheduler");
+var mySecondScheduler = host.Services.GetRequiredKeyedService<IScheduler>("MySecondScheduler");
+
+// A class of your own reaches one the same way: [FromKeyedServices("MyScheduler")] IScheduler scheduler.
 var httpScheduler = host.Services.GetRequiredService<IScheduler>();*/
 
 while (true)
@@ -84,18 +86,5 @@ while (true)
     catch (Exception e)
     {
         Console.WriteLine(e.Message);
-    }
-}
-
-#pragma warning disable CA1050
-public interface IMyScheduler : IScheduler
-#pragma warning restore CA1050
-{
-}
-
-namespace MyNamespace
-{
-    public interface IMySecondScheduler : IScheduler
-    {
     }
 }
