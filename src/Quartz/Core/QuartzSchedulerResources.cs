@@ -268,5 +268,11 @@ internal sealed class QuartzSchedulerResources
 
     public TimeProvider TimeProvider { get; set; }
 
+    /// <summary>
+    /// The instruments job executions are reported on. The container path replaces this with the
+    /// instance built from its <c>IMeterFactory</c>.
+    /// </summary>
+    internal Diagnostics.Meters Meters { get; set; } = Diagnostics.Meters.Shared;
+
     internal ISchedulerRepository SchedulerRepository { get; set; }
 }
