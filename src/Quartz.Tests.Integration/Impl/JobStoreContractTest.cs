@@ -1,0 +1,979 @@
+#region License
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+#endregion
+
+using Quartz.Extensibility;
+using Quartz.Impl.Calendar;
+
+namespace Quartz.Tests.Integration.Impl;
+
+/// <summary>
+/// The <see cref="IJobStore" /> contract, asserted against every store that implements it.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The in-memory store and the ADO.NET store implement one interface twice over, and nothing held the
+/// two to the same answers: each had its own tests, written against whatever the store in front of the
+/// author happened to do. This fixture is the shared half — one set of assertions, run once per store,
+/// so a store that quietly disagrees with the other fails here rather than in an application.
+/// </para>
+/// <para>
+/// Where the two genuinely disagree the difference is a hook, not a missing assertion: each store says
+/// which way it behaves and both branches are asserted, so the divergence is written down and can be
+/// found by anyone deciding whether to close it. The hooks are
+/// <see cref="ReportsJobGroupPauseState" />, <see cref="PausesEveryTriggerGroupAPrefixMatcherMatches" />,
+/// <see cref="AllGroupsPausedSentinel" />, <see cref="PauseOverwritesTheErrorState" />,
+/// <see cref="ResumeAllForgetsPausedButEmptyGroups" /> and
+/// <see cref="DuplicateCalendarException" />.
+/// </para>
+/// </remarks>
+public abstract class JobStoreContractTest
+{
+    protected const string JobGroupA = "jga";
+    protected const string JobGroupB = "jgb";
+    protected const string TriggerGroupA = "tga";
+    protected const string TriggerGroupB = "tgb";
+    protected const string OtherGroup = "other";
+
+    private static readonly JobKey AnchorJobKey = new JobKey("anchor", JobGroupA);
+    private static readonly TriggerKey AnchorTriggerKey = new TriggerKey("anchor", TriggerGroupA);
+    private static readonly JobKey MissingJobKey = new JobKey("no-such-job", "no-such-group");
+    private static readonly TriggerKey MissingTriggerKey = new TriggerKey("no-such-trigger", "no-such-group");
+
+    private const string MissingCalendarName = "no-such-calendar";
+
+    /// <summary>
+    /// The store under test, built fresh for each test and shut down after it.
+    /// </summary>
+    protected IJobStore Store { get; private set; }
+
+    /// <summary>
+    /// Builds a store that is initialized and ready for work.
+    /// </summary>
+    /// <remarks>
+    /// The scheduler is deliberately never started: <see cref="IJobStore.SchedulerStarted" /> spawns
+    /// background loops that would move trigger state underneath the tests that drive it by hand.
+    /// </remarks>
+    protected abstract ValueTask<IJobStore> CreateStore();
+
+    /// <summary>
+    /// Releases whatever <see cref="CreateStore" /> allocated around the store itself, after the store
+    /// has been shut down.
+    /// </summary>
+    protected virtual ValueTask DisposeStore() => default;
+
+    /// <summary>
+    /// Whether the store can report that a job group is paused through
+    /// <see cref="IJobStore.QueryJobGroups" />.
+    /// </summary>
+    protected abstract bool ReportsJobGroupPauseState { get; }
+
+    /// <summary>
+    /// Whether <see cref="IJobStore.PauseTriggers" /> with a prefix matcher pauses every group the
+    /// matcher matches rather than only one of them.
+    /// </summary>
+    protected virtual bool PausesEveryTriggerGroupAPrefixMatcherMatches => true;
+
+    /// <summary>
+    /// The pseudo group name a store lists as paused after <see cref="IJobStore.PauseAll" />, or
+    /// <see langword="null" /> when it lists only real groups.
+    /// </summary>
+    protected virtual string AllGroupsPausedSentinel => null;
+
+    /// <summary>
+    /// Whether pausing a trigger that is in <see cref="TriggerState.Error" /> overwrites the error.
+    /// </summary>
+    protected virtual bool PauseOverwritesTheErrorState => false;
+
+    /// <summary>
+    /// Whether <see cref="IJobStore.ResumeAll" /> un-pauses a group that is paused but holds no
+    /// triggers.
+    /// </summary>
+    protected virtual bool ResumeAllForgetsPausedButEmptyGroups => true;
+
+    /// <summary>
+    /// The exception adding a calendar over an existing name raises when replacing was not asked for.
+    /// </summary>
+    protected virtual Type DuplicateCalendarException => typeof(ObjectAlreadyExistsException);
+
+    [SetUp]
+    public async Task BuildStoreUnderTest()
+    {
+        Store = await CreateStore();
+    }
+
+    [TearDown]
+    public async Task ShutDownStoreUnderTest()
+    {
+        if (Store is not null)
+        {
+            // Every store this fixture builds is shut down, the ADO one included: its background
+            // handlers are foreground threads, so a store left running leaks one per test.
+            await Store.Shutdown();
+            Store = null;
+        }
+
+        await DisposeStore();
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Pausing and resuming
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task PausingAndResumingOneTriggerWalksItThroughTheStates()
+    {
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("one", JobGroupA, TriggerGroupA);
+
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal,
+            "a trigger that has just been scheduled is waiting to fire");
+
+        (await Store.PauseTrigger(trigger.Key)).Should().BeTrue("pausing a waiting trigger moves it");
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused);
+
+        (await Store.PauseTrigger(trigger.Key)).Should().BeFalse(
+            "a trigger that is already paused is not moved by pausing it again");
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused);
+
+        (await Store.ResumeTrigger(trigger.Key)).Should().BeTrue("resuming a paused trigger moves it");
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+
+        (await Store.ResumeTrigger(trigger.Key)).Should().BeFalse(
+            "a trigger that is not paused is not moved by resuming it");
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    [Test]
+    public async Task PausingAJobPausesEveryTriggerItHas()
+    {
+        IJobDetail job = CreateJob("job", JobGroupA);
+        IOperableTrigger first = CreateTrigger("first", TriggerGroupA, job.Key);
+        IOperableTrigger second = CreateTrigger("second", TriggerGroupB, job.Key);
+
+        await Store.ScheduleJob(job, first);
+        await Store.AddTrigger(second, replace: false);
+
+        (await Store.PauseJob(job.Key)).Should().BeTrue();
+
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Paused,
+            "pausing a job reaches its triggers whatever group they are in");
+
+        (await Store.ResumeJob(job.Key)).Should().BeTrue();
+
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Normal);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    [Test]
+    public async Task PausingAJobThatHasNoTriggersStillReportsTheJobWasFound()
+    {
+        IJobDetail job = JobBuilder.Create<ContractTestJob>()
+            .WithIdentity("durable", JobGroupA)
+            .StoreDurably()
+            .Build();
+
+        await Store.AddJob(job, replace: false);
+
+        (await Store.PauseJob(job.Key)).Should().BeTrue(
+            "the answer says whether the job was found, not how many triggers it happened to have");
+        (await Store.ResumeJob(job.Key)).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task PausingAJobGroupPausesTheTriggersOfEveryJobInIt()
+    {
+        IOperableTrigger inGroup = await ScheduleJobWithTrigger("in-group", JobGroupA, TriggerGroupA);
+        IOperableTrigger elsewhere = await ScheduleJobWithTrigger("elsewhere", JobGroupB, TriggerGroupB);
+
+        List<string> paused = await Store.PauseJobs(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+
+        paused.Should().Equal([JobGroupA], "the group that was asked for is the group that paused");
+        (await Store.GetTriggerState(inGroup.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerState(elsewhere.Key)).Should().Be(TriggerState.Normal,
+            "a job group pause stops at the group's edge");
+
+        List<string> resumed = await Store.ResumeJobs(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+
+        resumed.Should().Equal([JobGroupA]);
+        (await Store.GetTriggerState(inGroup.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    [Test]
+    public async Task PausingJobGroupsByPrefixReachesEveryGroupThatMatches()
+    {
+        IOperableTrigger first = await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
+        IOperableTrigger second = await ScheduleJobWithTrigger("second", JobGroupB, TriggerGroupB);
+        IOperableTrigger untouched = await ScheduleJobWithTrigger("untouched", OtherGroup, OtherGroup);
+
+        List<string> paused = await Store.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+
+        paused.Should().BeEquivalentTo([JobGroupA, JobGroupB],
+            "a prefix matcher pauses every group whose name starts with it");
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerState(untouched.Key)).Should().Be(TriggerState.Normal,
+            "a group the prefix does not match is never touched");
+
+        await Store.ResumeJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Normal);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    [Test]
+    public async Task PausingATriggerGroupPausesEveryTriggerInIt()
+    {
+        IOperableTrigger inGroup = await ScheduleJobWithTrigger("in-group", JobGroupA, TriggerGroupA);
+        IOperableTrigger elsewhere = await ScheduleJobWithTrigger("elsewhere", JobGroupA, OtherGroup);
+
+        List<string> paused = await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
+
+        paused.Should().Equal([TriggerGroupA]);
+        (await Store.GetTriggerState(inGroup.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerState(elsewhere.Key)).Should().Be(TriggerState.Normal);
+
+        PagedResult<TriggerGroup> pausedGroups = await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true });
+        pausedGroups.Items.Select(x => x.Name).Should().Equal([TriggerGroupA],
+            "a store has to remember which trigger groups are paused, or the pause is forgotten");
+
+        await Store.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
+
+        (await Store.GetTriggerState(inGroup.Key)).Should().Be(TriggerState.Normal);
+        (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items.Should().BeEmpty(
+            "resuming the group takes it off the paused list");
+    }
+
+    [Test]
+    public async Task PausingTriggerGroupsByPrefixReachesEveryGroupThatMatches()
+    {
+        IOperableTrigger first = await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
+        IOperableTrigger second = await ScheduleJobWithTrigger("second", JobGroupA, TriggerGroupB);
+        IOperableTrigger untouched = await ScheduleJobWithTrigger("untouched", JobGroupA, OtherGroup);
+
+        List<string> paused = await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("tg"));
+
+        if (PausesEveryTriggerGroupAPrefixMatcherMatches)
+        {
+            paused.Should().BeEquivalentTo([TriggerGroupA, TriggerGroupB],
+                "a prefix matcher pauses every group whose name starts with it");
+            (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Paused);
+            (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Paused);
+        }
+        else
+        {
+            // Pinned, not endorsed. RAMJobStore.PauseTriggersNoLock's prefix branch guards the result
+            // with `pausedTriggerGroups.Add(matcher.CompareToValue)` — the matcher's own text, not the
+            // group it matched — so the set rejects the second matching group and only the first one
+            // is ever paused. The ADO store pauses both. Whichever group comes first is a dictionary
+            // ordering, so the assertion names neither.
+            paused.Should().HaveCount(1,
+                "the in-memory store's prefix branch stops after the first group it matches");
+
+            List<TriggerState> states =
+            [
+                await Store.GetTriggerState(first.Key),
+                await Store.GetTriggerState(second.Key)
+            ];
+
+            states.Should().Contain(TriggerState.Paused).And.Contain(TriggerState.Normal,
+                "exactly one of the two matching groups is actually paused");
+        }
+
+        (await Store.GetTriggerState(untouched.Key)).Should().Be(TriggerState.Normal,
+            "a group the prefix does not match is never touched");
+    }
+
+    [Test]
+    public async Task PauseAllAndResumeAllReachEveryGroup()
+    {
+        IOperableTrigger first = await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
+        IOperableTrigger second = await ScheduleJobWithTrigger("second", JobGroupB, TriggerGroupB);
+
+        await Store.PauseAll();
+
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Paused);
+
+        List<string> pausedGroups = (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true }))
+            .Items.Select(x => x.Name).ToList();
+
+        pausedGroups.Should().Contain([TriggerGroupA, TriggerGroupB]);
+
+        if (AllGroupsPausedSentinel is null)
+        {
+            pausedGroups.Should().HaveCount(2, "only real groups are paused");
+        }
+        else
+        {
+            // The ADO store records "everything is paused" as a row in the paused-groups table, and
+            // the listing reads that table without filtering the marker out, so the caller sees a
+            // group name no trigger will ever belong to. The in-memory store has no such row.
+            pausedGroups.Should().Contain(AllGroupsPausedSentinel,
+                "the ADO store keeps its all-groups marker in the same table it lists paused groups from");
+        }
+
+        await Store.ResumeAll();
+
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Normal);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Normal);
+        (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items.Should().BeEmpty(
+            "resuming everything leaves nothing paused, marker included");
+    }
+
+    [Test]
+    public async Task ATriggerAddedToAPausedGroupIsBornPaused()
+    {
+        IOperableTrigger existing = await ScheduleJobWithTrigger("existing", JobGroupA, TriggerGroupA);
+
+        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
+
+        IJobDetail job = CreateJob("late", JobGroupA);
+        IOperableTrigger late = CreateTrigger("late", TriggerGroupA, job.Key);
+        await Store.ScheduleJob(job, late);
+
+        (await Store.GetTriggerState(late.Key)).Should().Be(TriggerState.Paused,
+            "a paused group imposes the pause on what is added to it, or the pause leaks");
+        (await Store.GetTriggerState(existing.Key)).Should().Be(TriggerState.Paused);
+    }
+
+    [Test]
+    public async Task PausingAGroupThatHasNoTriggersStillRemembersThePause()
+    {
+        List<string> paused = await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("empty-group"));
+
+        paused.Should().Equal(["empty-group"],
+            "pausing a group that holds nothing yet is how a caller pauses what is about to be added to it");
+
+        (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items
+            .Select(x => x.Name).Should().Equal(["empty-group"],
+                "a paused group with no triggers is still a paused group");
+
+        IJobDetail job = CreateJob("late", JobGroupA);
+        IOperableTrigger late = CreateTrigger("late", "empty-group", job.Key);
+        await Store.ScheduleJob(job, late);
+
+        (await Store.GetTriggerState(late.Key)).Should().Be(TriggerState.Paused);
+    }
+
+    [Test]
+    public async Task ResumeAllAndAGroupThatIsPausedButEmpty()
+    {
+        await ScheduleJobWithTrigger("elsewhere", JobGroupA, TriggerGroupA);
+        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("empty-group"));
+
+        await Store.ResumeAll();
+
+        IJobDetail job = CreateJob("late", JobGroupA);
+        IOperableTrigger late = CreateTrigger("late", "empty-group", job.Key);
+        await Store.ScheduleJob(job, late);
+
+        if (ResumeAllForgetsPausedButEmptyGroups)
+        {
+            (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items.Should().BeEmpty();
+            (await Store.GetTriggerState(late.Key)).Should().Be(TriggerState.Normal,
+                "resume-all resumed everything, so there is no pause left to impose");
+        }
+        else
+        {
+            // Pinned, not endorsed. The ADO store's ResumeAll walks the groups it finds in the trigger
+            // table, and a paused-but-empty group is in no trigger row, so its paused marker survives
+            // a resume-all and goes on pausing triggers added to that group afterwards.
+            (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items
+                .Select(x => x.Name).Should().Contain("empty-group",
+                    "the ADO store's resume-all only visits groups that hold triggers");
+            (await Store.GetTriggerState(late.Key)).Should().Be(TriggerState.Paused);
+        }
+    }
+
+    [Test]
+    public async Task PausedJobGroupsAreReportedAsFarAsTheStoreCanReportThem()
+    {
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("job", JobGroupA, TriggerGroupA);
+
+        await Store.PauseJobs(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
+            "whatever the store can report about the group, pausing it has to stop the triggers");
+
+        PagedResult<JobGroup> paused = await Store.QueryJobGroups(new JobGroupQuery { Paused = true });
+        PagedResult<JobGroup> listed = await Store.QueryJobGroups(new JobGroupQuery { Name = JobGroupA });
+
+        if (ReportsJobGroupPauseState)
+        {
+            paused.Items.Select(x => x.Name).Should().Equal([JobGroupA]);
+            listed.Items.Should().ContainSingle().Which.Paused.Should().BeTrue();
+        }
+        else
+        {
+            // A deliberate asymmetry, documented on JobGroupQuery.Paused: the ADO schema has a paused
+            // groups table for triggers and none for jobs, so a paused job group is not something the
+            // store can report. Pausing the group still pauses the triggers of the jobs in it, which
+            // is the part callers depend on.
+            paused.Items.Should().BeEmpty("the ADO store has nowhere to record a paused job group");
+            listed.Items.Should().ContainSingle().Which.Paused.Should().BeFalse();
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Error state
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task ResetTriggerFromErrorStateBringsAnErroredTriggerBackToWaiting()
+    {
+        IOperableTrigger trigger = await GivenATriggerInErrorState();
+
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Error);
+
+        (await Store.ResetTriggerFromErrorState(trigger.Key)).Should().BeTrue(
+            "the trigger was in error, so the reset had something to do");
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal,
+            "a trigger out of error waits to fire again");
+
+        (await Store.ResetTriggerFromErrorState(trigger.Key)).Should().BeFalse(
+            "the second reset found nothing left to reset");
+    }
+
+    [Test]
+    public async Task ResetTriggerFromErrorStateIsANoOpForATriggerThatIsNotInError()
+    {
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("fine", JobGroupA, TriggerGroupA);
+
+        (await Store.ResetTriggerFromErrorState(trigger.Key)).Should().BeFalse(
+            "there was no error to reset");
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+
+        await Store.PauseTrigger(trigger.Key);
+
+        (await Store.ResetTriggerFromErrorState(trigger.Key)).Should().BeFalse();
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
+            "a reset that found no error must not resume a trigger somebody paused on purpose");
+    }
+
+    [Test]
+    public async Task PausingTheGroupOfAnErroredTrigger()
+    {
+        IOperableTrigger trigger = await GivenATriggerInErrorState();
+
+        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(trigger.Key.Group));
+
+        if (PauseOverwritesTheErrorState)
+        {
+            // Pinned, not endorsed. The in-memory store pauses a trigger from any state but Complete,
+            // Error included, so pausing the group throws the error away: the failure is no longer
+            // visible to a listing, and there is nothing left for ResetTriggerFromErrorState to do.
+            (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
+                "the in-memory store overwrites the error with the pause");
+            (await Store.ResetTriggerFromErrorState(trigger.Key)).Should().BeFalse(
+                "the error the operator meant to reset was already overwritten");
+        }
+        else
+        {
+            // The ADO store only writes PAUSED over WAITING, ACQUIRED or BLOCKED, so the error
+            // survives the pause and can still be reset — into the pause, rather than past it.
+            (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Error,
+                "a trigger in error is not a trigger a group pause may quietly clear");
+            (await Store.ResetTriggerFromErrorState(trigger.Key)).Should().BeTrue();
+            (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
+                "the group is paused, so the trigger comes out of error into the pause");
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Calendars
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task CalendarsAreStoredRetrievedReplacedAndDeleted()
+    {
+        MonthDay christmasEve = new MonthDay(12, 24);
+        MonthDay christmas = new MonthDay(12, 25);
+
+        AnnualCalendar calendar = new AnnualCalendar();
+        calendar.AddExcludedDay(christmasEve);
+
+        await Store.AddCalendar("holidays", calendar);
+
+        ICalendar stored = await Store.GetCalendar("holidays");
+        stored.Should().BeOfType<AnnualCalendar>()
+            .Which.IsDayExcluded(christmasEve).Should().BeTrue(
+                "a calendar has to come back out the way it went in");
+
+        AnnualCalendar replacement = new AnnualCalendar();
+        replacement.AddExcludedDay(christmas);
+
+        Func<Task> addingAgain = async () => await Store.AddCalendar("holidays", replacement);
+        Exception thrown = (await addingAgain.Should().ThrowAsync<JobPersistenceException>(
+            "adding over a calendar without asking to replace it is a mistake, not an update")).Which;
+
+        // The stores raise different exceptions for the same mistake: the in-memory store throws the
+        // specific ObjectAlreadyExistsException, while the ADO store's blanket catch re-wraps it as a
+        // plain JobPersistenceException. Only the base type is common, so only it can be caught.
+        thrown.Should().BeOfType(DuplicateCalendarException);
+
+        await Store.AddCalendar("holidays", replacement, new AddCalendarOptions { Replace = true });
+
+        AnnualCalendar updated = (AnnualCalendar) await Store.GetCalendar("holidays");
+        updated.IsDayExcluded(christmas).Should().BeTrue();
+        updated.IsDayExcluded(christmasEve).Should().BeFalse("the replacement replaced");
+
+        (await Store.DeleteCalendar("holidays")).Should().BeTrue();
+        (await Store.GetCalendar("holidays")).Should().BeNull();
+    }
+
+    [Test]
+    public async Task ACalendarATriggerReferencesCannotBeDeleted()
+    {
+        await Store.AddCalendar("in-use", new AnnualCalendar());
+
+        IJobDetail job = CreateJob("job", JobGroupA);
+        IOperableTrigger trigger = CreateTrigger("trigger", TriggerGroupA, job.Key, calendarName: "in-use");
+        await Store.ScheduleJob(job, trigger);
+
+        Func<Task> deleting = async () => await Store.DeleteCalendar("in-use");
+        await deleting.Should().ThrowAsync<JobPersistenceException>(
+            "deleting a calendar out from under a trigger would leave the trigger pointing at nothing");
+
+        (await Store.GetCalendar("in-use")).Should().NotBeNull("the refused delete changed nothing");
+
+        (await Store.DeleteTrigger(trigger.Key)).Should().BeTrue();
+        (await Store.DeleteCalendar("in-use")).Should().BeTrue("nothing references the calendar any more");
+    }
+
+    [Test]
+    public async Task CalendarNamesArePagedInNameOrder()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            await Store.AddCalendar($"cal-{i}", new AnnualCalendar());
+        }
+
+        PagedResult<string> all = await Store.QueryCalendarNames(new CalendarQuery { IncludeTotalCount = true });
+        all.Items.Should().Equal(["cal-0", "cal-1", "cal-2", "cal-3", "cal-4"]);
+        all.HasMore.Should().BeFalse();
+        all.TotalCount.Should().Be(5);
+
+        PagedResult<string> page = await Store.QueryCalendarNames(new CalendarQuery
+        {
+            Skip = 1,
+            Take = 2,
+            IncludeTotalCount = true
+        });
+
+        page.Items.Should().Equal(["cal-1", "cal-2"], "a page is a window on the same ordering");
+        page.HasMore.Should().BeTrue();
+        page.TotalCount.Should().Be(5, "the total ignores paging");
+
+        PagedResult<string> pastEnd = await Store.QueryCalendarNames(new CalendarQuery { Skip = 5, Take = 5 });
+        pastEnd.Items.Should().BeEmpty();
+        pastEnd.HasMore.Should().BeFalse();
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Paged listings
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task JobsArePagedInGroupThenNameOrder()
+    {
+        List<JobKey> seeded = await SeedForPaging();
+
+        PagedResult<JobHeader> everything = await Store.QueryJobs(new JobQuery { Take = int.MaxValue });
+        everything.Items.Select(x => x.Key).Should().Equal(seeded,
+            "a listing is ordered by group and then name on every store");
+        everything.HasMore.Should().BeFalse();
+        everything.TotalCount.Should().BeNull("a total is only computed when it is asked for");
+        everything.Items.Should().OnlyContain(x => x.JobTypeName.Contains(nameof(ContractTestJob)),
+            "the listing carries the recorded job type name");
+        everything.Items.Should().OnlyContain(x => x.Description.StartsWith("job ", StringComparison.Ordinal));
+
+        PagedResult<JobHeader> first = await Store.QueryJobs(new JobQuery { Take = 5, IncludeTotalCount = true });
+        first.Items.Select(x => x.Key).Should().Equal(seeded.Take(5));
+        first.HasMore.Should().BeTrue();
+        first.TotalCount.Should().Be(seeded.Count);
+
+        PagedResult<JobHeader> second = await Store.QueryJobs(new JobQuery { Skip = 5, Take = 5, IncludeTotalCount = true });
+        second.Items.Select(x => x.Key).Should().Equal(seeded.Skip(5).Take(5));
+        second.HasMore.Should().BeTrue();
+
+        PagedResult<JobHeader> last = await Store.QueryJobs(new JobQuery { Skip = 10, Take = 5 });
+        last.Items.Select(x => x.Key).Should().Equal(seeded.Skip(10));
+        last.HasMore.Should().BeFalse("nothing follows the last page");
+
+        PagedResult<JobHeader> pastEnd = await Store.QueryJobs(new JobQuery { Skip = seeded.Count, Take = 5, IncludeTotalCount = true });
+        pastEnd.Items.Should().BeEmpty();
+        pastEnd.HasMore.Should().BeFalse();
+        pastEnd.TotalCount.Should().Be(seeded.Count);
+
+        PagedResult<JobHeader> countOnly = await Store.QueryJobs(new JobQuery { Take = 0, IncludeTotalCount = true });
+        countOnly.Items.Should().BeEmpty("Take = 0 turns the query into a count");
+        countOnly.TotalCount.Should().Be(seeded.Count);
+
+        PagedResult<JobHeader> byGroup = await Store.QueryJobs(new JobQuery
+        {
+            Group = GroupMatcher<JobKey>.GroupEquals("pg-b"),
+            IncludeTotalCount = true
+        });
+        byGroup.Items.Select(x => x.Key.Group).Should().AllBe("pg-b");
+        byGroup.TotalCount.Should().Be(4);
+
+        PagedResult<JobHeader> byPrefix = await Store.QueryJobs(new JobQuery
+        {
+            Group = GroupMatcher<JobKey>.GroupStartsWith("pg-"),
+            IncludeTotalCount = true
+        });
+        byPrefix.TotalCount.Should().Be(seeded.Count, "every seeded group starts with the prefix");
+    }
+
+    [Test]
+    public async Task TriggersArePagedInGroupThenNameOrder()
+    {
+        List<JobKey> seeded = await SeedForPaging();
+        List<TriggerKey> expected = seeded.Select(x => new TriggerKey(x.Name, x.Group)).ToList();
+
+        PagedResult<TriggerHeader> everything = await Store.QueryTriggers(new TriggerQuery { Take = int.MaxValue });
+        everything.Items.Select(x => x.Key).Should().Equal(expected);
+        everything.Items.Should().OnlyContain(x => x.NextFireTimeUtc != null,
+            "a scheduled trigger knows when it fires next");
+
+        PagedResult<TriggerHeader> page = await Store.QueryTriggers(new TriggerQuery
+        {
+            Skip = 4,
+            Take = 4,
+            IncludeTotalCount = true
+        });
+
+        page.Items.Select(x => x.Key).Should().Equal(expected.Skip(4).Take(4));
+        page.HasMore.Should().BeTrue();
+        page.TotalCount.Should().Be(expected.Count);
+
+        PagedResult<TriggerHeader> countOnly = await Store.QueryTriggers(new TriggerQuery { Take = 0, IncludeTotalCount = true });
+        countOnly.Items.Should().BeEmpty();
+        countOnly.TotalCount.Should().Be(expected.Count);
+
+        PagedResult<TriggerHeader> forOneJob = await Store.QueryTriggers(new TriggerQuery
+        {
+            Job = seeded[0],
+            IncludeTotalCount = true
+        });
+        forOneJob.TotalCount.Should().Be(1);
+        forOneJob.Items.Should().ContainSingle().Which.JobKey.Should().Be(seeded[0]);
+
+        PagedResult<TriggerHeader> byState = await Store.QueryTriggers(new TriggerQuery
+        {
+            State = TriggerState.Normal,
+            IncludeTotalCount = true
+        });
+        byState.TotalCount.Should().Be(expected.Count, "nothing has been paused yet");
+
+        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("pg-b"));
+
+        PagedResult<TriggerHeader> pausedOnly = await Store.QueryTriggers(new TriggerQuery
+        {
+            State = TriggerState.Paused,
+            IncludeTotalCount = true
+        });
+        pausedOnly.TotalCount.Should().Be(4);
+        pausedOnly.Items.Select(x => x.Key.Group).Should().AllBe("pg-b");
+    }
+
+    [Test]
+    public async Task JobGroupsArePagedInNameOrder()
+    {
+        await SeedForPaging();
+
+        PagedResult<JobGroup> all = await Store.QueryJobGroups(new JobGroupQuery { IncludeTotalCount = true });
+        all.Items.Select(x => x.Name).Should().Equal(["pg-a", "pg-b", "pg-c"]);
+        all.HasMore.Should().BeFalse();
+        all.TotalCount.Should().Be(3);
+
+        PagedResult<JobGroup> page = await Store.QueryJobGroups(new JobGroupQuery { Skip = 1, Take = 1, IncludeTotalCount = true });
+        page.Items.Select(x => x.Name).Should().Equal(["pg-b"]);
+        page.HasMore.Should().BeTrue();
+        page.TotalCount.Should().Be(3);
+
+        PagedResult<JobGroup> named = await Store.QueryJobGroups(new JobGroupQuery { Name = "pg-c" });
+        named.Items.Select(x => x.Name).Should().Equal(["pg-c"],
+            "the name filter is an exact match, not a pattern");
+
+        PagedResult<JobGroup> unknown = await Store.QueryJobGroups(new JobGroupQuery { Name = "nope" });
+        unknown.Items.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task TriggerGroupsArePagedInNameOrder()
+    {
+        await SeedForPaging();
+
+        PagedResult<TriggerGroup> all = await Store.QueryTriggerGroups(new TriggerGroupQuery { IncludeTotalCount = true });
+        all.Items.Select(x => x.Name).Should().Equal(["pg-a", "pg-b", "pg-c"]);
+        all.Items.Should().OnlyContain(x => !x.Paused);
+        all.TotalCount.Should().Be(3);
+
+        PagedResult<TriggerGroup> page = await Store.QueryTriggerGroups(new TriggerGroupQuery { Skip = 2, Take = 5, IncludeTotalCount = true });
+        page.Items.Select(x => x.Name).Should().Equal(["pg-c"]);
+        page.HasMore.Should().BeFalse();
+        page.TotalCount.Should().Be(3);
+
+        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("pg-b"));
+
+        PagedResult<TriggerGroup> paused = await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true, IncludeTotalCount = true });
+        paused.Items.Select(x => x.Name).Should().Equal(["pg-b"]);
+        paused.TotalCount.Should().Be(1);
+
+        PagedResult<TriggerGroup> unpaused = await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = false, IncludeTotalCount = true });
+        unpaused.Items.Select(x => x.Name).Should().Equal(["pg-a", "pg-c"]);
+        unpaused.TotalCount.Should().Be(2);
+
+        PagedResult<TriggerGroup> named = await Store.QueryTriggerGroups(new TriggerGroupQuery { Name = "pg-b" });
+        named.Items.Should().ContainSingle().Which.Paused.Should().BeTrue(
+            "a group listing carries the group's paused state");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Entities that are not there
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// One store member that answers <see cref="bool" />, and the call that asks it about an entity
+    /// the store does not have.
+    /// </summary>
+    public sealed record MissingEntityCase(string Member, Func<IJobStore, ValueTask<bool>> Invoke)
+    {
+        public override string ToString() => Member;
+    }
+
+    public static IEnumerable<MissingEntityCase> MissingEntityCases()
+    {
+        yield return new MissingEntityCase(nameof(IJobStore.DeleteJob), store => store.DeleteJob(MissingJobKey));
+        yield return new MissingEntityCase(nameof(IJobStore.DeleteJobs), store => store.DeleteJobs([MissingJobKey]));
+        yield return new MissingEntityCase(nameof(IJobStore.DeleteTrigger), store => store.DeleteTrigger(MissingTriggerKey));
+        yield return new MissingEntityCase(nameof(IJobStore.DeleteTriggers), store => store.DeleteTriggers([MissingTriggerKey]));
+        yield return new MissingEntityCase(nameof(IJobStore.ReplaceTrigger), store => store.ReplaceTrigger(
+            MissingTriggerKey,
+            CreateTrigger("replacement", TriggerGroupA, AnchorJobKey)));
+        yield return new MissingEntityCase(nameof(IJobStore.UpdateTriggerDetails), store => store.UpdateTriggerDetails(
+            MissingTriggerKey,
+            new TriggerDetailsUpdate().WithDescription("does not matter")));
+        yield return new MissingEntityCase($"{nameof(IJobStore.Exists)}(JobKey)", store => store.Exists(MissingJobKey));
+        yield return new MissingEntityCase($"{nameof(IJobStore.Exists)}(TriggerKey)", store => store.Exists(MissingTriggerKey));
+        yield return new MissingEntityCase(nameof(IJobStore.DeleteCalendar), store => store.DeleteCalendar(MissingCalendarName));
+        yield return new MissingEntityCase(nameof(IJobStore.ResetTriggerFromErrorState), store => store.ResetTriggerFromErrorState(MissingTriggerKey));
+        yield return new MissingEntityCase(nameof(IJobStore.PauseTrigger), store => store.PauseTrigger(MissingTriggerKey));
+        yield return new MissingEntityCase(nameof(IJobStore.PauseJob), store => store.PauseJob(MissingJobKey));
+        yield return new MissingEntityCase(nameof(IJobStore.ResumeTrigger), store => store.ResumeTrigger(MissingTriggerKey));
+        yield return new MissingEntityCase(nameof(IJobStore.ResumeJob), store => store.ResumeJob(MissingJobKey));
+    }
+
+    /// <summary>
+    /// Guards the table itself: a member that starts answering <see cref="bool" /> without a row here
+    /// would otherwise go untested on both stores.
+    /// </summary>
+    [Test]
+    public void EveryBooleanMemberHasAMissingEntityCase()
+    {
+        List<string> members = typeof(IJobStore).GetMethods()
+            .Where(x => x.ReturnType == typeof(ValueTask<bool>))
+            .Select(x => x.Name)
+            .Distinct()
+            .ToList();
+
+        List<string> covered = MissingEntityCases()
+            .Select(x => x.Member.Split('(')[0])
+            .Distinct()
+            .ToList();
+
+        covered.Should().BeEquivalentTo(members,
+            "the matrix is only a matrix while it covers every store member that answers true or false");
+    }
+
+    [TestCaseSource(nameof(MissingEntityCases))]
+    public async Task MutatingMembersAnswerFalseForAnEntityThatIsNotThere(MissingEntityCase testCase)
+    {
+        await SeedAnchor();
+
+        bool result = await testCase.Invoke(Store);
+
+        result.Should().BeFalse(
+            "{0} was asked about an entity the store does not have, which is an answer rather than an error",
+            testCase.Member);
+    }
+
+    [Test]
+    public async Task ReadsAnswerNothingForAnEntityThatIsNotThere()
+    {
+        await SeedAnchor();
+
+        (await Store.GetJob(MissingJobKey)).Should().BeNull();
+        (await Store.GetTrigger(MissingTriggerKey)).Should().BeNull();
+        (await Store.GetCalendar(MissingCalendarName)).Should().BeNull();
+        (await Store.GetTriggerState(MissingTriggerKey)).Should().Be(TriggerState.None,
+            "a trigger the store does not have is in no state at all");
+        (await Store.GetTriggersForJob(MissingJobKey)).Should().BeEmpty();
+        (await Store.GetJobs([MissingJobKey])).Should().BeEmpty();
+        (await Store.GetTriggers([MissingTriggerKey])).Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task DeletingNothingIsVacuouslySuccessful()
+    {
+        await SeedAnchor();
+
+        (await Store.DeleteJobs([])).Should().BeTrue("nothing was asked for, so nothing is missing");
+        (await Store.DeleteTriggers([])).Should().BeTrue();
+
+        (await Store.Exists(AnchorJobKey)).Should().BeTrue("an empty batch deletes nothing");
+    }
+
+    [Test]
+    public async Task GroupMembersAnswerNothingForAMatcherThatMatchesNothing()
+    {
+        await SeedAnchor();
+
+        (await Store.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals("no-such-group"))).Should().BeEmpty(
+            "nothing matched, so nothing was resumed");
+        (await Store.ResumeJobs(GroupMatcher<JobKey>.GroupEquals("no-such-group"))).Should().BeEmpty();
+
+        // A prefix matcher rather than an equality one: pausing a group by exact name is how a caller
+        // pauses a group before it exists, so that call deliberately does report a group.
+        (await Store.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("no-such-prefix"))).Should().BeEmpty();
+        (await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("no-such-prefix"))).Should().BeEmpty();
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Helpers
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// Stores a job, a trigger and a calendar, so that a test asking about something missing asks a
+    /// store with content in it rather than an empty one.
+    /// </summary>
+    private async Task SeedAnchor()
+    {
+        IJobDetail job = CreateJob(AnchorJobKey.Name, AnchorJobKey.Group);
+        IOperableTrigger trigger = CreateTrigger(AnchorTriggerKey.Name, AnchorTriggerKey.Group, job.Key);
+
+        await Store.ScheduleJob(job, trigger);
+        await Store.AddCalendar("anchor", new AnnualCalendar());
+    }
+
+    /// <summary>
+    /// Seeds twelve jobs, each with one trigger of the same name and group, spread over three groups.
+    /// Names are zero padded and lower case ASCII, so ordinal ordering and database collation agree.
+    /// </summary>
+    private async Task<List<JobKey>> SeedForPaging()
+    {
+        string[] groups = ["pg-a", "pg-b", "pg-c"];
+        List<JobKey> keys = [];
+
+        for (int i = 0; i < 12; i++)
+        {
+            string group = groups[i % groups.Length];
+            string name = $"item-{i:00}";
+
+            IJobDetail job = CreateJob(name, group);
+            IOperableTrigger trigger = CreateTrigger(name, group, job.Key);
+            await Store.ScheduleJob(job, trigger);
+
+            keys.Add(job.Key);
+        }
+
+        keys.Sort((left, right) =>
+        {
+            int byGroup = string.CompareOrdinal(left.Group, right.Group);
+            return byGroup != 0 ? byGroup : string.CompareOrdinal(left.Name, right.Name);
+        });
+
+        return keys;
+    }
+
+    private async Task<IOperableTrigger> ScheduleJobWithTrigger(string name, string jobGroup, string triggerGroup)
+    {
+        IJobDetail job = CreateJob(name, jobGroup);
+        IOperableTrigger trigger = CreateTrigger(name, triggerGroup, job.Key);
+        await Store.ScheduleJob(job, trigger);
+        return trigger;
+    }
+
+    /// <summary>
+    /// Drives a trigger through a firing that ends in failure, which is how a trigger legitimately
+    /// reaches <see cref="TriggerState.Error" />.
+    /// </summary>
+    private async Task<IOperableTrigger> GivenATriggerInErrorState()
+    {
+        IJobDetail job = CreateJob("failing", JobGroupA);
+        IOperableTrigger trigger = CreateTrigger("failing", TriggerGroupA, job.Key, startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(job, trigger);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 1
+        });
+
+        acquired.Select(x => x.Key).Should().Equal([trigger.Key], "the trigger due next is the one under test");
+
+        List<TriggerFiredResult> fired = await Store.TriggersFired(acquired);
+        fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull(
+            "the firing has to be committed before completing it says anything");
+
+        await Store.TriggeredJobComplete(acquired[0], job, SchedulerInstruction.SetTriggerError);
+
+        return trigger;
+    }
+
+    private static IJobDetail CreateJob(string name, string group)
+    {
+        return JobBuilder.Create<ContractTestJob>()
+            .WithIdentity(name, group)
+            .WithDescription("job " + name)
+            .Build();
+    }
+
+    private static IOperableTrigger CreateTrigger(
+        string name,
+        string group,
+        JobKey jobKey,
+        DateTimeOffset? startAt = null,
+        string calendarName = null)
+    {
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create()
+            .WithIdentity(name, group)
+            .ForJob(jobKey)
+            // Far enough out that nothing fires and nothing misfires while a test runs.
+            .StartAt(startAt ?? DateTimeOffset.UtcNow.AddYears(1))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever());
+
+        if (calendarName is not null)
+        {
+            builder = builder.WithCalendarName(calendarName);
+        }
+
+        IOperableTrigger trigger = (IOperableTrigger) builder.Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        return trigger;
+    }
+
+    public sealed class ContractTestJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+}
