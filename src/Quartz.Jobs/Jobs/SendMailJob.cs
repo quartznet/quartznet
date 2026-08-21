@@ -82,7 +82,7 @@ public class SendMailJob : IJob
     /// </summary>
     /// <param name="context">The job execution context.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobDataMap data = context.MergedJobDataMap;
 
@@ -105,14 +105,12 @@ public class SendMailJob : IJob
                 SmtpUserName = GetOptionalParameter(data, PropertyUsername),
                 SmtpPassword = GetOptionalParameter(data, PropertyPassword)
             };
-            Send(info);
+            await Send(info, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex);
         }
-
-        return default;
     }
 
     protected virtual MailMessage BuildMessageFromParameters(JobDataMap data)
@@ -170,7 +168,11 @@ public class SendMailJob : IJob
         return string.IsNullOrEmpty(value) ? null : value;
     }
 
-    protected virtual void Send(MailInfo mailInfo)
+    /// <summary>
+    /// Sends the built message. Override to route mail through something other than
+    /// <see cref="SmtpClient" />.
+    /// </summary>
+    protected virtual async ValueTask Send(MailInfo mailInfo, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Sending message {MailMessage}", GetMessageDescription(mailInfo.MailMessage));
 
@@ -186,7 +188,7 @@ public class SendMailJob : IJob
                 client.Port = mailInfo.SmtpPort.Value;
             }
 
-            client.Send(mailInfo.MailMessage);
+            await client.SendMailAsync(mailInfo.MailMessage, cancellationToken).ConfigureAwait(false);
         }
     }
 
