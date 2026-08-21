@@ -93,12 +93,8 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             var existing = schedulerRepository.Lookup(options.InstanceName);
             if (existing is not null)
             {
-                if (!existing.IsShutdown)
-                {
-                    return existing;
-                }
-
-                schedulerRepository.Remove(options.InstanceName);
+                ThrowIfShutdown(existing.IsShutdown, options.InstanceName);
+                return existing;
             }
 
             var scheduler = await Create(cancellationToken).ConfigureAwait(false);
@@ -116,6 +112,13 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         var options = serviceProvider.GetSchedulerOptions<QuartzSchedulerOptions>(Key);
         var resources = serviceProvider.GetScheduler<QuartzSchedulerResources>(Key);
         var properties = serviceProvider.GetSchedulerProperties(schedulerKey.OptionsName);
+
+        // The scheduler is a keyed singleton, so this is the same instance a previous GetScheduler()
+        // handed out — and a shut-down scheduler stays shut down. Asked for before anything is
+        // initialized, because the initialization below would otherwise resurrect the thread pool and the
+        // job store underneath a scheduler that can never run again.
+        var quartzScheduler = serviceProvider.GetScheduler<QuartzScheduler>(Key);
+        ThrowIfShutdown(quartzScheduler.IsShutdown, quartzScheduler.SchedulerName);
 
         var plugins = SchedulerPluginFactory.Create(
             serviceProvider,
@@ -141,13 +144,10 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             }
         }
 
-        var threadPool = resources.ThreadPool;
-        await threadPool.Initialize(cancellationToken).ConfigureAwait(false);
+        await resources.ThreadPool.Initialize(cancellationToken).ConfigureAwait(false);
 
-        QuartzScheduler? quartzScheduler = null;
         try
         {
-            quartzScheduler = serviceProvider.GetScheduler<QuartzScheduler>(Key);
             quartzScheduler.JobFactory = serviceProvider.GetScheduler<IJobFactory>(Key);
 
             // Both code and quartz.executionLimit.* keys produce this registration, and the registration
@@ -198,8 +198,28 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         }
         catch
         {
-            await ShutdownAfterFailure(quartzScheduler, threadPool).ConfigureAwait(false);
+            await ShutdownAfterFailure(quartzScheduler).ConfigureAwait(false);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Refuses to hand out a scheduler that has been shut down.
+    /// </summary>
+    /// <remarks>
+    /// 3.x built a fresh scheduler here, which it could: it constructed every part itself. The container
+    /// owns those lifetimes now, and a scheduler's parts are keyed singletons, so "create it again" would
+    /// re-initialize the very thread pool and job store the shutdown just tore down and hand back the same
+    /// closed instance wearing a working scheduler's face. Saying so is the only honest answer.
+    /// </remarks>
+    private static void ThrowIfShutdown(bool isShutdown, string schedulerName)
+    {
+        if (isShutdown)
+        {
+            Throw.SchedulerException(
+                $"Scheduler '{schedulerName}' has been shut down. A scheduler cannot be restarted within "
+                + "the same service provider, because the container owns its components' lifetimes. Use "
+                + "Standby()/Start() to pause and resume, or build a new host/container for a fresh scheduler.");
         }
     }
 
@@ -230,18 +250,13 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         }
     }
 
-    private async ValueTask ShutdownAfterFailure(QuartzScheduler? quartzScheduler, IThreadPool threadPool)
+    private async ValueTask ShutdownAfterFailure(QuartzScheduler quartzScheduler)
     {
         try
         {
-            if (quartzScheduler is not null)
-            {
-                await quartzScheduler.Shutdown(waitForJobsToComplete: false).ConfigureAwait(false);
-            }
-            else
-            {
-                await threadPool.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
-            }
+            // Shutting the scheduler down takes its thread pool and job store with it, and it is resolved
+            // before anything is initialized, so there is no longer a window where only the pool is up.
+            await quartzScheduler.Shutdown(waitForJobsToComplete: false).ConfigureAwait(false);
         }
         catch (Exception e)
         {
