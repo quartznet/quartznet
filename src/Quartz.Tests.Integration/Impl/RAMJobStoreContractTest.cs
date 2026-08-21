@@ -35,12 +35,6 @@ public sealed class RAMJobStoreContractTest : JobStoreContractTest
     protected override bool ReportsJobGroupPauseState => true;
 
     /// <summary>
-    /// It cannot: <c>PauseTriggersNoLock</c>'s prefix branch keys its bookkeeping on the matcher's
-    /// text rather than the matched group, and only the first matching group survives that.
-    /// </summary>
-    protected override bool PausesEveryTriggerGroupAPrefixMatcherMatches => false;
-
-    /// <summary>
     /// Pausing walks over any state but complete, the error state included.
     /// </summary>
     protected override bool PauseOverwritesTheErrorState => true;
