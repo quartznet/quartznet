@@ -921,6 +921,32 @@ default scheduler's, and with only named schedulers it fails validation. Take th
 `IJobExecutionContext.Scheduler`, which is the scheduler that is actually running the job, or register
 the job yourself with a factory that resolves what it needs by key.
 
+## The job scope is prepared without writing a job factory
+
+`ConfigureScope` — the hook that prepares the dependency injection scope a job is built in, and the place
+an `AsyncLocal` is set for the job's dependencies to read — was reachable only by deriving from
+`MicrosoftDependencyInjectionJobFactory`, overriding a protected method, and registering the derived
+factory. That is a class and a registration to set one ambient value:
+
+```diff
+- public sealed class TenantJobFactory : MicrosoftDependencyInjectionJobFactory
+- {
+-     public TenantJobFactory(IServiceProvider serviceProvider) : base(serviceProvider) { }
+-
+-     protected override void ConfigureScope(IServiceScope scope, TriggerFiredBundle bundle, IScheduler scheduler)
+-         => Tenant.Current.Value = bundle.JobDetail.JobDataMap.GetString("tenant");
+- }
+- services.AddQuartz(q => q.UseJobFactory<TenantJobFactory>());
++ services.AddQuartz(q => q.ConfigureJobScope(
++     (scope, bundle, scheduler) => Tenant.Current.Value = bundle.JobDetail.JobDataMap.GetString("tenant")));
+```
+
+The contract is the one the virtual method always had: it runs before the job is resolved, and it is
+synchronous so that an `AsyncLocal` set in it survives into `Execute`. Callbacks combine rather than
+replace, and the same delegate is `JobFactoryOptions.ConfigureScope`, which is per-scheduler like every
+other component's options. Overriding the protected method still works and still takes the delegate's
+place if the override does not call base.
+
 ## A component of your own is chosen the same way a shipped one is
 
 Three seams that had no code-first spelling at all, and one that only worked through a type-name string:
@@ -5295,6 +5321,7 @@ Parameters and behavior are unchanged:
 | `GetScheduler()` after `Shutdown()` throws | 3.x built a fresh scheduler, because the factory constructed every part itself. The container owns those lifetimes now, so the same call would re-initialize the thread pool and job store the shutdown just tore down and hand back the same closed instance. It throws `SchedulerException` instead. Use `Standby()`/`Start()` to pause and resume a scheduler, or build a new host or container for a fresh one |
 | `QuartzSchedulerBuilder` implements `IQuartzBuilder` | Its five duplicated members and `Configure(Action<IQuartzBuilder>)` are gone, and configuration members return `IQuartzBuilder`, so `Build()` is called on a builder held in a variable — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
 | `IQuartzBuilder` gained `UseThreadPool(IThreadPool)` and `UseJobStore(IJobStore)` | A pre-built part can be handed to a scheduler registered with `AddQuartz`, not only to a standalone one |
+| `IQuartzBuilder.ConfigureJobScope(...)` | The `ConfigureScope` hook as a delegate, so preparing a job's scope no longer needs a job factory of your own — see [The job scope is prepared without writing a job factory](#the-job-scope-is-prepared-without-writing-a-job-factory) |
 | `IQuartzBuilder` gained `UseJobStore<T>` / `<T, TOptions>` / factory | The seam for a job store of your own, built by the container with its scheduler's collaborators — see [A component of your own is chosen the same way a shipped one is](#a-component-of-your-own-is-chosen-the-same-way-a-shipped-one-is) |
 | `IQuartzBuilder` gained `UseInstanceIdGenerator<T>` / `<T, TOptions>` / instance | Replaces `quartz.scheduler.instanceIdGenerator.type`, and sets `GenerateInstanceId` because choosing a generator means the id is generated |
 | The builder's listener overloads take `params IReadOnlyCollection<IMatcher<T>>` | Aligned with `IListenerManager`; existing call sites are unaffected |
