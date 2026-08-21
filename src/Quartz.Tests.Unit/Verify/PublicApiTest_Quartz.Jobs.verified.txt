@@ -72,7 +72,7 @@ namespace Quartz.Jobs
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual string? GetOptionalParameter(Quartz.JobDataMap data, string propertyName) { }
         protected virtual string GetRequiredParameter(Quartz.JobDataMap data, string propertyName) { }
-        protected virtual void Send(Quartz.Jobs.SendMailJob.MailInfo mailInfo) { }
+        protected virtual System.Threading.Tasks.ValueTask Send(Quartz.Jobs.SendMailJob.MailInfo mailInfo, System.Threading.CancellationToken cancellationToken = default) { }
         public class MailInfo
         {
             public MailInfo() { }

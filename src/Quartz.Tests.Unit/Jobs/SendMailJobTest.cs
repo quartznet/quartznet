@@ -168,12 +168,13 @@ internal sealed class TestSendMailJob : SendMailJob
     public string actualSmtpPassword;
     public int? actualSmtpPort;
 
-    protected override void Send(MailInfo info)
+    protected override ValueTask Send(MailInfo mailInfo, CancellationToken cancellationToken = default)
     {
-        actualMailSent = info.MailMessage;
-        actualSmtpHost = info.SmtpHost;
-        actualSmtpUserName = info.SmtpUserName;
-        actualSmtpPassword = info.SmtpPassword;
-        actualSmtpPort = info.SmtpPort;
+        actualMailSent = mailInfo.MailMessage;
+        actualSmtpHost = mailInfo.SmtpHost;
+        actualSmtpUserName = mailInfo.SmtpUserName;
+        actualSmtpPassword = mailInfo.SmtpPassword;
+        actualSmtpPort = mailInfo.SmtpPort;
+        return default;
     }
 }
