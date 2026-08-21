@@ -135,7 +135,7 @@ public static class QuartzHttpClientServiceCollectionExtensions
         var options = new HttpClientOptions();
         configure(options);
 
-        options.AssertValid();
+        HttpClientOptionsValidator.ThrowIfInvalid(options);
 
         // The repository the remote scheduler binds itself into is the container's, registered in exactly
         // one place. Creating one here would give a container that also calls AddQuartz two repositories,

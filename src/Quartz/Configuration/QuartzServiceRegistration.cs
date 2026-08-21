@@ -97,6 +97,13 @@ internal static class QuartzServiceRegistration
     {
         services.AddQuartzSharedServices();
 
+        // Every scheduler resolves these two, so a bad value in either is a mistake the host can report
+        // at startup instead of leaving for whichever component reads it first. The store, clustering
+        // and data-source options are declared where they are chosen, since a scheduler that did not
+        // choose them never reads them.
+        services.ValidateOnStart<QuartzSchedulerOptions>(schedulerName);
+        services.ValidateOnStart<ThreadPoolOptions>(schedulerName);
+
         // The default scheduler has no key, so plain resolution finds it. Named schedulers are keyed by
         // name, which is also their options name.
         object? key = schedulerName;

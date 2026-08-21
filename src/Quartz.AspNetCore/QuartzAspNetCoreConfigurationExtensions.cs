@@ -97,9 +97,12 @@ public static class QuartzAspNetCoreConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<QuartzHttpApiOptions>, QuartzHttpApiOptionsValidator>());
+
         var optionsBuilder = builder.Services
             .AddOptions<QuartzHttpApiOptions>()
-            .Validate(options => !string.IsNullOrWhiteSpace(options.ApiPath) && options.ApiPath.StartsWith('/'), "ApiPath is required and must start with '/'");
+            .ValidateOnStart();
 
         if (configure is not null)
         {
