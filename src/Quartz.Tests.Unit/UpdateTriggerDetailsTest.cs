@@ -288,6 +288,47 @@ public class UpdateTriggerDetailsTest
             "a rejected update must leave the stored trigger alone");
     }
 
+    /// <summary>
+    /// The whole family matrix, run against <see cref="RAMJobStore" />. The ADO store runs the same
+    /// list in <c>UpdateTriggerDetailsFamilyTest</c>, so the two stores are provably in agreement
+    /// about which combinations they accept.
+    /// </summary>
+    [TestCaseSource(typeof(MisfireInstructionFamilyCases), nameof(MisfireInstructionFamilyCases.Mismatched))]
+    public async Task MisfireInstruction_FromAnotherFamilyIsRejected_ForEveryFamilyPair(MisfireInstructionFamilyCase testCase)
+    {
+        IOperableTrigger trigger = await GivenStoredTrigger(testCase);
+
+        Func<Task> act = async () => await jobStore.UpdateTriggerDetails(trigger.Key, testCase.CreateUpdate());
+
+        await act.Should().ThrowAsync<JobPersistenceException>()
+            .WithMessage($"*{testCase.RequestedName}*{testCase.StoredName}*",
+                "the message has to name both families, because the whole problem is that the code alone names neither");
+
+        (await jobStore.GetTrigger(trigger.Key))!.MisfireInstructionCode.Should().Be(
+            MisfireInstruction.SmartPolicy,
+            "a rejected update must leave the stored trigger alone");
+    }
+
+    [TestCaseSource(typeof(MisfireInstructionFamilyCases), nameof(MisfireInstructionFamilyCases.Matching))]
+    public async Task MisfireInstruction_FromItsOwnFamilyIsApplied(MisfireInstructionFamilyCase testCase)
+    {
+        IOperableTrigger trigger = await GivenStoredTrigger(testCase);
+
+        (await jobStore.UpdateTriggerDetails(trigger.Key, testCase.CreateUpdate())).Should().BeTrue();
+
+        (await jobStore.GetTrigger(trigger.Key))!.MisfireInstructionCode.Should().Be(testCase.InstructionCode);
+    }
+
+    private async Task<IOperableTrigger> GivenStoredTrigger(MisfireInstructionFamilyCase testCase)
+    {
+        IOperableTrigger trigger = testCase.CreateTrigger(new TriggerKey("t1", "g1"), jobDetail.Key);
+        trigger.MisfireInstructionCode.Should().Be(MisfireInstruction.SmartPolicy,
+            "the fixture needs a trigger whose instruction the update would visibly change");
+        trigger.ComputeFirstFireTimeUtc(null);
+        await jobStore.AddTrigger(trigger, false);
+        return trigger;
+    }
+
     [Test]
     public async Task MisfireInstruction_IsReadBackFromTheFamilyInterface()
     {
