@@ -83,15 +83,14 @@ public sealed class QuartzSchedulerOptions
     public TimeSpan BatchTriggerAcquisitionFireAheadTimeWindow { get; set; } = TimeSpan.Zero;
 
     /// <summary>
-    /// Whether executing jobs have their cancellation token signalled when the scheduler shuts down.
+    /// When a shutting-down scheduler signals cancellation to the jobs still executing.
     /// </summary>
-    public bool InterruptJobsOnShutdown { get; set; }
-
-    /// <summary>
-    /// Whether executing jobs have their cancellation token signalled on a shutdown that waits for
-    /// jobs to complete.
-    /// </summary>
-    public bool InterruptJobsOnShutdownWithWait { get; set; }
+    /// <remarks>
+    /// This was two independent booleans, one for a shutdown that waits for jobs and one for a shutdown
+    /// that does not. They were never independent: together they answered a single four-way question,
+    /// and the pair could be set to a combination — both false — that spelled the default in two ways.
+    /// </remarks>
+    public ShutdownJobInterruption ShutdownJobInterruption { get; set; }
 
     /// <summary>
     /// Values seeded into <see cref="SchedulerContext"/> when the scheduler is created.

@@ -32,7 +32,6 @@ public class QuartzTypedOptionsTest
             ["Scheduler:InstanceId"] = "node-1",
             ["Scheduler:IdleWaitTime"] = "00:00:45",
             ["Scheduler:MaxBatchSize"] = "7",
-            ["Scheduler:InterruptJobsOnShutdown"] = "true",
         });
 
         var options = provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value;
@@ -41,7 +40,18 @@ public class QuartzTypedOptionsTest
         options.InstanceId.Should().Be("node-1");
         options.IdleWaitTime.Should().Be(TimeSpan.FromSeconds(45));
         options.MaxBatchSize.Should().Be(7);
-        options.InterruptJobsOnShutdown.Should().BeTrue();
+    }
+
+    [Test]
+    public void ShutdownJobInterruption_BindsByName()
+    {
+        using var provider = Build(new Dictionary<string, string>
+        {
+            ["Scheduler:ShutdownJobInterruption"] = "WhenWaitingForJobs",
+        });
+
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.ShutdownJobInterruption
+            .Should().Be(ShutdownJobInterruption.WhenWaitingForJobs);
     }
 
     [Test]

@@ -44,7 +44,42 @@ public class QuartzPropertyBridgeTest
         options.InstanceName.Should().Be("legacy");
         options.InstanceId.Should().Be("node-7");
         options.MaxBatchSize.Should().Be(8);
-        options.InterruptJobsOnShutdown.Should().BeTrue();
+        options.ShutdownJobInterruption.Should().Be(ShutdownJobInterruption.WhenNotWaitingForJobs,
+            "the legacy key only ever meant a shutdown that does not wait for jobs");
+    }
+
+    [Test]
+    public void TheTwoInterruptOnShutdownKeysFoldOntoOneSetting()
+    {
+        (string, string, ShutdownJobInterruption)[] cases =
+        [
+            (null, null, ShutdownJobInterruption.Never),
+            ("false", "false", ShutdownJobInterruption.Never),
+            ("true", null, ShutdownJobInterruption.WhenNotWaitingForJobs),
+            (null, "true", ShutdownJobInterruption.WhenWaitingForJobs),
+            ("true", "true", ShutdownJobInterruption.Always),
+            ("false", "true", ShutdownJobInterruption.WhenWaitingForJobs),
+            ("true", "false", ShutdownJobInterruption.WhenNotWaitingForJobs)
+        ];
+
+        foreach ((string onShutdown, string withWait, ShutdownJobInterruption expected) in cases)
+        {
+            var properties = new NameValueCollection();
+            if (onShutdown is not null)
+            {
+                properties["quartz.scheduler.interruptJobsOnShutdown"] = onShutdown;
+            }
+
+            if (withWait is not null)
+            {
+                properties["quartz.scheduler.interruptJobsOnShutdownWithWait"] = withWait;
+            }
+
+            using var provider = Bridge(properties);
+
+            Options<QuartzSchedulerOptions>(provider).ShutdownJobInterruption.Should().Be(expected,
+                $"interruptJobsOnShutdown={onShutdown ?? "unset"}, withWait={withWait ?? "unset"}");
+        }
     }
 
     [Test]
