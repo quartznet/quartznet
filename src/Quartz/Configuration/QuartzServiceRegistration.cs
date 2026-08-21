@@ -210,6 +210,16 @@ internal static class QuartzServiceRegistration
         services.TryAddKeyed<ISchedulerFactory>(key, static (provider, key) =>
             ActivatorUtilities.CreateInstance<DefaultSchedulerFactory>(Scoped(provider, key), new SchedulerKey(key)));
 
+        // The scheduler itself, as an ordinary service. Building one is asynchronous and a container
+        // constructs synchronously, so what is registered is a handle that builds it on first use — see
+        // DeferredScheduler. The default scheduler is unkeyed, so GetRequiredService<IScheduler>() means
+        // it; a named scheduler is keyed by its name, which is what makes
+        // [FromKeyedServices("reporting")] IScheduler work.
+        services.TryAddKeyed<IScheduler>(key, static (provider, key) => new DeferredScheduler(
+            provider.GetScheduler<ISchedulerFactory>(key),
+            provider.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>(),
+            new SchedulerKey(key)));
+
         return services;
     }
 
