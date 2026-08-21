@@ -1023,6 +1023,65 @@ describes, is unchanged.
 The six phases that decide which of a scheduler's descriptions wins — configuration is last-wins,
 registration is first-wins — are now documented on `AddQuartz` itself rather than in comments inside it.
 
+## `IScheduler` is a service, keyed by the scheduler's name
+
+`AddQuartz()` now registers `IScheduler` as well as `ISchedulerFactory`. The default scheduler is
+registered unkeyed and a named scheduler under its own name, so a scheduler is injected the way any other
+service is:
+
+```csharp
+public sealed class ReportRunner(
+    IScheduler scheduler,                                       // the default scheduler
+    [FromKeyedServices("reporting")] IScheduler reporting)      // AddQuartz("reporting", …)
+```
+
+```csharp
+var scheduler = provider.GetRequiredService<IScheduler>();
+var reporting = provider.GetRequiredKeyedService<IScheduler>("reporting");
+```
+
+Resolving `ISchedulerFactory` and awaiting `GetScheduler()` still works and is unchanged; it is no longer
+the only way.
+
+What is registered is a handle rather than the scheduler itself, because building a scheduler is
+asynchronous and a container constructs synchronously. Every asynchronous member awaits the scheduler
+being built, so they are always safe. The synchronous ones — `SchedulerInstanceId`, `IsStarted`,
+`InStandbyMode`, `IsShutdown`, `Context` and `ListenerManager` — can only answer once the scheduler
+exists, and throw `InvalidOperationException` if reading one would have to build it. Under
+`AddQuartzHostedService()` that cannot happen: every scheduler in the container is built and started
+before the application runs. `SchedulerName` is answered from the registration and never builds anything.
+
+## A remote scheduler is registered by name, not by a marker interface
+
+`AddQuartzHttpClient<TScheduler>(…)` is removed, along with the runtime type generation behind it. A
+second remote scheduler needed a marker interface only because the container had no other way to tell two
+`IScheduler` registrations apart; the service key says it directly:
+
+```diff
+- services.AddQuartzHttpClient<IMyScheduler>("MyScheduler", "QuartzHttpClient");
+- services.AddQuartzHttpClient<IMySecondScheduler>("MySecondScheduler", "QuartzHttpClient");
++ services.AddQuartzHttpClient("MyScheduler", "QuartzHttpClient");
++ services.AddQuartzHttpClient("MySecondScheduler", "QuartzHttpClient");
+
+- var mine = provider.GetRequiredService<IMyScheduler>();
++ var mine = provider.GetRequiredKeyedService<IScheduler>("MyScheduler");
+```
+
+The marker interfaces themselves can be deleted. The three non-generic `AddQuartzHttpClient` overloads are
+unchanged, and the first remote scheduler registered is still the unkeyed `IScheduler` for a container
+that holds only one.
+
+This removes `Quartz.HttpClient`'s only use of `System.Reflection.Emit`, so the package no longer emits a
+type at runtime for a scheduler interface — one fewer thing standing between it and ahead-of-time
+compilation.
+
+Remote schedulers are also bound into `ISchedulerRepository` when the host starts, rather than the first
+time one is injected. A dashboard or an HTTP API listing the container's schedulers now shows them
+without something else having had to use them first. They are bound under their own name; reading a
+remote scheduler's instance id costs a request, and a name identifies one registration on its own. A
+container with no host is unaffected — nothing runs the binder, and the scheduler is built when it is
+first used, exactly as before.
+
 ## The hosted service starts every scheduler
 
 `AddQuartzHostedService()` registered the hosted service only if an unkeyed `ISchedulerFactory` was

@@ -22,77 +22,42 @@
 using System.Text.Json;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 using Quartz.Configuration;
-using Quartz.Serialization.SystemTextJson;
-using Quartz.Impl;
 using Quartz.Extensibility;
+using Quartz.Impl;
+using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz;
 
+/// <summary>
+/// Registers schedulers that live in another process and are driven over Quartz's HTTP API.
+/// </summary>
+/// <remarks>
+/// A remote scheduler is registered the same way a local one is: keyed by its name, so
+/// <c>GetRequiredKeyedService&lt;IScheduler&gt;("reporting")</c> and
+/// <c>[FromKeyedServices("reporting")] IScheduler</c> reach it, and unkeyed as well while it is the only
+/// scheduler in the container. Before 4.0 a second remote scheduler needed a marker interface of its own,
+/// implemented by a type emitted at runtime; the service key says the same thing without the reflection.
+/// </remarks>
 public static class QuartzHttpClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Register IScheduler which will call remote scheduler over HTTP
+    /// Registers a scheduler that drives a remote one over HTTP.
     /// </summary>
-    /// <param name="services"></param>
-    /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler</param>
-    /// <param name="httpClient">HttpClient to be used</param>
-    /// <param name="jsonSerializerOptions">Optional json serializer options to be used by the HTTP scheduler</param>
-    /// <returns></returns>
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="schedulerName">The scheduler's name, which must match the remote scheduler's.</param>
+    /// <param name="httpClient">The client to call the remote scheduler with.</param>
+    /// <param name="jsonSerializerOptions">Optional serializer options for the HTTP scheduler.</param>
     public static IServiceCollection AddQuartzHttpClient(
         this IServiceCollection services,
         string schedulerName,
         HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null)
     {
-        return services.AddQuartzHttpClient<IScheduler>(schedulerName, httpClient, jsonSerializerOptions);
-    }
-
-    /// <summary>
-    /// Register IScheduler which will call remote scheduler over HTTP
-    /// </summary>
-    /// <param name="services"></param>
-    /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler</param>
-    /// <param name="httpClientName">Name of the HttpClient, which will be fetched from IHttpClientFactory</param>
-    /// <param name="jsonSerializerOptions">Optional json serializer options to be used by the HTTP scheduler</param>
-    /// <returns></returns>
-    public static IServiceCollection AddQuartzHttpClient(
-        this IServiceCollection services,
-        string schedulerName,
-        string httpClientName,
-        JsonSerializerOptions? jsonSerializerOptions = null)
-    {
-        return services.AddQuartzHttpClient<IScheduler>(schedulerName, httpClientName, jsonSerializerOptions);
-    }
-
-    /// <summary>
-    /// Register IScheduler which will call remote scheduler over HTTP
-    /// </summary>
-    /// <returns></returns>
-    public static IServiceCollection AddQuartzHttpClient(
-        this IServiceCollection services,
-        Action<HttpClientOptions> configure)
-    {
-        return services.AddQuartzHttpClient<IScheduler>(configure);
-    }
-
-    /// <summary>
-    /// Register scheduler of given type which will call remote scheduler over HTTP
-    /// </summary>
-    /// <param name="services"></param>
-    /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler</param>
-    /// <param name="httpClient">HttpClient to be used</param>
-    /// <param name="jsonSerializerOptions">Optional json serializer options to be used by the HTTP scheduler</param>
-    /// <typeparam name="TScheduler">Interface for the scheduler to be registered. Must inherit directly from IScheduler</typeparam>
-    /// <returns></returns>
-    public static IServiceCollection AddQuartzHttpClient<TScheduler>(
-        this IServiceCollection services,
-        string schedulerName,
-        HttpClient httpClient,
-        JsonSerializerOptions? jsonSerializerOptions = null) where TScheduler : class, IScheduler
-    {
-        return services.AddQuartzHttpClient<TScheduler>(options =>
+        return services.AddQuartzHttpClient(options =>
         {
             options.SchedulerName = schedulerName;
             options.HttpClient = httpClient;
@@ -101,21 +66,20 @@ public static class QuartzHttpClientServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Register scheduler of given type which will call remote scheduler over HTTP
+    /// Registers a scheduler that drives a remote one over HTTP, using a named
+    /// <see cref="IHttpClientFactory"/> client.
     /// </summary>
-    /// <param name="services"></param>
-    /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler</param>
-    /// <param name="httpClientName">Name of the HttpClient, which will be fetched from IHttpClientFactory</param>
-    /// <param name="jsonSerializerOptions">Optional json serializer options to be used by the HTTP scheduler</param>
-    /// <typeparam name="TScheduler">Interface for the scheduler to be registered. Must inherit directly from IScheduler</typeparam>
-    /// <returns></returns>
-    public static IServiceCollection AddQuartzHttpClient<TScheduler>(
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="schedulerName">The scheduler's name, which must match the remote scheduler's.</param>
+    /// <param name="httpClientName">The name the client is registered under with <c>AddHttpClient</c>.</param>
+    /// <param name="jsonSerializerOptions">Optional serializer options for the HTTP scheduler.</param>
+    public static IServiceCollection AddQuartzHttpClient(
         this IServiceCollection services,
         string schedulerName,
         string httpClientName,
-        JsonSerializerOptions? jsonSerializerOptions = null) where TScheduler : class, IScheduler
+        JsonSerializerOptions? jsonSerializerOptions = null)
     {
-        return services.AddQuartzHttpClient<TScheduler>(options =>
+        return services.AddQuartzHttpClient(options =>
         {
             options.SchedulerName = schedulerName;
             options.HttpClientName = httpClientName;
@@ -124,14 +88,17 @@ public static class QuartzHttpClientServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Register scheduler of given type which will call remote scheduler over HTTP
+    /// Registers a scheduler that drives a remote one over HTTP.
     /// </summary>
-    /// <typeparam name="TScheduler">Interface for the scheduler to be registered. Must inherit directly from IScheduler</typeparam>
-    /// <returns></returns>
-    public static IServiceCollection AddQuartzHttpClient<TScheduler>(
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="configure">Configures the client: the scheduler's name and how to reach it.</param>
+    public static IServiceCollection AddQuartzHttpClient(
         this IServiceCollection services,
-        Action<HttpClientOptions> configure) where TScheduler : class, IScheduler
+        Action<HttpClientOptions> configure)
     {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configure);
+
         var options = new HttpClientOptions();
         configure(options);
 
@@ -145,7 +112,7 @@ public static class QuartzHttpClientServiceCollectionExtensions
         // a custom serializer there to be able to read custom types from the remote scheduler.
         services.AddQuartzSharedServices();
 
-        services.AddSingleton<TScheduler>(serviceProvider =>
+        services.AddKeyedSingleton<IScheduler>(options.SchedulerName, (serviceProvider, _) =>
         {
             var httpClient = options.HttpClient ?? serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(options.HttpClientName!);
             IScheduler scheduler = new HttpScheduler(
@@ -154,15 +121,24 @@ public static class QuartzHttpClientServiceCollectionExtensions
                 options.JsonSerializerOptions,
                 serviceProvider.GetRequiredService<SystemTextJsonSerializerRegistry>());
 
-            if (typeof(TScheduler) != typeof(IScheduler))
-            {
-                var schedulerType = SchedulerTypeBuilder.Create<TScheduler>();
-                scheduler = (IScheduler) Activator.CreateInstance(schedulerType, scheduler)!;
-            }
-
-            serviceProvider.GetRequiredService<ISchedulerRepository>().Bind(scheduler);
-            return (TScheduler) scheduler;
+            // Bound under its own name rather than under an instance id read from the remote scheduler:
+            // that property costs a request, and one registration is one remote scheduler, so the name
+            // tells the repository's entries apart on its own.
+            serviceProvider.GetRequiredService<ISchedulerRepository>().Bind(scheduler, options.SchedulerName);
+            return scheduler;
         });
+
+        // Keyed by name like any other scheduler, and unkeyed as well so that a container holding one
+        // remote scheduler and nothing else answers GetRequiredService<IScheduler>() with it. TryAdd,
+        // because a second remote scheduler must not quietly take over what "the scheduler" means.
+        services.TryAddSingleton<IScheduler>(
+            serviceProvider => serviceProvider.GetRequiredKeyedService<IScheduler>(options.SchedulerName));
+
+        // Remote schedulers are otherwise built on first injection, which leaves them missing from the
+        // repository - and so from LookupAll, the dashboard and the HTTP API - until something happens to
+        // ask for one. A container with no host never runs this, and is exactly as lazy as it was.
+        HttpSchedulerRegistry.For(services).Add(options.SchedulerName);
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, HttpSchedulerBinder>());
 
         return services;
     }
