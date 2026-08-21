@@ -1,4 +1,5 @@
 ﻿using System.Collections.Specialized;
+using System.Data;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -169,6 +170,32 @@ public class QuartzPropertyBridgeTest
 
         clustering.Enabled.Should().BeTrue();
         clustering.CheckinInterval.Should().Be(TimeSpan.FromSeconds(10));
+    }
+
+    [Test]
+    public void TheSerializableIsolationFlagBecomesTheIsolationLevel()
+    {
+        using var provider = Bridge(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "primary",
+            ["quartz.jobStore.txIsolationLevelSerializable"] = "true",
+        });
+
+        Options<AdoJobStoreOptions>(provider).TransactionIsolationLevel.Should().Be(IsolationLevel.Serializable);
+    }
+
+    [Test]
+    public void TheSerializableIsolationFlagSetToFalseStillSaysNothing()
+    {
+        using var provider = Bridge(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "primary",
+            ["quartz.jobStore.txIsolationLevelSerializable"] = "false",
+        });
+
+        Options<AdoJobStoreOptions>(provider).TransactionIsolationLevel.Should().BeNull(
+            "the flag's 'false' was the absence of a choice, and SQLite's defaulting reads that absence — "
+            + "translating it to an explicit ReadCommitted would stop SQLite getting serializable");
     }
 
     [Test]

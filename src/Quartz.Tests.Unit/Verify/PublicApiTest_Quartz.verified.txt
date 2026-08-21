@@ -30,8 +30,8 @@ namespace Quartz
         public int RetryableActionErrorLogThreshold { get; set; }
         public string? SelectWithLockSql { get; set; }
         public string TablePrefix { get; set; }
+        public System.Data.IsolationLevel? TransactionIsolationLevel { get; set; }
         public System.TimeSpan TransientRetryInterval { get; set; }
-        public bool TxIsolationLevelSerializable { get; set; }
         public bool UseBackgroundThreads { get; set; }
         public bool UseDbLocks { get; set; }
         public bool UseProperties { get; set; }
@@ -1892,8 +1892,8 @@ namespace Quartz.Impl.AdoJobStore
         protected System.TimeSpan StaleAcquiredTriggerThreshold { get; }
         public bool SupportsPersistence { get; }
         protected string TablePrefix { get; }
+        protected System.Data.IsolationLevel? TransactionIsolationLevel { get; }
         protected System.TimeSpan TransientRetryInterval { get; }
-        protected bool TxIsolationLevelSerializable { get; }
         protected Quartz.Extensibility.ITypeLoader TypeLoader { get; }
         protected bool UseDbLocks { get; }
         protected System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }

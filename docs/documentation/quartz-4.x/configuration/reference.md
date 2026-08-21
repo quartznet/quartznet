@@ -132,7 +132,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `UseDbLocks` | bool | `false` | Uses database row locks. Required for clustering, and implied by `UseClustering()`. |
 | `LockOnInsert` | bool | `true` | Takes a lock when inserting rows. |
 | `AcquireTriggersWithinLock` | bool | `false` | Acquires triggers inside the database lock. |
-| `TxIsolationLevelSerializable` | bool | `false` | Uses the serializable isolation level. |
+| `TransactionIsolationLevel` | IsolationLevel? | none | The isolation level the store begins its own transactions at. Unset means `ReadCommitted` — Quartz's default rather than the provider's, which vary. Forced to `Serializable` on SQLite, and ignored for a connection the application enlisted, which was begun at whatever level the application chose. |
 | `AcceptEnlistedTransactions` | bool | `false` | Lets the job store use a connection the application enlisted with `SchedulerEnlistmentExtensions.EnlistTransaction`, so scheduling commits with the application's own work. See [Joining an existing transaction](../tutorial/job-stores.md#joining-an-existing-transaction). |
 | `DoubleCheckLockMisfireHandler` | bool | `true` | Re-checks the lock before handling misfires. |
 | `UseBackgroundThreads` | bool | `false` | Runs the misfire handler and cluster manager on background threads, which do not keep the process alive. These two are the only real threads Quartz creates. |

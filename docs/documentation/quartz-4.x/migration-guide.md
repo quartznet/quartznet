@@ -2989,7 +2989,7 @@ longer public: the mirrors a derived store legitimately reads while doing its wo
 (`AcquireTriggersWithinLock`, `CanUseProperties`, `ClusterCheckinMisfireThreshold`,
 `DataSource`, `DoubleCheckLockMisfireHandler`, `LockOnInsert`, `MaxMisfiresToHandleAtATime`,
 `MaxTransientRetries`, `ObjectSerializer`, `PerformSchemaValidation`, `SelectWithLockSql`, `TablePrefix`,
-`TransientRetryInterval`, `TxIsolationLevelSerializable`, `UseDbLocks`), and the ones only the store's
+`TransientRetryInterval`, `TransactionIsolationLevel`, `UseDbLocks`), and the ones only the store's
 own cluster and misfire machinery reads are internal (`AcceptEnlistedTransactions`,
 `ClusterCheckinInterval`, `DbRetryInterval`, `InstanceId`, `InstanceName`, `UseBackgroundThreads`,
 `MisfireHandlerFrequency`, `RetryableActionErrorLogThreshold`). `Clustered`, `SupportsPersistence` and
@@ -3320,6 +3320,38 @@ The manager's other three members have no equivalent, because each was one call 
 driver description during construction, so the member was an empty ritual), and `ConnectionString` is
 get-only — it arrives through the implementation's constructor, and a provider is fully usable once
 constructed. A custom `IDbProvider` deletes its empty `Initialize` and its `ConnectionString` setter.
+
+## The isolation level is an isolation level
+
+`TxIsolationLevelSerializable` was a `bool`, so the only two things a configuration could say were
+"serializable" and "whatever Quartz picks". `Snapshot` — which is what a SQL Server deployment usually
+wants, and which reads without blocking writers — was not expressible at all, and neither were
+`RepeatableRead` or a deliberate `ReadUncommitted`.
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `AdoJobStoreOptions.TxIsolationLevelSerializable = true` | `AdoJobStoreOptions.TransactionIsolationLevel = IsolationLevel.Serializable` |
+| `TxIsolationLevelSerializable = false`, or unset | leave `TransactionIsolationLevel` unset |
+| — | `TransactionIsolationLevel = IsolationLevel.Snapshot`, and every other `System.Data.IsolationLevel` |
+
+```diff
+- store.Configure(options => options.TxIsolationLevelSerializable = true);
++ store.Configure(options => options.TransactionIsolationLevel = IsolationLevel.Serializable);
+```
+
+`quartz.jobStore.txIsolationLevelSerializable` is still read: `true` becomes `Serializable`, and `false`
+leaves the level unset rather than becoming an explicit `ReadCommitted` — the flag's `false` was the
+absence of a choice, and things downstream read that absence. The typed configuration binds the enum by
+name, so `"Quartz:JobStore:TransactionIsolationLevel": "Snapshot"` works with no further plumbing.
+
+Unset means `ReadCommitted`, which is Quartz's default rather than the provider's. Provider defaults
+differ — MySQL's is repeatable read — so inheriting them would have changed how the store behaves
+depending on which database it happened to be talking to.
+
+Two behaviours are unchanged. SQLite is forced to `Serializable` whatever this says, because concurrent
+SQLite transactions at a lower level fail with "database is locked". And the setting applies only to
+connections the job store opens itself: an operation running on a connection the application enlisted
+uses the level that transaction was begun at, which the store still warns about at startup.
 
 ## `RAMJobStore` is sealed
 
@@ -5629,6 +5661,7 @@ Parameters and behavior are unchanged:
 | `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |
 | `GetSelectNextTriggerToAcquireWith*Sql` removed | The `…WithExecutionGroupSql`, `…WithPreferredNodeSql` and `…WithPreferredNodeOnlySql` hooks, on `StdAdoDelegate` and all six dialect delegates. One statement covers every case now, so a dialect delegate keeps only its `GetSelectNextTriggerToAcquireSql` override — see [The three extra acquisition SQL hooks went with them](#the-three-extra-acquisition-sql-hooks-went-with-them) |
 | `IDbConnectionManager` / `DbConnectionManager` removed | The container is the provider registry, keyed by scheduler name; register a provider with `UseConnectionProvider` — see [The connection manager is gone](#the-connection-manager-is-gone) |
+| `AdoJobStoreOptions.TxIsolationLevelSerializable` is `TransactionIsolationLevel` | An `IsolationLevel?` rather than a `bool`, so `Snapshot` and the rest are expressible. The legacy key still translates — see [The isolation level is an isolation level](#the-isolation-level-is-an-isolation-level) |
 | `DbMetadataFactory` is internal | Every implementation was already internal and no public member accepted one; describe a driver through `UseGenericDatabase`'s metadata factory |
 | `DbProvider.PropertyDbProvider` and `.DbProviderResourceName` removed | Two `protected const`s nothing read, left over from the process-wide provider registry |
 | `SimplePropertiesTriggerPersistenceDelegateBase`'s four SQL statements are private | `SelectSimplePropsTrigger`, `DeleteSimplePropsTrigger`, `InsertSimplePropsTrigger` and `UpdateSimplePropsTrigger` name every column the base class binds, so replacing one could not work. The table and column name constants stay `protected` — they are the schema contract |
