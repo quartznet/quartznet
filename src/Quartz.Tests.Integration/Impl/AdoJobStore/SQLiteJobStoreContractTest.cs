@@ -47,18 +47,6 @@ public sealed class SQLiteJobStoreContractTest : JobStoreContractTest
     /// </summary>
     protected override bool ReportsJobGroupPauseState => false;
 
-    /// <summary>
-    /// Pausing everything is recorded as a row in the same table paused groups are listed from, so
-    /// the marker shows up in the listing as if it were a group.
-    /// </summary>
-    protected override string AllGroupsPausedSentinel => AdoConstants.AllGroupsPaused;
-
-    /// <summary>
-    /// The store's blanket catch re-wraps the specific exception as a plain
-    /// <see cref="JobPersistenceException" />.
-    /// </summary>
-    protected override Type DuplicateCalendarException => typeof(JobPersistenceException);
-
     protected override async ValueTask<IJobStore> CreateStore()
     {
         dbFileName = $"test-store-contract-{Guid.NewGuid():N}.db";

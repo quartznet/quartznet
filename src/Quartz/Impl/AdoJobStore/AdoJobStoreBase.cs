@@ -1419,6 +1419,13 @@ public abstract class AdoJobStoreBase : IJobStore
                 throw new JobPersistenceException("Couldn't store job. Insert failed.");
             }
         }
+        catch (ObjectAlreadyExistsException)
+        {
+            // The one exception this method raises on purpose, and the one a caller catches by type
+            // to tell "already there" from "the store broke". Re-wrapping it as a plain
+            // JobPersistenceException would hide the answer inside InnerException.
+            throw;
+        }
         catch (IOException e)
         {
             Throw.JobPersistenceException("Couldn't store job: " + e.Message, e);
@@ -2240,6 +2247,12 @@ public abstract class AdoJobStoreBase : IJobStore
             {
                 calendarCache[calendarName] = calendar; // lazy-cache
             }
+        }
+        catch (ObjectAlreadyExistsException)
+        {
+            // Raised above on purpose, and documented on the member, so it leaves as itself rather
+            // than as a plain JobPersistenceException with the answer buried in InnerException.
+            throw;
         }
         catch (IOException e)
         {
