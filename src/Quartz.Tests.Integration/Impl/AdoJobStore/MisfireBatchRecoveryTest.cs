@@ -28,10 +28,12 @@ public class MisfireBatchRecoveryTest
     private string dbFileName;
     private IDbProvider dbProvider;
     private CountingSQLiteDelegate.Counter commandCounter;
+    private readonly List<TestLocalTransactionJobStore> jobStores = [];
 
     [SetUp]
     public async Task SetUp()
     {
+        jobStores.Clear();
         dbFileName = $"test-misfire-batch-{Guid.NewGuid():N}.db";
 
         await using (var connection = new SqliteConnection($"Data Source={dbFileName};"))
@@ -50,8 +52,15 @@ public class MisfireBatchRecoveryTest
     }
 
     [TearDown]
-    public void TearDown()
+    public async Task TearDown()
     {
+        foreach (TestLocalTransactionJobStore jobStore in jobStores)
+        {
+            await jobStore.Shutdown();
+        }
+
+        jobStores.Clear();
+
         CountingSQLiteDelegate.CurrentCounter = null;
 
         SqliteConnection.ClearAllPools();
@@ -235,9 +244,15 @@ public class MisfireBatchRecoveryTest
             InstanceName = SchedulerName,
         };
 
+        // Initialized but deliberately not started: SchedulerStarted() spawns the MisfireHandler loop,
+        // which sweeps for misfires on its own thread every MisfireHandlerFrequency - and that defaults
+        // to MisfireThreshold, one second here. A sweep landing between storing the triggers and the
+        // RecoverMisfires() call below recovers some of them first, and the explicit pass then sees a
+        // short count. These tests drive recovery by hand, so the loop can only race them.
         await jobStore.Initialize();
-        await jobStore.SchedulerStarted();
         await jobStore.Clear();
+
+        jobStores.Add(jobStore);
 
         return jobStore;
     }
