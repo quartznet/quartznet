@@ -263,6 +263,24 @@ public sealed class SchedulerRepositoryTest
     }
 
     [Test]
+    public void BindingAReplacementEvictsTheDeadEntryItWouldCollideWith()
+    {
+        IScheduler dead = CreateFakeScheduler("MyCluster", "node-1");
+        repository.Bind(dead);
+        A.CallTo(() => dead.IsShutdown).Returns(true);
+
+        // No read between the shutdown and the re-bind: Bind itself has to notice the corpse,
+        // because shutting a scheduler down and binding its successor is exactly the sequence
+        // with no Lookup in the middle.
+        IScheduler replacement = CreateFakeScheduler("MyCluster", "node-1");
+        Action act = () => repository.Bind(replacement);
+
+        act.Should().NotThrow<SchedulerException>(
+            "a dead scheduler must not hold its name against the scheduler that replaces it");
+        repository.Lookup("MyCluster").Should().BeSameAs(replacement);
+    }
+
+    [Test]
     public void ShutDownSchedulerIsEvictedWithoutDisturbingItsLiveSiblings()
     {
         IScheduler dead = CreateFakeScheduler("MyCluster", "node-1");
