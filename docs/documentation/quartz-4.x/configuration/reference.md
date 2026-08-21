@@ -362,17 +362,17 @@ does not take *the same* configuration API — it **is** the configuration API: 
 implements `IQuartzBuilder`, the interface `AddQuartz` hands out, over a container it creates itself.
 
 ```csharp
-var builder = QuartzSchedulerBuilder.Create();
-builder.ConfigureScheduler(options => options.InstanceName = "reporting")
+IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+    .ConfigureScheduler(options => options.InstanceName = "reporting")
     .UseDefaultThreadPool(maxConcurrency: 20)
-    .UseInMemoryStore();
-
-IScheduler scheduler = await builder.BuildScheduler();
+    .UseInMemoryStore()
+    .BuildScheduler();
 ```
 
 What it adds is the two terminal methods a standalone caller needs, `Build()` for the factory and
-`BuildScheduler()` for the scheduler. Configuration members return `IQuartzBuilder`, so hold the
-builder in a variable and build from it, the way `WebApplicationBuilder` is used.
+`BuildScheduler()` for the scheduler. Every configuration member returns `QuartzSchedulerBuilder`, so
+the chain reaches them. The `IQuartzBuilder` extension methods — `AddJob`, `AddTrigger`,
+`ScheduleJob`, `AddCalendar` — return the interface, so put those last or in a statement of their own.
 
 A scheduler configured entirely by flat `quartz.*` keys is built the same way:
 
