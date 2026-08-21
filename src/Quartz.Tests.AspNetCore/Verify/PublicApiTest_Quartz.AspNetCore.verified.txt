@@ -3,6 +3,8 @@ namespace Quartz
 {
     public static class QuartzAspNetCoreConfigurationExtensions
     {
+        public static Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder AddQuartz(this Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder builder, System.Action<Quartz.QuartzHealthCheckOptions>? configure = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder AddQuartz(this Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder builder, string schedulerName, System.Action<Quartz.QuartzHealthCheckOptions>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHealthChecks(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHealthCheckOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder AddQuartzHealthChecks(this Quartz.IQuartzBuilder builder, System.Action<Quartz.QuartzHealthCheckOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder AddQuartzHttpApi(this Quartz.IQuartzBuilder builder, System.Action<Quartz.QuartzHttpApiOptions>? configure = null) { }
@@ -12,7 +14,7 @@ namespace Quartz
     {
         public QuartzHealthCheckOptions() { }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; }
-        public string Name { get; set; }
+        public string? Name { get; set; }
         public System.Collections.Generic.List<string> Tags { get; }
     }
     public sealed class QuartzHttpApiOptions

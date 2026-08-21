@@ -9,10 +9,15 @@ namespace Quartz;
 public sealed class QuartzHealthCheckOptions
 {
     /// <summary>
-    /// The name used to register the health check. Defaults to <c>quartz-scheduler</c>, or
-    /// <c>quartz-scheduler-&lt;scheduler name&gt;</c> for a named scheduler.
+    /// The name used to register the health check.
     /// </summary>
-    public string Name { get; set; } = "quartz-scheduler";
+    /// <remarks>
+    /// Left unset, the check is called <c>quartz-scheduler</c>, or
+    /// <c>quartz-scheduler-&lt;scheduler name&gt;</c> for a named scheduler — which is why it is
+    /// nullable rather than carrying one of those as its value: the name depends on which scheduler the
+    /// check is for, and that is not known to an options object.
+    /// </remarks>
+    public string? Name { get; set; }
 
     /// <summary>
     /// Tags associated with the health check, allowing it to be filtered (for example into

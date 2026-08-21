@@ -102,24 +102,50 @@ For more information on cron triggers and their format, you can use the tutorial
 
 ## Health checks
 
-Call `AddQuartzHealthChecks` to register an
+Quartz registers an
 [ASP.NET Core health check](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks)
-that reports unhealthy when the scheduler is not running or cannot reach its store.
+that reports unhealthy when the scheduler is not running or cannot reach its store. Add it alongside
+your application's other checks:
 
 ```csharp
-services.AddQuartzHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddSqlServer(connectionString)
+    .AddQuartz();
 ```
+
+`services.AddQuartzHealthChecks()` is the same thing for an application that has no other checks to
+compose with.
 
 The registration can be customized via the optional configuration callback, for example to attach
 tags so the check can be filtered into separate liveness and readiness probes:
 
 ```csharp
-services.AddQuartzHealthChecks(options =>
+builder.Services.AddHealthChecks().AddQuartz(options =>
 {
-    options.Name = "quartz-scheduler";   // defaults to "quartz-scheduler"
-    options.Tags = ["ready", "live"];
+    options.Name = "quartz-scheduler";   // the default, or quartz-scheduler-<name> for a named scheduler
+    options.Tags.AddRange(["ready", "live"]);
     options.FailureStatus = HealthStatus.Unhealthy;
 });
+```
+
+The callback is one source of `QuartzHealthCheckOptions` among several: the settings go through the
+options pipeline, so `services.Configure<QuartzHealthCheckOptions>(...)` and a bound configuration
+section mean the same thing, whichever order they are written in.
+
+A named scheduler has a check of its own, reporting on *its* scheduler. Name it on the health checks
+builder, or ask for one from inside `AddQuartz`:
+
+```csharp
+builder.Services.AddHealthChecks().AddQuartz("reporting", options => options.Tags.Add("ready"));
+
+// or, where the scheduler is configured
+builder.Services.AddQuartz("reporting", q => q.AddQuartzHealthChecks());
+```
+
+Its options are that scheduler's, so they are configured under its name:
+
+```csharp
+builder.Services.Configure<QuartzHealthCheckOptions>("reporting", options => options.Tags.Add("ready"));
 ```
 
 ```csharp
