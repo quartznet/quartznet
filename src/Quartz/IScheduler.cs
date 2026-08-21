@@ -263,12 +263,12 @@ public interface IScheduler
     /// </summary>
     /// <remarks>
     /// <para>If any of the given jobs or triggers already exist (or more
-    /// specifically, if the keys are not unique) and the replace
-    /// parameter is not set to true then an exception will be thrown.</para>
+    /// specifically, if the keys are not unique) and <see cref="ScheduleJobOptions.Replace" />
+    /// is not set then an exception will be thrown.</para>
     /// </remarks>
     ValueTask ScheduleJobs(
         IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
-        bool replace,
+        ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -276,13 +276,13 @@ public interface IScheduler
     /// </summary>
     /// <remarks>
     /// If any of the given job or triggers already exist (or more
-    /// specifically, if the keys are not unique) and the replace
-    /// parameter is not set to true then an exception will be thrown.
+    /// specifically, if the keys are not unique) and <see cref="ScheduleJobOptions.Replace" />
+    /// is not set then an exception will be thrown.
     /// </remarks>
     ValueTask ScheduleJob(
         IJobDetail jobDetail,
         IReadOnlyCollection<ITrigger> triggersForJob,
-        bool replace,
+        ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default);
 
     /// <summary>

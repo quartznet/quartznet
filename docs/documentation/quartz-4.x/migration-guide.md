@@ -3680,6 +3680,28 @@ mean "the scheduler's own defaults", which it never did.
 
 The DI-time builders — `q.AddJob<T>(…)` and `q.AddCalendar<T>(…)` on `IQuartzBuilder` — are unchanged.
 
+### `ScheduleJob` and `ScheduleJobs` take the same treatment
+
+The two `IScheduler` members that schedule a job together with a collection of triggers took a bare
+`bool replace` in the middle of their argument list, where it read as anonymous as `AddJob`'s did.
+
+| 3.x | 4.x |
+|---|---|
+| `ScheduleJob(job, triggers, replace: false)` | `ScheduleJob(job, triggers)` |
+| `ScheduleJob(job, triggers, replace: true)` | `ScheduleJob(job, triggers, new ScheduleJobOptions { Replace = true })` |
+| `ScheduleJobs(triggersAndJobs, false)` | `ScheduleJobs(triggersAndJobs)` |
+| `ScheduleJobs(triggersAndJobs, true)` | `ScheduleJobs(triggersAndJobs, new ScheduleJobOptions { Replace = true })` |
+
+`ScheduleJobOptions` is a separate type from `AddJobOptions` rather than a reuse of it. `AddJobOptions`
+also carries `StoreNonDurableWhileAwaitingScheduling`, which has no meaning here — a trigger is always
+supplied, so the job is never awaiting scheduling — and its `Replace` is about the job alone, where this
+one covers the job *and* its triggers.
+
+This is the `IScheduler` convenience only. `IJobStore.AddJob`, `IJobStore.AddTrigger` and
+`IJobStore.ScheduleJobs` keep their `bool replace`: at the store level it is a single primitive with
+nothing to disambiguate it from. The HTTP API's `ScheduleJobsRequest` keeps its `Replace` property too;
+the endpoint adapts.
+
 ## A component of your own can have options of its own
 
 `IQuartzBuilder.ConfigureOptions<TOptions>(Action<TOptions>?)` is new. It registers the callback under

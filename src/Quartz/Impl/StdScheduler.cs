@@ -213,19 +213,19 @@ internal sealed class StdScheduler : IScheduler
 
     public ValueTask ScheduleJobs(
         IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
-        bool replace,
+        ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ScheduleJobs(triggersAndJobs, replace, cancellationToken);
+        return scheduler.ScheduleJobs(triggersAndJobs, options, cancellationToken);
     }
 
     public ValueTask ScheduleJob(
         IJobDetail jobDetail,
         IReadOnlyCollection<ITrigger> triggersForJob,
-        bool replace,
+        ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ScheduleJob(jobDetail, triggersForJob, replace, cancellationToken);
+        return scheduler.ScheduleJob(jobDetail, triggersForJob, options, cancellationToken);
     }
 
     public ValueTask<bool> UnscheduleJobs(

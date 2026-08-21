@@ -366,7 +366,7 @@ internal static class TriggerEndpoints
                 jobsAndTriggers.Add(jobDetail, triggers);
             }
 
-            await scheduler.ScheduleJobs(jobsAndTriggers, request.Replace, cancellationToken).ConfigureAwait(false);
+            await scheduler.ScheduleJobs(jobsAndTriggers, new ScheduleJobOptions { Replace = request.Replace }, cancellationToken).ConfigureAwait(false);
         });
     }
 

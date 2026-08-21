@@ -159,16 +159,16 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
-        await target.ScheduleJobs(triggersAndJobs, replace, cancellationToken).ConfigureAwait(false);
+        await target.ScheduleJobs(triggersAndJobs, options, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
-        await target.ScheduleJob(jobDetail, triggersForJob, replace, cancellationToken).ConfigureAwait(false);
+        await target.ScheduleJob(jobDetail, triggersForJob, options, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<bool> UnscheduleJob(TriggerKey triggerKey, CancellationToken cancellationToken = default)

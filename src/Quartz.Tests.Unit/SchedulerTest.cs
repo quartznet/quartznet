@@ -91,7 +91,7 @@ public class SchedulerTest
         IScheduler scheduler = await factory.GetScheduler();
         var job = JobBuilder.Create<NoOpJob>().Build();
         var crontTriggers = input.Split('|').Select(x => x.Trim()).Select(cronExpression => TriggerBuilder.Create().WithCronSchedule(cronExpression).Build());
-        await scheduler.ScheduleJob(job, new List<ITrigger>(crontTriggers), replace: false);
+        await scheduler.ScheduleJob(job, new List<ITrigger>(crontTriggers));
     }
 
     [Test]
@@ -466,7 +466,7 @@ public class SchedulerTest
             [updatedJob] = new[] { cronTrigger }
         };
 
-        await scheduler.ScheduleJobs(triggersAndJobs, replace: true);
+        await scheduler.ScheduleJobs(triggersAndJobs, new ScheduleJobOptions { Replace = true });
 
         ITrigger updatedTrigger = await scheduler.GetTrigger(triggerKey);
         Assert.That(updatedTrigger, Is.InstanceOf<ICronTrigger>(), "Trigger should have been replaced with a CronTrigger");

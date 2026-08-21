@@ -63,7 +63,7 @@ public class JobInterruptMonitorPluginTest
                 .StartNow()
                 .Build();
 
-            await scheduler.ScheduleJob(job, new[] { shortTrigger, longTrigger }, replace: false);
+            await scheduler.ScheduleJob(job, new[] { shortTrigger, longTrigger });
 
             (await started.WaitAsync(waitTimeout)).Should().BeTrue("first execution should start");
             (await started.WaitAsync(waitTimeout)).Should().BeTrue("second execution should start");
@@ -112,7 +112,7 @@ public class JobInterruptMonitorPluginTest
                 .StartNow()
                 .Build();
 
-            await scheduler.ScheduleJob(job, new[] { vetoedTrigger, healthyTrigger }, replace: false);
+            await scheduler.ScheduleJob(job, new[] { vetoedTrigger, healthyTrigger });
 
             Task vetoTask = vetoListener.Vetoed.Task;
             (await Task.WhenAny(vetoTask, Task.Delay(waitTimeout))).Should().Be(vetoTask, "the t-veto fire should be vetoed");

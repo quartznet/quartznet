@@ -238,7 +238,7 @@ public class QuartzSchedulerTest
             triggersByJob.Add(job, triggers);
         }
 
-        scheduler.ScheduleJobs(triggersByJob, false).GetAwaiter().GetResult();
+        scheduler.ScheduleJobs(triggersByJob).GetAwaiter().GetResult();
     }
 
 
