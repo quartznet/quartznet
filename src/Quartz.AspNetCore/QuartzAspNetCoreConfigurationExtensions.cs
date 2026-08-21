@@ -165,10 +165,31 @@ public static class QuartzAspNetCoreConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.Services.TryAddEnumerable(
+        builder.Services.AddQuartzHttpApi(configure);
+        return builder;
+    }
+
+    /// <summary>
+    /// Serves the schedulers in this container over HTTP, so a remote client can drive them.
+    /// </summary>
+    /// <remarks>
+    /// The API is container-wide rather than a scheduler's — a request names the scheduler it is for — so
+    /// this is where it belongs, and the <see cref="IQuartzBuilder"/> overload is the same call written
+    /// where a scheduler is being configured. Call <c>MapQuartzHttpApi()</c> on the application to map the
+    /// endpoints.
+    /// </remarks>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configure">Configures the API, including the path it is served under.</param>
+    public static IServiceCollection AddQuartzHttpApi(
+        this IServiceCollection services,
+        Action<QuartzHttpApiOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<QuartzHttpApiOptions>, QuartzHttpApiOptionsValidator>());
 
-        var optionsBuilder = builder.Services
+        var optionsBuilder = services
             .AddOptions<QuartzHttpApiOptions>()
             .ValidateOnStart();
 
@@ -177,26 +198,27 @@ public static class QuartzAspNetCoreConfigurationExtensions
             optionsBuilder.Configure(configure);
         }
 
-        builder.Services.TryAddSingleton<ExceptionHandler>();
-        builder.Services.TryAddSingleton<EndpointHelper>();
+        services.TryAddSingleton<ExceptionHandler>();
+        services.TryAddSingleton<EndpointHelper>();
 
         // The HTTP API serves every scheduler in the container through one set of endpoints, so it cannot
         // read any single scheduler's serializers. It reads the container's registry instead: register a
         // custom trigger or calendar serializer there to have the API understand it.
-        builder.Services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
+        services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
 
         // Add json converters into ASP.NET Core's default json options. Those options belong to the whole
-        // container, not to this scheduler, so the setup is registered by type: calling AddQuartzHttpApi
+        // container, not to one scheduler, so the setup is registered by type: calling AddQuartzHttpApi
         // for a second scheduler must not stack the same converters onto them twice.
-        builder.Services.AddOptions();
-        builder.Services.TryAddEnumerable(
+        services.AddOptions();
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IConfigureOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>, QuartzJsonOptionsSetup>());
 
-        return builder;
+        return services;
     }
 
     /// <summary>
-    /// Maps the Quartz HTTP API endpoints configured by <see cref="AddQuartzHttpApi" />.
+    /// Maps the Quartz HTTP API endpoints configured by
+    /// <see cref="AddQuartzHttpApi(IServiceCollection, Action{QuartzHttpApiOptions})" />.
     /// </summary>
     public static IEndpointConventionBuilder MapQuartzHttpApi(this IEndpointRouteBuilder builder)
     {

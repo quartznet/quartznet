@@ -275,6 +275,33 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         return this;
     }
 
+    /// <inheritdoc cref="IQuartzBuilder.UseJobStore{T}()" />
+    public QuartzSchedulerBuilder UseJobStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IJobStore
+    {
+        inner.UseJobStore<T>();
+        return this;
+    }
+
+    /// <inheritdoc cref="IQuartzBuilder.UseJobStore{T, TOptions}(Action{TOptions})" />
+    public QuartzSchedulerBuilder UseJobStore<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure = null)
+        where T : class, IJobStore
+        where TOptions : class
+    {
+        inner.UseJobStore<T, TOptions>(configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="IQuartzBuilder.UseJobStore(Func{IServiceProvider, IJobStore})" />
+    public QuartzSchedulerBuilder UseJobStore(Func<IServiceProvider, IJobStore> factory)
+    {
+        inner.UseJobStore(factory);
+        return this;
+    }
+
     /// <inheritdoc cref="IQuartzBuilder.UsePersistentStore(Action{IPersistentStoreBuilder})" />
     public QuartzSchedulerBuilder UsePersistentStore(Action<IPersistentStoreBuilder> configure)
     {
@@ -310,6 +337,33 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         where T : class, ITypeLoader
     {
         inner.UseTypeLoader<T>();
+        return this;
+    }
+
+    /// <inheritdoc cref="IQuartzBuilder.UseInstanceIdGenerator{T}()" />
+    public QuartzSchedulerBuilder UseInstanceIdGenerator<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IInstanceIdGenerator
+    {
+        inner.UseInstanceIdGenerator<T>();
+        return this;
+    }
+
+    /// <inheritdoc cref="IQuartzBuilder.UseInstanceIdGenerator{T, TOptions}(Action{TOptions})" />
+    public QuartzSchedulerBuilder UseInstanceIdGenerator<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure = null)
+        where T : class, IInstanceIdGenerator
+        where TOptions : class
+    {
+        inner.UseInstanceIdGenerator<T, TOptions>(configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="IQuartzBuilder.UseInstanceIdGenerator(IInstanceIdGenerator)" />
+    public QuartzSchedulerBuilder UseInstanceIdGenerator(IInstanceIdGenerator generator)
+    {
+        inner.UseInstanceIdGenerator(generator);
         return this;
     }
 
@@ -383,49 +437,49 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         return this;
     }
 
-    /// <inheritdoc cref="IQuartzBuilder.AddJobListener{T}(IMatcher{JobKey}[])" />
+    /// <inheritdoc cref="IQuartzBuilder.AddJobListener{T}(System.Collections.Generic.IReadOnlyCollection{Quartz.IMatcher{Quartz.JobKey}})" />
     public QuartzSchedulerBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+        params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener
     {
         inner.AddJobListener<T>(matchers);
         return this;
     }
 
-    /// <inheritdoc cref="IQuartzBuilder.AddJobListener{T}(T, IMatcher{JobKey}[])" />
+    /// <inheritdoc cref="IQuartzBuilder.AddJobListener{T}(T, System.Collections.Generic.IReadOnlyCollection{Quartz.IMatcher{Quartz.JobKey}})" />
     public QuartzSchedulerBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        T listener, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+        T listener, params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener
     {
         inner.AddJobListener(listener, matchers);
         return this;
     }
 
-    /// <inheritdoc cref="IQuartzBuilder.AddJobListener{T}(Func{IServiceProvider, T}, IMatcher{JobKey}[])" />
+    /// <inheritdoc cref="IQuartzBuilder.AddJobListener{T}(Func{IServiceProvider, T}, System.Collections.Generic.IReadOnlyCollection{Quartz.IMatcher{Quartz.JobKey}})" />
     public QuartzSchedulerBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Func<IServiceProvider, T> factory, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+        Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener
     {
         inner.AddJobListener(factory, matchers);
         return this;
     }
 
-    /// <inheritdoc cref="IQuartzBuilder.AddTriggerListener{T}(IMatcher{TriggerKey}[])" />
+    /// <inheritdoc cref="IQuartzBuilder.AddTriggerListener{T}(System.Collections.Generic.IReadOnlyCollection{Quartz.IMatcher{Quartz.TriggerKey}})" />
     public QuartzSchedulerBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+        params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener
     {
         inner.AddTriggerListener<T>(matchers);
         return this;
     }
 
-    /// <inheritdoc cref="IQuartzBuilder.AddTriggerListener{T}(T, IMatcher{TriggerKey}[])" />
+    /// <inheritdoc cref="IQuartzBuilder.AddTriggerListener{T}(T, System.Collections.Generic.IReadOnlyCollection{Quartz.IMatcher{Quartz.TriggerKey}})" />
     public QuartzSchedulerBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        T listener, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+        T listener, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener
     {
         inner.AddTriggerListener(listener, matchers);
         return this;
     }
 
-    /// <inheritdoc cref="IQuartzBuilder.AddTriggerListener{T}(Func{IServiceProvider, T}, IMatcher{TriggerKey}[])" />
+    /// <inheritdoc cref="IQuartzBuilder.AddTriggerListener{T}(Func{IServiceProvider, T}, System.Collections.Generic.IReadOnlyCollection{Quartz.IMatcher{Quartz.TriggerKey}})" />
     public QuartzSchedulerBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Func<IServiceProvider, T> factory, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+        Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener
     {
         inner.AddTriggerListener(factory, matchers);
         return this;
@@ -456,6 +510,15 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
 
     IQuartzBuilder IQuartzBuilder.UseJobStore(IJobStore jobStore) => UseJobStore(jobStore);
 
+    IQuartzBuilder IQuartzBuilder.UseJobStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() => UseJobStore<T>();
+
+    IQuartzBuilder IQuartzBuilder.UseJobStore<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure) => UseJobStore<T, TOptions>(configure);
+
+    IQuartzBuilder IQuartzBuilder.UseJobStore(Func<IServiceProvider, IJobStore> factory) => UseJobStore(factory);
+
     IQuartzBuilder IQuartzBuilder.UsePersistentStore(Action<IPersistentStoreBuilder> configure) => UsePersistentStore(configure);
 
     IQuartzBuilder IQuartzBuilder.UsePersistentStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
@@ -466,6 +529,15 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     IQuartzBuilder IQuartzBuilder.UseJobFactory(IJobFactory jobFactory) => UseJobFactory(jobFactory);
 
     IQuartzBuilder IQuartzBuilder.UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() => UseTypeLoader<T>();
+
+    IQuartzBuilder IQuartzBuilder.UseInstanceIdGenerator<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() => UseInstanceIdGenerator<T>();
+
+    IQuartzBuilder IQuartzBuilder.UseInstanceIdGenerator<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
+        Action<TOptions>? configure) => UseInstanceIdGenerator<T, TOptions>(configure);
+
+    IQuartzBuilder IQuartzBuilder.UseInstanceIdGenerator(IInstanceIdGenerator generator) => UseInstanceIdGenerator(generator);
 
     IQuartzBuilder IQuartzBuilder.UseTimeProvider(TimeProvider timeProvider) => UseTimeProvider(timeProvider);
 
@@ -494,22 +566,22 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         Func<IServiceProvider, T> factory) => AddSchedulerListener(factory);
 
     IQuartzBuilder IQuartzBuilder.AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        params IMatcher<JobKey>[] matchers) => AddJobListener<T>(matchers);
+        params IReadOnlyCollection<IMatcher<JobKey>> matchers) => AddJobListener<T>(matchers);
 
     IQuartzBuilder IQuartzBuilder.AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        T listener, params IMatcher<JobKey>[] matchers) => AddJobListener(listener, matchers);
+        T listener, params IReadOnlyCollection<IMatcher<JobKey>> matchers) => AddJobListener(listener, matchers);
 
     IQuartzBuilder IQuartzBuilder.AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Func<IServiceProvider, T> factory, params IMatcher<JobKey>[] matchers) => AddJobListener(factory, matchers);
+        Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<JobKey>> matchers) => AddJobListener(factory, matchers);
 
     IQuartzBuilder IQuartzBuilder.AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        params IMatcher<TriggerKey>[] matchers) => AddTriggerListener<T>(matchers);
+        params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) => AddTriggerListener<T>(matchers);
 
     IQuartzBuilder IQuartzBuilder.AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        T listener, params IMatcher<TriggerKey>[] matchers) => AddTriggerListener(listener, matchers);
+        T listener, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) => AddTriggerListener(listener, matchers);
 
     IQuartzBuilder IQuartzBuilder.AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Func<IServiceProvider, T> factory, params IMatcher<TriggerKey>[] matchers) => AddTriggerListener(factory, matchers);
+        Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) => AddTriggerListener(factory, matchers);
 
     IQuartzBuilder IQuartzBuilder.UseExecutionLimits(Action<ExecutionLimitsBuilder> configure) => UseExecutionLimits(configure);
 }
