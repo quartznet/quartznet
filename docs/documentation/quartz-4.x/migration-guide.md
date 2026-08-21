@@ -1676,6 +1676,18 @@ of these is a 3.x behaviour, not a 4.x regression:
   that *would* have matched but did not exist at pause time is not. To pause a group before it
   exists, pause it by exact name — `GroupEquals` deliberately records a group that holds nothing yet.
 
+- **Pausing no longer discards an error.** `RAMJobStore` moved a trigger to `Paused` from every state
+  but `Complete`, so pausing a trigger — or the group or job it belongs to — silently overwrote
+  `TriggerState.Error`: the failure disappeared from listings and `ResetTriggerFromErrorState` found
+  nothing left to reset. Only `Normal` (waiting), acquired and blocked triggers are pausable now,
+  matching what the ADO store writes `PAUSED` over. A trigger in error keeps its state, and
+  `PauseTrigger` returns false for it, because nothing moved.
+
+  Resetting such a trigger while its group is paused lands it in `Paused` rather than `Normal` on
+  both stores, which is what the ADO store always did — the group is still paused, so the trigger
+  comes out of error into the pause rather than past it. If you have code that pauses a group to
+  suppress a failing trigger, pause it and then reset it: the pause no longer does both.
+
 ## JobKey and TriggerKey Null Validation
 
 `JobKey` and `TriggerKey` now throw `ArgumentNullException` when you specify `null` for `name` or `group`. Triggers can no longer be constructed with a null group name. If your code was relying on null group names, switch to an explicit group name.

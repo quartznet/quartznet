@@ -1572,6 +1572,16 @@ public sealed class RAMJobStore : IJobStore
         }
     }
 
+    /// <summary>
+    /// Moves one trigger into the paused state, and reports whether it moved.
+    /// </summary>
+    /// <remarks>
+    /// Only a trigger that is waiting, acquired or blocked is pausable, which is the set the ADO
+    /// store writes PAUSED over. Anything else keeps the state it is in: a completed trigger has
+    /// nothing left to pause, a paused one is already there, and a trigger in error is a failure
+    /// somebody has to see — pausing its group must not quietly clear it, or
+    /// <see cref="ResetTriggerFromErrorState" /> finds nothing left to reset.
+    /// </remarks>
     private bool PauseTriggerNoLock(TriggerKey triggerKey)
     {
         // does the trigger exist?
@@ -1580,25 +1590,17 @@ public sealed class RAMJobStore : IJobStore
             return false;
         }
 
-        // if the trigger is "complete" pausing it does not make sense...
-        if (tw.state == StoredTriggerState.Complete)
-        {
-            return false;
-        }
-
-        // already paused, nothing to change
-        if (tw.state is StoredTriggerState.Paused or StoredTriggerState.PausedBlocked)
-        {
-            return false;
-        }
-
         if (tw.state == StoredTriggerState.Blocked)
         {
             tw.state = StoredTriggerState.PausedBlocked;
         }
-        else
+        else if (tw.state is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
         {
             tw.state = StoredTriggerState.Paused;
+        }
+        else
+        {
+            return false;
         }
 
         timeTriggers.Remove(tw);

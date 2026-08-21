@@ -34,11 +34,6 @@ public sealed class RAMJobStoreContractTest : JobStoreContractTest
     /// </summary>
     protected override bool ReportsJobGroupPauseState => true;
 
-    /// <summary>
-    /// Pausing walks over any state but complete, the error state included.
-    /// </summary>
-    protected override bool PauseOverwritesTheErrorState => true;
-
     protected override async ValueTask<IJobStore> CreateStore()
     {
         IJobStore store = TestJobStores.Ram();
