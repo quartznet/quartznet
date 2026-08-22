@@ -21,6 +21,7 @@
 
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Collections.Specialized;
 using System.Data;
 using System.Data.Common;
@@ -53,7 +54,29 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     private ITypeLoader typeLoader = null!;
     private AdoUtil adoUtil = null!;
 
-    private readonly List<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new();
+    /// <summary>
+    /// The registered persistence delegates, and the same set indexed by the discriminator each one
+    /// writes into TRIGGER_TYPE.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Looking a delegate up by discriminator is on the path of every trigger read and every trigger
+    /// write, and it was a scan of the list asking each delegate in turn what type it handles. The
+    /// index answers it without the virtual calls.
+    /// </para>
+    /// <para>
+    /// Replaced wholesale rather than mutated, because <see cref="AddTriggerPersistenceDelegate" /> is
+    /// public: registrations all happen during <see cref="Initialize" /> in practice, but nothing stops
+    /// an application adding one to a delegate that is already serving a scheduler, and a reader mid-
+    /// lookup must not see a half-built index. Adding one is rare enough that copying is free.
+    /// </para>
+    /// </remarks>
+    private volatile ITriggerPersistenceDelegate[] triggerPersistenceDelegates = [];
+
+    private volatile FrozenDictionary<string, ITriggerPersistenceDelegate> triggerPersistenceDelegatesByDiscriminator
+        = FrozenDictionary<string, ITriggerPersistenceDelegate>.Empty;
+
+    private readonly Lock triggerPersistenceDelegateLock = new();
 
     private IObjectSerializer objectSerializer = null!;
     private TimeProvider timeProvider = null!;

@@ -1,4 +1,5 @@
-using System.Collections;
+﻿using System.Collections;
+using System.Collections.Frozen;
 using System.Data.Common;
 using System.Globalization;
 
@@ -679,28 +680,83 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
+    /// Where each column of a trigger select sits, worked out once for a reader instead of once per
+    /// column per row.
+    /// </summary>
+    /// <remarks>
+    /// Reading a column by name asks the provider for its position first, and the trigger row has
+    /// eighteen of them. Every statement <see cref="ReadTriggerRow" /> serves projects the same
+    /// columns, so a reader's layout is fixed for as long as it is open.
+    /// </remarks>
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
+    private readonly struct TriggerRowOrdinals
+    {
+        public TriggerRowOrdinals(DbDataReader rs)
+        {
+            TriggerName = rs.GetOrdinal(AdoConstants.ColumnTriggerName);
+            TriggerGroup = rs.GetOrdinal(AdoConstants.ColumnTriggerGroup);
+            JobName = rs.GetOrdinal(AdoConstants.ColumnJobName);
+            JobGroup = rs.GetOrdinal(AdoConstants.ColumnJobGroup);
+            Description = rs.GetOrdinal(AdoConstants.ColumnDescription);
+            TriggerType = rs.GetOrdinal(AdoConstants.ColumnTriggerType);
+            CalendarName = rs.GetOrdinal(AdoConstants.ColumnCalendarName);
+            MisfireInstruction = rs.GetOrdinal(AdoConstants.ColumnMisfireInstruction);
+            Priority = rs.GetOrdinal(AdoConstants.ColumnPriority);
+            NextFireTime = rs.GetOrdinal(AdoConstants.ColumnNextFireTime);
+            PreviousFireTime = rs.GetOrdinal(AdoConstants.ColumnPreviousFireTime);
+            StartTime = rs.GetOrdinal(AdoConstants.ColumnStartTime);
+            EndTime = rs.GetOrdinal(AdoConstants.ColumnEndTime);
+            MisfireOriginalFireTime = rs.GetOrdinal(AdoConstants.ColumnMisfireOriginalFireTime);
+            ExecutionGroup = rs.GetOrdinal(AdoConstants.ColumnExecutionGroup);
+            PreferredNode = rs.GetOrdinal(AdoConstants.ColumnPreferredNode);
+            PreferredNodeAuto = rs.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto);
+        }
+
+        public int TriggerName { get; }
+        public int TriggerGroup { get; }
+        public int JobName { get; }
+        public int JobGroup { get; }
+        public int Description { get; }
+        public int TriggerType { get; }
+        public int CalendarName { get; }
+        public int MisfireInstruction { get; }
+        public int Priority { get; }
+        public int NextFireTime { get; }
+        public int PreviousFireTime { get; }
+        public int StartTime { get; }
+        public int EndTime { get; }
+        public int MisfireOriginalFireTime { get; }
+        public int ExecutionGroup { get; }
+        public int PreferredNode { get; }
+        public int PreferredNodeAuto { get; }
+
+        public TriggerKey ReadKey(DbDataReader rs) => new(rs.GetString(TriggerName), rs.GetString(TriggerGroup));
+    }
+
+    /// <summary>
     /// Reads the current row of a trigger select. Shared by the single-trigger and batch read paths so
     /// the two cannot drift apart.
     /// </summary>
-    private async ValueTask<TriggerRow> ReadTriggerRow(DbDataReader rs)
+    private async ValueTask<TriggerRow> ReadTriggerRow(DbDataReader rs, TriggerRowOrdinals ordinals)
     {
         var row = new TriggerRow
         {
-            JobName = rs.GetString(AdoConstants.ColumnJobName)!,
-            JobGroup = rs.GetString(AdoConstants.ColumnJobGroup)!,
-            Description = rs.GetString(AdoConstants.ColumnDescription),
-            TriggerType = rs.GetString(AdoConstants.ColumnTriggerType)!,
-            CalendarName = rs.GetString(AdoConstants.ColumnCalendarName),
-            MisfireInstruction = rs.GetInt32(AdoConstants.ColumnMisfireInstruction),
-            Priority = rs.GetInt32(AdoConstants.ColumnPriority)
+            JobName = rs.GetString(ordinals.JobName),
+            JobGroup = rs.GetString(ordinals.JobGroup),
+            Description = ReadNullableString(rs, ordinals.Description),
+            TriggerType = rs.GetString(ordinals.TriggerType),
+            CalendarName = ReadNullableString(rs, ordinals.CalendarName),
+            // Not GetInt32: Oracle hands back a decimal for a NUMBER column.
+            MisfireInstruction = Convert.ToInt32(rs.GetValue(ordinals.MisfireInstruction), CultureInfo.InvariantCulture),
+            Priority = Convert.ToInt32(rs.GetValue(ordinals.Priority), CultureInfo.InvariantCulture)
         };
 
         row.JobDataMap = await ReadMapFromReader(rs, 11).ConfigureAwait(false);
 
-        row.NextFireTimeUtc = GetDateTimeFromDbValue(rs[AdoConstants.ColumnNextFireTime]);
-        row.PreviousFireTimeUtc = GetDateTimeFromDbValue(rs[AdoConstants.ColumnPreviousFireTime]);
-        row.StartTimeUtc = GetDateTimeFromDbValue(rs[AdoConstants.ColumnStartTime]) ?? DateTimeOffset.MinValue;
-        row.EndTimeUtc = GetDateTimeFromDbValue(rs[AdoConstants.ColumnEndTime]);
+        row.NextFireTimeUtc = GetDateTimeFromDbValue(rs.GetValue(ordinals.NextFireTime));
+        row.PreviousFireTimeUtc = GetDateTimeFromDbValue(rs.GetValue(ordinals.PreviousFireTime));
+        row.StartTimeUtc = GetDateTimeFromDbValue(rs.GetValue(ordinals.StartTime)) ?? DateTimeOffset.MinValue;
+        row.EndTimeUtc = GetDateTimeFromDbValue(rs.GetValue(ordinals.EndTime));
 
         // check if we access fast path
         if (row.TriggerType is AdoConstants.TriggerTypeCron or AdoConstants.TriggerTypeSimple)
@@ -708,18 +764,17 @@ public partial class StdAdoDelegate
             row.Props = FindTriggerPersistenceDelegate(row.TriggerType)!.ReadTriggerPropertyBundle(rs);
         }
 
-        row.MisfireOriginalFireTime = GetDateTimeFromDbValue(rs[AdoConstants.ColumnMisfireOriginalFireTime]);
+        row.MisfireOriginalFireTime = GetDateTimeFromDbValue(rs.GetValue(ordinals.MisfireOriginalFireTime));
 
-        int execGroupOrdinal = rs.GetOrdinal(AdoConstants.ColumnExecutionGroup);
-        row.ExecutionGroup = rs.IsDBNull(execGroupOrdinal) ? null : rs.GetString(execGroupOrdinal);
-
-        int preferredNodeOrdinal = rs.GetOrdinal(AdoConstants.ColumnPreferredNode);
-        row.PreferredNode = rs.IsDBNull(preferredNodeOrdinal) ? null : rs.GetString(preferredNodeOrdinal);
-        int preferredNodeAutoOrdinal = rs.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto);
-        row.PreferredNodeAuto = !rs.IsDBNull(preferredNodeAutoOrdinal) && GetBooleanFromDbValue(rs.GetValue(preferredNodeAutoOrdinal));
+        row.ExecutionGroup = ReadNullableString(rs, ordinals.ExecutionGroup);
+        row.PreferredNode = ReadNullableString(rs, ordinals.PreferredNode);
+        row.PreferredNodeAuto = !rs.IsDBNull(ordinals.PreferredNodeAuto) && GetBooleanFromDbValue(rs.GetValue(ordinals.PreferredNodeAuto));
 
         return row;
     }
+
+    private static string? ReadNullableString(DbDataReader rs, int ordinal)
+        => rs.IsDBNull(ordinal) ? null : rs.GetString(ordinal);
 
     /// <summary>
     /// Applies the fire-time state carried on the TRIGGERS row. Applies to blob-deserialized triggers
@@ -815,7 +870,7 @@ public partial class StdAdoDelegate
                 return null;
             }
 
-            row = await ReadTriggerRow(rs).ConfigureAwait(false);
+            row = await ReadTriggerRow(rs, new TriggerRowOrdinals(rs)).ConfigureAwait(false);
         }
 
         if (row.TriggerType == AdoConstants.TriggerTypeBlob)
@@ -1298,33 +1353,72 @@ public partial class StdAdoDelegate
         BindFiredTriggerQuery(cmd, query);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        FiredTriggerRowOrdinals? ordinals = null;
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            records.Add(ReadFiredTriggerRecord(rs));
+            ordinals ??= new FiredTriggerRowOrdinals(rs);
+            records.Add(ReadFiredTriggerRecord(rs, ordinals.Value));
         }
 
         return records;
     }
 
-    private FiredTriggerRecord ReadFiredTriggerRecord(DbDataReader rs)
+    /// <summary>
+    /// Where each column of the fired-trigger select sits. Same reasoning as
+    /// <see cref="TriggerRowOrdinals" />: a cluster recovery reads every fired-trigger row there is.
+    /// </summary>
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
+    private readonly struct FiredTriggerRowOrdinals
     {
-        StoredTriggerState state = StoredTriggerStates.FromStoredValue(rs.GetString(AdoConstants.ColumnEntryState));
+        public FiredTriggerRowOrdinals(DbDataReader rs)
+        {
+            EntryState = rs.GetOrdinal(AdoConstants.ColumnEntryState);
+            EntryId = rs.GetOrdinal(AdoConstants.ColumnEntryId);
+            FiredTime = rs.GetOrdinal(AdoConstants.ColumnFiredTime);
+            ScheduledTime = rs.GetOrdinal(AdoConstants.ColumnScheduledTime);
+            Priority = rs.GetOrdinal(AdoConstants.ColumnPriority);
+            InstanceName = rs.GetOrdinal(AdoConstants.ColumnInstanceName);
+            TriggerName = rs.GetOrdinal(AdoConstants.ColumnTriggerName);
+            TriggerGroup = rs.GetOrdinal(AdoConstants.ColumnTriggerGroup);
+            IsNonConcurrent = rs.GetOrdinal(AdoConstants.ColumnIsNonConcurrent);
+            RequestsRecovery = rs.GetOrdinal(AdoConstants.ColumnRequestsRecovery);
+            JobName = rs.GetOrdinal(AdoConstants.ColumnJobName);
+            JobGroup = rs.GetOrdinal(AdoConstants.ColumnJobGroup);
+        }
+
+        public int EntryState { get; }
+        public int EntryId { get; }
+        public int FiredTime { get; }
+        public int ScheduledTime { get; }
+        public int Priority { get; }
+        public int InstanceName { get; }
+        public int TriggerName { get; }
+        public int TriggerGroup { get; }
+        public int IsNonConcurrent { get; }
+        public int RequestsRecovery { get; }
+        public int JobName { get; }
+        public int JobGroup { get; }
+    }
+
+    private FiredTriggerRecord ReadFiredTriggerRecord(DbDataReader rs, FiredTriggerRowOrdinals ordinals)
+    {
+        StoredTriggerState state = StoredTriggerStates.FromStoredValue(ReadNullableString(rs, ordinals.EntryState));
 
         // An ACQUIRED row is written before the job has been loaded, so its job columns hold nothing yet.
         bool hasJob = state != StoredTriggerState.Acquired;
 
         return new FiredTriggerRecord
         {
-            FireInstanceId = rs.GetString(AdoConstants.ColumnEntryId)!,
+            FireInstanceId = rs.GetString(ordinals.EntryId),
             FireInstanceState = state,
-            FireTimestamp = GetDateTimeFromDbValue(rs[AdoConstants.ColumnFiredTime]) ?? DateTimeOffset.MinValue,
-            ScheduleTimestamp = GetDateTimeFromDbValue(rs[AdoConstants.ColumnScheduledTime]) ?? DateTimeOffset.MinValue,
-            Priority = Convert.ToInt32(rs[AdoConstants.ColumnPriority], CultureInfo.InvariantCulture),
-            SchedulerInstanceId = rs.GetString(AdoConstants.ColumnInstanceName)!,
-            TriggerKey = new TriggerKey(rs.GetString(AdoConstants.ColumnTriggerName)!, rs.GetString(AdoConstants.ColumnTriggerGroup)!),
-            JobDisallowsConcurrentExecution = hasJob && GetBooleanFromDbValue(rs[AdoConstants.ColumnIsNonConcurrent]),
-            JobRequestsRecovery = hasJob && GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]),
-            JobKey = hasJob ? new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!) : null
+            FireTimestamp = GetDateTimeFromDbValue(rs.GetValue(ordinals.FiredTime)) ?? DateTimeOffset.MinValue,
+            ScheduleTimestamp = GetDateTimeFromDbValue(rs.GetValue(ordinals.ScheduledTime)) ?? DateTimeOffset.MinValue,
+            Priority = Convert.ToInt32(rs.GetValue(ordinals.Priority), CultureInfo.InvariantCulture),
+            SchedulerInstanceId = rs.GetString(ordinals.InstanceName),
+            TriggerKey = new TriggerKey(rs.GetString(ordinals.TriggerName), rs.GetString(ordinals.TriggerGroup)),
+            JobDisallowsConcurrentExecution = hasJob && GetBooleanFromDbValue(rs.GetValue(ordinals.IsNonConcurrent)),
+            JobRequestsRecovery = hasJob && GetBooleanFromDbValue(rs.GetValue(ordinals.RequestsRecovery)),
+            JobKey = hasJob ? new JobKey(rs.GetString(ordinals.JobName), rs.GetString(ordinals.JobGroup)) : null
         };
     }
 
@@ -1364,7 +1458,22 @@ public partial class StdAdoDelegate
             TablePrefix = tablePrefix,
             DbAccessor = this,
         });
-        triggerPersistenceDelegates.Add(persistenceDelegate);
+
+        lock (triggerPersistenceDelegateLock)
+        {
+            ITriggerPersistenceDelegate[] registered = [.. triggerPersistenceDelegates, persistenceDelegate];
+
+            // First registration of a discriminator wins, which is what the scan this replaces did: the
+            // built-in delegates are added before the ones the container supplies.
+            Dictionary<string, ITriggerPersistenceDelegate> byDiscriminator = new(registered.Length, StringComparer.Ordinal);
+            foreach (ITriggerPersistenceDelegate registration in registered)
+            {
+                byDiscriminator.TryAdd(registration.GetHandledTriggerTypeDiscriminator(), registration);
+            }
+
+            triggerPersistenceDelegates = registered;
+            triggerPersistenceDelegatesByDiscriminator = byDiscriminator.ToFrozenDictionary(StringComparer.Ordinal);
+        }
     }
 
     protected virtual ITriggerPersistenceDelegate? FindTriggerPersistenceDelegate(IOperableTrigger trigger)
@@ -1382,15 +1491,8 @@ public partial class StdAdoDelegate
 
     protected virtual ITriggerPersistenceDelegate? FindTriggerPersistenceDelegate(string discriminator)
     {
-        foreach (var persistenceDelegate in triggerPersistenceDelegates)
-        {
-            if (persistenceDelegate.GetHandledTriggerTypeDiscriminator() == discriminator)
-            {
-                return persistenceDelegate;
-            }
-        }
-
-        return null;
+        triggerPersistenceDelegatesByDiscriminator.TryGetValue(discriminator, out ITriggerPersistenceDelegate? persistenceDelegate);
+        return persistenceDelegate;
     }
 
     /// <inheritdoc />
@@ -1566,6 +1668,7 @@ public partial class StdAdoDelegate
             AddCommandParameter(cmd, "state", state.ToStoredValue());
 
             using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            TriggerRowOrdinals? ordinals = null;
             while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (count != -1 && keys.Count == count)
@@ -1574,8 +1677,9 @@ public partial class StdAdoDelegate
                     break;
                 }
 
-                keys.Add(new TriggerKey(rs.GetString(AdoConstants.ColumnTriggerName)!, rs.GetString(AdoConstants.ColumnTriggerGroup)!));
-                rows.Add(await ReadTriggerRow(rs).ConfigureAwait(false));
+                ordinals ??= new TriggerRowOrdinals(rs);
+                keys.Add(ordinals.Value.ReadKey(rs));
+                rows.Add(await ReadTriggerRow(rs, ordinals.Value).ConfigureAwait(false));
             }
         }
 
@@ -1621,10 +1725,12 @@ public partial class StdAdoDelegate
 
             using DbCommand cmd = PrepareTriggerKeySetCommand(conn, StdAdoConstants.SqlSelectTriggersByKeysPrefix, requested, offset, length, qualified: true);
             using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            TriggerRowOrdinals? ordinals = null;
             while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                keys.Add(new TriggerKey(rs.GetString(AdoConstants.ColumnTriggerName)!, rs.GetString(AdoConstants.ColumnTriggerGroup)!));
-                rows.Add(await ReadTriggerRow(rs).ConfigureAwait(false));
+                ordinals ??= new TriggerRowOrdinals(rs);
+                keys.Add(ordinals.Value.ReadKey(rs));
+                rows.Add(await ReadTriggerRow(rs, ordinals.Value).ConfigureAwait(false));
             }
         }
 
