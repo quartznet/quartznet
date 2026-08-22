@@ -3,85 +3,119 @@
 title: Multiple Triggers
 ---
 
-Quartz is designed with the ability to register a job with multiple triggers.
-Each job can have a base line set of data, and then each trigger can bring its
-own set of data as well. During the job execution Quartz will merge the data
-for you, with the data in the trigger overriding the data in the job.
+# Multiple Triggers
 
-Our example job:
+A job can have any number of triggers. The job carries the data every firing shares; each trigger carries the
+data that firing needs. Quartz merges the two before the job runs, and the trigger's values win where the keys
+are the same.
+
+Our example job reads both:
 
 ```csharp
-public class HelloJob : IJob
+public sealed class CustomerProcessJob : IJob
 {
-    public static readonly JobKey Key = new JobKey("customer-process", "group");
+    public static readonly JobKey Key = new("customer-process", "batch");
 
-    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    private readonly ILogger<CustomerProcessJob> logger;
+
+    public CustomerProcessJob(ILogger<CustomerProcessJob> logger)
     {
-        var customerId = context.MergedJobDataMap.GetString("CustomerId");
-        var batchSize = context.MergedJobDataMap.GetString("batch-size");
+        this.logger = logger;
+    }
 
-        await Console.WriteLineAsync($"CustomerId={customerId} batch-size={batchSize}")
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        JobDataMap data = context.MergedJobDataMap;
+
+        string? customerId = data.GetString("CustomerId");
+        int batchSize = data.GetInt("batch-size");
+
+        logger.LogInformation("CustomerId={CustomerId} batch-size={BatchSize}", customerId, batchSize);
+        return default;
     }
 }
 ```
 
-Below, we have two triggers, each with their own set of data, but
-we only had to register the one job.
+## One job, two triggers
+
+Register the job once and give it two triggers, each with its own data:
 
 ```csharp
-public Task DoSomething(IScheduler schedule, CancellationToken ct)
+builder.Services.AddQuartz(q =>
 {
-    var job = JobBuilder.Create<HelloJob>()
-                        .WithIdentity(HelloJob.Key)
-                        .Build();
-    
-    await schedule.AddJob(job, new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true }, ct);
+    q.AddJob<CustomerProcessJob>(j => j
+        .WithIdentity(CustomerProcessJob.Key)
+        .StoreDurably()
+        .UsingJobData("batch-size", 50));
 
-    // Trigger 1
-    var jobData1 = new JobDataMap { { "CustomerId", "1" } };
-    await scheduler.TriggerJob(new JobKey("customer-process", "group"), jobData1, ct);
+    q.AddTrigger<CustomerProcessJob>(t => t
+        .ForJob(CustomerProcessJob.Key)
+        .WithIdentity("customer-1-hourly")
+        .UsingJobData("CustomerId", "1")
+        .WithCronSchedule("0 0 * ? * *"));
 
-    // Trigger 2
-    var jobData2 = new JobDataMap { { "CustomerId", "2" } };
-    await scheduler.TriggerJob(new JobKey("customer-process", "group"), jobData2, ct);
+    q.AddTrigger<CustomerProcessJob>(t => t
+        .ForJob(CustomerProcessJob.Key)
+        .WithIdentity("customer-2-nightly")
+        .UsingJobData("CustomerId", "2")
+        .UsingJobData("batch-size", 500)   // this trigger overrides the job's value
+        .WithCronSchedule("0 0 2 ? * *"));
+});
+```
+
+The hourly firing logs `CustomerId=1 batch-size=50`; the nightly one logs `CustomerId=2 batch-size=500`.
+
+`StoreDurably()` is what lets the job be registered on its own rather than alongside one trigger. Without it a
+job is deleted as soon as its last trigger is gone, which for a job with several triggers is rarely what you
+want.
+
+The same two triggers built at run time, for a job whose customers are not known at startup:
+
+```csharp
+public async ValueTask ScheduleFor(
+    IScheduler scheduler,
+    IReadOnlyCollection<string> customers,
+    CancellationToken cancellationToken)
+{
+    IJobDetail job = JobBuilder.Create<CustomerProcessJob>()
+        .WithIdentity(CustomerProcessJob.Key)
+        .StoreDurably()
+        .UsingJobData("batch-size", 50)
+        .Build();
+
+    await scheduler.AddJob(job, new AddJobOptions { Replace = true }, cancellationToken);
+
+    foreach (string customer in customers)
+    {
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity($"customer-{customer}", "batch")
+            .ForJob(CustomerProcessJob.Key)
+            .UsingJobData("CustomerId", customer)
+            .WithCronSchedule("0 0 * ? * *")
+            .Build();
+
+        await scheduler.ScheduleJob(trigger, cancellationToken);
+    }
 }
 ```
 
-When this runs you will see:
+`ScheduleJob(trigger)` — the overload that takes no job detail — schedules a trigger against a job that is
+already stored, which is why the job was added durably first.
 
-```text
-CustomerId=1 batch-size=
-CustomerId=2 batch-size=
-```
+## Firing once, with data of its own
 
-### Job Data and Trigger Data
-
-You could even set common data parameters on the job itself. Here
-we are adding some job data to the job itself.
+`TriggerJob` fires a stored job immediately, with a data map that is merged the same way a trigger's would be.
+It creates no trigger, so this is the way to run a job on demand rather than the way to schedule it:
 
 ```csharp
-public Task DoSomething(IScheduler schedule, CancellationToken ct)
-{
-    var job = JobBuilder.Create<AnExampleJob>()
-                        .WithIdentity(HelloJob.Key)
-                        .UsingJobData("batch-size", "50")
-                        .Build();
-    
-    await schedule.AddJob(job, new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true }, ct);
-
-    // Trigger 1
-    var jobData1 = new JobDataMap { { "CustomerId", 1 } };
-    await scheduler.TriggerJob(HelloJob.Key, jobData1, ct);
-
-    // Trigger 2
-    var jobData2 = new JobDataMap { { "CustomerId", 2 } };
-    await scheduler.TriggerJob(HelloJob.Key, jobData2, ct);
-}
+JobDataMap data = new() { { "CustomerId", "3" }, { "batch-size", 10 } };
+await scheduler.TriggerJob(CustomerProcessJob.Key, data, cancellationToken);
 ```
 
-When this runs you will see:
-
-```text
-CustomerId=1 batch-size=50
-CustomerId=2 batch-size=50
-```
+::: warning `GetString` is the strict one
+The numeric accessors are forgiving: `GetInt` parses `"50"` as happily as it returns `50`. `GetString` is not —
+given a value stored as an `int` it returns null rather than `"50"`, and `TryGetString` returns false. So a job
+that reads its data with `GetString` has to be given strings, which is worth remembering when the data comes
+from somewhere loosely typed. On a persistent store with `StoreJobDataAsStrings` the question does not arise,
+because everything is stored, and read back, as a string.
+:::
