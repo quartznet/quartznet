@@ -41,7 +41,7 @@ namespace Quartz.Plugins.Xml;
 /// </remarks>
 /// <author>James House</author>
 /// <author>Pierre Awaragi</author>
-public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListener
+public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListener
 {
     private const int MaxJobTriggerNameLength = 80;
     private const string JobInitializationPluginName = "XmlSchedulingDataProcessorPlugin";
@@ -81,7 +81,7 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
 
     public IScheduler Scheduler { get; private set; } = null!;
 
-    protected ITypeLoader TypeLoader { get; private set; }
+    private ITypeLoader TypeLoader { get; }
 
     /// <summary>
     /// Comma separated list of file names (with paths) to the XML files that should be read.
@@ -106,11 +106,11 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// Whether or not starting of the plugin should fail (throw an
     /// exception) if the file cannot be handled. Default is <see langword="false" />.
     /// </summary>
-    public virtual bool FailOnSchedulingError { get; internal set; }
+    public bool FailOnSchedulingError { get; internal set; }
 
     internal IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
-    public virtual ValueTask FileUpdated(
+    public ValueTask FileUpdated(
         string fileName,
         CancellationToken cancellationToken = default)
     {
@@ -126,7 +126,7 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// Called during creation of the <see cref="IScheduler"/> in order to give
     /// the <see cref="ISchedulerPlugin"/> a chance to initialize.
     /// </summary>
-    public virtual async ValueTask Initialize(
+    public async ValueTask Initialize(
         string pluginName,
         IScheduler scheduler,
         CancellationToken cancellationToken = default)
@@ -152,7 +152,7 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// to let the plug-in know it can now make calls into the scheduler if it
     /// needs to.
     /// </summary>
-    public virtual async ValueTask Start(CancellationToken cancellationToken = default)
+    public async ValueTask Start(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -264,7 +264,7 @@ public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// should free up all of it's resources because the scheduler is shutting
     /// down.
     /// </summary>
-    public virtual ValueTask Shutdown(CancellationToken cancellationToken = default)
+    public ValueTask Shutdown(CancellationToken cancellationToken = default)
     {
         // nothing to do
         return default;

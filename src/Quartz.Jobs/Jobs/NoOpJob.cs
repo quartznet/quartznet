@@ -27,7 +27,7 @@ namespace Quartz.Jobs;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class NoOpJob : IJob
+public sealed class NoOpJob : IJob
 {
     /// <summary>
     /// Do nothing.

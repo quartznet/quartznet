@@ -19,6 +19,8 @@
 
 #endregion
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl;
 using Quartz.Jobs;
 using Quartz.Plugins.History;
@@ -29,12 +31,23 @@ namespace Quartz.Tests.Unit.Plugin.History;
 /// <author>Marko Lahma (.NET)</author>
 public class LoggingTriggerHistoryPluginTest
 {
-    private RecordingLoggingTriggerHistoryPlugin plugin;
+    private LoggingTriggerHistoryPlugin plugin;
+    private RecordingLoggerProvider loggerProvider;
 
     [SetUp]
     public void SetUp()
     {
-        plugin = new RecordingLoggingTriggerHistoryPlugin();
+        loggerProvider = new RecordingLoggerProvider();
+        ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
+        plugin = new LoggingTriggerHistoryPlugin(
+            factory.CreateLogger<LoggingTriggerHistoryPlugin>(),
+            TimeProvider.System);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        loggerProvider.Dispose();
     }
 
     [Test]
@@ -51,7 +64,7 @@ public class LoggingTriggerHistoryPluginTest
 
         await plugin.TriggerFired(t, ctx);
 
-        Assert.That(plugin.InfoMessages, Has.Count.EqualTo(1));
+        loggerProvider.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Information);
     }
 
     [Test]
@@ -65,7 +78,7 @@ public class LoggingTriggerHistoryPluginTest
 
         await plugin.TriggerMisfired(t);
 
-        Assert.That(plugin.InfoMessages, Has.Count.EqualTo(1));
+        loggerProvider.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Information);
     }
 
     [Test]
@@ -82,18 +95,6 @@ public class LoggingTriggerHistoryPluginTest
 
         await plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
 
-        Assert.That(plugin.InfoMessages, Has.Count.EqualTo(1));
-    }
-
-    private sealed class RecordingLoggingTriggerHistoryPlugin : LoggingTriggerHistoryPlugin
-    {
-        public List<string> InfoMessages { get; } = new List<string>();
-
-        protected override bool IsInfoEnabled => true;
-
-        protected override void WriteInfo(string message)
-        {
-            InfoMessages.Add(message);
-        }
+        loggerProvider.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Information);
     }
 }

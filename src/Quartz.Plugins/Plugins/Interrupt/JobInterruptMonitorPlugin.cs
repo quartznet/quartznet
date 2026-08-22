@@ -14,7 +14,7 @@ namespace Quartz.Plugins.Interrupt;
 /// <seealso cref="IScheduler.InterruptFireInstance(string,System.Threading.CancellationToken)"/>
 /// <author>Rama Chavali</author>
 /// <author>Marko Lahma (.NET)</author>
-public class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlugin
+public sealed class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlugin
 {
     private const string JobInterruptMonitorKey = "JOB_INTERRUPT_MONITOR_KEY";
     private static readonly TimeSpan defaultMaxRunTime = TimeSpan.FromMinutes(5);
@@ -66,9 +66,9 @@ public class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlugin
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
     public TimeSpan DefaultMaxRunTime { get; internal set; } = defaultMaxRunTime;
 
-    public virtual string Name => name;
+    public string Name => name;
 
-    public virtual ValueTask TriggerFired(
+    public ValueTask TriggerFired(
         ITrigger trigger,
         IJobExecutionContext context,
         CancellationToken cancellationToken = default)
@@ -101,7 +101,7 @@ public class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlugin
         return default;
     }
 
-    public virtual ValueTask TriggerComplete(
+    public ValueTask TriggerComplete(
         ITrigger trigger,
         IJobExecutionContext context,
         SchedulerInstruction triggerInstructionCode,
