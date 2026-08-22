@@ -1,6 +1,5 @@
 @page "/quartz/calendars/{CalendarName}"
 @using System.Reflection
-@using System.Text.Json
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
@@ -36,7 +35,7 @@
                 <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete calendar</button>
             </div>
         }
-        <p>Type: <strong>@DisplayValueHelper.GetString(_calendar, "CalendarType", "Type")</strong></p>
+        <p>Type: <strong>@_calendar.GetType().Name</strong></p>
 
         <table class="qz-table">
             <tbody>
@@ -61,7 +60,7 @@
 @code {
     private bool _isLoading = true;
     private string? _error;
-    private object? _calendar;
+    private ICalendar? _calendar;
     private readonly List<CalendarProperty> _properties = [];
     private bool _showDeleteConfirm;
 
@@ -103,8 +102,7 @@
                 return;
             }
 
-            CalendarDetailDto detail = await Api.GetCalendar(schedulerName, CalendarName);
-            _calendar = detail.Value;
+            _calendar = await Api.GetCalendar(schedulerName, CalendarName);
             BuildPropertyRows(_calendar);
         }
         catch (Exception ex)
@@ -117,18 +115,8 @@
         }
     }
 
-    private void BuildPropertyRows(object calendar)
+    private void BuildPropertyRows(ICalendar calendar)
     {
-        if (calendar is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Object)
-        {
-            foreach (JsonProperty property in jsonElement.EnumerateObject())
-            {
-                _properties.Add(new CalendarProperty(property.Name, property.Value.ToString()));
-            }
-
-            return;
-        }
-
         Type type = calendar.GetType();
         PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
         foreach (PropertyInfo propertyInfo in properties)

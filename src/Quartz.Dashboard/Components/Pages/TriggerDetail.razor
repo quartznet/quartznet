@@ -1,6 +1,4 @@
 @page "/quartz/triggers/{Group}/{Name}"
-@using System.Globalization
-@using System.Text.Json
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -48,12 +46,12 @@
 
         <table class="qz-table">
             <tbody>
-                <tr><th>Type</th><td>@DisplayValueHelper.GetString(_trigger, "TriggerType", "Type")</td></tr>
-                <tr><th>Execution Group</th><td>@(DisplayValueHelper.GetString(_trigger, "ExecutionGroup") is { Length: > 0 } eg ? eg : "\u2014")</td></tr>
-                <tr><th>Description</th><td>@DisplayValueHelper.GetString(_trigger, "Description")</td></tr>
+                <tr><th>Type</th><td>@TriggerDisplay.TypeName(_trigger)</td></tr>
+                <tr><th>Execution Group</th><td>@(_trigger.ExecutionGroup is { Length: > 0 } executionGroup ? executionGroup : "\u2014")</td></tr>
+                <tr><th>Description</th><td>@_trigger.Description</td></tr>
                 <tr><th>Schedule</th><td>@BuildScheduleDescription()</td></tr>
-                <tr><th>Next Fire</th><td>@FormatDate(DisplayValueHelper.GetDateTimeOffset(_trigger, "NextFireTimeUtc", "NextFireTime"))</td></tr>
-                <tr><th>Previous Fire</th><td>@FormatDate(DisplayValueHelper.GetDateTimeOffset(_trigger, "PreviousFireTimeUtc", "PreviousFireTime"))</td></tr>
+                <tr><th>Next Fire</th><td>@FormatDate(_trigger.NextFireTimeUtc)</td></tr>
+                <tr><th>Previous Fire</th><td>@FormatDate(_trigger.PreviousFireTimeUtc)</td></tr>
             </tbody>
         </table>
 
@@ -92,7 +90,7 @@
 @code {
     private bool _isLoading = true;
     private string? _error;
-    private object? _trigger;
+    private ITrigger? _trigger;
     private TriggerState _triggerState = TriggerState.None;
     private bool _showUnscheduleConfirm;
     private string? _cronExpression;
@@ -108,7 +106,7 @@
 
     private TriggerKeyDto TriggerKey => new(Group, Name);
 
-    private JobDataMap? TriggerDataMap => DisplayValueHelper.GetJobDataMap(_trigger, "JobDataMap", "jobDataMap");
+    private JobDataMap? TriggerDataMap => _trigger?.JobDataMap;
 
     protected override async Task OnInitializedAsync()
     {
@@ -142,10 +140,9 @@
                 return;
             }
 
-            TriggerDetailDto detail = await Api.GetTrigger(schedulerName, TriggerKey);
-            _trigger = detail.Value;
+            _trigger = await Api.GetTrigger(schedulerName, TriggerKey);
             _triggerState = await Api.GetTriggerState(schedulerName, TriggerKey);
-            _cronExpression = DisplayValueHelper.GetString(_trigger, "CronExpressionString", "CronExpression");
+            _cronExpression = (_trigger as ICronTrigger)?.CronExpressionString;
             _editedCronExpression = _cronExpression ?? string.Empty;
         }
         catch (Exception ex)
@@ -160,26 +157,12 @@
 
     private string BuildScheduleDescription()
     {
-        string cronExpression = DisplayValueHelper.GetString(_trigger, "CronExpressionString", "CronExpression");
-        if (!string.IsNullOrWhiteSpace(cronExpression))
+        if (_trigger is null)
         {
-            return cronExpression;
+            return string.Empty;
         }
 
-        string repeatInterval = DisplayValueHelper.GetString(_trigger, "RepeatIntervalTimeSpan", "RepeatInterval");
-        if (!string.IsNullOrWhiteSpace(repeatInterval))
-        {
-            string description = "Every " + repeatInterval;
-            string repeatCount = DisplayValueHelper.GetString(_trigger, "RepeatCount");
-            if (int.TryParse(repeatCount, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count))
-            {
-                description += count < 0 ? ", repeat forever" : ", " + count + " time(s)";
-            }
-
-            return description;
-        }
-
-        return DisplayValueHelper.GetString(_trigger, "TriggerType", "Type");
+        return TriggerDisplay.ScheduleSummary(_trigger) ?? TriggerDisplay.TypeName(_trigger);
     }
 
     private string FormatDate(DateTimeOffset? value)
@@ -238,8 +221,7 @@
             return;
         }
 
-        if (_trigger is not JsonElement triggerJson
-            || !TriggerPayloadBuilder.TryWithCronExpression(triggerJson, cronExpression, out JsonElement newTrigger))
+        if (_trigger is null || !TriggerPayloadBuilder.TryWithCronExpression(_trigger, cronExpression, out ITrigger? newTrigger))
         {
             Toasts.Error("This trigger cannot be rescheduled from the dashboard.");
             return;

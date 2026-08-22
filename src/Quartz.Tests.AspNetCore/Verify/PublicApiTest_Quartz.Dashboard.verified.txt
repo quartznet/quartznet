@@ -108,8 +108,8 @@ namespace Quartz.Dashboard.Services
 {
     public sealed class AddCalendarRequest : System.IEquatable<Quartz.Dashboard.Services.AddCalendarRequest>
     {
-        public AddCalendarRequest(string CalendarName, System.Text.Json.JsonElement Calendar, bool Replace, bool UpdateTriggers) { }
-        public System.Text.Json.JsonElement Calendar { get; init; }
+        public AddCalendarRequest(string CalendarName, Quartz.ICalendar Calendar, bool Replace, bool UpdateTriggers) { }
+        public Quartz.ICalendar Calendar { get; init; }
         public string CalendarName { get; init; }
         public bool Replace { get; init; }
         public bool UpdateTriggers { get; init; }
@@ -120,11 +120,6 @@ namespace Quartz.Dashboard.Services
         public Quartz.Dashboard.Services.JobDetailDto Job { get; init; }
         public bool Replace { get; init; }
         public bool? StoreNonDurableWhileAwaitingScheduling { get; init; }
-    }
-    public sealed class CalendarDetailDto : System.IEquatable<Quartz.Dashboard.Services.CalendarDetailDto>
-    {
-        public CalendarDetailDto(System.Text.Json.JsonElement Value) { }
-        public System.Text.Json.JsonElement Value { get; init; }
     }
     public sealed class DashboardFireInstanceQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardFireInstanceQuery>
     {
@@ -191,7 +186,7 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask AddJob(string schedulerName, Quartz.Dashboard.Services.AddJobRequest request, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask DeleteCalendar(string schedulerName, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask DeleteJob(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.ICalendar> GetCalendar(string schedulerName, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> GetCalendarNames(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.FireInstanceDto>> GetFireInstances(string schedulerName, Quartz.Dashboard.Services.DashboardFireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default);
@@ -202,7 +197,7 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.JobKeyDto>> GetJobs(string schedulerName, Quartz.Dashboard.Services.DashboardJobQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.SchedulerDetailDto> GetScheduler(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.SchedulerHeaderDto>> GetSchedulers(System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.TriggerDetailDto> GetTrigger(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.ITrigger> GetTrigger(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.TriggerState> GetTriggerState(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.TriggerHeaderDto>> GetTriggers(string schedulerName, Quartz.Dashboard.Services.DashboardTriggerQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask InterruptFireInstance(string schedulerName, string fireInstanceId, System.Threading.CancellationToken cancellationToken = default);
@@ -220,17 +215,17 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask StandbyScheduler(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask StartScheduler(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask TriggerJob(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask TriggerJobWithData(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Text.Json.JsonElement jobDataMap, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask TriggerJobWithData(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, Quartz.JobDataMap jobDataMap, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask UnscheduleJob(string schedulerName, Quartz.Dashboard.Services.TriggerKeyDto triggerKey, System.Threading.CancellationToken cancellationToken = default);
     }
     public sealed class JobDetailDto : System.IEquatable<Quartz.Dashboard.Services.JobDetailDto>
     {
-        public JobDetailDto(string Name, string Group, string JobType, string? Description, bool Durable, bool RequestsRecovery, bool ConcurrentExecutionDisallowed, bool PersistJobDataAfterExecution, System.Text.Json.JsonElement JobDataMap) { }
+        public JobDetailDto(string Name, string Group, string JobType, string? Description, bool Durable, bool RequestsRecovery, bool ConcurrentExecutionDisallowed, bool PersistJobDataAfterExecution, Quartz.JobDataMap JobDataMap) { }
         public bool ConcurrentExecutionDisallowed { get; init; }
         public string? Description { get; init; }
         public bool Durable { get; init; }
         public string Group { get; init; }
-        public System.Text.Json.JsonElement JobDataMap { get; init; }
+        public Quartz.JobDataMap JobDataMap { get; init; }
         public string JobType { get; init; }
         public string Name { get; init; }
         public bool PersistJobDataAfterExecution { get; init; }
@@ -250,14 +245,14 @@ namespace Quartz.Dashboard.Services
     }
     public sealed class RescheduleRequest : System.IEquatable<Quartz.Dashboard.Services.RescheduleRequest>
     {
-        public RescheduleRequest(System.Text.Json.JsonElement NewTrigger) { }
-        public System.Text.Json.JsonElement NewTrigger { get; init; }
+        public RescheduleRequest(Quartz.ITrigger NewTrigger) { }
+        public Quartz.ITrigger NewTrigger { get; init; }
     }
     public sealed class ScheduleJobRequest : System.IEquatable<Quartz.Dashboard.Services.ScheduleJobRequest>
     {
-        public ScheduleJobRequest(System.Text.Json.JsonElement Trigger, Quartz.Dashboard.Services.JobDetailDto? Job) { }
+        public ScheduleJobRequest(Quartz.ITrigger Trigger, Quartz.Dashboard.Services.JobDetailDto? Job) { }
         public Quartz.Dashboard.Services.JobDetailDto? Job { get; init; }
-        public System.Text.Json.JsonElement Trigger { get; init; }
+        public Quartz.ITrigger Trigger { get; init; }
     }
     public sealed class SchedulerDetailDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerDetailDto>
     {
@@ -272,11 +267,6 @@ namespace Quartz.Dashboard.Services
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
         public Quartz.SchedulerStatus Status { get; init; }
-    }
-    public sealed class TriggerDetailDto : System.IEquatable<Quartz.Dashboard.Services.TriggerDetailDto>
-    {
-        public TriggerDetailDto(System.Text.Json.JsonElement Value) { }
-        public System.Text.Json.JsonElement Value { get; init; }
     }
     public sealed class TriggerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.TriggerHeaderDto>
     {

@@ -5060,6 +5060,42 @@ because the dashboard's contract needed a name for it. Note that a running sched
 in-process client used to call it `"Started"` while the HTTP-backed client called the same state
 `"Running"`, and code that matched on either string now matches on the enum.
 
+### A trigger is an `ITrigger`, a calendar is an `ICalendar`
+
+Six members of that contract still spoke `System.Text.Json.JsonElement`. They were placeholders from
+the dashboard's build-out, and they made every consumer of `IQuartzApiClient` parse JSON to read
+something Quartz already has a type for:
+
+| 4.0 preview | 4.0 |
+|---|---|
+| `GetTrigger(…)` → `TriggerDetailDto(JsonElement Value)` | → `ITrigger` |
+| `GetCalendar(…)` → `CalendarDetailDto(JsonElement Value)` | → `ICalendar` |
+| `ScheduleJobRequest(JsonElement Trigger, JobDetailDto? Job)` | `ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job)` |
+| `RescheduleRequest(JsonElement NewTrigger)` | `RescheduleRequest(ITrigger NewTrigger)` |
+| `AddCalendarRequest(string, JsonElement Calendar, bool, bool)` | `AddCalendarRequest(string, ICalendar Calendar, bool, bool)` |
+| `JobDetailDto.JobDataMap` is a `JsonElement` | a `JobDataMap` |
+| `TriggerJobWithData(…, JsonElement jobDataMap, …)` | `TriggerJobWithData(…, JobDataMap jobDataMap, …)` |
+
+`TriggerDetailDto` and `CalendarDetailDto` are gone with them; nothing remains for them to wrap.
+
+The polymorphism a trigger needs is Quartz's own: the serializer registry maps each kind to its own
+serializer, custom kinds an application registered included, and the HTTP API's wire format *is* that
+discriminated shape. A per-kind DTO family in the dashboard would have to grow a member for every
+trigger kind and would still have nothing to say about a kind it had never heard of, so the contract
+speaks `ITrigger` and lets the registry do what it is for. `JobDataMap` is the same argument at the
+other end of the scale: the map holds arbitrary user values, which is exactly what `JobDataMap` is,
+and typing it as one keeps an `int` an `int` where a JSON round trip made it whatever the reader
+guessed.
+
+Two consequences worth knowing:
+
+* **The in-process client no longer serializes anything.** It used to write the trigger to JSON and
+  read it back for no reason but the contract's type, and it fell back to reflecting over the trigger
+  for kinds the registry did not know — which produced a payload that could not be posted back. A
+  custom trigger type now reaches the detail page as itself.
+* **The HTTP-backed client cannot read a kind no serializer is registered for**, and says so instead
+  of rendering an anonymous bag of properties. Register the serializer, as the API itself requires.
+
 ## `CheckExists` is `Exists`
 
 Both overloads, on `IScheduler` and `IJobStore`:

@@ -1,8 +1,8 @@
 @page "/quartz/calendars"
-@using System.Text.Json
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@using Quartz.Impl.Calendar
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
@@ -86,10 +86,6 @@
                OnCancel="CancelDeleteAsync" />
 
 @code {
-    private static readonly JsonSerializerOptions requestSerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
     private readonly List<string> _calendarNames = [];
     private bool _isLoading = true;
     private string? _error;
@@ -167,19 +163,14 @@
             return;
         }
 
-        object calendarPayload = new
-        {
-            type = "CronCalendar",
-            description = string.IsNullOrWhiteSpace(_newCalendarDescription) ? null : _newCalendarDescription.Trim(),
-            timeZoneId = TimeZoneInfo.Utc.Id,
-            baseCalendar = (object?) null,
-            cronExpressionString = cronExpression
-        };
-
         try
         {
-            JsonElement calendarJson = JsonSerializer.SerializeToElement(calendarPayload, requestSerializerOptions);
-            AddCalendarRequest request = new(calendarName, calendarJson, _replaceCalendar, _updateTriggers);
+            CronCalendar calendar = new(baseCalendar: null, cronExpression, TimeZoneInfo.Utc)
+            {
+                Description = string.IsNullOrWhiteSpace(_newCalendarDescription) ? null : _newCalendarDescription.Trim()
+            };
+
+            AddCalendarRequest request = new(calendarName, calendar, _replaceCalendar, _updateTriggers);
             await Api.AddCalendar(schedulerName, request);
             ActionLog.Record(
                 schedulerName,
