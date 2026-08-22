@@ -173,7 +173,10 @@ public class CronCalendar : BaseCalendar
             // testing.
             if (cronExpression.IsSatisfiedBy(nextIncludedTime))
             {
-                nextIncludedTime = cronExpression.GetNextValidTimeAfter(nextIncludedTime)!.Value;
+                // The end of the excluded range is the next time the expression does NOT satisfy.
+                // GetNextValidTimeAfter would land on another satisfied - excluded - time, and the
+                // loop would walk the excluded run millisecond by millisecond forever.
+                nextIncludedTime = cronExpression.GetNextInvalidTimeAfter(nextIncludedTime)!.Value;
             }
             else if (CalendarBase != null &&
                      !CalendarBase.IsTimeIncluded(nextIncludedTime))
