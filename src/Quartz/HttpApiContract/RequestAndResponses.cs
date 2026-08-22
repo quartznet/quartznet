@@ -51,9 +51,16 @@ internal record ExistsResponse(bool Exists);
 internal record GroupPausedResponse(bool Paused);
 
 /// <summary>
-/// Answer of a single-key mutation that follows the missing-key rule: <c>Applied</c> is
-/// <see langword="true" /> when the entity existed and the operation applied to it.
+/// The answer of a mutation whose effect may be a no-op: <c>Applied</c> is <see langword="true" />
+/// when the operation applied to everything it was aimed at.
 /// </summary>
+/// <remarks>
+/// Every such endpoint answers with this one shape, so the body follows from what the operation is
+/// rather than from which endpoint it was. For a single-key mutation it is that one key — the entity
+/// existed and the operation changed it. For the key-set delete and unschedule forms it is every key
+/// given, so a partial hit is <see langword="false" /> even though the keys that were found were
+/// still deleted. A mutation that always acts answers with an empty body instead.
+/// </remarks>
 internal record OperationAppliedResponse(bool Applied);
 
 /// <summary>
@@ -89,18 +96,10 @@ internal record AppliedJobKeysResponse(KeyDto[] Jobs);
 /// </summary>
 internal record AppliedTriggerKeysResponse(KeyDto[] Triggers);
 
-internal record DeleteCalendarResponse(bool CalendarFound);
-
-internal record DeleteJobResponse(bool JobFound);
-
 internal record DeleteJobsRequest(KeyDto[] Jobs) : IValidatable
 {
     public IEnumerable<string> Validate() => Jobs is null ? ["Missing job keys"] : Jobs.SelectMany(x => x.Validate());
 }
-
-internal record DeleteJobsResponse(bool AllJobsFound);
-
-internal record InterruptResponse(bool Interrupted);
 
 // When updating this, make same changes also into Quartz.AspNetCore.HttpApi.OpenApi.ScheduleJobRequest
 internal record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job) : IValidatable
@@ -169,14 +168,10 @@ internal record RescheduleJobRequest(ITrigger NewTrigger) : IValidatable
 
 internal record RescheduleJobResponse(DateTimeOffset? FirstFireTimeUtc);
 
-internal record UnscheduleJobResponse(bool TriggerFound);
-
 internal record UnscheduleJobsRequest(KeyDto[] Triggers) : IValidatable
 {
     public IEnumerable<string> Validate() => Triggers is null ? ["Missing trigger keys"] : Triggers.SelectMany(x => x.Validate());
 }
-
-internal record UnscheduleJobsResponse(bool AllTriggersFound);
 
 internal record ExecutionLimitsResponse(Dictionary<string, int?>? Limits, bool UseTriggerGroupWhenUnset = false);
 

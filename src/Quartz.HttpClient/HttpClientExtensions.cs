@@ -173,12 +173,20 @@ internal static class HttpClientExtensions
             return false;
         }
 
-        // If scheduler throws exception, Web API will return bad request with exception type
-        if (response.StatusCode == HttpStatusCode.BadRequest && (problemDetails.Extensions?.ContainsKey(HttpApiConstants.ProblemDetailsExceptionType) ?? false))
+        // Every error body names the exception type the server raised, whichever layer produced it,
+        // so a bad request a scheduler raised is rethrown here as the same exception. Any other name -
+        // a request the endpoint rejected before it reached the scheduler, or a server that is not
+        // this one - is opaque, and reported as such.
+        if (response.StatusCode == HttpStatusCode.BadRequest)
         {
-            // Might not be the best way to do this...
-            var quartzExceptionName = problemDetails.Extensions[HttpApiConstants.ProblemDetailsExceptionType].GetString();
-            throw quartzExceptionName switch
+            string? exceptionType = null;
+            if (problemDetails.Extensions is not null &&
+                problemDetails.Extensions.TryGetValue(HttpApiConstants.ProblemDetailsExceptionType, out JsonElement exceptionTypeElement))
+            {
+                exceptionType = exceptionTypeElement.GetString();
+            }
+
+            throw exceptionType switch
             {
                 nameof(SchedulerException) => new SchedulerException(problemDetails.Detail),
                 nameof(InvalidConfigurationException) => new InvalidConfigurationException(problemDetails.Detail),
@@ -188,13 +196,8 @@ internal static class HttpClientExtensions
                 nameof(LockException) => new LockException(problemDetails.Detail),
                 nameof(NoSuchDelegateException) => new NoSuchDelegateException(problemDetails.Detail),
                 nameof(ObjectAlreadyExistsException) => new ObjectAlreadyExistsException(problemDetails.Detail),
-                _ => new HttpClientException(problemDetails.Detail)
+                _ => new HttpClientException($"Received response with bad request status code: {problemDetails.Detail}")
             };
-        }
-
-        if (response.StatusCode == HttpStatusCode.BadRequest)
-        {
-            throw new HttpClientException($"Received response with bad request status code: {problemDetails.Detail}");
         }
 
         throw new HttpClientException($"Received response with status code {response.StatusCode}, error details: {problemDetails.Detail}");

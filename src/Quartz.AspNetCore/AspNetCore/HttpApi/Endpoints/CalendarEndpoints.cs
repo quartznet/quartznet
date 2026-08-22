@@ -99,7 +99,7 @@ internal static class CalendarEndpoints
         );
     }
 
-    [ProducesResponseType(typeof(DeleteCalendarResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> DeleteCalendar(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -110,7 +110,7 @@ internal static class CalendarEndpoints
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var calendarFound = await scheduler.DeleteCalendar(calendarName, cancellationToken).ConfigureAwait(false);
-            return new DeleteCalendarResponse(calendarFound);
+            return new OperationAppliedResponse(calendarFound);
         });
     }
 }
