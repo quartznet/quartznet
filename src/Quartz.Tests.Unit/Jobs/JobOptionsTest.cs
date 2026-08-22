@@ -204,6 +204,22 @@ public class JobOptionsTest
     }
 
     [Test]
+    public void Options_ReachTheJobThroughTheConfiguratorAddJobHandsYou()
+    {
+        // The static type AddJob<T>(j => ...) passes, rather than the builder behind it.
+        JobBuilder<NativeJob> builder = JobBuilder.Create<NativeJob>();
+        IJobConfigurator<NativeJob> configurator = builder;
+
+        IJobConfigurator<NativeJob> returned = configurator
+            .WithIdentity("nightlyReport")
+            .StoreDurably()
+            .UsingNativeJobOptions(new NativeJobOptions { Command = "report.exe" });
+
+        returned.Should().BeSameAs(configurator, "the chain carries on from where it was");
+        builder.Build().JobDataMap[NativeJob.PropertyCommand].Should().Be("report.exe");
+    }
+
+    [Test]
     public void NativeJobOptions_RoundTripThroughJobData()
     {
         NativeJobOptions options = new NativeJobOptions
