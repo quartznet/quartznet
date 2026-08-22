@@ -3219,7 +3219,7 @@ namespace Quartz.Impl
 namespace Quartz.Impl.Triggers
 {
     [System.Serializable]
-    public sealed class CalendarIntervalTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.ICalendarIntervalTrigger, Quartz.ITrigger
+    public class CalendarIntervalTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.ICalendarIntervalTrigger, Quartz.ITrigger
     {
         public CalendarIntervalTriggerImpl(System.TimeProvider? timeProvider = null) { }
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
@@ -3274,7 +3274,7 @@ namespace Quartz.Impl.Triggers
         public bool WillFireOn(System.DateTimeOffset timeUtc, bool dayOnly = false) { }
     }
     [System.Serializable]
-    public sealed class DailyTimeIntervalTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.IDailyTimeIntervalTrigger, Quartz.ITrigger
+    public class DailyTimeIntervalTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.IDailyTimeIntervalTrigger, Quartz.ITrigger
     {
         public const int RepeatIndefinitely = -1;
         public DailyTimeIntervalTriggerImpl(System.TimeProvider? timeProvider = null) { }
@@ -3303,7 +3303,7 @@ namespace Quartz.Impl.Triggers
         public override void Validate() { }
         protected override bool ValidateMisfireInstruction(int misfireInstruction) { }
     }
-    public sealed class RecurrenceTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.IRecurrenceTrigger, Quartz.ITrigger
+    public class RecurrenceTriggerImpl : Quartz.Impl.Triggers.TriggerBase, Quartz.IRecurrenceTrigger, Quartz.ITrigger
     {
         public RecurrenceTriggerImpl() { }
         public RecurrenceTriggerImpl(string name, string group, string recurrenceRule, System.TimeProvider? timeProvider = null) { }

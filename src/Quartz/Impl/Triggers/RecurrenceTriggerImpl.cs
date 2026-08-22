@@ -13,7 +13,7 @@ namespace Quartz.Impl.Triggers;
 /// </remarks>
 /// <seealso cref="IRecurrenceTrigger"/>
 /// <seealso cref="RecurrenceScheduleBuilder"/>
-public sealed class RecurrenceTriggerImpl : TriggerBase, IRecurrenceTrigger
+public class RecurrenceTriggerImpl : TriggerBase, IRecurrenceTrigger
 {
     private DateTimeOffset startTime;
     private DateTimeOffset? endTime;
