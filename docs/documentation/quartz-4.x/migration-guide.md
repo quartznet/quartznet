@@ -2903,10 +2903,11 @@ needs the same annotation:
 
 ## Executing is a trigger state
 
-There was no way to ask whether a trigger's job is running right now.
-`IScheduler.GetCurrentlyExecutingJobs` only ever sees the node it is called on, so a process that schedules
+There was no way to ask whether a trigger's job is running right now. 3.x's
+`IScheduler.GetCurrentlyExecutingJobs` only ever saw the node it was called on, so a process that schedules
 and observes triggers but does not execute them — a dashboard, an admin UI, a separate control
-application — could not answer the question at all.
+application — could not answer the question at all. (That member is gone in 4.0; see
+[what is running is a listing](#what-is-running-is-a-listing-not-a-list-of-contexts).)
 
 `TriggerState` now has an `Executing` member, reported by both `IScheduler.GetTriggerState` and trigger
 listings. With a persistent job store it is visible from every node, because it is established from the
@@ -2979,6 +2980,165 @@ Note that `GetTriggerState` now calls this method instead of `SelectTriggerState
 `SelectTriggerState` to handle a vendor quirk or a legacy state value, override
 `SelectTriggerStateWithExecuting` as well — the compiler cannot tell you, because the old method is still
 on the interface and still used elsewhere.
+
+## What is running is a listing, not a list of contexts
+
+`IScheduler.GetCurrentlyExecutingJobs()` is **removed**. It read a list of live `IJobExecutionContext`s
+that this process happened to be holding, so it could only ever answer for one node — the same gap that
+`TriggerState.Executing` above works around from the other side.
+
+```diff
+- List<IJobExecutionContext> running = await scheduler.GetCurrentlyExecutingJobs();
++ PagedResult<FireInstance> running = await scheduler.QueryFireInstances(new FireInstanceQuery());
+```
+
+With a persistent job store the answer now covers the whole cluster, because a firing is a row rather
+than a field. `FireInstance` is what a store can say about one firing from anywhere:
+
+| Member | |
+|---|---|
+| `FireInstanceId` | identifies this firing; what `InterruptFireInstance` takes |
+| `TriggerKey` | the trigger that fired |
+| `JobKey` | the job — `null` while the firing is only `Acquired` |
+| `SchedulerInstanceId` | the node that reserved or is running it |
+| `State` | `FireInstanceState.Acquired` or `FireInstanceState.Executing` |
+| `FireTimeUtc` | when the owning node recorded the firing |
+| `ScheduledFireTimeUtc` | the fire time the schedule called for |
+| `ExecutionGroup` | the execution group the trigger carried when it fired |
+
+`FireInstanceQuery` derives from `PagedQuery` and filters by trigger group and name matchers, job key,
+scheduler instance id, and state. **`State` defaults to `Executing`**, so a query that says nothing lists
+what is running, which is what the old member meant; set it to `null` to include reservations. Results
+are ordered by trigger group, then trigger name, then fire instance id — one trigger can have several
+firings at once, so the fire instance id is what makes a page deterministic.
+
+### What a fire instance deliberately does not carry
+
+The job instance, the merged job data map, `Result`, `JobRunTime` and the cancellation handle exist only
+inside the process running the job. If you were reaching for those — a progress endpoint, a "cancel this
+one" button implemented in-process — keep the contexts yourself. That is about thirty lines:
+
+```csharp
+public sealed class RunningJobs : IJobListener
+{
+    private readonly ConcurrentDictionary<string, IJobExecutionContext> running = new();
+
+    public string Name => nameof(RunningJobs);
+
+    public IReadOnlyCollection<IJobExecutionContext> Current => running.Values.ToArray();
+
+    public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        running[context.FireInstanceId] = context;
+        return default;
+    }
+
+    public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
+    {
+        running.TryRemove(context.FireInstanceId, out _);
+        return default;
+    }
+}
+
+// registered like any other listener
+scheduler.ListenerManager.AddJobListener(runningJobs);
+```
+
+Note the key: `FireInstanceId` is what ties a context you are holding to a row `QueryFireInstances`
+returned, so the two can be used together — list across the cluster, then reach for the live context when
+the firing turns out to be yours.
+
+### Three things to know about the numbers
+
+* **A vetoed firing does not linger.** Applying an `ITriggerListener` veto completes the firing, which
+  removes it. It can be listed for the instant between the store recording the firing and the veto being
+  decided, and never after. `GetCurrentlyExecutingJobs` never showed one at all, because it only recorded
+  a job that had started.
+* **Elapsed time is `yourClock.UtcNow - FireTimeUtc`**, and `FireTimeUtc` was written by the firing node's
+  clock. In a cluster with skewed clocks the subtraction carries the skew and can come out negative;
+  clamp it at zero, as the dashboard does.
+* **`ScheduledFireTimeUtc` is the schedule after a misfire, not before it.** It is what the owning node
+  recorded, so for a misfired trigger it is the rescheduled time rather than the one that was missed —
+  it can differ from `IJobExecutionContext.ScheduledFireTimeUtc`, and `FireTimeUtc - ScheduledFireTimeUtc`
+  is not misfire lateness.
+
+### `SchedulerMetadata` gained a node-local count
+
+`SchedulerMetadata.LocalExecutingJobs` is the number of executions running in *this* process. It is named
+for its scope on purpose: it and a cluster-wide `QueryFireInstances` count answer different questions and
+will differ on a cluster.
+
+### The HTTP endpoint changed shape (breaking)
+
+`GET …/jobs/currently-executing` is replaced by `GET …/jobs/fire-instances`, which is paged like the other
+listings. The body was a bare array of contexts; it is now the usual `{ items, hasMore, totalCount }`
+envelope.
+
+| Old field | New field |
+|---|---|
+| `jobDetail.name` / `jobDetail.group` | `jobName` / `jobGroup` — and they are `null` for a reserved firing |
+| `jobDetail.*` (type, durability, recovery, concurrency flags, job data map) | gone; fetch the job detail by key if you need it |
+| `trigger` (the whole serialized trigger) | `triggerName` / `triggerGroup` |
+| `trigger.executionGroup` | `executionGroup` |
+| `calendar` | gone |
+| `recovering` | gone |
+| `fireTime` | `fireTimeUtc` |
+| `scheduledFireTime` | `scheduledFireTimeUtc` |
+| `previousFireTime`, `nextFireTime` | gone; they describe the trigger, not the firing |
+| — | `fireInstanceId` (new — the old DTO never carried it, although clients read for it) |
+| — | `schedulerInstanceId` (new) |
+| — | `state` (new; `"Acquired"` or `"Executing"`, a name like every other enum on the wire) |
+
+Query parameters are `skip`, `take`, `includeTotalCount`, the `group*`/`name*` matcher forms the other
+listings use, `jobName`+`jobGroup`, `schedulerInstanceId`, and `state`. A request naming no `state` gets
+the query record's default of `Executing`; `state=Any` asks for every state.
+
+The scheduler body's `statistics` object gained `localExecutingJobs`, mirroring the metadata member.
+
+### If you implement `IJobStore`
+
+Two members. `QueryFireInstances(FireInstanceQuery, CancellationToken)` is the listing, abstract like the
+rest of the query family. And `Initialize` now takes a `SchedulerIdentity`:
+
+```diff
+- ValueTask Initialize(CancellationToken cancellationToken = default);
++ ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default);
+```
+
+The identity — the scheduler's name and this node's instance id — could not be a constructor argument,
+because with `GenerateInstanceId` the id is produced by an `IInstanceIdGenerator` that runs after the
+container has built the object graph. Initialization is the first moment it is settled, which is the same
+reasoning as `SemaphoreContext` on `ISemaphore.Initialize`. A store records it against the firings it
+owns, so that a listing can say which node is running what.
+
+The ADO.NET store previously learned a generated id through a special case in the scheduler factory,
+which is gone: every store is told, the same way, at the same moment.
+
+### If you implement `IDriverDelegate`
+
+`SelectFireInstances(conn, FireInstanceQuery, CancellationToken)` is new. Subclasses of `StdAdoDelegate`
+get it for free. It is a separate member rather than paging on `SelectFiredTriggerRecords`, because every
+caller of that one is a recovery pass that has to see all the rows — handing one a page would leave the
+rest unrecovered.
+
+`QRTZ_FIRED_TRIGGERS.EXECUTION_GROUP` is now live: written by the fired-trigger insert and update, read
+back into `FireInstance.ExecutionGroup`. **No schema change** — the column has shipped on every dialect
+since 3.18 — but rows written by an earlier 4.0 preview hold `NULL`.
+
+## An unset execution group can be the trigger's group
+
+`ExecutionLimitsBuilder.UseTriggerGroupWhenUnset()` limits a trigger that carries no execution group as
+though it belonged to a group named after its own `TriggerKey.Group`. It is opt-in and additive; nothing
+changes unless you call it. See
+[Execution Groups](/documentation/quartz-4.x/tutorial/execution-groups.html#letting-the-trigger-group-stand-in).
+
+One signature moved with it: `ExecutionSlots.TryTake` takes the trigger group as a second argument, so a
+job store of your own cannot silently opt out of the derivation by not passing it.
+
+```diff
+- if (!slots.TryTake(candidate.ExecutionGroup))
++ if (!slots.TryTake(candidate.ExecutionGroup, candidate.Key.Group))
+```
 
 ## Batched Misfire Recovery
 
@@ -5944,7 +6104,7 @@ public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
 
     foreach (IOperableTrigger candidate in Candidates(request))
     {
-        if (slots is not null && !slots.TryTake(candidate.ExecutionGroup))
+        if (slots is not null && !slots.TryTake(candidate.ExecutionGroup, candidate.Key.Group))
         {
             continue; // this group is forbidden here, or has run out for this pass
         }
@@ -5975,8 +6135,10 @@ instead:
 + await scheduler.InterruptFireInstance(context.FireInstanceId);
 ```
 
-`IScheduler.GetCurrentlyExecutingJobs()` returns `List<IJobExecutionContext>` as before — the element type never
-was the cancellable interface, only the documentation said so.
+The fire instance id the call needs comes from `IScheduler.QueryFireInstances`, which replaced
+`GetCurrentlyExecutingJobs` — see
+[what is running is a listing](#what-is-running-is-a-listing-not-a-list-of-contexts). Its element type
+never was the cancellable interface either, only the documentation said so.
 
 ### `UnableToInterruptJobException` is gone
 

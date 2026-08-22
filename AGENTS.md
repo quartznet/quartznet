@@ -187,6 +187,10 @@ fallback in `SimpleTypeLoader`, with a warning.
 | `IJobStore.GetNumberOf{Jobs,Triggers,Calendars}`, `CalendarExists` | a query with `Take = 0, IncludeTotalCount = true`; `RetrieveCalendar` non-null |
 | the eight removed `IScheduler` listing members | back as extension methods on `SchedulerQueryExtensions` — old call shapes still compile, but a null matcher now throws |
 | (new) | `IScheduler`/`IJobStore.GetJobDetails(keys)` / `GetTriggers(keys)` — bulk fetch by key |
+| `IScheduler.GetCurrentlyExecutingJobs()` | gone — `QueryFireInstances(FireInstanceQuery)` → `PagedResult<FireInstance>`, cluster-wide with a persistent store. Live-context uses keep their own `IJobListener`; `QuartzScheduler`'s internal sync member stays, so Interrupt is never a store round trip |
+| `IJobStore.Initialize(ct)` | `Initialize(SchedulerIdentity, ct)` — a generated instance id does not exist at construction |
+| (new) | `IDriverDelegate.SelectFireInstances(conn, FireInstanceQuery, ct)`; `FiredTriggerQuery` stays deliberately unpaged |
+| `ExecutionSlots.TryTake(executionGroup)` | `TryTake(executionGroup, triggerGroup)` — `ExecutionLimits.UsesTriggerGroupWhenUnset` may derive from the latter |
 | `IDriverDelegate.Select{Calendars,JobGroups(conn,ct),PausedTriggerGroups,Num*}` | `Select{CalendarNames,JobHeaders,TriggerHeaders,JobGroups,TriggerGroups}` taking a query record |
 | three `SelectFiredTriggerRecords*` + four `DeleteFiredTriggers` overloads | one of each, taking `FiredTriggerQuery` |
 | two `IDriverDelegate.SelectTriggerToAcquire` overloads | `SelectTriggersToAcquire(conn, TriggerAcquisitionCriteria, ct)` |
