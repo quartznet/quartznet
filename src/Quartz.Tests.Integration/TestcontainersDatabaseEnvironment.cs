@@ -295,6 +295,56 @@ internal static class TestcontainersDatabaseEnvironment
         Environment.SetEnvironmentVariable("ORACLE_CONNECTION_STRING", oracleContainer.GetConnectionString());
     }
 
+    /// <summary>
+    /// Runs a script against a started container using that database's own command-line client,
+    /// which is what understands the dialect's batch separator (<c>GO</c>, <c>/</c>, <c>SET TERM</c>).
+    /// Splitting scripts into statements in the test would only reimplement that, badly.
+    /// </summary>
+    public static async Task ExecuteScriptAsync(string dialect, string script)
+    {
+        bool running = dialect switch
+        {
+            "postgres" => postgreSqlContainer is not null,
+            "sqlServer" => sqlServerContainer is not null,
+            "mysql_innodb" => mySqlContainer is not null,
+            "oracle" => oracleContainer is not null,
+            "firebird" => firebirdSqlContainer is not null,
+            _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect, "no container for this dialect")
+        };
+
+        if (!running)
+        {
+            throw new InvalidOperationException($"The {dialect} container is not running.");
+        }
+
+        if (dialect == "sqlServer")
+        {
+            // The database already exists here, so only the placeholder substitution applies.
+            script = script
+                .Replace("[enter_db_name_here]", "[quartznet]")
+                .Replace("[enter_path_here]", "/tmp");
+            script = StripUseMasterStatements(script);
+            script = "USE quartznet;\nGO\n" + script;
+        }
+
+        if (dialect == "firebird")
+        {
+            script = StripDropStatements(script);
+        }
+
+        ExecResult result = dialect switch
+        {
+            "postgres" => await postgreSqlContainer.ExecScriptAsync(script),
+            "sqlServer" => await sqlServerContainer.ExecScriptAsync(script),
+            "mysql_innodb" => await mySqlContainer.ExecScriptAsync(script),
+            "oracle" => await oracleContainer.ExecScriptAsync(script),
+            "firebird" => await firebirdSqlContainer.ExecScriptAsync(script),
+            _ => throw new ArgumentOutOfRangeException(nameof(dialect))
+        };
+
+        EnsureScriptSucceeded(dialect, result);
+    }
+
     private static async Task<string> ReadScriptAsync(params string[] pathSegments)
     {
         string scriptPath = ResolveRepositoryFile(pathSegments);
