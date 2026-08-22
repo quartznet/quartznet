@@ -87,6 +87,112 @@ style `.config` files.
 If you are running on an older .NET version, you will need to upgrade your application to .NET 10
 before upgrading to Quartz 4.x.
 
+## Package Changes
+
+`Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting`, and `Quartz.Serialization.SystemTextJson` have been merged into the main `Quartz` package. You can remove these package references from your project:
+
+```diff
+- <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.*" />
+- <PackageReference Include="Quartz.Extensions.Hosting" Version="3.*" />
+- <PackageReference Include="Quartz.Serialization.SystemTextJson" Version="3.*" />
++ <PackageReference Include="Quartz" Version="4.*" />
+```
+
+If you use Newtonsoft.Json serialization, reference `Quartz.Serialization.Newtonsoft` instead of the old `Quartz.Serialization.Json`.
+
+Configuration that names a type from one of the merged assemblies as a string keeps working: a name that fails to
+resolve is retried against `Quartz`, with a warning naming both spellings.
+
+`Quartz.OpenTracing` is **dropped** and has no 4.x release. It consumed the `DiagnosticSource` events that
+4.x replaced with `System.Diagnostics.Activity`, and the OpenTracing project itself is archived. Remove the
+package reference and the `AddQuartzOpenTracing` call, and instrument with
+[OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz)
+instead — see [OpenTelemetry Integration](packages/opentelemetry-integration.md#coming-from-quartz-opentracing).
+
+```diff
+- <PackageReference Include="Quartz.OpenTracing" Version="3.*" />
++ <PackageReference Include="OpenTelemetry.Instrumentation.Quartz" Version="1.*" />
+```
+
+## Documentation pages that moved
+
+The documentation was reorganised alongside the API. The old URLs redirect, so an existing bookmark still
+arrives somewhere useful, but if you keep links to these pages in a wiki or a runbook, retarget them:
+
+| Old URL | Where it is now |
+|---|---|
+| `documentation/quartz-4.x/tutorial/crontrigger.html` | [`cron-expressions.html`](cron-expressions.md) — cron syntax is a reference, not a lesson, so it left the tutorial |
+| `documentation/quartz-4.x/how-tos/crontrigger.html` | [`cron-expressions.html`](cron-expressions.md) — a stale second copy of the same material, deleted |
+| `documentation/quartz-4.x/packages/json-configuration.html` | [`configuration/json.html`](configuration/json.md) — it configures a scheduler rather than describing a package |
+| `documentation/quartz-4.x/packages/opentracing-integration.html` | [`packages/opentelemetry-integration.html`](packages/opentelemetry-integration.md) — the package is gone, as above |
+| `documentation/quartz-4.x/tutorial/miscellaneous-features.html` | [`packages/quartz-plugins.html`](packages/quartz-plugins.md) — the grab-bag was split, and plug-ins were the largest part of it |
+
+The two anchors that were linked from outside the site — `#h-hash-for-load-distribution` and
+`#building-cron-expressions-programmatically` — travelled with the cron material and resolve on
+[Cron Expressions](cron-expressions.md).
+
+## Database Schema Migration
+
+Quartz 4.x requires four columns on `QRTZ_TRIGGERS` (and one on `QRTZ_FIRED_TRIGGERS`) that were
+**optional** in 3.x:
+
+| Column | Table(s) | Optional since |
+|---|---|---|
+| `MISFIRE_ORIG_FIRE_TIME` | `QRTZ_TRIGGERS` | 3.17 |
+| `EXECUTION_GROUP` | `QRTZ_TRIGGERS`, `QRTZ_FIRED_TRIGGERS` | 3.18 |
+| `PREFERRED_NODE` | `QRTZ_TRIGGERS` | 3.19 |
+| `PREFERRED_NODE_AUTO` | `QRTZ_TRIGGERS` | 3.19 |
+
+3.x probed for each of these at startup and disabled the corresponding feature when it was
+missing. **4.x removed those probes** and assumes all of them exist, so this migration is
+mandatory even if you never used misfire reporting, execution groups or node affinity.
+
+::: warning
+Always run migration scripts in a test environment against a copy of your production database first.
+:::
+
+Apply the script for your database from
+[database/migrations/4.0/](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) —
+`schema_30_to_40_upgrade_sqlServer.sql`, `_postgres`, `_mysql_innodb`, `_oracle`, `_sqlite` or
+`_firebird`. Every statement checks first, so it is safe to run whether or not you already applied
+the optional 3.x migrations, and safe to run twice.
+
+For SQL Server the column additions look like this:
+
+```sql
+IF COL_LENGTH('QRTZ_TRIGGERS','MISFIRE_ORIG_FIRE_TIME') IS NULL
+BEGIN
+  ALTER TABLE [dbo].[QRTZ_TRIGGERS] ADD [MISFIRE_ORIG_FIRE_TIME] bigint NULL;
+END
+```
+
+Replace `QRTZ_` with your configured table prefix if different.
+
+See [Database Schema Changes](../database/schema-changes.md) for the full version-by-version
+history, including what each optional 3.x migration does and what skipping it costs.
+
+### Listing indexes (optional)
+
+The same script aligns the index set with the statements 4.x issues. Two of the additions matter
+most for the [job and trigger listings](#job-store-listings-became-queries):
+
+| Index | Table and columns |
+|---|---|
+| `IDX_QRTZ_J_G_N` | `QRTZ_JOB_DETAILS(SCHED_NAME, JOB_GROUP, JOB_NAME)` |
+| `IDX_QRTZ_T_G_N` | `QRTZ_TRIGGERS(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)` |
+
+Listings page with `ORDER BY JOB_GROUP, JOB_NAME` and `ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the primary
+keys are name-before-group, so no existing index serves those ordered scans. **These are optional** — the
+queries work without them, but each page becomes a scan plus a sort. Add them if you list jobs or triggers
+from a large schema. They are in the fresh-install scripts for every dialect already.
+
+The same section drops indexes that are a leftmost prefix of a wider one, or that no 4.x statement
+can drive a scan from. PostgreSQL gets the largest change: several of its indexes omitted
+`SCHED_NAME`, which is the leading column of every predicate Quartz issues, so they could not serve
+a single-scheduler lookup at all.
+
+Full table creation scripts for fresh installations are available in [database/tables/](https://github.com/quartznet/quartznet/tree/main/database/tables).
+
 ## Configuration
 
 This is the largest change in 4.x. Configuration is now strongly typed options and service
@@ -1520,6 +1626,35 @@ services.Configure<QuartzHealthCheckOptions>("Reporting", options => options.Tag
 `QuartzHealthCheckOptions.Name` is nullable, and left unset the check is named after the scheduler it
 reports on. Assigning a name still overrides that.
 
+## `AddQuartzServer` is `AddQuartzHostedService`
+
+`Quartz.AspNetCore.AddQuartzServer` did two unrelated things behind one name: it registered the
+hosted service that starts the scheduler, and — on frameworks that had them — an ASP.NET Core health
+check. Both are separately available, and the hosted service was never specific to ASP.NET Core, so
+the combined method is gone and each half is called by its own name:
+
+```diff
+  services.AddQuartz(q => { /* ... */ });
+
+- services.AddQuartzServer(options => options.WaitForJobsToComplete = true);
++ services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
++ services.AddQuartzHealthChecks();
+```
+
+`AddQuartzHostedService` lives in the core `Quartz` package, so an application that only wants the
+scheduler started with the host no longer needs `Quartz.AspNetCore` at all — see
+[The hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler) for what it
+now starts, and [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once)
+for the rest of that package.
+
+The health-check overload that took `IEnumerable<string> healthCheckTags` is gone with it; tags are
+`QuartzHealthCheckOptions.Tags`, which is added to rather than assigned:
+
+```diff
+- services.AddQuartzServer(configure, healthCheckTags: ["ready", "live"]);
++ services.AddQuartzHealthChecks(options => options.Tags.AddRange(["ready", "live"]));
+```
+
 ## The OpenAPI calendar schema names the properties the payload actually uses
 
 The HTTP API's endpoints handle `ICalendar`, which OpenAPI cannot describe, so the published document has
@@ -1563,95 +1698,6 @@ services.AddQuartzHttpClient("Quartz ASP.NET Core Sample Scheduler", "QuartzHttp
 
 // or serve one over HTTP: AddQuartzHttpApi + MapQuartzHttpApi, from Quartz.AspNetCore
 ```
-
-## Package Changes
-
-`Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting`, and `Quartz.Serialization.SystemTextJson` have been merged into the main `Quartz` package. You can remove these package references from your project:
-
-```diff
-- <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.*" />
-- <PackageReference Include="Quartz.Extensions.Hosting" Version="3.*" />
-- <PackageReference Include="Quartz.Serialization.SystemTextJson" Version="3.*" />
-+ <PackageReference Include="Quartz" Version="4.*" />
-```
-
-If you use Newtonsoft.Json serialization, reference `Quartz.Serialization.Newtonsoft` instead of the old `Quartz.Serialization.Json`.
-
-Configuration that names a type from one of the merged assemblies as a string keeps working: a name that fails to
-resolve is retried against `Quartz`, with a warning naming both spellings.
-
-`Quartz.OpenTracing` is **dropped** and has no 4.x release. It consumed the `DiagnosticSource` events that
-4.x replaced with `System.Diagnostics.Activity`, and the OpenTracing project itself is archived. Remove the
-package reference and the `AddQuartzOpenTracing` call, and instrument with
-[OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz)
-instead — see [OpenTelemetry Integration](packages/opentelemetry-integration.md#coming-from-quartz-opentracing).
-
-```diff
-- <PackageReference Include="Quartz.OpenTracing" Version="3.*" />
-+ <PackageReference Include="OpenTelemetry.Instrumentation.Quartz" Version="1.*" />
-```
-
-## Database Schema Migration
-
-Quartz 4.x requires four columns on `QRTZ_TRIGGERS` (and one on `QRTZ_FIRED_TRIGGERS`) that were
-**optional** in 3.x:
-
-| Column | Table(s) | Optional since |
-|---|---|---|
-| `MISFIRE_ORIG_FIRE_TIME` | `QRTZ_TRIGGERS` | 3.17 |
-| `EXECUTION_GROUP` | `QRTZ_TRIGGERS`, `QRTZ_FIRED_TRIGGERS` | 3.18 |
-| `PREFERRED_NODE` | `QRTZ_TRIGGERS` | 3.19 |
-| `PREFERRED_NODE_AUTO` | `QRTZ_TRIGGERS` | 3.19 |
-
-3.x probed for each of these at startup and disabled the corresponding feature when it was
-missing. **4.x removed those probes** and assumes all of them exist, so this migration is
-mandatory even if you never used misfire reporting, execution groups or node affinity.
-
-::: warning
-Always run migration scripts in a test environment against a copy of your production database first.
-:::
-
-Apply the script for your database from
-[database/migrations/4.0/](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) —
-`schema_30_to_40_upgrade_sqlServer.sql`, `_postgres`, `_mysql_innodb`, `_oracle`, `_sqlite` or
-`_firebird`. Every statement checks first, so it is safe to run whether or not you already applied
-the optional 3.x migrations, and safe to run twice.
-
-For SQL Server the column additions look like this:
-
-```sql
-IF COL_LENGTH('QRTZ_TRIGGERS','MISFIRE_ORIG_FIRE_TIME') IS NULL
-BEGIN
-  ALTER TABLE [dbo].[QRTZ_TRIGGERS] ADD [MISFIRE_ORIG_FIRE_TIME] bigint NULL;
-END
-```
-
-Replace `QRTZ_` with your configured table prefix if different.
-
-See [Database Schema Changes](../database/schema-changes.md) for the full version-by-version
-history, including what each optional 3.x migration does and what skipping it costs.
-
-### Listing indexes (optional)
-
-The same script aligns the index set with the statements 4.x issues. Two of the additions matter
-most for the [job and trigger listings](#job-store-listings-became-queries):
-
-| Index | Table and columns |
-|---|---|
-| `IDX_QRTZ_J_G_N` | `QRTZ_JOB_DETAILS(SCHED_NAME, JOB_GROUP, JOB_NAME)` |
-| `IDX_QRTZ_T_G_N` | `QRTZ_TRIGGERS(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)` |
-
-Listings page with `ORDER BY JOB_GROUP, JOB_NAME` and `ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the primary
-keys are name-before-group, so no existing index serves those ordered scans. **These are optional** — the
-queries work without them, but each page becomes a scan plus a sort. Add them if you list jobs or triggers
-from a large schema. They are in the fresh-install scripts for every dialect already.
-
-The same section drops indexes that are a leftmost prefix of a wider one, or that no 4.x statement
-can drive a scan from. PostgreSQL gets the largest change: several of its indexes omitted
-`SCHED_NAME`, which is the leading column of every predicate Quartz issues, so they could not serve
-a single-scheduler lookup at all.
-
-Full table creation scripts for fresh installations are available in [database/tables/](https://github.com/quartznet/quartznet/tree/main/database/tables).
 
 ## Tasks Changed to ValueTask
 
@@ -1868,6 +1914,33 @@ LogProvider.SetLogProvider(host.Services.GetRequiredService<ILoggerFactory>());
 ```
 
 Further information on configuring Microsoft.Logging can be found [at Microsoft docs](https://docs.microsoft.com/en-us/dotnet/core/extensions/logging).
+
+## The ambient logger factory stays ambient
+
+`LogProvider.SetLogProvider(ILoggerFactory)` is the one piece of mutable process-wide state left in
+Quartz, and it is deliberate rather than overlooked.
+
+Almost everything the scheduler is made of is built by a container and is injected an `ILogger` the
+ordinary way. What is left over cannot be: static classes such as `TimeZones`, types a caller
+constructs directly — triggers, calendars, plugins, the jobs in `Quartz.Jobs` — and anything that
+runs while the container is still being built. A type cannot be handed a logger by a container that
+does not exist yet, so those sites read the ambient factory instead of going unlogged.
+
+Nor is it seeded from the container, which would be the obvious convenience. The slot outlives any
+one container: a process that builds a host, disposes it and builds another — every integration test
+suite, and every application that reloads configuration — would be left holding a disposed
+`ILoggerFactory`, and the next logger created anywhere in Quartz would throw
+`ObjectDisposedException` from somewhere unrelated to logging. Whoever sets the factory owns its
+lifetime, and only the application can make that call. The same applies to a hand-written
+`LogProvider.SetLogProvider(host.Services.GetRequiredService<ILoggerFactory>())`: it is correct as
+long as the host outlives the schedulers.
+
+`TimeZones.AddResolver` is ambient for the same reason. `FindById` is reached from
+parsing a `CronExpression` and from deserializing a trigger out of a job store blob, neither of
+which has a scheduler in scope — which is why installing `Quartz.Plugins.TimeZoneConverter` in one
+scheduler changes id resolution for the whole process, and why each registration is undone by
+disposing it rather than by anyone owning the slot — see
+[`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones).
 
 ## Job execution metrics
 
@@ -2477,6 +2550,123 @@ blobs written by 3.x still load — see
 
 `IsReadOnly` is an explicit interface implementation and cannot be accessed directly on the maps. `IsFixedSize`, `SyncRoot` and `IsSynchronized` are gone with the non-generic interfaces — see [`JobDataMap` dropped the non-generic collection interfaces](#jobdatamap-dropped-the-non-generic-collection-interfaces).
 
+## `JobDataMap` dropped the non-generic collection interfaces
+
+`JobDataMap` and `SchedulerContext` (on 3.x, their `DirtyFlagMap<TKey, TValue>` base) no longer
+implement `System.Collections.IDictionary` or `System.Collections.ICollection`. Those duplicated the
+generic interfaces with untyped members that cast at runtime — `Add(object, object)` and the
+`object` indexer threw `InvalidCastException` for a key of the wrong type instead of
+`ArgumentException` (#1417), and `SyncRoot` handed out a lock object the map never took.
+
+| 3.x | 4.x |
+|---|---|
+| `((IDictionary) map).Add(key, value)` | `map.Add(key, value)` |
+| `((IDictionary) map)[key]` | `map[key]` |
+| `((IDictionary) map).Contains(key)` | `map.ContainsKey(key)` |
+| `((IDictionary) map).Remove(key)` | `map.Remove(key)` |
+| `map.CopyTo(array, index)` (`Array`) | `map.CopyTo(KeyValuePair<string, object?>[], index)` |
+| `new JobDataMap(someIDictionary)` | `new JobDataMap(someIDictionaryOfStringToObject)` |
+
+`ISerializable` is untouched, so persisted maps still load. The generic
+`JobDataMap(IDictionary<string, object?>)` constructor also took over what the removed non-generic one did
+with a `QRTZ_FORCE_JOB_DATAMAP_DIRTY` entry: the entry is not copied, and the new map is left flagged dirty.
+
+The accessor set gained `GetDecimal` and `TryGetDecimal`, so a `decimal` in a job data map can now be
+read back the way every other primitive can.
+
+## `JobDataMap`'s typed accessors are extension members
+
+`JobDataMap` declared sixty typed accessors of its own — `GetIntValue`, `TryGetIntValue`,
+`GetIntValueFromString`, `TryGetIntValueFromString`, and the same four for `bool`, `char`, `double`,
+`float`, `long`, `Guid`, `TimeSpan`, `DateTime` and `DateTimeOffset` — while the
+`StringKeyDirtyFlagMap` it derived from declared a second, shorter set doing the same job. Two names
+for one lookup, differing only in a suffix. The `…Value` set is gone; the shorter set survives as
+extension members in the `Quartz` namespace (declared in `DataMapExtensions`, for both `JobDataMap`
+and `SchedulerContext`), so the call sites read the same:
+
+```diff
+- int retries = context.JobDetail.JobDataMap.GetIntValue("retries");
++ int retries = context.JobDetail.JobDataMap.GetInt("retries");
+
+- if (map.TryGetTimeSpanValue("timeout", out TimeSpan timeout)) { }
++ if (map.TryGetTimeSpan("timeout", out TimeSpan timeout)) { }
+```
+
+| 3.x `JobDataMap` | 4.x extension members |
+|---|---|
+| `GetBooleanValue`, `GetBooleanValueFromString` | `GetBoolean` |
+| `GetCharFromString` | `GetChar` |
+| `GetDateTimeValue`, `GetDateTimeValueFromString` | `GetDateTime` |
+| `GetDateTimeOffsetValue`, `GetDateTimeOffsetValueFromString` | `GetDateTimeOffset` |
+| `GetDoubleValue`, `GetDoubleValueFromString` | `GetDouble` |
+| `GetFloatValue`, `GetFloatValueFromString` | `GetFloat` |
+| `GetGuidValue`, `GetGuidValueFromString` | `GetGuid` |
+| `GetIntValue`, `GetIntValueFromString` | `GetInt` |
+| `GetLongValue`, `GetLongValueFromString` | `GetLong` |
+| `GetTimeSpanValue`, `GetTimeSpanValueFromString` | `GetTimeSpan` |
+| every `TryGet…Value` / `TryGet…ValueFromString` | the matching `TryGet…` |
+| `GetNullableGuidValue` | `TryGetGuid`, or read the entry and test it yourself |
+| (none) | `GetString`, `TryGetString`, `GetDecimal`, `TryGetDecimal` |
+
+The `…FromString` half collapses because the retained accessors already convert: a value written as a
+string — which is what `StoreJobDataAsStrings` forces, and what `PutAsString` writes — is parsed on the way
+out, so one accessor covers both. `GetNullableGuidValue` is the only one without a direct
+replacement; it returned `null` both for "absent" and for "present but not a `Guid`", which
+`TryGetGuid` distinguishes.
+
+`PutAsString`'s eleven overloads are one generic `PutAsString<T>(string key, T value) where T :
+IConvertible`, plus the ones the constraint cannot express (`DateTime`, `DateTimeOffset`,
+`DateOnly`, `TimeOnly`, `Guid`, `TimeSpan`). Call sites are unchanged, with two exceptions
+described below.
+
+The accessor set also grew: `GetDateOnly`/`TryGetDateOnly`, `GetTimeOnly`/`TryGetTimeOnly`,
+`GetEnum<TEnum>`/`TryGetEnum<TEnum>` (an enum written through `PutAsString` stores its name, and
+the reader also accepts the underlying number a JSON round trip can produce), and a generic
+`TryGet<T>` that is a pure type test over the stored object — no string parsing.
+
+### `PutAsString` writes round-trip formats now
+
+`PutAsString(key, dateTimeOffset)` used to write the invariant general form — no fractional
+seconds — and a `DateTime` argument bound to the `IConvertible` overload, which erased sub-second
+precision *and* `DateTimeKind`. Both now write the round-trip ("O") format: what you read back is
+what you stored, to the tick, Kind and offset included. Reading is unaffected for existing data —
+the accessors parse both the old general form and "O" — but two edges are observable:
+
+* **Overload rebinding**: `map.PutAsString(key, someDateTime)` used to bind to the generic
+  `IConvertible` overload and store `"01/02/2026 15:04:05"`; it now binds to the dedicated
+  `DateTime` overload and stores `"2026-01-02T15:04:05.0000000"`. Anything *outside* Quartz that
+  reads `JOB_DATA` strings and expects the old shape sees the new one after the value is next
+  written.
+* **`TryGetDateTime` parses with `DateTimeStyles.RoundtripKind`** — its own behavioral change,
+  independent of what was written: a stored string ending in `Z` used to come back shifted to the
+  reader's local time with `Kind=Local`; it now comes back with the UTC clock reading and
+  `Kind=Utc`. That is the correct reading, but a job computing e.g. `DateTime.Now - map.GetDateTime(key)`
+  on such a value shifts by the local UTC offset. Such `Z` strings exist in real stores — the
+  System.Text.Json serializer writes a boxed UTC `DateTime` as `"…Z"` and hands it back as a raw
+  string.
+
+### `PutAsString<T>` is constrained to `IFormattable`
+
+The generic overload asked for `IConvertible`, the legacy conversion interface, and then only ever
+called its formatting member. It asks for `IFormattable` now, which is what it actually uses. The
+practical effect is a wider set of types, not a narrower one: `Int128`, `Half`, `BigInteger`, `Complex`
+and any formattable type of your own were never `IConvertible` and could not be written this way.
+
+`bool` and `char` are `IConvertible` but not `IFormattable` — neither has anything to format for a
+culture — so they gained dedicated overloads and keep writing exactly what they wrote before
+(`"True"` / `"False"`, and the single character). The six round-trip overloads are unchanged.
+
+`string` is the one type that loses the call: `map.PutAsString(key, someString)` no longer compiles.
+Write `map[key] = someString`, which is what it did.
+
+### `PutAsString(string, Guid?)` is gone
+
+Passing `null` stored a present-but-null entry that nothing could read back — `TryGetGuid`
+returned `false`, `GetGuid` threw, and under `StoreJobDataAsStrings = true` the null was coerced to an
+empty string with the same outcome. An unreadable entry is worse than a missing key, so the
+overload is gone rather than fixed: call `PutAsString(key, value.Value)` when there is a value,
+and decide explicitly — usually `map.Remove(key)` — when there is not.
+
 ## Listener API Changes
 
 The three kinds of listener are managed identically now: a listener is registered under a name, registering the
@@ -2768,7 +2958,10 @@ documentation always promised.
 * **[RecurrenceTrigger (RRULE)](tutorial/recurrencetrigger.md)** — schedule jobs using RFC 5545 recurrence rules for complex patterns like "every 2nd Monday of the month" or "last weekday of March each year"
 * **H (hash) token in cron expressions** — deterministic load distribution across triggers using the trigger identity as seed
 * **HTTP API** — optional REST API for managing the scheduler remotely (see [HTTP API](packages/http-api.md))
+* **`Quartz.HttpClient`** — the other end of that API: `HttpScheduler` is an `IScheduler` that speaks to a remote scheduler over HTTP, which is what replaces .NET Remoting (see [Remoting a scheduler is not a Quartz concern](#remoting-a-scheduler-is-not-a-quartz-concern))
 * **Paged, projected job store queries** — list and count jobs, triggers, groups and calendars a page at a time, with the metadata a listing needs already in the row (see [Job store listings became queries](#job-store-listings-became-queries))
+* **Bulk fetch by key** — `GetJobDetails(keys)` and `GetTriggers(keys)` turn a page of keys into one round trip, over ADO.NET and over HTTP alike (see [Job store listings became queries](#job-store-listings-became-queries))
+* **Fire instances are a listing** — `QueryFireInstances` answers what is running as a paged, projected query that a persistent store answers for the whole cluster, where `GetCurrentlyExecutingJobs` could only speak for this process (see [What is running is a listing, not a list of contexts](#what-is-running-is-a-listing-not-a-list-of-contexts))
 * **Job data by property name** — bind job data to the job property it is meant for instead of spelling its key (see [Job data can name the property](#job-data-can-name-the-property))
 * **`TriggerState.Executing`** — tell whether a trigger's job is running, across the whole cluster (see [Executing is a trigger state](#executing-is-a-trigger-state))
 * **`JobInstantiationException`** — a job that could not be built names the trigger, the job and the fire instance instead of only interpolating the job key into a message (see [Instantiation failures name the trigger](#instantiation-failures-name-the-trigger))
@@ -6027,30 +6220,6 @@ Existing calendar blobs load unchanged. Both serializers write the new shapes an
 `ExcludedDays`/`ExcludedDates` array may hold timestamps or dates, and per-day booleans or day numbers or
 day names.
 
-## `JobDataMap` dropped the non-generic collection interfaces
-
-`JobDataMap` and `SchedulerContext` (on 3.x, their `DirtyFlagMap<TKey, TValue>` base) no longer
-implement `System.Collections.IDictionary` or `System.Collections.ICollection`. Those duplicated the
-generic interfaces with untyped members that cast at runtime — `Add(object, object)` and the
-`object` indexer threw `InvalidCastException` for a key of the wrong type instead of
-`ArgumentException` (#1417), and `SyncRoot` handed out a lock object the map never took.
-
-| 3.x | 4.x |
-|---|---|
-| `((IDictionary) map).Add(key, value)` | `map.Add(key, value)` |
-| `((IDictionary) map)[key]` | `map[key]` |
-| `((IDictionary) map).Contains(key)` | `map.ContainsKey(key)` |
-| `((IDictionary) map).Remove(key)` | `map.Remove(key)` |
-| `map.CopyTo(array, index)` (`Array`) | `map.CopyTo(KeyValuePair<string, object?>[], index)` |
-| `new JobDataMap(someIDictionary)` | `new JobDataMap(someIDictionaryOfStringToObject)` |
-
-`ISerializable` is untouched, so persisted maps still load. The generic
-`JobDataMap(IDictionary<string, object?>)` constructor also took over what the removed non-generic one did
-with a `QRTZ_FORCE_JOB_DATAMAP_DIRTY` entry: the entry is not copied, and the new map is left flagged dirty.
-
-The accessor set gained `GetDecimal` and `TryGetDecimal`, so a `decimal` in a job data map can now be
-read back the way every other primitive can.
-
 ## `[Serializable]` survives only where a database blob needs it
 
 `BinaryFormatter` is obsolete on .NET 8 (SYSLIB0051) and throws on .NET 9 and later, and Quartz 4 ships no
@@ -6267,155 +6436,6 @@ any; whether the job honors the token remains the job's business. A `catch
 (UnableToInterruptJobException)` block can simply be deleted; `HttpScheduler`'s error mapping no
 longer resurrects the type either, so a remote scheduler fault on an interrupt call surfaces as the
 `SchedulerException`-derived type the server actually reported.
-
-## `JobDataMap`'s typed accessors are extension members
-
-`JobDataMap` declared sixty typed accessors of its own — `GetIntValue`, `TryGetIntValue`,
-`GetIntValueFromString`, `TryGetIntValueFromString`, and the same four for `bool`, `char`, `double`,
-`float`, `long`, `Guid`, `TimeSpan`, `DateTime` and `DateTimeOffset` — while the
-`StringKeyDirtyFlagMap` it derived from declared a second, shorter set doing the same job. Two names
-for one lookup, differing only in a suffix. The `…Value` set is gone; the shorter set survives as
-extension members in the `Quartz` namespace (declared in `DataMapExtensions`, for both `JobDataMap`
-and `SchedulerContext`), so the call sites read the same:
-
-```diff
-- int retries = context.JobDetail.JobDataMap.GetIntValue("retries");
-+ int retries = context.JobDetail.JobDataMap.GetInt("retries");
-
-- if (map.TryGetTimeSpanValue("timeout", out TimeSpan timeout)) { }
-+ if (map.TryGetTimeSpan("timeout", out TimeSpan timeout)) { }
-```
-
-| 3.x `JobDataMap` | 4.x extension members |
-|---|---|
-| `GetBooleanValue`, `GetBooleanValueFromString` | `GetBoolean` |
-| `GetCharFromString` | `GetChar` |
-| `GetDateTimeValue`, `GetDateTimeValueFromString` | `GetDateTime` |
-| `GetDateTimeOffsetValue`, `GetDateTimeOffsetValueFromString` | `GetDateTimeOffset` |
-| `GetDoubleValue`, `GetDoubleValueFromString` | `GetDouble` |
-| `GetFloatValue`, `GetFloatValueFromString` | `GetFloat` |
-| `GetGuidValue`, `GetGuidValueFromString` | `GetGuid` |
-| `GetIntValue`, `GetIntValueFromString` | `GetInt` |
-| `GetLongValue`, `GetLongValueFromString` | `GetLong` |
-| `GetTimeSpanValue`, `GetTimeSpanValueFromString` | `GetTimeSpan` |
-| every `TryGet…Value` / `TryGet…ValueFromString` | the matching `TryGet…` |
-| `GetNullableGuidValue` | `TryGetGuid`, or read the entry and test it yourself |
-| (none) | `GetString`, `TryGetString`, `GetDecimal`, `TryGetDecimal` |
-
-The `…FromString` half collapses because the retained accessors already convert: a value written as a
-string — which is what `StoreJobDataAsStrings` forces, and what `PutAsString` writes — is parsed on the way
-out, so one accessor covers both. `GetNullableGuidValue` is the only one without a direct
-replacement; it returned `null` both for "absent" and for "present but not a `Guid`", which
-`TryGetGuid` distinguishes.
-
-`PutAsString`'s eleven overloads are one generic `PutAsString<T>(string key, T value) where T :
-IConvertible`, plus the ones the constraint cannot express (`DateTime`, `DateTimeOffset`,
-`DateOnly`, `TimeOnly`, `Guid`, `TimeSpan`). Call sites are unchanged, with two exceptions
-described below.
-
-The accessor set also grew: `GetDateOnly`/`TryGetDateOnly`, `GetTimeOnly`/`TryGetTimeOnly`,
-`GetEnum<TEnum>`/`TryGetEnum<TEnum>` (an enum written through `PutAsString` stores its name, and
-the reader also accepts the underlying number a JSON round trip can produce), and a generic
-`TryGet<T>` that is a pure type test over the stored object — no string parsing.
-
-### `PutAsString` writes round-trip formats now
-
-`PutAsString(key, dateTimeOffset)` used to write the invariant general form — no fractional
-seconds — and a `DateTime` argument bound to the `IConvertible` overload, which erased sub-second
-precision *and* `DateTimeKind`. Both now write the round-trip ("O") format: what you read back is
-what you stored, to the tick, Kind and offset included. Reading is unaffected for existing data —
-the accessors parse both the old general form and "O" — but two edges are observable:
-
-* **Overload rebinding**: `map.PutAsString(key, someDateTime)` used to bind to the generic
-  `IConvertible` overload and store `"01/02/2026 15:04:05"`; it now binds to the dedicated
-  `DateTime` overload and stores `"2026-01-02T15:04:05.0000000"`. Anything *outside* Quartz that
-  reads `JOB_DATA` strings and expects the old shape sees the new one after the value is next
-  written.
-* **`TryGetDateTime` parses with `DateTimeStyles.RoundtripKind`** — its own behavioral change,
-  independent of what was written: a stored string ending in `Z` used to come back shifted to the
-  reader's local time with `Kind=Local`; it now comes back with the UTC clock reading and
-  `Kind=Utc`. That is the correct reading, but a job computing e.g. `DateTime.Now - map.GetDateTime(key)`
-  on such a value shifts by the local UTC offset. Such `Z` strings exist in real stores — the
-  System.Text.Json serializer writes a boxed UTC `DateTime` as `"…Z"` and hands it back as a raw
-  string.
-
-### `PutAsString<T>` is constrained to `IFormattable`
-
-The generic overload asked for `IConvertible`, the legacy conversion interface, and then only ever
-called its formatting member. It asks for `IFormattable` now, which is what it actually uses. The
-practical effect is a wider set of types, not a narrower one: `Int128`, `Half`, `BigInteger`, `Complex`
-and any formattable type of your own were never `IConvertible` and could not be written this way.
-
-`bool` and `char` are `IConvertible` but not `IFormattable` — neither has anything to format for a
-culture — so they gained dedicated overloads and keep writing exactly what they wrote before
-(`"True"` / `"False"`, and the single character). The six round-trip overloads are unchanged.
-
-`string` is the one type that loses the call: `map.PutAsString(key, someString)` no longer compiles.
-Write `map[key] = someString`, which is what it did.
-
-### `PutAsString(string, Guid?)` is gone
-
-Passing `null` stored a present-but-null entry that nothing could read back — `TryGetGuid`
-returned `false`, `GetGuid` threw, and under `StoreJobDataAsStrings = true` the null was coerced to an
-empty string with the same outcome. An unreadable entry is worse than a missing key, so the
-overload is gone rather than fixed: call `PutAsString(key, value.Value)` when there is a value,
-and decide explicitly — usually `map.Remove(key)` — when there is not.
-
-## `AddQuartzServer` is `AddQuartzHostedService`
-
-`Quartz.AspNetCore.AddQuartzServer` did two unrelated things behind one name: it registered the
-hosted service that starts the scheduler, and — on frameworks that had them — an ASP.NET Core health
-check. Both are separately available, and the hosted service was never specific to ASP.NET Core, so
-the combined method is gone and each half is called by its own name:
-
-```diff
-  services.AddQuartz(q => { /* ... */ });
-
-- services.AddQuartzServer(options => options.WaitForJobsToComplete = true);
-+ services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
-+ services.AddQuartzHealthChecks();
-```
-
-`AddQuartzHostedService` lives in the core `Quartz` package, so an application that only wants the
-scheduler started with the host no longer needs `Quartz.AspNetCore` at all — see
-[The hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler) for what it
-now starts, and [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once)
-for the rest of that package.
-
-The health-check overload that took `IEnumerable<string> healthCheckTags` is gone with it; tags are
-`QuartzHealthCheckOptions.Tags`, which is added to rather than assigned:
-
-```diff
-- services.AddQuartzServer(configure, healthCheckTags: ["ready", "live"]);
-+ services.AddQuartzHealthChecks(options => options.Tags.AddRange(["ready", "live"]));
-```
-
-## The ambient logger factory stays ambient
-
-`LogProvider.SetLogProvider(ILoggerFactory)` is the one piece of mutable process-wide state left in
-Quartz, and it is deliberate rather than overlooked.
-
-Almost everything the scheduler is made of is built by a container and is injected an `ILogger` the
-ordinary way. What is left over cannot be: static classes such as `TimeZones`, types a caller
-constructs directly — triggers, calendars, plugins, the jobs in `Quartz.Jobs` — and anything that
-runs while the container is still being built. A type cannot be handed a logger by a container that
-does not exist yet, so those sites read the ambient factory instead of going unlogged.
-
-Nor is it seeded from the container, which would be the obvious convenience. The slot outlives any
-one container: a process that builds a host, disposes it and builds another — every integration test
-suite, and every application that reloads configuration — would be left holding a disposed
-`ILoggerFactory`, and the next logger created anywhere in Quartz would throw
-`ObjectDisposedException` from somewhere unrelated to logging. Whoever sets the factory owns its
-lifetime, and only the application can make that call. The same applies to a hand-written
-`LogProvider.SetLogProvider(host.Services.GetRequiredService<ILoggerFactory>())`: it is correct as
-long as the host outlives the schedulers.
-
-`TimeZones.AddResolver` is ambient for the same reason. `FindById` is reached from
-parsing a `CronExpression` and from deserializing a trigger out of a job store blob, neither of
-which has a scheduler in scope — which is why installing `Quartz.Plugins.TimeZoneConverter` in one
-scheduler changes id resolution for the whole process, and why each registration is undone by
-disposing it rather than by anyone owning the slot — see
-[`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones).
 
 ## `TimeZoneUtil` became `Quartz.TimeZones`
 
