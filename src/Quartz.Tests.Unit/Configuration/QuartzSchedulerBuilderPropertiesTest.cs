@@ -91,11 +91,24 @@ public class QuartzSchedulerBuilderPropertiesTest
             .WithMessage("*quartz.jobStore.lockHandler.tablePrefix*ISemaphore.Initialize*");
 
         properties = new NameValueCollection();
+        properties["quartz.jobStore.lockHandler.schedName"] = "MyScheduler";
+
+        act = () => QuartzSchedulerBuilder.Create().UseProperties(properties);
+
+        act.Should().Throw<SchedulerConfigException>(
+                "3.x declared the property as ITablePrefixAware.SchedName and StdSchedulerFactory wrote it "
+                + "through the lock handler's property group, so schedName is the spelling a configuration "
+                + "file carried over from 3.x actually contains")
+            .WithMessage("*quartz.jobStore.lockHandler.schedName*ISemaphore.Initialize*");
+
+        properties = new NameValueCollection();
         properties["quartz.jobStore.lockHandler.schedulerName"] = "MyScheduler";
 
         act = () => QuartzSchedulerBuilder.Create().UseProperties(properties);
 
-        act.Should().Throw<SchedulerConfigException>()
+        act.Should().Throw<SchedulerConfigException>(
+                "the property is SchedulerName here, so that is the key someone re-derives from the type "
+                + "rather than from their old file — the same dead seam, and it earns the same advice")
             .WithMessage("*quartz.jobStore.lockHandler.schedulerName*ISemaphore.Initialize*");
     }
 

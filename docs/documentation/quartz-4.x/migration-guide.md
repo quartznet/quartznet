@@ -4011,11 +4011,13 @@ reads the same values from the context:
 ```
 
 With the setters gone, the configuration keys that reached them by property injection went too:
-`quartz.jobStore.lockHandler.tablePrefix` and `quartz.jobStore.lockHandler.schedulerName` are rejected
-with advice naming this seam. The 3.x property was called `SchedName`, so a configuration carried over
-from 3.x spells the second key `quartz.jobStore.lockHandler.schedName` — delete that one too. The store
-hands the handler its own `quartz.jobStore.tablePrefix` value, so the lock rows follow the store's table
-prefix without separate configuration.
+`quartz.jobStore.lockHandler.tablePrefix` and `quartz.jobStore.lockHandler.schedName` are rejected with
+advice naming this seam. `schedName` is the spelling a file carried over from 3.x contains, because the
+key was derived from the `ITablePrefixAware.SchedName` property it wrote;
+`quartz.jobStore.lockHandler.schedulerName`, which is what the 4.x property name suggests, is rejected
+with the same advice rather than reported as a typo. The store hands the handler its own
+`quartz.jobStore.tablePrefix` value, so the lock rows follow the store's table prefix without separate
+configuration.
 
 ## A job store of your own can join your transaction
 

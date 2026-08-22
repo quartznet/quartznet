@@ -92,6 +92,20 @@ internal static class LegacyPropertyKeys
     internal const string SystemPropertyAsInstanceId = "SYS_PROP";
 
     /// <summary>
+    /// What to do instead of naming the lock handler's scheduler in configuration.
+    /// </summary>
+    /// <remarks>
+    /// Shared by both spellings of the key. 3.x's <c>ITablePrefixAware</c> declared the property as
+    /// <c>SchedName</c> and <c>StdSchedulerFactory</c> wrote it through the lock handler's property
+    /// group, so a configuration file carried over from 3.x spells it <c>schedName</c>; the property
+    /// is <c>SchedulerName</c> here, which is what someone re-deriving the key from the type writes.
+    /// Both name the same dead seam, and both are worth the same explanation.
+    /// </remarks>
+    private const string LockHandlerSchedulerNameAdvice =
+        "The job store tells the lock handler which scheduler it locks for through "
+        + "ISemaphore.Initialize, using the scheduler's own instance name. Remove this key.";
+
+    /// <summary>
     /// The key prefixes a scheduler understands, used to reject a misspelled one.
     /// </summary>
     /// <remarks>
@@ -150,9 +164,8 @@ internal static class LegacyPropertyKeys
         (JobStoreLockHandlerPrefix + ".tablePrefix",
             "The job store tells the lock handler its table prefix through ISemaphore.Initialize, "
             + "using the value of 'quartz.jobStore.tablePrefix'. Set that key instead and remove this one."),
-        (JobStoreLockHandlerPrefix + ".schedulerName",
-            "The job store tells the lock handler which scheduler it locks for through "
-            + "ISemaphore.Initialize, using the scheduler's own instance name. Remove this key."),
+        (JobStoreLockHandlerPrefix + ".schedName", LockHandlerSchedulerNameAdvice),
+        (JobStoreLockHandlerPrefix + ".schedulerName", LockHandlerSchedulerNameAdvice),
         (SchedulerThreadName,
             "The scheduling loop is a Task rather than a Thread, so there is no thread of its own to "
             + "name and this key had no effect in 4.0. Remove it."),
