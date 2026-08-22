@@ -27,8 +27,8 @@ internal sealed class DbMetadataResolver
 {
     private readonly DbMetadataFactory[] factories;
 
-    // Resolving metadata reads an embedded resource and loads several types by name, so the result is
-    // remembered. Concurrent because one resolver serves every scheduler in the container.
+    // Resolving metadata loads several types by name, so the result is remembered. Concurrent because
+    // one resolver serves every scheduler in the container.
     private readonly ConcurrentDictionary<string, DbMetadata> resolved = new(StringComparer.Ordinal);
 
     public DbMetadataResolver(IEnumerable<DbMetadataFactory> factories)
@@ -44,7 +44,7 @@ internal sealed class DbMetadataResolver
             .OrderBy(factory => factory switch
             {
                 ConfiguredDbMetadataFactory => 0,
-                EmbeddedAssemblyResourceDbMetadataFactory => 2,
+                BuiltInDbMetadataFactory => 2,
                 _ => 1
             })
             .ToArray();
@@ -58,12 +58,12 @@ internal sealed class DbMetadataResolver
     /// Shared, and therefore cached, for the lifetime of the process. Safe to share where a container's
     /// resolver is not: it holds only the descriptions Quartz ships, which are the same everywhere, so
     /// there is no container-specific metadata for the cache to leak. A fresh instance per call would
-    /// re-read the embedded resource and rebuild every description on every <see cref="DbProvider"/>
+    /// rebuild the description — and re-resolve its driver types — on every <see cref="DbProvider"/>
     /// construction, which is what the deleted static constructor did once.
     /// </remarks>
     public static DbMetadataResolver BuiltIn() => builtIn;
 
-    private static readonly DbMetadataResolver builtIn = new([new EmbeddedAssemblyResourceDbMetadataFactory()]);
+    private static readonly DbMetadataResolver builtIn = new([new BuiltInDbMetadataFactory()]);
 
     /// <summary>
     /// Returns the metadata describing a provider, or throws naming the providers that are known.

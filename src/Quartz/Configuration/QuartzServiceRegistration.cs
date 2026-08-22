@@ -75,8 +75,8 @@ internal static class QuartzServiceRegistration
         // code or by quartz.dbprovider.* keys — both of which register earlier — wins over a built-in of
         // the same name. Resolution walks the registrations in order.
         services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<DbMetadataFactory, EmbeddedAssemblyResourceDbMetadataFactory>(
-                static _ => new EmbeddedAssemblyResourceDbMetadataFactory()));
+            ServiceDescriptor.Singleton<DbMetadataFactory, BuiltInDbMetadataFactory>(
+                static _ => new BuiltInDbMetadataFactory()));
 
         // One resolver per container, so its cache of resolved descriptions cannot leak one container's
         // idea of a provider name into another's.
