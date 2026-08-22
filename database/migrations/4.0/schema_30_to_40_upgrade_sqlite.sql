@@ -13,9 +13,13 @@
 --   ran the optional migrations will fail against 4.x until this script has run.
 --
 -- This script supersedes the optional per-feature migrations in ../3.17, ../3.18,
--- ../3.19 and ../3.20 -- it applies everything they do. If you already ran some of
--- them, run this anyway: every statement checks first, so it is safe on a
--- partially-migrated database.
+-- ../3.19 and ../3.20 -- it applies everything they do, and it assumes none of them
+-- were applied. Run it exactly once, against a database that took none of the optional
+-- 3.x column migrations.
+--
+-- On a partially-migrated database take the stepped route instead -- run the
+-- per-feature files you are still missing -- or check PRAGMA table_info(<table>) and
+-- apply only the sections whose columns are absent.
 --
 -- Sections, in order:
 --   1. MISFIRE_ORIG_FIRE_TIME column                REQUIRED
@@ -27,7 +31,8 @@
 -- already succeeded.
 --
 -- Replace 'QRTZ_' with your configured table prefix if different.
--- Every statement checks first, so this script is safe to run more than once.
+-- NOT IDEMPOTENT: SQLite has no conditional DDL, so re-running this fails with a
+-- duplicate-column error. Check PRAGMA table_info(<table>) before applying.
 --
 -- !! FIRST RUN IN TEST ENVIRONMENT AGAINST A COPY OF YOUR PRODUCTION DATABASE !!
 --
