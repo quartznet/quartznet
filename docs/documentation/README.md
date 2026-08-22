@@ -5,12 +5,14 @@ title: Documentation
 
 * [Frequently Asked Questions](faq.html)
 * [Best Practices](best-practices.html)
+* [Tenancy Patterns](tenancy-patterns.html)
 
 ## Available Documents (Quartz 4.x)
 
 * [Quick Start Guide](quartz-4.x/quick-start.html)
 * [Tutorials for Developing with Quartz](quartz-4.x/tutorial/index.html)
 * [Cron Expression Reference](quartz-4.x/cron-expressions.html)
+* [Multi-Tenancy](quartz-4.x/multi-tenancy.html)
 * [Migration Guide](quartz-4.x/migration-guide.html)
 
 ## Available Documents (Quartz 3.x)
@@ -18,6 +20,7 @@ title: Documentation
 * [Quick Start Guide](quartz-3.x/quick-start.html)
 * [Tutorials for Developing with Quartz](quartz-3.x/tutorial/index.html)
 * [CronTrigger Tutorial](quartz-3.x/tutorial/crontrigger.html)
+* [Multi-Tenancy](quartz-3.x/multi-tenancy.html)
 * [Migration Guide](quartz-3.x/migration-guide.html)
 
 ## Available Documents (Quartz 2.x)

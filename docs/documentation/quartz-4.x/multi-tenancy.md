@@ -8,6 +8,10 @@ Quartz has no `Tenant` concept, and it is not going to get one. What it has inst
 separations you can build one out of — a scheduler, a group, and a `SCHED_NAME` — and this page is
 about picking the right one and knowing exactly what it does and does not isolate.
 
+If you have not yet chosen a model, read [Tenancy Patterns](../tenancy-patterns.md) first: it surveys
+how other schedulers partition tenants and names the axes that decide. This page is the 4.x
+mechanics.
+
 ## Choosing a model
 
 | | Scheduler per tenant | Group per tenant | Database or prefix per tenant |
@@ -309,13 +313,34 @@ per-scheduler policy and no scheduler-name claim check. If tenants must reach th
 not each other's, enforce that **outside** Quartz — a process per tenant, or a proxy or middleware that
 authorizes on the `{schedulerName}` route segment.
 
-**Tenants cannot be onboarded at runtime under the scheduler-per-tenant model.** Schedulers are
-registered against `IServiceCollection`, which is closed once the container is built, and the hosted
-service enumerates them once at start. Nor can a scheduler be restarted after `Shutdown()`: the
-container owns its parts' lifetimes, and `GetScheduler()` throws rather than resurrecting a thread pool
-and a job store underneath a scheduler that can never run again. `Standby()` / `Start()` is the
-pause-and-resume pair; a genuinely new tenant needs a new host, or the group-per-tenant model, which has
-no such limit.
+**Tenants cannot be onboarded at runtime *through the DI path*.** Schedulers are registered against
+`IServiceCollection`, which is closed once the container is built, and the hosted service enumerates
+them once at start. Nor can a scheduler be restarted after `Shutdown()`: the container owns its parts'
+lifetimes, and `GetScheduler()` throws rather than resurrecting a thread pool and a job store
+underneath a scheduler that can never run again. `Standby()` / `Start()` is the pause-and-resume pair.
+
+That is a limit of the DI path, not of the library. `QuartzSchedulerBuilder` builds a scheduler from a
+container of its own, at any point in the process's life, and `ISchedulerRepository.Bind` makes the
+result visible to `GetAllSchedulers`, the dashboard and the HTTP API:
+
+```csharp
+IScheduler tenant = await QuartzSchedulerBuilder.Create()
+    .ConfigureScheduler(o => o.InstanceName = tenantId)
+    .UsePersistentStore(s => s.UseSqlServer(connectionStrings[tenantId]))
+    .BuildScheduler();
+
+await tenant.Start();
+app.Services.GetRequiredService<ISchedulerRepository>().Bind(tenant);
+```
+
+What you take on by doing this: the returned `StandaloneSchedulerFactory` owns the container, so *you*
+start the scheduler and dispose the factory — the hosted service will not; the scheduler's jobs resolve
+from its own container rather than the application's unless you give it an `IJobFactory` that bridges;
+and health checks registered at startup do not cover it. `Bind` throws on a duplicate name, and
+offboarding is `Remove` plus disposing the factory.
+
+Weigh that against the group-per-tenant model, where onboarding is a `ScheduleJob` call and none of
+the above applies.
 
 **A per-tenant thread pool is a real cost.** Under the scheduler-per-tenant model each tenant gets a
 scheduling loop that wakes on its own idle timer, a thread pool, and — with a persistent store — a
