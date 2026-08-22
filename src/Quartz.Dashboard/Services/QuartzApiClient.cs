@@ -722,32 +722,6 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         };
     }
 
-    private static int GetIntProperty(JsonElement element, string propertyName)
-    {
-        if (element.ValueKind is not JsonValueKind.Object)
-        {
-            return 0;
-        }
-
-        if (!element.TryGetProperty(propertyName, out JsonElement value))
-        {
-            return 0;
-        }
-
-        if (value.ValueKind is JsonValueKind.Number && value.TryGetInt32(out int intValue))
-        {
-            return intValue;
-        }
-
-        if (value.ValueKind is JsonValueKind.String &&
-            int.TryParse(value.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedValue))
-        {
-            return parsedValue;
-        }
-
-        return 0;
-    }
-
     private static int? GetNullableIntProperty(JsonElement element, string propertyName)
     {
         if (element.ValueKind is not JsonValueKind.Object)
@@ -919,25 +893,6 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
 
         return element.Deserialize<JobDataMap>(quartzSerializerOptions) ?? new JobDataMap();
-    }
-
-    private static string? DescribeSchedule(JsonElement trigger)
-    {
-        string? cron = GetNullableStringProperty(trigger, "cronExpressionString");
-        if (!string.IsNullOrWhiteSpace(cron))
-        {
-            return cron;
-        }
-
-        string? repeatInterval = GetNullableStringProperty(trigger, "repeatIntervalTimeSpan");
-        if (!string.IsNullOrWhiteSpace(repeatInterval))
-        {
-            string summary = "Every " + repeatInterval;
-            int repeatCount = GetIntProperty(trigger, "repeatCount");
-            return summary + (repeatCount < 0 ? ", repeat forever" : ", " + repeatCount + " time(s)");
-        }
-
-        return null;
     }
 
     public async ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default)
