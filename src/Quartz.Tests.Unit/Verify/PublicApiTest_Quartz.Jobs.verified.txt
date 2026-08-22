@@ -49,7 +49,7 @@ namespace Quartz.Jobs
         public NativeJob() { }
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
     }
-    public class NoOpJob : Quartz.IJob
+    public sealed class NoOpJob : Quartz.IJob
     {
         public NoOpJob() { }
         public System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }

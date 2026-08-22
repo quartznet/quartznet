@@ -205,7 +205,7 @@ namespace Quartz.Plugins.History;
 /// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
+public sealed class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
 {
     private readonly ILogger<LoggingTriggerHistoryPlugin> logger;
     private readonly TimeProvider timeProvider;
@@ -233,17 +233,17 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// Get or set the message that is printed upon the completion of a trigger's
     /// firing.
     /// </summary>
-    public virtual string TriggerCompleteMessage { get; internal set; } = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
+    public string TriggerCompleteMessage { get; internal set; } = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
 
     /// <summary>
     /// Get or set the message that is printed upon a trigger's firing.
     /// </summary>
-    public virtual string TriggerFiredMessage { get; internal set; } = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
+    public string TriggerFiredMessage { get; internal set; } = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Get or set the message that is printed upon a trigger's mis-firing.
     /// </summary>
-    public virtual string TriggerMisfiredMessage { get; internal set; } = "Trigger {1}.{0} misfired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
+    public string TriggerMisfiredMessage { get; internal set; } = "Trigger {1}.{0} misfired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Get the name of the <see cref="ITriggerListener" />.
@@ -255,7 +255,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// Called during creation of the <see cref="IScheduler" /> in order to give
     /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
     /// </summary>
-    public virtual ValueTask Initialize(
+    public ValueTask Initialize(
         string pluginName,
         IScheduler scheduler,
         CancellationToken cancellationToken = default)
@@ -270,7 +270,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// to let the plug-in know it can now make calls into the scheduler if it
     /// needs to.
     /// </summary>
-    public virtual ValueTask Start(CancellationToken cancellationToken = default)
+    public ValueTask Start(CancellationToken cancellationToken = default)
     {
         // do nothing...
         return default;
@@ -281,7 +281,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// should free up all of it's resources because the scheduler is shutting
     /// down.
     /// </summary>
-    public virtual ValueTask Shutdown(CancellationToken cancellationToken = default)
+    public ValueTask Shutdown(CancellationToken cancellationToken = default)
     {
         // nothing to do...
         return default;
@@ -299,12 +299,12 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// <param name="trigger">The <see cref="ITrigger" /> that has fired.</param>
     /// <param name="context">The <see cref="IJobExecutionContext" /> that will be passed to the <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask TriggerFired(
+    public ValueTask TriggerFired(
         ITrigger trigger,
         IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        if (!IsInfoEnabled)
+        if (!logger.IsEnabled(LogLevel.Information))
         {
             return default;
         }
@@ -321,7 +321,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
             context.RefireCount
         ];
 
-        WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerFiredMessage, args));
+        WriteInformation(string.Format(CultureInfo.InvariantCulture, TriggerFiredMessage, args));
         return default;
     }
 
@@ -337,11 +337,11 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// </summary>
     /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask TriggerMisfired(
+    public ValueTask TriggerMisfired(
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        if (!IsInfoEnabled)
+        if (!logger.IsEnabled(LogLevel.Information))
         {
             return default;
         }
@@ -357,7 +357,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
             trigger.JobKey.Group
         ];
 
-        WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
+        WriteInformation(string.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
         return default;
     }
 
@@ -372,13 +372,13 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
     /// <param name="triggerInstructionCode">The result of the call on the <see cref="IOperableTrigger" />'s <see cref="IOperableTrigger.Triggered" />  method.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask TriggerComplete(
+    public ValueTask TriggerComplete(
         ITrigger trigger,
         IJobExecutionContext context,
         SchedulerInstruction triggerInstructionCode,
         CancellationToken cancellationToken = default)
     {
-        if (!IsInfoEnabled)
+        if (!logger.IsEnabled(LogLevel.Information))
         {
             return default;
         }
@@ -419,7 +419,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
             instrCode
         ];
 
-        WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerCompleteMessage, args));
+        WriteInformation(string.Format(CultureInfo.InvariantCulture, TriggerCompleteMessage, args));
         return default;
     }
 
@@ -436,7 +436,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// <param name="context">The <see cref="IJobExecutionContext" /> that will be passed to
     /// the <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask<bool> VetoJobExecution(
+    public ValueTask<bool> VetoJobExecution(
         ITrigger trigger,
         IJobExecutionContext context,
         CancellationToken cancellationToken = default)
@@ -444,9 +444,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         return new ValueTask<bool>(false);
     }
 
-    protected virtual bool IsInfoEnabled => logger.IsEnabled(LogLevel.Information);
-
-    protected virtual void WriteInfo(string message)
+    private void WriteInformation(string message)
     {
 #pragma warning disable CA2254
         logger.LogInformation(message);

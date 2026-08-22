@@ -28,7 +28,7 @@ namespace Quartz.Plugins.TimeZoneConverter;
 /// <summary>
 /// This plugin provides the capability to obtain timezone information regardless of the platform and database being used.
 /// </summary>
-public class TimeZoneConverterPlugin : ISchedulerPlugin
+public sealed class TimeZoneConverterPlugin : ISchedulerPlugin
 {
     private IDisposable? resolverRegistration;
 

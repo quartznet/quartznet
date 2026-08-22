@@ -1,7 +1,7 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
 namespace Quartz.Plugins.TimeZoneConverter
 {
-    public class TimeZoneConverterPlugin : Quartz.Extensibility.ISchedulerPlugin
+    public sealed class TimeZoneConverterPlugin : Quartz.Extensibility.ISchedulerPlugin
     {
         public TimeZoneConverterPlugin() { }
         public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }

@@ -19,6 +19,8 @@
 
 #endregion
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Jobs;
@@ -30,12 +32,23 @@ namespace Quartz.Tests.Unit.Plugin.History;
 /// <author>Marko Lahma (.NET)</author>
 public class LoggingJobHistoryPluginTest
 {
-    private RecordingLoggingJobHistoryPlugin plugin;
+    private LoggingJobHistoryPlugin plugin;
+    private RecordingLoggerProvider loggerProvider;
 
     [SetUp]
     public void SetUp()
     {
-        plugin = new RecordingLoggingJobHistoryPlugin();
+        loggerProvider = new RecordingLoggerProvider();
+        ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddProvider(loggerProvider));
+        plugin = new LoggingJobHistoryPlugin(
+            factory.CreateLogger<LoggingJobHistoryPlugin>(),
+            TimeProvider.System);
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        loggerProvider.Dispose();
     }
 
     [Test]
@@ -44,7 +57,7 @@ public class LoggingJobHistoryPluginTest
         JobExecutionException ex = new JobExecutionException("test error");
         await plugin.JobWasExecuted(CreateJobExecutionContext(), ex);
 
-        Assert.That(plugin.WarnMessages, Has.Count.EqualTo(1));
+        loggerProvider.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Warning);
     }
 
     [Test]
@@ -52,7 +65,7 @@ public class LoggingJobHistoryPluginTest
     {
         await plugin.JobWasExecuted(CreateJobExecutionContext(), null);
 
-        Assert.That(plugin.InfoMessages, Has.Count.EqualTo(1));
+        loggerProvider.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Information);
     }
 
     [Test]
@@ -60,7 +73,7 @@ public class LoggingJobHistoryPluginTest
     {
         await plugin.JobToBeExecuted(CreateJobExecutionContext());
 
-        Assert.That(plugin.InfoMessages, Has.Count.EqualTo(1));
+        loggerProvider.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Information);
     }
 
     [Test]
@@ -68,33 +81,14 @@ public class LoggingJobHistoryPluginTest
     {
         await plugin.JobExecutionVetoed(CreateJobExecutionContext());
 
-        Assert.That(plugin.InfoMessages, Has.Count.EqualTo(1));
+        loggerProvider.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Information);
     }
 
-    protected virtual IJobExecutionContext CreateJobExecutionContext()
+    private static IJobExecutionContext CreateJobExecutionContext()
     {
         IOperableTrigger t = new SimpleTriggerImpl { Key = new TriggerKey("name", "group"), StartTimeUtc = TimeProvider.System.GetUtcNow() };
         TriggerFiredBundle firedBundle = TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t);
         IJobExecutionContext ctx = new JobExecutionContextImpl(null, firedBundle, null);
         return ctx;
-    }
-
-    private sealed class RecordingLoggingJobHistoryPlugin : LoggingJobHistoryPlugin
-    {
-        public List<string> InfoMessages { get; } = new List<string>();
-        public List<string> WarnMessages { get; } = new List<string>();
-
-        protected override bool IsInfoEnabled => true;
-        protected override bool IsWarnEnabled => true;
-
-        protected override void WriteInfo(string message)
-        {
-            InfoMessages.Add(message);
-        }
-
-        protected override void WriteWarning(string message, Exception ex)
-        {
-            WarnMessages.Add(message);
-        }
     }
 }

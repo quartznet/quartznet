@@ -251,7 +251,7 @@ namespace Quartz.Plugins.History;
 /// 	</para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
-public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
+public sealed class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 {
     private readonly ILogger<LoggingJobHistoryPlugin> logger;
     private readonly TimeProvider timeProvider;
@@ -272,24 +272,24 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// Get or sets the message that is logged when a Job successfully completes its
     /// execution.
     /// </summary>
-    public virtual string JobSuccessMessage { get; internal set; } = "Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
+    public string JobSuccessMessage { get; internal set; } = "Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
 
     /// <summary>
     /// Get or sets the message that is logged when a Job fails its
     /// execution.
     /// </summary>
-    public virtual string JobFailedMessage { get; internal set; } = "Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
+    public string JobFailedMessage { get; internal set; } = "Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a Job is about to Execute.
     /// </summary>
-    public virtual string JobToBeFiredMessage { get; internal set; } = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
+    public string JobToBeFiredMessage { get; internal set; } = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a Job execution is vetoed by a
     /// trigger listener.
     /// </summary>
-    public virtual string JobWasVetoedMessage { get; internal set; } = "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
+    public string JobWasVetoedMessage { get; internal set; } = "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Get the name of the <see cref="IJobListener" />.
@@ -301,7 +301,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// Called during creation of the <see cref="IScheduler" /> in order to give
     /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
     /// </summary>
-    public virtual ValueTask Initialize(
+    public ValueTask Initialize(
         string pluginName,
         IScheduler scheduler,
         CancellationToken cancellationToken = default)
@@ -316,7 +316,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// to let the plug-in know it can now make calls into the scheduler if it
     /// needs to.
     /// </summary>
-    public virtual ValueTask Start(CancellationToken cancellationToken = default)
+    public ValueTask Start(CancellationToken cancellationToken = default)
     {
         // do nothing...
         return default;
@@ -327,7 +327,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// should free up all of it's resources because the scheduler is shutting
     /// down.
     /// </summary>
-    public virtual ValueTask Shutdown(CancellationToken cancellationToken = default)
+    public ValueTask Shutdown(CancellationToken cancellationToken = default)
     {
         // nothing to do...
         return default;
@@ -342,11 +342,11 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     ///     </para>
     /// </summary>
     /// <seealso cref="JobExecutionVetoed"/>
-    public virtual ValueTask JobToBeExecuted(
+    public ValueTask JobToBeExecuted(
         IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        if (!IsInfoEnabled)
+        if (!logger.IsEnabled(LogLevel.Information))
         {
             return default;
         }
@@ -365,7 +365,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             context.RefireCount
         ];
 
-        WriteInfo(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
+        WriteInformation(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
         return default;
     }
 
@@ -374,7 +374,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// has been executed, and be for the associated <see cref="ITrigger" />'s
     /// <see cref="IOperableTrigger.Triggered" /> method has been called.
     /// </summary>
-    public virtual ValueTask JobWasExecuted(
+    public ValueTask JobWasExecuted(
         IJobExecutionContext context,
         JobExecutionException? jobException,
         CancellationToken cancellationToken = default)
@@ -385,7 +385,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 
         if (jobException is not null)
         {
-            if (!IsWarnEnabled)
+            if (!logger.IsEnabled(LogLevel.Warning))
             {
                 return default;
             }
@@ -407,7 +407,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
         }
         else
         {
-            if (!IsInfoEnabled)
+            if (!logger.IsEnabled(LogLevel.Information))
             {
                 return default;
             }
@@ -419,7 +419,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
                 trigger.PreviousFireTimeUtc, trigger.NextFireTimeUtc, context.RefireCount, result
             ];
 
-            WriteInfo(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
+            WriteInformation(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
         }
         return default;
     }
@@ -431,11 +431,11 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// execution.
     /// </summary>
     /// <seealso cref="JobToBeExecuted"/>
-    public virtual ValueTask JobExecutionVetoed(
+    public ValueTask JobExecutionVetoed(
         IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        if (!IsInfoEnabled)
+        if (!logger.IsEnabled(LogLevel.Information))
         {
             return default;
         }
@@ -454,22 +454,18 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             context.RefireCount
         ];
 
-        WriteInfo(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
+        WriteInformation(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
         return default;
     }
 
-    protected virtual bool IsInfoEnabled => logger.IsEnabled(LogLevel.Information);
-
-    protected virtual void WriteInfo(string message)
+    private void WriteInformation(string message)
     {
 #pragma warning disable CA2254
         logger.LogInformation(message);
 #pragma warning restore CA2254
     }
 
-    protected virtual bool IsWarnEnabled => logger.IsEnabled(LogLevel.Warning);
-
-    protected virtual void WriteWarning(string message, Exception ex)
+    private void WriteWarning(string message, Exception ex)
     {
 #pragma warning disable CA2254
         logger.LogWarning(ex, message);

@@ -2148,6 +2148,26 @@ it in an `IScheduler` of your own if you need to intercept calls.
 so, but they are UI and are excluded from the dashboard's public-API baseline. Build against
 `QuartzDashboardOptions`, `AddQuartzDashboard` and the model types.
 
+### The shipped plugins are sealed
+
+`LoggingJobHistoryPlugin`, `LoggingTriggerHistoryPlugin`, `StructuredLoggingJobHistoryPlugin`,
+`StructuredLoggingTriggerHistoryPlugin`, `ShutdownHookPlugin`, `JobInterruptMonitorPlugin`,
+`XmlSchedulingDataProcessorPlugin`, `JsonSchedulingDataProcessorPlugin` and `TimeZoneConverterPlugin`
+are `sealed`, and so is `NoOpJob`. A plugin is an `ISchedulerPlugin` — four members, all of which a
+plugin of your own implements directly — so deriving from a shipped one only ever inherited a
+`Name` property and a scheduler reference. Write the plugin against the interface; every shipped
+plugin is example code for one.
+
+Two consequences are worth calling out:
+
+- `XmlSchedulingDataProcessorPlugin.TypeLoader` was `protected` and is now private. It was there for a
+  subclass to read; the constructor that takes an `ITypeLoader` is how the type loader gets in.
+- `LoggingJobHistoryPlugin` and `LoggingTriggerHistoryPlugin` no longer have the `IsInfoEnabled` /
+  `IsWarnEnabled` / `WriteInfo` / `WriteWarning` protected hooks. They predate
+  `Microsoft.Extensions.Logging` and duplicated `ILogger.IsEnabled`: pass an `ILogger` to the
+  constructor and route it wherever you want the history to land, which is what the constructor
+  taking `(ILogger<T>, TimeProvider)` is for.
+
 **The `Quartz.Xml.JobSchedulingData20` namespace is gone.** It held the fourteen classes that `xsd.exe`
 generated from `job_scheduling_data_2_0.xsd` — `QuartzXmlConfiguration20`, `abstractTriggerType`,
 `calendarIntervalTriggerType`, `cronTriggerType`, `entryType`, `jobdatamapType`, `jobdetailType`,
@@ -2403,8 +2423,9 @@ interface:
 + scheduler.ListenerManager.RemoveSchedulerListener(listener.Name);
 ```
 
-`JobInterruptMonitorPlugin` is a public, unsealed `ITriggerListener`; its `Name`, `TriggerFired` and
-`TriggerComplete` are declared `virtual` so that a plugin deriving from it can still override them.
+`JobInterruptMonitorPlugin` declares `Name`, `TriggerFired` and `TriggerComplete` as class members
+rather than leaning on the default implementations, so that reading them off the concrete type keeps
+working. The plugin itself is `sealed` — see [The shipped plugins are sealed](#the-shipped-plugins-are-sealed).
 
 ### Scheduler listeners are identified by name
 
