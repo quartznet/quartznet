@@ -414,6 +414,25 @@ internal sealed class JobDetailImpl : IJobDetail
     }
 
     /// <summary>
+    /// Returns a copy of this detail carrying the given job data.
+    /// </summary>
+    /// <remarks>
+    /// The map is taken as given, not copied: a store re-storing the data a job left behind has already
+    /// made a copy of its own, and copying again would only cost.
+    /// </remarks>
+    public IJobDetail WithJobData(JobDataMap jobDataMap)
+    {
+        if (jobDataMap is null)
+        {
+            Throw.ArgumentNullException(nameof(jobDataMap));
+        }
+
+        var copy = (JobDetailImpl) MemberwiseClone();
+        copy.JobDataMap = jobDataMap;
+        return copy;
+    }
+
+    /// <summary>
     /// Determines whether the specified detail is equal to this instance.
     /// </summary>
     /// <param name="detail">The detail to examine.</param>
@@ -465,18 +484,5 @@ internal sealed class JobDetailImpl : IJobDetail
     public override int GetHashCode()
     {
         return FullName.GetHashCode();
-    }
-
-    public JobBuilder<IJob> GetJobBuilder()
-    {
-        return JobBuilder.Create()
-            .OfType(JobType)
-            .RequestRecovery(RequestsRecovery)
-            .StoreDurably(Durable)
-            .UsingJobData(JobDataMap)
-            .DisallowConcurrentExecution(ConcurrentExecutionDisallowed)
-            .PersistJobDataAfterExecution(PersistJobDataAfterExecution)
-            .WithDescription(description)
-            .WithIdentity(Key);
     }
 }

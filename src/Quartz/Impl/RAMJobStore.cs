@@ -2432,7 +2432,11 @@ public sealed class RAMJobStore : IJobStore
                     JobDataMap newData = jobDetail.JobDataMap;
                     newData = newData.Clone();
                     newData.ClearDirtyFlag();
-                    jd = jd.GetJobBuilder().ReplaceJobData(newData).Build();
+
+                    // Asking the detail for a copy of itself, rather than rebuilding one through the
+                    // builder, is what lets an implementation of the interface other than our own
+                    // survive its first completion of a job that persists its data.
+                    jd = jd.WithJobData(newData);
                     jw.JobDetail = jd;
                 }
 

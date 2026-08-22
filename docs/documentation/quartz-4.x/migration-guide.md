@@ -22,7 +22,9 @@ every asynchronous member returns [`ValueTask`](#tasks-changed-to-valuetask) and
 [job factory hands out a scope](#the-job-factory-hands-out-a-scope) instead of an instance; the
 [thread pool is asynchronous](#the-thread-pool-is-asynchronous); and
 [trigger fire times are properties](#trigger-fire-times-are-properties) rather than getter/setter
-pairs. Start here: everything else assumes these signatures.
+pairs; and [a job detail of your own](#an-ijobdetail-of-your-own) is finally implementable, because
+the one member no implementation could write is gone from `IJobDetail`. Start here: everything else
+assumes these signatures.
 
 **2. The vocabulary and the surface.** One word per concept, and nothing public that was never a
 contract. [Names that were normalized](#names-that-were-normalized),
@@ -2676,6 +2678,7 @@ documentation always promised.
 * **`ISchedulerListener.TriggerInError` / `TriggersInError`** — observe a trigger being moved to `TriggerState.Error`, including two ADO store transitions that reached nothing at all before (see [Triggers entering the error state are reported](#triggers-entering-the-error-state-are-reported))
 * **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.Configure(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
 * **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
+* **An `IJobDetail` of your own** — the interface no longer declares a member only Quartz can implement, so an application can supply its own job detail type and have `RAMJobStore` hand it back rather than quietly swapping it for Quartz's (see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own))
 * **`TriggerDetailsUpdate.WithExecutionGroup`** — move a stored trigger into an execution group, or out of every group, without rescheduling it. `QRTZ_TRIGGERS.EXECUTION_GROUP` was already written by the generic trigger update, and `RAMJobStore` applies it in place the same way it applies a preferred node, so both stores behave alike
 
 ## Job data can name the property
@@ -2726,7 +2729,7 @@ the builder itself is `JobBuilder<TJob>` / `TriggerBuilder<TJob>`:
 | `TriggerBuilder` | `TriggerBuilder<TJob>`, from `TriggerBuilder.Create<TJob>()` — `TriggerBuilder.Create()` gives `TriggerBuilder<IJob>` |
 | `IJobConfigurator` | `IJobConfigurator<TJob>` |
 | `ITriggerConfigurator` | `ITriggerConfigurator<TJob>` — the 4.x `ITriggerConfigurator` is a new, much smaller base holding only `WithSchedule`, see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
-| `IJobDetail.GetJobBuilder()` | returns `JobBuilder<IJob>` |
+| `IJobDetail.GetJobBuilder()` | an extension method returning `JobBuilder<IJob>` — see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own) |
 | `ITrigger.GetTriggerBuilder()` | returns `TriggerBuilder<IJob>` |
 
 Chained code is unaffected — `JobBuilder.Create<MyJob>().WithIdentity("x").Build()` reads the same, and so
@@ -2772,6 +2775,50 @@ Three runtime checks come with the type parameter, all only on a builder whose `
 * `TriggerBuilder.Create<TJob>().ForJob(jobDetail)` throws `ArgumentException` when the detail is not for a
   `TJob`. `ForJob(JobKey)` carries no type, and a detail whose type name does not resolve in this process
   cannot be checked either — both are accepted.
+
+## An `IJobDetail` of your own
+
+`IJobDetail` declared `GetJobBuilder()`, which nobody outside Quartz could implement.
+`JobBuilder<TJob>` is sealed with an internal constructor and builds Quartz's own detail, so an
+implementation of the interface had to return a builder that produces somebody else's type
+([#1143](https://github.com/quartznet/quartznet/issues/1143)). That was not only awkward to write
+around: `RAMJobStore` called the member to re-store the job data of a
+`[PersistJobDataAfterExecution]` job, so the first completion of such a job silently replaced the
+caller's detail with Quartz's.
+
+The unimplementable member is gone from the interface, and the one a job store actually needs
+replaces it:
+
+| 4.0 preview | 4.0 |
+|---|---|
+| `IJobDetail.GetJobBuilder()` | `JobDetailExtensions.GetJobBuilder(this IJobDetail)`, in the `Quartz` namespace |
+| — | `IJobDetail.WithJobData(JobDataMap)` — a copy of the detail carrying the given data |
+
+**Calling code changes nothing.** `detail.GetJobBuilder()` still compiles, still resolves without a
+new `using`, and still returns `JobBuilder<IJob>`; it is now filled in from the detail's public state
+rather than by the detail itself. It carries the detail's `JobType` across as it is, so a detail read
+from a job store whose stored type name names nothing in this process rebuilds, and keeps the stored
+spelling, rather than throwing.
+
+**An implementation writes `WithJobData` instead of `GetJobBuilder`.** It returns a copy of the
+detail carrying the given map, leaving the instance it was called on alone; the map is taken as
+given, not copied.
+
+```diff
+- public JobBuilder<IJob> GetJobBuilder() => /* nothing you can write */;
++ public IJobDetail WithJobData(JobDataMap jobDataMap) => new MyJobDetail(Key, JobType, …, jobDataMap);
+```
+
+How far your own detail travels depends on what holds it:
+
+* `RAMJobStore` keeps the instances it is given and hands back `Clone()`s of them, so a detail of
+  your own round-trips as itself — including across the re-store of a `[PersistJobDataAfterExecution]`
+  job, which is what `WithJobData` is for.
+* Anything that keeps a detail as data does not. The ADO.NET job store writes the columns of
+  `QRTZ_JOB_DETAILS` and rebuilds every detail it reads through `JobBuilder`, so what comes back is
+  Quartz's own implementation; `HttpScheduler` rebuilds one the same way from its wire payload.
+  Whatever your type carries beyond the interface's members is gone by then, so anything that has to
+  survive a persistent store belongs in the `JobDataMap`.
 
 ## Trimming annotations
 
@@ -6046,6 +6093,8 @@ Parameters and behavior are unchanged:
 | `QuartzScheduler` and `QuartzSchedulerResources` are internal | Resolve `IScheduler` / `ISchedulerFactory`; scheduler-wide settings are `QuartzSchedulerOptions` |
 | `JobType` introduced | Stores job type info without requiring an actual `Type` instance. A `Type` converts implicitly (validated: it must implement `IJob`); a string converts only explicitly or via the constructor, because resolving the name is deferred and can fail — `Type` throws for a name that does not resolve, `TryResolve` is the non-throwing probe. Equality (`Equals`, `==`/`!=`) is by `FullName`. There is deliberately **no** implicit conversion back to `Type`: `jobDetail.JobType.Type` spells out that assembly probing may happen, and can throw, at that read |
 | `JobBuilder.OfType(JobType)` added | Carries a stored type name and its resolver through a rebuild without forcing the name to resolve; `OfType(string)` constructs an unvalidated `JobType` for the same reason |
+| `IJobDetail.GetJobBuilder()` removed from the interface | The same call still compiles: it is an extension method on `IJobDetail` in the `Quartz` namespace, built from the detail's public state. Only an implementation of the interface has to change — see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own) |
+| `IJobDetail.WithJobData(JobDataMap)` added | The one member a job store needs of a detail it cannot construct: a copy of it carrying the given data. `RAMJobStore` calls it where it used to rebuild the detail through `JobBuilder`, so a custom `IJobDetail` survives its first `[PersistJobDataAfterExecution]` completion — see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own) |
 | `RecoveringTriggerKey` behavior | `IJobExecutionContext.RecoveringTriggerKey` now returns `null` when not recovering instead of throwing |
 | `DictionaryExtensions` removed | `Quartz.Util.DictionaryExtensions` type was removed |
 | `AdoJobStoreBase` connection methods | `GetLocalTransactionConnection` (was `GetNonManagedTXConnection`) and `GetConnection` now return `ValueTask<ConnectionAndTransactionHolder>` |

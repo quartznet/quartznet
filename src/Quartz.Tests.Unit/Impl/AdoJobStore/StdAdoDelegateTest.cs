@@ -402,6 +402,66 @@ public class StdAdoDelegateTest
             "a job class name stored before the jobs moved to their own assembly has to resolve through the type loader");
     }
 
+    /// <summary>
+    /// An ADO store keeps a job as the columns of QRTZ_JOB_DETAILS and rebuilds every detail it reads
+    /// through <see cref="JobBuilder" />, so an implementation of <see cref="IJobDetail" /> other than
+    /// Quartz's own does not survive the round trip the way it does through <c>RAMJobStore</c> (#1143).
+    /// That is the promise <see cref="IJobDetail" />'s documentation makes to anyone implementing it,
+    /// and this is where it is decided.
+    /// </summary>
+    [Test]
+    public async Task SelectJobDetailRebuildsTheDetailAsQuartzsOwnImplementation()
+    {
+        var connection = A.Fake<DbConnection>();
+        var transaction = A.Fake<DbTransaction>();
+        var conn = new ConnectionAndTransactionHolder(connection, transaction);
+
+        var dataReader = A.Fake<DbDataReader>();
+        A.CallTo(() => dataReader.ReadAsync(CancellationToken.None))
+            .Returns(true)
+            .Once();
+
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobName]).Returns("job");
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("group");
+        A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns("description");
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobClass]).Returns(typeof(TestJob).AssemblyQualifiedNameWithoutVersion());
+        A.CallTo(() => dataReader[AdoConstants.ColumnRequestsRecovery]).Returns(false);
+        A.CallTo(() => dataReader[AdoConstants.ColumnIsDurable]).Returns(true);
+        A.CallTo(() => dataReader[AdoConstants.ColumnIsNonConcurrent]).Returns(false);
+        A.CallTo(() => dataReader[AdoConstants.ColumnIsUpdateData]).Returns(true);
+
+        var command = A.Fake<StubCommand>();
+        A.CallTo(command)
+            .Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+            .WithReturnType<Task<DbDataReader>>()
+            .Returns(Task.FromResult(dataReader));
+
+        var dbProvider = A.Fake<IDbProvider>();
+        A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
+        A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata { BindByName = true, ParameterNamePrefix = "@" });
+
+        var adoDelegate = new StdAdoDelegate();
+        adoDelegate.Initialize(new DriverDelegateContext
+        {
+            TablePrefix = "QRTZ_",
+            InstanceId = "TESTSCHED",
+            SchedulerName = "INSTANCE",
+            TypeLoader = new SimpleTypeLoader(),
+            UseProperties = false,
+            DbProvider = dbProvider,
+            ObjectSerializer = serializer
+        });
+
+        IJobDetail jobDetail = await adoDelegate.SelectJobDetail(
+            conn,
+            new JobKey("job", "group"),
+            new SimpleTypeLoader(),
+            CancellationToken.None);
+
+        jobDetail.Should().BeOfType<JobDetailImpl>(
+            "the row says what the job is, not what type described it when it was stored");
+    }
+
     private sealed class TestJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => throw new NotSupportedException();

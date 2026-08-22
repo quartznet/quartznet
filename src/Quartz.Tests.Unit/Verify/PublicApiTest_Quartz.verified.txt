@@ -426,7 +426,7 @@ namespace Quartz
         bool PersistJobDataAfterExecution { get; }
         bool RequestsRecovery { get; }
         Quartz.IJobDetail Clone();
-        Quartz.JobBuilder<Quartz.IJob> GetJobBuilder();
+        Quartz.IJobDetail WithJobData(Quartz.JobDataMap jobDataMap);
     }
     public interface IJobExecutionContext
     {
@@ -812,6 +812,10 @@ namespace Quartz
             where T : System.IFormattable { }
         public bool Remove(string key) { }
         public bool TryGetValue(string key, out object? value) { }
+    }
+    public static class JobDetailExtensions
+    {
+        public static Quartz.JobBuilder<Quartz.IJob> GetJobBuilder(this Quartz.IJobDetail jobDetail) { }
     }
     public sealed class JobExecutionException : Quartz.SchedulerException
     {
