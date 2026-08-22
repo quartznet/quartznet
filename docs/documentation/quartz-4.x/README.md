@@ -13,4 +13,5 @@ Documentation provided here is for an unreleased future version of Quartz.NET an
 * [How To's](how-tos/) — short recipes for one task each
 * [Configuration Reference](configuration/reference.md) — every option, typed and legacy
 * [Cron Expression Reference](cron-expressions.md) — the cron syntax
+* [Multi-Tenancy](multi-tenancy.md) — the three ways to separate tenants, and what each one isolates
 * [Migration Guide](migration-guide.md) — what changed from 3.x, and what to do about it
