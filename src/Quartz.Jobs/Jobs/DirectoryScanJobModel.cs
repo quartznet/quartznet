@@ -28,9 +28,9 @@ internal sealed class DirectoryScanJobModel
     internal List<string> DirectoriesToScan { get; private set; } = null!;
     internal List<FileInfo> CurrentFileList { get; private set; } = null!;
     internal IDirectoryScanListener DirectoryScanListener { get; private set; } = null!;
-    internal DateTime LastModTime { get; private set; }
-    // Compared against FileInfo.LastWriteTime, which is local time, so this has to stay local too.
-    internal DateTime MaxAgeDate => TimeProvider.System.GetLocalNow().DateTime - MinUpdateAge;
+    internal DateTimeOffset LastModifiedTime { get; private set; }
+    internal DateTimeOffset MaxAgeTime => TimeProvider.GetUtcNow() - MinUpdateAge;
+    private TimeProvider TimeProvider { get; set; } = null!;
     private TimeSpan MinUpdateAge { get; set; }
     private JobDataMap JobDetailJobDataMap { get; set; } = null!;
     public string SearchPattern { get; internal set; } = null!;
@@ -41,8 +41,9 @@ internal sealed class DirectoryScanJobModel
     /// </summary>
     /// <param name="context">Content of the job execution <see cref="IJobExecutionContext"/></param>
     /// <param name="serviceProvider">Optional service provider for resolving dependencies via DI</param>
+    /// <param name="timeProvider">The job's clock, which decides how recent "too recent to be settled" is</param>
     /// <returns>Instance of DirectoryScanJobModel based on the IJobExecutionContext <see cref="IJobExecutionContext"/> passed in</returns>
-    internal static DirectoryScanJobModel GetInstance(IJobExecutionContext context, IServiceProvider? serviceProvider = null)
+    internal static DirectoryScanJobModel GetInstance(IJobExecutionContext context, IServiceProvider? serviceProvider, TimeProvider timeProvider)
     {
         JobDataMap mergedJobDataMap = context.MergedJobDataMap;
         SchedulerContext schedCtxt;
@@ -57,10 +58,9 @@ internal sealed class DirectoryScanJobModel
 
         var model = new DirectoryScanJobModel
         {
+            TimeProvider = timeProvider,
             DirectoryScanListener = GetListener(mergedJobDataMap, schedCtxt, serviceProvider),
-            LastModTime = mergedJobDataMap.ContainsKey(DirectoryScanJob.LastModifiedTime)
-                ? mergedJobDataMap.GetDateTime(DirectoryScanJob.LastModifiedTime)
-                : DateTime.MinValue,
+            LastModifiedTime = mergedJobDataMap.ReadTimestamp(DirectoryScanJob.LastModifiedTime) ?? DateTimeOffset.MinValue,
             MinUpdateAge = mergedJobDataMap.ContainsKey(DirectoryScanJob.MinimumUpdateAge)
                 ? TimeSpan.FromMilliseconds(mergedJobDataMap.GetLong(DirectoryScanJob.MinimumUpdateAge))
                 : TimeSpan.FromSeconds(5), // default of 5 seconds
@@ -81,17 +81,17 @@ internal sealed class DirectoryScanJobModel
 
 
     /// <summary>
-    /// Updates the last modified date to the date provided, unless the currently set one is later
+    /// Updates the last modified time to the one provided, unless the currently set one is later
     /// </summary>
-    /// <param name="lastWriteTimeFromFiles">Latest LastWriteTime of the files scanned</param>
-    internal void UpdateLastModifiedDate(DateTime lastWriteTimeFromFiles)
+    /// <param name="lastWriteTimeFromFiles">Latest write time of the files scanned</param>
+    internal void UpdateLastModifiedTime(DateTimeOffset lastWriteTimeFromFiles)
     {
-        DateTime newLastModifiedDate = lastWriteTimeFromFiles > LastModTime
+        DateTimeOffset newLastModifiedTime = lastWriteTimeFromFiles > LastModifiedTime
             ? lastWriteTimeFromFiles
-            : LastModTime;
+            : LastModifiedTime;
 
         // It is the JobDataMap on the JobDetail which is actually stateful
-        JobDetailJobDataMap[DirectoryScanJob.LastModifiedTime] = newLastModifiedDate;
+        JobDetailJobDataMap[DirectoryScanJob.LastModifiedTime] = newLastModifiedTime;
     }
 
     /// <summary>
