@@ -250,12 +250,17 @@ calendar listings. Both shapes are gone; every listing returns the paged envelop
 
 ## Pause and resume report what they did
 
-The single-key mutations that follow the missing-key rule answer `200 OK` with a JSON body telling
-whether anything happened:
+Pause and resume are the mutations most often aimed at a key that has gone, so they are worth spelling
+out — but the rule is the general one above, and every mutation that can be a no-op answers the same
+way:
 
 - `POST …/jobs/{group}/{name}/pause`, `…/resume`
 - `POST …/triggers/{group}/{name}/pause`, `…/resume`
 - `POST …/triggers/{group}/{name}/reset-from-error-state`
+- `POST …/triggers/{group}/{name}/unschedule`, `POST …/triggers/unschedule`
+- `POST …/jobs/{group}/{name}/interrupt`, `POST …/jobs/interrupt/{fireInstanceId}`
+- `DELETE …/jobs/{group}/{name}`, `POST …/jobs/delete`
+- `DELETE …/calendars/{name}`
 
 ```json
 { "applied": true }
@@ -271,9 +276,11 @@ state). The group-matcher forms — `POST …/jobs/pause`, `…/jobs/resume`, `�
 ```
 
 ::: warning Changed in 4.x
-These endpoints previously returned `200 OK` with an empty body. Old clients that ignored the body
-keep working, but a 4.0-final `HttpScheduler` against a 4.0-preview server throws on these calls
-because it expects the body — upgrade the server first.
+The pause, resume and reset-from-error-state endpoints previously returned `200 OK` with an empty
+body. Old clients that ignored the body keep working, but a 4.0-final `HttpScheduler` against a
+4.0-preview server throws on these calls because it expects the body — upgrade the server first. The
+delete, unschedule and interrupt endpoints always answered with a body; only the name of the field
+changed, [as tabulated above](#response-shape-conventions).
 :::
 
 ### A whole set of keys in one call
