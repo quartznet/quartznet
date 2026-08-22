@@ -61,6 +61,34 @@ internal record OperationAppliedResponse(bool Applied);
 /// </summary>
 internal record AffectedGroupsResponse(string[] Groups);
 
+/// <summary>
+/// The job keys a key-set pause or resume is aimed at.
+/// </summary>
+internal record JobKeySetRequest(KeyDto[] Jobs) : IValidatable
+{
+    public IEnumerable<string> Validate() => Jobs is null ? ["Missing job keys"] : Jobs.SelectMany(x => x.Validate());
+}
+
+/// <summary>
+/// The trigger keys a key-set pause, resume or error-state reset is aimed at.
+/// </summary>
+internal record TriggerKeySetRequest(KeyDto[] Triggers) : IValidatable
+{
+    public IEnumerable<string> Validate() => Triggers is null ? ["Missing trigger keys"] : Triggers.SelectMany(x => x.Validate());
+}
+
+/// <summary>
+/// Answer of a key-set job mutation: the keys the operation applied to, the plural of
+/// <see cref="OperationAppliedResponse" />. A key that was not found is simply absent.
+/// </summary>
+internal record AppliedJobKeysResponse(KeyDto[] Jobs);
+
+/// <summary>
+/// Answer of a key-set trigger mutation: the keys the operation applied to, the plural of
+/// <see cref="OperationAppliedResponse" />. A key that did not move is simply absent.
+/// </summary>
+internal record AppliedTriggerKeysResponse(KeyDto[] Triggers);
+
 internal record DeleteCalendarResponse(bool CalendarFound);
 
 internal record DeleteJobResponse(bool JobFound);

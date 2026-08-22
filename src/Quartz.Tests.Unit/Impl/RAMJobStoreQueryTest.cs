@@ -534,6 +534,42 @@ public class RAMJobStoreQueryTest
     }
 
     [Test]
+    public async Task QueryCalendarNames_NameMatcherSelectsAndStillOrders()
+    {
+        await store.AddCalendar("holiday-easter", new HolidayCalendar());
+        await store.AddCalendar("holiday-xmas", new HolidayCalendar());
+        await store.AddCalendar("workday", new HolidayCalendar());
+
+        PagedResult<string> prefixed = await store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameStartsWith("holiday-")
+        });
+        prefixed.Items.Should().Equal(["holiday-easter", "holiday-xmas"]);
+
+        PagedResult<string> contained = await store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameContains("day"),
+            IncludeTotalCount = true
+        });
+        contained.Items.Should().Equal(["holiday-easter", "holiday-xmas", "workday"],
+            "a filtered listing keeps the ordinal ordering an unfiltered one has");
+        contained.TotalCount.Should().Be(3, "the total counts what the filter selects");
+
+        PagedResult<string> exact = await store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameEquals("workday")
+        });
+        exact.Items.Should().Equal(["workday"]);
+
+        PagedResult<string> none = await store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameEquals("nope")
+        });
+        none.Items.Should().BeEmpty();
+        none.HasMore.Should().BeFalse();
+    }
+
+    [Test]
     public async Task GetJobDetails_SkipsMissingKeysAndDeduplicates()
     {
         IJobDetail first = await AddJob("j1", "g");

@@ -2745,6 +2745,7 @@ documentation always promised.
 * **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.Configure(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
 * **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
 * **An `IJobDetail` of your own** — the interface no longer declares a member only Quartz can implement, so an application can supply its own job detail type and have `RAMJobStore` hand it back rather than quietly swapping it for Quartz's (see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own))
+* **Pause, resume and reset a set of keys in one call** — `PauseTriggers`, `ResumeTriggers`, `PauseJobs`, `ResumeJobs` and `ResetTriggersFromErrorState` take a key collection, do the whole set in one lock and one transaction, and answer with the keys they applied to (see [A set of keys pauses, resumes or resets in one call](#a-set-of-keys-pauses-resumes-or-resets-in-one-call))
 * **`TriggerDetailsUpdate.WithExecutionGroup`** — move a stored trigger into an execution group, or out of every group, without rescheduling it. `QRTZ_TRIGGERS.EXECUTION_GROUP` was already written by the generic trigger update, and `RAMJobStore` applies it in place the same way it applies a preferred node, so both stores behave alike
 
 ## Job data can name the property
@@ -4469,6 +4470,53 @@ the group-matcher forms. This is additive for clients that ignored the body — 
 response body the old server never sends. Upgrade the server before, or together with, its remote
 clients.
 
+## A set of keys pauses, resumes or resets in one call
+
+Pausing forty triggers took forty calls, and on a database store forty transactions and forty
+scheduling signals. `IScheduler` and `IJobStore` now take a key set as well as one key or a group
+matcher:
+
+| New member (on `IScheduler` and `IJobStore`) | Returns |
+|---|---|
+| `PauseTriggers(IReadOnlyCollection<TriggerKey>)`, `ResumeTriggers(…)` | `ValueTask<List<TriggerKey>>` of the keys it applied to |
+| `PauseJobs(IReadOnlyCollection<JobKey>)`, `ResumeJobs(…)` | `ValueTask<List<JobKey>>` of the keys it applied to |
+| `ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey>)` | `ValueTask<List<TriggerKey>>` of the keys it reset |
+
+```csharp
+List<TriggerKey> paused = await scheduler.PauseTriggers(
+    [new TriggerKey("nightly", "reports"), new TriggerKey("hourly", "reports")]);
+```
+
+The answer is the plural of the single-key `bool`: a key the operation did not apply to — one that
+names nothing, one that was already paused, one that was not in the error state — is **absent from
+the returned list**, never an exception. The list keeps the order the keys were given in. These are
+overloads, so the existing single-key and group-matcher forms are untouched; only a `null` literal
+argument, which never compiled against `PauseJobs(null)` anyway, now needs a cast to pick an overload.
+
+What the outside world sees:
+
+* **Listener events stay per key.** One `TriggerPaused`, `JobPaused`, `TriggerResumed` or `JobResumed`
+  for every key the operation applied to, and nothing for the rest. There is no key-set listener
+  event and none was added: `TriggersPaused(null)` means *every group*, so a listener watching for
+  outages would read a bulk pause of two triggers as the whole scheduler going down, and a new
+  event with a default implementation would silently stop telling existing listeners anything.
+* **One scheduling signal per call**, not one per key — the scheduler thread reads the signal as a
+  level, so collapsing them loses nothing. Resetting from the error state signals nothing at all,
+  here as in the single-key form.
+* **One pass in the store.** `RAMJobStore` takes its lock once; the ADO store runs the whole set
+  inside one `SchedulerLock.TriggerAccess` scope and one transaction, so a bulk pause is atomic
+  where forty single pauses were not.
+
+`IJobStore`'s five members are default implementations that walk the set one key at a time, so a job
+store of your own keeps compiling and stays correct. Override them to do the walk in one pass, as both
+shipped stores do.
+
+Over HTTP the key-set forms are new endpoints, described in
+[the HTTP API page](packages/http-api.md#a-whole-set-of-keys-in-one-call):
+`POST …/jobs/keys/pause`, `…/jobs/keys/resume`, `…/triggers/keys/pause`, `…/triggers/keys/resume` and
+`…/triggers/keys/reset-from-error-state`. They live under `keys/` because the collection-level `pause`
+and `resume` already belong to the group-matcher forms.
+
 ## One wire contract, and its enums have names
 
 The DTOs that define the HTTP API's JSON used to live in `Quartz.HttpClient`, and `Quartz.AspNetCore`
@@ -4693,6 +4741,7 @@ Payloads written by earlier versions still read: both serializers build a key th
 | `TriggerQuery` | `NameMatcher<TriggerKey>? Name` |
 | `JobGroupQuery` | `string? Name` — one group, matched exactly |
 | `TriggerGroupQuery` | `string? Name` — one group, matched exactly |
+| `CalendarQuery` | `CalendarNameMatcher? Name` |
 
 ```csharp
 PagedResult<JobHeader> nightly = await scheduler.QueryJobs(new JobQuery
@@ -4704,8 +4753,19 @@ PagedResult<JobHeader> nightly = await scheduler.QueryJobs(new JobQuery
 
 The filters combine with AND. `RAMJobStore` and `StdAdoDelegate` both honor them; the ADO store escapes the
 matcher's own wildcards in the LIKE it generates, so a job literally named `50%` is matched literally and is
-not a pattern. Over HTTP the job and trigger listings take `nameEquals`, `nameStartsWith`, `nameEndsWith` or
-`nameContains` (at most one), and the group listings take `name`.
+not a pattern. Over HTTP the job, trigger and calendar listings take `nameEquals`, `nameStartsWith`,
+`nameEndsWith` or `nameContains` (at most one), and the group listings take `name`.
+
+Calendars filter by name too, and they are the one listing whose filter is not a `NameMatcher<TKey>`: a
+calendar is identified by a bare string rather than a `Key<T>`, so `CalendarQuery.Name` is a
+`CalendarNameMatcher`, with the same four factories:
+
+```csharp
+PagedResult<string> holidays = await scheduler.QueryCalendarNames(new CalendarQuery
+{
+    Name = CalendarNameMatcher.NameStartsWith("holiday-")
+});
+```
 
 `IsJobGroupPaused` and `IsTriggerGroupPaused` are built on the group-name filter now, so they ask the store
 about the one group instead of listing every paused group and searching it.

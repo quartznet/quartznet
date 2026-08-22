@@ -50,6 +50,7 @@ public static class OperationName
         public const string PauseAll = "Quartz.JobStore.PauseAll";
         public const string ResumeAll = "Quartz.JobStore.ResumeAll";
         public const string ResetTriggerFromErrorState = "Quartz.JobStore.ResetTriggerFromErrorState";
+        public const string ResetTriggersFromErrorState = "Quartz.JobStore.ResetTriggersFromErrorState";
         public const string Clear = "Quartz.JobStore.Clear";
     }
 }

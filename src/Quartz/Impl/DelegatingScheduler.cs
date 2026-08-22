@@ -152,6 +152,11 @@ public class DelegatingScheduler : IScheduler
         return scheduler.PauseJobs(matcher, cancellationToken);
     }
 
+    public virtual ValueTask<List<JobKey>> PauseJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseJobs(jobKeys, cancellationToken);
+    }
+
     public virtual ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseTrigger(triggerKey, cancellationToken);
@@ -160,6 +165,11 @@ public class DelegatingScheduler : IScheduler
     public virtual ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseTriggers(matcher, cancellationToken);
+    }
+
+    public virtual ValueTask<List<TriggerKey>> PauseTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseTriggers(triggerKeys, cancellationToken);
     }
 
     public virtual ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -172,6 +182,11 @@ public class DelegatingScheduler : IScheduler
         return scheduler.ResumeJobs(matcher, cancellationToken);
     }
 
+    public virtual ValueTask<List<JobKey>> ResumeJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        return scheduler.ResumeJobs(jobKeys, cancellationToken);
+    }
+
     public virtual ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.ResumeTrigger(triggerKey, cancellationToken);
@@ -180,6 +195,11 @@ public class DelegatingScheduler : IScheduler
     public virtual ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         return scheduler.ResumeTriggers(matcher, cancellationToken);
+    }
+
+    public virtual ValueTask<List<TriggerKey>> ResumeTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        return scheduler.ResumeTriggers(triggerKeys, cancellationToken);
     }
 
     public virtual ValueTask PauseAll(CancellationToken cancellationToken = default)
@@ -245,6 +265,11 @@ public class DelegatingScheduler : IScheduler
     public virtual ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);
+    }
+
+    public virtual ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        return scheduler.ResetTriggersFromErrorState(triggerKeys, cancellationToken);
     }
 
     public virtual ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)

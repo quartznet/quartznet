@@ -564,11 +564,17 @@ internal static class StdAdoConstants
 
     public static readonly string SqlOrderByAliasedTriggerGroup = Invariant($" ORDER BY t.{AdoConstants.ColumnTriggerGroup}");
 
-    public static readonly string SqlSelectCalendarNamesOrdered =
-        Invariant($"SELECT {AdoConstants.ColumnCalendarName} FROM {TablePrefixSubst}{AdoConstants.TableCalendars} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName ORDER BY {AdoConstants.ColumnCalendarName}");
+    public static readonly string SqlSelectCalendarNames =
+        Invariant($"SELECT {AdoConstants.ColumnCalendarName} FROM {TablePrefixSubst}{AdoConstants.TableCalendars} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
 
     public static readonly string SqlCountCalendarNames =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableCalendars} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlCalendarNameEqualsPredicate = Invariant($" AND {AdoConstants.ColumnCalendarName} = @calendarName");
+
+    public static readonly string SqlCalendarNameLikePredicate = Invariant($" AND {AdoConstants.ColumnCalendarName} LIKE @calendarName{SqlLikeEscapeClause}");
+
+    public static readonly string SqlOrderByCalendarName = Invariant($" ORDER BY {AdoConstants.ColumnCalendarName}");
 
     // UPDATE
 

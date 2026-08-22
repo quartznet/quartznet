@@ -33,17 +33,28 @@ internal static class TriggerEndpoints
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/reset-from-error-state", ResetTriggerFromErrorState)
             .WithQuartzDefaults(nameof(ResetTriggerFromErrorState), "Resets trigger from error state");
 
+        // The key-set forms live under "keys" because the collection-level "pause" and "resume"
+        // already belong to the group-matcher forms, which select by query string rather than body.
+        yield return builder.MapPost(patternPrefix + "/keys/reset-from-error-state", ResetTriggerKeysFromErrorState)
+            .WithQuartzDefaults(nameof(ResetTriggerKeysFromErrorState), "Resets triggers from error state by key");
+
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/pause", PauseTrigger)
             .WithQuartzDefaults(nameof(PauseTrigger), "Pause trigger");
 
         yield return builder.MapPost(patternPrefix + "/pause", PauseTriggers)
             .WithQuartzDefaults(nameof(PauseTriggers), "Pause triggers");
 
+        yield return builder.MapPost(patternPrefix + "/keys/pause", PauseTriggerKeys)
+            .WithQuartzDefaults(nameof(PauseTriggerKeys), "Pause triggers by key");
+
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/resume", ResumeTrigger)
             .WithQuartzDefaults(nameof(ResumeTrigger), "Resume trigger");
 
         yield return builder.MapPost(patternPrefix + "/resume", ResumeTriggers)
             .WithQuartzDefaults(nameof(ResumeTriggers), "Resume triggers");
+
+        yield return builder.MapPost(patternPrefix + "/keys/resume", ResumeTriggerKeys)
+            .WithQuartzDefaults(nameof(ResumeTriggerKeys), "Resume triggers by key");
 
         yield return builder.MapGet(patternPrefix + "/groups", QueryTriggerGroups)
             .WithQuartzDefaults(nameof(QueryTriggerGroups), "Query trigger groups");
@@ -204,6 +215,23 @@ internal static class TriggerEndpoints
         });
     }
 
+    [ProducesResponseType(typeof(AppliedTriggerKeysResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> ResetTriggerKeysFromErrorState(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        TriggerKeySetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertIsValid(request);
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var triggerKeys = request.Triggers.Select(x => x.AsTriggerKey()).ToArray();
+            var reset = await scheduler.ResetTriggersFromErrorState(triggerKeys, cancellationToken).ConfigureAwait(false);
+            return new AppliedTriggerKeysResponse([.. reset.Select(KeyDto.Create)]);
+        });
+    }
+
     [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> PauseTrigger(
         EndpointHelper endpointHelper,
@@ -239,6 +267,23 @@ internal static class TriggerEndpoints
         });
     }
 
+    [ProducesResponseType(typeof(AppliedTriggerKeysResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> PauseTriggerKeys(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        TriggerKeySetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertIsValid(request);
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var triggerKeys = request.Triggers.Select(x => x.AsTriggerKey()).ToArray();
+            var paused = await scheduler.PauseTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+            return new AppliedTriggerKeysResponse([.. paused.Select(KeyDto.Create)]);
+        });
+    }
+
     [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> ResumeTrigger(
         EndpointHelper endpointHelper,
@@ -271,6 +316,23 @@ internal static class TriggerEndpoints
             var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
             var resumedGroups = await scheduler.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
             return new AffectedGroupsResponse([.. resumedGroups]);
+        });
+    }
+
+    [ProducesResponseType(typeof(AppliedTriggerKeysResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> ResumeTriggerKeys(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        TriggerKeySetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertIsValid(request);
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var triggerKeys = request.Triggers.Select(x => x.AsTriggerKey()).ToArray();
+            var resumed = await scheduler.ResumeTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+            return new AppliedTriggerKeysResponse([.. resumed.Select(KeyDto.Create)]);
         });
     }
 

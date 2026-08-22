@@ -45,6 +45,31 @@ public class CalendarEndpointsTest : WebApiTest
     }
 
     [Test]
+    public async Task QueryCalendarNamesShouldPassTheNameFilter()
+    {
+        CalendarNameMatcher[] matchers =
+        [
+            CalendarNameMatcher.NameEquals("equals"),
+            CalendarNameMatcher.NameStartsWith("starts"),
+            CalendarNameMatcher.NameEndsWith("ends"),
+            CalendarNameMatcher.NameContains("contains")
+        ];
+
+        foreach (CalendarNameMatcher matcher in matchers)
+        {
+            Fake.ClearRecordedCalls(FakeScheduler);
+            A.CallTo(() => FakeScheduler.QueryCalendarNames(A<CalendarQuery>._, A<CancellationToken>._))
+                .Returns(new PagedResult<string>(["Calendar 1"], HasMore: false));
+
+            var query = new CalendarQuery { Name = matcher };
+            var result = await HttpScheduler.QueryCalendarNames(query);
+
+            result.Items.Should().ContainSingle().Which.Should().Be("Calendar 1");
+            A.CallTo(() => FakeScheduler.QueryCalendarNames(query, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+        }
+    }
+
+    [Test]
     public async Task GetCalendarShouldWork()
     {
         A.CallTo(() => FakeScheduler.GetCalendar("AnnualCalendar", A<CancellationToken>._)).Returns(TestData.AnnualCalendar);

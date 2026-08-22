@@ -84,6 +84,42 @@ internal sealed class EndpointHelper
     }
 
     /// <summary>
+    /// The calendar-listing counterpart of <see cref="GetNameMatcher{T}" />: a calendar has no key
+    /// type, so its filter is a <see cref="CalendarNameMatcher" />, spelled the same way on the wire.
+    /// </summary>
+    public static CalendarNameMatcher? GetCalendarNameMatcher(string? nameContains, string? nameEndsWith, string? nameStartsWith, string? nameEquals)
+    {
+        // Allow only single value to be given
+        var givenValueCount = new[] { nameContains, nameEndsWith, nameStartsWith, nameEquals }.Count(x => !string.IsNullOrWhiteSpace(x));
+        if (givenValueCount > 1)
+        {
+            throw new BadHttpRequestException("Only single match rule can be given");
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameContains))
+        {
+            return CalendarNameMatcher.NameContains(nameContains);
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameEndsWith))
+        {
+            return CalendarNameMatcher.NameEndsWith(nameEndsWith);
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameStartsWith))
+        {
+            return CalendarNameMatcher.NameStartsWith(nameStartsWith);
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameEquals))
+        {
+            return CalendarNameMatcher.NameEquals(nameEquals);
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// The most keys one bulk fetch request may carry.
     /// </summary>
     public const int MaxKeysToFetch = 1000;

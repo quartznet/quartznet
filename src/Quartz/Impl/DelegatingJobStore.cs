@@ -225,6 +225,11 @@ public class DelegatingJobStore : IJobStore
         return jobStore.ResetTriggerFromErrorState(triggerKey, cancellationToken);
     }
 
+    public virtual ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        return jobStore.ResetTriggersFromErrorState(triggerKeys, cancellationToken);
+    }
+
     public virtual ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return jobStore.PauseTrigger(triggerKey, cancellationToken);
@@ -233,6 +238,11 @@ public class DelegatingJobStore : IJobStore
     public virtual ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         return jobStore.PauseTriggers(matcher, cancellationToken);
+    }
+
+    public virtual ValueTask<List<TriggerKey>> PauseTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        return jobStore.PauseTriggers(triggerKeys, cancellationToken);
     }
 
     public virtual ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -245,6 +255,11 @@ public class DelegatingJobStore : IJobStore
         return jobStore.PauseJobs(matcher, cancellationToken);
     }
 
+    public virtual ValueTask<List<JobKey>> PauseJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        return jobStore.PauseJobs(jobKeys, cancellationToken);
+    }
+
     public virtual ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return jobStore.ResumeTrigger(triggerKey, cancellationToken);
@@ -255,6 +270,11 @@ public class DelegatingJobStore : IJobStore
         return jobStore.ResumeTriggers(matcher, cancellationToken);
     }
 
+    public virtual ValueTask<List<TriggerKey>> ResumeTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        return jobStore.ResumeTriggers(triggerKeys, cancellationToken);
+    }
+
     public virtual ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return jobStore.ResumeJob(jobKey, cancellationToken);
@@ -263,6 +283,11 @@ public class DelegatingJobStore : IJobStore
     public virtual ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return jobStore.ResumeJobs(matcher, cancellationToken);
+    }
+
+    public virtual ValueTask<List<JobKey>> ResumeJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        return jobStore.ResumeJobs(jobKeys, cancellationToken);
     }
 
     public virtual ValueTask PauseAll(CancellationToken cancellationToken = default)

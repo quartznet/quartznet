@@ -245,6 +245,61 @@ public class TriggerEndpointsTest : WebApiTest
     }
 
     [Test]
+    public async Task PauseTriggersByKeyShouldRoundTripTheAppliedKeys()
+    {
+        A.CallTo(() => FakeScheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey> { triggerKeyOne });
+
+        List<TriggerKey> paused = await HttpScheduler.PauseTriggers([triggerKeyOne, triggerKeyTwo]);
+
+        paused.Should().Equal([triggerKeyOne],
+            "the answer names the keys the pause applied to, and the key it did not move is absent");
+
+        A.CallTo(() => FakeScheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IReadOnlyCollection<TriggerKey> keys, CancellationToken _) => keys.SequenceEqual([triggerKeyOne, triggerKeyTwo]))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task ResumeTriggersByKeyShouldRoundTripTheAppliedKeys()
+    {
+        A.CallTo(() => FakeScheduler.ResumeTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey> { triggerKeyTwo });
+
+        List<TriggerKey> resumed = await HttpScheduler.ResumeTriggers([triggerKeyOne, triggerKeyTwo]);
+
+        resumed.Should().Equal([triggerKeyTwo]);
+
+        A.CallTo(() => FakeScheduler.ResumeTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task ResetTriggersFromErrorStateByKeyShouldRoundTripTheAppliedKeys()
+    {
+        A.CallTo(() => FakeScheduler.ResetTriggersFromErrorState(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey> { triggerKeyOne, triggerKeyTwo });
+
+        List<TriggerKey> reset = await HttpScheduler.ResetTriggersFromErrorState([triggerKeyOne, triggerKeyTwo]);
+
+        reset.Should().Equal([triggerKeyOne, triggerKeyTwo]);
+
+        A.CallTo(() => FakeScheduler.ResetTriggersFromErrorState(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task AKeySetThatAppliedToNothingComesBackEmpty()
+    {
+        A.CallTo(() => FakeScheduler.PauseTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey>());
+
+        List<TriggerKey> paused = await HttpScheduler.PauseTriggers([triggerKeyOne]);
+
+        paused.Should().BeEmpty("a key that moved nothing is absent from the answer, not an error");
+    }
+
+    [Test]
     public async Task ResumeTriggerShouldWork()
     {
         A.CallTo(() => FakeScheduler.ResumeTrigger(triggerKeyOne, A<CancellationToken>._)).Returns(true);

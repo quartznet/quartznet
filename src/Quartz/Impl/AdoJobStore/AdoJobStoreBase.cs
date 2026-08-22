@@ -2166,6 +2166,30 @@ public abstract class AdoJobStoreBase : IJobStore
             }).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Resets the whole set inside one lock and one transaction rather than one per key.
+    /// </summary>
+    public ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return activityTracer.Trace(
+            OperationName.JobStore.ResetTriggersFromErrorState,
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+            {
+                List<TriggerKey> reset = new List<TriggerKey>(triggerKeys.Count);
+                foreach (TriggerKey triggerKey in triggerKeys)
+                {
+                    if (await ResetTriggerFromErrorState(conn, triggerKey, cancellationToken).ConfigureAwait(false))
+                    {
+                        reset.Add(triggerKey);
+                    }
+                }
+
+                return reset;
+            }, cancellationToken));
+    }
+
     private async ValueTask<bool> ResetTriggerFromErrorState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -2756,6 +2780,30 @@ public abstract class AdoJobStoreBase : IJobStore
     }
 
     /// <summary>
+    /// Pauses the whole set inside one lock and one transaction rather than one per key.
+    /// </summary>
+    public ValueTask<List<TriggerKey>> PauseTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return activityTracer.Trace(
+            OperationName.JobStore.PauseTriggers,
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+            {
+                List<TriggerKey> paused = new List<TriggerKey>(triggerKeys.Count);
+                foreach (TriggerKey triggerKey in triggerKeys)
+                {
+                    if (await PauseTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
+                    {
+                        paused.Add(triggerKey);
+                    }
+                }
+
+                return paused;
+            }, cancellationToken));
+    }
+
+    /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
     /// <returns>
@@ -2800,21 +2848,7 @@ public abstract class AdoJobStoreBase : IJobStore
     {
         return await activityTracer.Trace(
             OperationName.JobStore.PauseJob,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
-            {
-                if (!await Exists(conn, jobKey, cancellationToken).ConfigureAwait(false))
-                {
-                    return false;
-                }
-
-                var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-                foreach (IOperableTrigger trigger in triggers)
-                {
-                    await PauseTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                }
-
-                return true;
-            }, cancellationToken),
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseJob(conn, jobKey, cancellationToken), cancellationToken),
             activity =>
             {
                 activity.SetTag(ActivityTags.JobGroup, jobKey.Group);
@@ -2823,10 +2857,60 @@ public abstract class AdoJobStoreBase : IJobStore
     }
 
     /// <summary>
+    /// Pauses the whole set inside one lock and one transaction rather than one per key.
+    /// </summary>
+    public ValueTask<List<JobKey>> PauseJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return activityTracer.Trace(
+            OperationName.JobStore.PauseJobs,
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+            {
+                List<JobKey> paused = new List<JobKey>(jobKeys.Count);
+                foreach (JobKey jobKey in jobKeys)
+                {
+                    if (await PauseJob(conn, jobKey, cancellationToken).ConfigureAwait(false))
+                    {
+                        paused.Add(jobKey);
+                    }
+                }
+
+                return paused;
+            }, cancellationToken));
+    }
+
+    /// <summary>
+    /// Pause the <see cref="IJob" /> with the given key - by pausing all of its current
+    /// <see cref="ITrigger" />s.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true" /> if the job exists — including a job that currently has no triggers.
+    /// </returns>
+    protected async ValueTask<bool> PauseJob(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await Exists(conn, jobKey, cancellationToken).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
+        foreach (IOperableTrigger trigger in triggers)
+        {
+            await PauseTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Pause all of the <see cref="IJob" />s in the given
     /// group - by pausing all of their <see cref="ITrigger" />s.
     /// </summary>
-    /// <seealso cref="ResumeJobs" />
+    /// <seealso cref="ResumeJobs(GroupMatcher{JobKey}, CancellationToken)" />
     public ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(
@@ -2900,6 +2984,30 @@ public abstract class AdoJobStoreBase : IJobStore
                 activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
                 activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
             }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Resumes the whole set inside one lock and one transaction rather than one per key.
+    /// </summary>
+    public ValueTask<List<TriggerKey>> ResumeTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return activityTracer.Trace(
+            OperationName.JobStore.ResumeTriggers,
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+            {
+                List<TriggerKey> resumed = new List<TriggerKey>(triggerKeys.Count);
+                foreach (TriggerKey triggerKey in triggerKeys)
+                {
+                    if (await ResumeTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
+                    {
+                        resumed.Add(triggerKey);
+                    }
+                }
+
+                return resumed;
+            }, cancellationToken));
     }
 
     /// <summary>
@@ -2978,26 +3086,61 @@ public abstract class AdoJobStoreBase : IJobStore
     {
         return await activityTracer.Trace(
             OperationName.JobStore.ResumeJob,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
-            {
-                if (!await Exists(conn, jobKey, cancellationToken).ConfigureAwait(false))
-                {
-                    return false;
-                }
-
-                var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-                foreach (IOperableTrigger trigger in triggers)
-                {
-                    await ResumeTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                }
-
-                return true;
-            }, cancellationToken),
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeJob(conn, jobKey, cancellationToken), cancellationToken),
             activity =>
             {
                 activity.SetTag(ActivityTags.JobGroup, jobKey.Group);
                 activity.SetTag(ActivityTags.JobName, jobKey.Name);
             }).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Resumes the whole set inside one lock and one transaction rather than one per key.
+    /// </summary>
+    public ValueTask<List<JobKey>> ResumeJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return activityTracer.Trace(
+            OperationName.JobStore.ResumeJobs,
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+            {
+                List<JobKey> resumed = new List<JobKey>(jobKeys.Count);
+                foreach (JobKey jobKey in jobKeys)
+                {
+                    if (await ResumeJob(conn, jobKey, cancellationToken).ConfigureAwait(false))
+                    {
+                        resumed.Add(jobKey);
+                    }
+                }
+
+                return resumed;
+            }, cancellationToken));
+    }
+
+    /// <summary>
+    /// Resume (un-pause) the <see cref="IJob" /> with the given key.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true" /> if the job exists — including a job that currently has no triggers.
+    /// </returns>
+    protected async ValueTask<bool> ResumeJob(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await Exists(conn, jobKey, cancellationToken).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
+        foreach (IOperableTrigger trigger in triggers)
+        {
+            await ResumeTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -3009,7 +3152,7 @@ public abstract class AdoJobStoreBase : IJobStore
     /// missed one or more fire-times, then the <see cref="ITrigger" />'s
     /// misfire instruction will be applied.
     /// </remarks>
-    /// <seealso cref="PauseJobs" />
+    /// <seealso cref="PauseJobs(GroupMatcher{JobKey}, CancellationToken)" />
     public ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(

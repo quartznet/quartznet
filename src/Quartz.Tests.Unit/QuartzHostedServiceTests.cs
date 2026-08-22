@@ -175,6 +175,11 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
+        public ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
@@ -200,12 +205,22 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
+        public ValueTask<List<JobKey>> PauseJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
         public ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<List<TriggerKey>> PauseTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -245,12 +260,22 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
+        public ValueTask<List<JobKey>> ResumeJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
         public ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<List<TriggerKey>> ResumeTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

@@ -465,6 +465,25 @@ public interface IScheduler : IAsyncDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Pause the <see cref="IJobDetail" />s with the given keys - by pausing all of their current
+    /// <see cref="ITrigger" />s.
+    /// </summary>
+    /// <remarks>
+    /// One <see cref="ISchedulerListener.JobPaused" /> is raised per key the pause applied to, and
+    /// the scheduling change is signalled once for the whole call. A key that was not found raises
+    /// nothing, as the single-key form raises nothing when it answers <see langword="false" />.
+    /// </remarks>
+    /// <returns>
+    /// The keys this call found, in the order they were given — a job with no triggers is found and
+    /// so is present. A key that names no job is simply absent, never a throw.
+    /// </returns>
+    /// <seealso cref="PauseJob" />
+    /// <seealso cref="ResumeJobs(IReadOnlyCollection{JobKey}, CancellationToken)" />
+    ValueTask<List<JobKey>> PauseJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Pause all of the <see cref="IJobDetail" />s in the
     /// matching groups - by pausing all of their <see cref="ITrigger" />s.
     /// </summary>
@@ -487,7 +506,7 @@ public interface IScheduler : IAsyncDisposable
     /// in that group, it will become paused.</para>
     /// </remarks>
     /// <returns>The names of the job groups that were paused by this call.</returns>
-    /// <seealso cref="ResumeJobs" />
+    /// <seealso cref="ResumeJobs(GroupMatcher{JobKey}, CancellationToken)" />
     ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -500,6 +519,26 @@ public interface IScheduler : IAsyncDisposable
     /// raised when nothing changed.
     /// </returns>
     ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Pause the <see cref="ITrigger" />s with the given keys.
+    /// </summary>
+    /// <remarks>
+    /// One <see cref="ISchedulerListener.TriggerPaused" /> is raised per key the pause applied to,
+    /// and the scheduling change is signalled once for the whole call. A key that did not move
+    /// raises nothing, as the single-key form raises nothing when it answers
+    /// <see langword="false" />.
+    /// </remarks>
+    /// <returns>
+    /// The keys this call moved into the paused state, in the order they were given. A key that
+    /// names no trigger, one that was already paused, and one in a state that cannot be paused are
+    /// each simply absent, never a throw.
+    /// </returns>
+    /// <seealso cref="PauseTrigger" />
+    /// <seealso cref="ResumeTriggers(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    ValueTask<List<TriggerKey>> PauseTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the groups matching.
@@ -523,7 +562,7 @@ public interface IScheduler : IAsyncDisposable
     /// in that group, it will become paused.</para>
     /// </remarks>
     /// <returns>The names of the trigger groups that were paused by this call.</returns>
-    /// <seealso cref="ResumeTriggers" />
+    /// <seealso cref="ResumeTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
     ValueTask<List<string>> PauseTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default);
@@ -545,6 +584,30 @@ public interface IScheduler : IAsyncDisposable
     ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Resume (un-pause) the <see cref="IJobDetail" />s with the given keys.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// If any of the jobs' <see cref="ITrigger" />s missed one or more fire-times, then those
+    /// triggers' misfire instructions will be applied.
+    /// </para>
+    /// <para>
+    /// One <see cref="ISchedulerListener.JobResumed" /> is raised per key the resume applied to,
+    /// and the scheduling change is signalled once for the whole call. A key that was not found
+    /// raises nothing.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// The keys this call found, in the order they were given — a job with no triggers is found and
+    /// so is present. A key that names no job is simply absent, never a throw.
+    /// </returns>
+    /// <seealso cref="ResumeJob" />
+    /// <seealso cref="PauseJobs(IReadOnlyCollection{JobKey}, CancellationToken)" />
+    ValueTask<List<JobKey>> ResumeJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Resume (un-pause) all of the <see cref="IJobDetail" />s
     /// in matching groups.
     /// </summary>
@@ -554,7 +617,7 @@ public interface IScheduler : IAsyncDisposable
     /// misfire instruction will be applied.
     /// </remarks>
     /// <returns>The names of the job groups that were resumed by this call.</returns>
-    /// <seealso cref="PauseJobs" />
+    /// <seealso cref="PauseJobs(GroupMatcher{JobKey}, CancellationToken)" />
     ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -573,6 +636,30 @@ public interface IScheduler : IAsyncDisposable
     ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Resume (un-pause) the <see cref="ITrigger" />s with the given keys.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// If a <see cref="ITrigger" /> missed one or more fire-times, then its misfire instruction
+    /// will be applied.
+    /// </para>
+    /// <para>
+    /// One <see cref="ISchedulerListener.TriggerResumed" /> is raised per key the resume applied
+    /// to, and the scheduling change is signalled once for the whole call. A key that did not move
+    /// raises nothing.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// The keys this call resumed, in the order they were given. A key that names no trigger, and
+    /// one that was not paused, are each simply absent, never a throw.
+    /// </returns>
+    /// <seealso cref="ResumeTrigger" />
+    /// <seealso cref="PauseTriggers(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    ValueTask<List<TriggerKey>> ResumeTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Resume (un-pause) all of the <see cref="ITrigger" />s in matching groups.
     /// </summary>
     /// <remarks>
@@ -580,13 +667,13 @@ public interface IScheduler : IAsyncDisposable
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </remarks>
     /// <returns>The names of the trigger groups that were resumed by this call.</returns>
-    /// <seealso cref="PauseTriggers" />
+    /// <seealso cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
     ValueTask<List<string>> ResumeTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Pause all triggers - similar to calling <see cref="PauseTriggers" />
+    /// Pause all triggers - similar to calling <see cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
     /// on every group, however, after using this method <see cref="ResumeAll" />
     /// must be called to clear the scheduler's state of 'remembering' that all
     /// new triggers will be paused as they are added.
@@ -596,13 +683,13 @@ public interface IScheduler : IAsyncDisposable
     /// instructions WILL be applied.
     /// </remarks>
     /// <seealso cref="ResumeAll" />
-    /// <seealso cref="PauseTriggers" />
+    /// <seealso cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
     /// <seealso cref="Standby" />
     ValueTask PauseAll(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resume (un-pause) all triggers - similar to calling
-    /// <see cref="ResumeTriggers" /> on every group.
+    /// <see cref="ResumeTriggers(GroupMatcher{TriggerKey}, CancellationToken)" /> on every group.
     /// </summary>
     /// <remarks>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
@@ -645,7 +732,7 @@ public interface IScheduler : IAsyncDisposable
     /// <summary>
     /// Lists calendar names matching the query, ordered by name (ordinal).
     /// </summary>
-    /// <param name="query">Which page to return.</param>
+    /// <param name="query">Which names to select and which page of them to return.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default);
 
@@ -726,6 +813,25 @@ public interface IScheduler : IAsyncDisposable
     /// </returns>
     /// <seealso cref="TriggerState"/>
     ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reset every one of the identified <see cref="ITrigger" />s from <see cref="TriggerState.Error" />
+    /// to <see cref="TriggerState.Normal" /> or <see cref="TriggerState.Paused" /> as appropriate.
+    /// </summary>
+    /// <remarks>
+    /// The set is reset in one pass, under one lock or one connection. Resetting raises no
+    /// scheduler-listener event and signals no scheduling change, in the plural exactly as in the
+    /// singular — the reset triggers are picked up by the next acquisition cycle.
+    /// </remarks>
+    /// <returns>
+    /// The keys this call reset, in the order they were given. A key that names no trigger, or one
+    /// that was not in the <see cref="TriggerState.Error" /> state, is simply absent, never a
+    /// throw.
+    /// </returns>
+    /// <seealso cref="ResetTriggerFromErrorState" />
+    ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.

@@ -61,29 +61,41 @@ internal static class MatcherUrlExtensions
     {
         ArgumentNullException.ThrowIfNull(matcher);
 
-        if (string.IsNullOrWhiteSpace(matcher.CompareToValue))
+        return NameUrlParameters(matcher.CompareWithOperator, matcher.CompareToValue);
+    }
+
+    public static string ToUrlParameters(this CalendarNameMatcher matcher)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+
+        return NameUrlParameters(matcher.CompareWithOperator, matcher.CompareToValue);
+    }
+
+    private static string NameUrlParameters(StringOperator compareWith, string compareToValue)
+    {
+        if (string.IsNullOrWhiteSpace(compareToValue))
         {
             return "";
         }
 
-        if (matcher.CompareWithOperator.Equals(StringOperator.Equality))
+        if (compareWith.Equals(StringOperator.Equality))
         {
-            return $"nameEquals={matcher.CompareToValue}";
+            return $"nameEquals={compareToValue}";
         }
 
-        if (matcher.CompareWithOperator.Equals(StringOperator.StartsWith))
+        if (compareWith.Equals(StringOperator.StartsWith))
         {
-            return $"nameStartsWith={matcher.CompareToValue}";
+            return $"nameStartsWith={compareToValue}";
         }
 
-        if (matcher.CompareWithOperator.Equals(StringOperator.EndsWith))
+        if (compareWith.Equals(StringOperator.EndsWith))
         {
-            return $"nameEndsWith={matcher.CompareToValue}";
+            return $"nameEndsWith={compareToValue}";
         }
 
-        if (matcher.CompareWithOperator.Equals(StringOperator.Contains))
+        if (compareWith.Equals(StringOperator.Contains))
         {
-            return $"nameContains={matcher.CompareToValue}";
+            return $"nameContains={compareToValue}";
         }
 
         return "";

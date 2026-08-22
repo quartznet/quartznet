@@ -1109,6 +1109,36 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Pause the <see cref="ITrigger" />s with the given keys, signalling the change once.
+    /// </summary>
+    public async ValueTask<List<TriggerKey>> PauseTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+        ValidateState();
+
+        if (triggerKeys.Count == 0)
+        {
+            return [];
+        }
+
+        var paused = await resources.JobStore.PauseTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+        if (paused.Count > 0)
+        {
+            // One signal for the whole set: the scheduler thread reads a scheduling change as a
+            // level, not an edge, so the recomputation it triggers covers every key at once.
+            NotifySchedulerThread(null);
+            foreach (TriggerKey triggerKey in paused)
+            {
+                await NotifySchedulerListenersPausedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return paused;
+    }
+
+    /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
     public async ValueTask<List<string>> PauseTriggers(
@@ -1146,6 +1176,34 @@ internal sealed class QuartzScheduler
         }
 
         return found;
+    }
+
+    /// <summary>
+    /// Pause the <see cref="IJobDetail" />s with the given keys, signalling the change once.
+    /// </summary>
+    public async ValueTask<List<JobKey>> PauseJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKeys);
+        ValidateState();
+
+        if (jobKeys.Count == 0)
+        {
+            return [];
+        }
+
+        var paused = await resources.JobStore.PauseJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+        if (paused.Count > 0)
+        {
+            NotifySchedulerThread(null);
+            foreach (JobKey jobKey in paused)
+            {
+                await NotifySchedulerListenersPausedJob(jobKey, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return paused;
     }
 
     /// <summary>
@@ -1188,6 +1246,35 @@ internal sealed class QuartzScheduler
         {
             NotifySchedulerThread(null);
             await NotifySchedulerListenersResumedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        return resumed;
+    }
+
+    /// <summary>
+    /// Resume (un-pause) the <see cref="ITrigger" />s with the given keys, signalling the change
+    /// once.
+    /// </summary>
+    public async ValueTask<List<TriggerKey>> ResumeTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+        ValidateState();
+
+        if (triggerKeys.Count == 0)
+        {
+            return [];
+        }
+
+        var resumed = await resources.JobStore.ResumeTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+        if (resumed.Count > 0)
+        {
+            NotifySchedulerThread(null);
+            foreach (TriggerKey triggerKey in resumed)
+            {
+                await NotifySchedulerListenersResumedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         return resumed;
@@ -1242,6 +1329,35 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Resume (un-pause) the <see cref="IJobDetail" />s with the given keys, signalling the change
+    /// once.
+    /// </summary>
+    public async ValueTask<List<JobKey>> ResumeJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKeys);
+        ValidateState();
+
+        if (jobKeys.Count == 0)
+        {
+            return [];
+        }
+
+        var resumed = await resources.JobStore.ResumeJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+        if (resumed.Count > 0)
+        {
+            NotifySchedulerThread(candidateNewNextFireTimeUtc: null);
+            foreach (JobKey jobKey in resumed)
+            {
+                await NotifySchedulerListenersResumedJob(jobKey, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return resumed;
+    }
+
+    /// <summary>
     /// Resume (un-pause) all of the <see cref="IJobDetail" />s
     /// in the matching groups.
     /// <para>
@@ -1268,7 +1384,7 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
+    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
     /// with a matcher matching all known groups.
     /// <para>
     /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
@@ -1287,7 +1403,7 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
+    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
     /// on every group.
     /// <para>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
@@ -1500,6 +1616,29 @@ internal sealed class QuartzScheduler
         ValidateState();
 
         return resources.JobStore.ResetTriggerFromErrorState(triggerKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reset the <see cref="ITrigger" />s with the given keys from the error state, in one pass.
+    /// </summary>
+    /// <remarks>
+    /// Resetting raises no listener event and signals no scheduling change, here as in the
+    /// single-key form: the triggers it returns to the waiting state are picked up by the next
+    /// acquisition cycle.
+    /// </remarks>
+    public ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+        ValidateState();
+
+        if (triggerKeys.Count == 0)
+        {
+            return new ValueTask<List<TriggerKey>>([]);
+        }
+
+        return resources.JobStore.ResetTriggersFromErrorState(triggerKeys, cancellationToken);
     }
 
     /// <summary>

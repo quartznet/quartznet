@@ -22,4 +22,10 @@ namespace Quartz;
 /// <summary>
 /// Selects calendar names.
 /// </summary>
-public sealed record CalendarQuery : PagedQuery;
+public sealed record CalendarQuery : PagedQuery
+{
+    /// <summary>
+    /// Limits the result to calendars whose name matches. Null matches every name.
+    /// </summary>
+    public CalendarNameMatcher? Name { get; init; }
+}
