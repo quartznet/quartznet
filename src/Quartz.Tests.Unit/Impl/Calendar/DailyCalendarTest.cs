@@ -53,10 +53,11 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     public void TimeRangeRoundTripsThroughTheProperty()
     {
         DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(1, 20), new TimeOnly(14, 50));
-        dailyCalendar.TimeRange.Should().Be((new TimeOnly(1, 20), new TimeOnly(14, 50)));
+        dailyCalendar.TimeRange.Should().Be(new TimeRange(new TimeOnly(1, 20), new TimeOnly(14, 50)));
 
+        // A tuple literal converts, which is what makes the assignment read the way it does
         dailyCalendar.TimeRange = (new TimeOnly(8, 0), new TimeOnly(17, 0));
-        dailyCalendar.TimeRange.Should().Be((new TimeOnly(8, 0), new TimeOnly(17, 0)));
+        dailyCalendar.TimeRange.Should().Be(new TimeRange(new TimeOnly(8, 0), new TimeOnly(17, 0)));
     }
 
     [Test]

@@ -360,7 +360,7 @@ public class LegacyJsonPayloadTest
         var calendar = Deserialize<DailyCalendar>(LegacyDailyCalendar);
 
         calendar.InvertTimeRange.Should().BeTrue();
-        calendar.TimeRange.Should().Be((new TimeOnly(1, 1, 1, 1), new TimeOnly(2, 2, 2, 2)));
+        calendar.TimeRange.Should().Be(new TimeRange(new TimeOnly(1, 1, 1, 1), new TimeOnly(2, 2, 2, 2)));
     }
 
     [Test]

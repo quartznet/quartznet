@@ -5399,6 +5399,12 @@ constructor and one property replace them.
 | `calendar.RangeStartingTime` (a string) | `calendar.TimeRange.Start` |
 | `calendar.RangeEndingTime` (a string) | `calendar.TimeRange.End` |
 
+`TimeRange` is a `readonly record struct` of `Start` and `End` in the `Quartz` namespace. A `(start, end)`
+tuple converts to it implicitly, so the assignment in the table above reads as it always did; a variable
+holding the range is a `TimeRange` rather than a `ValueTuple`, and an equality comparison against a bare
+tuple needs the type spelled out — `calendar.TimeRange == new TimeRange(start, end)`. What the calendar
+stores did not change: its serialized form is the same eight numbers it has always been.
+
 The `"HH:MM:SS:mmm"` string form — note the colon before the milliseconds — was a format nothing else in
 .NET parses. `InvertTimeRange`, `GetTimeRangeStartingTimeUtc` and `GetTimeRangeEndingTimeUtc` are unchanged.
 The constructor no longer takes a `TimeProvider`; it only ever used one to check that the range starts
