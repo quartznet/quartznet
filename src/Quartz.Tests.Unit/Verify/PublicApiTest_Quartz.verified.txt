@@ -952,14 +952,25 @@ namespace Quartz
         public static Quartz.OrMatcher<TKey> Or<TKey>(this Quartz.IMatcher<TKey> matcher, Quartz.IMatcher<TKey> other)
             where TKey : Quartz.Key<TKey> { }
     }
-    public readonly struct MonthDay : System.IComparable<Quartz.MonthDay>, System.IEquatable<Quartz.MonthDay>
+    public readonly struct MonthDay : System.IComparable<Quartz.MonthDay>, System.IEquatable<Quartz.MonthDay>, System.IFormattable, System.IParsable<Quartz.MonthDay>, System.ISpanFormattable, System.ISpanParsable<Quartz.MonthDay>, System.IUtf8SpanFormattable
     {
         public MonthDay(int month, int day) { }
         public int Day { get; }
         public int Month { get; }
         public int CompareTo(Quartz.MonthDay other) { }
         public override string ToString() { }
+        public string ToString(string? format, System.IFormatProvider? formatProvider) { }
+        public bool TryFormat(System.Span<byte> utf8Destination, out int bytesWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) { }
+        public bool TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) { }
         public static Quartz.MonthDay From(System.DateOnly date) { }
+        public static Quartz.MonthDay Parse(System.ReadOnlySpan<char> s) { }
+        public static Quartz.MonthDay Parse(string s) { }
+        public static Quartz.MonthDay Parse(System.ReadOnlySpan<char> s, System.IFormatProvider? provider) { }
+        public static Quartz.MonthDay Parse(string s, System.IFormatProvider? provider) { }
+        public static bool TryParse(System.ReadOnlySpan<char> s, out Quartz.MonthDay result) { }
+        public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? s, out Quartz.MonthDay result) { }
+        public static bool TryParse(System.ReadOnlySpan<char> s, System.IFormatProvider? provider, out Quartz.MonthDay result) { }
+        public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? s, System.IFormatProvider? provider, out Quartz.MonthDay result) { }
         public static bool operator <(Quartz.MonthDay left, Quartz.MonthDay right) { }
         public static bool operator <=(Quartz.MonthDay left, Quartz.MonthDay right) { }
         public static bool operator >(Quartz.MonthDay left, Quartz.MonthDay right) { }
