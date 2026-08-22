@@ -19,8 +19,8 @@ want job-level affinity.
 
 `ITrigger.PreferredNode` is a `PreferredNode` value with three ways to make one:
 
-- `PreferredNode.For("node-1")` pins the trigger to that scheduler instance id (matching
-  `quartz.scheduler.instanceId`).
+- `PreferredNode.For("node-1")` pins the trigger to that scheduler instance id (the `Scheduler:InstanceId`
+  of the node).
 - `PreferredNode.Auto` requests **auto-pin**: the first node to fire the trigger claims it.
 - `PreferredNode.None` (the default) means no preference — standard Quartz behavior.
 
@@ -100,13 +100,24 @@ Rebuilding an auto-pinned trigger preserves the auto-claim:
 ITrigger rebuilt = trigger.GetTriggerBuilder().WithDescription("updated").Build();
 ```
 
-The pin carries its own auto-claim flag, so assigning one to another trigger copies it as the pin it
+The pin carries its own auto-claim flag, so a pin moved from one trigger to another arrives as the pin it
 was. What you write is what you get back:
 
 ```csharp
-trigger.PreferredNode = PreferredNode.For("node-2");   // a pin you named; IsAutomatic is false
-trigger.PreferredNode = PreferredNode.None;            // no preference at all
+// a pin you named; IsAutomatic is false
+ITrigger named = trigger.GetTriggerBuilder()
+    .WithPreferredNode(PreferredNode.For("node-2"))
+    .Build();
+
+// no preference at all
+ITrigger unpinned = trigger.GetTriggerBuilder()
+    .WithPreferredNode(PreferredNode.None)
+    .Build();
 ```
+
+`ITrigger.PreferredNode` is read-only, like the rest of a trigger: rebuild the trigger to change it, and hand
+the result to `IScheduler.RescheduleJob` — or, for this one property on its own,
+[update the trigger in place](#updating-the-preferred-node-at-runtime).
 
 ## Failover behavior
 
@@ -143,10 +154,10 @@ await scheduler.UpdateTriggerDetails(
 
 ## Requirements and limitations
 
-- **Clustering and a stable instance id.** Affinity only means anything with
-  `quartz.jobStore.clustered = true` and a *stable* `quartz.scheduler.instanceId`. With `AUTO`, the id
-  changes on every restart and a stored pin refers to a node that no longer exists. Quartz warns at
-  startup when it detects an auto-generated id.
+- **Clustering and a stable instance id.** Affinity only means anything in a cluster —
+  `store.UseClustering()`, see [Clustering](advanced-enterprise-features.md) — and only with a *stable*
+  `Scheduler:InstanceId`. With `GenerateInstanceId = true` the id changes on every restart, so a stored pin
+  names a node that no longer exists; Quartz warns at startup when it detects an auto-generated id.
 - **RAMJobStore ignores it.** A pin is stored and returned as metadata but never filters acquisition —
   a single-node in-memory scheduler always runs the trigger.
 - **Pinned to a node that never registers.** If the target instance id has never checked in, the trigger

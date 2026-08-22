@@ -17,8 +17,8 @@ next: false
 * [Lesson 8: TriggerListeners & JobListeners](trigger-and-job-listeners.md)
 * [Lesson 9: SchedulerListeners](scheduler-listeners.md)
 * [Lesson 10: JobStores](job-stores.md)
-* [Lesson 11: Configuration, Resource Usage and SchedulerFactory](configuration-resource-usage-and-scheduler-factory.md)
-* [Lesson 12: Advanced (Enterprise) Features](advanced-enterprise-features.md)
+* [Lesson 11: Configuration, Resource Usage and Building a Scheduler](configuration-resource-usage-and-scheduler-factory.md)
+* [Lesson 12: Clustering](advanced-enterprise-features.md)
 * [Lesson 13: Execution Groups](execution-groups.md)
 * [Lesson 14: Node Affinity (Preferred Node)](node-affinity.md)
 
