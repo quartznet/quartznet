@@ -24,7 +24,9 @@
        "jobdatamap-s", "ScheduleBuilder<T>" -> "schedulebuilder-t". Every anchor MD051
        reports here is one that resolves on the published site, and the anchors it would
        accept instead are the ones that 404 there — so the rule is measuring the wrong
-       thing for this repo. Anchors are checked against the real slugifier instead. */
+       thing for this repo. `npm run docs:check-links` checks fragments instead, against
+       the slugger and the router the site is actually built with, and runs on every docs
+       pull request; `npm run docs:check-links-test` is its own control. */
     "MD051": false,
     "MD059": false, /* link text style - existing docs use short links */
     "MD060": false  /* table column style - existing docs use compact style */
