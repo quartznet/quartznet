@@ -1,4 +1,5 @@
 @page "/quartz/history"
+@using System.Globalization
 @using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
@@ -64,8 +65,8 @@
         <div class="qz-grid qz-grid-4">
             <StatCard Title="Success rate (page)" Value="@GetSuccessRateText()" Icon="✔" Color="success" />
             <StatCard Title="Failures (page)" Value="@_pageFailureCount.ToString()" Icon="⚠" Color="error" />
-            <StatCard Title="Avg duration (page)" Value="@FormatDurationValue(_pageAverageDurationMs)" Icon="⏱️" Color="info" />
-            <StatCard Title="P95 duration (page)" Value="@FormatDurationValue(_pageP95DurationMs)" Icon="📈" Color="info" />
+            <StatCard Title="Avg duration (page)" Value="@FormatDurationValue(_pageAverageDuration)" Icon="⏱️" Color="info" />
+            <StatCard Title="P95 duration (page)" Value="@FormatDurationValue(_pageP95Duration)" Icon="📈" Color="info" />
         </div>
 
         <table class="qz-table">
@@ -86,7 +87,7 @@
                         <td><KeyBadge GroupName="@entry.JobGroup" ItemName="@entry.JobName" /></td>
                         <td><KeyBadge GroupName="@entry.TriggerGroup" ItemName="@entry.TriggerName" /></td>
                         <td>@FormatFiredAt(entry.FiredAtUtc)</td>
-                        <td>@FormatDurationValue(entry.DurationMs)</td>
+                        <td>@FormatDurationValue(entry.Duration)</td>
                         <td><StateIndicator State="@(entry.Succeeded ? "Complete" : "Error")" /></td>
                         <td>@entry.ExceptionMessage</td>
                     </tr>
@@ -113,8 +114,8 @@
     private int _totalPages = 1;
     private int _pageSuccessCount;
     private int _pageFailureCount;
-    private long _pageAverageDurationMs;
-    private long _pageP95DurationMs;
+    private TimeSpan _pageAverageDuration;
+    private TimeSpan _pageP95Duration;
     private string _jobFilter = string.Empty;
     private string _triggerFilter = string.Empty;
     private string _appliedJobFilter = string.Empty;
@@ -226,8 +227,8 @@
         _totalPages = 1;
         _pageSuccessCount = 0;
         _pageFailureCount = 0;
-        _pageAverageDurationMs = 0;
-        _pageP95DurationMs = 0;
+        _pageAverageDuration = TimeSpan.Zero;
+        _pageP95Duration = TimeSpan.Zero;
 
         try
         {
@@ -374,9 +375,28 @@
         return jobPart + " · " + triggerPart;
     }
 
-    private static string FormatDurationValue(long durationMs)
+    /// <summary>
+    /// Shows a duration in the largest unit that keeps it readable: sub-second runs in milliseconds,
+    /// anything longer with its unit spelled out.
+    /// </summary>
+    private static string FormatDurationValue(TimeSpan duration)
     {
-        return durationMs > 0 ? durationMs + " ms" : "n/a";
+        if (duration <= TimeSpan.Zero)
+        {
+            return "n/a";
+        }
+
+        if (duration < TimeSpan.FromSeconds(1))
+        {
+            return duration.TotalMilliseconds.ToString("0.###", CultureInfo.InvariantCulture) + " ms";
+        }
+
+        if (duration < TimeSpan.FromMinutes(1))
+        {
+            return duration.TotalSeconds.ToString("0.##", CultureInfo.InvariantCulture) + " s";
+        }
+
+        return duration.ToString("g", CultureInfo.InvariantCulture);
     }
 
     private string FormatFiredAt(DateTimeOffset? firedAtUtc)
@@ -398,11 +418,11 @@
 
     private void ComputeAnalytics()
     {
-        List<long> durations = [];
+        List<TimeSpan> durations = [];
         _pageSuccessCount = 0;
         _pageFailureCount = 0;
-        _pageAverageDurationMs = 0;
-        _pageP95DurationMs = 0;
+        _pageAverageDuration = TimeSpan.Zero;
+        _pageP95Duration = TimeSpan.Zero;
 
         foreach (DashboardHistoryEntry entry in _entries)
         {
@@ -415,9 +435,9 @@
                 _pageFailureCount++;
             }
 
-            if (entry.DurationMs > 0)
+            if (entry.Duration > TimeSpan.Zero)
             {
-                durations.Add(entry.DurationMs);
+                durations.Add(entry.Duration);
             }
         }
 
@@ -427,10 +447,10 @@
         }
 
         durations.Sort();
-        _pageAverageDurationMs = (long) Math.Round(durations.Average());
+        _pageAverageDuration = TimeSpan.FromTicks((long) Math.Round(durations.Average(x => (double) x.Ticks)));
         int p95Index = (int) Math.Ceiling(durations.Count * 0.95) - 1;
         p95Index = Math.Clamp(p95Index, 0, durations.Count - 1);
-        _pageP95DurationMs = durations[p95Index];
+        _pageP95Duration = durations[p95Index];
     }
 
     public void Dispose()

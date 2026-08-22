@@ -182,7 +182,10 @@ internal sealed class QuartzApiClient : IQuartzApiClient
 
     /// <remarks>
     /// The triggers themselves are needed for the schedule summary, and their states come from a single
-    /// trigger listing filtered by job rather than one state request per trigger.
+    /// trigger listing filtered by job rather than one state request per trigger. The kind and the
+    /// summary are read off the trigger by <see cref="TriggerDisplay" />, the same way the in-process
+    /// client reads them — this used to echo the wire's discriminator instead, so the two clients
+    /// called the same trigger <c>CronTrigger</c> and <c>Cron</c>.
     /// </remarks>
     public async ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
@@ -195,18 +198,21 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         Dictionary<(string Group, string Name), TriggerState?> states = await GetJobTriggerStates(schedulerName, key, cancellationToken).ConfigureAwait(false);
 
         List<TriggerHeaderDto> result = [];
-        foreach (JsonElement trigger in json.EnumerateArray())
+        foreach (JsonElement element in json.EnumerateArray())
         {
-            JsonElement triggerKey = GetOptionalProperty(trigger, "key");
-            string triggerName = GetStringProperty(triggerKey, "name");
-            string triggerGroup = GetStringProperty(triggerKey, "group");
-            string? executionGroup = GetNullableStringProperty(trigger, "executionGroup");
-            result.Add(new TriggerHeaderDto(triggerGroup, triggerName, executionGroup)
+            ITrigger? trigger = element.Deserialize<ITrigger>(quartzSerializerOptions);
+            if (trigger is null)
             {
-                TriggerType = GetNullableStringProperty(trigger, "triggerType"),
-                ScheduleSummary = DescribeSchedule(trigger),
-                State = states.TryGetValue((triggerGroup, triggerName), out TriggerState? state) ? state : null
-            });
+                continue;
+            }
+
+            result.Add(new TriggerHeaderDto(
+                Group: trigger.Key.Group,
+                Name: trigger.Key.Name,
+                TriggerType: TriggerDisplay.TypeName(trigger),
+                ScheduleSummary: TriggerDisplay.ScheduleSummary(trigger),
+                State: states.TryGetValue((trigger.Key.Group, trigger.Key.Name), out TriggerState? state) ? state : null,
+                ExecutionGroup: trigger.ExecutionGroup));
         }
 
         return result;
@@ -349,13 +355,15 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         {
             foreach (JsonElement trigger in items.EnumerateArray())
             {
-                string triggerGroup = GetStringProperty(trigger, "group");
-                string triggerName = GetStringProperty(trigger, "name");
-                string? executionGroup = GetNullableStringProperty(trigger, "executionGroup");
-                result.Add(new TriggerHeaderDto(triggerGroup, triggerName, executionGroup)
-                {
-                    State = GetTriggerStateProperty(trigger, "state")
-                });
+                // A listing does not load the triggers, so there is no schedule to summarise and no
+                // kind to name.
+                result.Add(new TriggerHeaderDto(
+                    Group: GetStringProperty(trigger, "group"),
+                    Name: GetStringProperty(trigger, "name"),
+                    TriggerType: null,
+                    ScheduleSummary: null,
+                    State: GetTriggerStateProperty(trigger, "state"),
+                    ExecutionGroup: GetNullableStringProperty(trigger, "executionGroup")));
             }
         }
 

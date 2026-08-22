@@ -94,6 +94,21 @@ take a name too: `?state=Paused`.
 them as numbers needs to read names instead, or parse both.
 :::
 
+## Durations travel as `TimeSpan`
+
+Every duration on the wire is a `TimeSpan` in its invariant form, both ways: a trigger body says
+`"repeatIntervalTimeSpan": "120.02:30:59.9990000"`, and the one duration in a query string is spelled
+the same way.
+
+```
+POST {ApiPath}/schedulers/{name}/start?delay=00:00:30
+```
+
+::: warning Changed in 4.x
+That parameter was `?delayMilliseconds=30000` in the 4.0 previews. `TimeSpan` matches every other
+duration the API carries and does not round a sub-millisecond delay away.
+:::
+
 ## Response-shape conventions
 
 **A `200` carries a body exactly when the operation has something to say that the caller could not

@@ -230,14 +230,20 @@ public sealed record JobGroupDto(string Name, bool Paused);
 
 public sealed record TriggerKeyDto(string Group, string Name);
 
-public sealed record TriggerHeaderDto(string Group, string Name, string? ExecutionGroup = null)
-{
-    public string? TriggerType { get; init; }
-
-    public string? ScheduleSummary { get; init; }
-
-    public TriggerState? State { get; init; }
-}
+/// <summary>
+/// One row of a trigger listing: enough to show the trigger without loading it.
+/// </summary>
+/// <remarks>
+/// <see cref="ScheduleSummary" /> is null on the listings that do not load the triggers themselves,
+/// and <see cref="State" /> is null when the listing could not pair the header with a state.
+/// </remarks>
+public sealed record TriggerHeaderDto(
+    string Group,
+    string Name,
+    string? TriggerType,
+    string? ScheduleSummary,
+    TriggerState? State,
+    string? ExecutionGroup);
 
 /// <remarks>
 /// <see cref="JobDataMap" /> holds whatever the job was given, of whatever type — but that is exactly

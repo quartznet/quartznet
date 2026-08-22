@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 
 using AwesomeAssertions.Execution;
@@ -84,6 +85,37 @@ public class SchedulerEndpointsTest : WebApiTest
 
         await HttpScheduler.StartDelayed(TimeSpan.FromMilliseconds(5_000));
         A.CallTo(() => FakeScheduler.StartDelayed(TimeSpan.FromMilliseconds(5_000), A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+    }
+
+    /// <summary>
+    /// The delay is a <see cref="TimeSpan" /> on the wire, and one with a sub-millisecond part arrives
+    /// as it was sent — <c>?delayMilliseconds=</c> rounded it away.
+    /// </summary>
+    [Test]
+    public async Task StartDelayedSendsTheDelayAsATimeSpan()
+    {
+        using HttpClient httpClient = WebApplicationFactory.CreateClient();
+
+        using HttpResponseMessage response = await httpClient.PostAsync(
+            $"schedulers/{TestData.SchedulerName}/start?delay=01:02:03.0004560",
+            content: null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        A.CallTo(() => FakeScheduler.StartDelayed(new TimeSpan(0, 1, 2, 3, 0, 456), A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task StartWithANegativeDelayIsRejected()
+    {
+        using HttpClient httpClient = WebApplicationFactory.CreateClient();
+
+        using HttpResponseMessage response = await httpClient.PostAsync(
+            $"schedulers/{TestData.SchedulerName}/start?delay=-00:00:30",
+            content: null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "a delay running backwards is not a delay");
+        A.CallTo(() => FakeScheduler.StartDelayed(A<TimeSpan>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]

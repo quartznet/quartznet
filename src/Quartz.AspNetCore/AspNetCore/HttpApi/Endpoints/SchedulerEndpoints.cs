@@ -93,19 +93,29 @@ internal static class SchedulerEndpoints
         });
     }
 
+    /// <summary>
+    /// Starts the scheduler, after <c>delay</c> when one is given — <c>?delay=00:00:30</c>, a
+    /// <see cref="TimeSpan" /> like every other duration on the wire. A request that names none starts
+    /// the scheduler immediately.
+    /// </summary>
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> Start(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
-        long? delayMilliseconds,
+        TimeSpan? delay,
         CancellationToken cancellationToken = default)
     {
+        if (delay < TimeSpan.Zero)
+        {
+            throw new BadHttpRequestException("delay must not be negative");
+        }
+
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler =>
         {
-            if (delayMilliseconds.HasValue)
+            if (delay.HasValue)
             {
-                return scheduler.StartDelayed(TimeSpan.FromMilliseconds(delayMilliseconds.Value), cancellationToken).AsTask();
+                return scheduler.StartDelayed(delay.Value, cancellationToken).AsTask();
             }
 
             return scheduler.Start(cancellationToken).AsTask();
