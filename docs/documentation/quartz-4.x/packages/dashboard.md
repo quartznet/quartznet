@@ -7,24 +7,25 @@ title: Dashboard
 ::: warning
 Quartz Dashboard is currently a work in progress.
 The dashboard API surface may change between releases.
-Supported target frameworks are .NET 8 and newer.
 :::
 
 ## Installation
 
-Add package references:
+The dashboard is served over the [HTTP API](http-api.md), which ships in `Quartz.AspNetCore`. The dashboard
+package brings it along, so one reference is enough:
 
 ```shell
-Install-Package Quartz.Dashboard
-Install-Package Quartz.HttpApi
+dotnet add package Quartz.Dashboard
 ```
 
 ## Basic setup
 
-Configure Quartz, enable HTTP API, and add the dashboard services.
+Configure Quartz, enable the HTTP API, and add the dashboard services.
 
 ```csharp
-services.AddQuartz(q =>
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.AddQuartz(q =>
 {
     q.AddQuartzHttpApi(options =>
     {
@@ -32,23 +33,21 @@ services.AddQuartz(q =>
     });
 });
 
-services.AddQuartzDashboard();
-services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+builder.Services.AddQuartzDashboard();
+builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 
 Map endpoints:
 
 ```csharp
-app.UseRouting();
+WebApplication app = builder.Build();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapQuartzHttpApi().RequireAuthorization();
-    endpoints.MapQuartzDashboard();
-});
+app.MapQuartzHttpApi().RequireAuthorization();
+app.MapQuartzDashboard();
 ```
 
 By default, dashboard UI is available at `/quartz`.
@@ -97,10 +96,10 @@ To populate execution history and make related views useful, add the Quartz hist
 scheduler:
 
 ```csharp
-services.AddQuartz(q =>
+builder.AddQuartz(q =>
 {
-    q.AddPlugin<LoggingJobHistoryPlugin>();
-    q.AddPlugin<LoggingTriggerHistoryPlugin>();
+    q.UseJobHistoryLogging();
+    q.UseTriggerHistoryLogging();
 });
 ```
 
@@ -111,7 +110,7 @@ services.AddQuartz(q =>
 Use an explicit policy for dashboard access, and secure API endpoints separately:
 
 ```csharp
-services.AddAuthorization(options =>
+builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("QuartzDashboardOps", policy =>
     {
@@ -120,18 +119,15 @@ services.AddAuthorization(options =>
     });
 });
 
-services.AddQuartzDashboard(options =>
+builder.Services.AddQuartzDashboard(options =>
 {
     options.AuthorizationPolicy = "QuartzDashboardOps";
 });
 ```
 
 ```csharp
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapQuartzHttpApi().RequireAuthorization("QuartzDashboardOps");
-    endpoints.MapQuartzDashboard();
-});
+app.MapQuartzHttpApi().RequireAuthorization("QuartzDashboardOps");
+app.MapQuartzDashboard();
 ```
 
 When `AuthorizationPolicy` is set, the policy is applied to the dashboard pages, the SignalR hub, the Blazor circuit (`/_blazor`) and the dashboard static asset endpoint, so the whole dashboard is gated consistently — including under a fail-closed `FallbackPolicy`.
@@ -178,15 +174,14 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 If your host application already uses Blazor Server (i.e., it calls `MapRazorComponents<App>().AddInteractiveServerRenderMode()`), you must use the `MapQuartzDashboard` overload that accepts the existing `RazorComponentsEndpointConventionBuilder`. This avoids registering a second `/_blazor` SignalR endpoint, which would cause routing conflicts.
 
 ```csharp
-services.AddRazorComponents().AddInteractiveServerComponents();
-services.AddQuartzDashboard();
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddQuartzDashboard();
 ```
 
 ```csharp
-app.UseRouting();
 app.UseAntiforgery();
 
-var blazor = app.MapRazorComponents<App>()
+RazorComponentsEndpointConventionBuilder blazor = app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.MapQuartzHttpApi().RequireAuthorization();
@@ -201,7 +196,7 @@ Do **not** call the parameterless `MapQuartzDashboard()` alongside your own `Map
 
 ## API-only projects (no .razor files)
 
-If your host project has no `.razor` files of its own (e.g., a pure API project hosting Quartz), and you are running on **.NET 10 or later**, you must add the following to your project file:
+If your host project has no `.razor` files of its own (for example a pure API project hosting Quartz), you must add the following to your project file:
 
 ```xml
 <PropertyGroup>
@@ -209,9 +204,7 @@ If your host project has no `.razor` files of its own (e.g., a pure API project 
 </PropertyGroup>
 ```
 
-This property tells the .NET SDK to include the Blazor framework scripts (`_framework/blazor.web.js`, `blazor.server.js`) in the app's static web assets. Without it, requests to `/_framework/blazor.web.js` return HTTP 404 because in .NET 10+, these files are no longer embedded in the ASP.NET Core assemblies — they are served as static web assets instead.
-
-On .NET 8 and .NET 9, the framework scripts are served via endpoint routing and no extra configuration is needed.
+This property tells the .NET SDK to include the Blazor framework scripts (`_framework/blazor.web.js`, `blazor.server.js`) in the app's static web assets. Without it, requests to `/_framework/blazor.web.js` return HTTP 404: as of .NET 10 these files are no longer embedded in the ASP.NET Core assemblies — they are served as static web assets instead.
 
 ## Current limitations
 
