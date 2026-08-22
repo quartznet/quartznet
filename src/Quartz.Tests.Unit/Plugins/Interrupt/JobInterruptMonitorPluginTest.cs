@@ -135,6 +135,68 @@ public class JobInterruptMonitorPluginTest
         }
     }
 
+    [TestCase(500)]
+    [TestCase(500L)]
+    [TestCase("500")]
+    public async Task ShouldHonourMaxRunTimeStoredAsNumberOrString(object maxRunTime)
+    {
+        // the plugin default is deliberately long: only a MaxRunTime the plugin actually read can interrupt in time
+        IScheduler scheduler = await CreateScheduler("MaxRunTimeAs" + maxRunTime.GetType().Name, defaultMaxRunTimeMilliseconds: 60_000);
+        try
+        {
+            IJobDetail job = CreateAutoInterruptableJob();
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("t-typed")
+                .ForJob(job)
+                .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, maxRunTime)
+                .StartNow()
+                .Build();
+
+            await scheduler.ScheduleJob(job, trigger);
+
+            (await started.WaitAsync(waitTimeout)).Should().BeTrue("the execution should start");
+            (await done.WaitAsync(waitTimeout)).Should().BeTrue(
+                $"a MaxRunTime of 500 ms stored as {maxRunTime.GetType().Name} should override the plugin's 60 second default");
+
+            interruptedByTrigger["t-typed"].Should().BeTrue(
+                $"the execution exceeded the 500 ms it was allowed by a {maxRunTime.GetType().Name} MaxRunTime");
+        }
+        finally
+        {
+            gate.Release(10); // unblock any execution still gated so shutdown does not wait on it
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    [Test]
+    public async Task ShouldUsePluginDefaultWhenMaxRunTimeIsAbsent()
+    {
+        IScheduler scheduler = await CreateScheduler("NoMaxRunTime", defaultMaxRunTimeMilliseconds: 500);
+        try
+        {
+            IJobDetail job = CreateAutoInterruptableJob();
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("t-default")
+                .ForJob(job)
+                .StartNow()
+                .Build();
+
+            await scheduler.ScheduleJob(job, trigger);
+
+            (await started.WaitAsync(waitTimeout)).Should().BeTrue("the execution should start");
+            (await done.WaitAsync(waitTimeout)).Should().BeTrue("the plugin's 500 ms default should interrupt a fire that carries no MaxRunTime");
+
+            interruptedByTrigger["t-default"].Should().BeTrue("a fire with no MaxRunTime of its own is bounded by the plugin default");
+        }
+        finally
+        {
+            gate.Release(10); // unblock any execution still gated so shutdown does not wait on it
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
     private static async Task<IScheduler> CreateScheduler(string name, int defaultMaxRunTimeMilliseconds)
     {
         NameValueCollection config = new NameValueCollection

@@ -286,7 +286,7 @@ q.ScheduleJob<SlowJob>(
         .WithIdentity("slowJob")
         .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
         // allow only five seconds for this job, overriding the plugin's default.
-        // the value is milliseconds, and the plugin reads it as a string
+        // the value is milliseconds, and either a number or a string holding one works
         .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, "5000"));
 ```
 
