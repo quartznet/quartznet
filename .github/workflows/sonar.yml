@@ -79,6 +79,14 @@ jobs:
           # stays in analysis, where the bug and security rules still apply to it; what it is excused
           # from is a coverage figure this workflow is not configured to produce. Its own control is
           # `npm run docs:check-links-test`.
+          #
+          # The dashboard's Razor components are excused for the same reason and no more: this
+          # repository has no component-test harness — no bUnit, no Playwright, and
+          # Quartz.Tests.AspNetCore covers the HTTP API rather than the Blazor UI — so their markup
+          # cannot be covered by construction, and measuring it reports 0% forever rather than
+          # anything a reviewer can act on. The exclusion is the components only, not the package:
+          # everything in src/Quartz.Dashboard that is ordinary C# is measured and expected to be
+          # tested. It is a stopgap, to be narrowed or deleted if #3363 adopts bUnit.
           dotnet-sonarscanner begin \
             /k:"quartznet_quartznet" \
             /o:"quartznet" \
@@ -87,7 +95,7 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**" \
             /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**" \
-            /d:sonar.coverage.exclusions="docs/.vuepress/**"
+            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Dashboard/Components/**/*.razor"
       # Has to sit between begin and end: the scanner analyses through MSBuild, so only projects
       # actually built while it is active are measured.
       - name: 'Run: Compile, UnitTest'
