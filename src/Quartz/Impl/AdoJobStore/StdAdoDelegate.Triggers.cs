@@ -1245,6 +1245,7 @@ public partial class StdAdoDelegate
         }
 
         AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
+        AddCommandParameter(cmd, "triggerExecutionGroup", (object?) trigger.ExecutionGroup ?? DBNull.Value);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -1267,6 +1268,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(ps, "jobGroup", trigger.JobKey.Group);
         AddCommandParameter(ps, "isNonConcurrent", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
         AddCommandParameter(ps, "requestsRecover", GetDbBooleanValue(job.RequestsRecovery));
+        AddCommandParameter(ps, "executionGroup", (object?) trigger.ExecutionGroup ?? DBNull.Value);
         AddCommandParameter(ps, "entryId", trigger.FireInstanceId);
 
         return await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);

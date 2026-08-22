@@ -117,10 +117,10 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.GetMetadata(cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
-        return await target.GetCurrentlyExecutingJobs(cancellationToken).ConfigureAwait(false);
+        return await target.QueryFireInstances(query, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask Start(CancellationToken cancellationToken = default)

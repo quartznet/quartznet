@@ -62,7 +62,13 @@ public interface IQuartzApiClient
 
     ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
-    ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Returns one page of firings — by default the ones that are running — ordered by trigger group,
+    /// then trigger name, then fire instance id. With a persistent job store this covers the whole
+    /// cluster, so a firing owned by another node is listed too, marked with that node's
+    /// <see cref="FireInstanceDto.SchedulerInstanceId" />.
+    /// </summary>
+    ValueTask<PagedResult<FireInstanceDto>> GetFireInstances(string schedulerName, DashboardFireInstanceQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Pauses the job. Returns <see langword="true" /> when the job existed and was paused,
@@ -81,6 +87,16 @@ public interface IQuartzApiClient
     ValueTask TriggerJobWithData(string schedulerName, JobKeyDto jobKey, JsonElement jobDataMap, CancellationToken cancellationToken = default);
 
     ValueTask InterruptJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Interrupts one execution, named by its fire instance id.
+    /// </summary>
+    /// <remarks>
+    /// The single-execution form of <see cref="InterruptJob" />, which interrupts every execution of the
+    /// job. Node-local on the server side: a firing owned by another node is interrupted by asking that
+    /// node.
+    /// </remarks>
+    ValueTask InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default);
 
     ValueTask DeleteJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
@@ -157,6 +173,20 @@ public sealed record DashboardTriggerQuery : PagedQuery
 }
 
 /// <summary>
+/// One page of the firings a scheduler knows about.
+/// </summary>
+public sealed record DashboardFireInstanceQuery : PagedQuery
+{
+    public string? GroupContains { get; init; }
+
+    /// <summary>
+    /// Which firings to list. Defaults to <see cref="FireInstanceState.Executing" />, so an unfiltered
+    /// query lists what is running; <see langword="null" /> lists reserved firings as well.
+    /// </summary>
+    public FireInstanceState? State { get; init; } = FireInstanceState.Executing;
+}
+
+/// <summary>
 /// One page of the execution history of a scheduler, optionally narrowed by job and trigger.
 /// </summary>
 /// <remarks>
@@ -201,12 +231,22 @@ public sealed record JobDetailDto(
     bool PersistJobDataAfterExecution,
     JsonElement JobDataMap);
 
-public sealed record CurrentlyExecutingJobDto(
-    JobKeyDto JobKey,
+/// <summary>
+/// One firing, as the dashboard shows it.
+/// </summary>
+/// <remarks>
+/// <see cref="JobKey" /> is null while the firing is only <see cref="FireInstanceState.Acquired" />: the
+/// job is not loaded until the execution starts.
+/// </remarks>
+public sealed record FireInstanceDto(
+    string FireInstanceId,
     TriggerKeyDto TriggerKey,
+    JobKeyDto? JobKey,
+    string SchedulerInstanceId,
+    FireInstanceState State,
     DateTimeOffset FireTimeUtc,
-    string? FireInstanceId,
-    string? ExecutionGroup = null);
+    DateTimeOffset? ScheduledFireTimeUtc,
+    string? ExecutionGroup);
 
 public sealed record TriggerDetailDto(JsonElement Value);
 

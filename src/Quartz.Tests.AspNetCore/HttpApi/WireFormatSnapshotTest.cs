@@ -90,6 +90,22 @@ public class WireFormatSnapshotTest : WebApiTest
     }
 
     [Test]
+    public async Task FireInstanceListingBody()
+    {
+        // Both shapes in one page: a running firing with every member populated, and a reserved one
+        // whose job key, scheduled time and execution group are all absent. The state goes out as its
+        // name, and the absent members as nulls rather than as missing properties.
+        A.CallTo(() => FakeScheduler.QueryFireInstances(A<FireInstanceQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<FireInstance>(
+                [TestData.ExecutingFireInstance, TestData.AcquiredFireInstance],
+                HasMore: false,
+                TotalCount: 2));
+
+        string body = await Get($"{SchedulerUrl}/jobs/fire-instances?includeTotalCount=true&state=Any");
+        await VerifyBody(body);
+    }
+
+    [Test]
     public async Task TriggerStateBody()
     {
         TriggerKey triggerKey = TestData.Wire.CronTrigger.Key;

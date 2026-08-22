@@ -3,8 +3,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <summary>
 /// Covers the scenario behind #1416: one process schedules and observes triggers but never executes
 /// jobs, while another process executes them, the two sharing only the database. The observing process
-/// has to be able to tell that a trigger's job is running, which <see cref="IScheduler.GetCurrentlyExecutingJobs" />
-/// cannot answer because it only ever sees its own node.
+/// has to be able to tell that a trigger's job is running — both as a trigger state and, since #3205, as
+/// the list of firings themselves.
 /// Runs against the assembly-wide PostgreSQL database (see ClusteredPostgresTestBase).
 /// </summary>
 [Category("db-postgres")]
@@ -64,6 +64,8 @@ public sealed class ExecutingTriggerStateClusteredPostgresTest : ClusteredPostgr
                 // execution while the first is still parked waiting for its one permit.
                 .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
                 .StartNow()
+                // Persisted onto the fired-trigger row, so the listing can report it from another node.
+                .WithExecutionGroup("clusteredExecutions")
                 .Build();
             await executingNode.ScheduleJob(trigger);
 
@@ -80,8 +82,27 @@ public sealed class ExecutingTriggerStateClusteredPostgresTest : ClusteredPostgr
             observed.Should().Be(TriggerState.Executing,
                 "the observing node should see the trigger as executing. State:\n{0}", diagnostics);
 
-            (await observingNode.GetCurrentlyExecutingJobs())
-                .Should().BeEmpty("GetCurrentlyExecutingJobs stays node-local, which is why the trigger state is needed");
+            // The firing itself, seen from a node that is not running it. This is the half #1416 could
+            // only work around with a trigger state: the observing node holds no context for this
+            // execution and never will, yet the store can still say what is running, where, and since when.
+            PagedResult<FireInstance> firings = await observingNode.QueryFireInstances(new FireInstanceQuery());
+            FireInstance firing = firings.Items.Should().ContainSingle(x => x.TriggerKey.Equals(triggerKey),
+                "the observing node should see the remote firing. State:\n{0}", diagnostics).Subject;
+
+            firing.State.Should().Be(FireInstanceState.Executing);
+            firing.JobKey.Should().Be(job.Key, "an executing firing knows its job");
+            firing.SchedulerInstanceId.Should().Be(executingNode.SchedulerInstanceId,
+                "the firing is owned by the node that is running it, not by the one that listed it");
+            firing.ExecutionGroup.Should().Be("clusteredExecutions",
+                "the execution group is written with the fired-trigger row and read back from it");
+            firing.FireInstanceId.Should().NotBeNullOrEmpty();
+
+            (await observingNode.QueryFireInstances(new FireInstanceQuery { SchedulerInstanceId = "no-such-node" }))
+                .Items.Should().BeEmpty("filtering by another node's id excludes this firing");
+
+            (await observingNode.QueryFireInstances(new FireInstanceQuery { State = FireInstanceState.Acquired }))
+                .Items.Should().NotContain(x => x.FireInstanceId == firing.FireInstanceId,
+                    "a firing that is running is no longer merely acquired");
 
             // The listing is the scenario the dashboard actually uses, and it is the only place the
             // per-row executing projection and the EXISTS filter run against a real database with a

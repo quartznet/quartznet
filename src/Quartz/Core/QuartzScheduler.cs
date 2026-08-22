@@ -397,6 +397,16 @@ internal sealed class QuartzScheduler
     public int NumberOfJobsExecuted => jobMgr.NumJobsFired;
 
     /// <summary>
+    /// Gets the number of jobs running in this process right now.
+    /// </summary>
+    /// <value>
+    /// The number of executions this scheduler instance is hosting. Node-local by construction: it counts
+    /// the contexts this process holds, so a cluster-wide answer comes from
+    /// <see cref="IScheduler.QueryFireInstances" /> instead.
+    /// </value>
+    public int NumberOfJobsExecutingHere => jobMgr.NumJobsCurrentlyExecuting;
+
+    /// <summary>
     /// Gets a value indicating whether this scheduler supports persistence.
     /// </summary>
     /// <value><c>true</c> if supports persistence; otherwise, <c>false</c>.</value>
@@ -1494,6 +1504,18 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Lists firings matching the query, from the job store — so with a persistent store, from the whole
+    /// cluster rather than only this node.
+    /// </summary>
+    public ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ValidateState();
+
+        return resources.JobStore.QueryFireInstances(query, cancellationToken);
+    }
+
+    /// <summary>
     /// Retrieves the given jobs in one round trip.
     /// </summary>
     public ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
@@ -2408,22 +2430,20 @@ internal sealed class QuartzScheduler
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
-        var interruptableJobs = GetCurrentlyExecutingJobs().OfType<IInterruptableJobExecutionContext>();
+        cancellationToken.ThrowIfCancellationRequested();
 
-        foreach (var interruptableContext in interruptableJobs)
+        // Looked up rather than scanned: the running executions are already keyed by fire instance id,
+        // which is what this method is given.
+        if (!jobMgr.TryGetExecutingJob(fireInstanceId, out var context)
+            || context is not IInterruptableJobExecutionContext interruptableContext)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (interruptableContext.FireInstanceId == fireInstanceId)
-            {
-                interruptableContext.Interrupt();
-                var jobKey = interruptableContext.JobDetail.Key;
-                await NotifySchedulerListeners(l => l.JobInterrupted(jobKey, cancellationToken), "job interruption").ConfigureAwait(false);
-                return true;
-            }
+            return false;
         }
 
-        return false;
+        interruptableContext.Interrupt();
+        var jobKey = interruptableContext.JobDetail.Key;
+        await NotifySchedulerListeners(l => l.JobInterrupted(jobKey, cancellationToken), "job interruption").ConfigureAwait(false);
+        return true;
     }
 
     private async Task ShutdownPlugins(

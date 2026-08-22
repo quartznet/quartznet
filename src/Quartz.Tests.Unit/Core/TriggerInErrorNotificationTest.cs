@@ -76,7 +76,7 @@ public class TriggerInErrorNotificationTest
         // reaches this branch without a trigger implementation that asks for it.
         CapturingSignaler signaler = new CapturingSignaler();
         RAMJobStore store = TestJobStores.Ram(signaler);
-        await store.Initialize();
+        await store.Initialize(TestJobStores.Identity());
         await store.SchedulerStarted(CancellationToken.None);
 
         IJobDetail job = JobBuilder.Create<HarmlessJob>()

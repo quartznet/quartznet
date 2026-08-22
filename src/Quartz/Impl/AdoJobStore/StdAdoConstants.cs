@@ -118,7 +118,7 @@ internal static class StdAdoConstants
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableCronTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnCronExpression}, {AdoConstants.ColumnTimeZoneId}) VALUES(@schedulerName, @triggerName, @triggerGroup, @triggerCronExpression, @triggerTimeZone)");
 
     public static readonly string SqlInsertFiredTrigger =
-        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableFiredTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnEntryState}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnIsNonConcurrent}, {AdoConstants.ColumnRequestsRecovery}, {AdoConstants.ColumnPriority}) VALUES(@schedulerName, @triggerEntryId, @triggerName, @triggerGroup, @triggerInstanceName, @triggerFireTime, @triggerScheduledTime, @triggerState, @triggerJobName, @triggerJobGroup, @triggerJobStateful, @triggerJobRequestsRecovery, @triggerPriority)");
+        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableFiredTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnEntryState}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnIsNonConcurrent}, {AdoConstants.ColumnRequestsRecovery}, {AdoConstants.ColumnPriority}, {AdoConstants.ColumnExecutionGroup}) VALUES(@schedulerName, @triggerEntryId, @triggerName, @triggerGroup, @triggerInstanceName, @triggerFireTime, @triggerScheduledTime, @triggerState, @triggerJobName, @triggerJobGroup, @triggerJobStateful, @triggerJobRequestsRecovery, @triggerPriority, @triggerExecutionGroup)");
 
     public static readonly string SqlInsertJobDetail =
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableJobDetails} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnDescription}, {AdoConstants.ColumnJobClass}, {AdoConstants.ColumnIsDurable}, {AdoConstants.ColumnIsNonConcurrent}, {AdoConstants.ColumnIsUpdateData}, {AdoConstants.ColumnRequestsRecovery}, {AdoConstants.ColumnJobDataMap})  VALUES(@schedulerName, @jobName, @jobGroup, @jobDescription, @jobType, @jobDurable, @jobVolatile, @jobStateful, @jobRequestsRecovery, @jobDataMap)");
@@ -576,6 +576,50 @@ internal static class StdAdoConstants
 
     public static readonly string SqlOrderByCalendarName = Invariant($" ORDER BY {AdoConstants.ColumnCalendarName}");
 
+    /// <summary>
+    /// The fire-instance listing: one page of FIRED_TRIGGERS rows, projected in the order
+    /// <c>ReadFireInstance</c> reads them.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="SqlSelectFiredTriggers" />, which is deliberately unpaged and selects
+    /// every column for the recovery passes. This one names its columns, because a page has to be read
+    /// positionally, and carries the ORDER BY that paging requires.
+    /// </remarks>
+    public static readonly string SqlSelectFireInstances =
+        Invariant($"SELECT {AdoConstants.ColumnEntryId}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnEntryState}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnExecutionGroup} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlCountFireInstances =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlFireInstanceTriggerGroupEqualsPredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlFireInstanceTriggerGroupLikePredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
+
+    public static readonly string SqlFireInstanceTriggerNameEqualsPredicate = Invariant($" AND {AdoConstants.ColumnTriggerName} = @triggerName");
+
+    public static readonly string SqlFireInstanceTriggerNameLikePredicate = Invariant($" AND {AdoConstants.ColumnTriggerName} LIKE @triggerName{SqlLikeEscapeClause}");
+
+    public static readonly string SqlFireInstanceJobPredicate = Invariant($" AND {AdoConstants.ColumnJobName} = @jobName AND {AdoConstants.ColumnJobGroup} = @jobGroup");
+
+    public static readonly string SqlFireInstanceInstancePredicate = Invariant($" AND {AdoConstants.ColumnInstanceName} = @instanceName");
+
+    /// <summary>
+    /// The state filter. A fire instance is either reserved or running, so the two
+    /// <see cref="Quartz.FireInstanceState" /> members map onto stored states rather than onto one
+    /// column value each: everything that is not ACQUIRED is an execution the store has started.
+    /// </summary>
+    public static readonly string SqlFireInstanceStateEqualsPredicate = Invariant($" AND {AdoConstants.ColumnEntryState} = @entryState");
+
+    /// <inheritdoc cref="SqlFireInstanceStateEqualsPredicate" />
+    public static readonly string SqlFireInstanceStateNotEqualsPredicate = Invariant($" AND {AdoConstants.ColumnEntryState} <> @entryState");
+
+    /// <summary>
+    /// Trigger group and name are not unique across fire instances — one trigger can have several
+    /// firings at once — so the entry id is the tiebreaker that makes a page deterministic.
+    /// </summary>
+    public static readonly string SqlOrderByFireInstance =
+        Invariant($" ORDER BY {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnEntryId}");
+
     // UPDATE
 
     public static readonly string SqlUpdateBlobTrigger =
@@ -623,7 +667,7 @@ internal static class StdAdoConstants
                         {AdoConstants.ColumnTriggerState} = @triggerState, {AdoConstants.ColumnTriggerType} = @triggerType, {AdoConstants.ColumnStartTime} = @triggerStartTime, {AdoConstants.ColumnEndTime} = @triggerEndTime, {AdoConstants.ColumnCalendarName} = @triggerCalendarName, {AdoConstants.ColumnMisfireInstruction} = @triggerMisfireInstruction, {AdoConstants.ColumnPriority} = @triggerPriority, {AdoConstants.ColumnJobDataMap} = @triggerJobJobDataMap, {AdoConstants.ColumnExecutionGroup} = @triggerExecutionGroup{PreferredNodeSetClause}
                         WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
 
-    public static readonly string SqlUpdateFiredTrigger = Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableFiredTriggers} SET {AdoConstants.ColumnInstanceName} = @instanceName, {AdoConstants.ColumnFiredTime} = @firedTime, {AdoConstants.ColumnScheduledTime} = @scheduledTime, {AdoConstants.ColumnEntryState} = @entryState, {AdoConstants.ColumnJobName} = @jobName, {AdoConstants.ColumnJobGroup} = @jobGroup, {AdoConstants.ColumnIsNonConcurrent} = @isNonConcurrent, {AdoConstants.ColumnRequestsRecovery} = @requestsRecover WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnEntryId} = @entryId");
+    public static readonly string SqlUpdateFiredTrigger = Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableFiredTriggers} SET {AdoConstants.ColumnInstanceName} = @instanceName, {AdoConstants.ColumnFiredTime} = @firedTime, {AdoConstants.ColumnScheduledTime} = @scheduledTime, {AdoConstants.ColumnEntryState} = @entryState, {AdoConstants.ColumnJobName} = @jobName, {AdoConstants.ColumnJobGroup} = @jobGroup, {AdoConstants.ColumnIsNonConcurrent} = @isNonConcurrent, {AdoConstants.ColumnRequestsRecovery} = @requestsRecover, {AdoConstants.ColumnExecutionGroup} = @executionGroup WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnEntryId} = @entryId");
 
     public static readonly string SqlUpdateTriggerGroupStateFromStateEquals =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup AND {AdoConstants.ColumnTriggerState} = @oldState");

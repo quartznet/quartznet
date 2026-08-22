@@ -21,6 +21,14 @@ internal sealed class TriggerWrapper : IEquatable<TriggerWrapper>
     /// </summary>
     public StoredTriggerState state = StoredTriggerState.Waiting;
 
+    /// <summary>
+    /// When the firing now reserved on this trigger was reserved, meaningful only while
+    /// <see cref="state" /> is <see cref="StoredTriggerState.Acquired" />. The in-memory counterpart of
+    /// the FIRED_TIME an ACQUIRED row of the ADO store's FIRED_TRIGGERS table carries, and what a
+    /// <see cref="FireInstance" /> in that state reports.
+    /// </summary>
+    public DateTimeOffset acquiredAtUtc;
+
     internal TriggerWrapper(IOperableTrigger trigger)
     {
         Trigger = trigger;

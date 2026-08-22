@@ -42,7 +42,7 @@ public class RAMJobStoreQueryTest
     public async Task SetUp()
     {
         store = TestJobStores.Ram();
-        await store.Initialize();
+        await store.Initialize(TestJobStores.Identity());
         await store.SchedulerStarted();
     }
 

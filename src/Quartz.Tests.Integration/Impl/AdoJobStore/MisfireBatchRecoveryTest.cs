@@ -238,18 +238,14 @@ public class MisfireBatchRecoveryTest
 
         var serializer = new NewtonsoftJsonObjectSerializer(registry);
 
-        var jobStore = new TestLocalTransactionJobStore(serializer, dbProvider, new CountingSQLiteDelegate(), maxMisfiresToHandleAtATime)
-        {
-            InstanceId = "AUTO",
-            InstanceName = SchedulerName,
-        };
+        var jobStore = new TestLocalTransactionJobStore(serializer, dbProvider, new CountingSQLiteDelegate(), maxMisfiresToHandleAtATime);
 
         // Initialized but deliberately not started: SchedulerStarted() spawns the MisfireHandler loop,
         // which sweeps for misfires on its own thread every MisfireHandlerFrequency - and that defaults
         // to MisfireThreshold, one second here. A sweep landing between storing the triggers and the
         // RecoverMisfires() call below recovers some of them first, and the explicit pass then sees a
         // short count. These tests drive recovery by hand, so the loop can only race them.
-        await jobStore.Initialize();
+        await jobStore.Initialize(new SchedulerIdentity { SchedulerName = SchedulerName, InstanceId = "AUTO" });
         await jobStore.Clear();
 
         jobStores.Add(jobStore);

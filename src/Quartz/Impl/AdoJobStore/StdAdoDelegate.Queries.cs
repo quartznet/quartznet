@@ -23,6 +23,7 @@ using System.Data.Common;
 using System.Globalization;
 using System.Text;
 
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -614,5 +615,125 @@ public partial class StdAdoDelegate
         {
             AddCommandParameter(cmd, "calendarName", nameParameter);
         }
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<PagedResult<FireInstance>> SelectFireInstances(
+        ConnectionAndTransactionHolder conn,
+        FireInstanceQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        StringBuilder predicateBuilder = new();
+        List<KeyValuePair<string, object?>> parameters = [];
+
+        (string groupPredicate, string? groupParameter) = BuildMatcherPredicate(
+            query.TriggerGroup,
+            StdAdoConstants.SqlFireInstanceTriggerGroupEqualsPredicate,
+            StdAdoConstants.SqlFireInstanceTriggerGroupLikePredicate);
+        predicateBuilder.Append(groupPredicate);
+        if (groupParameter is not null)
+        {
+            parameters.Add(new KeyValuePair<string, object?>("triggerGroup", groupParameter));
+        }
+
+        (string namePredicate, string? nameParameter) = BuildMatcherPredicate(
+            query.TriggerName,
+            StdAdoConstants.SqlFireInstanceTriggerNameEqualsPredicate,
+            StdAdoConstants.SqlFireInstanceTriggerNameLikePredicate);
+        predicateBuilder.Append(namePredicate);
+        if (nameParameter is not null)
+        {
+            parameters.Add(new KeyValuePair<string, object?>("triggerName", nameParameter));
+        }
+
+        if (query.Job is not null)
+        {
+            predicateBuilder.Append(StdAdoConstants.SqlFireInstanceJobPredicate);
+            parameters.Add(new KeyValuePair<string, object?>("jobName", query.Job.Name));
+            parameters.Add(new KeyValuePair<string, object?>("jobGroup", query.Job.Group));
+        }
+
+        if (query.SchedulerInstanceId is not null)
+        {
+            predicateBuilder.Append(StdAdoConstants.SqlFireInstanceInstancePredicate);
+            parameters.Add(new KeyValuePair<string, object?>("instanceName", query.SchedulerInstanceId));
+        }
+
+        if (query.State is not null)
+        {
+            // The stored state ACQUIRED is the whole of the distinction — a row in any other state
+            // belongs to an execution the store has started — so both directions of the filter compare
+            // against the same value, and the filter cannot drift from what ReadFireInstance reports.
+            predicateBuilder.Append(query.State == FireInstanceState.Acquired
+                ? StdAdoConstants.SqlFireInstanceStateEqualsPredicate
+                : StdAdoConstants.SqlFireInstanceStateNotEqualsPredicate);
+            parameters.Add(new KeyValuePair<string, object?>("entryState", StoredTriggerState.Acquired.ToStoredValue()));
+        }
+
+        string predicate = predicateBuilder.ToString();
+
+        if (IsCountOnly(query))
+        {
+            using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountFireInstances + predicate));
+            BindFireInstanceFilters(countCmd, parameters);
+
+            return CountOnlyResult<FireInstance>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
+        }
+
+        List<FireInstance> items;
+        bool hasMore;
+
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectFireInstances + predicate + StdAdoConstants.SqlOrderByFireInstance, query))))
+        {
+            BindFireInstanceFilters(cmd, parameters);
+            BindPaging(cmd, query);
+
+            (items, hasMore) = await ReadPage(cmd, query, ReadFireInstance, cancellationToken).ConfigureAwait(false);
+        }
+
+        int? totalCount = null;
+        if (query.IncludeTotalCount)
+        {
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountFireInstances + predicate));
+            BindFireInstanceFilters(cmd, parameters);
+            totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
+        }
+
+        return new PagedResult<FireInstance>(items, hasMore, totalCount);
+    }
+
+    /// <summary>
+    /// Binds the scheduler name every fire-instance statement carries, then whichever filters are in
+    /// play, in the order the statement names them: providers that adapt named parameters positionally
+    /// depend on that order.
+    /// </summary>
+    private void BindFireInstanceFilters(DbCommand cmd, List<KeyValuePair<string, object?>> parameters)
+    {
+        AddCommandParameter(cmd, "schedulerName", schedulerName);
+        foreach (KeyValuePair<string, object?> parameter in parameters)
+        {
+            AddCommandParameter(cmd, parameter.Key, parameter.Value);
+        }
+    }
+
+    private FireInstance ReadFireInstance(DbDataReader rs)
+    {
+        StoredTriggerState state = StoredTriggerStates.FromStoredValue(rs.GetString(6));
+
+        // A reservation is written before the job is loaded, so its job columns hold nothing yet — the
+        // same rule ReadFiredTriggerRecord applies, and the reason FireInstance.JobKey is nullable.
+        bool acquired = state == StoredTriggerState.Acquired;
+
+        return new FireInstance(
+            rs.GetString(0),
+            new TriggerKey(rs.GetString(1), rs.GetString(2)),
+            acquired ? null : new JobKey(rs.GetString(3), rs.GetString(4)),
+            rs.GetString(5),
+            acquired ? FireInstanceState.Acquired : FireInstanceState.Executing,
+            GetDateTimeFromDbValue(rs.GetValue(7)) ?? DateTimeOffset.MinValue,
+            GetDateTimeFromDbValue(rs.GetValue(8)),
+            rs.IsDBNull(9) ? null : rs.GetString(9));
     }
 }

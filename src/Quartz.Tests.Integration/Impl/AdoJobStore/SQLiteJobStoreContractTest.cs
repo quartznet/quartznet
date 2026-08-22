@@ -74,7 +74,7 @@ public sealed class SQLiteJobStoreContractTest : JobStoreContractTest
             new SQLiteDelegate(),
             TestJobStores.LockHandler());
 
-        await store.Initialize();
+        await store.Initialize(new SchedulerIdentity { SchedulerName = SchedulerName, InstanceId = InstanceId });
 
         // SchedulerStarted() is deliberately not called: it spawns the misfire handler, which would
         // both race the tests that drive trigger state by hand and leave a foreground thread behind

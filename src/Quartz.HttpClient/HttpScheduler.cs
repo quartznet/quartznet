@@ -114,6 +114,8 @@ public sealed class HttpScheduler : IScheduler
             Shutdown = schedulerDto.Status == SchedulerStatus.Shutdown,
             RunningSince = schedulerDto.Statistics.RunningSince,
             JobsExecuted = schedulerDto.Statistics.JobsExecuted,
+            // the remote node's own count, which is what the member means everywhere
+            LocalExecutingJobs = schedulerDto.Statistics.LocalExecutingJobs,
             // names pass through as strings: the remote types need not exist in this process
             JobStoreTypeName = schedulerDto.JobStore.Type,
             JobStorePersistent = schedulerDto.JobStore.Persistent,
@@ -124,23 +126,35 @@ public sealed class HttpScheduler : IScheduler
         };
     }
 
-    public async ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
     {
-        var dtos = await httpClient.Get<CurrentlyExecutingJobDto[]>($"{JobEndpointUrl()}/currently-executing", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(query);
 
-        var result = new List<IJobExecutionContext>(dtos.Length);
-        foreach (var dto in dtos)
+        QueryStringBuilder parameters = new();
+        parameters.AddPaging(query);
+        parameters.AddGroupMatcher(query.TriggerGroup);
+        parameters.AddNameMatcher(query.TriggerName);
+
+        if (query.Job is not null)
         {
-            var (context, errorReason) = dto.AsIJobExecutionContext(this);
-            if (context is null)
-            {
-                throw new HttpClientException("Could not create IJobExecutionContext from CurrentlyExecutingJobDto: " + errorReason);
-            }
-
-            result.Add(context);
+            parameters.Add("jobName", query.Job.Name);
+            parameters.Add("jobGroup", query.Job.Group);
         }
 
-        return result;
+        if (query.SchedulerInstanceId is not null)
+        {
+            parameters.Add("schedulerInstanceId", query.SchedulerInstanceId);
+        }
+
+        // Always sent, because the query's own default is Executing rather than "everything": omitting
+        // the parameter would have to mean "every state", and then the default could not travel.
+        parameters.Add("state", query.State?.ToString() ?? HttpApiConstants.AnyFireInstanceState);
+
+        PagedResultDto<FireInstanceDto> result = await httpClient
+            .Get<PagedResultDto<FireInstanceDto>>($"{JobEndpointUrl()}/fire-instances{parameters}", jsonSerializerOptions, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PagedResult<FireInstance>(result.Items.Select(x => x.AsFireInstance()).ToList(), result.HasMore, result.TotalCount);
     }
 
     public ValueTask Start(CancellationToken cancellationToken = default)

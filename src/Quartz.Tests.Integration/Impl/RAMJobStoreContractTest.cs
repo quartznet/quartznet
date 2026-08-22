@@ -37,7 +37,7 @@ public sealed class RAMJobStoreContractTest : JobStoreContractTest
     protected override async ValueTask<IJobStore> CreateStore()
     {
         IJobStore store = TestJobStores.Ram();
-        await store.Initialize();
+        await store.Initialize(TestJobStores.Identity());
         return store;
     }
 }

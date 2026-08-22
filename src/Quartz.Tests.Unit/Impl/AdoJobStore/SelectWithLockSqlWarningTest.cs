@@ -77,7 +77,7 @@ public sealed class SelectWithLockSqlWarningTest
         try
         {
             var store = new WarningStore(lockHandler, selectWithLockSql);
-            await store.Initialize();
+            await store.Initialize(TestJobStores.Identity());
         }
         finally
         {

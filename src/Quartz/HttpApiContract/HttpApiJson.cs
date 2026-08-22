@@ -57,6 +57,7 @@ internal static class HttpApiJson
         options.AddQuartzConverters(registry, newtonsoftCompatibilityMode: false);
         options.Converters.Add(new JsonStringEnumConverter<TriggerState>());
         options.Converters.Add(new JsonStringEnumConverter<SchedulerStatus>());
+        options.Converters.Add(new JsonStringEnumConverter<FireInstanceState>());
         return options;
     }
 }

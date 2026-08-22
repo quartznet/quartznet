@@ -155,16 +155,17 @@ public abstract class AdoJobStoreBase : IJobStore
     /// The instance id of the scheduler (unique within a cluster).
     /// </summary>
     /// <remarks>
-    /// Written once more after construction when the id is generated rather than configured, because
-    /// the store is built before the generator has run and its rows are keyed by the value.
+    /// Read from configuration at construction and settled in <see cref="Initialize" />, which is the
+    /// first point at which a generated id exists — the store is built before the generator has run, and
+    /// its rows are keyed by the value.
     /// </remarks>
-    internal string InstanceId { get; set; } = "";
+    internal string InstanceId { get; private set; } = "";
 
     /// <summary>
     /// The name of the scheduler, shared by every node of a cluster.
     /// </summary>
     /// <inheritdoc cref="InstanceId" path="/remarks" />
-    internal string InstanceName { get; set; } = "";
+    internal string InstanceName { get; private set; } = "";
 
     /// <summary>
     /// The number of retries before an error is logged for recovery operations.
@@ -671,12 +672,21 @@ public abstract class AdoJobStoreBase : IJobStore
     /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
     /// used, in order to give it a chance to Initialize.
     /// </summary>
-    public virtual async ValueTask Initialize(CancellationToken cancellationToken = default)
+    public virtual async ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(identity);
+
         if (string.IsNullOrWhiteSpace(DataSource))
         {
             Throw.SchedulerConfigException("DataSource name not set.");
         }
+
+        // The constructor read the configured identity, which is all there was at the time; this is the
+        // settled one, and the only place it differs is a generated instance id, which does not exist
+        // until the generator has run. Applied before InitializeDelegate, because the delegate and the
+        // lock handler are both built with it below and every row this store writes is keyed by it.
+        InstanceName = identity.SchedulerName;
+        InstanceId = identity.InstanceId;
 
         LastCheckin = timeProvider.GetUtcNow();
         InitializeDelegate();
@@ -2673,6 +2683,32 @@ public abstract class AdoJobStoreBase : IJobStore
         catch (Exception e)
         {
             Throw.JobPersistenceException("Couldn't query calendar names: " + e.Message, e);
+            return default;
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // no locks necessary for read... and the rows of every node are equally visible, which is what
+        // makes this listing cluster-wide
+        return ExecuteWithoutLock(conn => QueryFireInstances(conn, query, cancellationToken), cancellationToken);
+    }
+
+    protected async ValueTask<PagedResult<FireInstance>> QueryFireInstances(
+        ConnectionAndTransactionHolder conn,
+        FireInstanceQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await Delegate.SelectFireInstances(conn, query, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Throw.JobPersistenceException("Couldn't query fire instances: " + e.Message, e);
             return default;
         }
     }

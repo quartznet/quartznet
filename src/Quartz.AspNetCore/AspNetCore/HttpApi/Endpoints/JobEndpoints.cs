@@ -30,8 +30,8 @@ internal static class JobEndpoints
         yield return builder.MapGet(patternPrefix + "/{jobGroup}/{jobName}/triggers", GetJobTriggers)
             .WithQuartzDefaults(nameof(GetJobTriggers), "Get job triggers");
 
-        yield return builder.MapGet(patternPrefix + "/currently-executing", CurrentlyExecutingJobs)
-            .WithQuartzDefaults(nameof(CurrentlyExecutingJobs), "Get currently executing jobs");
+        yield return builder.MapGet(patternPrefix + "/fire-instances", QueryFireInstances)
+            .WithQuartzDefaults(nameof(QueryFireInstances), "Query fire instances");
 
         yield return builder.MapPost(patternPrefix + "/{jobGroup}/{jobName}/pause", PauseJob)
             .WithQuartzDefaults(nameof(PauseJob), "Pause job");
@@ -186,18 +186,76 @@ internal static class JobEndpoints
         });
     }
 
-    [ProducesResponseType(typeof(OpenApi.CurrentlyExecutingJobDto[]), StatusCodes.Status200OK)]
-    private static Task<IResult> CurrentlyExecutingJobs(
+    [ProducesResponseType(typeof(PagedResultDto<FireInstanceDto>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryFireInstances(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        int skip = 0,
+        int? take = null,
+        bool includeTotalCount = false,
+        string? groupContains = null,
+        string? groupEndsWith = null,
+        string? groupStartsWith = null,
+        string? groupEquals = null,
+        string? nameContains = null,
+        string? nameEndsWith = null,
+        string? nameStartsWith = null,
+        string? nameEquals = null,
+        string? jobName = null,
+        string? jobGroup = null,
+        string? schedulerInstanceId = null,
+        string? state = null,
         CancellationToken cancellationToken = default)
     {
+        EndpointHelper.AssertPaging(skip, take);
+
+        // A state is parsed here rather than bound as a nullable enum, because null already means
+        // something on the query record — every state — and an unnamed parameter must instead mean
+        // "whatever the record defaults to".
+        FireInstanceState? parsedState = null;
+        bool anyState = false;
+        if (state is not null)
+        {
+            if (string.Equals(state, HttpApiConstants.AnyFireInstanceState, StringComparison.OrdinalIgnoreCase))
+            {
+                anyState = true;
+            }
+            else if (Enum.TryParse(state, ignoreCase: true, out FireInstanceState value) && Enum.IsDefined(value))
+            {
+                parsedState = value;
+            }
+            else
+            {
+                throw new BadHttpRequestException($"Unknown fire instance state '{state}'");
+            }
+        }
+
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var currentlyExecutingJobs = await scheduler.GetCurrentlyExecutingJobs(cancellationToken).ConfigureAwait(false);
-            var result = currentlyExecutingJobs.Select(CurrentlyExecutingJobDto.Create).ToArray();
-            return result;
+            FireInstanceQuery query = new()
+            {
+                TriggerGroup = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals),
+                TriggerName = EndpointHelper.GetNameMatcher<TriggerKey>(nameContains, nameEndsWith, nameStartsWith, nameEquals),
+                Job = jobName is not null && jobGroup is not null ? new JobKey(jobName, jobGroup) : null,
+                SchedulerInstanceId = schedulerInstanceId,
+                Skip = skip,
+                IncludeTotalCount = includeTotalCount
+            };
+
+            if (anyState || parsedState is not null)
+            {
+                query = query with { State = parsedState };
+            }
+
+            // a request that names no take gets the query record's own default page size
+            if (take.HasValue)
+            {
+                query = query with { Take = take.Value };
+            }
+
+            PagedResult<FireInstance> page = await scheduler.QueryFireInstances(query, cancellationToken).ConfigureAwait(false);
+            return new PagedResultDto<FireInstanceDto>(page.Items.Select(FireInstanceDto.Create).ToArray(), page.HasMore, page.TotalCount);
         });
     }
 

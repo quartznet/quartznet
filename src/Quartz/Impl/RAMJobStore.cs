@@ -60,15 +60,35 @@ public sealed class RAMJobStore : IJobStore
     private readonly HashSet<JobKey> resumedJobsInPausedGroups = new HashSet<JobKey>();
 
     /// <summary>
-    /// Fire instance ids of the executions each trigger has started that are still running.
+    /// The executions each trigger has started that are still running, by fire instance id.
     /// </summary>
     /// <remarks>
     /// Deliberately keyed by <see cref="TriggerKey" /> rather than held on the wrapper: rescheduling a
     /// trigger replaces its wrapper, and an execution already in flight has to survive that. Keying by
-    /// fire instance makes a late or duplicated completion a no-op instead of a miscount. This mirrors the
-    /// ADO store, where the answer comes from FIRED_TRIGGERS rows that likewise outlive a trigger update.
+    /// fire instance makes a late or duplicated completion a no-op instead of a miscount, and keeps
+    /// several concurrent executions of one trigger distinct rather than collapsing them into a count.
+    /// This mirrors the ADO store, where the answer comes from FIRED_TRIGGERS rows that likewise outlive
+    /// a trigger update.
     /// </remarks>
-    private readonly Dictionary<TriggerKey, HashSet<string>> executingFireInstances = [];
+    private readonly Dictionary<TriggerKey, Dictionary<string, FireInstanceEntry>> executingFireInstances = [];
+
+    /// <summary>
+    /// What one running execution is, beyond its id. The in-memory counterpart of an EXECUTING row of
+    /// the ADO store's FIRED_TRIGGERS table, and the source of the <see cref="FireInstance" />s
+    /// <see cref="QueryFireInstances" /> reports.
+    /// </summary>
+    private readonly record struct FireInstanceEntry(
+        JobKey JobKey,
+        DateTimeOffset FireTimeUtc,
+        DateTimeOffset? ScheduledFireTimeUtc,
+        string? ExecutionGroup);
+
+    /// <summary>
+    /// The instance id of the scheduler this store belongs to, from <see cref="Initialize" />. Reported
+    /// on every <see cref="FireInstance" /> the store hands out, so that a listing reads the same way
+    /// whichever store answered it — for this store the answer is always this one process.
+    /// </summary>
+    private string schedulerInstanceId = "";
     private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
     private readonly ISchedulerSignaler signaler;
     private readonly TimeProvider timeProvider;
@@ -125,8 +145,11 @@ public sealed class RAMJobStore : IJobStore
     /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
     /// used, in order to give it a chance to Initialize.
     /// </summary>
-    public ValueTask Initialize(CancellationToken cancellationToken = default)
+    public ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(identity);
+
+        schedulerInstanceId = identity.InstanceId;
         logger.LogInformation("RAMJobStore initialized.");
         return default;
     }
@@ -1411,6 +1434,128 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <inheritdoc />
+    public async ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        List<FireInstance> matches = [];
+
+        // This store's world is one process, so a query naming another node matches nothing rather than
+        // silently answering for this one.
+        bool thisNode = query.SchedulerInstanceId is null
+            || string.Equals(query.SchedulerInstanceId, schedulerInstanceId, StringComparison.Ordinal);
+
+        if (thisNode)
+        {
+            await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                // Everything is projected into records under the lock and nothing that could still change
+                // escapes it, so the page is a snapshot rather than a view.
+                if (query.State is null or FireInstanceState.Executing)
+                {
+                    CollectExecutingFireInstancesNoLock(query, matches);
+                }
+
+                if (query.State is null or FireInstanceState.Acquired)
+                {
+                    CollectAcquiredFireInstancesNoLock(query, matches);
+                }
+            }
+            finally
+            {
+                lockObject.Release();
+            }
+        }
+
+        if (query.Take > 0)
+        {
+            // the count idiom (Take = 0) reads no page, so the ordering work is skipped
+            matches.Sort(static (left, right) =>
+            {
+                int byKey = CompareByGroupThenName(
+                    left.TriggerKey.Group,
+                    left.TriggerKey.Name,
+                    right.TriggerKey.Group,
+                    right.TriggerKey.Name);
+
+                // One trigger can have many firings in flight, so the key alone does not order them:
+                // without the fire instance id two pages could show the same firing twice and miss another.
+                return byKey != 0 ? byKey : StringComparer.Ordinal.Compare(left.FireInstanceId, right.FireInstanceId);
+            });
+        }
+
+        return Page(matches, query, static instance => instance);
+    }
+
+    private void CollectExecutingFireInstancesNoLock(FireInstanceQuery query, List<FireInstance> matches)
+    {
+        foreach (KeyValuePair<TriggerKey, Dictionary<string, FireInstanceEntry>> byTrigger in executingFireInstances)
+        {
+            TriggerKey triggerKey = byTrigger.Key;
+            if (!MatchesTriggerKey(query, triggerKey))
+            {
+                continue;
+            }
+
+            foreach (KeyValuePair<string, FireInstanceEntry> execution in byTrigger.Value)
+            {
+                FireInstanceEntry entry = execution.Value;
+                if (query.Job is not null && !query.Job.Equals(entry.JobKey))
+                {
+                    continue;
+                }
+
+                matches.Add(new FireInstance(
+                    execution.Key,
+                    triggerKey,
+                    entry.JobKey,
+                    schedulerInstanceId,
+                    FireInstanceState.Executing,
+                    entry.FireTimeUtc,
+                    entry.ScheduledFireTimeUtc,
+                    entry.ExecutionGroup));
+            }
+        }
+    }
+
+    private void CollectAcquiredFireInstancesNoLock(FireInstanceQuery query, List<FireInstance> matches)
+    {
+        // A reservation is not in executingFireInstances — nothing has started yet — so it is read from
+        // the wrapper the acquisition marked, which is this store's whole record of one.
+        if (query.Job is not null)
+        {
+            // ...and it names no job, so a job filter excludes every reservation, exactly as the job
+            // columns of an unstarted FIRED_TRIGGERS row do.
+            return;
+        }
+
+        foreach (TriggerWrapper tw in triggersByKey.Values)
+        {
+            if (tw.state != StoredTriggerState.Acquired || !MatchesTriggerKey(query, tw.TriggerKey))
+            {
+                continue;
+            }
+
+            matches.Add(new FireInstance(
+                tw.Trigger.FireInstanceId,
+                tw.TriggerKey,
+                JobKey: null,
+                schedulerInstanceId,
+                FireInstanceState.Acquired,
+                tw.acquiredAtUtc,
+                tw.Trigger.NextFireTimeUtc,
+                tw.Trigger.ExecutionGroup));
+        }
+    }
+
+    private static bool MatchesTriggerKey(FireInstanceQuery query, TriggerKey triggerKey)
+    {
+        return (query.TriggerGroup is null || query.TriggerGroup.IsMatch(triggerKey))
+               && (query.TriggerName is null || query.TriggerName.IsMatch(triggerKey));
+    }
+
+    /// <inheritdoc />
     public async ValueTask<List<IJobDetail>> GetJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(jobKeys);
@@ -2350,6 +2495,12 @@ public sealed class RAMJobStore : IJobStore
 
                 tw.state = StoredTriggerState.Acquired;
                 tw.Trigger.FireInstanceId = GetFiredTriggerRecordId();
+
+                // The reservation's own timestamp, which is what the ADO store writes into FIRED_TIME
+                // when it inserts the ACQUIRED row; the execution listing reports it until the firing
+                // starts and overwrites it with the execution's start.
+                tw.acquiredAtUtc = timeProvider.GetUtcNow();
+
                 IOperableTrigger trig = (IOperableTrigger) tw.Trigger.Clone();
 
                 result.Add(trig);
@@ -2485,6 +2636,11 @@ public sealed class RAMJobStore : IJobStore
 
                 // in case trigger was replaced between acquiring and firing
                 timeTriggers.Remove(tw);
+
+                // The fire time this firing is for, read while it is still the trigger's next one — the
+                // execution listing reports it, and Triggered() is about to move it on.
+                DateTimeOffset? firingScheduledTime = trigger.NextFireTimeUtc;
+
                 // call triggered on our copy, and the scheduler's copy
                 tw.Trigger.Triggered(calendar);
                 trigger.Triggered(calendar);
@@ -2545,7 +2701,15 @@ public sealed class RAMJobStore : IJobStore
                     executingFireInstances[tw.TriggerKey] = fireInstances;
                 }
 
-                fireInstances.Add(trigger.FireInstanceId);
+                // The scheduled time recorded here is the fire time the schedule called for, read before
+                // Triggered() advanced the trigger — which is what the ADO store writes into SCHED_TIME
+                // at the same point, misfires included, and so is deliberately not the misfire's original
+                // fire time that the bundle carries.
+                fireInstances[trigger.FireInstanceId] = new FireInstanceEntry(
+                    job.Key,
+                    bndle.FireTimeUtc,
+                    firingScheduledTime,
+                    trigger.ExecutionGroup);
 
                 results.Add(TriggerFiredResult.Fired(bndle));
             }

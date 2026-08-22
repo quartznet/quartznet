@@ -231,24 +231,37 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public async ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<FireInstanceDto>> GetFireInstances(string schedulerName, DashboardFireInstanceQuery query, CancellationToken cancellationToken = default)
     {
-        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        List<IJobExecutionContext> currentlyExecutingJobs = await scheduler.GetCurrentlyExecutingJobs(cancellationToken).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(query);
 
-        List<CurrentlyExecutingJobDto> result = [];
-        foreach (IJobExecutionContext jobExecutionContext in currentlyExecutingJobs)
+        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
+        FireInstanceQuery storeQuery = new()
         {
-            result.Add(
-                new CurrentlyExecutingJobDto(
-                    JobKey: new JobKeyDto(jobExecutionContext.JobDetail.Key.Group, jobExecutionContext.JobDetail.Key.Name),
-                    TriggerKey: new TriggerKeyDto(jobExecutionContext.Trigger.Key.Group, jobExecutionContext.Trigger.Key.Name),
-                    FireTimeUtc: jobExecutionContext.FireTimeUtc,
-                    FireInstanceId: jobExecutionContext.FireInstanceId,
-                    ExecutionGroup: jobExecutionContext.Trigger.ExecutionGroup));
+            TriggerGroup = BuildGroupMatcher<TriggerKey>(query.GroupContains),
+            State = query.State,
+            Skip = query.Skip,
+            Take = query.Take,
+            IncludeTotalCount = true
+        };
+
+        PagedResult<FireInstance> page = await scheduler.QueryFireInstances(storeQuery, cancellationToken).ConfigureAwait(false);
+
+        List<FireInstanceDto> items = new(page.Items.Count);
+        foreach (FireInstance instance in page.Items)
+        {
+            items.Add(new FireInstanceDto(
+                FireInstanceId: instance.FireInstanceId,
+                TriggerKey: new TriggerKeyDto(instance.TriggerKey.Group, instance.TriggerKey.Name),
+                JobKey: instance.JobKey is null ? null : new JobKeyDto(instance.JobKey.Group, instance.JobKey.Name),
+                SchedulerInstanceId: instance.SchedulerInstanceId,
+                State: instance.State,
+                FireTimeUtc: instance.FireTimeUtc,
+                ScheduledFireTimeUtc: instance.ScheduledFireTimeUtc,
+                ExecutionGroup: instance.ExecutionGroup));
         }
 
-        return result;
+        return new PagedResult<FireInstanceDto>(items, page.HasMore, page.TotalCount ?? items.Count);
     }
 
     public ValueTask<bool> PauseJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
@@ -285,6 +298,13 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         _ = await scheduler.Interrupt(AsJobKey(key), cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default)
+    {
+        EnsureWritable();
+        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
+        _ = await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask DeleteJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)

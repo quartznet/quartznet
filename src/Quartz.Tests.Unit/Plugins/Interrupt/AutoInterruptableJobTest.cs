@@ -44,9 +44,9 @@ public class AutoInterruptableJobTest
 
         await sync.WaitAsync(); // make sure the job starts running...
 
-        var executingJobs = await scheduler.GetCurrentlyExecutingJobs();
+        var executingJobs = await scheduler.QueryFireInstances(new FireInstanceQuery());
 
-        Assert.That(executingJobs, Has.Count.EqualTo(1), "Number of executing jobs should be 1");
+        executingJobs.Items.Should().ContainSingle("one execution is running");
 
         await sync.WaitAsync(); // wait for the job to terminate
 

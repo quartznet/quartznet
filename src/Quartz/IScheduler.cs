@@ -156,22 +156,29 @@ public interface IScheduler : IAsyncDisposable
     ValueTask<SchedulerMetadata> GetMetadata(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Return a list of <see cref="IJobExecutionContext" /> objects that
-    /// represent all currently executing Jobs in this Scheduler instance.
+    /// Lists the firings the scheduler knows about — by default the ones that are running — as
+    /// <see cref="FireInstance" />s.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This method is not cluster aware.  That is, it will only return Jobs
-    /// currently executing in this Scheduler instance, not across the entire
-    /// cluster.
+    /// With a persistent job store this sees the whole cluster, not just this node, because a firing is
+    /// a durable record rather than process-local state. Filter by
+    /// <see cref="FireInstanceQuery.SchedulerInstanceId" /> to ask about one node —
+    /// <see cref="SchedulerInstanceId" /> for this one.
     /// </para>
     /// <para>
-    /// Note that the list returned is an 'instantaneous' snapshot, and that as
-    /// soon as it's returned, the true list of executing jobs may be different.
+    /// The result is an 'instantaneous' snapshot: by the time it is returned, firings may have started
+    /// or finished.
+    /// </para>
+    /// <para>
+    /// A firing vetoed by an <see cref="ITriggerListener" /> is never listed: the veto removes it before
+    /// the job starts.
     /// </para>
     /// </remarks>
-    /// <seealso cref="IJobExecutionContext" />
-    ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default);
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <seealso cref="FireInstance" />
+    ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get a reference to the scheduler's <see cref="IListenerManager" />,
@@ -881,11 +888,9 @@ public interface IScheduler : IAsyncDisposable
     /// </para>
     ///
     /// <para>
-    /// If you wish to interrupt a specific instance of a job (when more than
-    /// one is executing) you can do so by calling
-    /// <see cref="GetCurrentlyExecutingJobs" /> to obtain a handle
-    /// to the job instance, and then invoke <see cref="Interrupt(JobKey, CancellationToken)" /> on it
-    /// yourself.
+    /// To interrupt one specific execution when several of the job are running, list them with
+    /// <see cref="QueryFireInstances" /> and pass the one you mean to
+    /// <see cref="InterruptFireInstance" />.
     /// </para>
     /// <para>
     /// This method is not cluster aware.  That is, it will only interrupt
@@ -896,7 +901,7 @@ public interface IScheduler : IAsyncDisposable
     /// <returns>
     /// true is at least one instance of the identified job was found and interrupted.
     /// </returns>
-    /// <seealso cref="GetCurrentlyExecutingJobs" />
+    /// <seealso cref="QueryFireInstances" />
     ValueTask<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -908,7 +913,7 @@ public interface IScheduler : IAsyncDisposable
     /// instances of the identified InterruptableJob currently executing in this
     /// Scheduler instance, not across the entire cluster.
     /// </remarks>
-    /// <seealso cref="GetCurrentlyExecutingJobs" />
+    /// <seealso cref="QueryFireInstances" />
     /// <seealso cref="IJobExecutionContext.FireInstanceId" />
     /// <seealso cref="Interrupt(JobKey, CancellationToken)" />
     /// <param name="fireInstanceId">

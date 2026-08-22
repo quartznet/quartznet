@@ -110,7 +110,7 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
+        public ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

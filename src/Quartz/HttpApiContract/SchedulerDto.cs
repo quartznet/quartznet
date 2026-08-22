@@ -65,10 +65,10 @@ internal record SchedulerJobStoreDto(string Type, bool Clustered, bool Persisten
     }
 }
 
-internal record SchedulerStatisticsDto(string Version, DateTimeOffset? RunningSince, int JobsExecuted)
+internal record SchedulerStatisticsDto(string Version, DateTimeOffset? RunningSince, int JobsExecuted, int LocalExecutingJobs)
 {
     public static SchedulerStatisticsDto Create(SchedulerMetadata metadata)
     {
-        return new SchedulerStatisticsDto(metadata.Version, metadata.RunningSince, metadata.JobsExecuted);
+        return new SchedulerStatisticsDto(metadata.Version, metadata.RunningSince, metadata.JobsExecuted, metadata.LocalExecutingJobs);
     }
 }

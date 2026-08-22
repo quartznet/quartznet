@@ -30,6 +30,7 @@
             <tr>
                 <th>Job</th>
                 <th>Trigger</th>
+                <th>Node</th>
                 <th>Execution Group</th>
                 <th>Fire Time</th>
                 <th>Run Time</th>
@@ -40,7 +41,7 @@
             </tr>
         </thead>
         <tbody>
-            @if (_executingJobs.Count == 0)
+            @if (_fireInstances.Count == 0)
             {
                 <tr>
                     <td colspan="@TableColumnCount" class="qz-muted">No jobs currently executing.</td>
@@ -48,26 +49,28 @@
             }
             else
             {
-                @foreach (object executingJob in _executingJobs)
+                @foreach (FireInstanceDto fireInstance in _fireInstances)
                 {
-                    string jobGroup = DisplayValueHelper.GetString(executingJob, "JobDetail.Group", "JobKey.Group");
-                    string jobName = DisplayValueHelper.GetString(executingJob, "JobDetail.Name", "JobKey.Name");
-                    string triggerGroup = DisplayValueHelper.GetString(executingJob, "Trigger.Key.Group", "TriggerKey.Group");
-                    string triggerName = DisplayValueHelper.GetString(executingJob, "Trigger.Key.Name", "TriggerKey.Name");
-                    DateTimeOffset? fireTime = DisplayValueHelper.GetDateTimeOffset(executingJob, "FireTime", "FireTimeUtc");
                     <tr>
-                        <td><KeyBadge GroupName="@jobGroup" ItemName="@jobName" /></td>
-                        <td><KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" /></td>
-                        @{
-                            string execGroup = DisplayValueHelper.GetString(executingJob, "ExecutionGroup");
-                        }
-                        <td>@(string.IsNullOrEmpty(execGroup) ? "\u2014" : execGroup)</td>
-                        <td>@FormatFireTime(fireTime)</td>
-                        <td>@FormatRunTime(fireTime)</td>
+                        <td>
+                            @if (fireInstance.JobKey is not null)
+                            {
+                                <KeyBadge GroupName="@fireInstance.JobKey.Group" ItemName="@fireInstance.JobKey.Name" />
+                            }
+                            else
+                            {
+                                <span class="qz-muted">&#8212;</span>
+                            }
+                        </td>
+                        <td><KeyBadge GroupName="@fireInstance.TriggerKey.Group" ItemName="@fireInstance.TriggerKey.Name" /></td>
+                        <td>@fireInstance.SchedulerInstanceId</td>
+                        <td>@(string.IsNullOrEmpty(fireInstance.ExecutionGroup) ? "—" : fireInstance.ExecutionGroup)</td>
+                        <td>@FormatFireTime(fireInstance.FireTimeUtc)</td>
+                        <td>@FormatRunTime(fireInstance.FireTimeUtc)</td>
                         @if (!IsReadOnly)
                         {
                             <td>
-                                <button type="button" class="qz-button qz-button-danger" @onclick="() => InterruptAsync(jobGroup, jobName)">Interrupt</button>
+                                <button type="button" class="qz-button qz-button-danger" @onclick="() => InterruptAsync(fireInstance.FireInstanceId)">Interrupt</button>
                             </td>
                         }
                     </tr>
@@ -75,19 +78,26 @@
             }
         </tbody>
     </table>
+
+    @if (_hasMore)
+    {
+        <p class="qz-muted">Showing the first @_fireInstances.Count of @_totalCount executions.</p>
+    }
 </div>
 
 @code {
-    private readonly List<object> _executingJobs = [];
+    private readonly List<FireInstanceDto> _fireInstances = [];
     private bool _isLoading = true;
     private bool _loadingInProgress;
+    private bool _hasMore;
+    private int _totalCount;
     private string? _error;
     private PeriodicTimer? _refreshTimer;
     private CancellationTokenSource? _refreshLoopCancellation;
     private DateTimeOffset? _lastUpdatedAt;
 
     private bool IsReadOnly => Options.Value.ReadOnly;
-    private int TableColumnCount => IsReadOnly ? 5 : 6;
+    private int TableColumnCount => IsReadOnly ? 6 : 7;
 
     protected override async Task OnInitializedAsync()
     {
@@ -161,15 +171,16 @@
         try
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
+            _fireInstances.Clear();
+            _hasMore = false;
+            _totalCount = 0;
+
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {
-                IReadOnlyList<object> jobs = DisplayValueHelper.ToObjectList(await Api.GetCurrentlyExecutingJobs(schedulerName));
-                _executingJobs.Clear();
-                _executingJobs.AddRange(jobs);
-            }
-            else
-            {
-                _executingJobs.Clear();
+                PagedResult<FireInstanceDto> page = await Api.GetFireInstances(schedulerName, new DashboardFireInstanceQuery());
+                _fireInstances.AddRange(page.Items);
+                _hasMore = page.HasMore;
+                _totalCount = page.TotalCount ?? page.Items.Count;
             }
         }
         catch (Exception ex)
@@ -184,7 +195,7 @@
         }
     }
 
-    private async Task InterruptAsync(string group, string name)
+    private async Task InterruptAsync(string fireInstanceId)
     {
         if (IsReadOnly || string.IsNullOrWhiteSpace(Scheduler.ActiveSchedulerName))
         {
@@ -193,7 +204,9 @@
 
         try
         {
-            await Api.InterruptJob(Scheduler.ActiveSchedulerName, new JobKeyDto(group, name));
+            // The one execution the row shows, not every execution of its job: the fire instance id is
+            // what tells them apart.
+            await Api.InterruptFireInstance(Scheduler.ActiveSchedulerName, fireInstanceId);
             await LoadDataAsync();
         }
         catch (Exception ex)
@@ -214,6 +227,8 @@
             return "n/a";
         }
 
+        // Observer clock minus the firing node's, so a cluster with skewed clocks can produce a negative
+        // elapsed time. Clamped rather than shown, because a negative run time is never the truth.
         TimeSpan runTime = DateTimeOffset.UtcNow - fireTime.Value;
         if (runTime < TimeSpan.Zero)
         {

@@ -45,7 +45,7 @@ public class RAMJobStoreTest
     {
         fJobStore = TestJobStores.Ram();
         fSignaler = new SampleSignaler();
-        fJobStore.Initialize();
+        fJobStore.Initialize(TestJobStores.Identity());
         fJobStore.SchedulerStarted();
 
         fJobDetail = JobBuilder.Create()
@@ -469,7 +469,7 @@ public class RAMJobStoreTest
         ITypeLoader typeLoader = new SimpleTypeLoader();
 
         RAMJobStore store = TestJobStores.Ram();
-        await store.Initialize();
+        await store.Initialize(TestJobStores.Identity());
 
         // Setup: Store jobs and triggers.
         DateTime startTime0 = DateTime.UtcNow.AddMinutes(1).ToUniversalTime(); // a min from now.
@@ -511,7 +511,7 @@ public class RAMJobStoreTest
         ITypeLoader typeLoader = new SimpleTypeLoader();
 
         RAMJobStore store = TestJobStores.Ram();
-        await store.Initialize();
+        await store.Initialize(TestJobStores.Identity());
 
         // Setup: Store jobs and triggers.
         DateTimeOffset startTime0 = DateTimeOffset.UtcNow.AddMinutes(1); // a min from now.
@@ -1047,7 +1047,7 @@ public class RAMJobStoreTest
         var store = TestJobStores.Ram(timeProvider: fakeTime);
         store.MisfireThreshold = TimeSpan.FromSeconds(5);
         var signaler = new SampleSignaler();
-        await store.Initialize();
+        await store.Initialize(TestJobStores.Identity());
         await store.SchedulerStarted();
 
         var job = JobBuilder.Create().OfType<NoOpJob>()
@@ -1092,7 +1092,7 @@ public class RAMJobStoreTest
         var store = TestJobStores.Ram(timeProvider: fakeTime);
         store.MisfireThreshold = TimeSpan.FromSeconds(60);
         var signaler = new SampleSignaler();
-        await store.Initialize();
+        await store.Initialize(TestJobStores.Identity());
         await store.SchedulerStarted();
 
         var job = JobBuilder.Create().OfType<NoOpJob>()

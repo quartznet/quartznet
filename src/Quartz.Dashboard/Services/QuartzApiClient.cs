@@ -25,6 +25,8 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
+using Quartz.HttpApiContract;
+
 namespace Quartz.Dashboard.Services;
 
 internal sealed class QuartzApiClient : IQuartzApiClient
@@ -232,39 +234,43 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
     }
 
-    public async ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<FireInstanceDto>> GetFireInstances(
+        string schedulerName,
+        DashboardFireInstanceQuery query,
+        CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/jobs/currently-executing", cancellationToken).ConfigureAwait(false);
-        if (json.ValueKind is not JsonValueKind.Array)
+        ArgumentNullException.ThrowIfNull(query);
+
+        string path = BuildPagedPath($"{GetSchedulerPath(schedulerName)}/jobs/fire-instances", query.GroupContains, query);
+
+        // The endpoint's own default is "executing", so "every state" has to be said out loud.
+        path += $"&state={Uri.EscapeDataString(query.State?.ToString() ?? HttpApiConstants.AnyFireInstanceState)}";
+
+        JsonElement json = await GetJson(path, cancellationToken).ConfigureAwait(false);
+        JsonElement items = GetOptionalProperty(json, "items");
+
+        List<FireInstanceDto> result = [];
+        if (items.ValueKind is JsonValueKind.Array)
         {
-            return [];
+            foreach (JsonElement item in items.EnumerateArray())
+            {
+                string? jobName = GetNullableStringProperty(item, "jobName");
+                string? jobGroup = GetNullableStringProperty(item, "jobGroup");
+
+                result.Add(new FireInstanceDto(
+                    FireInstanceId: GetStringProperty(item, "fireInstanceId"),
+                    TriggerKey: new TriggerKeyDto(GetStringProperty(item, "triggerGroup"), GetStringProperty(item, "triggerName")),
+                    JobKey: jobName is not null && jobGroup is not null ? new JobKeyDto(jobGroup, jobName) : null,
+                    SchedulerInstanceId: GetStringProperty(item, "schedulerInstanceId"),
+                    State: GetFireInstanceStateProperty(item, "state") ?? FireInstanceState.Executing,
+                    FireTimeUtc: GetDateTimeOffsetProperty(item, "fireTimeUtc"),
+                    ScheduledFireTimeUtc: GetNullableDateTimeOffsetProperty(item, "scheduledFireTimeUtc"),
+                    ExecutionGroup: GetNullableStringProperty(item, "executionGroup")));
+            }
         }
 
-        List<CurrentlyExecutingJobDto> result = [];
-        foreach (JsonElement item in json.EnumerateArray())
-        {
-            JsonElement jobDetail = GetOptionalProperty(item, "jobDetail");
-            string jobName = GetStringProperty(jobDetail, "name");
-            string jobGroup = GetStringProperty(jobDetail, "group");
-
-            JsonElement trigger = GetOptionalProperty(item, "trigger");
-            JsonElement triggerKey = GetOptionalProperty(trigger, "key");
-            string triggerName = GetStringProperty(triggerKey, "name");
-            string triggerGroup = GetStringProperty(triggerKey, "group");
-            string? executionGroup = GetNullableStringProperty(trigger, "executionGroup");
-
-            DateTimeOffset fireTimeUtc = GetDateTimeOffsetProperty(item, "fireTime");
-            string? fireInstanceId = GetNullableStringProperty(item, "fireInstanceId");
-
-            result.Add(new CurrentlyExecutingJobDto(
-                JobKey: new JobKeyDto(jobGroup, jobName),
-                TriggerKey: new TriggerKeyDto(triggerGroup, triggerName),
-                FireTimeUtc: fireTimeUtc,
-                FireInstanceId: fireInstanceId,
-                ExecutionGroup: executionGroup));
-        }
-
-        return result;
+        int totalCount = GetNullableIntProperty(json, "totalCount") ?? result.Count;
+        return new PagedResult<FireInstanceDto>(result, GetBooleanProperty(json, "hasMore"), totalCount);
     }
 
     public ValueTask<bool> PauseJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
@@ -294,6 +300,11 @@ internal sealed class QuartzApiClient : IQuartzApiClient
     public ValueTask InterruptJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         return Post($"{JobPath(schedulerName, key)}/interrupt", body: null, cancellationToken);
+    }
+
+    public ValueTask InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default)
+    {
+        return Post($"{GetSchedulerPath(schedulerName)}/jobs/interrupt/{Uri.EscapeDataString(fireInstanceId)}", body: null, cancellationToken);
     }
 
     public ValueTask DeleteJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
@@ -822,6 +833,38 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
 
         return default;
+    }
+
+    private static DateTimeOffset? GetNullableDateTimeOffsetProperty(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind is not JsonValueKind.Object
+            || !element.TryGetProperty(propertyName, out JsonElement value)
+            || value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return GetDateTimeOffsetProperty(element, propertyName);
+    }
+
+    private static FireInstanceState? GetFireInstanceStateProperty(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind is not JsonValueKind.Object || !element.TryGetProperty(propertyName, out JsonElement value))
+        {
+            return null;
+        }
+
+        if (value.ValueKind is JsonValueKind.String)
+        {
+            return Enum.TryParse(value.GetString(), ignoreCase: true, out FireInstanceState parsed) ? parsed : null;
+        }
+
+        if (value.ValueKind is JsonValueKind.Number && value.TryGetInt32(out int intValue) && Enum.IsDefined((FireInstanceState) intValue))
+        {
+            return (FireInstanceState) intValue;
+        }
+
+        return null;
     }
 
     private static JsonElement GetOptionalProperty(JsonElement element, string propertyName)

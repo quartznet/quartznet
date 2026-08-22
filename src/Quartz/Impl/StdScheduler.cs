@@ -78,6 +78,7 @@ internal sealed class StdScheduler : IScheduler
             Shutdown = IsShutdown,
             RunningSince = scheduler.RunningSince,
             JobsExecuted = scheduler.NumberOfJobsExecuted,
+            LocalExecutingJobs = scheduler.NumberOfJobsExecutingHere,
             JobStoreTypeName = scheduler.JobStoreType.AssemblyQualifiedNameWithoutVersion(),
             JobStorePersistent = scheduler.SupportsPersistence,
             JobStoreClustered = scheduler.Clustered,
@@ -120,9 +121,9 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<IJobExecutionContext>>(scheduler.GetCurrentlyExecutingJobs());
+        return scheduler.QueryFireInstances(query, cancellationToken);
     }
 
     /// <summary>
@@ -621,11 +622,9 @@ internal sealed class StdScheduler : IScheduler
     /// their <see cref="Interrupt(JobKey, CancellationToken)"/> method called.
     /// </para>
     /// <para>
-    /// If you wish to interrupt a specific instance of a job (when more than
-    /// one is executing) you can do so by calling
-    /// <see cref="GetCurrentlyExecutingJobs"/> to obtain a handle
-    /// to the job instance, and then invoke <see cref="Interrupt(JobKey, CancellationToken)"/> on it
-    /// yourself.
+    /// To interrupt one specific execution when several of the job are running, list them with
+    /// <see cref="QueryFireInstances"/> and pass the one you mean to
+    /// <see cref="InterruptFireInstance"/>.
     /// </para>
     /// <para>
     /// This method is not cluster aware.  That is, it will only interrupt
@@ -634,7 +633,7 @@ internal sealed class StdScheduler : IScheduler
     /// </para>
     /// </remarks>
     /// <returns>true is at least one instance of the identified job was found and interrupted.</returns>
-    /// <seealso cref="GetCurrentlyExecutingJobs"/>
+    /// <seealso cref="QueryFireInstances"/>
     public ValueTask<bool> Interrupt(
         JobKey jobKey,
         CancellationToken cancellationToken = default)

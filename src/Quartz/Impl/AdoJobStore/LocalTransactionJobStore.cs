@@ -64,9 +64,9 @@ public class LocalTransactionJobStore : AdoJobStoreBase
     /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
     /// used, in order to give the it a chance to Initialize.
     /// </summary>
-    public override async ValueTask Initialize(CancellationToken cancellationToken = default)
+    public override async ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default)
     {
-        await base.Initialize(cancellationToken).ConfigureAwait(false);
+        await base.Initialize(identity, cancellationToken).ConfigureAwait(false);
         Logger.LogInformation("LocalTransactionJobStore initialized.");
     }
 

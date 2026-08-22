@@ -70,6 +70,17 @@ public static class TestJobStores
         });
     }
 
+    /// <summary>
+    /// The identity a store is initialized with, matching <see cref="SchedulerOptions" />'s defaults so
+    /// that a store built by these helpers answers with the same names it was configured with.
+    /// </summary>
+    public static SchedulerIdentity Identity(
+        string instanceName = "TestScheduler",
+        string instanceId = "TestInstance")
+    {
+        return new SchedulerIdentity { SchedulerName = instanceName, InstanceId = instanceId };
+    }
+
     public static ISchedulerSignaler Signaler() => new NoOpSchedulerSignaler();
 
     public static ITypeLoader TypeLoader() => new SimpleTypeLoader();

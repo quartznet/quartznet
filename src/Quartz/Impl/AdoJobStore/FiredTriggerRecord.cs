@@ -28,8 +28,16 @@ namespace Quartz.Impl.AdoJobStore;
 /// been blocked from running.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A row is written when a trigger is acquired and rewritten when it starts executing, so the members
 /// describing the job are only populated once the job is known — see <see cref="JobKey" />.
+/// </para>
+/// <para>
+/// This is the ADO.NET store's own currency: one row in full, for the recovery and failover passes that
+/// need the concurrency and recovery flags. The listing projection users see is
+/// <see cref="FireInstance" />, which is store-neutral and paged. The overlap between the two is
+/// deliberate — they answer different questions.
+/// </para>
 /// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>

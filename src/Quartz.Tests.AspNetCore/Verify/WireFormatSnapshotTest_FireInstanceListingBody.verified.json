@@ -1,0 +1,30 @@
+﻿{
+  "items": [
+    {
+      "fireInstanceId": "fire-instance-1",
+      "triggerName": "CronTriggerKey",
+      "triggerGroup": "CronTriggerGroup",
+      "jobName": "DummyJob",
+      "jobGroup": "DummyGroup",
+      "schedulerInstanceId": "TEST_NON_CLUSTERED",
+      "state": "Executing",
+      "fireTimeUtc": "2024-05-06T07:08:09+00:00",
+      "scheduledFireTimeUtc": "2024-05-06T07:08:00+00:00",
+      "executionGroup": "reports"
+    },
+    {
+      "fireInstanceId": "fire-instance-2",
+      "triggerName": "SimpleTriggerKey",
+      "triggerGroup": "SimpleTriggerGroup",
+      "jobName": null,
+      "jobGroup": null,
+      "schedulerInstanceId": "TEST_NON_CLUSTERED",
+      "state": "Acquired",
+      "fireTimeUtc": "2024-05-06T07:08:10+00:00",
+      "scheduledFireTimeUtc": null,
+      "executionGroup": null
+    }
+  ],
+  "hasMore": false,
+  "totalCount": 2
+}

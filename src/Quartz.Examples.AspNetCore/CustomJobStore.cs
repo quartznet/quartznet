@@ -32,9 +32,9 @@ public sealed class CustomJobStore : DelegatingJobStore
         this.logger = logger;
     }
 
-    public override async ValueTask Initialize(CancellationToken cancellationToken = default)
+    public override async ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default)
     {
-        await base.Initialize(cancellationToken);
+        await base.Initialize(identity, cancellationToken);
         logger.LogInformation("CustomJobStore has been initialized, service provider is {ServiceProviderType}", serviceProvider.GetType());
     }
 }

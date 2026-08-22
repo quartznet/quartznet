@@ -128,6 +128,58 @@ internal sealed record TriggerHeaderDto(
     }
 }
 
+/// <remarks>
+/// Replaces the old <c>CurrentlyExecutingJobDto</c>, which serialized a whole job detail, a whole trigger
+/// and a calendar to say that something was running. This one is what the store can answer for the whole
+/// cluster, and it carries the two things the old shape could not: the fire instance id — so a caller can
+/// interrupt the one execution it is looking at — and the state, so a reservation is not mistaken for a
+/// running job.
+/// </remarks>
+internal sealed record FireInstanceDto(
+    string FireInstanceId,
+    string TriggerName,
+    string TriggerGroup,
+    string? JobName,
+    string? JobGroup,
+    string SchedulerInstanceId,
+    FireInstanceState State,
+    DateTimeOffset FireTimeUtc,
+    DateTimeOffset? ScheduledFireTimeUtc,
+    string? ExecutionGroup)
+{
+    public static FireInstanceDto Create(FireInstance instance)
+    {
+        ArgumentNullException.ThrowIfNull(instance);
+
+        return new FireInstanceDto(
+            FireInstanceId: instance.FireInstanceId,
+            TriggerName: instance.TriggerKey.Name,
+            TriggerGroup: instance.TriggerKey.Group,
+            JobName: instance.JobKey?.Name,
+            JobGroup: instance.JobKey?.Group,
+            SchedulerInstanceId: instance.SchedulerInstanceId,
+            State: instance.State,
+            FireTimeUtc: instance.FireTimeUtc,
+            ScheduledFireTimeUtc: instance.ScheduledFireTimeUtc,
+            ExecutionGroup: instance.ExecutionGroup
+        );
+    }
+
+    public FireInstance AsFireInstance()
+    {
+        return new FireInstance(
+            FireInstanceId,
+            new TriggerKey(TriggerName, TriggerGroup),
+            JobName is not null && JobGroup is not null ? new JobKey(JobName, JobGroup) : null,
+            SchedulerInstanceId,
+            State,
+            FireTimeUtc,
+            ScheduledFireTimeUtc,
+            ExecutionGroup
+        );
+    }
+}
+
 internal sealed record JobGroupDto(string Name, bool Paused)
 {
     public static JobGroupDto Create(JobGroup group)

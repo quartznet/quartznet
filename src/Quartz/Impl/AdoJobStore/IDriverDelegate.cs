@@ -714,6 +714,10 @@ public interface IDriverDelegate
     /// Selects the states of the fired-trigger records the query selects. A query with no filter set
     /// selects all of them.
     /// </summary>
+    /// <remarks>
+    /// Not a listing — <see cref="SelectFireInstances" /> is. This one is the whole set, every column,
+    /// for the maintenance passes that have to see all of it.
+    /// </remarks>
     /// <param name="conn">The DB Connection</param>
     /// <param name="query">Which fired triggers to select.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
@@ -1012,6 +1016,24 @@ public interface IDriverDelegate
     ValueTask<PagedResult<TriggerHeader>> SelectTriggerHeaders(
         ConnectionAndTransactionHolder conn,
         TriggerQuery query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects one page of fire instances, ordered by trigger group, then trigger name, then entry id.
+    /// </summary>
+    /// <remarks>
+    /// The listing reads the FIRED_TRIGGERS row only, and only the columns
+    /// <see cref="FireInstance" /> projects — not the concurrency and recovery flags that
+    /// <see cref="SelectFiredTriggerRecords" /> reads for the recovery passes. The entry id is part of
+    /// the ordering because trigger group and name do not identify a row here: one trigger can have
+    /// several firings at once.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<FireInstance>> SelectFireInstances(
+        ConnectionAndTransactionHolder conn,
+        FireInstanceQuery query,
         CancellationToken cancellationToken = default);
 
     /// <summary>
