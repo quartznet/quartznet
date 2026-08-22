@@ -70,7 +70,7 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener
                 TriggerGroup: context.Trigger.Key.Group,
                 TriggerName: context.Trigger.Key.Name,
                 FiredAtUtc: context.FireTimeUtc,
-                DurationMs: (long) context.JobRunTime.TotalMilliseconds,
+                Duration: context.JobRunTime,
                 Succeeded: jobException is null,
                 ExceptionMessage: jobException?.Message);
 

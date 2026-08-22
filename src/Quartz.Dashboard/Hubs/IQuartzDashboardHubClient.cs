@@ -67,11 +67,16 @@ public sealed record JobEventDto(
     DateTimeOffset FireTimeUtc,
     string? FireInstanceId);
 
+/// <remarks>
+/// <see cref="RunTime" /> is a <see cref="TimeSpan" />, as every other duration on the wire is — it
+/// carries <see cref="IJobExecutionContext.JobRunTime" /> unrounded, where the milliseconds it used to
+/// be threw away everything below one.
+/// </remarks>
 public sealed record JobExecutionResultDto(
     JobKeyDto JobKey,
     TriggerKeyDto TriggerKey,
     DateTimeOffset FireTimeUtc,
-    long RunTimeMs,
+    TimeSpan RunTime,
     bool Vetoed,
     string? ExceptionMessage);
 

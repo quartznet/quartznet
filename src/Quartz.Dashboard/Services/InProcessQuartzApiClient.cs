@@ -200,12 +200,13 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<TriggerHeaderDto> result = new(triggers.Count);
         foreach (ITrigger trigger in triggers)
         {
-            result.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name, trigger.ExecutionGroup)
-            {
-                TriggerType = TriggerDisplay.TypeName(trigger),
-                ScheduleSummary = TriggerDisplay.ScheduleSummary(trigger),
-                State = states.TryGetValue(trigger.Key, out TriggerState state) ? state : null
-            });
+            result.Add(new TriggerHeaderDto(
+                Group: trigger.Key.Group,
+                Name: trigger.Key.Name,
+                TriggerType: TriggerDisplay.TypeName(trigger),
+                ScheduleSummary: TriggerDisplay.ScheduleSummary(trigger),
+                State: states.TryGetValue(trigger.Key, out TriggerState state) ? state : null,
+                ExecutionGroup: trigger.ExecutionGroup));
         }
 
         return result;
@@ -331,10 +332,16 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<TriggerHeaderDto> items = new(triggers.Items.Count);
         foreach (TriggerHeader trigger in triggers.Items)
         {
-            items.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name, trigger.ExecutionGroup)
-            {
-                State = trigger.State
-            });
+            // The trigger listing does not load the triggers, so it has no schedule to summarise and
+            // no kind to name: the store's own trigger-type discriminator is not the display name the
+            // associated-triggers table shows, and the two must not disagree.
+            items.Add(new TriggerHeaderDto(
+                Group: trigger.Key.Group,
+                Name: trigger.Key.Name,
+                TriggerType: null,
+                ScheduleSummary: null,
+                State: trigger.State,
+                ExecutionGroup: trigger.ExecutionGroup));
         }
 
         return new PagedResult<TriggerHeaderDto>(items, triggers.HasMore, triggers.TotalCount ?? items.Count);

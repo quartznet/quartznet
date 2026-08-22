@@ -21,6 +21,10 @@ using System.Collections.Concurrent;
 
 namespace Quartz.Dashboard.Services;
 
+/// <remarks>
+/// <see cref="Duration" /> is a <see cref="TimeSpan" />, as every other duration the dashboard shows
+/// is; it used to be a count of whole milliseconds, which lost every execution shorter than one.
+/// </remarks>
 public sealed record DashboardHistoryEntry(
     string SchedulerName,
     string JobGroup,
@@ -28,7 +32,7 @@ public sealed record DashboardHistoryEntry(
     string TriggerGroup,
     string TriggerName,
     DateTimeOffset FiredAtUtc,
-    long DurationMs,
+    TimeSpan Duration,
     bool Succeeded,
     string? ExceptionMessage);
 

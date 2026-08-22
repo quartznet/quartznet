@@ -164,8 +164,8 @@ public sealed class HttpScheduler : IScheduler
 
     public ValueTask StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default)
     {
-        var delayMilliseconds = (long) Math.Round(delay.TotalMilliseconds);
-        return httpClient.Post($"{SchedulerEndpointUrl()}/start?delayMilliseconds={delayMilliseconds}", jsonSerializerOptions, cancellationToken);
+        // "c" is the invariant round-trip form, which is what the endpoint parses the parameter with.
+        return httpClient.Post($"{SchedulerEndpointUrl()}/start?delay={delay.ToString("c")}", jsonSerializerOptions, cancellationToken);
     }
 
     public ValueTask Standby(CancellationToken cancellationToken = default)

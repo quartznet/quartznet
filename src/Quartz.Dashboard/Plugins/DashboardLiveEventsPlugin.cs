@@ -68,7 +68,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
             JobKey: new JobKeyDto(context.JobDetail.Key.Group, context.JobDetail.Key.Name),
             TriggerKey: new TriggerKeyDto(context.Trigger.Key.Group, context.Trigger.Key.Name),
             FireTimeUtc: context.FireTimeUtc,
-            RunTimeMs: (long) context.JobRunTime.TotalMilliseconds,
+            RunTime: context.JobRunTime,
             Vetoed: true,
             ExceptionMessage: null);
 
@@ -81,7 +81,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
             JobKey: new JobKeyDto(context.JobDetail.Key.Group, context.JobDetail.Key.Name),
             TriggerKey: new TriggerKeyDto(context.Trigger.Key.Group, context.Trigger.Key.Name),
             FireTimeUtc: context.FireTimeUtc,
-            RunTimeMs: (long) context.JobRunTime.TotalMilliseconds,
+            RunTime: context.JobRunTime,
             Vetoed: false,
             ExceptionMessage: jobException?.Message);
 

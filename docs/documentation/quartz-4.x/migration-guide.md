@@ -5023,6 +5023,25 @@ rest as opaque, which is what `HttpScheduler` does.
 The one `400` that still has no body is not the API's: a query parameter the framework could not bind
 never reaches an endpoint, so nothing of ours writes the response.
 
+## Durations are `TimeSpan`s, wherever they are
+
+A trigger body has always said `"repeatIntervalTimeSpan": "120.02:30:59.9990000"`. Three duration
+members beside it counted whole milliseconds instead, which both disagreed with that and threw away
+everything below a millisecond:
+
+| 4.0 preview | 4.0 |
+|---|---|
+| `POST …/schedulers/{name}/start?delayMilliseconds=30000` | `?delay=00:00:30` |
+| `JobExecutionResultDto.RunTimeMs` (`long`) | `RunTime` (`TimeSpan`) |
+| `DashboardHistoryEntry.DurationMs` (`long`) | `Duration` (`TimeSpan`) |
+
+`HttpScheduler.StartDelayed` sends the new spelling, so a client and server upgraded together need no
+code change. A negative `delay` is now a `400` rather than a delay that runs backwards.
+
+The two dashboard records are the ones the dashboard's SignalR hub and its history store put on the
+wire, so a browser or history store reading `runTimeMs` / `durationMs` as a number reads
+`runTime` / `duration` as an ISO-ish `TimeSpan` string instead.
+
 ## The dashboard's client speaks one currency
 
 `IQuartzApiClient` is the dashboard's own projection of the HTTP API — public so that an application can
@@ -5095,6 +5114,18 @@ Two consequences worth knowing:
   custom trigger type now reaches the detail page as itself.
 * **The HTTP-backed client cannot read a kind no serializer is registered for**, and says so instead
   of rendering an anonymous bag of properties. Register the serializer, as the API itself requires.
+
+`TriggerHeaderDto` was half a positional record and half property-initialised, which read as an
+accident because it was one. It is positional throughout:
+
+```diff
+- new TriggerHeaderDto(group, name, executionGroup) { TriggerType = …, ScheduleSummary = …, State = … }
++ new TriggerHeaderDto(group, name, triggerType, scheduleSummary, state, executionGroup)
+```
+
+A trigger's kind is also named the same way by both clients now — `Cron`, `Simple`, … The HTTP-backed
+one echoed the wire's discriminator, so the same trigger was `CronTrigger` there and `Cron` in
+process.
 
 ## `CheckExists` is `Exists`
 

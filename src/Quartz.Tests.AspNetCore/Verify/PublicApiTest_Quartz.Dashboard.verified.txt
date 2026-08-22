@@ -25,11 +25,11 @@ namespace Quartz.Dashboard.Hubs
     }
     public sealed class JobExecutionResultDto : System.IEquatable<Quartz.Dashboard.Hubs.JobExecutionResultDto>
     {
-        public JobExecutionResultDto(Quartz.Dashboard.Services.JobKeyDto JobKey, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, System.DateTimeOffset FireTimeUtc, long RunTimeMs, bool Vetoed, string? ExceptionMessage) { }
+        public JobExecutionResultDto(Quartz.Dashboard.Services.JobKeyDto JobKey, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, System.DateTimeOffset FireTimeUtc, System.TimeSpan RunTime, bool Vetoed, string? ExceptionMessage) { }
         public string? ExceptionMessage { get; init; }
         public System.DateTimeOffset FireTimeUtc { get; init; }
         public Quartz.Dashboard.Services.JobKeyDto JobKey { get; init; }
-        public long RunTimeMs { get; init; }
+        public System.TimeSpan RunTime { get; init; }
         public Quartz.Dashboard.Services.TriggerKeyDto TriggerKey { get; init; }
         public bool Vetoed { get; init; }
     }
@@ -129,8 +129,8 @@ namespace Quartz.Dashboard.Services
     }
     public sealed class DashboardHistoryEntry : System.IEquatable<Quartz.Dashboard.Services.DashboardHistoryEntry>
     {
-        public DashboardHistoryEntry(string SchedulerName, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, long DurationMs, bool Succeeded, string? ExceptionMessage) { }
-        public long DurationMs { get; init; }
+        public DashboardHistoryEntry(string SchedulerName, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, System.TimeSpan Duration, bool Succeeded, string? ExceptionMessage) { }
+        public System.TimeSpan Duration { get; init; }
         public string? ExceptionMessage { get; init; }
         public System.DateTimeOffset FiredAtUtc { get; init; }
         public string JobGroup { get; init; }
@@ -270,7 +270,7 @@ namespace Quartz.Dashboard.Services
     }
     public sealed class TriggerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.TriggerHeaderDto>
     {
-        public TriggerHeaderDto(string Group, string Name, string? ExecutionGroup = null) { }
+        public TriggerHeaderDto(string Group, string Name, string? TriggerType, string? ScheduleSummary, Quartz.TriggerState? State, string? ExecutionGroup) { }
         public string? ExecutionGroup { get; init; }
         public string Group { get; init; }
         public string Name { get; init; }
