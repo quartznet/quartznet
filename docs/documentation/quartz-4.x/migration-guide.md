@@ -1730,8 +1730,7 @@ a trigger given no start time starts at the time that scheduler thinks it is.
 
 `DirectoryScanJob` and `FileScanJob` compare a file's last write time against "now" to decide whether a
 file has settled enough to report. That "now" came from the system clock directly, which no test could
-move. Both take a `TimeProvider` now, defaulted so that the parameterless construction the job factory
-does still works:
+move. Both take a `TimeProvider` now:
 
 ```csharp
 public DirectoryScanJob(TimeProvider? timeProvider = null);
@@ -1739,8 +1738,9 @@ public DirectoryScanJob(IServiceProvider serviceProvider, TimeProvider? timeProv
 public FileScanJob(TimeProvider? timeProvider = null);
 ```
 
-A `TimeProvider` registered in the container — including a scheduler's own, per the table above — is
-handed to them by the job factory. `null` means `TimeProvider.System`.
+The job factory hands them the `TimeProvider` in the container — including a scheduler's own, per the
+table above. The parameter is optional so that `new DirectoryScanJob()` still compiles, and `null`
+means `TimeProvider.System`.
 
 The times they work in are `DateTimeOffset` rather than local `DateTime`, which is the same instant said
 unambiguously, and is what the rest of the API has spoken since 3.0:
