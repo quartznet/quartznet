@@ -1555,6 +1555,52 @@ public sealed class RAMJobStore : IJobStore
                && (query.TriggerName is null || query.TriggerName.IsMatch(triggerKey));
     }
 
+    /// <summary>
+    /// What this store holds in flight per (execution group, trigger group) pair, which is what a
+    /// <see cref="ExecutionLimitScope.Cluster" /> execution limit is counted against.
+    /// </summary>
+    /// <remarks>
+    /// The in-memory counterpart of the ADO store's aggregate over FIRED_TRIGGERS, and deliberately over
+    /// the same set: a wrapper in the acquired state is a reservation, an entry in
+    /// <see cref="executingFireInstances" /> is a running execution. This store is never clustered, so
+    /// its cluster is this one process and a cluster-scoped limit comes out as the same number a
+    /// node-scoped one would — which is why the store honours the scope rather than declining it.
+    /// </remarks>
+    private List<ExecutionGroupInFlight> CollectInFlightExecutionGroupsNoLock()
+    {
+        Dictionary<(string? ExecutionGroup, string TriggerGroup), int> counts = new();
+
+        foreach (TriggerWrapper tw in triggersByKey.Values)
+        {
+            if (tw.state == StoredTriggerState.Acquired)
+            {
+                Count(tw.Trigger.ExecutionGroup, tw.TriggerKey.Group);
+            }
+        }
+
+        foreach (KeyValuePair<TriggerKey, Dictionary<string, FireInstanceEntry>> byTrigger in executingFireInstances)
+        {
+            foreach (FireInstanceEntry entry in byTrigger.Value.Values)
+            {
+                Count(entry.ExecutionGroup, byTrigger.Key.Group);
+            }
+        }
+
+        List<ExecutionGroupInFlight> result = new(counts.Count);
+        foreach (KeyValuePair<(string? ExecutionGroup, string TriggerGroup), int> pair in counts)
+        {
+            result.Add(new ExecutionGroupInFlight(pair.Key.ExecutionGroup, pair.Key.TriggerGroup, pair.Value));
+        }
+
+        return result;
+
+        void Count(string? executionGroup, string triggerGroup)
+        {
+            (string? ExecutionGroup, string TriggerGroup) key = (executionGroup, triggerGroup);
+            counts[key] = counts.TryGetValue(key, out int existing) ? existing + 1 : 1;
+        }
+    }
+
     /// <inheritdoc />
     public async ValueTask<List<IJobDetail>> GetJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
@@ -2410,7 +2456,8 @@ public sealed class RAMJobStore : IJobStore
             DateTimeOffset batchEnd = request.NoLaterThan;
 
             // execution limits will be modified during processing
-            ExecutionSlots? executionSlots = request.ExecutionLimits?.CreateSlots();
+            ExecutionSlots? executionSlots = request.ExecutionLimits?.CreateSlots(
+                request.ExecutionLimits.HasClusterScopedLimits ? CollectInFlightExecutionGroupsNoLock() : null);
 
             while (true)
             {

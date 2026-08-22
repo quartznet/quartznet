@@ -292,4 +292,17 @@ public sealed record AddCalendarRequest(string CalendarName, ICalendar Calendar,
 
 public sealed record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNonDurableWhileAwaitingScheduling);
 
-public sealed record ExecutionLimitsDto(Dictionary<string, int?> Limits);
+/// <summary>
+/// The execution limits a scheduler is running with, keyed by a display-friendly group name.
+/// </summary>
+/// <param name="Limits">Each group's limit, with the scope it is counted in.</param>
+public sealed record ExecutionLimitsDto(Dictionary<string, DashboardExecutionLimit> Limits);
+
+/// <summary>
+/// One group's limit as the dashboard reads it.
+/// </summary>
+/// <param name="MaxConcurrent">The limit, or <see langword="null" /> when the group is explicitly
+/// unlimited.</param>
+/// <param name="Scope">Whether the number is what one node may run or what the cluster may run.</param>
+[System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
+public readonly record struct DashboardExecutionLimit(int? MaxConcurrent, ExecutionLimitScope Scope);

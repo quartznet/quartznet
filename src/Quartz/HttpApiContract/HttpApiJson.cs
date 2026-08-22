@@ -58,6 +58,7 @@ internal static class HttpApiJson
         options.Converters.Add(new JsonStringEnumConverter<TriggerState>());
         options.Converters.Add(new JsonStringEnumConverter<SchedulerStatus>());
         options.Converters.Add(new JsonStringEnumConverter<FireInstanceState>());
+        options.Converters.Add(new JsonStringEnumConverter<ExecutionLimitScope>());
         return options;
     }
 }

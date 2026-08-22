@@ -292,6 +292,65 @@ public sealed class QuartzSchedulerThreadLoopTest
             "the firing dispatched from the first pass is still in flight and holds one of the group's two slots");
     }
 
+    /// <summary>
+    /// The mirror image, and the bug a cluster-wide ceiling invites: a cluster-scoped limit must reach
+    /// the store as configured.
+    /// </summary>
+    /// <remarks>
+    /// This node's dispatched firing is already a reservation in the store's own ledger — a
+    /// FIRED_TRIGGERS row for the ADO store — and the store subtracts that when it builds the ledger for
+    /// the acquisition. Taking it off here as well charges the group twice and halves the quota on the
+    /// busiest node, which is exactly the node that would notice least: with one node the store's count
+    /// and this loop's count are the same firings, so nothing single-node ever disagrees.
+    /// </remarks>
+    [Test]
+    public async Task DispatchedWorkIsNotSubtractedFromAClusterScopedLimit()
+    {
+        scheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create()
+            .ForGroup("batch", 2, ExecutionLimitScope.Cluster)
+            .Build());
+        await GivenScheduledJobs(1, executionGroup: "batch");
+
+        StartLoop();
+
+        await ShouldObserve(store.Acquisitions.Reaches(2),
+            "the loop acquires again as soon as it has dispatched a batch");
+
+        LimitFor(store.Acquisitions.Entries[0], "batch").Should().Be(2,
+            "nothing is in flight yet, so the whole quota is on offer");
+        LimitFor(store.Acquisitions.Entries[1], "batch").Should().Be(2,
+            "the firing in flight is already a reservation the store counts, so subtracting it here as well would leave the group a slot short of its own quota");
+
+        store.Acquisitions.Entries[1].ExecutionLimits.Groups.Should().ContainSingle()
+            .Which.Scope.Should().Be(ExecutionLimitScope.Cluster,
+                "the scope travels with the remaining-capacity snapshot, or the store could not tell which limits it still has to lower");
+    }
+
+    /// <summary>
+    /// One set of limits can hold both kinds, and each is treated on its own terms.
+    /// </summary>
+    [Test]
+    public async Task NodeScopedAndClusterScopedLimitsAreSubtractedIndependently()
+    {
+        scheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create()
+            .ForGroup("batch", 2)
+            .ForGroup("tenant", 2, ExecutionLimitScope.Cluster)
+            .Build());
+        await GivenScheduledJobs(1, executionGroup: "batch");
+        await GivenScheduledJobs(1, executionGroup: "tenant", namePrefix: "tenant");
+
+        StartLoop();
+
+        await ShouldObserve(store.Acquisitions.Reaches(2),
+            "the loop acquires again as soon as it has dispatched a batch");
+
+        TriggerAcquisitionRequest second = store.Acquisitions.Entries[1];
+        LimitFor(second, "batch").Should().Be(1,
+            "the node-scoped group has one of this node's firings in flight");
+        LimitFor(second, "tenant").Should().Be(2,
+            "the cluster-scoped group's firing is the store's to count, not this loop's");
+    }
+
     private void StartLoop()
     {
         thread.Start();
@@ -324,17 +383,17 @@ public sealed class QuartzSchedulerThreadLoopTest
     /// <summary>
     /// Puts <paramref name="count" /> one-shot jobs into the store, ready to fire immediately.
     /// </summary>
-    private async Task<IReadOnlyList<TriggerKey>> GivenScheduledJobs(int count, string executionGroup = null)
+    private async Task<IReadOnlyList<TriggerKey>> GivenScheduledJobs(int count, string executionGroup = null, string namePrefix = "")
     {
         List<TriggerKey> keys = new(count);
         for (int i = 0; i < count; i++)
         {
             IJobDetail job = JobBuilder.Create<LoopTestJob>()
-                .WithIdentity($"job{i}", "loop")
+                .WithIdentity($"{namePrefix}job{i}", "loop")
                 .Build();
 
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
-                .WithIdentity($"trigger{i}", "loop")
+                .WithIdentity($"{namePrefix}trigger{i}", "loop")
                 .ForJob(job)
                 .WithExecutionGroup(executionGroup)
                 .StartNow()

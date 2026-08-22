@@ -65,6 +65,28 @@ public sealed record TriggerAcquisitionCriteria
     public ExecutionLimits? ExecutionLimits { get; init; }
 
     /// <summary>
+    /// What the whole cluster already holds in flight per (execution group, trigger group) pair, which
+    /// is what a <see cref="ExecutionLimitScope.Cluster" /> limit is counted against.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="AdoJobStoreBase" /> fills this from
+    /// <see cref="IDriverDelegate.SelectExecutionGroupsInFlight" /> once per acquisition attempt, and
+    /// only when <see cref="Quartz.ExecutionLimits.HasClusterScopedLimits" /> says a cluster-scoped
+    /// limit exists — so a configuration that uses none pays nothing. A
+    /// <see cref="AdoJobStoreBase.CreateAcquisitionCriteria" /> override that sets this itself is left
+    /// alone, which is how a store keeping the count somewhere other than the fired-triggers table says
+    /// so.
+    /// </para>
+    /// <para>
+    /// <see langword="null" /> means "not counted", not "nothing in flight": a delegate handed
+    /// <see langword="null" /> enforces the configured numbers as written, which is correct when no
+    /// limit is cluster-scoped and would be wrong if it were treated as an empty cluster.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyCollection<ExecutionGroupInFlight>? ClusterInFlight { get; init; }
+
+    /// <summary>
     /// Instant before which a node's last check-in is considered stale, releasing its pinned
     /// triggers to other nodes (preferred node / node affinity).
     /// </summary>

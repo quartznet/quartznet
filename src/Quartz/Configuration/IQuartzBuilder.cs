@@ -363,7 +363,8 @@ public interface IQuartzBuilder
         Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener;
 
     /// <summary>
-    /// Configures per-node execution group limits, so resource-hungry jobs cannot saturate every thread.
+    /// Configures execution group limits, so resource-hungry jobs cannot saturate every thread. Each
+    /// limit is counted on this node or across the cluster, as its <see cref="ExecutionLimitScope"/> says.
     /// </summary>
     IQuartzBuilder UseExecutionLimits(Action<ExecutionLimitsBuilder> configure);
 }

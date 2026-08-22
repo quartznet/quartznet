@@ -70,11 +70,24 @@ public sealed record TriggerAcquisitionRequest
     }
 
     /// <summary>
-    /// Per-execution-group thread counts still available on this node, which is the configured
+    /// Per-execution-group thread counts still available, which is the configured
     /// <see cref="Quartz.ExecutionLimits" /> less what is already running here. A limit of
     /// <see langword="null" /> means unlimited and <c>0</c> means the group must not fire.
     /// <see langword="null" /> when no execution limits are configured, in which case a store may
     /// ignore execution groups entirely.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only <see cref="ExecutionLimitScope.Node" /> limits arrive already lowered. A
+    /// <see cref="ExecutionLimitScope.Cluster" /> limit arrives as configured, because this node's own
+    /// firings are reservations the store is holding and taking them off here as well would count them
+    /// twice. A store that means to honour cluster-scoped limits — every store whose
+    /// <see cref="IJobStore.Clustered" /> can be <see langword="true" /> — subtracts its own in-flight
+    /// count when it builds the ledger, through
+    /// <see cref="Quartz.ExecutionLimits.CreateSlots" />. A store that does not, or one that has no
+    /// cluster to speak of, simply enforces the configured number, which for a single node is the same
+    /// thing.
+    /// </para>
+    /// </remarks>
     public ExecutionLimits? ExecutionLimits { get; init; }
 }

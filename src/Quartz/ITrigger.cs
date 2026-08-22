@@ -89,9 +89,9 @@ public interface ITrigger
     string? Description { get; }
 
     /// <summary>
-    /// Gets the execution group for this trigger. Execution groups allow
-    /// per-node thread limits to be configured so that resource-intensive jobs
-    /// do not saturate all available threads.
+    /// Gets the execution group for this trigger. Execution groups allow thread
+    /// limits to be configured - per node or across the cluster - so that
+    /// resource-intensive jobs do not saturate all available threads.
     /// </summary>
     /// <remarks>
     /// A <see langword="null"/> value means the trigger has no execution group

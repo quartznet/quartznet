@@ -560,12 +560,12 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
                 return null;
             }
 
-            Dictionary<string, int?> dict = new();
+            Dictionary<string, DashboardExecutionLimit> dict = new();
             foreach (ExecutionGroupLimit limit in limits.Groups)
             {
                 // Use display-friendly keys
-                string key = limit.Scope.IsDefault ? "(default)" : limit.Scope.ToConfigurationKey();
-                dict[key] = limit.MaxConcurrent;
+                string key = limit.Group.IsDefault ? "(default)" : limit.Group.ToConfigurationKey();
+                dict[key] = new DashboardExecutionLimit(limit.MaxConcurrent, limit.Scope);
             }
 
             return new ExecutionLimitsDto(dict);

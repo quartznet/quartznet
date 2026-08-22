@@ -375,9 +375,10 @@ public interface IScheduler : IAsyncDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Sets the execution group limits for this scheduler node. Execution groups
-    /// allow per-node thread limits so that resource-intensive jobs do not saturate
-    /// all available threads.
+    /// Sets the execution group limits this scheduler enforces. Execution groups allow
+    /// thread limits - per node or across the cluster, as each limit's
+    /// <see cref="ExecutionLimitScope"/> says - so that resource-intensive jobs do not
+    /// saturate all available threads.
     /// </summary>
     /// <remarks>
     /// Limits take effect on the next trigger acquisition cycle. Pass <see langword="null"/>

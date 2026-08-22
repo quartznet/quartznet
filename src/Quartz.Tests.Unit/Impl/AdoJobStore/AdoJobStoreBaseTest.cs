@@ -1470,6 +1470,80 @@ public class AdoJobStoreBaseTest
             "the override, not the request, has the last word on the criteria the delegate is called with");
     }
 
+    [Test]
+    public async Task AcquireNextTriggers_ShouldNotCountTheClusterWhenNoLimitIsClusterScoped()
+    {
+        GivenNoTriggersToAcquire(driverDelegate);
+
+        await jobStoreSupport.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow,
+            ExecutionLimits = ExecutionLimitsBuilder.Create().ForGroup("batch", 2).Build(),
+        });
+
+        A.CallTo(() => driverDelegate.SelectExecutionGroupsInFlight(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task AcquireNextTriggers_ShouldCountTheClusterOncePerAttemptForAClusterScopedLimit()
+    {
+        List<TriggerAcquisitionCriteria> received = GivenNoTriggersToAcquire(driverDelegate);
+        List<ExecutionGroupInFlight> inFlight = [new ExecutionGroupInFlight("tenant", "nightly", 2)];
+        A.CallTo(() => driverDelegate.SelectExecutionGroupsInFlight(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<ExecutionGroupInFlight>>(inFlight));
+
+        await jobStoreSupport.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow,
+            ExecutionLimits = ExecutionLimitsBuilder.Create()
+                .ForGroup("tenant", 3, ExecutionLimitScope.Cluster)
+                .Build(),
+        });
+
+        A.CallTo(() => driverDelegate.SelectExecutionGroupsInFlight(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        received.Should().ContainSingle().Which.ClusterInFlight.Should().BeEquivalentTo(inFlight,
+            "the count is what the delegate filters against, so it has to reach the criteria the delegate is called with");
+    }
+
+    /// <summary>
+    /// A store that keeps the cluster count somewhere other than the fired-triggers table says so by
+    /// answering the question in its own override, and the base must not ask again.
+    /// </summary>
+    [Test]
+    public async Task CreateAcquisitionCriteria_ShouldLeaveAnOverridesOwnClusterCountAlone()
+    {
+        OwnClusterCountTestStore store = new();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+        store.DirectSignaler = A.Fake<ISchedulerSignaler>();
+        List<TriggerAcquisitionCriteria> received = GivenNoTriggersToAcquire(del);
+
+        await store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow,
+            ExecutionLimits = ExecutionLimitsBuilder.Create()
+                .ForGroup("tenant", 3, ExecutionLimitScope.Cluster)
+                .Build(),
+        });
+
+        A.CallTo(() => del.SelectExecutionGroupsInFlight(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        received.Should().ContainSingle().Which.ClusterInFlight.Should().ContainSingle()
+            .Which.Count.Should().Be(7, "the override, not the base store, had the last word on the count");
+    }
+
     /// <summary>
     /// A store that narrows acquisition through <see cref="AdoJobStoreBase.CreateAcquisitionCriteria" />,
     /// the way a store filtering on job type (issue #2238) would.
@@ -1479,6 +1553,21 @@ public class AdoJobStoreBaseTest
         protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
         {
             return base.CreateAcquisitionCriteria(request) with { MaxCount = 1 };
+        }
+    }
+
+    /// <summary>
+    /// A store that answers the cluster in-flight question itself rather than letting the base read it
+    /// off the fired-triggers table.
+    /// </summary>
+    private sealed class OwnClusterCountTestStore : TestAdoJobStoreBase
+    {
+        protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
+        {
+            return base.CreateAcquisitionCriteria(request) with
+            {
+                ClusterInFlight = [new ExecutionGroupInFlight("tenant", "nightly", 7)],
+            };
         }
     }
 

@@ -183,13 +183,13 @@ internal static class SchedulerEndpoints
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             ExecutionLimits? limits = await scheduler.GetExecutionLimits(cancellationToken).ConfigureAwait(false);
-            Dictionary<string, int?>? dict = null;
+            Dictionary<string, ExecutionLimitDto>? dict = null;
             if (limits is not null && !limits.IsEmpty)
             {
-                dict = new Dictionary<string, int?>();
+                dict = new Dictionary<string, ExecutionLimitDto>();
                 foreach (ExecutionGroupLimit limit in limits.Groups)
                 {
-                    dict[limit.Scope.ToConfigurationKey()] = limit.MaxConcurrent;
+                    dict[limit.Group.ToConfigurationKey()] = new ExecutionLimitDto(limit.MaxConcurrent, limit.Scope);
                 }
             }
             return new ExecutionLimitsResponse(dict, limits?.UsesTriggerGroupWhenUnset ?? false);
@@ -212,20 +212,23 @@ internal static class SchedulerEndpoints
             if (request.Limits is { Count: > 0 })
             {
                 ExecutionLimitsBuilder builder = ExecutionLimitsBuilder.Create();
-                foreach (KeyValuePair<string, int?> kvp in request.Limits)
+                foreach (KeyValuePair<string, ExecutionLimitDto> kvp in request.Limits)
                 {
                     string key = kvp.Key.Trim();
+                    int? maxConcurrent = kvp.Value.MaxConcurrent;
+                    ExecutionLimitScope scope = kvp.Value.Scope;
+
                     if (key == ExecutionLimits.OtherGroups)
                     {
-                        if (kvp.Value.HasValue) builder.ForOtherGroups(kvp.Value.Value);
+                        if (maxConcurrent.HasValue) builder.ForOtherGroups(maxConcurrent.Value, scope);
                     }
                     else if (ExecutionLimits.IsDefaultGroupAlias(key))
                     {
-                        if (kvp.Value.HasValue) builder.ForDefaultGroup(kvp.Value.Value);
+                        if (maxConcurrent.HasValue) builder.ForDefaultGroup(maxConcurrent.Value, scope);
                     }
                     else
                     {
-                        if (kvp.Value.HasValue) builder.ForGroup(key, kvp.Value.Value);
+                        if (maxConcurrent.HasValue) builder.ForGroup(key, maxConcurrent.Value, scope);
                         else builder.Unlimited(key);
                     }
                 }

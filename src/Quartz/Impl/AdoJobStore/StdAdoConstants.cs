@@ -591,6 +591,35 @@ internal static class StdAdoConstants
     public static readonly string SqlCountFireInstances =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
 
+    /// <summary>
+    /// The cluster's in-flight work per execution group, which is what a cluster-scoped execution limit
+    /// is counted against.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The fired-triggers table is already the cluster's reservation ledger — a row appears when a node
+    /// acquires a trigger, turns into the execution, and is deleted on completion or by cluster
+    /// recovery — so the ceiling needs no table, column or migration of its own. Every state counts:
+    /// an ACQUIRED row is a reservation another node has taken and is a slot that is genuinely spoken
+    /// for.
+    /// </para>
+    /// <para>
+    /// The grouping is by both columns rather than by EXECUTION_GROUP alone because
+    /// <see cref="ExecutionLimits.UsesTriggerGroupWhenUnset" /> lets the trigger group stand in for an
+    /// absent execution group; folding the pair down to one key is done in C#, by the same
+    /// <c>ResolveGroupKey</c> the acquisition filter uses, which is why this needs no dialect variants.
+    /// Row count is the number of distinct pairs in flight — tens, not thousands.
+    /// </para>
+    /// <para>
+    /// Deliberately not narrowed to nodes that are still checking in. A node that has missed a check-in
+    /// but is still running jobs would stop counting, which would let the cluster exceed the ceiling;
+    /// counting its rows until recovery deletes them under-serves the quota instead, and that is the
+    /// direction a quota should err in.
+    /// </para>
+    /// </remarks>
+    public static readonly string SqlSelectExecutionGroupsInFlight =
+        Invariant($"SELECT {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnTriggerGroup}, COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName GROUP BY {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnTriggerGroup}");
+
     public static readonly string SqlFireInstanceTriggerGroupEqualsPredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
 
     public static readonly string SqlFireInstanceTriggerGroupLikePredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");

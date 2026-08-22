@@ -173,7 +173,7 @@ public sealed class TriggerDetailsUpdate
     }
 
     /// <summary>
-    /// Set the execution group whose per-node thread limit this trigger's job counts against, or
+    /// Set the execution group whose thread limit this trigger's job counts against, or
     /// <see langword="null" /> to remove it from every group.
     /// </summary>
     /// <remarks>
