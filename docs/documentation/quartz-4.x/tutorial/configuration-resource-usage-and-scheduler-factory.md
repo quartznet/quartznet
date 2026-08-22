@@ -37,23 +37,13 @@ IScheduler scheduler = await QuartzSchedulerBuilder.Create()
     .BuildScheduler();
 ```
 
-Every configuration method returns the builder itself, so the whole thing is one expression.
+Every configuration method returns the builder itself, so the whole thing is one expression. Nothing
+starts on its own: without a hosted service, starting the scheduler is your call, and so is shutting it
+down.
 
-Use `Build()` instead of `BuildScheduler()` when you want the factory rather than the scheduler it produces. It
-returns a `StandaloneSchedulerFactory`, which owns the container it built — dispose it, preferably with
-`await using`, to shut the scheduler down:
-
-```csharp
-await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-    .UseInMemoryStore()
-    .Build();
-
-IScheduler scheduler = await factory.GetScheduler();
-await scheduler.Start();
-```
-
-Nothing starts on its own here: without a hosted service, starting the scheduler is your call, and so is
-shutting it down.
+[Building a Scheduler Without a Host](standalone-scheduler.md) is the full lesson — `Build()` versus
+`BuildScheduler()`, what owning the container means for disposal, persistent and clustered standalone
+schedulers, and what the container-first path adds that this one lacks.
 
 ## Configuring from properties
 
