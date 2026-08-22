@@ -3,47 +3,77 @@
 title: Microsoft DI Integration
 ---
 
-[Quartz](https://www.nuget.org/packages/Quartz)
-provides integration with [Microsoft Dependency Injection](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection).
+The scheduler is built by [Microsoft's dependency injection container](https://learn.microsoft.com/dotnet/core/extensions/dependency-injection).
+There is no reflective assembly of a scheduler from type names any more: `AddQuartz` registers the object graph,
+and everything in it — the job store, the thread pool, listeners, plugins, your jobs — is resolved from the
+container like any other service.
+
+This is part of the core [Quartz](https://www.nuget.org/packages/Quartz) package; 3.x had it in the separate
+`Quartz.Extensions.DependencyInjection` package.
 
 ::: tip
-Quartz 3.1 or later required.
+[The hosted service](hosted-services-integration.md) starts and stops the scheduler with the application.
+
+Need several independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
 :::
 
-## Using
+## Registering a scheduler
 
-You can add Quartz configuration by invoking an extension method `AddQuartz` on `IServiceCollection`.
-The configuration building wraps various [configuration properties](../configuration/reference) with strongly-typed API.
-You can also configure properties using standard .NET Core `appsettings.json` inside configuration section `Quartz`.
+```csharp
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
-::: tip
-[Quartz](hosted-services-integration.md) allows you to have a background service for your application that handles starting and stopping the scheduler.
+builder.AddQuartz(q =>
+{
+    q.ScheduleJob<ExampleJob>(trigger => trigger
+        .WithIdentity("example")
+        .WithCronSchedule("0 0/5 * * * ?"));
+});
 
-Need multiple independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
-:::
+builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+```
 
-**Example appsettings.json**
+`AddQuartz` and `AddQuartzHostedService` hang off `IHostApplicationBuilder`, so the same two calls work in a
+web application built with `WebApplication.CreateBuilder(args)`. Both are also available on
+`IServiceCollection` — `builder.Services.AddQuartz(q => …)` — for registration code that only has the
+collection to work with.
+
+## Configuration from appsettings.json
+
+Everything configurable in code is bindable from the `Quartz` configuration section, under the option's own
+name:
 
 ```json
 {
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft": "Warning",
-      "Microsoft.Hosting.Lifetime": "Information"
-    }
-  },
   "Quartz": {
-    "quartz.scheduler.instanceName": "Quartz ASP.NET Core Sample Scheduler"
+    "Scheduler": {
+      "InstanceName": "Sample Scheduler",
+      "MaxBatchSize": 5
+    },
+    "ThreadPool": {
+      "MaxConcurrency": 20
+    }
   }
 }
-````
+```
 
-## DI aware job factories
+The `Quartz` section is bound automatically when the scheduler is registered through `IHostApplicationBuilder`.
+On `IServiceCollection`, where there is no configuration to hand, pass the section:
 
-Quartz uses Microsoft's DI construction by default and the jobs produced by the default job factory are scoped jobs.
+```csharp
+services.AddQuartz(configuration.GetSection("Quartz"), q =>
+{
+    // code configuration on top of what the file says; code wins
+    q.ConfigureScheduler(options => options.InstanceId = "Scheduler-Core");
+});
+```
 
-### Job instance construction
+The section names, the options under each and the whole schedule-in-configuration format are in
+[Configuration Reference](../configuration/reference.md) and
+[JSON configuration](../configuration/json.md). The flat `quartz.scheduler.instanceName` style keys 3.x used
+still work, and are translated to the same options, but they are not the spelling to reach for in a new
+application.
+
+## How jobs are constructed
 
 A job is resolved from the container. `AddJob<T>()`, `AddJob(type, …)` and `ScheduleJob<T>()` register
 the job type for you, as a **scoped** service — the job factory opens a dependency injection scope per
@@ -68,6 +98,9 @@ services.AddQuartz(q =>
 A singleton job serves every fire from one instance, so it must be thread-safe and it cannot take
 scoped dependencies. Prefer scoped, which is what `AddJob` registers.
 :::
+
+To add to the scope the factory opens rather than to replace the factory — to seed an ambient tenant, say —
+use `q.ConfigureJobScope((scope, bundle, scheduler) => …)`.
 
 ### Failing fast when job dependencies cannot be resolved
 
@@ -115,194 +148,178 @@ To take part in construction itself — to record the failure, or to add context
 `MicrosoftDependencyInjectionJobFactory` and override `CreateJobInstance`. The `TriggerFiredBundle` it
 receives carries the trigger, the job detail and `bundle.Trigger.FireInstanceId`.
 
-### Persistent job stores
+## Persistent job stores
 
-The scheduling configuration will be checked against database and updated accordingly every time your application starts and schedule is being evaluated.
+What you register is evaluated against the database every time the application starts, and the stored
+schedule is updated to match.
 
 ::: warning
-When using persistent job store, make sure you define job and trigger names for your scheduling so that existence checks work correctly against
-the data you already have in your database.
-
-Using API to configure triggers and jobs without explicit job identity configuration will cause jobs and triggers to have different generated name each time configuration is being evaluated.
-
-With persistent job stores it's best practice to always declare at least job and trigger name. Omitting the group for them will produce same default group value for every invocation.
+With a persistent job store, always give your jobs and triggers explicit names. Configuring them without an
+identity gives each one a freshly generated name on every start, so the existence check finds nothing and the
+schedule accumulates duplicates. Naming only the job and the trigger is enough — the group then defaults to
+the same value every time.
 :::
 
-**Example Startup.ConfigureServices configuration**
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.UsePersistentStore(store =>
+    {
+        store.UseSqlServer(connectionString);
+        store.UseSystemTextJsonSerializer();
+
+        store.Configure(options =>
+        {
+            options.TablePrefix = "QRTZ_";        // the default
+            options.StoreJobDataAsStrings = true; // preferred, but not the default
+            options.PerformSchemaValidation = true;
+        });
+
+        store.UseClustering(cluster =>
+        {
+            cluster.CheckinInterval = TimeSpan.FromSeconds(10);
+            cluster.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
+        });
+    });
+});
+```
+
+Settings of the store itself go through `store.Configure(...)`, which configures `AdoJobStoreOptions`; the
+database call and the clustering call are the ones that hang off the builder. How duplicate scheduling data is
+treated is a setting of its own:
 
 ```csharp
-public void ConfigureServices(IServiceCollection services)
+services.Configure<QuartzOptions>(options =>
 {
-    // if you are using persistent job store, you might want to alter some options
-    services.Configure<QuartzOptions>(options =>
+    options.Scheduling.OverwriteExistingData = true; // default: true
+    options.Scheduling.IgnoreDuplicates = false;     // default: false
+});
+```
+
+## A worked configuration
+
+The rest of this page is one registration, broken into the things you might want from it.
+
+**Jobs and triggers.** `ScheduleJob<T>` is a job and its one trigger; `AddJob` plus `AddTrigger` is a job that
+several triggers share, each able to carry its own data.
+
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.ScheduleJob<ExampleJob>(trigger => trigger
+        .WithIdentity("Combined Configuration Trigger")
+        .StartAt(DateTimeOffset.UtcNow.AddSeconds(7))
+        .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
+        .WithDescription("my awesome trigger configured for a job with single call"));
+
+    JobKey jobKey = new("awesome job", "awesome group");
+
+    q.AddJob<ExampleJob>(j => j
+        .WithIdentity(jobKey)
+        .WithDescription("my awesome job")
+        // job data can name the job property it is meant for instead of spelling its key,
+        // which makes a mistyped key or a wrong-typed value a compile error
+        .UsingJobData(x => x.InjectedString, "Hello")
+        .UsingJobData(x => x.InjectedBool, true));
+
+    q.AddTrigger<ExampleJob>(t => t
+        .WithIdentity("Simple Trigger")
+        .ForJob(jobKey)
+        .StartNow()
+        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever()));
+
+    q.AddTrigger<ExampleJob>(t => t
+        .WithIdentity("Cron Trigger")
+        .ForJob(jobKey)
+        .StartAt(DateTimeOffset.UtcNow.AddSeconds(3))
+        .WithCronSchedule("0/3 * * * * ?"));
+
+    // use H (hash) to spread trigger fire times based on trigger identity
+    q.AddTrigger<ExampleJob>(t => t
+        .WithIdentity("Spread Cron Trigger")
+        .ForJob(jobKey)
+        .WithCronSchedule("H * * * * ?")
+        .WithDescription("fires once per minute at a hash-derived second"));
+});
+```
+
+**Calendars**, to exclude days from a schedule:
+
+```csharp
+const string calendarName = "myHolidayCalendar";
+
+q.AddCalendar<HolidayCalendar>(
+    name: calendarName,
+    options: new AddCalendarOptions { Replace = true, UpdateTriggers = true },
+    configure: calendar => calendar.AddExcludedDay(new DateOnly(2026, 5, 15)));
+
+q.AddTrigger<ExampleJob>(t => t
+    .WithIdentity("Daily Trigger")
+    .ForJob(jobKey)
+    .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
+    .WithCalendarName(calendarName));
+```
+
+**Plugins**, including a schedule kept in a file and watched for changes:
+
+```csharp
+q.UseXmlSchedulingConfiguration(x =>
+{
+    x.Files.Add("~/quartz_jobs.config");
+    x.ScanInterval = TimeSpan.FromSeconds(2);
+    x.FailOnFileNotFound = true;
+    x.FailOnSchedulingError = true;
+});
+
+// resolve Windows and IANA time zone ids on either operating system
+q.UseTimeZoneConverter();
+
+// interrupt a job that runs longer than it should
+q.UseJobAutoInterrupt(options => options.DefaultMaxRunTime = TimeSpan.FromMinutes(5));
+
+q.ScheduleJob<SlowJob>(
+    trigger => trigger
+        .WithIdentity("slowJobTrigger")
+        .StartNow()
+        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever()),
+    job => job
+        .WithIdentity("slowJob")
+        .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
+        // allow only five seconds for this job, overriding the plugin's default.
+        // the value is milliseconds, and the plugin reads it as a string
+        .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, "5000"));
+```
+
+Every plugin Quartz ships has an extension like these; they are listed in
+[Plugins](quartz-plugins.md).
+
+**Listeners**, constructed from the container and in place before the scheduler starts:
+
+```csharp
+q.AddSchedulerListener<SampleSchedulerListener>();
+q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals("awesome group"));
+q.AddTriggerListener<SampleTriggerListener>();
+```
+
+**Registration that depends on your own configuration.** Whether something is scheduled at all is decided
+here, in ordinary code; a value needed to build the trigger is read from the container when the trigger is
+built:
+
+```csharp
+services.Configure<SampleOptions>(configuration.GetSection("Sample"));
+
+services.AddQuartz(q =>
+{
+    if (!string.IsNullOrWhiteSpace(configuration.GetSection("Sample")["CronSchedule"]))
     {
-        options.Scheduling.IgnoreDuplicates = true; // default: false
-        options.Scheduling.OverwriteExistingData = true; // default: true
-    });
+        JobKey customJobKey = new("options-custom-job", "custom");
 
-    // base configuration from appsettings.json, plus configuration in code
-    services.AddQuartz(Configuration.GetSection("Quartz"), q =>
-    {
-        // handy when part of cluster or you want to otherwise identify multiple schedulers
-        q.ConfigureScheduler(options => options.InstanceId = "Scheduler-Core");
+        q.AddJob<ExampleJob>(j => j.WithIdentity(customJobKey));
 
-        // we take this from appsettings.json, just show it's possible
-        // q.ConfigureScheduler(options => options.InstanceName = "Quartz ASP.NET Core Sample Scheduler");
-
-        // these are the defaults
-        q.UseSimpleTypeLoader();
-        q.UseInMemoryStore();
-        q.UseDefaultThreadPool(tp =>
-        {
-            tp.MaxConcurrency = 10;
-        });
-
-        // quickest way to create a job with single trigger is to use ScheduleJob
-        // (requires version 3.2)
-        q.ScheduleJob<ExampleJob>(trigger => trigger
-            .WithIdentity("Combined Configuration Trigger")
-            .StartAt(DateTimeOffset.UtcNow.AddSeconds(7))
-            .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
-            .WithDescription("my awesome trigger configured for a job with single call")
-        );
-
-        // you can also configure individual jobs and triggers with code
-        // this allows you to associated multiple triggers with same job
-        // (if you want to have different job data map per trigger for example)
-        q.AddJob<ExampleJob>(j => j
-            .StoreDurably() // we need to store durably if no trigger is associated
-            .WithDescription("my awesome job")
-        );
-
-        // here's a known job for triggers
-        var jobKey = new JobKey("awesome job", "awesome group");
-        q.AddJob<ExampleJob>(j => j
-            .WithIdentity(jobKey)
-            .WithDescription("my awesome job")
-            // job data can name the job property it is meant for instead of spelling its key,
-            // which makes a mistyped key or a wrong-typed value a compile error
-            .UsingJobData(j2 => j2.InjectedString, "Hello")
-            .UsingJobData(j2 => j2.InjectedBool, true)
-        );
-
-        q.AddTrigger<IJob>(t => t
-            .WithIdentity("Simple Trigger")
-            .ForJob(jobKey)
-            .StartNow()
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
-            .WithDescription("my awesome simple trigger")
-        );
-
-        q.AddTrigger<IJob>(t => t
-            .WithIdentity("Cron Trigger")
-            .ForJob(jobKey)
-            .StartAt(DateTimeOffset.UtcNow.AddSeconds(3))
-            .WithCronSchedule("0/3 * * * * ?")
-            .WithDescription("my awesome cron trigger")
-        );
-
-        // use H (hash) to spread trigger fire times based on trigger identity
-        q.AddTrigger<IJob>(t => t
-            .WithIdentity("Spread Cron Trigger")
-            .ForJob(jobKey)
-            .WithCronSchedule("H * * * * ?")
-            .WithDescription("fires once per minute at a hash-derived second")
-        );
-
-        // you can add calendars too (requires version 3.2)
-        const string calendarName = "myHolidayCalendar";
-        q.AddCalendar<HolidayCalendar>(
-            name: calendarName,
-            options: new AddCalendarOptions { Replace = true, UpdateTriggers = true },
-            configure: x => x.AddExcludedDay(new DateOnly(2020, 5, 15))
-        );
-
-        q.AddTrigger<IJob>(t => t
-            .WithIdentity("Daily Trigger")
-            .ForJob(jobKey)
-            .StartAt(DateTimeOffset.UtcNow.AddSeconds(5))
-            .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
-            .WithDescription("my awesome daily time interval trigger")
-            .WithCalendarName(calendarName)
-        );
-
-        // also add XML configuration and poll it for changes
-        q.UseXmlSchedulingConfiguration(x =>
-        {
-            x.Files.Add("~/quartz_jobs.config");
-            x.ScanInterval = TimeSpan.FromSeconds(2);
-            x.FailOnFileNotFound = true;
-            x.FailOnSchedulingError = true;
-        });
-
-        // convert time zones using converter that can handle Windows/Linux differences
-        q.UseTimeZoneConverter();
-
-        // auto-interrupt long-running job
-        q.UseJobAutoInterrupt(options =>
-        {
-            // this is the default
-            options.DefaultMaxRunTime = TimeSpan.FromMinutes(5);
-        });
-        q.ScheduleJob<SlowJob>(
-            triggerConfigurator => triggerConfigurator
-                .WithIdentity("slowJobTrigger")
-                .StartNow()
-                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever()),
-            jobConfigurator => jobConfigurator
-                .WithIdentity("slowJob")
-                .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
-                // allow only five seconds for this job, overriding default configuration
-                .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture)));
-
-        // add some listeners
-        q.AddSchedulerListener<SampleSchedulerListener>();
-        q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals(jobKey.Group));
-        q.AddTriggerListener<SampleTriggerListener>();
-
-        // your own configuration can decide what gets scheduled: whether there is a schedule at all is
-        // decided here, and the schedule itself is read from the container when the trigger is built
-        if (!string.IsNullOrWhiteSpace(Configuration.GetSection("Sample")["CronSchedule"]))
-        {
-            var customJobKey = new JobKey("options-custom-job", "custom");
-            q.AddJob<ExampleJob>(j => j.WithIdentity(customJobKey));
-            q.AddTrigger<IJob>((serviceProvider, trigger) => trigger
-                .WithIdentity("options-custom-trigger", "custom")
-                .ForJob(customJobKey)
-                .WithCronSchedule(serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule));
-        }
-
-        // example of persistent job store using JSON serializer as an example
-        /*
-        q.UsePersistentStore(s =>
-        {
-            s.PerformSchemaValidation = true; // default
-            s.StoreJobDataAsStrings = true; // preferred, but not default
-            s.RetryInterval = TimeSpan.FromSeconds(15);
-            s.UseSqlServer(sqlServer =>
-            {
-                sqlServer.ConnectionString = "some connection string";
-                // this is the default
-                sqlServer.TablePrefix = "QRTZ_";
-            });
-            s.UseSystemTextJsonSerializer();
-            s.UseClustering(c =>
-            {
-                c.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
-                c.CheckinInterval = TimeSpan.FromSeconds(10);
-            });
-        });
-        */
-    });
-
-    // your own options, read by the trigger registered above
-    services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
-
-    // Quartz allows you to fire background service that handles scheduler lifecycle
-    services.AddQuartzHostedService(options =>
-    {
-        // when shutting down we want jobs to complete gracefully
-        options.WaitForJobsToComplete = true;
-    });
-}
+        q.AddTrigger<ExampleJob>((serviceProvider, trigger) => trigger
+            .WithIdentity("options-custom-trigger", "custom")
+            .ForJob(customJobKey)
+            .WithCronSchedule(serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule));
+    }
+});
 ```
