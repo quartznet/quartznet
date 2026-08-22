@@ -4767,6 +4767,13 @@ PagedResult<string> holidays = await scheduler.QueryCalendarNames(new CalendarQu
 });
 ```
 
+There is no `AnyName()` on it: the property is nullable, and null already means every calendar.
+
+If you wrote a dialect delegate that overrides `StdAdoDelegate.ToSqlLikeClause<T>(StringMatcher<T>)`,
+move the override to `ToSqlLikeClause(StringOperator, string)`. That overload is the virtual one now,
+so that a calendar's matcher and a key's matcher translate through the same code; the generic form
+forwards to it and is no longer virtual.
+
 `IsJobGroupPaused` and `IsTriggerGroupPaused` are built on the group-name filter now, so they ask the store
 about the one group instead of listing every paused group and searching it.
 

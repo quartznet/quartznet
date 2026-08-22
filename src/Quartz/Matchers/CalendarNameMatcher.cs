@@ -31,7 +31,8 @@ namespace Quartz;
 /// <see cref="NameMatcher{TKey}" />, which is written against that key. A calendar is identified by
 /// a bare string — it has no group and no key type — so it gets a matcher of its own rather than a
 /// key type invented to satisfy a generic constraint. The four factories and the wire spellings
-/// they map to are the same as the key matchers'.
+/// they map to are the same as the key matchers'. There is no "any name" factory, because
+/// <see cref="CalendarQuery.Name" /> is nullable and null already means every name.
 /// </remarks>
 public sealed class CalendarNameMatcher : IEquatable<CalendarNameMatcher>
 {
@@ -75,11 +76,6 @@ public sealed class CalendarNameMatcher : IEquatable<CalendarNameMatcher>
     /// Matches calendar names containing the given string.
     /// </summary>
     public static CalendarNameMatcher NameContains(string compareTo) => new CalendarNameMatcher(compareTo, StringOperator.Contains);
-
-    /// <summary>
-    /// Matches every calendar name.
-    /// </summary>
-    public static CalendarNameMatcher AnyName() => new CalendarNameMatcher("", StringOperator.Anything);
 
     /// <summary>
     /// Whether the given calendar name matches.

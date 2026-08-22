@@ -71,7 +71,6 @@ namespace Quartz
         public override int GetHashCode() { }
         public bool IsMatch(string calendarName) { }
         public override string ToString() { }
-        public static Quartz.CalendarNameMatcher AnyName() { }
         public static Quartz.CalendarNameMatcher NameContains(string compareTo) { }
         public static Quartz.CalendarNameMatcher NameEndsWith(string compareTo) { }
         public static Quartz.CalendarNameMatcher NameEquals(string compareTo) { }
