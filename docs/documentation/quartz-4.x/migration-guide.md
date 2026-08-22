@@ -239,7 +239,7 @@ A `NameValueCollection` still goes in unchanged, in one call. It is exactly what
 holds — `StdSchedulerFactory` took one — so both `UseProperties` and `AddQuartz` keep an overload for
 it that forwards to the primary shape.
 
-| Member | 3.x / earlier 4.x | Now |
+| Member | 3.x / earlier 4.0 preview | 4.0 |
 |---|---|---|
 | `QuartzSchedulerBuilder.UseProperties` | `UseProperties(NameValueCollection)` | `UseProperties(IEnumerable<KeyValuePair<string, string?>>)`, plus the `NameValueCollection` overload |
 | `AddQuartz(services, properties, …)` | `NameValueCollection` | `IEnumerable<KeyValuePair<string, string?>>`, plus the `NameValueCollection` overload |
@@ -1583,7 +1583,7 @@ updated; the `Starting`/`Started`/`Stopping`/`Stopped` overrides are unchanged. 
 
 ## The ASP.NET Core methods say Quartz once
 
-| Old | New |
+| Before | After |
 |---|---|
 | `IQuartzBuilder.AddHttpApi(…)` | `AddQuartzHttpApi(…)` |
 | `IEndpointRouteBuilder.MapQuartzApi()` | `MapQuartzHttpApi()` |
@@ -1801,7 +1801,7 @@ means `TimeProvider.System`.
 The times they work in are `DateTimeOffset` rather than local `DateTime`, which is the same instant said
 unambiguously, and is what the rest of the API has spoken since 3.0:
 
-| 3.x / earlier 4.x | 4.0 |
+| 3.x / earlier 4.0 preview | 4.0 |
 |---|---|
 | `protected virtual DateTime FileScanJob.GetLastModifiedDate(string)`, returning `DateTime.MinValue` for a missing file | `protected virtual DateTimeOffset? GetLastModifiedTime(string fileName)`, returning `null` for a missing file |
 | `protected void DirectoryScanJob.GetUpdatedOrNewFiles(string, DateTime, DateTime, IReadOnlyCollection<FileInfo>, out List<FileInfo>, out List<FileInfo>, out List<FileInfo>, string, bool)` | private, along with the `DirectoryScanResult` it returns |
@@ -1878,7 +1878,7 @@ The two keys are still read when nothing is registered, so a job scheduled by an
 sending; the job logs a warning saying where the credential now lives. A credential from the container
 wins over one in job data.
 
-| 3.x | 4.0 |
+| 3.x | 4.x |
 |---|---|
 | `SendMailJob()` | `SendMailJob(ICredentialsByHost? credentials = null)`, which the job factory fills from the container |
 | `MailInfo.SmtpUserName` / `MailInfo.SmtpPassword` | `MailInfo.Credentials`, an `ICredentialsByHost?`. An override of `Send` routing mail through another transport gets whichever credential applied |
@@ -1965,7 +1965,7 @@ Every scheduler also now publishes them at all — configuring the meter used to
 
 ### Old and new telemetry names
 
-| 3.x | 4.x | |
+| 3.x | 4.x | Notes |
 |---|---|---|
 | `scheduling.quartz.execute` | *removed* | The histogram's own **count** is the number of executions: `sum(rate(quartz_job_execution_duration_count[5m]))` in Prometheus, or whatever your backend calls a histogram's count |
 | `scheduling.quartz.execute.errors` | *removed* | The **`error.type`-tagged subset** of the same count is the number of failures — and it now says *what* failed, which the counter never did |
@@ -2348,7 +2348,7 @@ from this release, is the processor.
 exactly as they were, and `job_scheduling_data_2_0.xsd` still validates the document before it is
 read. Only two failures report differently:
 
-| Input | 3.x / earlier 4.x | 4.0 |
+| Input | 3.x / earlier 4.0 preview | 4.0 |
 |---|---|---|
 | A file that is not well-formed XML | `InvalidOperationException`, "There is an error in XML document (3, 13)", wrapping an `XmlException` | the `XmlException` itself, naming the line, the position and the unclosed elements |
 | A file whose elements are not in the `http://quartznet.sourceforge.net/JobSchedulingData` namespace | `InvalidOperationException`, "&lt;job-scheduling-data xmlns=''&gt; was not expected" | `SchedulerConfigException` naming the namespace that was expected |
@@ -2955,6 +2955,10 @@ documentation always promised.
 
 ## New Features
 
+Everything 4.x can do that a 3.x application probably is not doing yet. A few of these were backported
+to a late 3.x release after they were written here, so if you are upgrading from the newest 3.x you may
+already have them.
+
 * **[RecurrenceTrigger (RRULE)](tutorial/recurrencetrigger.md)** — schedule jobs using RFC 5545 recurrence rules for complex patterns like "every 2nd Monday of the month" or "last weekday of March each year"
 * **H (hash) token in cron expressions** — deterministic load distribution across triggers using the trigger identity as seed
 * **HTTP API** — optional REST API for managing the scheduler remotely (see [HTTP API](packages/http-api.md))
@@ -3219,7 +3223,7 @@ that this process happened to be holding, so it could only ever answer for one n
 With a persistent job store the answer now covers the whole cluster, because a firing is a row rather
 than a field. `FireInstance` is what a store can say about one firing from anywhere:
 
-| Member | |
+| Member | Meaning |
 |---|---|
 | `FireInstanceId` | identifies this firing; what `InterruptFireInstance` takes |
 | `TriggerKey` | the trigger that fired |
@@ -3557,7 +3561,7 @@ Renamed to say what they return — a custom delegate author reads these names a
 them said `Names` or whole entities where they return keys, while `SelectTriggerGroups` was one name
 overloaded across two unrelated result shapes:
 
-| Was | Is |
+| 3.x | 4.x |
 |---|---|
 | `SelectTriggerNamesForJob` → `List<TriggerKey>` | `SelectTriggerKeysForJob` |
 | `SelectJobsInGroup` → `List<JobKey>` | `SelectJobKeysInGroup` |
@@ -3566,7 +3570,7 @@ overloaded across two unrelated result shapes:
 
 Consolidated into records rather than overload families:
 
-| Was | Is |
+| 3.x | 4.x |
 |---|---|
 | `SelectFiredTriggerRecords`, `SelectFiredTriggerRecordsByJob`, `SelectInstancesFiredTriggerRecords` | `SelectFiredTriggerRecords(conn, FiredTriggerQuery, ct)` |
 | four `DeleteFiredTriggers` overloads | `DeleteFiredTriggers(conn, FiredTriggerQuery, ct)` |
@@ -4970,7 +4974,7 @@ replace it with its own data source. It used to answer in three vocabularies at 
 sixteen methods taking a loose `(schedulerName, group, name)` triplet next to a hub interface that
 already had `JobKeyDto` and `TriggerKeyDto`. Now it says what Quartz says:
 
-| Was | Is |
+| 3.x | 4.x |
 |---|---|
 | `GetTriggerState(…)` → `string` | → `TriggerState` |
 | `TriggerHeaderDto.State` is `string?` | `TriggerState?` |
@@ -5477,7 +5481,7 @@ positional arguments, most of which read as anonymous at the call site.
 Each type now has one no-settings constructor taking an optional `TimeProvider`, and at most one
 convenience constructor. Everything else is an object initializer.
 
-| type | constructors before | constructors now |
+| Type | Constructors before | Constructors now |
 |---|---|---|
 | `SimpleTriggerImpl` | 11 | `(TimeProvider? = null)`, and `(name, group, jobName, jobGroup, startTimeUtc, endTimeUtc, repeatCount, repeatInterval, TimeProvider? = null)` |
 | `CronTriggerImpl` | 9 | `(TimeProvider? = null)`, and `(name, group, cronExpression, TimeProvider? = null)` |
@@ -5771,7 +5775,7 @@ a cron trigger: the number is in range for both families and means a different p
 overload per family, plus a code form for callers that genuinely have a number and no family — a value read
 off the wire, from configuration, or from a trigger.
 
-| 4.0 preview | 4.x |
+| 4.0 preview | 4.0 |
 |---|---|
 | `.WithMisfireInstruction(2)` | `.WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)` |
 | `.WithMisfireInstruction(MisfireInstruction.CronTrigger.DoNothing)` | `.WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)` |
@@ -6511,8 +6515,8 @@ fire times it computes and lives in `Quartz.Extensibility` with that contract, r
 root namespace next to `IScheduler`. The type name carries the "fire times" half, so the methods
 stop repeating it:
 
-| 3.x | 4.0 |
-|-----|-----|
+| 3.x | 4.x |
+|---|---|
 | `TriggerUtils.ComputeFireTimes(...)` | `TriggerFireTimes.Compute(...)` |
 | `TriggerUtils.ComputeFireTimesBetween(...)` | `TriggerFireTimes.ComputeBetween(...)` |
 | `TriggerUtils.ComputeEndTimeToAllowParticularNumberOfFirings(...)` | `TriggerFireTimes.ComputeEndTimeForCount(...)` |
