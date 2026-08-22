@@ -85,7 +85,7 @@ builder.Services.AddQuartz("Scheduler2", q =>
 
 ## Accessing Named Schedulers Programmatically
 
-All schedulers -- whether created via DI or directly -- are registered in the shared `ISchedulerRepository`. You can retrieve any scheduler by name using the repository:
+Schedulers created through DI are registered in the container's `ISchedulerRepository`. You can retrieve any of them by name using the repository:
 
 ```csharp
 public class MyService
@@ -135,6 +135,13 @@ public class MyService
 Named schedulers are only available after the hosted service has created and started them. During application startup, they may not yet be in the repository.
 
 `ISchedulerFactory` is only available from DI when a default (unnamed) `AddQuartz()` call has been made. If you only use named schedulers, inject `ISchedulerRepository` instead.
+
+There are **two** repositories, and they are not the same object. The DI integration registers its own
+`ISchedulerRepository` singleton in the container, while a bare `StdSchedulerFactory` or
+`DirectSchedulerFactory` binds into the process-wide static `SchedulerRepository.Instance`. A
+scheduler created outside the container therefore does not appear in the injected repository — nor in
+the Dashboard, which reads that one. To join them, subclass `StdSchedulerFactory` and override
+`GetSchedulerRepository()` to return the container's instance.
 :::
 
 ## Mixing Default and Named Schedulers
@@ -192,3 +199,10 @@ builder.Services.Configure<QuartzOptions>("DurableScheduler",
 - **Hosted service options are global** -- `QuartzHostedServiceOptions` (such as `WaitForJobsToComplete`, `StartDelay`, `AwaitApplicationStarted`) apply to all schedulers uniformly.
 - **Job types are shared** -- job classes are resolved from the shared DI container. The same job type can be used across multiple schedulers.
 - **Scheduler names must be unique** -- each call to `AddQuartz(name, ...)` must use a distinct name.
+
+## See Also
+
+A scheduler per tenant is one of three ways to partition tenants, and not always the right one.
+
+- [Multi-Tenancy](../multi-tenancy.md) -- the three separations 3.x offers, and their honest limits
+- [Tenancy Patterns](../../tenancy-patterns.md) -- how other schedulers partition tenants, and the axes that decide

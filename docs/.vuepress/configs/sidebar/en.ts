@@ -30,8 +30,10 @@ export const sidebarEn: SidebarConfig = [
       },
       "/documentation/quartz-3.x/configuration/reference",
       "/documentation/quartz-3.x/packages/json-configuration",
+      "/documentation/quartz-3.x/multi-tenancy",
       "/documentation/faq",
       "/documentation/best-practices",
+      "/documentation/tenancy-patterns",
       "/documentation/troubleshooting",
       {
         text: "API Documentation",
@@ -123,6 +125,7 @@ export const sidebarEn: SidebarConfig = [
           "/documentation/quartz-4.x/multi-tenancy",
           "/documentation/faq",
           "/documentation/best-practices",
+          "/documentation/tenancy-patterns",
           "/documentation/quartz-4.x/db/",
           "/documentation/database/schema-changes",
           "/documentation/quartz-4.x/migration-guide",

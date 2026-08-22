@@ -120,8 +120,15 @@ quartz.executionLimit.* = 10
 
 ## Interaction with DisallowConcurrentExecution
 
-The `[DisallowConcurrentExecution]` attribute is checked **before** execution group limits during trigger acquisition.
-This means `[DisallowConcurrentExecution]` is always respected regardless of execution group configuration.
+`[DisallowConcurrentExecution]` is always respected regardless of execution group configuration. Both
+constraints are applied — a trigger must satisfy both to be acquired.
+
+The order in which they are applied differs by store, which matters only in that a slot can be spent on
+a trigger that is then dropped. `RAMJobStore` checks `[DisallowConcurrentExecution]` first and the
+execution group limit second. In the ADO job store neither is a SQL predicate: the candidate select
+projects each trigger's execution group and the delegate counts slots down as it reads the rows, and
+`[DisallowConcurrentExecution]` is checked afterwards in the acquisition loop. Either way the trigger
+stays where it is and is reconsidered on the next cycle.
 
 ## Database migration
 
@@ -190,3 +197,11 @@ limits.ForGroup("tenant-a", maxConcurrent: 5);
 limits.ForGroup("tenant-b", maxConcurrent: 5);
 limits.ForGroup("tenant-c", maxConcurrent: 5);
 ```
+
+Every trigger belonging to a tenant must carry `.WithExecutionGroup("tenant-a")`; the execution group
+is a separate tag and is not derived from the trigger's key group. Remember also that these limits are
+per node, so a three-node cluster running the configuration above allows fifteen concurrent jobs per
+tenant, not five.
+
+For the wider picture — the other two separations Quartz offers, and how to choose between them —
+see [Multi-Tenancy](../multi-tenancy.md) and [Tenancy Patterns](../../tenancy-patterns.md).
