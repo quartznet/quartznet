@@ -7,7 +7,7 @@ namespace Quartz.Serialization.Newtonsoft;
 /// <summary>
 /// Custom converter for (de)serializing <see cref="NameValueCollection" />.
 /// </summary>
-public class NameValueCollectionConverter : JsonConverter
+internal sealed class NameValueCollectionConverter : JsonConverter
 {
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {

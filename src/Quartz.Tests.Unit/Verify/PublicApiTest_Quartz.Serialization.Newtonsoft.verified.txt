@@ -42,13 +42,6 @@ namespace Quartz.Serialization.Newtonsoft.Calendars
 }
 namespace Quartz.Serialization.Newtonsoft
 {
-    public class NameValueCollectionConverter : Newtonsoft.Json.JsonConverter
-    {
-        public NameValueCollectionConverter() { }
-        public override bool CanConvert(System.Type objectType) { }
-        public override object ReadJson(Newtonsoft.Json.JsonReader reader, System.Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer) { }
-        public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer) { }
-    }
     public sealed class NewtonsoftJsonSerializerRegistry
     {
         public NewtonsoftJsonSerializerRegistry() { }
