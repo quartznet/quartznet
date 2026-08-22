@@ -81,12 +81,18 @@ public sealed class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlug
             {
                 var monitorPlugin = (JobInterruptMonitorPlugin) context.Scheduler.Context[JobInterruptMonitorKey]!;
 
-                // Get the MaxRuntime from MergedJobDataMap if NOT available use MaxRunTime from Plugin Configuration
-                var jobDataDelay = DefaultMaxRunTime;
+                // Get the MaxRuntime from MergedJobDataMap if NOT available use MaxRunTime from Plugin Configuration.
+                // TryGetLong coerces a numeric value and a numeric string alike, so the override takes
+                // effect whether the map holds 5000 or "5000".
+                TimeSpan jobDataDelay = DefaultMaxRunTime;
 
-                if (context.MergedJobDataMap.GetString(JobDataMapKeyMaxRunTime) is not null)
+                if (context.MergedJobDataMap.TryGetLong(JobDataMapKeyMaxRunTime, out long maxRunTimeMilliseconds))
                 {
-                    jobDataDelay = TimeSpan.FromMilliseconds(context.MergedJobDataMap.GetLong(JobDataMapKeyMaxRunTime));
+                    jobDataDelay = TimeSpan.FromMilliseconds(maxRunTimeMilliseconds);
+                }
+                else if (context.MergedJobDataMap.ContainsKey(JobDataMapKeyMaxRunTime))
+                {
+                    logger.LogWarning("Job data map value for {Key} is not a number of milliseconds, using the plugin default of {Delay} instead", JobDataMapKeyMaxRunTime, jobDataDelay);
                 }
 
                 monitorPlugin.ScheduleJobInterruptMonitor(context.FireInstanceId, context.JobDetail.Key, jobDataDelay);
