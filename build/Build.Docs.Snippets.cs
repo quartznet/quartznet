@@ -187,11 +187,21 @@ public partial class Build
 
     bool IsSampleDirectory(string path) => IsUnder(path, DocumentationSamplesDirectory);
 
-    static bool IsUnder(string path, AbsolutePath root) =>
-        NormalizePath(path).StartsWith(NormalizePath(root), StringComparison.OrdinalIgnoreCase);
-
     bool IsExcludedMarkdown(string path) =>
-        MarkdownDirectoryExclusions.Any(x => NormalizePath(path).StartsWith(NormalizePath(RootDirectory / x), StringComparison.OrdinalIgnoreCase));
+        MarkdownDirectoryExclusions.Any(x => IsUnder(path, RootDirectory / x));
+
+    /// <summary>
+    /// Whether <paramref name="path" /> is <paramref name="root" /> or sits below it. The comparison
+    /// stops at a separator, so a sibling whose name merely starts the same way is not swept in.
+    /// </summary>
+    static bool IsUnder(string path, AbsolutePath root)
+    {
+        var normalized = NormalizePath(path);
+        var prefix = NormalizePath(root);
+
+        return normalized.Equals(prefix, StringComparison.OrdinalIgnoreCase) ||
+               normalized.StartsWith(prefix + '/', StringComparison.OrdinalIgnoreCase);
+    }
 
     static string NormalizePath(string path) => path.Replace('\\', '/').TrimEnd('/');
 
