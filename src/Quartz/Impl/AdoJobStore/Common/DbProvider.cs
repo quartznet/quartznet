@@ -38,9 +38,16 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// <author>Marko Lahma</author>
 public class DbProvider : IDbProvider
 {
-    private readonly MethodInfo? commandBindByNamePropertySetter;
-    private readonly ConstructorInfo connectionConstructor;
-    private readonly ConstructorInfo commandConstructor;
+    private readonly MethodInvoker? commandBindByNamePropertySetter;
+
+    /// <summary>
+    /// The value <see cref="commandBindByNamePropertySetter" /> writes, boxed once. It never changes,
+    /// and boxing it per command put an allocation under every statement the store issues on Oracle.
+    /// </summary>
+    private readonly object? commandBindByNameValue;
+
+    private readonly ConstructorInvoker connectionConstructor;
+    private readonly ConstructorInvoker commandConstructor;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DbProvider"/> class, described by one of the drivers
@@ -75,17 +82,21 @@ public class DbProvider : IDbProvider
         var property = Metadata.CommandType?.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
         if (property is not null && property.PropertyType == typeof(bool) && property.CanWrite)
         {
-            commandBindByNamePropertySetter = property.GetSetMethod()!;
+            commandBindByNamePropertySetter = MethodInvoker.Create(property.GetSetMethod()!);
+            commandBindByNameValue = Metadata.BindByName;
         }
 
-        connectionConstructor = ObjectUtils.GetDefaultConstructor(Metadata.ConnectionType);
-        commandConstructor = ObjectUtils.GetDefaultConstructor((Metadata.CommandType));
+        // Invokers rather than the ConstructorInfo itself: every command and every connection the store
+        // opens goes through these, and ConstructorInfo.Invoke walks its argument array and re-checks the
+        // signature on each call.
+        connectionConstructor = ConstructorInvoker.Create(ObjectUtils.GetDefaultConstructor(Metadata.ConnectionType));
+        commandConstructor = ConstructorInvoker.Create(ObjectUtils.GetDefaultConstructor(Metadata.CommandType));
     }
 
     /// <inheritdoc />
     public virtual DbCommand CreateCommand()
     {
-        DbCommand command = (DbCommand) commandConstructor.Invoke([]);
+        DbCommand command = (DbCommand) commandConstructor.Invoke();
         ApplyDriverCommandSettings(command);
         return command;
     }
@@ -101,13 +112,13 @@ public class DbProvider : IDbProvider
     /// </remarks>
     private protected void ApplyDriverCommandSettings(DbCommand command)
     {
-        commandBindByNamePropertySetter?.Invoke(command, [Metadata.BindByName]);
+        commandBindByNamePropertySetter?.Invoke(command, commandBindByNameValue);
     }
 
     /// <inheritdoc />
     public virtual DbConnection CreateConnection()
     {
-        DbConnection conn = (DbConnection) connectionConstructor.Invoke([]);
+        DbConnection conn = (DbConnection) connectionConstructor.Invoke();
         conn.ConnectionString = ConnectionString;
         return conn;
     }

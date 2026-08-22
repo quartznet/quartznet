@@ -1979,7 +1979,9 @@ public partial class StdAdoDelegate
             {
                 var statement = statements[i];
                 var batchCommand = batch.CreateBatchCommand();
-                batchCommand.CommandText = statement.Sql;
+                // A batch command never passes through PrepareCommand, so the driver's parameter
+                // spelling has to be applied to its text here.
+                batchCommand.CommandText = adoUtil.RewriteParameterNames(statement.Sql);
                 foreach (var parameter in statement.Parameters)
                 {
                     adoUtil.AddCommandParameter(batchCommand, parameterFactory, parameter.Name, parameter.Value, parameter.DataType);

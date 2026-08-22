@@ -20,6 +20,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
@@ -48,6 +49,8 @@ internal interface IAdoUtil
         int? size);
 
     DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText);
+
+    string RewriteParameterNames(string commandText);
 }
 
 /// <summary>
@@ -59,6 +62,38 @@ internal sealed class AdoUtil : IAdoUtil
     private readonly ILogger logger;
     private readonly IDbProvider dbProvider;
     private readonly int? commandTimeoutSeconds;
+
+    /// <summary>
+    /// Whether this driver needs the <c>@name</c> placeholders rewritten at all. The prefix and the
+    /// binding mode are fixed for the life of a provider, so the answer is decided once here rather
+    /// than asked of the metadata for every statement.
+    /// </summary>
+    private readonly bool rewritesParameterNames;
+
+    private readonly string parameterNamePrefix;
+    private readonly bool bindByName;
+
+    /// <summary>
+    /// Statement texts that have already been rewritten, keyed by the text they were rewritten from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The rewrite is a pure function of the statement and the driver, and the statement is almost
+    /// always one of the delegate's cached, table-prefix-substituted strings, so the same instance
+    /// arrives here over and over: the scan and the allocation happen once per statement per process
+    /// rather than once per bound parameter.
+    /// </para>
+    /// <para>
+    /// Keyed by reference rather than by value, which is what makes the cache safe to leave unbounded.
+    /// A statement composed on the fly — a lock statement carrying its name, a schema probe naming one
+    /// table — is garbage as soon as its command is disposed, and its entry goes with it. A value-keyed
+    /// dictionary would hold both strings alive forever, and hashing a kilobyte of SQL on every
+    /// preparation would give back much of what the rewrite cost in the first place.
+    /// </para>
+    /// </remarks>
+    private readonly ConditionalWeakTable<string, string> rewrittenCommandTexts = new();
+
+    private readonly ConditionalWeakTable<string, string>.CreateValueCallback rewriteCallback;
 
     /// <param name="dbProvider">The provider commands are minted from.</param>
     /// <param name="commandTimeout">
@@ -75,6 +110,11 @@ internal sealed class AdoUtil : IAdoUtil
         commandTimeoutSeconds = commandTimeout is { } timeout
             ? (int) Math.Ceiling(timeout.TotalSeconds)
             : null;
+
+        parameterNamePrefix = dbProvider.Metadata.ParameterNamePrefix ?? "";
+        bindByName = dbProvider.Metadata.BindByName;
+        rewritesParameterNames = !bindByName || parameterNamePrefix != "@";
+        rewriteCallback = RewriteParameterNamesCore;
     }
 
     /// <summary>
@@ -100,14 +140,17 @@ internal sealed class AdoUtil : IAdoUtil
         IDbDataParameter param = cmd.CreateParameter();
         ConfigureParameter(param, paramName, paramValue, dataType, size);
         cmd.Parameters.Add(param);
-        cmd.CommandText = RewriteParameterName(cmd.CommandText, paramName);
     }
 
     /// <summary>
     /// Adds a parameter to a <see cref="DbBatchCommand" />. <see cref="DbBatchCommand" /> is not an
     /// <see cref="IDbCommand" />, so it needs its own entry point, but it shares all of the parameter
-    /// naming and rewriting rules with the single-command path above.
+    /// naming rules with the single-command path above.
     /// </summary>
+    /// <remarks>
+    /// A batch command is not prepared through <see cref="PrepareCommand" />, so its caller is the one
+    /// that has to put its text through <see cref="RewriteParameterNames" /> first.
+    /// </remarks>
     /// <param name="cmd">The batch command to add the parameter to.</param>
     /// <param name="parameterFactory">
     /// Command used to mint provider parameter instances when the provider has not implemented
@@ -130,7 +173,6 @@ internal sealed class AdoUtil : IAdoUtil
         DbParameter param = cmd.CanCreateParameter ? cmd.CreateParameter() : parameterFactory.CreateParameter();
         ConfigureParameter(param, paramName, paramValue, dataType, size);
         cmd.Parameters.Add(param);
-        cmd.CommandText = RewriteParameterName(cmd.CommandText, paramName);
     }
 
     private void ConfigureParameter(
@@ -155,33 +197,78 @@ internal sealed class AdoUtil : IAdoUtil
     }
 
     /// <summary>
-    /// Rewrites the <c>@name</c> placeholder in the statement text for providers that do not use the
-    /// <c>@</c> prefix, or that bind positionally.
+    /// Rewrites every <c>@name</c> placeholder in a statement for providers that do not use the
+    /// <c>@</c> prefix, or that bind positionally. Statements are written with <c>@</c> whichever driver
+    /// they end up running on, so this is the one place a driver's spelling is applied.
     /// </summary>
     /// <remarks>
-    /// This is a plain substring replace, so a parameter name that is a prefix of another one in the same
-    /// statement would corrupt it (<c>@p1</c> matching inside <c>@p10</c>). Generated parameter names must
-    /// therefore be fixed width — see <see cref="BuildTriggerKeyPredicate" />.
+    /// <para>
+    /// Whole-statement rather than per-parameter: the rewrite depends on nothing but the text and the
+    /// driver, so it is done once as the command is prepared and cached, instead of copying and scanning
+    /// the whole statement again for every parameter bound to it. A single trigger acquisition binds
+    /// seven parameters and a trigger update fifteen, and each of those used to re-copy a statement of
+    /// around a kilobyte.
+    /// </para>
+    /// <para>
+    /// A placeholder is <c>@</c> followed by one or more letters, digits or underscores; anything else
+    /// after an <c>@</c> is left alone. Names in the statements Quartz issues are always bound, so
+    /// rewriting all of them and rewriting only the bound ones come to the same thing.
+    /// </para>
     /// </remarks>
-    private string RewriteParameterName(string commandText, string paramName)
+    public string RewriteParameterNames(string commandText)
     {
-        if (!dbProvider.Metadata.BindByName)
+        if (!rewritesParameterNames)
         {
-            return commandText.Replace("@" + paramName, dbProvider.Metadata.ParameterNamePrefix);
+            return commandText;
         }
 
-        if (dbProvider.Metadata.ParameterNamePrefix != "@")
+        return rewrittenCommandTexts.GetValue(commandText, rewriteCallback);
+    }
+
+    private string RewriteParameterNamesCore(string commandText)
+    {
+        int index = commandText.IndexOf('@', StringComparison.Ordinal);
+        if (index < 0)
         {
-            // we need to replace
-            return commandText.Replace("@" + paramName, dbProvider.Metadata.ParameterNamePrefix + paramName);
+            return commandText;
         }
 
-        return commandText;
+        StringBuilder builder = new(commandText.Length + 16);
+        int copied = 0;
+        while (index >= 0)
+        {
+            int nameStart = index + 1;
+            int nameEnd = nameStart;
+            while (nameEnd < commandText.Length && (char.IsAsciiLetterOrDigit(commandText[nameEnd]) || commandText[nameEnd] == '_'))
+            {
+                nameEnd++;
+            }
+
+            if (nameEnd == nameStart)
+            {
+                // An '@' that names nothing - not a placeholder, so leave it where it is.
+                index = commandText.IndexOf('@', nameStart);
+                continue;
+            }
+
+            builder.Append(commandText, copied, index - copied);
+            builder.Append(parameterNamePrefix);
+            if (bindByName)
+            {
+                builder.Append(commandText, nameStart, nameEnd - nameStart);
+            }
+
+            copied = nameEnd;
+            index = commandText.IndexOf('@', copied);
+        }
+
+        builder.Append(commandText, copied, commandText.Length - copied);
+        return builder.ToString();
     }
 
     private void SetDataTypeToCommandParameter(IDbDataParameter param, object parameterType)
     {
-        dbProvider.Metadata.ParameterDbTypeProperty!.SetMethod!.Invoke(param, [parameterType]);
+        dbProvider.Metadata.ParameterDbTypeSetter!.Invoke(param, parameterType);
     }
 
     /// <summary>
@@ -254,8 +341,8 @@ internal sealed class AdoUtil : IAdoUtil
     /// </param>
     /// <remarks>
     /// Deliberately not a row-value <c>IN ((a, b), ...)</c>, which SQL Server does not support, and
-    /// deliberately not interpolated literals. Parameter names are fixed width so that no name is a
-    /// prefix of another — see the remarks on the parameter name rewriting above.
+    /// deliberately not interpolated literals. Parameter names are fixed width, which keeps the number
+    /// of distinct statement texts down and each name readable next to its neighbours.
     /// </remarks>
     internal static string BuildTriggerKeyPredicate(int keyCount, bool qualified = false)
     {
@@ -344,8 +431,8 @@ internal sealed class AdoUtil : IAdoUtil
     /// the caller deduplicates first.
     /// </param>
     /// <remarks>
-    /// Parameter names are fixed width so that no name is a prefix of another — see the remarks on the
-    /// parameter name rewriting above.
+    /// Parameter names are fixed width, for the same reason as in
+    /// <see cref="BuildTriggerKeyPredicate" />.
     /// </remarks>
     internal static string BuildTriggerStatePredicate(int stateCount)
     {
@@ -459,7 +546,7 @@ internal sealed class AdoUtil : IAdoUtil
             ? dataSourceProvider.CreateCommand(cth.Connection)
             : dbProvider.CreateCommand();
 
-        cmd.CommandText = commandText;
+        cmd.CommandText = RewriteParameterNames(commandText);
 
         if (commandTimeoutSeconds is { } timeoutSeconds)
         {

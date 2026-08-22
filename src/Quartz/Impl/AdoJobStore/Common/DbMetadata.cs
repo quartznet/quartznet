@@ -20,6 +20,7 @@
 #endregion
 
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Quartz.Impl.AdoJobStore.Common;
 
@@ -104,24 +105,14 @@ public sealed record DbMetadata
     /// <see cref="DbBinaryTypeName" /> is set.
     /// </summary>
     /// <value>The parameter db type property.</value>
-    internal PropertyInfo? ParameterDbTypeProperty
-    {
-        get
-        {
-            if (DbBinaryTypeName is null)
-            {
-                return null;
-            }
+    internal PropertyInfo? ParameterDbTypeProperty => Derived.ParameterDbTypeProperty;
 
-            PropertyInfo? property = ParameterType?.GetProperty(ParameterDbTypePropertyName);
-            if (property is null)
-            {
-                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
-            }
-
-            return property;
-        }
-    }
+    /// <summary>
+    /// Setter for <see cref="ParameterDbTypeProperty" />, prepared once so that binding a binary
+    /// parameter does not go back through <see cref="MethodBase.Invoke(object, object[])" /> and its
+    /// argument array every time.
+    /// </summary>
+    internal MethodInvoker? ParameterDbTypeSetter => Derived.ParameterDbTypeSetter;
 
     /// <summary>
     /// Gets the type of the db binary column. This is a string representation of
@@ -132,23 +123,7 @@ public sealed record DbMetadata
 
     /// <summary>Gets the type of the db binary, derived from <see cref="DbBinaryTypeName" />.</summary>
     /// <value>The type of the db binary.</value>
-    internal Enum? DbBinaryType
-    {
-        get
-        {
-            if (DbBinaryTypeName is null)
-            {
-                return null;
-            }
-
-            if (ParameterDbType is null || ParameterType is null)
-            {
-                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
-            }
-
-            return (Enum) Enum.Parse(ParameterDbType, DbBinaryTypeName);
-        }
-    }
+    internal Enum? DbBinaryType => Derived.DbBinaryType;
 
     /// <summary>
     /// Gets the name of the parameter db type property.
@@ -180,7 +155,59 @@ public sealed record DbMetadata
     /// </summary>
     internal void Validate()
     {
-        _ = DbBinaryType;
-        _ = ParameterDbTypeProperty;
+        _ = Derived;
+    }
+
+    /// <summary>
+    /// The members derived from this description by reflection, worked out once per description.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Kept beside the record rather than in fields on it. A record's generated equality compares every
+    /// instance field, so a memoization field would make two descriptions that say the same thing about
+    /// a driver compare unequal as soon as one of them had been used. The description stays what it
+    /// always was — a value — and what reflection makes of it hangs off it here.
+    /// </para>
+    /// <para>
+    /// <see cref="DbBinaryType" /> used to run <see cref="Enum.Parse(Type, string)" /> on every read and
+    /// <see cref="ParameterDbTypeProperty" /> a <see cref="Type.GetProperty(string)" />, and the write
+    /// path reads them once per binary column.
+    /// </para>
+    /// </remarks>
+    private DerivedMetadata Derived => derived.GetValue(this, static metadata => new DerivedMetadata(metadata));
+
+    private static readonly ConditionalWeakTable<DbMetadata, DerivedMetadata> derived = new();
+
+    private sealed class DerivedMetadata
+    {
+        public DerivedMetadata(DbMetadata metadata)
+        {
+            if (metadata.DbBinaryTypeName is null)
+            {
+                return;
+            }
+
+            if (metadata.ParameterDbType is null || metadata.ParameterType is null)
+            {
+                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{metadata.ProductName}'");
+            }
+
+            DbBinaryType = (Enum) Enum.Parse(metadata.ParameterDbType, metadata.DbBinaryTypeName);
+
+            PropertyInfo? property = metadata.ParameterType.GetProperty(metadata.ParameterDbTypePropertyName);
+            if (property?.SetMethod is null)
+            {
+                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{metadata.ProductName}'");
+            }
+
+            ParameterDbTypeProperty = property;
+            ParameterDbTypeSetter = MethodInvoker.Create(property.SetMethod);
+        }
+
+        public Enum? DbBinaryType { get; }
+
+        public PropertyInfo? ParameterDbTypeProperty { get; }
+
+        public MethodInvoker? ParameterDbTypeSetter { get; }
     }
 }
