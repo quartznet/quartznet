@@ -67,6 +67,10 @@ to the job instance when it executes. `JobDataMap` implements `IDictionary<strin
 accessors — `GetString`, `GetInt`, `GetDateTimeOffset`, `GetEnum<T>`, `TryGet<T>` and the rest — come with it as
 extension methods, so `map.GetString("key")` works on any map without a cast or a lookup of your own.
 
+This section is the introduction. [Job Data](job-data-map.md) has the full inventory: every accessor, the
+`PutAsString` round-trip formats, the merge rules, how string-mode storage changes what you may put in the
+map, and what does not belong in job data at all.
+
 Here's some quick snippets of putting data into the JobDataMap prior to adding the job to the scheduler:
 
 __Setting Values in a JobDataMap__
