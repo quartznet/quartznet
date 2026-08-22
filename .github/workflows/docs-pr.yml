@@ -38,12 +38,15 @@ jobs:
 
       # --ignore-scripts blocks the lifecycle scripts of every dependency. patch-package is ours, and
       # package.json's postinstall is the only one this repository actually wants, so it is run as its
-      # own step rather than trusting the whole tree to behave.
+      # own step. `npm run apply-patches`, not npx: npm run executes the copy npm ci just installed at
+      # the version package-lock.json pins, where npx is free to fetch an unpinned one from the registry
+      # and run its lifecycle scripts. package.json keeps postinstall as well, for contributors who run a
+      # plain npm ci and should not have to know about this step at all.
       - name: Install
         run: npm ci --ignore-scripts
 
       - name: Apply dependency patches
-        run: npx patch-package
+        run: npm run apply-patches
 
       - name: Build
         run: npm run docs:build

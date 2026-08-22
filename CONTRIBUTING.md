@@ -29,6 +29,17 @@ The documentation website is built and published from this **`main`** branch. Al
 
 The published Quartz 3.x package pages under `docs/documentation/quartz-3.x/packages/` are mirrored, in compact NuGet-rendered form, by the per-package `src/<Project>/README.md` files on the `3.x` branch (which are packed into the NuGet packages). When you change one, update the other in a companion PR so the published page and the shipped package README stay consistent.
 
+### Building the site
+
+`npm ci` then `npm run docs:build`. `npm ci` runs `postinstall`, which is `patch-package`, which applies
+the files in `patches/` — VuePress needs the `gray-matter` patch to parse front matter, so a build from an
+unpatched tree fails in a way that does not name the cause.
+
+CI installs with `npm ci --ignore-scripts`, so that no dependency's lifecycle script runs on a machine
+holding a deploy secret, and then calls `npm run apply-patches` explicitly. The two entries in
+`package.json` are the same command for different callers: `postinstall` is for you, `apply-patches` is for
+CI. Keep both.
+
 ### Code samples in the documentation
 
 **Do not type C# into a markdown file.** Write it as ordinary code in
@@ -62,18 +73,18 @@ half the point.
 
 A few things worth knowing:
 
-- **Names must be unique across the whole samples project.** Two regions with one name are not an error
+* **Names must be unique across the whole samples project.** Two regions with one name are not an error
   upstream — both are emitted, one after the other — so `DocsSnippets` treats a duplicate as an error.
-- **The region's indentation is removed**, so a fragment can live inside whatever scaffolding makes it
+* **The region's indentation is removed**, so a fragment can live inside whatever scaffolding makes it
   compile: put the region inside an `AddQuartz(q => { … })` body and the page shows just the `q.…` lines.
-- **Two samples can show a type of the same name** by living in different namespaces or in different
+* **Two samples can show a type of the same name** by living in different namespaces or in different
   nested classes; the region never includes the enclosing declaration.
-- **A page that must show `using` directives** needs its region to start at the top of a file, which
+* **A page that must show `using` directives** needs its region to start at the top of a file, which
   means that file has no namespace of its own — see `CustomCalendarSample.cs`.
-- **Sample code still has to satisfy the compiler.** The samples project turns the *style* analyzers
+* **Sample code still has to satisfy the compiler.** The samples project turns the *style* analyzers
   down so a sample reads like a documentation page rather than like library code, but it is built with
   the same `TreatWarningsAsErrors` as everything else.
-- Some blocks are deliberately left as plain fences: those calling a package this repository does not
+* Some blocks are deliberately left as plain fences: those calling a package this repository does not
   reference, and the `BinaryFormatter` migration sample, which would drag in an unsupported
   compatibility package. Adding a NuGet dependency purely to compile a sample is not worth it.
 

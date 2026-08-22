@@ -28,6 +28,7 @@
     "docs:snippets": "dotnet fallout DocsSnippets",
     "docs:lint": "markdownlint-cli2 \"docs/**/*.md\" \"!docs/.vuepress/**\"",
     "docs:lint-fix": "markdownlint-cli2-fix \"docs/**/*.md\" \"!docs/_posts/**\" \"!docs/.vuepress/**\"",
+    "apply-patches": "patch-package",
     "postinstall": "patch-package"
   },
   "repository": {
