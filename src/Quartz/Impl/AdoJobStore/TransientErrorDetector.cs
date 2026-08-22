@@ -56,15 +56,10 @@ internal static class TransientErrorDetector
     {
         for (Exception? candidate = exception; candidate is not null; candidate = candidate.InnerException)
         {
-            if (candidate is TimeoutException)
-            {
-                return true;
-            }
-
-            if (candidate is DbException dbException
-                && (dbException.IsTransient
-                    || IsTransientSqlServerError(dbException)
-                    || IsSqliteBusyOrLocked(dbException)))
+            if (candidate is TimeoutException
+                || candidate is DbException { IsTransient: true }
+                || IsTransientSqlServerError(candidate)
+                || IsSqliteBusyOrLocked(candidate))
             {
                 return true;
             }
@@ -81,8 +76,10 @@ internal static class TransientErrorDetector
     /// <c>SqlException.Errors[n].Number</c>, which <see cref="DbException" /> does not surface —
     /// <see cref="DbException.SqlState" /> is null on both SqlClients. The two property lookups are
     /// remembered per exception type, so this costs one dictionary read per error after the first.
+    /// Not narrowed to <see cref="DbException" />: the shape is what is recognised, and a driver or a
+    /// wrapper Quartz has never heard of that reports errors this way is recognised as it always was.
     /// </remarks>
-    private static bool IsTransientSqlServerError(DbException exception)
+    private static bool IsTransientSqlServerError(Exception exception)
     {
         PropertyInfo? errorsProperty = errorsProperties.GetOrAdd(
             exception.GetType(),
@@ -248,7 +245,7 @@ internal static class TransientErrorDetector
     /// <c>int SqliteErrorCode</c>, System.Data.SQLite as a <c>ResultCode</c> enum — and neither
     /// reports the condition through <see cref="DbException.IsTransient" />.
     /// </remarks>
-    private static bool IsSqliteBusyOrLocked(DbException exception)
+    private static bool IsSqliteBusyOrLocked(Exception exception)
     {
         Type type = exception.GetType();
         if (type.Name is not "SqliteException" and not "SQLiteException")
