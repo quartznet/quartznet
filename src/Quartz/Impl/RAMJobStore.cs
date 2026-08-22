@@ -2279,14 +2279,14 @@ public sealed class RAMJobStore : IJobStore
                 // was the trigger deleted since being acquired?
                 if (!triggersByKey.TryGetValue(trigger.Key, out var tw))
                 {
-                    results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
+                    results.Add(TriggerFiredResult.NotFired);
                     continue;
                 }
 
                 // was the trigger completed, paused, blocked, etc. since being acquired?
                 if (tw.state != StoredTriggerState.Acquired)
                 {
-                    results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
+                    results.Add(TriggerFiredResult.NotFired);
                     continue;
                 }
 
@@ -2297,7 +2297,7 @@ public sealed class RAMJobStore : IJobStore
                     if (calendar is null)
                     {
                         logger.LogWarning("Trigger {TriggerKey} references calendar '{CalendarName}', which does not exist - the fire was skipped and the trigger will not run until the calendar is added or the reference is cleared.", tw.Trigger.Key, tw.Trigger.CalendarName);
-                        results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
+                        results.Add(TriggerFiredResult.NotFired);
                         continue;
                     }
                 }
@@ -2308,7 +2308,7 @@ public sealed class RAMJobStore : IJobStore
                 // trigger would stop firing altogether.
                 if (!jobsByKey.TryGetValue(trigger.JobKey, out var jobWrapper))
                 {
-                    results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
+                    results.Add(TriggerFiredResult.NotFired);
                     continue;
                 }
 
@@ -2390,7 +2390,7 @@ public sealed class RAMJobStore : IJobStore
 
                 fireInstances.Add(trigger.FireInstanceId);
 
-                results.Add(new TriggerFiredResult(bndle));
+                results.Add(TriggerFiredResult.Fired(bndle));
             }
 
             return results;
