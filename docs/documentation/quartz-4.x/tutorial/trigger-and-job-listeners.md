@@ -129,5 +129,17 @@ builder.AddQuartz(q =>
 This is the same registration the `ListenerManager` calls perform, done before the scheduler starts, which is
 what makes it survive a restart of the host without a startup hook of your own.
 
+## Holding on to a running job's context
+
+A job listener is also the way to keep hold of the executions running in this process. The scheduler does
+not hand them out: `IScheduler.QueryFireInstances` lists firings across the cluster as `FireInstance`
+projections, which carry keys, times and the owning node — but not the job instance, the merged job data
+map, the result or the cancellation handle, because those exist only where the job is running.
+
+A listener is handed the context and can keep it for the duration of the execution, keyed by
+`IJobExecutionContext.FireInstanceId` so that a row the listing returned and a context you are holding can
+be matched up. The migration guide has the whole thing in about thirty lines, under
+[what is running is a listing](/documentation/quartz-4.x/migration-guide.html#what-is-running-is-a-listing-not-a-list-of-contexts).
+
 Listeners are not used by most users of Quartz.NET, but are handy when application requirements create the need
 for the notification of events, without the Job itself explicitly notifying the application.
