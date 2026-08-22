@@ -196,17 +196,4 @@ public class SendMailJob : IJob
     {
         return $"'{message.Subject}' to: {string.Join(", ", message.To.Select(x => x.Address).ToArray())}";
     }
-
-    public class MailInfo
-    {
-        public MailMessage MailMessage { get; set; } = null!;
-
-        public string SmtpHost { get; set; } = null!;
-
-        public int? SmtpPort { get; set; }
-
-        public string? SmtpUserName { get; set; }
-
-        public string? SmtpPassword { get; set; }
-    }
 }
