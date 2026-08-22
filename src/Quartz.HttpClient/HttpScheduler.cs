@@ -70,9 +70,7 @@ public sealed class HttpScheduler : IScheduler
             ? new JsonSerializerOptions(JsonSerializerDefaults.Web)
             : new JsonSerializerOptions(jsonSerializerOptions);
 
-        this.jsonSerializerOptions.AddQuartzConverters(
-            serializerRegistry ?? new SystemTextJsonSerializerRegistry(),
-            newtonsoftCompatibilityMode: false);
+        this.jsonSerializerOptions.ConfigureWireFormat(serializerRegistry ?? new SystemTextJsonSerializerRegistry());
     }
 
     public string SchedulerName { get; }

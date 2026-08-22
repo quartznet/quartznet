@@ -1,0 +1,22 @@
+﻿{
+  "items": [
+    {
+      "name": "CronTriggerKey",
+      "group": "CronTriggerGroup",
+      "jobName": "CronJobKey",
+      "jobGroup": "CronJobGroup",
+      "description": "CronTrigger description",
+      "triggerType": "CRON",
+      "state": "Paused",
+      "startTimeUtc": "2024-07-01T12:00:00+00:00",
+      "endTimeUtc": "2025-07-01T12:00:00+00:00",
+      "nextFireTimeUtc": "2024-08-01T12:30:00+00:00",
+      "previousFireTimeUtc": "2024-08-01T06:30:00+00:00",
+      "calendarName": "SomeCalendar",
+      "priority": 1,
+      "executionGroup": null
+    }
+  ],
+  "hasMore": false,
+  "totalCount": null
+}

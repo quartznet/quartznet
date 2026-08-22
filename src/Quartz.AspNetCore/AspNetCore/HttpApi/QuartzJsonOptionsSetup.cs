@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Options;
 
+using Quartz.HttpApiContract;
 using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz.AspNetCore.HttpApi;
 
 /// <summary>
-/// Teaches the application's HTTP JSON options about Quartz's triggers, calendars and keys.
+/// Teaches the application's HTTP JSON options about Quartz's triggers, calendars, keys and wire enums.
 /// </summary>
 /// <remarks>
 /// A type rather than a lambda so that registering it is idempotent: the options are the whole
@@ -23,6 +24,6 @@ internal sealed class QuartzJsonOptionsSetup : IConfigureOptions<JsonOptions>
 
     public void Configure(JsonOptions options)
     {
-        options.SerializerOptions?.AddQuartzConverters(serializerRegistry, newtonsoftCompatibilityMode: false);
+        options.SerializerOptions?.ConfigureWireFormat(serializerRegistry);
     }
 }

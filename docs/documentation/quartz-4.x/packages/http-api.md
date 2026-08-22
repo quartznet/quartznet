@@ -68,6 +68,45 @@ validated against.
 - **Triggers**: query triggers, fetch by key, read state, pause/resume, reset from error state, schedule/unschedule/reschedule
 - **Calendars**: query names, get details, add/replace, delete
 
+## Enums travel as names
+
+Every enum the API puts on the wire — a scheduler's `status`, a trigger's `state`, a trigger's
+`repeatIntervalUnit`, a `daysOfWeek` entry — is spelled with its name, matching the C# member:
+
+```json
+{ "status": "Running" }
+{ "state": "Paused" }
+```
+
+The names are the contract, so they are stable across versions; the numeric form is still *accepted* on
+input, which is what makes an older client's `?state=1` keep working. Filters given in the query string
+take a name too: `?state=Paused`.
+
+::: warning Changed in 4.x
+`status` and `state` were emitted as integers in the 4.0 previews (`"status": 1`). A client that read
+them as numbers needs to read names instead, or parse both.
+:::
+
+## Response-shape conventions
+
+Three shapes, and which one an operation uses depends on what it has to say:
+
+| Operation | Answers |
+|---|---|
+| A read that found its target | `200` with the object |
+| A read whose target does not exist | `404` with RFC 7807 problem details |
+| A write that succeeded and has nothing to report | `200` with an **empty body** — `AddJob`, `TriggerJob`, `PauseAll`, `ScheduleJobs`, … |
+| A write whose outcome the caller needs | `200` with a one-field object — `{ "applied": … }`, `{ "jobFound": … }`, `{ "calendarFound": … }`, `{ "triggerFound": … }`, `{ "interrupted": … }`, `{ "groups": [ … ] }` |
+
+An unknown scheduler is `404` whatever the operation was.
+
+`400` has two shapes, and the difference is *where* the request was rejected:
+
+- A query parameter that could not be bound at all — `?take=not-a-number`, `?state=not-a-state` — never
+  reaches the endpoint, so the answer is `400` with **no body**.
+- A request the endpoint itself rejected — `?skip=-1`, a job with no name, unparseable JSON — is `400`
+  with problem details carrying a `detail` that says why.
+
 ## Listing endpoints are paged
 
 Every listing endpoint — jobs, triggers, calendars, and the two group listings — takes `skip`, `take` and

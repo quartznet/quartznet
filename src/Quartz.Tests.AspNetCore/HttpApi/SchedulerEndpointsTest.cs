@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Tests.AspNetCore.Support;
 using Quartz.Util;
 
@@ -22,9 +23,13 @@ public class SchedulerEndpointsTest : WebApiTest
         A.CallTo(() => secondFake.SchedulerInstanceId).Returns("TEST_2_NON_CLUSTERED");
         WebApplicationFactory.Services.GetRequiredService<ISchedulerRepository>().Bind(secondFake);
 
-        // This endpoint is not used by HttpScheduler
+        // This endpoint is not used by HttpScheduler, so the reader is built here - off the same wire
+        // contract, because the status is an enum and the API spells it by name
+        JsonSerializerOptions serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            .ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
+
         using var httpClient = WebApplicationFactory.CreateClient();
-        var result = await httpClient.Get<SchedulerHeaderDto[]>("schedulers", new JsonSerializerOptions(JsonSerializerDefaults.Web), CancellationToken.None);
+        var result = await httpClient.Get<SchedulerHeaderDto[]>("schedulers", serializerOptions, CancellationToken.None);
         using (new AssertionScope())
         {
             result.Length.Should().Be(2);
