@@ -86,10 +86,17 @@ public class CronCalendar : BaseCalendar
     /// calendar functionality
     /// </param>
     /// <param name="expression">a string representation of the desired cron expression</param>
-    /// <param name="timeZone"></param>
+    /// <param name="timeZone">the time zone the expression's times are resolved in;
+    /// <see langword="null" /> means the system's local time zone</param>
     public CronCalendar(ICalendar? baseCalendar, string expression, TimeZoneInfo? timeZone) : base(baseCalendar, timeZone)
     {
         cronExpression = new CronExpression(expression);
+        if (timeZone != null)
+        {
+            // The zone has to reach the expression: TimeZone reads off it, so the base class field
+            // it was just handed is shadowed and the argument would otherwise be dropped.
+            cronExpression.TimeZone = timeZone;
+        }
     }
 
     /// <summary>

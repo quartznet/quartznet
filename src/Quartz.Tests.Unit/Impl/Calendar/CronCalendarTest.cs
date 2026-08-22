@@ -72,6 +72,41 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
     }
 
     /// <summary>
+    /// The three-argument constructor used to hand the zone to <see cref="BaseCalendar" /> and build
+    /// the expression without it, while <see cref="CronCalendar.TimeZone" /> reads the zone back off
+    /// that expression - so the argument was silently dropped and the calendar excluded local hours.
+    /// Only the property setter rebuilt the expression correctly.
+    /// </summary>
+    [Test]
+    public void ConstructorTimeZoneReachesTheExpression()
+    {
+        // America/New_York, which is a plain UTC-5 in January: no DST corner is in play here.
+        TimeZoneInfo eastern = TestTimeZones.Eastern;
+
+        CronCalendar calendar = new CronCalendar(null, "* * 9 ? * *", eastern);
+
+        calendar.TimeZone.Should().Be(eastern,
+            "the constructor's zone is what the calendar reports, not the machine's local zone");
+        calendar.CronExpression.TimeZone.Should().Be(eastern,
+            "TimeZone reads off the expression, so the expression is where the zone has to land");
+
+        DateTimeOffset nineThirtyEastern = new DateTimeOffset(2026, 1, 1, 14, 30, 0, TimeSpan.Zero);
+        DateTimeOffset fourThirtyEastern = new DateTimeOffset(2026, 1, 1, 9, 30, 0, TimeSpan.Zero);
+
+        calendar.IsTimeIncluded(nineThirtyEastern).Should().BeFalse(
+            "14:30Z is 09:30 in New York, the hour the expression excludes");
+        calendar.IsTimeIncluded(fourThirtyEastern).Should().BeTrue(
+            "09:30Z is 04:30 in New York, well outside the excluded hour");
+
+        // The same expression pinned to UTC reads the two instants the other way round, which is
+        // what makes the assertions above about the zone rather than about the expression.
+        CronCalendar utc = new CronCalendar(null, "* * 9 ? * *", TimeZoneInfo.Utc);
+
+        utc.IsTimeIncluded(fourThirtyEastern).Should().BeFalse("09:30Z is inside the excluded hour in UTC");
+        utc.IsTimeIncluded(nineThirtyEastern).Should().BeTrue("14:30Z is outside the excluded hour in UTC");
+    }
+
+    /// <summary>
     /// From an instant the calendar EXCLUDES, the next-included search used to walk forward with
     /// <see cref="CronExpression.GetNextValidTimeAfter" /> - which by definition lands on another
     /// satisfied, i.e. excluded, instant - so it crawled the excluded run millisecond by millisecond
