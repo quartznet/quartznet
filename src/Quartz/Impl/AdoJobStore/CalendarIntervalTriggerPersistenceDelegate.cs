@@ -47,16 +47,15 @@ public sealed class CalendarIntervalTriggerPersistenceDelegate : SimplePropertie
     {
         CalendarIntervalTriggerImpl calTrig = (CalendarIntervalTriggerImpl) trigger;
 
-        SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
-
-        props.Int1 = calTrig.RepeatInterval;
-        props.String1 = calTrig.RepeatIntervalUnit.ToString();
-        props.Int2 = calTrig.TimesTriggered;
-        props.TimeZoneId = calTrig.TimeZone.Id;
-        props.Boolean1 = calTrig.PreserveHourOfDayAcrossDaylightSavings;
-        props.Boolean2 = calTrig.SkipDayIfHourDoesNotExist;
-
-        return props;
+        return new SimplePropertiesTriggerProperties
+        {
+            Int1 = calTrig.RepeatInterval,
+            String1 = calTrig.RepeatIntervalUnit.ToString(),
+            Int2 = calTrig.TimesTriggered,
+            TimeZoneId = calTrig.TimeZone.Id,
+            Boolean1 = calTrig.PreserveHourOfDayAcrossDaylightSavings,
+            Boolean2 = calTrig.SkipDayIfHourDoesNotExist,
+        };
     }
 
     protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
