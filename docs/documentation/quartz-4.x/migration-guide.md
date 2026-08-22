@@ -4933,6 +4933,16 @@ triggers that were already built — and writing `TimeZone` on an expression you
 retimed the builder behind your back. Both are now impossible: the builder reshapes its own copy, and
 already-built triggers keep the zone they were built with.
 
+`CronCalendar` had a defect of its own in the same plumbing:
+`new CronCalendar(baseCalendar, expression, timeZone)` handed the zone to `BaseCalendar` but built the
+expression without it, and `CronCalendar.TimeZone` reads off that expression — so the argument was
+dropped and the calendar excluded the *local* machine's hours while reporting the local zone back
+([#3321](https://github.com/quartznet/quartznet/issues/3321)). The constructor now builds the
+expression with the zone. Assigning `TimeZone` after construction always worked and still does, and
+the stored form is unchanged — the zone has always been persisted with the nested expression, so
+**no migration is needed**. What changes is which times such a calendar excludes: code that passed a
+zone and quietly got local-time exclusions now gets what it asked for.
+
 `CronTriggerImpl.FinalFireTimeUtc` now returns `null` directly for a trigger with no end time, which is the
 value it always produced through `GetFinalFireTime`.
 

@@ -540,9 +540,9 @@ public class CalendarBinarySerializationContractTest
     [Test]
     public void CronCalendarRoundTripsThroughItsOwnSerializationPlumbing()
     {
-        // The zone goes on through the property rather than the constructor: CronCalendar reads its
-        // zone off the nested expression, and only the setter rebuilds the expression with it.
-        CronCalendar original = new CronCalendar(null, "* * 0-7,18-23 ? * *") { TimeZone = TimeZoneInfo.Utc };
+        // The zone rides in the nested expression, which is where both the constructor and the
+        // property setter put it — CronCalendar reads TimeZone back off that expression.
+        CronCalendar original = new CronCalendar(null, "* * 0-7,18-23 ? * *", TimeZoneInfo.Utc);
 
         CronCalendar deserialized = RoundTrip(original);
 
