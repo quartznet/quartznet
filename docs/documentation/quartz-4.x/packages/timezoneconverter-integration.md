@@ -29,21 +29,27 @@ dotnet add package Quartz.Plugins.TimeZoneConverter
 
 ## Using
 
+<!-- snippet: sample_timezoneconverter_host -->
 ```csharp
 builder.Services.AddQuartz(q => q.UseTimeZoneConverter());
 ```
+<!-- endSnippet -->
 
 `UseTimeZoneConverter` hangs off `IQuartzBuilder`, so the same call configures a scheduler built without a
 host:
 
+<!-- snippet: sample_timezoneconverter_standalone -->
 ```csharp
-await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
-    .UseTimeZoneConverter()
-    .Build();
+QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+builder.UseTimeZoneConverter();
+
+await using StandaloneSchedulerFactory schedulerFactory = builder.Build();
 ```
+<!-- endSnippet -->
 
 **Classic property-based configuration**
 
+<!-- snippet: sample_timezoneconverter_properties -->
 ```csharp
 NameValueCollection properties = new()
 {
@@ -54,3 +60,4 @@ await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
     .UseProperties(properties)
     .Build();
 ```
+<!-- endSnippet -->

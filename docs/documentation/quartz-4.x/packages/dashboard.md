@@ -22,6 +22,7 @@ dotnet add package Quartz.Dashboard
 
 Configure Quartz, enable the HTTP API, and add the dashboard services.
 
+<!-- snippet: sample_dashboard_registration -->
 ```csharp
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -36,9 +37,11 @@ builder.AddQuartz(q =>
 builder.Services.AddQuartzDashboard();
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
+<!-- endSnippet -->
 
 Map endpoints:
 
+<!-- snippet: sample_dashboard_pipeline -->
 ```csharp
 WebApplication app = builder.Build();
 
@@ -49,6 +52,7 @@ app.UseAntiforgery();
 app.MapQuartzHttpApi().RequireAuthorization();
 app.MapQuartzDashboard();
 ```
+<!-- endSnippet -->
 
 By default, dashboard UI is available at `/quartz`.
 
@@ -56,18 +60,22 @@ By default, dashboard UI is available at `/quartz`.
 
 When the dashboard hosts its own Blazor root, it can be served from a custom base path. Name it where the endpoints are mapped, the way the rest of ASP.NET Core reads (`MapHealthChecks("/health")`):
 
+<!-- snippet: sample_dashboard_map_path -->
 ```csharp
 app.MapQuartzDashboard("/my-api/quartz");
 ```
+<!-- endSnippet -->
 
 Or configure it at registration, which is the shape to use when the path comes from configuration:
 
+<!-- snippet: sample_dashboard_options_path -->
 ```csharp
 services.AddQuartzDashboard(options =>
 {
     options.DashboardPath = "/my-api/quartz";
 });
 ```
+<!-- endSnippet -->
 
 If both are given, **the pattern passed to `MapQuartzDashboard` wins**; the parameterless overload uses whatever `DashboardPath` says. A pattern given at the map site is held to the same rule as the option: a plain URL path starting with `/`, with no `{`, `}`, `?`, `#`, `.` or `..` segments and no empty ones.
 
@@ -77,10 +85,12 @@ This makes the dashboard work behind a reverse proxy that forwards only a path p
 
 Alternatively, when the whole application is rebased with `UsePathBase()` (or the proxy sets the request path base), the configured `DashboardPath` is interpreted relative to the path base — the default `/quartz` then works as-is under the prefix. With minimal hosting (`WebApplication`), call `app.UseRouting()` explicitly **after** `app.UsePathBase(...)` — otherwise the implicit routing step matches against the un-stripped path and every dashboard route returns 404:
 
+<!-- snippet: sample_dashboard_path_base -->
 ```csharp
 app.UsePathBase("/my-api");
 app.UseRouting();
 ```
+<!-- endSnippet -->
 
 ::: warning Upgrading existing custom-path deployments
 In earlier releases the Blazor circuit stayed at the site root; with a custom `DashboardPath` it now connects at `{DashboardPath}/_blazor`. Reverse-proxy rules scoped to `/_blazor` (for example a WebSocket-upgrade location) must be updated accordingly.
@@ -95,6 +105,7 @@ A custom dashboard path is **not** supported when integrating into an existing B
 To populate execution history and make related views useful, add the Quartz history plugins to the
 scheduler:
 
+<!-- snippet: sample_dashboard_history_plugins -->
 ```csharp
 builder.AddQuartz(q =>
 {
@@ -102,6 +113,7 @@ builder.AddQuartz(q =>
     q.UseTriggerHistoryLogging();
 });
 ```
+<!-- endSnippet -->
 
 ## Production hardening
 
@@ -109,6 +121,7 @@ builder.AddQuartz(q =>
 
 Use an explicit policy for dashboard access, and secure API endpoints separately:
 
+<!-- snippet: sample_dashboard_authorization_policy -->
 ```csharp
 builder.Services.AddAuthorization(options =>
 {
@@ -124,11 +137,14 @@ builder.Services.AddQuartzDashboard(options =>
     options.AuthorizationPolicy = "QuartzDashboardOps";
 });
 ```
+<!-- endSnippet -->
 
+<!-- snippet: sample_dashboard_require_authorization -->
 ```csharp
 app.MapQuartzHttpApi().RequireAuthorization("QuartzDashboardOps");
 app.MapQuartzDashboard();
 ```
+<!-- endSnippet -->
 
 When `AuthorizationPolicy` is set, the policy is applied to the dashboard pages, the SignalR hub, the Blazor circuit (`/_blazor`) and the dashboard static asset endpoint, so the whole dashboard is gated consistently — including under a fail-closed `FallbackPolicy`.
 
@@ -174,11 +190,14 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 
 If your host application already uses Blazor Server (i.e., it calls `MapRazorComponents<App>().AddInteractiveServerRenderMode()`), you must use the `MapQuartzDashboard` overload that accepts the existing `RazorComponentsEndpointConventionBuilder`. This avoids registering a second `/_blazor` SignalR endpoint, which would cause routing conflicts.
 
+<!-- snippet: sample_dashboard_host_app_registration -->
 ```csharp
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddQuartzDashboard();
 ```
+<!-- endSnippet -->
 
+<!-- snippet: sample_dashboard_host_app_pipeline -->
 ```csharp
 app.UseAntiforgery();
 
@@ -188,6 +207,7 @@ RazorComponentsEndpointConventionBuilder blazor = app.MapRazorComponents<App>()
 app.MapQuartzHttpApi().RequireAuthorization();
 app.MapQuartzDashboard(blazor);
 ```
+<!-- endSnippet -->
 
 The dashboard pages, layout, CSS, and JavaScript interop are automatically registered into the host's Blazor setup via `AddAdditionalAssemblies`. No additional `<link>` or `<script>` tags are needed in your `App.razor`.
 

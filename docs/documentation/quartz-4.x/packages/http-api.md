@@ -19,6 +19,7 @@ dotnet add package Quartz.AspNetCore
 
 Configure Quartz and enable the HTTP API:
 
+<!-- snippet: sample_httpapi_registration -->
 ```csharp
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,7 @@ builder.Services.AddQuartzHttpApi();
 builder.AddQuartz(q => { });
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
+<!-- endSnippet -->
 
 The API serves every scheduler in the container through one set of endpoints — a request names the
 scheduler it is for — so it is added to the container rather than to a scheduler. The same call can be
@@ -35,6 +37,7 @@ scheduler and one place that configures it.
 
 Map endpoints:
 
+<!-- snippet: sample_httpapi_pipeline -->
 ```csharp
 WebApplication app = builder.Build();
 
@@ -43,11 +46,13 @@ app.UseAuthorization();
 
 app.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
 ```
+<!-- endSnippet -->
 
 ### Where the API is served
 
 `/quartz-api` is the default, and there are two ways to say something else:
 
+<!-- snippet: sample_httpapi_path -->
 ```csharp
 // at the map site, beside the application's other routes
 app.MapQuartzHttpApi("/ops/api");
@@ -55,6 +60,7 @@ app.MapQuartzHttpApi("/ops/api");
 // or at registration
 builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 ```
+<!-- endSnippet -->
 
 Naming the path where the endpoints are mapped is how the rest of ASP.NET Core reads —
 `MapHealthChecks("/health")` — and it keeps the route with the application's other routes. If both are
@@ -255,18 +261,22 @@ against a local one:
 dotnet add package Quartz.HttpClient
 ```
 
+<!-- snippet: sample_httpapi_client -->
 ```csharp
 IScheduler scheduler = new HttpScheduler("MyScheduler", httpClient);
 await scheduler.TriggerJob(new JobKey("nightly-report"));
 ```
+<!-- endSnippet -->
 
 In an application with a container, register it instead and inject `IScheduler` as usual — naming the
 `IHttpClientFactory` client that carries the base address and the authentication:
 
+<!-- snippet: sample_httpapi_client_registration -->
 ```csharp
 builder.Services.AddHttpClient("quartz", client => client.BaseAddress = new Uri("https://scheduler.example.com/"));
 builder.Services.AddQuartzHttpClient(schedulerName: "MyScheduler", httpClientName: "quartz");
 ```
+<!-- endSnippet -->
 
 The wire format is the one documented on this page, so any HTTP client speaks it; the package is the
 convenience of not writing that yourself. [HTTP Client](http-client.md) covers registration,

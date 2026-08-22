@@ -47,6 +47,7 @@ Inspects a directory and compares whether any files' "last modified dates" have 
 was inspected. If one or more files have been updated, created or deleted, the job invokes a call-back method
 on an `IDirectoryScanListener`.
 
+<!-- snippet: sample_jobs_directory_scan -->
 ```csharp
 IJobDetail job = JobBuilder.Create<DirectoryScanJob>()
     .WithIdentity("inboxScan")
@@ -60,6 +61,7 @@ IJobDetail job = JobBuilder.Create<DirectoryScanJob>()
     })
     .Build();
 ```
+<!-- endSnippet -->
 
 | Setting | Job data key | Default |
 |---|---|---|
@@ -79,9 +81,11 @@ The listener is found in one of two ways, in this order:
    container, and name its type — `ScanListenerName = nameof(InboxListener)`.
 2. **`SchedulerContext`**: store the instance under a key, and name that key.
 
+<!-- snippet: sample_jobs_scan_listener_context -->
 ```csharp
 scheduler.Context["inboxListener"] = new InboxListener();
 ```
+<!-- endSnippet -->
 
 Where the directories come from can be decided at run time instead of being listed: implement
 `IDirectoryProvider`, put the instance in the `SchedulerContext`, and name that key as
@@ -96,6 +100,7 @@ Inspects a single file and compares whether its "last modified date" has changed
 inspected. If it has, the job invokes a call-back method on an `IFileScanListener` found in the
 `SchedulerContext`.
 
+<!-- snippet: sample_jobs_file_scan -->
 ```csharp
 IJobDetail job = JobBuilder.Create<FileScanJob>()
     .WithIdentity("configWatch")
@@ -107,6 +112,7 @@ IJobDetail job = JobBuilder.Create<FileScanJob>()
     })
     .Build();
 ```
+<!-- endSnippet -->
 
 | Setting | Job data key | Default |
 |---|---|---|
@@ -118,6 +124,7 @@ IJobDetail job = JobBuilder.Create<FileScanJob>()
 
 Runs a native executable in a separate process.
 
+<!-- snippet: sample_jobs_native -->
 ```csharp
 IJobDetail job = JobBuilder.Create<NativeJob>()
     .WithIdentity("dumbJob")
@@ -135,6 +142,7 @@ ITrigger trigger = TriggerBuilder.Create()
 
 await scheduler.ScheduleJob(job, trigger);
 ```
+<!-- endSnippet -->
 
 | Setting | Job data key | Default |
 |---|---|---|
@@ -152,6 +160,7 @@ pipe holds blocks until someone reads it.
 
 Sends an e-mail with the configured content to the configured recipient.
 
+<!-- snippet: sample_jobs_send_mail -->
 ```csharp
 IJobDetail job = JobBuilder.Create<SendMailJob>()
     .WithIdentity("nightlyDigest")
@@ -166,6 +175,7 @@ IJobDetail job = JobBuilder.Create<SendMailJob>()
     })
     .Build();
 ```
+<!-- endSnippet -->
 
 | Setting | Job data key | Default |
 |---|---|---|
@@ -190,9 +200,11 @@ table carries it. A password put there is a password in all of those places.
 
 Register the credential with the container instead, and the job authenticates with it:
 
+<!-- snippet: sample_jobs_smtp_credentials -->
 ```csharp
 services.AddSingleton<ICredentialsByHost>(new NetworkCredential("mailer", smtpPassword));
 ```
+<!-- endSnippet -->
 
 `ICredentialsByHost` is what `SmtpClient.Credentials` takes, so a `CredentialCache` covers several servers.
 The password itself belongs wherever the rest of your secrets live — user secrets in development, a key vault
@@ -212,6 +224,7 @@ attached.
 The jobs take their dependencies — a `TimeProvider`, an `IServiceProvider`, an `ICredentialsByHost` — from the
 container, so register them the same way you register your own:
 
+<!-- snippet: sample_jobs_native_under_di -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -230,3 +243,4 @@ builder.Services.AddQuartz(q =>
         .WithCronSchedule("0 0 2 * * ?"));
 });
 ```
+<!-- endSnippet -->

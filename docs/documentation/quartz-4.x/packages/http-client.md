@@ -15,11 +15,13 @@ dotnet add package Quartz.HttpClient
 
 The server has to be running the Quartz HTTP API, from `Quartz.AspNetCore`:
 
+<!-- snippet: sample_httpclient_server_side -->
 ```csharp
 builder.Services.AddQuartzHttpApi();
 // ...
 app.MapQuartzHttpApi("/quartz-api");
 ```
+<!-- endSnippet -->
 
 Two things must line up:
 
@@ -36,6 +38,7 @@ paths would otherwise resolve against the wrong segment.
 
 The recommended shape names an `IHttpClientFactory` client, so the handler is pooled and recycled:
 
+<!-- snippet: sample_httpclient_registration -->
 ```csharp
 builder.Services.AddHttpClient("quartz", client =>
 {
@@ -45,6 +48,7 @@ builder.Services.AddHttpClient("quartz", client =>
 
 builder.Services.AddQuartzHttpClient(schedulerName: "MyScheduler", httpClientName: "quartz");
 ```
+<!-- endSnippet -->
 
 There are three overloads:
 
@@ -69,15 +73,25 @@ live client sitting in one has no owner.
 A remote scheduler is registered exactly like a local one: **keyed by its name**, and unkeyed as well
 while it is the only scheduler in the container.
 
+<!-- snippet: sample_httpclient_controller -->
 ```csharp
 public sealed class OpsController(IScheduler scheduler);                          // one scheduler
+```
+<!-- endSnippet -->
 
+Once a second scheduler joins the container, name the one you meant:
+
+<!-- snippet: sample_httpclient_keyed_controller -->
+```csharp
 public sealed class OpsController([FromKeyedServices("MyScheduler")] IScheduler scheduler);
 ```
+<!-- endSnippet -->
 
+<!-- snippet: sample_httpclient_resolve_keyed -->
 ```csharp
 IScheduler reporting = provider.GetRequiredKeyedService<IScheduler>("reporting");
 ```
+<!-- endSnippet -->
 
 The unkeyed registration is `TryAdd`, so a second remote scheduler does not quietly take over what
 "the scheduler" means — with two of them, inject by key.
@@ -96,12 +110,14 @@ startup rather than on first injection; a container with no host stays exactly a
 
 No container needed:
 
+<!-- snippet: sample_httpclient_without_container -->
 ```csharp
 using HttpClient http = new() { BaseAddress = new Uri("https://scheduler.example.com/quartz-api/") };
 IScheduler scheduler = new HttpScheduler("MyScheduler", http);
 
 await scheduler.TriggerJob(new JobKey("nightly-report", "reports"));
 ```
+<!-- endSnippet -->
 
 ## Authentication
 
@@ -130,12 +146,14 @@ leaves your instance untouched — so sharing one `JsonSerializerOptions` across
 Custom trigger and calendar types need their serializers registered **on both sides**. The remote
 scheduler's registrations are invisible from this process, so the client cannot discover them:
 
+<!-- snippet: sample_httpclient_custom_serializers -->
 ```csharp
 SystemTextJsonSerializerRegistry registry = new();
 registry.AddTriggerSerializer<MyTrigger>(new MyTriggerSerializer());
 
 IScheduler scheduler = new HttpScheduler("MyScheduler", http, jsonSerializerOptions: null, registry);
 ```
+<!-- endSnippet -->
 
 Registering through the container instead — the same `AddQuartz`-side serializer registration the
 server uses — is picked up automatically, because `AddQuartzHttpClient` resolves the container-wide
@@ -180,9 +198,11 @@ only one that is free — the client already knows it.
 Do not touch them on a request path. `GetMetadata()` is the async member that answers most of the same
 questions in one call:
 
+<!-- snippet: sample_httpclient_metadata -->
 ```csharp
 SchedulerMetadata metadata = await scheduler.GetMetadata(cancellationToken);
 ```
+<!-- endSnippet -->
 
 Its `IsProxy` is `true` for an HTTP scheduler, and the three type properties — `SchedulerTypeName`,
 `JobStoreTypeName`, `ThreadPoolTypeName` — are **strings**, not `System.Type`. That is what lets the
@@ -192,6 +212,7 @@ metadata describe a remote scheduler whose types do not exist in this process.
 
 The query family maps straight onto query-string parameters:
 
+<!-- snippet: sample_httpclient_query_triggers -->
 ```csharp
 PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery
 {
@@ -202,6 +223,7 @@ PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery
     IncludeTotalCount = true,
 }, cancellationToken);
 ```
+<!-- endSnippet -->
 
 `Skip`, `Take` and `IncludeTotalCount` become `skip`, `take` and `includeTotalCount`; matchers become
 `groupStartsWith`, `nameEquals` and their siblings. `take` defaults to 250 at both ends, so a client
@@ -212,9 +234,11 @@ whole cluster, since the listing is store-backed.
 
 Bulk fetch posts the keys back:
 
+<!-- snippet: sample_httpclient_bulk_fetch -->
 ```csharp
 List<IJobDetail> details = await scheduler.GetJobDetails(keys, cancellationToken);
 ```
+<!-- endSnippet -->
 
 The endpoint accepts **at most 1000 keys per call**; page the keys if you have more.
 

@@ -590,8 +590,8 @@ case the options callback used to be needed for:
 -     });
 + services.AddQuartz(q =>
 + {
-+     q.AddJob<ExampleJob>(new JobKey("job", "group"));
-+     q.AddTrigger((provider, t) => t
++     q.AddJob<ExampleJob>(j => j.WithIdentity("job", "group"));
++     q.AddTrigger<IJob>((provider, t) => t
 +         .ForJob("job", "group")
 +         .WithCronSchedule(provider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule));
 + });

@@ -21,6 +21,7 @@ If you are not using Microsoft DI, you can create multiple schedulers from separ
 
 Register each scheduler with a unique name using the `AddQuartz(string name, ...)` overload:
 
+<!-- snippet: sample_multiple_two_schedulers -->
 ```csharp
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -60,11 +61,13 @@ builder.Services.AddQuartzHostedService(options =>
 
 builder.Build().Run();
 ```
+<!-- endSnippet -->
 
 ## Per-Scheduler Listeners and Calendars
 
 Listeners and calendars registered within a named `AddQuartz` call are scoped to that scheduler only:
 
+<!-- snippet: sample_multiple_per_scheduler_listeners -->
 ```csharp
 builder.Services.AddQuartz("Scheduler1", q =>
 {
@@ -82,12 +85,14 @@ builder.Services.AddQuartz("Scheduler2", q =>
     // Scheduler2 has no listeners or calendars unless explicitly added here
 });
 ```
+<!-- endSnippet -->
 
 ## Injecting a Named Scheduler
 
 A scheduler's name is the service key it is registered under, so a named scheduler is injected the way
 any other keyed service is:
 
+<!-- snippet: sample_multiple_keyed_service -->
 ```csharp
 public class MyService
 {
@@ -104,13 +109,16 @@ public class MyService
     }
 }
 ```
+<!-- endSnippet -->
 
 Resolved directly, it is the same thing:
 
+<!-- snippet: sample_multiple_resolving -->
 ```csharp
 var fast = provider.GetRequiredKeyedService<IScheduler>("FastScheduler");
 var standard = provider.GetRequiredService<IScheduler>();   // the default scheduler, if one is registered
 ```
+<!-- endSnippet -->
 
 Everything a named scheduler is built from is registered under that key, so `ISchedulerFactory` and the
 rest are reachable the same way — `GetRequiredKeyedService<ISchedulerFactory>("FastScheduler")` — while
@@ -131,6 +139,7 @@ before the application runs. `SchedulerName` never builds anything.
 Where the name is not known until runtime — a dashboard listing what is running, a request naming the
 scheduler it is for — the container's `ISchedulerRepository` holds every scheduler that has been built:
 
+<!-- snippet: sample_multiple_scheduler_repository -->
 ```csharp
 public class MyService
 {
@@ -154,6 +163,7 @@ public class MyService
     }
 }
 ```
+<!-- endSnippet -->
 
 ::: warning
 The repository holds schedulers that have been *built*, so during application startup it may not yet
@@ -169,6 +179,7 @@ The repository is scoped to the container, not the process. A scheduler built by
 
 You can combine the traditional unnamed `AddQuartz()` with named schedulers:
 
+<!-- snippet: sample_multiple_default_and_named -->
 ```csharp
 // Default scheduler (traditional single-scheduler usage)
 builder.Services.AddQuartz(q =>
@@ -189,6 +200,7 @@ builder.Services.AddQuartz("Auxiliary", q =>
 // Starts both the default and the named scheduler
 builder.Services.AddQuartzHostedService();
 ```
+<!-- endSnippet -->
 
 ::: tip
 The order of the calls does not matter. The hosted service resolves the schedulers when the host
@@ -202,20 +214,24 @@ nothing silently.
 A named scheduler's configuration can come from a section. Pass the root `Quartz` section and the
 scheduler's own settings are resolved out of `Schedulers:{name}`:
 
+<!-- snippet: sample_multiple_named_from_configuration -->
 ```csharp
 builder.AddQuartz("DurableScheduler");
 // or, naming the section yourself:
 builder.Services.AddQuartz("DurableScheduler", builder.Configuration.GetSection("Quartz"));
 ```
+<!-- endSnippet -->
 
 To register every scheduler the section describes rather than one of them, call
 `AddQuartzSchedulers`, which registers one named scheduler per child of `Schedulers`:
 
+<!-- snippet: sample_multiple_all_from_configuration -->
 ```csharp
 builder.AddQuartzSchedulers();
 // or:
 builder.Services.AddQuartzSchedulers(builder.Configuration.GetSection("Quartz"));
 ```
+<!-- endSnippet -->
 
 ```json
 {
@@ -237,10 +253,12 @@ builder.Services.AddQuartzSchedulers(builder.Configuration.GetSection("Quartz"))
 Individual flat keys that no typed option covers can still be set on the named options directly, through
 the `Properties` dictionary:
 
+<!-- snippet: sample_multiple_named_options -->
 ```csharp
 builder.Services.Configure<QuartzOptions>("DurableScheduler",
     options => options.Properties["quartz.jobStore.someThirdPartySetting"] = "value");
 ```
+<!-- endSnippet -->
 
 ## Per-Scheduler Startup and Shutdown
 
@@ -248,6 +266,7 @@ builder.Services.Configure<QuartzOptions>("DurableScheduler",
 scheduler that has to differ says so by name, and its settings refine the shared ones whichever order
 the two calls are made in:
 
+<!-- snippet: sample_multiple_hosted_services -->
 ```csharp
 // shared by every scheduler
 builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
@@ -258,6 +277,7 @@ builder.Services.AddQuartzHostedService("DurableScheduler", options =>
     options.StartDelay = TimeSpan.FromMinutes(2);
 });
 ```
+<!-- endSnippet -->
 
 ## Limitations
 

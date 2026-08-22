@@ -20,6 +20,13 @@
     <PackageReference Include="Fallout.Components" Version="10.4.0" />
 
     <!--
+      The engine behind the DocsSnippets targets. The library, not the mdsnippets command line tool:
+      the tool's directory filter never scans a directory named 'packages', which is where the package
+      pages live. See build/Build.Docs.Snippets.cs.
+    -->
+    <PackageReference Include="MarkdownSnippets" Version="28.4.2" />
+
+    <!--
       SDK 10.0.400 ships NuGet.Frameworks 7.9.0.0 and its targets bind that assembly by strong
       name. Fallout.Components resolves 6.14.3 transitively through NuGet.Packaging, and an
       app-local assembly wins over the one MSBuildLocator registers, so the older copy shadows the

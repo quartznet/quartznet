@@ -15,6 +15,7 @@ using static Fallout.Common.Tools.Npm.NpmTasks;
 public partial class Build
 {
     Target DocsBuild => _ => _
+        .DependsOn(DocsSnippets)
         .Executes(() =>
         {
             if (IsServerBuild)

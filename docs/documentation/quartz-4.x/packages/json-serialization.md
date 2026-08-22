@@ -31,6 +31,7 @@ dotnet add package Quartz.Serialization.Newtonsoft
 
 **Configuring the store**
 
+<!-- snippet: sample_newtonsoft_registration -->
 ```csharp
 builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 {
@@ -43,9 +44,11 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
     store.UseNewtonsoftJsonSerializer();
 }));
 ```
+<!-- endSnippet -->
 
 Without a host, the same calls hang off `QuartzSchedulerBuilder`:
 
+<!-- snippet: sample_newtonsoft_standalone -->
 ```csharp
 await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
     .UsePersistentStore(store =>
@@ -56,6 +59,7 @@ await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
     })
     .Build();
 ```
+<!-- endSnippet -->
 
 `Build()` returns a `StandaloneSchedulerFactory`, which owns the container it built: dispose it — with
 `await using`, as above — and the scheduler shuts down with it.
@@ -64,6 +68,7 @@ await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
 
 The flat keys 3.x used still work, and mean the same thing:
 
+<!-- snippet: sample_newtonsoft_properties -->
 ```csharp
 NameValueCollection properties = new()
 {
@@ -75,6 +80,7 @@ await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
     .UseProperties(properties)
     .Build();
 ```
+<!-- endSnippet -->
 
 `UseGenericDatabase` is the right method only for a database Quartz has no specific support for; use
 `UseSqlServer`, `UsePostgres` and the rest otherwise. If Quartz ships no description of your ADO.NET
@@ -174,6 +180,7 @@ public sealed class MigratorSerializer : IObjectSerializer
 
 If you need to customize JSON.NET settings, you need to inherit custom implementation and override `CreateSerializerSettings`.
 
+<!-- snippet: sample_newtonsoft_custom_serializer -->
 ```csharp
 class CustomJsonSerializer : NewtonsoftJsonObjectSerializer
 {
@@ -185,12 +192,15 @@ class CustomJsonSerializer : NewtonsoftJsonObjectSerializer
     }
 }
 ```
+<!-- endSnippet -->
 
 **And then configure it to use**
 
+<!-- snippet: sample_newtonsoft_use_custom_serializer -->
 ```csharp
 store.UseSerializer<CustomJsonSerializer>();
 ```
+<!-- endSnippet -->
 
 or, as a flat property key:
 
@@ -205,6 +215,7 @@ There's a convenience base class `CalendarSerializer` that you can use the get s
 
 **Custom calendar and serializer**
 
+<!-- snippet: sample_newtonsoft_custom_calendar -->
 ```csharp
 [Serializable]
 class CustomCalendar : BaseCalendar
@@ -249,6 +260,7 @@ class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
     }
 }
 ```
+<!-- endSnippet -->
 
 A serializer can optionally override `CalendarTypeName` to give the calendar a serializer-neutral
 name — the same discriminator the System.Text.Json package would use for it. The registry then finds
@@ -258,6 +270,7 @@ assembly-qualified name, which is what payloads written by 3.x carry.
 
 **Configuring custom calendar serializer**
 
+<!-- snippet: sample_newtonsoft_register_calendar_serializer -->
 ```csharp
 builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 {
@@ -267,6 +280,7 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
     });
 }));
 ```
+<!-- endSnippet -->
 
 ::: warning Changed in 4.0
 `NewtonsoftJsonObjectSerializer.AddCalendarSerializer` and `AddTriggerSerializer` were static in 3.x, so
@@ -280,6 +294,7 @@ If you build a serializer yourself rather than through the store builder, hand i
 `NewtonsoftJsonSerializerRegistry`. A new registry already knows every built-in trigger and calendar type,
 so registering a custom one adds to that set:
 
+<!-- snippet: sample_newtonsoft_registry_directly -->
 ```csharp
 NewtonsoftJsonSerializerRegistry registry = new NewtonsoftJsonSerializerRegistry()
     .AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer())
@@ -287,3 +302,4 @@ NewtonsoftJsonSerializerRegistry registry = new NewtonsoftJsonSerializerRegistry
 
 NewtonsoftJsonObjectSerializer serializer = new(registry);
 ```
+<!-- endSnippet -->

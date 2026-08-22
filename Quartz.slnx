@@ -38,6 +38,7 @@
   </Project>
   <Project Path="src/Quartz.AspNetCore/Quartz.AspNetCore.csproj" />
   <Project Path="src/Quartz.Dashboard/Quartz.Dashboard.csproj" />
+  <Project Path="src/Quartz.Documentation.Samples/Quartz.Documentation.Samples.csproj" />
   <Project Path="src/Quartz.Benchmark/Quartz.Benchmark.csproj" />
   <Project Path="src/Quartz.HttpClient/Quartz.HttpClient.csproj" />
   <Project Path="src/Quartz.Jobs/Quartz.Jobs.csproj" />

@@ -214,6 +214,14 @@ plus a bridge entry on main.
   against are the ids the published pages carry — `Quartz.Core` is `#quartz-core`, not `#quartzcore`.
   It runs on every docs pull request. markdownlint's MD051 is off for exactly this reason; do not
   take its fragment suggestions, they 404. `npm run docs:check-links-test` is the checker's control.
+- **C# in a documentation page is generated, not typed.** Samples live as `#region sample_*` blocks in
+  `src/Quartz.Documentation.Samples` — an ordinary project in the solution, so a rotted sample fails
+  `Compile` — and a page carries `<!-- snippet: name -->` / `<!-- endSnippet -->` markers that
+  `dotnet fallout DocsSnippets` fills in. `VerifyDocsSnippets` fails a pull request whose markdown is
+  stale, whose marker names nothing, or whose marker came out empty. The convention, and the handful of
+  blocks deliberately left as plain fences, are written up in `CONTRIBUTING.md` under "Code samples in
+  the documentation". Pages outside `docs/documentation/quartz-4.x/packages/` still carry hand-written
+  fences; converting one is welcome, converting it halfway is not.
 - **`src/Quartz.Tests.Unit/Verify/PublicApiTest_*.verified.txt` are the public API baselines.**
   Any change to public API fails those tests; review the diff, and if the change is intended,
   accept the new baseline and carry the same diff into
