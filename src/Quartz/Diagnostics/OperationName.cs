@@ -5,7 +5,17 @@ public static class OperationName
     public static class Job
     {
         public const string Execute = "Quartz.Job.Execute";
-        public const string Veto = "Quartz.Job.Vetoed";
+
+        /// <summary>
+        /// The span covering a vetoed fire: the trigger listeners said no, and the job listeners are being
+        /// told so instead of the job being run.
+        /// </summary>
+        /// <remarks>
+        /// Its value used to be <c>Quartz.Job.Vetoed</c> while the constant was named <c>Veto</c>, so the
+        /// one name in this class that did not match its value was the one nobody could see. Every other
+        /// operation here is named for the operation, in the present tense, as <see cref="Execute"/> is.
+        /// </remarks>
+        public const string Veto = "Quartz.Job.Veto";
     }
 
     public static class JobStore
