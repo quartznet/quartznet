@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Globalization;
@@ -510,6 +511,71 @@ public class JsonObjectSerializerTest
         }
     }
 
+    /// <summary>
+    /// Newtonsoft populates a readable collection property by calling the getter and adding the
+    /// payload's items to whatever comes back. <see cref="DailyTimeIntervalTriggerImpl.DaysOfWeek" />
+    /// manufactures all seven days on a fresh instance, so a trigger stored for Monday and Wednesday
+    /// read back as firing every day.
+    /// </summary>
+    /// <remarks>
+    /// Driven from a payload rather than a full round trip because 3.x's <see cref="TimeOfDay" /> is
+    /// a class with two constructors and no parameterless one, which the property-populating path
+    /// cannot instantiate at all - so a complete converter-less round trip of this trigger type
+    /// fails for that unrelated reason. Leaving the two time-of-day members out of the payload puts
+    /// exactly the collection property under test.
+    /// </remarks>
+    [Test]
+    public void DeserializeKeepsASubsetOfDaysOfWeek()
+    {
+        // RegisterTriggerConverters is left at its default of false, which is the configuration the
+        // property-populating path runs under.
+        JsonObjectSerializer serializer = new JsonObjectSerializer();
+        serializer.Initialize();
+
+        const string json =
+            """
+            {
+              "$type": "Quartz.Impl.Triggers.DailyTimeIntervalTriggerImpl, Quartz",
+              "Name": "SubsetDaysTriggerKey",
+              "Group": "SubsetDaysTriggerGroup",
+              "JobName": "SubsetDaysJobKey",
+              "JobGroup": "SubsetDaysJobGroup",
+              "StartTimeUtc": "2024-07-01T00:00:00+00:00",
+              "RepeatInterval": 30,
+              "RepeatIntervalUnit": 2,
+              "DaysOfWeek": [1, 3]
+            }
+            """;
+
+        var deserialized = (IDailyTimeIntervalTrigger) serializer.DeSerialize<IOperableTrigger>(Encoding.UTF8.GetBytes(json));
+
+        deserialized.DaysOfWeek.Should().BeEquivalentTo(new[] { DayOfWeek.Monday, DayOfWeek.Wednesday },
+            "a trigger stored for two days must not come back firing on all seven");
+    }
+
+    /// <summary>
+    /// The same defect on the path any 3.x application can reach: a value in a job data map is
+    /// written and read as a plain object graph, so a read-only collection property of it was
+    /// appended to whatever its getter handed out instead of being replaced.
+    /// </summary>
+    [Test]
+    public void RoundTripReplacesAReadOnlyCollectionPropertyRatherThanAppendingToIt()
+    {
+        JsonObjectSerializer serializer = new JsonObjectSerializer();
+        serializer.Initialize();
+
+        JobDataMap map = new JobDataMap
+        {
+            { "payload", new DefaultingCollectionHolder { Values = new List<string> { "kept" } } }
+        };
+
+        byte[] bytes = serializer.Serialize(map);
+        JobDataMap deserialized = serializer.DeSerialize<JobDataMap>(bytes);
+
+        ((DefaultingCollectionHolder) deserialized["payload"]).Values.Should().BeEquivalentTo(new[] { "kept" },
+            "the stored collection replaces the getter's default rather than being added to it");
+    }
+
     private void CompareSerialization<T>(
         T original,
         Action<T, T> asserter = null,
@@ -571,6 +637,22 @@ public class JsonObjectSerializerTest
 
         timeProvider = fakeTimeProvider;
         return new DisposableAction(() => SystemTime.UtcNow = original);
+    }
+
+    /// <summary>
+    /// A value of the kind an application puts in a job data map: its collection property is typed
+    /// as read-only and its getter defaults to a mutable instance, which is the combination that
+    /// used to lose data - the payload's items were added to that default rather than replacing it.
+    /// </summary>
+    public class DefaultingCollectionHolder
+    {
+        private IReadOnlyCollection<string> values;
+
+        public IReadOnlyCollection<string> Values
+        {
+            get => values ??= new List<string> { "default" };
+            set => values = value;
+        }
     }
 
     private class IndentingJsonObjectSerializer : JsonObjectSerializer
