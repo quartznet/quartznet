@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
@@ -1064,6 +1065,11 @@ public class JobStoreSupportTest
             }
         }
 
+        internal bool CallIsTransient(Exception ex)
+        {
+            return IsTransient(ex);
+        }
+
         internal Task<bool> CallRemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
             return RemoveTrigger(conn, triggerKey, CancellationToken.None);
@@ -1152,6 +1158,117 @@ public class JobStoreSupportTest
         {
         }
     }
+
+    #region IsTransient classification tests
+
+    /// <summary>
+    /// The stand-ins below carry the shapes <see cref="JobStoreSupport.IsTransient"/> reflects over -
+    /// an "IsTransient" property, an "Errors" collection of items with a "Number", a
+    /// "SqliteErrorCode". The real driver exceptions cannot be constructed from outside their
+    /// assemblies, and a property name and a number is all the classification ever reads of them.
+    /// </summary>
+    [Test]
+    public void IsTransient_TrustsADriverThatSaysTransient()
+    {
+        jobStoreSupport.CallIsTransient(new TransientProviderException()).Should().BeTrue();
+    }
+
+    [Test]
+    public void IsTransient_DriverSayingNotTransientIsNotTheEndOfTheEnquiry()
+    {
+        // Since .NET 6 DbException carries IsTransient, and SqlException does not override it - so
+        // returning the driver's verdict unconditionally made the error-number switch below dead
+        // code on every modern host, and deadlocks stopped being retried.
+        SqlServerLikeException deadlock = new SqlServerLikeException(1205);
+
+        PropertyInfo probe = deadlock.GetType().GetProperty("IsTransient");
+        (probe?.GetValue(deadlock) as bool? ?? false).Should().BeFalse(
+            "the stand-in reports what SqlException reports, which on .NET 6+ is DbException's false");
+
+        jobStoreSupport.CallIsTransient(deadlock).Should().BeTrue("1205 is a deadlock, which is worth a retry");
+    }
+
+    [Test]
+    public void IsTransient_SqlServerConstraintViolationIsNotTransient()
+    {
+        // 2627 is a primary key violation: it will fail again on every retry.
+        jobStoreSupport.CallIsTransient(new SqlServerLikeException(2627)).Should().BeFalse();
+    }
+
+    [Test]
+    public void IsTransient_SqliteBusyIsTransient()
+    {
+        jobStoreSupport.CallIsTransient(new SqliteException(5)).Should().BeTrue();
+    }
+
+    [Test]
+    public void IsTransient_TimeoutIsTransient()
+    {
+        jobStoreSupport.CallIsTransient(new TimeoutException()).Should().BeTrue();
+    }
+
+    [Test]
+    public void IsTransient_PlainFailureIsNotTransient()
+    {
+        jobStoreSupport.CallIsTransient(new InvalidOperationException("no")).Should().BeFalse();
+    }
+
+    /// <summary>A driver exception that reports its own verdict and nothing else.</summary>
+    public sealed class TransientProviderException : Exception
+    {
+        public bool IsTransient => true;
+    }
+
+    /// <summary>
+    /// Stands in for <c>Microsoft.Data.SqlClient.SqlException</c>: the numbers sit on an
+    /// <c>Errors</c> collection whose items carry a <c>Number</c>. It derives from
+    /// <see cref="DbException"/> deliberately, so that on .NET it inherits the <c>IsTransient</c>
+    /// that returns false - the property whose answer used to be taken as final.
+    /// </summary>
+    public sealed class SqlServerLikeException : DbException
+    {
+        public SqlServerLikeException(params int[] numbers)
+        {
+            Errors = new SqlServerErrorCollection(numbers);
+        }
+
+        public SqlServerErrorCollection Errors { get; }
+    }
+
+    public sealed class SqlServerErrorCollection : IEnumerable
+    {
+        private readonly int[] numbers;
+
+        public SqlServerErrorCollection(int[] numbers) => this.numbers = numbers;
+
+        public IEnumerator GetEnumerator()
+        {
+            foreach (int number in numbers)
+            {
+                yield return new SqlServerError(number);
+            }
+        }
+    }
+
+    public sealed class SqlServerError
+    {
+        public SqlServerError(int number) => Number = number;
+
+        public int Number { get; }
+    }
+
+    /// <summary>
+    /// Stands in for <c>Microsoft.Data.Sqlite.SqliteException</c>, which is matched by type name and
+    /// read through <c>SqliteErrorCode</c>.
+    /// </summary>
+    public sealed class SqliteException : DbException
+    {
+        public SqliteException(int sqliteErrorCode) => SqliteErrorCode = sqliteErrorCode;
+
+        public int SqliteErrorCode { get; }
+    }
+
+    #endregion
 
     #region TriggersFired transient retry tests
 
