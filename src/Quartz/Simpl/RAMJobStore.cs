@@ -1317,11 +1317,14 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
             }
             else
             {
+                // The group that matched is what gets remembered, not the matcher's own text: a
+                // pattern is not a group, and keying the set on it would let the first matching
+                // group swallow the pause for every later one.
                 foreach (string group in triggersByGroup.Keys)
                 {
                     if (op.Evaluate(group, matcher.CompareToValue))
                     {
-                        if (pausedTriggerGroups.Add(matcher.CompareToValue))
+                        if (pausedTriggerGroups.Add(group))
                         {
                             pausedGroups.Add(group);
                         }
@@ -1503,30 +1506,18 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                 }
                 ResumeTriggerInternal(triggerKey);
             }
-            // Find all matching paused trigger groups, and then remove them.
+            // Forget the pause of every group the matcher selects, whichever operator it carries -
+            // the pause is recorded per matched group, so a resume that only understood equality
+            // would leave the groups a prefix pause recorded paused forever.
             StringOperator op = matcher.CompareWithOperator;
-            var pausedGroups = new List<string>();
             var matcherGroup = matcher.CompareToValue;
             if (op.Equals(StringOperator.Equality))
             {
-                if (pausedTriggerGroups.Contains(matcherGroup))
-                {
-                    pausedGroups.Add(matcher.CompareToValue);
-                }
-                else
-                {
-                    foreach (string group in pausedTriggerGroups)
-                    {
-                        if (op.Evaluate(group, matcherGroup))
-                        {
-                            pausedGroups.Add(group);
-                        }
-                    }
-                }
-                foreach (string pausedGroup in pausedGroups)
-                {
-                    pausedTriggerGroups.Remove(pausedGroup);
-                }
+                pausedTriggerGroups.Remove(matcherGroup);
+            }
+            else
+            {
+                pausedTriggerGroups.RemoveWhere(group => op.Evaluate(group, matcherGroup));
             }
             return groups;
         }

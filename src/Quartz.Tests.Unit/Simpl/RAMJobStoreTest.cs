@@ -993,6 +993,90 @@ public class RAMJobStoreTest
         Assert.That(updated, Is.InstanceOf<ICronTrigger>(), "Trigger should have been replaced with a CronTrigger");
     }
 
+    /// <summary>
+    /// A non-equality matcher pauses several groups at once, and the store has to remember each of
+    /// them by name. It used to record the matcher's own text instead, so the HashSet accepted it
+    /// once and refused it for every later match: only the first group was really paused, and the
+    /// pattern itself leaked out of GetPausedTriggerGroups as though it were a group.
+    /// </summary>
+    [Test]
+    public async Task PauseTriggers_WithPrefixMatcher_PausesEveryMatchingGroup()
+    {
+        await StoreTriggerInGroup("t-alpha", "reports-daily");
+        await StoreTriggerInGroup("t-beta", "reports-weekly");
+        await StoreTriggerInGroup("t-other", "maintenance");
+
+        var paused = await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("reports-"));
+
+        paused.Should().BeEquivalentTo(new[] { "reports-daily", "reports-weekly" },
+            "both groups match the prefix, so both are reported paused");
+
+        (await fJobStore.GetTriggerState(new TriggerKey("t-alpha", "reports-daily"))).Should().Be(TriggerState.Paused);
+        (await fJobStore.GetTriggerState(new TriggerKey("t-beta", "reports-weekly"))).Should().Be(TriggerState.Paused,
+            "the second matching group was the one the shared HashSet entry used to swallow");
+        (await fJobStore.GetTriggerState(new TriggerKey("t-other", "maintenance"))).Should().Be(TriggerState.Normal);
+
+        var pausedGroups = await fJobStore.GetPausedTriggerGroups();
+        pausedGroups.Should().BeEquivalentTo(new[] { "reports-daily", "reports-weekly" },
+            "the groups that matched are what is remembered; a pattern is not a group");
+        pausedGroups.Should().NotContain("reports-", "the matcher's text is not the name of any group");
+    }
+
+    /// <summary>
+    /// The whole point of remembering a paused group is that triggers added to it later are born
+    /// paused. That only works for the groups that were actually recorded.
+    /// </summary>
+    [Test]
+    public async Task PauseTriggers_WithPrefixMatcher_TriggerAddedAfterwardsIsBornPaused()
+    {
+        await StoreTriggerInGroup("t-alpha", "reports-daily");
+        await StoreTriggerInGroup("t-beta", "reports-weekly");
+
+        await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("reports-"));
+
+        await StoreTriggerInGroup("t-late", "reports-weekly");
+
+        (await fJobStore.GetTriggerState(new TriggerKey("t-late", "reports-weekly"))).Should().Be(TriggerState.Paused,
+            "the group is paused, so a trigger stored into it afterwards is paused too");
+    }
+
+    /// <summary>
+    /// The removal of the paused groups sat inside the equality branch, so a prefix pause could
+    /// never be undone by the matcher that made it: the triggers resumed, the group stayed
+    /// remembered as paused, and anything stored into it afterwards came back paused.
+    /// </summary>
+    [Test]
+    public async Task ResumeTriggers_WithPrefixMatcher_ForgetsEveryMatchingGroup()
+    {
+        await StoreTriggerInGroup("t-alpha", "reports-daily");
+        await StoreTriggerInGroup("t-beta", "reports-weekly");
+        await StoreTriggerInGroup("t-other", "maintenance");
+
+        await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("reports-"));
+        await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("maintenance"));
+
+        await fJobStore.ResumeTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("reports-"));
+
+        (await fJobStore.GetTriggerState(new TriggerKey("t-alpha", "reports-daily"))).Should().Be(TriggerState.Normal);
+        (await fJobStore.GetTriggerState(new TriggerKey("t-beta", "reports-weekly"))).Should().Be(TriggerState.Normal);
+
+        (await fJobStore.GetPausedTriggerGroups()).Should().BeEquivalentTo(new[] { "maintenance" },
+            "the prefix resume forgets exactly the groups it matches, and leaves the others alone");
+
+        await StoreTriggerInGroup("t-late", "reports-weekly");
+        (await fJobStore.GetTriggerState(new TriggerKey("t-late", "reports-weekly"))).Should().Be(TriggerState.Normal,
+            "the group is no longer paused, so a trigger stored into it now runs");
+    }
+
+    private Task StoreTriggerInGroup(string name, string group)
+    {
+        IOperableTrigger trigger = new SimpleTriggerImpl(
+            name, group, fJobDetail.Name, fJobDetail.Group,
+            DateTimeOffset.UtcNow.AddSeconds(30), null, -1, TimeSpan.FromSeconds(30));
+        trigger.ComputeFirstFireTimeUtc(null);
+        return fJobStore.StoreTrigger(trigger, false);
+    }
+
     [DisallowConcurrentExecution]
     private class DisallowConcurrentNoOpJob : IJob
     {
