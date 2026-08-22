@@ -162,7 +162,7 @@ WHERE JOB_CLASS_NAME = 'OldNamespace.OldClassName, OldAssembly';
 3. **Lock contention** — Multiple scheduler instances competing for the same rows.
    * Two schedulers share a name (`Scheduler:InstanceName`, or `quartz.scheduler.instanceName`) only when
      they are meant to be one cluster, and then clustering has to be enabled on both.
-   * Never point multiple non-clustered schedulers at the same database tables (see [Best Practices](best-practices.md#adonet-jobstore)).
+   * Never point multiple non-clustered schedulers at the same database tables (see [Best Practices](best-practices.md#ado-net-jobstore)).
 
 ### Datasource Configuration Example
 

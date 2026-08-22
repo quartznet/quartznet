@@ -131,7 +131,7 @@ Calendars are registered with the scheduler under a name, and triggers refer to 
 `HolidayCalendar`, use its `AddExcludedDay(DateOnly day)` method to populate it with the days you wish to have
 excluded from scheduling. The same calendar can be used by any number of triggers:
 
-__Calendar Example__
+**Calendar Example**
 
 ```csharp
 HolidayCalendar holidays = new();
