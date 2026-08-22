@@ -36,8 +36,14 @@ jobs:
       - name: Verify documentation snippets
         run: dotnet fallout VerifyDocsSnippets
 
+      # --ignore-scripts blocks the lifecycle scripts of every dependency. patch-package is ours, and
+      # package.json's postinstall is the only one this repository actually wants, so it is run as its
+      # own step rather than trusting the whole tree to behave.
       - name: Install
-        run: npm ci
+        run: npm ci --ignore-scripts
+
+      - name: Apply dependency patches
+        run: npx patch-package
 
       - name: Build
         run: npm run docs:build
