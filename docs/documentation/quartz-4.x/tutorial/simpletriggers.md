@@ -13,13 +13,15 @@ With this description, you may not find it surprising to find that the propertie
 and end-time, a repeat count, and a repeat interval. All of these properties are exactly what you'd expect them to be, with
 only a couple special notes related to the end-time property.
 
-The repeat count can be zero, a positive integer, or the constant value `SimpleTrigger.RepeatIndefinitely`.
+The repeat count can be zero, a positive integer, or the constant value `SimpleTriggerImpl.RepeatIndefinitely`
+(`-1`) — which is what `RepeatForever()` on the schedule builder sets for you.
 The repeat interval property must be `TimeSpan.Zero`, or a positive TimeSpan value.
 Note that a repeat interval of zero will cause 'repeat count' firings of the trigger to happen concurrently
 (or as close to concurrently as the scheduler can manage).
 
-If you're not already familiar with the `DateTime` class, you may find it helpful for computing your trigger fire-times,
-depending on the startTimeUtc (or endTimeUtc) that you're trying to create.
+Start and end times are `DateTimeOffset` values, so they carry an offset and are unambiguous.
+`DateTimeOffset.UtcNow` is the straightforward way to compute one; in code that has a `TimeProvider` — a job, a
+test — read the clock from that instead, and `DateBuilder.Create(timeProvider)` will do the same.
 
 The `EndTimeUtc` property (if it is specified) over-rides the repeat count property. This can be useful if you wish to create a trigger
 such as one that fires every 10 seconds until a given moment in time - rather than having to compute the number of times it would
@@ -94,7 +96,7 @@ ITrigger trigger = TriggerBuilder.Create()
     //  - which is valid if the trigger is passed to the scheduler along with the job  
     .Build();
 
-await scheduler.scheduleJob(trigger, job);
+await scheduler.ScheduleJob(job, trigger);
 ```
 
 Spend some time looking at all of the available methods in the language defined by `TriggerBuilder` and its extension method `WithSimpleSchedule`
@@ -103,7 +105,7 @@ so that you can be familiar with options available to you that may not have been
 ## SimpleTrigger Misfire Instructions
 
 SimpleTrigger has several instructions that can be used to inform Quartz.NET what it should do when a misfire occurs.
-(Misfire situations were introduced in the [More About Triggers](/documentation/quartz-4.x/tutorial/more-about-triggers.html) section of this tutorial).
+(Misfire situations were introduced in the [More About Triggers](more-about-triggers.md#misfire-instructions) section of this tutorial).
 The instructions live on the `SimpleTriggerMisfireInstruction` enum (whose API documentation describes each one's behavior):
 
 __Misfire instructions for SimpleTrigger__
@@ -118,11 +120,20 @@ __Misfire instructions for SimpleTrigger__
 You should recall from the earlier lessons that all triggers have the `SmartPolicy` instruction available for use,
 and this instruction is also the default for all trigger types.
 
-If the 'smart policy' instruction is used, SimpleTrigger dynamically chooses between its various MISFIRE instructions, based on the configuration
-and state of the given SimpleTrigger instance. The documentation for the `SimpleTrigger.UpdateAfterMisfire()` method explains the exact details of
-this dynamic behavior.
+If the 'smart policy' instruction is used, SimpleTrigger chooses between its instructions based on the repeat
+count of the trigger:
 
-When building SimpleTriggers, you specify the misfire instruction as part of the simple schedule (via SimpleSchedulerBuilder):
+| Repeat count | Resolves to |
+|---|---|
+| `0` — fires once | `FireNow` |
+| `RepeatIndefinitely` — repeats forever | `NextWithRemainingCount` |
+| a finite count | `NowWithExistingCount` |
+
+`FireNow` on a trigger that does repeat is treated as `NowWithRemainingCount`, since firing "now" and forgetting
+the rest of the schedule is not what anyone means by it. The behaviour lives in
+`SimpleTriggerImpl.UpdateAfterMisfire`.
+
+When building SimpleTriggers, you specify the misfire instruction as part of the simple schedule (via `SimpleScheduleBuilder`):
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()

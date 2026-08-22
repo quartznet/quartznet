@@ -48,12 +48,24 @@ When a trigger's job is detected to require recovery, its recovery is scheduled 
 
 Another important property of a Trigger is its "misfire instruction". A misfire occurs if a persistent trigger "misses" its firing time because of the scheduler being shutdown,
 or because there are no available threads in Quartz.NET's thread pool for executing the job.
-The different trigger types have different misfire instructions available to them.
-By default they use a 'smart policy' instruction - which has dynamic behavior based on trigger type and configuration.
 When the scheduler starts, it searches for any persistent triggers that have misfired, and it then updates each of them based on their individually
-configured misfire instructions. When you start using Quartz.NET in your own projects, you should make yourself familiar with the misfire instructions
-that are defined on the given trigger types, and explained in their API documentation. More specific information about misfire instructions will be given within
-the tutorial lessons specific to each trigger type.
+configured misfire instructions.
+
+Each trigger family has its own set of instructions, and each set is an enum of its own —
+`SimpleTriggerMisfireInstruction`, `CronTriggerMisfireInstruction`, `CalendarIntervalTriggerMisfireInstruction`,
+`DailyTimeIntervalTriggerMisfireInstruction` and `RecurrenceTriggerMisfireInstruction`. You set one on the
+schedule builder for that family, so the only values in scope are the ones that family understands:
+
+```csharp
+.WithSimpleSchedule(x => x
+    .WithInterval(TimeSpan.FromMinutes(5))
+    .RepeatForever()
+    .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount))
+```
+
+Every family has `SmartPolicy`, which is the default, and `IgnoreMisfires`, which fires every missed firing as
+fast as it can once the scheduler is back. `SmartPolicy` has dynamic behaviour chosen by the trigger type and its
+configuration; what it resolves to is described in the lesson for each trigger type.
 
 ## Execution Groups
 
@@ -83,71 +95,101 @@ Quartz.NET Calendar objects implementing `ICalendar` interface can be associated
 Calendars are useful for excluding blocks of time from the trigger's firing schedule. For instance, you could
 create a trigger that fires a job every weekday at 9:30 am, but then add a Calendar that excludes all of the business's holidays.
 
-Calendar's can be any serializable objects that implement the ICalendar interface, which looks like this:
+A calendar is any object implementing the `ICalendar` interface, which looks like this:
 
 ```csharp
 namespace Quartz
 {
- public interface ICalendar
- {
-  string Description { get; set; }
+    public interface ICalendar
+    {
+        string? Description { get; set; }
 
-  ICalendar CalendarBase { set; get; }
+        ICalendar? CalendarBase { get; set; }
 
-  bool IsTimeIncluded(DateTimeOffset timeUtc);
+        bool IsTimeIncluded(DateTimeOffset timeUtc);
 
-  DateTime GetNextIncludedTimeUtc(DateTimeOffset timeUtc);
+        DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc);
 
-  ICalendar Clone();
- }
-} 
+        ICalendar Clone();
+    }
+}
 ```
+
+`CalendarBase` chains calendars: a calendar excludes a time if it excludes it itself *or* if its base does, so
+"not on holidays, and not outside business hours" is two calendars, one based on the other.
+
+A calendar of your own only has to survive whatever your job store does with it. `RAMJobStore` holds the instance
+and hands back clones. A persistent store writes it as a serialized blob, so a calendar going into one has to be
+something the configured serializer can read back: the calendars in `Quartz.Impl.Calendar` ship with serializers
+for both JSON serializers, and a calendar of your own needs a `CalendarSerializer<T>` registered alongside it —
+see [System.Text.Json serialization](../packages/system-text-json.md).
 
 Even though calendars can 'block out' sections of time as narrow as a millisecond, most likely, you'll be interested in
 'blocking-out' entire days. As a convenience, Quartz.NET includes the class HolidayCalendar, which does just that.
 
-Calendars must be instantiated and registered with the scheduler via the `AddCalendar(..)` method. If you use `HolidayCalendar`,
-after instantiating it, you should use its `AddExcludedDay(DateOnly day)` method in order to populate it with the days you wish
-to have excluded from scheduling. The same calendar instance can be used with multiple triggers such as this:
+Calendars are registered with the scheduler under a name, and triggers refer to them by that name. If you use
+`HolidayCalendar`, use its `AddExcludedDay(DateOnly day)` method to populate it with the days you wish to have
+excluded from scheduling. The same calendar can be used by any number of triggers:
 
 __Calendar Example__
 
 ```csharp
-    HolidayCalendar cal = new HolidayCalendar();
-    cal.AddExcludedDay(someDay);
-    
-    await sched.AddCalendar("myHolidays", cal);
-    
- ITrigger t = TriggerBuilder.Create()
-  .WithIdentity("myTrigger")
-  .ForJob("myJob")
-  .WithCronSchedule("0 30 9 ? * *") // execute job daily at 9:30
-  .WithCalendarName("myHolidays") // but not on holidays
-  .Build();
+HolidayCalendar holidays = new();
+holidays.AddExcludedDay(new DateOnly(2026, 12, 24));
 
- // .. schedule job with trigger
+await scheduler.AddCalendar("myHolidays", holidays);
 
- ITrigger t2 = TriggerBuilder.Create()
-  .WithIdentity("myTrigger2")
-  .ForJob("myJob2")
-  .WithCronSchedule("0 30 11 ? * *") // execute job daily at 11:30
-  .WithCalendarName("myHolidays") // but not on holidays
-  .Build();
+ITrigger t = TriggerBuilder.Create()
+    .WithIdentity("myTrigger")
+    .ForJob("myJob")
+    .WithCronSchedule("0 30 9 ? * *")  // execute job daily at 9:30
+    .WithCalendarName("myHolidays")    // but not on holidays
+    .Build();
 
-	// Use H (hash) to spread triggers across time instead of a fixed schedule.
-	// The trigger identity is used as the hash seed, so each trigger fires at a unique time.
-	ITrigger t3 = TriggerBuilder.Create()
-		.WithIdentity("myTrigger3")
-		.ForJob("myJob3")
-		.WithCronSchedule("0 H H(9-17) * * ?") // execute at a hash-derived time during business hours
-		.WithCalendarName("myHolidays")
-		.Build();
+ITrigger t2 = TriggerBuilder.Create()
+    .WithIdentity("myTrigger2")
+    .ForJob("myJob2")
+    .WithCronSchedule("0 30 11 ? * *") // execute job daily at 11:30
+    .WithCalendarName("myHolidays")    // but not on holidays
+    .Build();
 
-    // .. schedule jobs with triggers
+// Use H (hash) to spread triggers across time instead of a fixed schedule.
+// The trigger identity is used as the hash seed, so each trigger fires at a unique time.
+ITrigger t3 = TriggerBuilder.Create()
+    .WithIdentity("myTrigger3")
+    .ForJob("myJob3")
+    .WithCronSchedule("0 H H(9-17) * * ?") // a hash-derived time during business hours
+    .WithCalendarName("myHolidays")
+    .Build();
+
+// .. schedule jobs with triggers
 ```
 
-The details of the construction/building of triggers will be given in the next couple lessons.
-For now, just believe that the code above creates two triggers, each scheduled to fire daily.
-However, any of the firings that would have occurred during the period excluded by the calendar will be skipped.
+Any firing that would have occurred during a period the calendar excludes is skipped.
 
-See the Quartz.Impl.Calendar namespace for a number of ICalendar implementations that may suit your needs.
+Re-registering a calendar under a name that is already taken is refused unless you say so, and saying so has
+two parts, which is what `AddCalendarOptions` is for:
+
+```csharp
+await scheduler.AddCalendar("myHolidays", holidays, new AddCalendarOptions
+{
+    Replace = true,        // there is already a calendar under this name
+    UpdateTriggers = true, // recompute the next fire time of every trigger using it
+});
+```
+
+Without `UpdateTriggers`, triggers already scheduled against the old calendar keep the fire times they had
+computed; the new exclusions only take effect the next time each trigger recomputes on its own.
+
+Registering a calendar at configuration time rather than at run time is `q.AddCalendar<T>`:
+
+```csharp
+q.AddCalendar<HolidayCalendar>("myHolidays", new AddCalendarOptions { Replace = true }, calendar =>
+{
+    calendar.AddExcludedDay(new DateOnly(2026, 12, 24));
+});
+```
+
+See the `Quartz.Impl.Calendar` namespace for a number of `ICalendar` implementations that may suit your needs:
+`AnnualCalendar` (the same days every year), `CronCalendar`, `DailyCalendar` (a time range each day),
+`HolidayCalendar`, `MonthlyCalendar` and `WeeklyCalendar`.

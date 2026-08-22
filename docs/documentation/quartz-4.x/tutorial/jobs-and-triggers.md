@@ -17,9 +17,9 @@ The key interfaces and classes of the Quartz API are:
 
 In this tutorial for readability's sake following terms are used interchangeably: `IScheduler` and `Scheduler`, `IJob` and `Job`, `IJobDetail` and `JobDetail`, `ITrigger` and `Trigger`.
 
-A `Scheduler`'s life-cycle is bounded by it's creation, via a `SchedulerFactory` and a call to its `Shutdown()` method.
-Once created the `IScheduler` interface can be used add, remove, and list Jobs and Triggers, and perform other scheduling-related operations (such as pausing a trigger).
-However, the Scheduler will not actually act on any triggers (execute jobs) until it has been started with the `Start()` method, as shown in [Lesson 1](using-quartz.md).
+A `Scheduler`'s life-cycle runs from the moment the container builds it to the call to its `Shutdown()` method.
+Once it exists, the `IScheduler` interface can be used to add, remove, and list Jobs and Triggers, and perform other scheduling-related operations (such as pausing a trigger).
+However, the Scheduler will not actually act on any triggers (execute jobs) until it has been started with the `Start()` method — which the hosted service does for you, as shown in [Lesson 1](using-quartz.md).
 
 Quartz provides "builder" classes that define a Domain Specific Language (or DSL, also sometimes referred to as a "fluent interface"). In the previous lesson you saw an example of it, which we present a portion of here again:
 
@@ -39,21 +39,32 @@ ITrigger trigger = TriggerBuilder.Create()
     .Build();
     
 // Tell Quartz to schedule the job using our trigger
-await sched.scheduleJob(job, trigger);
+await scheduler.ScheduleJob(job, trigger);
 ```
   
 The block of code that builds the job definition is using `JobBuilder` using fluent interface to create the product, `IJobDetail`.
 Likewise, the block of code that builds the trigger is using `TriggerBuilder`'s fluent interface and extension methods that are specific to given trigger type.
 Possible schedule extension methods are:
 
-* `WithCalendarIntervalSchedule`
-* `WithCronSchedule` — supports `H` (hash) tokens to [spread fire times across triggers](../cron-expressions.md#h-hash-for-load-distribution)
-* `WithDailyTimeIntervalSchedule`
-* `WithRecurrenceSchedule` — uses [RFC 5545 RRULE](recurrencetrigger) for complex patterns like "2nd Monday of the month"
-* `WithSimpleSchedule`
+* `WithSimpleSchedule` — a fixed interval, repeated a number of times or forever
+  ([Lesson 5](simpletriggers.md))
+* `WithCronSchedule` — a calendar-like schedule written as a cron expression, with `H` (hash) tokens to
+  [spread fire times across triggers](../cron-expressions.md#h-hash-for-load-distribution)
+  ([Lesson 6](crontriggers.md))
+* `WithRecurrenceSchedule` — an [RFC 5545 RRULE](recurrencetrigger.md) for patterns cron cannot say, such
+  as "the 2nd Monday of the month" ([Lesson 7](recurrencetrigger.md))
+* `WithCalendarIntervalSchedule` — an interval counted in calendar units, so "every month" stays on the
+  same day of the month and "every day" stays at the same wall-clock hour across a daylight saving change
+* `WithDailyTimeIntervalSchedule` — an interval repeated inside a daily time window, on chosen days of the
+  week: `StartingDailyAt(new TimeOnly(9, 0))`, `EndingDailyAt(new TimeOnly(17, 0))`,
+  `OnMondayThroughFriday()`. Times of day are `TimeOnly` in 4.0, where 3.x had a `TimeOfDay` type of its
+  own.
 
-The `DateBuilder` type contains various methods for easily constructing DateTimeOffset instances for particular points in time
-(such as a date that represents the next even hour - or in other words 10:00:00 if it is currently 9:43:27).
+`DateBuilder` builds a `DateTimeOffset` for a point in time that is awkward to write out —
+`DateBuilder.Create().AtHourMinuteAndSecond(22, 0, 0).Build()` is today at 22:00:00 —
+and `DateBuilder.CreateInTimeZone(timeZone)` does the same in a given zone. Both read the clock through
+the scheduler's `TimeProvider` when you pass one, which is what makes a test that fakes time see the
+faked time.
 
 ## Jobs and Triggers
 
@@ -66,14 +77,18 @@ namespace Quartz
 {
     public interface IJob
     {
-        ValueTask Execute(JobExecutionContext context);
+        ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default);
     }
 }
 ```
 
 When the Job's trigger fires (more on that in a moment), the `Execute(..)` method is invoked by one of the scheduler's worker threads.
-The `JobExecutionContext` object that is passed to this method provides the job instance with information about its "run-time" environment -
+The `IJobExecutionContext` object that is passed to this method provides the job instance with information about its "run-time" environment -
 a handle to the Scheduler that executed it, a handle to the Trigger that triggered the execution, the job's JobDetail object, and a few other items.
+
+The `cancellationToken` is the same token as `context.CancellationToken`. It is a parameter of its own so
+that a job which forgets to forward it is caught by analysis (CA2016) rather than discovered during a
+shutdown that will not finish.
 
 The JobDetail object is created by the Quartz.NET client (your program) at the time the Job is added to the scheduler.
 It contains various property settings for the Job, as well as a JobDataMap, which can be used to store state information for a given instance of your job class.
@@ -103,9 +118,9 @@ its associated job.
 
 Jobs and Triggers are given identifying keys as they are registered with the Quartz scheduler.
 The keys of Jobs and Triggers (`JobKey` and `TriggerKey`) allow them to be placed into 'groups' which can be useful for organizing your jobs and
- triggers into categories such as "reporting jobs" and "maintenance jobs". The name portion of the key of a job or trigger must be unique within the group
-
-* or in other words, the complete key (or identifier) of a job or trigger is the compound of the name and group.
+triggers into categories such as "reporting jobs" and "maintenance jobs". The name portion of the key of a job or trigger must be unique within the group —
+or in other words, the complete key (or identifier) of a job or trigger is the compound of the name and group. A key given only a name is in the
+group named by `Key<T>.DefaultGroup`, `"DEFAULT"`.
 
 You now have a general idea about what Jobs and Triggers are, you can learn more about them in
 [Lesson 3: More About Jobs & JobDetails](more-about-jobs.md) and [Lesson 4: More About Triggers](more-about-triggers.md)

@@ -34,7 +34,7 @@ ITrigger trigger = TriggerBuilder.Create()
    .RepeatForever())
   .Build();
   
-sched.ScheduleJob(job, trigger);
+await scheduler.ScheduleJob(job, trigger);
 ```
 
 Now consider the job class __HelloJob__  defined as such:
@@ -51,9 +51,10 @@ public class HelloJob : IJob
 
 Notice that we give the scheduler a `IJobDetail` instance, and that it refers to the job to be executed by simply
 providing the job's class. Each (and every) time the scheduler executes the job, it creates a new instance of the
-class before calling its `Execute(..)` method. One of the ramifications of this behavior is the fact that jobs must
-have a no-arguement constructor. Another ramification is that it does not make sense to have data-fields defined
-on the job class - as their values would not be preserved between job executions.
+class before calling its `Execute(..)` method. Under `AddQuartz` that instance comes from the service container,
+inside a scope of its own, so the job can take its dependencies through its constructor the way the rest of your
+application does. A ramification that does still hold is that it makes no sense to keep state in fields on the job
+class — the instance is gone when the fire ends, so nothing in it is preserved between executions.
 
 You may now be wanting to ask "how can I provide properties/configuration for a Job instance?" and "how can I
 keep track of a job's state between executions?" The answer to these questions are the same: the key is the `JobDataMap`,
@@ -62,8 +63,9 @@ which is part of the JobDetail object.
 ## JobDataMap
 
 The `JobDataMap` can be used to hold any number of (serializable) objects which you wish to have made available
-to the job instance when it executes. `JobDataMap` is an implementation of the `IDictionary` interface, and has
-some added convenience methods for storing and retrieving data of primitive types.
+to the job instance when it executes. `JobDataMap` implements `IDictionary<string, object?>`, and a set of typed
+accessors — `GetString`, `GetInt`, `GetDateTimeOffset`, `GetEnum<T>`, `TryGet<T>` and the rest — come with it as
+extension methods, so `map.GetString("key")` works on any map without a cast or a lookup of your own.
 
 Here's some quick snippets of putting data into the JobDataMap prior to adding the job to the scheduler:
 
@@ -188,8 +190,8 @@ q.ScheduleJob<DumbJob>(
 q.AddTrigger<DumbJob>(t => t.ForJob(jobKey).UsingJobData(x => x.JobSays, "Good evening!"));
 ```
 
-Plain `AddTrigger` has no job type to infer from — it configures an `ITriggerConfigurator<IJob>`, which has
-no properties to name — so use `AddTrigger<TJob>` when you want typed trigger data.
+`AddTrigger<IJob>` is the untyped form — `IJob` has no properties to name — so name the job's own type
+when you want typed trigger data.
 
 Triggers can also have JobDataMaps associated with them. This can be useful in the case where you have a Job that is stored in the scheduler
 for regular/repeated use by multiple Triggers, yet with each independent triggering, you want to supply the Job with different data inputs.
@@ -260,9 +262,10 @@ and "SalesReportForMike" which have "Joe" and "Mike" specified in the correspond
 
 When a trigger fires, the JobDetail (instance definition) it is associated to is loaded,
 and the job class it refers to is instantiated via the JobFactory configured on the Scheduler.
-The default JobFactory simply calls the default constructor of the job class using Activator.CreateInstance,
-then attempts to call setter properties on the class that match the names of keys within the JobDataMap.
-You may want to create your own implementation of JobFactory to accomplish things such as having your application's IoC or DI container produce/initialize the job instance.
+Under `AddQuartz` that factory is `MicrosoftDependencyInjectionJobFactory`: it opens a service scope, resolves
+the job type from the container — constructor injection and all — and then sets any properties of the job whose
+names match keys in the merged JobDataMap. The scope is disposed when the fire ends, so a scoped `DbContext`
+belongs to the one execution that used it.
 
 In "Quartz speak", we refer to each stored JobDetail as a "job definition" or "JobDetail instance",
 and we refer to a each executing job as a "job instance" or "instance of a job definition".
@@ -272,11 +275,16 @@ When we are referring to the class implementing the job interface, we usually us
 ## JobFactory
 
 When a trigger fires, the Job it is associated to is instantiated via the JobFactory configured on the Scheduler.
-The default JobFactory simply activates a new instance of the job class. You may want to create your own implementation
-of JobFactory to accomplish things such as having your application's IoC or DI container produce/initialize the job instance.
+`MicrosoftDependencyInjectionJobFactory` is the registered default, both under `AddQuartz` and under
+`QuartzSchedulerBuilder`, which builds a container of its own. `SimpleJobFactory` — which activates the type
+through its parameterless constructor and sets properties from the job data — is the base it is built on, and what
+a scheduler assembled without any container at all would use.
 
-See the `IJobFactory` interface. A factory is set where the scheduler is configured — `q.UseJobFactory<MyJobFactory>()`
-or `q.UseJobFactory(new MyJobFactory())` — rather than assigned to the scheduler afterwards.
+Write your own `IJobFactory` when a job has to be built some other way — resolved from a tenant's container,
+proxied, or handed something that only exists at fire time. A factory is set where the scheduler is configured —
+`q.UseJobFactory<MyJobFactory>()` or `q.UseJobFactory(new MyJobFactory())` — rather than assigned to the scheduler
+afterwards. To keep the container factory and only add to the scope it opens, use
+`q.ConfigureJobScope((scope, bundle, scheduler) => …)` instead of replacing the factory.
 
 A factory returns a `JobScope`: the job, plus an optional opaque `State` object that Quartz hands straight back to
 `ReturnJob` when the job has finished. That is where anything the factory had to allocate in order to build the job
