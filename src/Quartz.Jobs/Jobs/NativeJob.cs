@@ -32,10 +32,16 @@ namespace Quartz.Jobs;
 /// Built in job for executing native executables in a separate process.
 /// </summary>
 /// <remarks>
+/// <para>
+/// What is run is configured through the job data keys below. <see cref="NativeJobOptions" /> names
+/// them all, and <see cref="JobConfiguratorExtensions.UsingNativeJobOptions{TConfigurator}" /> writes
+/// them, so the settings can be given as a value rather than as string keys; the keys stay the
+/// persisted form either way.
+/// </para>
 /// <example>
 ///     IJobDetail job = JobBuilder.Create&lt;NativeJob&gt;()
 ///         .WithIdentity("dumbJob")
-///         .UsingJobData(NativeJob.PropertyCommand, "echo \"hi\" >> foobar.txt")
+///         .UsingNativeJobOptions(new NativeJobOptions { Command = "echo \"hi\" >> foobar.txt" })
 ///         .Build();
 ///
 ///     ITrigger trigger = TriggerBuilder.Create()
@@ -124,25 +130,15 @@ public class NativeJob : IJob
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        JobDataMap data = context.MergedJobDataMap;
+        NativeJobOptions options = NativeJobOptions.FromJobData(context.MergedJobDataMap);
 
-        string command = data.GetString(PropertyCommand) ?? throw new JobExecutionException("command missing");
-        string parameters = data.GetString(PropertyParameters) ?? "";
+        int exitCode = RunNativeCommand(
+            options.Command,
+            options.Parameters ?? "",
+            options.WorkingDirectory,
+            options.WaitForProcess,
+            options.ConsumeStreams);
 
-        bool wait = true;
-        if (data.TryGetBoolean(PropertyWaitForProcess, out bool b))
-        {
-            wait = b;
-        }
-
-        bool consumeStreams = false;
-        if (data.TryGetBoolean(PropertyConsumeStreams, out b))
-        {
-            consumeStreams = b;
-        }
-
-        var workingDirectory = data.GetString(PropertyWorkingDirectory);
-        int exitCode = RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams);
         context.Result = exitCode;
         return default;
     }

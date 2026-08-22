@@ -14,6 +14,13 @@ namespace Quartz.Jobs;
 /// dependency injection or found in the <see cref="SchedulerContext"/>.
 /// </summary>
 /// <remarks>
+/// <para>
+/// What is scanned is configured through the job data keys below.
+/// <see cref="DirectoryScanOptions" /> names them all, and
+/// <see cref="JobConfiguratorExtensions.UsingDirectoryScanOptions{TConfigurator}" /> writes them, so
+/// the settings can be given as a value rather than as string keys; the keys stay the persisted form
+/// either way.
+/// </para>
 /// The listener can be provided in two ways:
 /// <list type="number">
 /// <item>
@@ -61,18 +68,21 @@ public class DirectoryScanJob : IJob
     /// in the middle of writing to the file when the scan occurs, and the
     ///  file may therefore not yet be ready for processing.
     /// <para>If this parameter is not specified, a default value of 5000 (five seconds) will be used.</para>
+    /// <para><see cref="DirectoryScanOptions.MinimumUpdateAge" /> says the same thing as a <see cref="TimeSpan" />.</para>
     public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
 
     internal const string LastModifiedTime = "LAST_MODIFIED_TIME";
 
     /// <summary>
-    /// The search string to match against the names of files.
-    /// Can contain combination of valid literal path and wildcard (* and ?) characters
+    /// <see cref="JobDataMap"/> key with which to specify the search string to match against the
+    /// names of files. Can contain a combination of valid literal path and wildcard (* and ?)
+    /// characters. Defaults to <c>*</c>, every file.
     /// </summary>
-    internal const string SearchPattern = "SEARCH_PATTERN";
+    public const string SearchPattern = "SEARCH_PATTERN";
 
     ///<see cref="JobDataMap"/> Key to specify whether to scan sub directories for file changes.
-    internal const string IncludeSubDirectories = "INCLUDE_SUB_DIRECTORIES";
+    ///<para>Defaults to <see langword="false" />.</para>
+    public const string IncludeSubDirectories = "INCLUDE_SUB_DIRECTORIES";
 
     ///<see cref="JobDataMap"/> key to store the current file list of the scanned directories.
     ///This is required to find out deleted files during next iteration.
@@ -185,7 +195,7 @@ public class DirectoryScanJob : IJob
     /// <param name="currentFileList">What the previous scan saw, which is what a deletion is measured against.</param>
     /// <param name="searchPattern">The pattern file names must match.</param>
     /// <param name="includeSubDirectories">Whether to descend into sub-directories.</param>
-    protected DirectoryScanResult GetUpdatedOrNewFiles(
+    private DirectoryScanResult GetUpdatedOrNewFiles(
         string directoryName,
         DateTimeOffset lastModifiedTime,
         DateTimeOffset maxAgeTime,

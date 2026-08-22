@@ -29,12 +29,12 @@ internal sealed class DirectoryScanJobModel
     internal List<FileInfo> CurrentFileList { get; private set; } = null!;
     internal IDirectoryScanListener DirectoryScanListener { get; private set; } = null!;
     internal DateTimeOffset LastModifiedTime { get; private set; }
-    internal DateTimeOffset MaxAgeTime => TimeProvider.GetUtcNow() - MinUpdateAge;
+    internal DateTimeOffset MaxAgeTime => TimeProvider.GetUtcNow() - Options.MinimumUpdateAge;
     private TimeProvider TimeProvider { get; set; } = null!;
-    private TimeSpan MinUpdateAge { get; set; }
+    private DirectoryScanOptions Options { get; set; } = null!;
     private JobDataMap JobDetailJobDataMap { get; set; } = null!;
-    public string SearchPattern { get; internal set; } = null!;
-    public bool IncludeSubDirectories { get; internal set; }
+    internal string SearchPattern => Options.SearchPattern;
+    internal bool IncludeSubDirectories => Options.IncludeSubDirectories;
 
     /// <summary>
     /// Creates an instance of DirectoryScanJobModel by inspecting the provided IJobExecutionContext <see cref="IJobExecutionContext"/>
@@ -56,24 +56,20 @@ internal sealed class DirectoryScanJobModel
             throw new JobExecutionException("Error obtaining scheduler context.", e);
         }
 
+        DirectoryScanOptions options = DirectoryScanOptions.FromJobData(mergedJobDataMap);
+
         var model = new DirectoryScanJobModel
         {
             TimeProvider = timeProvider,
-            DirectoryScanListener = GetListener(mergedJobDataMap, schedCtxt, serviceProvider),
+            Options = options,
+            DirectoryScanListener = GetListener(options.ScanListenerName, schedCtxt, serviceProvider),
             LastModifiedTime = mergedJobDataMap.ReadTimestamp(DirectoryScanJob.LastModifiedTime) ?? DateTimeOffset.MinValue,
-            MinUpdateAge = mergedJobDataMap.ContainsKey(DirectoryScanJob.MinimumUpdateAge)
-                ? TimeSpan.FromMilliseconds(mergedJobDataMap.GetLong(DirectoryScanJob.MinimumUpdateAge))
-                : TimeSpan.FromSeconds(5), // default of 5 seconds
             JobDetailJobDataMap = context.JobDetail.JobDataMap,
-            DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap)
+            DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap, options.DirectoryProviderName)
                 .Distinct().ToList(),
             CurrentFileList = mergedJobDataMap.TryGetValue(DirectoryScanJob.CurrentFileList, out object? value)
                 ? (List<FileInfo>) value!
                 : [],
-            SearchPattern = mergedJobDataMap.TryGetString(DirectoryScanJob.SearchPattern, out string? pattern)
-                ? pattern ?? "*"
-                : "*",
-            IncludeSubDirectories = mergedJobDataMap.TryGetBoolean(DirectoryScanJob.IncludeSubDirectories, out bool includeSubDirectories) && includeSubDirectories,
         };
 
         return model;
@@ -104,10 +100,9 @@ internal sealed class DirectoryScanJobModel
     }
 
 
-    private static List<string> GetDirectoriesToScan(SchedulerContext schedCtxt, JobDataMap mergedJobDataMap)
+    private static List<string> GetDirectoriesToScan(SchedulerContext schedCtxt, JobDataMap mergedJobDataMap, string? explicitDirProviderName)
     {
         IDirectoryProvider directoryProvider = new DefaultDirectoryProvider();
-        var explicitDirProviderName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryProviderName);
 
         if (explicitDirProviderName is not null)
         {
@@ -122,16 +117,8 @@ internal sealed class DirectoryScanJobModel
     }
 
 
-    private static IDirectoryScanListener GetListener(JobDataMap mergedJobDataMap, SchedulerContext schedCtxt, IServiceProvider? serviceProvider)
+    private static IDirectoryScanListener GetListener(string listenerName, SchedulerContext schedCtxt, IServiceProvider? serviceProvider)
     {
-        var listenerName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryScanListenerName);
-
-        if (listenerName is null)
-        {
-            throw new JobExecutionException("Required parameter '" +
-                                            DirectoryScanJob.DirectoryScanListenerName + "' not found in merged JobDataMap");
-        }
-
         // First, try to resolve from DI if service provider is available
         if (serviceProvider is not null)
         {

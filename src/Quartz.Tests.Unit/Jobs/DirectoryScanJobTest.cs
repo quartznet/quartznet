@@ -117,6 +117,60 @@ public class DirectoryScanJobTest
         }
     }
 
+    [Test]
+    public async Task DirectoryScanJob_ShouldScanWhatTheTypedOptionsSay()
+    {
+        string testDirectory = Path.Combine(Path.GetTempPath(), $"QuartzTest_{Guid.NewGuid()}");
+        string subDirectory = Path.Combine(testDirectory, "nested");
+        Directory.CreateDirectory(subDirectory);
+
+        try
+        {
+            string wanted = Path.Combine(testDirectory, "report.csv");
+            string nested = Path.Combine(subDirectory, "nested.csv");
+            string ignored = Path.Combine(testDirectory, "report.dat");
+            foreach (string path in new[] { wanted, nested, ignored })
+            {
+                await File.WriteAllTextAsync(path, "content");
+                File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddMinutes(-1));
+            }
+
+            var listener = new TestDirectoryScanListener();
+            var schedulerContext = new SchedulerContext { ["listener"] = listener };
+
+            var job = new DirectoryScanJob();
+            var context = TestUtil.NewJobExecutionContextFor(job, schedulerContext);
+
+            // Everything the job needs, said once, in named settings - including the search pattern
+            // and the recursion, which used to be reachable only as hardcoded string literals.
+            JobDataMap data = new DirectoryScanOptions
+            {
+                Directories = [testDirectory],
+                ScanListenerName = "listener",
+                SearchPattern = "*.csv",
+                IncludeSubDirectories = true,
+                MinimumUpdateAge = TimeSpan.FromSeconds(1),
+            }.ToJobData();
+
+            foreach (var pair in data)
+            {
+                context.MergedJobDataMap[pair.Key] = pair.Value;
+            }
+
+            await job.Execute(context);
+
+            TestDirectoryScanListener.UpdatedFileNames.Should().BeEquivalentTo(["report.csv", "nested.csv"],
+                "the pattern chose the CSVs and the recursion reached the nested one");
+        }
+        finally
+        {
+            if (Directory.Exists(testDirectory))
+            {
+                Directory.Delete(testDirectory, true);
+            }
+        }
+    }
+
     private sealed class TestDirectoryScanListener : IDirectoryScanListener
     {
         public static bool FilesUpdatedCalled { get; set; }
