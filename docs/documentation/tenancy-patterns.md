@@ -203,8 +203,11 @@ Celery's documentation is admirably direct about it: "Note that this is a *per w
 limit, and not a global rate limit. To enforce a global rate limit … you must restrict to a given
 queue." A `rate_limit` of 10/s across four workers is 40/s.
 
-Quartz.NET's execution limits have exactly this property, for exactly this reason: the running count
-lives in memory in the scheduler. See [what Quartz.NET does not give you](#what-quartz-net-does-not-give-you).
+Quartz.NET's execution limits have exactly this property by default, for exactly this reason: the
+running count lives in memory in the scheduler. On 4.x a limit can opt out of it — declared
+`ExecutionLimitScope.Cluster`, it is counted from the fired-triggers table instead, which is the same
+move Airflow's pools make and the one Hangfire charges for. See
+[what Quartz.NET does not give you](#what-quartz-net-does-not-give-you).
 
 The contrast is Hangfire. Its free tier has no per-queue or per-tenant cap either — worker count is
 per server — but `Hangfire.Throttling`, part of the paid **Hangfire Ace** set, adds mutexes,
@@ -428,7 +431,8 @@ rather than an isolation one.
 | Startup schema validation | Yes, `PerformSchemaValidation` on by default | Yes, `PerformSchemaValidation` on by default |
 | Execution groups and per-node limits | Yes | Yes |
 | Trigger group as the execution group | No — tag every trigger explicitly | Yes, `UseTriggerGroupWhenUnset()` |
-| Cluster-wide quotas or rate limiting | No | No |
+| Cluster-wide concurrency quota | No | Yes, `ExecutionLimitScope.Cluster` — approximate unless `AcquireTriggersWithinLock` |
+| Rate limiting (N per window) | No | No |
 | Node affinity (persisted, cluster-aware) | Yes, `WithPreferredNode` | Yes, `WithPreferredNode` |
 | Preparing the job's DI scope | Subclass and override `ConfigureScope` | `ConfigureJobScope(…)` delegate |
 | Per-scheduler health check | No — one check, on the default scheduler | Yes, `AddQuartzHealthChecks` per scheduler |
@@ -466,12 +470,19 @@ separate database only if the data must not sit beside another tenant's.
 A recommendation that oversells is worse than none, so these are the things multi-tenant deployments
 ask Quartz.NET for and do not get. They apply to both 3.x and 4.x unless noted.
 
-**Concurrency limits are per node, not cluster-wide.** Execution groups cap how many threads a
-category of work may use, and the running count lives in a dictionary in memory on the scheduler
-thread. Nothing is persisted and nodes do not coordinate, so a group limited to 3 can run up to 3×N
-across an N-node cluster. This is the same trap Celery documents for `rate_limit`, and the same one
-Hangfire only escapes in a paid add-on that coordinates through storage. The closest approximation is
-dividing the cap by the node count, which is wrong whenever a node is down.
+**Concurrency limits are per node unless you say otherwise, and on 3.x that is the only option.**
+Execution groups cap how many threads a category of work may use, and by default the running count
+lives in a dictionary in memory on the scheduler thread: nothing is persisted, nodes do not coordinate,
+and a group limited to 3 can run up to 3×N across an N-node cluster. This is the same trap Celery
+documents for `rate_limit`, and the same one Hangfire only escapes in a paid add-on that coordinates
+through storage. On 3.x the closest approximation is dividing the cap by the node count, which is wrong
+whenever a node is down.
+
+4.x adds the real thing: `ForGroup("acme", 8, ExecutionLimitScope.Cluster)` is counted from
+`QRTZ_FIRED_TRIGGERS`, which is already the cluster's reservation ledger. Read what it promises before
+relying on it — the ceiling holds within one acquisition round and can transiently overshoot by
+`(nodes − 1) × batchSize` unless `AcquireTriggersWithinLock` is on, and it fails closed, so a node that
+cannot reach the store fires nothing rather than firing unmetered.
 
 **There is no rate limiting.** Execution limits cap *concurrency*, not throughput. "This tenant may
 run 100 jobs an hour" is not something Quartz.NET can express; build it in the job, or in the thing
@@ -559,7 +570,8 @@ hubs and solved it by deriving the default name from the app name — a good ide
 the scheduler name from the tenant id rather than from a configuration file someone can copy-paste.
 
 **Assuming a per-node limit is a per-cluster limit.** Covered above, and repeated here because it is
-the failure that only shows up in production, after the second node is added.
+the failure that only shows up in production, after the second node is added. It is still the default
+on 4.x — a limit is cluster-wide only when it says `ExecutionLimitScope.Cluster`.
 
 **Letting per-tenant metrics multiply without a view.** A tenant dimension times a trigger-name
 dimension is a series per tenant per trigger. Aggregate before the data leaves the process.
