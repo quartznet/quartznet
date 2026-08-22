@@ -197,6 +197,24 @@ public class WireFormatSnapshotTest : WebApiTest
         await VerifyBody(body);
     }
 
+    /// <summary>
+    /// The other way to earn a 400: the request was well formed, and the scheduler refused it.
+    /// </summary>
+    /// <remarks>
+    /// This body had no pin at all, which is how the two 400 shapes came to differ unnoticed. Read it
+    /// beside <see cref="ValidationProblemDetailsBody" />: the members are the same, and only the
+    /// <c>detail</c> and the exception name say which layer rejected the request.
+    /// </remarks>
+    [Test]
+    public async Task SchedulerExceptionProblemDetailsBody()
+    {
+        A.CallTo(() => FakeScheduler.PauseAll(A<CancellationToken>._))
+            .Throws(_ => new SchedulerException("The scheduler has been shut down"));
+
+        string body = await Post($"{SchedulerUrl}/pause-all", requestJson: "", HttpStatusCode.BadRequest);
+        await VerifyBody(body);
+    }
+
     [Test]
     public async Task UnknownSchedulerProblemDetailsBody()
     {
@@ -239,8 +257,13 @@ public class WireFormatSnapshotTest : WebApiTest
             .Returns(new List<JobKey> { existingJob });
         A.CallTo(() => FakeScheduler.DeleteJob(existingJob, A<CancellationToken>._)).Returns(true);
         A.CallTo(() => FakeScheduler.DeleteJob(missingJob, A<CancellationToken>._)).Returns(false);
+        A.CallTo(() => FakeScheduler.DeleteJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).Returns(false);
         A.CallTo(() => FakeScheduler.DeleteCalendar("existing", A<CancellationToken>._)).Returns(true);
         A.CallTo(() => FakeScheduler.DeleteCalendar("missing", A<CancellationToken>._)).Returns(false);
+        A.CallTo(() => FakeScheduler.UnscheduleJob(existingTrigger, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => FakeScheduler.UnscheduleJob(missingTrigger, A<CancellationToken>._)).Returns(false);
+        A.CallTo(() => FakeScheduler.Interrupt(existingJob, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => FakeScheduler.Interrupt(missingJob, A<CancellationToken>._)).Returns(false);
 
         const string addJobJson = """
             {
@@ -294,11 +317,22 @@ public class WireFormatSnapshotTest : WebApiTest
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/keys/pause", HttpStatusCode.BadRequest,
                 """{"jobs":[{"group":"group"}]}""");
 
-            // deletes follow the same rule, under a name of their own
-            await Row(HttpMethod.Delete, $"{SchedulerUrl}/jobs/group/existing", HttpStatusCode.OK, expectedBody: """{"jobFound":true}""");
-            await Row(HttpMethod.Delete, $"{SchedulerUrl}/jobs/group/missing", HttpStatusCode.OK, expectedBody: """{"jobFound":false}""");
-            await Row(HttpMethod.Delete, $"{SchedulerUrl}/calendars/existing", HttpStatusCode.OK, expectedBody: """{"calendarFound":true}""");
-            await Row(HttpMethod.Delete, $"{SchedulerUrl}/calendars/missing", HttpStatusCode.OK, expectedBody: """{"calendarFound":false}""");
+            // deletes, unschedules and interrupts say the same word: every mutation that can be a
+            // no-op answers {"applied": …}, whatever it is a mutation of
+            await Row(HttpMethod.Delete, $"{SchedulerUrl}/jobs/group/existing", HttpStatusCode.OK, expectedBody: """{"applied":true}""");
+            await Row(HttpMethod.Delete, $"{SchedulerUrl}/jobs/group/missing", HttpStatusCode.OK, expectedBody: """{"applied":false}""");
+            await Row(HttpMethod.Delete, $"{SchedulerUrl}/calendars/existing", HttpStatusCode.OK, expectedBody: """{"applied":true}""");
+            await Row(HttpMethod.Delete, $"{SchedulerUrl}/calendars/missing", HttpStatusCode.OK, expectedBody: """{"applied":false}""");
+            await Row(HttpMethod.Post, $"{SchedulerUrl}/triggers/group/existing/unschedule", HttpStatusCode.OK, expectedBody: """{"applied":true}""");
+            await Row(HttpMethod.Post, $"{SchedulerUrl}/triggers/group/missing/unschedule", HttpStatusCode.OK, expectedBody: """{"applied":false}""");
+            await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/group/existing/interrupt", HttpStatusCode.OK, expectedBody: """{"applied":true}""");
+            await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/group/missing/interrupt", HttpStatusCode.OK, expectedBody: """{"applied":false}""");
+
+            // the plural delete and unschedule say it of the whole key set: a partial hit is false,
+            // even though the keys that were found were still deleted
+            await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/delete", HttpStatusCode.OK,
+                """{"jobs":[{"name":"existing","group":"group"},{"name":"missing","group":"group"}]}""",
+                expectedBody: """{"applied":false}""");
 
             // a malformed request is a 400, never a 404 or a 500
             await Row(HttpMethod.Get, $"{SchedulerUrl}/jobs?skip=-1", HttpStatusCode.BadRequest);

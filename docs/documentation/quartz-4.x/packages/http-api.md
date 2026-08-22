@@ -90,23 +90,70 @@ them as numbers needs to read names instead, or parse both.
 
 ## Response-shape conventions
 
-Which shape an operation answers with depends on what it has to say:
+**A `200` carries a body exactly when the operation has something to say that the caller could not
+have worked out for itself** — the value it computed, or whether it applied. The rule is the same for
+every endpoint, so the body follows from what the operation *is* rather than from which endpoint it
+was:
 
 | Operation | Answers |
 |---|---|
 | A read that found its target | `200` with the object |
 | A read whose target does not exist | `404` with RFC 7807 problem details |
-| A write that succeeded and has nothing to report | `200` with an **empty body** — `AddJob`, `TriggerJob`, `PauseAll`, `ScheduleJobs`, … |
-| A write whose outcome the caller needs | `200` with a one-field object — `{ "applied": … }`, `{ "jobFound": … }`, `{ "calendarFound": … }`, `{ "triggerFound": … }`, `{ "interrupted": … }`, `{ "groups": [ … ] }` |
+| A mutation that always acts | `200` with an **empty body** — `AddJob`, `TriggerJob`, `PauseAll`, `ScheduleJobs`, `AddCalendar`, `Start`, `Standby`, `Shutdown`, `Clear`, the execution-limit writes |
+| A mutation whose effect may be a no-op | `200` with `{ "applied": … }` |
+| …the same, aimed at a group matcher or a key set | `200` with what it applied to — `{ "groups": [ … ] }`, `{ "jobs": [ … ] }`, `{ "triggers": [ … ] }` |
+| A mutation that computed something | `200` with that value — `{ "firstFireTimeUtc": … }` from schedule and reschedule |
 
 An unknown scheduler is `404` whatever the operation was.
 
-`400` has two shapes, and the difference is *where* the request was rejected:
+`applied` means **the operation applied to everything it was aimed at**. For a single-key mutation
+that is the one key; for the plural `POST …/jobs/delete` and `POST …/triggers/unschedule` it is every
+key in the body, so a partial hit is `false` even though the keys that were found were still deleted.
 
-- A query parameter that could not be bound at all — `?take=not-a-number`, `?state=not-a-state` — never
-  reaches the endpoint, so the answer is `400` with **no body**.
-- A request the endpoint itself rejected — `?skip=-1`, a job with no name, unparseable JSON — is `400`
-  with problem details carrying a `detail` that says why.
+::: warning Changed in 4.x
+Six endpoints spelled this flag their own way in the 4.0 previews. They all say `applied` now:
+
+| Endpoint | 4.0 preview | 4.0 |
+|---|---|---|
+| `DELETE …/jobs/{group}/{name}` | `{ "jobFound": … }` | `{ "applied": … }` |
+| `POST …/jobs/delete` | `{ "allJobsFound": … }` | `{ "applied": … }` |
+| `POST …/jobs/{group}/{name}/interrupt`, `POST …/jobs/interrupt/{fireInstanceId}` | `{ "interrupted": … }` | `{ "applied": … }` |
+| `POST …/triggers/{group}/{name}/unschedule` | `{ "triggerFound": … }` | `{ "applied": … }` |
+| `POST …/triggers/unschedule` | `{ "allTriggersFound": … }` | `{ "applied": … }` |
+| `DELETE …/calendars/{name}` | `{ "calendarFound": … }` | `{ "applied": … }` |
+:::
+
+### Errors are one shape
+
+Every error the API produces is RFC 7807 problem details with the same members, whichever layer
+raised it: `type`, `title`, `status`, `detail`, and `Quartz-ExceptionType` naming the exception the
+server raised.
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "The scheduler has been shut down",
+  "Quartz-ExceptionType": "SchedulerException"
+}
+```
+
+A client maps the Quartz exception names — `SchedulerException`, `JobPersistenceException`,
+`ObjectAlreadyExistsException`, … — back to typed exceptions, and treats any other value as opaque;
+`HttpScheduler` does exactly that. `Quartz-ExceptionStackTrace` joins them only when
+`IncludeStackTraceInProblemDetails` is on.
+
+::: warning Changed in 4.x
+`Quartz-ExceptionType` rode only on the `SchedulerException` path in the 4.0 previews, so a `400`
+raised by request validation and a `400` raised by the scheduler were two different shapes and a
+client could not tell an absent member from one that is never sent.
+:::
+
+There is one case where a `400` has **no** body at all, and it is not the API's doing: a query
+parameter the framework could not bind — `?take=not-a-number`, `?state=not-a-state` — is rejected
+before the request reaches an endpoint. A request the endpoint itself rejected — `?skip=-1`, a job
+with no name, unparseable JSON — always answers with the problem details above.
 
 ## Listing endpoints are paged
 

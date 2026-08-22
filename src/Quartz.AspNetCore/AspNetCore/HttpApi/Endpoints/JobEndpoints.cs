@@ -376,7 +376,7 @@ internal static class JobEndpoints
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), request?.JobData, cancellationToken).AsTask());
     }
 
-    [ProducesResponseType(typeof(InterruptResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> InterruptJob(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -388,11 +388,11 @@ internal static class JobEndpoints
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var interrupted = await scheduler.Interrupt(new JobKey(jobName, jobGroup), cancellationToken).ConfigureAwait(false);
-            return new InterruptResponse(interrupted);
+            return new OperationAppliedResponse(interrupted);
         });
     }
 
-    [ProducesResponseType(typeof(InterruptResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> InterruptJobInstance(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -403,11 +403,11 @@ internal static class JobEndpoints
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var interrupted = await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
-            return new InterruptResponse(interrupted);
+            return new OperationAppliedResponse(interrupted);
         });
     }
 
-    [ProducesResponseType(typeof(DeleteJobResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> DeleteJob(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -419,11 +419,11 @@ internal static class JobEndpoints
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var jobFound = await scheduler.DeleteJob(new JobKey(jobName, jobGroup), cancellationToken).ConfigureAwait(false);
-            return new DeleteJobResponse(jobFound);
+            return new OperationAppliedResponse(jobFound);
         });
     }
 
-    [ProducesResponseType(typeof(DeleteJobsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> DeleteJobs(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -436,7 +436,7 @@ internal static class JobEndpoints
         {
             var jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
             var allJobsFound = await scheduler.DeleteJobs(jobKeys, cancellationToken).ConfigureAwait(false);
-            return new DeleteJobsResponse(allJobsFound);
+            return new OperationAppliedResponse(allJobsFound);
         });
     }
 

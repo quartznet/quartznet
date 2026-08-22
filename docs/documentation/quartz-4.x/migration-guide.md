@@ -4971,6 +4971,58 @@ Only these two enums are affected, and the converters are registered per enum ty
 its converters to the application's shared `JsonOptions`, and a host's own endpoints must keep rendering
 their own enums the way they always did.
 
+## Every mutation says `applied`, and every error is one shape
+
+Which body a `200` carries is now a rule rather than a per-endpoint fact: **a `200` carries a body
+exactly when the operation has something to say that the caller could not have worked out for
+itself.** A mutation that always acts — `AddJob`, `TriggerJob`, `PauseAll`, `ScheduleJobs`,
+`AddCalendar`, the scheduler and execution-limit writes — answers with an empty body; a mutation whose
+effect may be a no-op answers `{"applied": …}`; a mutation aimed at a group matcher or a key set
+answers with what it applied to; and a mutation that computed something answers with that value.
+
+The empty-body and `{"applied": …}` halves were already split that way. What was not consistent was
+the *name*: six endpoints spelled the flag their own way, so a caller had to look up the body per
+endpoint instead of predicting it.
+
+| Endpoint | 4.0 preview | 4.0 |
+|---|---|---|
+| `DELETE …/jobs/{group}/{name}` | `{"jobFound": …}` | `{"applied": …}` |
+| `POST …/jobs/delete` | `{"allJobsFound": …}` | `{"applied": …}` |
+| `POST …/jobs/{group}/{name}/interrupt` | `{"interrupted": …}` | `{"applied": …}` |
+| `POST …/jobs/interrupt/{fireInstanceId}` | `{"interrupted": …}` | `{"applied": …}` |
+| `POST …/triggers/{group}/{name}/unschedule` | `{"triggerFound": …}` | `{"applied": …}` |
+| `POST …/triggers/unschedule` | `{"allTriggersFound": …}` | `{"applied": …}` |
+| `DELETE …/calendars/{name}` | `{"calendarFound": …}` | `{"applied": …}` |
+
+`applied` means the operation applied to everything it was aimed at. For a single key that is the one
+key; for the two plural forms it is every key in the body, which is what `allJobsFound` and
+`allTriggersFound` meant — a partial hit is `false`, and the keys that were found are still deleted.
+`HttpScheduler` reads the new spelling, so a client and server upgraded together need no code change;
+a hand-written client reading the old names does.
+
+Errors gained the same treatment. Every problem-details body the API produces now carries the same
+members whichever layer raised it — `type`, `title`, `status`, `detail` and `Quartz-ExceptionType`:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "The scheduler has been shut down",
+  "Quartz-ExceptionType": "SchedulerException"
+}
+```
+
+`Quartz-ExceptionType` used to ride only on the `SchedulerException` path, so a `400` from request
+validation and a `400` from the scheduler were two different shapes, and a client could not tell a
+body the member was missing from a body that never carries it. It now names the exception type on
+every error, including the framework's own — `BadHttpRequestException` for a request the endpoint
+rejected, `NotFoundException` for a `404`. Map the Quartz names back to typed exceptions and treat the
+rest as opaque, which is what `HttpScheduler` does.
+
+The one `400` that still has no body is not the API's: a query parameter the framework could not bind
+never reaches an endpoint, so nothing of ours writes the response.
+
 ## The dashboard's client speaks one currency
 
 `IQuartzApiClient` is the dashboard's own projection of the HTTP API — public so that an application can

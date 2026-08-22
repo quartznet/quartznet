@@ -1,0 +1,7 @@
+﻿{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "The scheduler has been shut down",
+  "Quartz-ExceptionType": "SchedulerException"
+}

@@ -2,5 +2,6 @@
   "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5",
   "title": "Not Found",
   "status": 404,
-  "detail": "Unknown scheduler no-such-scheduler"
+  "detail": "Unknown scheduler no-such-scheduler",
+  "Quartz-ExceptionType": "NotFoundException"
 }

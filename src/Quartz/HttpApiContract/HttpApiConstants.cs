@@ -23,7 +23,20 @@ namespace Quartz.HttpApiContract;
 
 internal static class HttpApiConstants
 {
+    /// <summary>
+    /// The problem-details member naming the exception type the server raised.
+    /// </summary>
+    /// <remarks>
+    /// Present on every error body, whichever layer produced it, so that the shape of an error does
+    /// not depend on its cause. A client maps the Quartz exception names back to typed exceptions and
+    /// treats every other value as opaque — the framework's own names appear here too.
+    /// </remarks>
     public const string ProblemDetailsExceptionType = "Quartz-ExceptionType";
+
+    /// <summary>
+    /// The problem-details member carrying the exception's stack trace, present only when
+    /// <c>QuartzHttpApiOptions.IncludeStackTraceInProblemDetails</c> asks for it.
+    /// </summary>
     public const string ProblemDetailsStackTrace = "Quartz-ExceptionStackTrace";
 
     /// <summary>

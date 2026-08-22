@@ -256,27 +256,27 @@ public sealed class HttpScheduler : IScheduler
 
     public async ValueTask<bool> UnscheduleJob(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.PostWithResponse<UnscheduleJobResponse>(
+        var result = await httpClient.PostWithResponse<OperationAppliedResponse>(
             $"{TriggerEndpointUrl(triggerKey)}/unschedule",
             jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
-        return result.TriggerFound;
+        return result.Applied;
     }
 
     public async ValueTask<bool> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(triggerKeys);
 
-        var result = await httpClient.PostWithResponse<UnscheduleJobsRequest, UnscheduleJobsResponse>(
+        var result = await httpClient.PostWithResponse<UnscheduleJobsRequest, OperationAppliedResponse>(
             $"{TriggerEndpointUrl()}/unschedule",
             new UnscheduleJobsRequest(triggerKeys.Select(KeyDto.Create).ToArray()),
             jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
-        return result.AllTriggersFound;
+        return result.Applied;
     }
 
     public async ValueTask<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger, CancellationToken cancellationToken = default)
@@ -368,22 +368,22 @@ public sealed class HttpScheduler : IScheduler
 
     public async ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.DeleteWithResponse<DeleteJobResponse>($"{JobEndpointUrl(jobKey)}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result.JobFound;
+        var result = await httpClient.DeleteWithResponse<OperationAppliedResponse>($"{JobEndpointUrl(jobKey)}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Applied;
     }
 
     public async ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(jobKeys);
 
-        var result = await httpClient.PostWithResponse<DeleteJobsRequest, DeleteJobsResponse>(
+        var result = await httpClient.PostWithResponse<DeleteJobsRequest, OperationAppliedResponse>(
             $"{JobEndpointUrl()}/delete",
             new DeleteJobsRequest(jobKeys.Select(KeyDto.Create).ToArray()),
             jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
-        return result.AllJobsFound;
+        return result.Applied;
     }
 
     public ValueTask TriggerJob(JobKey jobKey, JobDataMap? data = null, CancellationToken cancellationToken = default)
@@ -711,8 +711,8 @@ public sealed class HttpScheduler : IScheduler
 
     public async ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.DeleteWithResponse<DeleteCalendarResponse>(CalendarEndpointUrl(calendarName), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result.CalendarFound;
+        var result = await httpClient.DeleteWithResponse<OperationAppliedResponse>(CalendarEndpointUrl(calendarName), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Applied;
     }
 
     public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
@@ -722,8 +722,8 @@ public sealed class HttpScheduler : IScheduler
 
     public async ValueTask<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostWithResponse<InterruptResponse>($"{JobEndpointUrl(jobKey)}/interrupt", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return response.Interrupted;
+        var response = await httpClient.PostWithResponse<OperationAppliedResponse>($"{JobEndpointUrl(jobKey)}/interrupt", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return response.Applied;
     }
 
     public async ValueTask<bool> InterruptFireInstance(string fireInstanceId, CancellationToken cancellationToken = default)
@@ -733,13 +733,13 @@ public sealed class HttpScheduler : IScheduler
             throw new ArgumentException("Fire instance id required", nameof(fireInstanceId));
         }
 
-        var response = await httpClient.PostWithResponse<InterruptResponse>(
+        var response = await httpClient.PostWithResponse<OperationAppliedResponse>(
             $"{JobEndpointUrl()}/interrupt/{fireInstanceId}",
             jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
-        return response.Interrupted;
+        return response.Applied;
     }
 
     public async ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default)

@@ -432,7 +432,7 @@ internal static class TriggerEndpoints
         });
     }
 
-    [ProducesResponseType(typeof(UnscheduleJobResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> UnscheduleJob(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -444,11 +444,11 @@ internal static class TriggerEndpoints
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var triggerFound = await scheduler.UnscheduleJob(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
-            return new UnscheduleJobResponse(triggerFound);
+            return new OperationAppliedResponse(triggerFound);
         });
     }
 
-    [ProducesResponseType(typeof(UnscheduleJobsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> UnscheduleJobs(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -461,7 +461,7 @@ internal static class TriggerEndpoints
         {
             var triggerKeys = request.Triggers.Select(x => x.AsTriggerKey()).ToArray();
             var allTriggersFound = await scheduler.UnscheduleJobs(triggerKeys, cancellationToken).ConfigureAwait(false);
-            return new UnscheduleJobsResponse(allTriggersFound);
+            return new OperationAppliedResponse(allTriggersFound);
         });
     }
 
