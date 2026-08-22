@@ -78,7 +78,7 @@ jobs:
             /o:"quartznet" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$SONAR_TOKEN" \
-            /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml"
+            /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml"             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**"             /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**"
       # Has to sit between begin and end: the scanner analyses through MSBuild, so only projects
       # actually built while it is active are measured.
       - name: 'Run: Compile, UnitTest'
