@@ -356,12 +356,33 @@ partial class Build
 
     static string Build40Script(string dialect)
     {
+        // Every dialect but SQLite guards its ADD COLUMN, so its script can land on a database that
+        // already took some of the optional 3.x migrations. SQLite has no conditional DDL, so saying
+        // the same thing there was a lie -- it fails on the first column that is already present
+        // (#3322). Sections 1-3 are the unguarded ones; section 4 is guarded on every dialect.
+        string[] supersedes = dialect == "sqlite"
+            ?
+            [
+                "This script supersedes the optional per-feature migrations in ../3.17, ../3.18,",
+                "../3.19 and ../3.20 -- it applies everything they do, and it assumes none of them",
+                "were applied. Run it exactly once, against a database that took none of the optional",
+                "3.x column migrations.",
+                "",
+                "On a partially-migrated database take the stepped route instead -- run the",
+                "per-feature files you are still missing -- or check PRAGMA table_info(<table>) and",
+                "apply only the sections whose columns are absent.",
+            ]
+            :
+            [
+                "This script supersedes the optional per-feature migrations in ../3.17, ../3.18,",
+                "../3.19 and ../3.20 -- it applies everything they do. If you already ran some of",
+                "them, run this anyway: every statement checks first, so it is safe on a",
+                "partially-migrated database.",
+            ];
+
         List<string> extra =
         [
-            "This script supersedes the optional per-feature migrations in ../3.17, ../3.18,",
-            "../3.19 and ../3.20 -- it applies everything they do. If you already ran some of",
-            "them, run this anyway: every statement checks first, so it is safe on a",
-            "partially-migrated database.",
+            .. supersedes,
             "",
             "Sections, in order:",
             "  1. MISFIRE_ORIG_FIRE_TIME column                REQUIRED",
@@ -387,7 +408,8 @@ partial class Build
                 "4.x removed those probes and assumes all four exist, so a 3.x database that never",
                 "ran the optional migrations will fail against 4.x until this script has run.",
             ],
-            extra);
+            extra,
+            sqliteNotIdempotent: true);
 
         string[] sections =
         [
