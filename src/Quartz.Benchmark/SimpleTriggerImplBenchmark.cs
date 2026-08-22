@@ -359,7 +359,7 @@ public class SimpleTriggerImplBenchmark
         /// not repeat.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-        public SimpleTriggerImplLegacy(string name) : this(name, SchedulerConstants.DefaultGroup)
+        public SimpleTriggerImplLegacy(string name) : this(name, TriggerKey.DefaultGroup)
         {
         }
 
@@ -379,7 +379,7 @@ public class SimpleTriggerImplBenchmark
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public SimpleTriggerImplLegacy(string name, int repeatCount, TimeSpan repeatInterval)
-            : this(name, SchedulerConstants.DefaultGroup, repeatCount, repeatInterval)
+            : this(name, TriggerKey.DefaultGroup, repeatCount, repeatInterval)
         {
         }
 
@@ -399,7 +399,7 @@ public class SimpleTriggerImplBenchmark
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public SimpleTriggerImplLegacy(string name, DateTimeOffset startTimeUtc)
-            : this(name, SchedulerConstants.DefaultGroup, startTimeUtc)
+            : this(name, TriggerKey.DefaultGroup, startTimeUtc)
         {
         }
 
@@ -428,7 +428,7 @@ public class SimpleTriggerImplBenchmark
         /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public SimpleTriggerImplLegacy(string name, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, int repeatCount, TimeSpan repeatInterval)
-            : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, repeatCount, repeatInterval)
+            : this(name, TriggerKey.DefaultGroup, startTimeUtc, endTimeUtc, repeatCount, repeatInterval)
         {
         }
 

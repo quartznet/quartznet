@@ -532,8 +532,8 @@ public class XmlSchedulingDataProcessorTest
             """));
 
         ITrigger trigger = processor.SingleTrigger;
-        trigger.Key.Group.Should().Be(SchedulerConstants.DefaultGroup);
-        trigger.JobKey.Group.Should().Be(SchedulerConstants.DefaultGroup);
+        trigger.Key.Group.Should().Be(TriggerKey.DefaultGroup);
+        trigger.JobKey.Group.Should().Be(JobKey.DefaultGroup);
         trigger.Description.Should().BeNull();
         trigger.CalendarName.Should().BeNull();
         trigger.EndTimeUtc.Should().BeNull();
@@ -599,7 +599,7 @@ public class XmlSchedulingDataProcessorTest
             """));
 
         IJobDetail job = processor.SingleJob;
-        job.Key.Should().Be(new JobKey("job1", SchedulerConstants.DefaultGroup));
+        job.Key.Should().Be(new JobKey("job1", JobKey.DefaultGroup));
         job.Description.Should().BeNull();
         job.Durable.Should().BeFalse();
         job.RequestsRecovery.Should().BeFalse();
@@ -860,7 +860,7 @@ public class XmlSchedulingDataProcessorTest
             </pre-processing-commands>
             """)), scheduler);
 
-        A.CallTo(() => scheduler.DeleteJob(new JobKey("doomedJob", SchedulerConstants.DefaultGroup), A<CancellationToken>._))
+        A.CallTo(() => scheduler.DeleteJob(new JobKey("doomedJob", JobKey.DefaultGroup), A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -1433,7 +1433,7 @@ public class XmlSchedulingDataProcessorTest
 
         A.CallTo(() => scheduler.ScheduleJob(
                 A<IJobDetail>.That.Matches(j => j.Key == new JobKey("job1", "group1")),
-                A<ITrigger>.That.Matches(t => t.Key == new TriggerKey("trigger1", SchedulerConstants.DefaultGroup)),
+                A<ITrigger>.That.Matches(t => t.Key == new TriggerKey("trigger1", TriggerKey.DefaultGroup)),
                 A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }

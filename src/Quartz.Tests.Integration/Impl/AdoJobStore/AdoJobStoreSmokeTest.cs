@@ -537,7 +537,7 @@ public class AdoJobStoreSmokeTest
 
             for (int i = 0; i < 100000; ++i)
             {
-                IOperableTrigger ct = new CronTriggerImpl("stressing_cron", SchedulerConstants.DefaultGroup, "0/1 * * * * ?");
+                IOperableTrigger ct = new CronTriggerImpl("stressing_cron", TriggerKey.DefaultGroup, "0/1 * * * * ?");
                 ct.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
                 await scheduler.ScheduleJob(job, ct);
             }

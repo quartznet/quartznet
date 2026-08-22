@@ -92,7 +92,7 @@ internal sealed class JobTypeInformation
 internal sealed class JobDetailImpl : IJobDetail
 {
     private string name = null!;
-    private string group = SchedulerConstants.DefaultGroup;
+    private string group = JobKey.DefaultGroup;
     private string? description;
     private JobDataMap jobDataMap = null!;
     private bool? disallowConcurrentExecution;
@@ -104,19 +104,19 @@ internal sealed class JobDetailImpl : IJobDetail
     /// <summary>
     /// Create a <see cref="IJobDetail" /> with the given name, default group, and
     /// the default settings of all the other properties.
-    /// If <see langword="null" />, SchedulerConstants.DefaultGroup will be used.
+    /// If <see langword="null" />, JobKey.DefaultGroup will be used.
     /// </summary>
     /// <exception cref="ArgumentException">
     /// If name is null or empty, or the group is an empty string.
     /// </exception>
-    public JobDetailImpl(string name, Type jobType) : this(name, SchedulerConstants.DefaultGroup, jobType)
+    public JobDetailImpl(string name, Type jobType) : this(name, JobKey.DefaultGroup, jobType)
     {
     }
 
     /// <summary>
     /// Create a <see cref="IJobDetail" /> with the given name, and group, and
     /// the default settings of all the other properties.
-    /// If <see langword="null" />, SchedulerConstants.DefaultGroup will be used.
+    /// If <see langword="null" />, JobKey.DefaultGroup will be used.
     /// </summary>
     /// <exception cref="ArgumentException">
     /// If name is null or empty, or the group is an empty string.
@@ -133,7 +133,7 @@ internal sealed class JobDetailImpl : IJobDetail
     /// the given settings of all the other properties.
     /// </summary>
     /// <param name="name">The name.</param>
-    /// <param name="group">if <see langword="null" />, SchedulerConstants.DefaultGroup will be used.</param>
+    /// <param name="group">if <see langword="null" />, JobKey.DefaultGroup will be used.</param>
     /// <param name="jobType">Type of the job.</param>
     /// <param name="isDurable">if set to <c>true</c>, job will be durable.</param>
     /// <param name="requestsRecovery">if set to <c>true</c>, job will request recovery.</param>
@@ -208,7 +208,7 @@ internal sealed class JobDetailImpl : IJobDetail
 
     /// <summary>
     /// Get or sets the group of this <see cref="IJob" />.
-    /// If <see langword="null" />, <see cref="SchedulerConstants.DefaultGroup" /> will be used.
+    /// If <see langword="null" />, <see cref="Key{T}.DefaultGroup" /> will be used.
     /// </summary>
     /// <exception cref="ArgumentException">
     /// If the group is an empty string.
@@ -225,7 +225,7 @@ internal sealed class JobDetailImpl : IJobDetail
 
             if (value is null)
             {
-                value = SchedulerConstants.DefaultGroup;
+                value = JobKey.DefaultGroup;
             }
 
             group = value;

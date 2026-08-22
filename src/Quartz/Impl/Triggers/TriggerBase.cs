@@ -57,9 +57,9 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
 #pragma warning disable IDE0052
     // We use these field to (de)serialize the Key and JobKey for backward compatibility
     private string name = null!;
-    private string group = SchedulerConstants.DefaultGroup;
+    private string group = TriggerKey.DefaultGroup;
     private string jobName = null!;
-    private string jobGroup = SchedulerConstants.DefaultGroup;
+    private string jobGroup = JobKey.DefaultGroup;
 #pragma warning restore IDE0052
 
     [NonSerialized] // we serialize this via the 'name' and 'group' fields
