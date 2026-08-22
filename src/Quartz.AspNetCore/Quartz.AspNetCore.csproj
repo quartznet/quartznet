@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
   </ItemGroup>
 
 </Project>
