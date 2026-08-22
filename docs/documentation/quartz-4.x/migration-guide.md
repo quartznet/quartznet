@@ -3369,6 +3369,61 @@ job store of your own cannot silently opt out of the derivation by not passing i
 + if (!slots.TryTake(candidate.ExecutionGroup, candidate.Key.Group))
 ```
 
+## An execution limit can be cluster-wide
+
+An execution limit now says what it is counted against. `ExecutionLimitScope.Node`, the default and the
+only behaviour 3.x and earlier 4.0 previews had, is what *this* node may run — so an N-node cluster runs
+up to N times the number. `ExecutionLimitScope.Cluster` is what every node sharing the job store may run
+between them, which is what a per-tenant quota actually means:
+
+```csharp
+q.UseExecutionLimits(limits => limits
+    .ForGroup("high-cpu", 2)                                  // per node, as before
+    .ForGroup("tenant-acme", 8, ExecutionLimitScope.Cluster)  // per cluster
+    .ForOtherGroups(1));
+```
+
+Nothing changes for a configuration that does not ask for it, and both scopes can appear in one set of
+limits. `quartz.clusterExecutionLimit.<group>` is the property spelling, taking the same group keys and
+values as `quartz.executionLimit.<group>`.
+
+**No schema change.** The count is an aggregate over `QRTZ_FIRED_TRIGGERS.EXECUTION_GROUP`, which has
+shipped on every dialect since 3.18 and has been written since the fired-trigger insert started carrying
+it. A row there already has a reservation's lifetime — inserted on acquisition, updated when the trigger
+fires, deleted on completion or by cluster recovery — so there is no new table, no new column, and no
+migration on either branch.
+
+Read [Execution Groups](/documentation/quartz-4.x/tutorial/execution-groups.html#clustering-considerations)
+before relying on it: the ceiling is **approximate with a bounded overshoot** unless
+`AcquireTriggersWithinLock` is on, it **fails closed** (a node that cannot reach the store fires nothing
+rather than firing unmetered), and work held at a ceiling for longer than `MisfireThreshold` goes to
+misfire handling.
+
+### What moved
+
+| Before | 4.0 |
+|---|---|
+| `ExecutionGroupLimit(ExecutionGroupScope Scope, int? MaxConcurrent)` | `ExecutionGroupLimit(ExecutionGroupScope Group, int? MaxConcurrent, ExecutionLimitScope Scope = Node)` |
+| `ExecutionLimits.TryGetLimit(ExecutionGroupScope scope, out int?)` | `TryGetLimit(ExecutionGroupScope group, out int?)` — parameter renamed; the number is still all it returns |
+| `ExecutionLimits.CreateSlots()` | `CreateSlots(IReadOnlyCollection<ExecutionGroupInFlight>? clusterInFlight = null)` |
+| — | `ExecutionLimits.HasClusterScopedLimits` |
+| — | `ExecutionGroupInFlight(string? ExecutionGroup, string TriggerGroup, int Count)` |
+| — | `TriggerAcquisitionCriteria.ClusterInFlight` |
+| — | `IDriverDelegate.SelectExecutionGroupsInFlight(conn, cancellationToken)` |
+| `ExecutionLimitsResponse` / `SetExecutionLimitsRequest` carrying `Dictionary<string, int?>` | carrying `Dictionary<string, ExecutionLimitDto>`, where the DTO is `(int? MaxConcurrent, ExecutionLimitScope Scope)` |
+| `ExecutionLimitsDto(Dictionary<string, int?> Limits)` (dashboard) | `ExecutionLimitsDto(Dictionary<string, DashboardExecutionLimit> Limits)` |
+
+If you implement `IDriverDelegate` from scratch rather than deriving from `StdAdoDelegate`, the new
+member is a compile break — deliberately, because returning "nothing in flight" from a stub would fail
+the ceiling open. `StdAdoDelegate` implements it for every dialect with one statement and no overrides.
+
+If you implement `IJobStore`, nothing is required: a store that reports `Clustered == false` has one
+node, so a cluster-scoped limit and a node-scoped one are the same number, and the limits it is handed
+already say what that number is. A store that *is* clustered honours the scope by passing its own
+in-flight counts to `CreateSlots`, and must **not** expect the scheduler thread to have subtracted this
+node's running work from a cluster-scoped limit — those firings are already reservations in its own
+ledger, and subtracting them twice halves the quota.
+
 ## Batched Misfire Recovery
 
 Misfire recovery now handles a whole batch of misfired triggers with a handful of statements instead of a
@@ -5072,7 +5127,7 @@ already had `JobKeyDto` and `TriggerKeyDto`. Now it says what Quartz says:
 | `GetCurrentlyExecutingJobs(name)` → `List<CurrentlyExecutingJobDto>` | `GetFireInstances(name, DashboardFireInstanceQuery)` → `PagedResult<FireInstanceDto>`, following `IScheduler` — see [What is running is a listing, not a list of contexts](#what-is-running-is-a-listing-not-a-list-of-contexts) |
 | `CurrentlyExecutingJobDto` | `FireInstanceDto`: `FireInstanceId` is non-null and leads, `JobKey` is nullable (an acquired firing has no job loaded yet), and `SchedulerInstanceId`, `FireInstanceState State` and `ScheduledFireTimeUtc` are new |
 | `IsJobGroupPaused(name, group)` → `bool` | `GetJobGroups(name)` → `List<JobGroupDto>`, each carrying `Name` and `Paused`; one call answers for every group instead of one |
-| `ExecutionLimitsDto(IReadOnlyDictionary<string, int?> Limits)` | `ExecutionLimitsDto(Dictionary<string, int?> Limits)` — concrete out, as everywhere else |
+| `ExecutionLimitsDto(IReadOnlyDictionary<string, int?> Limits)` | `ExecutionLimitsDto(Dictionary<string, DashboardExecutionLimit> Limits)` — concrete out, as everywhere else, and each entry carries the limit's [scope](#an-execution-limit-can-be-cluster-wide) as well as its number |
 | `IDashboardHistoryStore.GetPage(name, page, pageSize, jobFilter, triggerFilter)` → `DashboardHistoryPage` | `GetPage(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>` |
 | `…Job(name, string group, string jobName)` — eight members | `…Job(name, JobKeyDto)` |
 | `…Trigger(name, string group, string triggerName)` — seven members | `…Trigger(name, TriggerKeyDto)` |
@@ -6499,17 +6554,21 @@ the type was a dictionary, and it is the reason the lookup is a `TryGet` rather 
 The read side is typed instead of spelled. `ExecutionGroupScope` is a readonly record struct with exactly the
 three cases the builder can write — `Default` (triggers with no execution group), `OtherGroups` (the catch-all)
 and `Named(name)` — mirroring how `PreferredNode` models none/auto/named rather than using a nullable string
-with a sentinel. `ExecutionGroupLimit.Scope` replaces `ExecutionGroupLimit.Group`, so enumerating `Groups` no
-longer requires knowing that `null` meant the default bucket and `"*"` meant the catch-all:
+with a sentinel. `ExecutionGroupLimit.Group` is that value, so enumerating `Groups` no longer requires knowing
+that `null` meant the default bucket and `"*"` meant the catch-all:
 
 ```csharp
 foreach (ExecutionGroupLimit limit in limits.Groups)
 {
-    string label = limit.Scope.IsDefault ? "(default)"
-        : limit.Scope.IsOtherGroups ? "(other groups)"
-        : limit.Scope.Name!;
+    string label = limit.Group.IsDefault ? "(default)"
+        : limit.Group.IsOtherGroups ? "(other groups)"
+        : limit.Group.Name!;
 }
 ```
+
+`ExecutionGroupLimit.Scope` is a different thing — `ExecutionLimitScope.Node` or `.Cluster`, added by
+[cluster-wide ceilings](#an-execution-limit-can-be-cluster-wide). The two words sit side by side on
+purpose: `Group` says *which* bucket the limit is for, `Scope` says *what it is counted against*.
 
 The configuration spellings are unchanged: `quartz.executionLimit.*` keys and the HTTP API still say `*` for the
 catch-all and `_` or `null` for the default bucket (neither a property key nor a JSON object key can be empty).
@@ -6548,6 +6607,9 @@ public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
 Create the ledger per acquisition attempt, not per store: it is mutable and not thread-safe by design, and a
 retried acquisition has to start from the limits again rather than from what the failed attempt had counted down.
 `CreateSlots()` leaves the snapshot untouched, so the same `ExecutionLimits` can produce as many as you need.
+
+A clustered store of your own has one more thing to do — see
+[cluster-wide ceilings](#an-execution-limit-can-be-cluster-wide).
 
 ## Interruption has two names, not three
 

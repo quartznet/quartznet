@@ -2,7 +2,7 @@
 title: 'Execution Groups'
 ---
 
-Execution groups allow you to limit how many threads a category of job can use concurrently on a given scheduler node.
+Execution groups allow you to limit how many threads a category of job can use concurrently.
 This prevents resource-intensive jobs from starving lightweight jobs of available threads.
 
 ## Concepts
@@ -10,14 +10,21 @@ This prevents resource-intensive jobs from starving lightweight jobs of availabl
 An **execution group** is an optional tag on a trigger that characterizes the resource requirements of its associated job.
 Examples might be `"batch-jobs"`, `"high-cpu"`, `"large-ram"`, or `"reports"`.
 
-**Execution limits** are configured per node, declaring how many threads each group may consume:
+**Execution limits** declare how many threads each group may consume:
 
 - A positive integer (e.g. `5`) limits the group to that many concurrent executions.
-- `0` forbids the group from running on this node entirely.
+- `0` forbids the group from running entirely.
 - No limit configured means unlimited (no restriction).
 
-Each scheduler node can declare its own independent limits, making this ideal for heterogeneous clusters
-where some nodes are tuned for heavy batch work and others for lightweight, latency-sensitive jobs.
+Every limit also says **what it is counted against**, its `ExecutionLimitScope`:
+
+| Scope | The number is | Use it for |
+| -- | -- | -- |
+| `Node` (the default) | what *this* node may run at once. Each node enforces its own copy, so an N-node cluster can be running N times the number. | heterogeneous hardware — a batch node and an API node want different numbers |
+| `Cluster` | what *every node sharing the job store* may run between them | quotas — "this tenant gets eight threads", however many nodes are up |
+
+The two coexist in one set of limits, and one deployment often wants both. A limit that says nothing is
+node-scoped, which is what execution limits have always meant.
 
 ## Setting execution groups on triggers
 
@@ -67,18 +74,27 @@ quartz.executionLimit.batch-jobs = 2
 quartz.executionLimit.high-cpu = 3
 quartz.executionLimit._ = 10
 quartz.executionLimit.* = 5
+
+quartz.clusterExecutionLimit.tenant-acme = 8
 ```
 
 | Key | Meaning |
 |-----|---------|
-| `batch-jobs` | At most 2 concurrent "batch-jobs" triggers |
-| `high-cpu` | At most 3 concurrent "high-cpu" triggers |
-| `_` (underscore) | At most 10 concurrent triggers with no execution group |
-| `*` (asterisk) | Default limit of 5 for any group not explicitly listed |
+| `quartz.executionLimit.batch-jobs` | At most 2 concurrent "batch-jobs" triggers **on this node** |
+| `quartz.executionLimit.high-cpu` | At most 3 concurrent "high-cpu" triggers on this node |
+| `quartz.executionLimit._` (underscore) | At most 10 concurrent triggers with no execution group, on this node |
+| `quartz.executionLimit.*` (asterisk) | Default limit of 5 for any group not explicitly listed |
+| `quartz.clusterExecutionLimit.tenant-acme` | At most 8 concurrent "tenant-acme" triggers **across the whole cluster** |
+
+`quartz.clusterExecutionLimit.*` takes the same group keys — including `_` and `*` — and the same
+values as `quartz.executionLimit.*`; the only difference is the scope. It is a prefix of its own rather
+than a magic value under the existing one, because every key under `quartz.executionLimit` is a group
+name and every value is a count, so neither half had a spelling to spare.
 
 Special values for the limit:
-- `unlimited`, `none`, or `null` — no restriction (same as not listing the group)
-- `0` — completely forbidden on this node
+- `unlimited`, `none`, or `null` — no restriction (same as not listing the group); it takes no scope,
+  since unlimited on a node and unlimited across the cluster are the same permission
+- `0` — completely forbidden
 
 ### Via dependency injection
 
@@ -87,13 +103,17 @@ services.AddQuartz(q =>
 {
     q.UseExecutionLimits(limits =>
     {
-        limits.ForGroup("batch-jobs", maxConcurrent: 2);
-        limits.ForGroup("high-cpu", maxConcurrent: 3);
+        limits.ForGroup("batch-jobs", maxConcurrent: 2);                        // per node
+        limits.ForGroup("high-cpu", maxConcurrent: 3);                          // per node
+        limits.ForGroup("tenant-acme", 8, ExecutionLimitScope.Cluster);         // per cluster
         limits.ForDefaultGroup(maxConcurrent: 10);
         limits.ForOtherGroups(maxConcurrent: 5);
     });
 });
 ```
+
+`ForGroup`, `ForDefaultGroup` and `ForOtherGroups` all take an optional trailing
+`ExecutionLimitScope`, defaulting to `Node`.
 
 ### Via scheduler API at runtime
 
@@ -141,18 +161,19 @@ With the option on, a trigger that carries no execution group is limited as thou
 The option is a code-level one. There is no `quartz.executionLimit.*` property for it, because every key
 under that prefix is a group name and a magic one would collide with a group that happened to share the
 spelling.
-Read one back with `TryGetLimit(scope, out int? maxConcurrent)`, or enumerate `Groups`. Each entry's
-`ExecutionGroupScope` is one of exactly three cases — `Default` (triggers with no execution group),
-`OtherGroups` (the catch-all) and `Named(name)` — so reading limits never involves sentinel strings:
+Read one back with `TryGetLimit(group, out int? maxConcurrent)`, or enumerate `Groups`. Each entry's
+`Group` is an `ExecutionGroupScope`, one of exactly three cases — `Default` (triggers with no execution
+group), `OtherGroups` (the catch-all) and `Named(name)` — so reading limits never involves sentinel
+strings, and its `Scope` says which scope the number is counted in:
 
 ```csharp
 ExecutionLimits? limits = await scheduler.GetExecutionLimits();
 foreach (ExecutionGroupLimit limit in limits?.Groups ?? [])
 {
-    string scope = limit.Scope.IsDefault ? "(no group)"
-        : limit.Scope.IsOtherGroups ? "(other groups)"
-        : limit.Scope.Name!;
-    Console.WriteLine($"{scope}: {limit.MaxConcurrent?.ToString() ?? "unlimited"}");
+    string group = limit.Group.IsDefault ? "(no group)"
+        : limit.Group.IsOtherGroups ? "(other groups)"
+        : limit.Group.Name!;
+    Console.WriteLine($"{group}: {limit.MaxConcurrent?.ToString() ?? "unlimited"} per {limit.Scope}");
 }
 
 limits?.TryGetLimit(ExecutionGroupScope.Named("batch-jobs"), out int? batchLimit);
@@ -172,7 +193,7 @@ different things — the table below puts them side by side so neither is read a
 
 | Where it appears | What `*` means there | Typed reading |
 |---|---|---|
-| `quartz.executionLimit.*` key / execution-limits HTTP body | The catch-all limit applied to any *named* group without a limit of its own (never to ungrouped triggers) | `ExecutionGroupScope.OtherGroups` |
+| `quartz.executionLimit.*` or `quartz.clusterExecutionLimit.*` key / execution-limits HTTP body | The catch-all limit applied to any *named* group without a limit of its own (never to ungrouped triggers) | `ExecutionGroupScope.OtherGroups` |
 | A trigger row's preferred-node column | An automatic pin no node has claimed yet — the trigger runs anywhere until one node fires it first and keeps it | `PreferredNode.Auto` |
 
 In both places `*` is reserved vocabulary, not a name: a trigger cannot have `*` as its execution group, and
@@ -182,9 +203,13 @@ a node cannot have `*` as its scheduler instance id.
 
 On each trigger acquisition cycle, the scheduler thread:
 
-1. Computes the available slots per execution group by subtracting currently running counts from configured limits.
+1. Computes the available slots per execution group by subtracting currently running counts from the
+   configured **node-scoped** limits. Cluster-scoped limits are deliberately left as configured here —
+   this node's firings are already reservations the store is holding, and subtracting them twice would
+   halve the quota on the busiest node.
 2. Passes these available limits to the job store during trigger acquisition.
-3. The job store skips triggers whose execution group has no available slots.
+3. The job store lowers each **cluster-scoped** limit by what the cluster holds in flight, then skips
+   triggers whose execution group has no available slots.
 4. When a job starts, the running count for its group is incremented; when it completes, the count is decremented.
 
 This means:
@@ -194,8 +219,10 @@ This means:
 
 ## Clustering considerations
 
-Execution limits are **per-node** configuration. Each scheduler node independently declares and enforces its own limits.
-This is intentional — different nodes in a cluster may have different hardware capabilities.
+### Node-scoped limits
+
+A node-scoped limit is configuration each node declares and enforces for itself. This is intentional —
+different nodes in a cluster may have different hardware capabilities.
 
 Example: in a cluster with dedicated batch nodes and API nodes:
 ```
@@ -207,6 +234,73 @@ quartz.executionLimit.* = 2
 quartz.executionLimit.batch-jobs = 0
 quartz.executionLimit.* = 10
 ```
+
+Because each node enforces its own copy, three nodes each configured `batch-jobs = 8` can be running 24
+batch jobs. That is the right answer for hardware capacity and the wrong one for a quota.
+
+### Cluster-scoped limits
+
+A cluster-scoped limit is one number for the whole cluster, and every node enforces the same one:
+
+```csharp
+q.UseExecutionLimits(limits => limits
+    .ForGroup("tenant-acme", 8, ExecutionLimitScope.Cluster));
+```
+
+**Where the count comes from.** `QRTZ_FIRED_TRIGGERS` already is the cluster's reservation ledger — a
+row appears when any node acquires a trigger, becomes the running execution, and is deleted when the job
+completes or when cluster recovery cleans up after the node that owned it. Acquisition aggregates that
+table by execution group, so the ceiling needs no new table, no new column and no migration; the
+`EXECUTION_GROUP` column on `QRTZ_FIRED_TRIGGERS` has been part of the 4.x schema since it was written.
+
+Four things about the guarantee are worth knowing before you rely on it.
+
+**1. It is approximate by default, with a bounded overshoot.** By default the ADO.NET store acquires
+triggers *without* taking the cluster's `TRIGGER_ACCESS` lock (`AcquireTriggersWithinLock` is `false` and
+`MaxBatchSize` is `1`), so two nodes can read "2 of 3 in flight" in the same instant and each take one.
+
+> The ceiling holds within one acquisition round. Transient overshoot is bounded by the number of nodes
+> acquiring concurrently — at most `limit + (nodes − 1) × batchSize`, for as long as it takes the losers
+> to notice. Setting `AcquireTriggersWithinLock = true` makes it exact, at the cost of serializing
+> acquisition cluster-wide for *every* group rather than only the limited ones.
+
+That is a real improvement on `limit × nodes`, and it is what a tenant quota actually needs: "8,
+occasionally 9 for a moment" is fine, "8 became 24" is not. If you need exactness more than you need
+acquisition throughput, turn the lock on deliberately.
+
+::: tip SQLite is exact, and nothing else is by default
+`AcquireTriggersWithinLock` is forced to `true` for SQLite at startup (it has to be, for locking
+reasons), so the ceiling is exact there and approximate on every other database until you say otherwise.
+Do not read a SQLite test as evidence about SQL Server or PostgreSQL.
+:::
+
+**2. It fails closed, structurally.** The ledger and the work queue are the same database, so there is
+nothing to fail open *to*. If the store is unreachable or a node is partitioned away from it, that node's
+`AcquireNextTriggers` throws, the scheduler thread raises `SchedulerError` and backs off, and the node
+fires **nothing at all** — the quota is not bypassed, the node is out of service. A database outage
+therefore stops firing rather than removing the ceiling. That is the safe direction for a quota and the
+one to plan for.
+
+**3. A dead node's slots are held until recovery.** `ClusterRecover` deletes a failed node's fired-trigger
+rows on the ordinary check-in cadence (`CheckinInterval` + `CheckinMisfireThreshold`). Until it does, the
+dead node's reservations still count, so the quota is briefly **under**-served, never over-served. The
+count is deliberately *not* narrowed to nodes that are currently checking in: a node that has missed one
+check-in but is still running jobs would stop counting, and that would let the cluster exceed the ceiling.
+
+**4. Held-back work can misfire.** A trigger a ceiling holds back stays `WAITING`, and acquisition
+excludes anything older than `MisfireThreshold` — one minute by default. A group parked at its ceiling
+for longer than that feeds its backlog into `RecoverMisfiredJobs`, with whatever each trigger's misfire
+instruction says. This is more likely with a cluster-scoped limit than a node-scoped one, because a
+saturated node simply loses the trigger to a peer while a saturated *cluster* has no peer to lose it to.
+Pair a tightly limited group with `MisfireInstruction.IgnoreMisfirePolicy`, or raise
+`MisfireThreshold`, if the backlog matters.
+
+**Cost.** One extra aggregate per acquisition attempt — not per trigger — emitted only when at least one
+limit is cluster-scoped. A configuration with none pays nothing.
+
+**RAMJobStore.** `RAMJobStore` is never clustered, so its cluster is the one process: it counts its own
+reservations and running executions, and a cluster-scoped limit comes out as the same number a
+node-scoped one would. Both stores are held to the same assertions in `JobStoreContractTest`.
 
 ## Interaction with DisallowConcurrentExecution
 
@@ -236,10 +330,10 @@ ALTER TABLE QRTZ_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200) NULL);
 ```
 
 The standard 4.x schema also includes an `EXECUTION_GROUP` column on `QRTZ_FIRED_TRIGGERS`. It records
-the execution group a firing belongs to, so that `IScheduler.QueryFireInstances` can report it from any
-node in the cluster. Acquisition still reads limits from `QRTZ_TRIGGERS`; this column is what the listing
-reads. Rows written by a 4.0 preview before it went live hold `NULL`. If upgrading from 3.x, add it
-alongside the `QRTZ_TRIGGERS` column:
+the execution group a firing belongs to, which two things read: `IScheduler.QueryFireInstances` reports
+it from any node in the cluster, and a **cluster-scoped** limit is counted by aggregating over it. Which
+triggers are candidates is still decided from `QRTZ_TRIGGERS`. Rows written by a 4.0 preview before it
+went live hold `NULL`. If upgrading from 3.x, add it alongside the `QRTZ_TRIGGERS` column:
 
 ```sql
 ALTER TABLE QRTZ_FIRED_TRIGGERS ADD EXECUTION_GROUP NVARCHAR(200) NULL;  -- SQL Server
@@ -278,8 +372,14 @@ quartz.executionLimit.* = 0
 
 ### Multi-tenant isolation
 
+A tenant quota is a property of the tenant, not of the machine, so it is cluster-scoped:
+
 ```csharp
-limits.ForGroup("tenant-a", maxConcurrent: 5);
-limits.ForGroup("tenant-b", maxConcurrent: 5);
-limits.ForGroup("tenant-c", maxConcurrent: 5);
+limits.ForGroup("tenant-a", 5, ExecutionLimitScope.Cluster);
+limits.ForGroup("tenant-b", 5, ExecutionLimitScope.Cluster);
+limits.ForGroup("tenant-c", 5, ExecutionLimitScope.Cluster);
 ```
+
+Node-scoped instead (`limits.ForGroup("tenant-a", 5)`) would give each tenant five threads *per node*,
+which on a three-node cluster is fifteen. See [Multi-tenancy](../multi-tenancy.md) for the rest of the
+per-tenant story.
