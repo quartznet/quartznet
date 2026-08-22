@@ -1758,43 +1758,105 @@ Further information on configuring Microsoft.Logging can be found [at Microsoft 
 
 ## Job execution metrics
 
-The `Quartz` meter publishes the same four instruments under the same names, and every scheduler now
-publishes them — configuring the meter used to be wired to `StdSchedulerFactory`, so a scheduler
-registered with `AddQuartz` emitted nothing at all. Two further things changed, and both are visible to
-anything already charting them:
+::: danger EVERY NAME CHANGED
+Every instrument and every attribute Quartz publishes was renamed in 4.0, and two of the four
+instruments were removed. **Dashboards, alerts and recording rules built on the 3.x names all break.**
+The [old → new table](#old-and-new-telemetry-names) below is the complete mapping; nothing in it is emitted
+under both names, because two names for one series doubles the cardinality and settles nothing.
+:::
 
-| Instrument | 4.x type | Tags |
+Three things were wrong at once. The instruments were named `scheduling.quartz.*`, which is neither the
+package's name nor OpenTelemetry's convention; the attributes were unprefixed (`job.name`,
+`trigger.group`), so any other instrumented library in the process could claim the same names; and the
+duration was recorded in milliseconds, into a histogram whose default bucket boundaries assume seconds.
+Every scheduler also now publishes them at all — configuring the meter used to be wired to
+`StdSchedulerFactory`, so a scheduler registered with `AddQuartz` emitted nothing.
+
+| Instrument | Type | Unit | Tags |
+|---|---|---|---|
+| `quartz.job.execution.duration` | `Histogram<double>` | `s` | `quartz.scheduler.name`, `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group`, `quartz.job.name`, **+ `error.type`** when the execution failed |
+| `quartz.job.execution.active` | `UpDownCounter<long>` | `{job}` | the five identity attributes |
+
+### Old and new telemetry names
+
+| 3.x | 4.x | |
 |---|---|---|
-| `scheduling.quartz.execute` | `Counter<long>` | **`scheduler.name`**, `trigger.group`, `trigger.name`, `job.group`, `job.name` |
-| `scheduling.quartz.execute.errors` | `Counter<long>` | the five identity tags **+ `error.type`** |
-| `scheduling.quartz.execute.active` | **`UpDownCounter<long>`** (was `Counter<long>`) | the five identity tags |
-| `scheduling.quartz.execute.duration` | `Histogram<double>` | the five identity tags, **+ `error.type`** when the execution failed |
+| `scheduling.quartz.execute` | *removed* | The histogram's own **count** is the number of executions: `sum(rate(quartz_job_execution_duration_count[5m]))` in Prometheus, or whatever your backend calls a histogram's count |
+| `scheduling.quartz.execute.errors` | *removed* | The **`error.type`-tagged subset** of the same count is the number of failures — and it now says *what* failed, which the counter never did |
+| `scheduling.quartz.execute.active` | `quartz.job.execution.active` | Also an `UpDownCounter<long>` now (was `Counter<long>`), unit `{job}` (was `ea`) |
+| `scheduling.quartz.execute.duration` | `quartz.job.execution.duration` | **Unit `s`, not `ms`** — a chart with a hard-coded millisecond axis reads 1000× low until it is changed |
+| `job.name` | `quartz.job.name` | |
+| `job.group` | `quartz.job.group` | |
+| `job.type` | `quartz.job.type` | Span attribute |
+| `trigger.name` | `quartz.trigger.name` | |
+| `trigger.group` | `quartz.trigger.group` | |
+| `scheduler.name` | `quartz.scheduler.name` | |
+| `scheduler.id` | `quartz.scheduler.id` | Span attribute |
+| `fire.instance.id` | `quartz.fire.instance.id` | Span attribute |
+| `jobstore.trigger.count` | `quartz.jobstore.trigger.count` | Job store span attribute |
+| `jobstore.batch.size` | `quartz.jobstore.batch.size` | Job store span attribute |
+| `scheduling.quartz.exception_type` | `error.type` | The one attribute that is *not* namespaced, and its value changed too — see below |
+| `Quartz.Job.Vetoed` | `Quartz.Job.Veto` | Span name for a vetoed fire. `Quartz.Job.Execute` and the 28 `Quartz.JobStore.*` span names are unchanged |
 
-**Every measurement is tagged with `scheduler.name`.** A process can run several schedulers — named
+Renaming a series is not something a backend can do for you: a Prometheus recording rule bridging the
+old name to the new one, or a dashboard variable, is the usual way to keep history readable across the
+upgrade.
+
+**The constants did not move.** `Quartz.Diagnostics.ActivityTags.JobName` is still `ActivityTags.JobName`;
+its *value* changed. Code that reads a tag name through the constants compiles and runs unchanged — it is
+the queries written against the strings that need rewriting.
+
+### The two strings you subscribe with are constants now
+
+`Quartz.Diagnostics.QuartzInstrumentation` publishes the `ActivitySource` and `Meter` names, which used
+to be internal — so wiring Quartz into OpenTelemetry began by typing `"Quartz"` twice from memory:
+
+```csharp
+services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing.AddSource(QuartzInstrumentation.ActivitySourceName))
+    .WithMetrics(metrics => metrics.AddMeter(QuartzInstrumentation.MeterName));
+```
+
+Both are still `"Quartz"`, so an existing `AddSource("Quartz")` keeps working.
+
+### Two instruments, not four
+
+`scheduling.quartz.execute` and `scheduling.quartz.execute.errors` are gone. A histogram already carries
+its own count, so the first was a second instrument write per fire for a number every exporter derives
+from the duration series; and with `error.type` on the histogram, the failures are that count's
+`error.type`-tagged subset, which is what the second reported — less precisely, since a counter cannot
+say what failed.
+
+**The duration is in seconds.** OpenTelemetry records durations in seconds, and a histogram's default
+bucket boundaries are chosen for them: recording milliseconds put every execution longer than ten
+seconds into the top bucket, alongside every other duration series in the application, so "how long do
+jobs take" was unanswerable from the buckets. `quartz.job.execution.active` is `{job}` rather than `ea`,
+which is not a UCUM unit at all.
+
+**Every measurement is tagged with `quartz.scheduler.name`.** A process can run several schedulers — named
 registrations, or a host and a test harness side by side — and their measurements used to arrive as one
 undifferentiated series. Tagging them apart is a cardinality change: a backend stores one series per
 scheduler where it stored one in total, and a query that aggregated across everything now needs to say so
-(`sum without (scheduler_name)` in Prometheus, or the equivalent grouping in whatever reads these). One
-extra series per scheduler is the whole of the increase; the tag's values are the scheduler names an
-application configured, which is a fixed, small set.
+(`sum without (quartz_scheduler_name)` in Prometheus, or the equivalent grouping in whatever reads
+these). One extra series per scheduler is the whole of the increase; the tag's values are the scheduler
+names an application configured, which is a fixed, small set.
 
 The instruments themselves are also created through the container's `IMeterFactory` when it has one,
 which every application on the generic host does. The meter used to be a process-wide static, so two
 containers in one process published to the same instruments; they now publish to their own, which is what
 makes `MetricCollector` — the `Microsoft.Extensions.Diagnostics.Testing` reader that collects one
-factory's instruments — able to see them at all. Nothing about the meter's name, the instrument names or
-what an exporter subscribes to changes, and an application that never calls `AddMetrics()` still gets a
-meter, created directly as before. Quartz does not register an `IMeterFactory` of its own: doing so would
-put Quartz's factory in the way of the application's wherever `AddMetrics()` happened to be called after
-`AddQuartz`.
+factory's instruments — able to see them at all. The meter's name and what an exporter subscribes to are
+unchanged, and an application that never calls `AddMetrics()` still gets a meter, created directly as
+before. Quartz does not register an `IMeterFactory` of its own: doing so would put Quartz's factory in
+the way of the application's wherever `AddMetrics()` happened to be called after `AddQuartz`.
 
-**`scheduling.quartz.execute.active` is an up-down counter.** The number of jobs running goes down as
+**`quartz.job.execution.active` is an up-down counter.** The number of jobs running goes down as
 often as it goes up, and Quartz has always measured the decrement — but a `Counter` is monotonic by
 OpenTelemetry's definition, so an exporter aggregating one is entitled to drop or mis-render a negative
-measurement, leaving a "jobs currently running" chart that only ever climbs. The name, the unit and the
-meaning are unchanged; the instrument type an exporter sees is not, so a dashboard or an alert built on
-the old series has to be rebuilt on a non-monotonic one — a `Sum` with `IsMonotonic = false` in the
-OpenTelemetry SDK, which Prometheus renders as a gauge rather than a counter.
+measurement, leaving a "jobs currently running" chart that only ever climbs. The meaning is unchanged;
+the instrument type an exporter sees is not, so a dashboard or an alert built on the old series has to be
+rebuilt on a non-monotonic one — a `Sum` with `IsMonotonic = false` in the OpenTelemetry SDK, which
+Prometheus renders as a gauge rather than a counter.
 
 **`scheduling.quartz.exception_type` is `error.type`, and it names the exception the job threw.** Two
 things were wrong with it. The tag was added to a copy of the tag list and thrown away, so the errors
@@ -1817,9 +1879,13 @@ emitted alongside it, since two names for one attribute doubles the series and s
 or an alert matching on `scheduling.quartz.exception_type` has to be rewritten**, and one that expected
 the value `JobExecutionException` now sees the type the job threw.
 
-The tag is on the errors counter and on the duration histogram, so a failed run's duration can be told
-apart from a successful one's. It is deliberately *not* on `scheduling.quartz.execute.active`, whose
-increment and decrement have to carry identical attributes or the series never comes back to zero.
+The tag is on `quartz.job.execution.duration`, so a failed run's duration can be told apart from a
+successful one's — and, with the errors counter gone, so that the failures can be counted at all. It is
+deliberately *not* on `quartz.job.execution.active`, whose increment and decrement have to carry
+identical attributes or the series never comes back to zero.
+
+A vetoed fire is not an execution and appears in neither instrument: the job never ran, so there is no
+duration to record. Vetoes are visible in traces, as a `Quartz.Job.Veto` span.
 
 The execution's span carries the same `error.type` with the same value, so one attribute finds a failure
 in a trace and in a metric alike. The span also still records the exception as an event, with the whole
@@ -5900,10 +5966,14 @@ Parameters and behavior are unchanged:
 | `AddDataSourceProvider()` removed | Its other half. It registered `DataSourceDbProvider` in the container for `UseDataSourceConnectionProvider()` to name; `UseRegisteredDataSource` builds the provider itself from the registered `DbDataSource` — see [`AddDataSourceProvider()` went with it](#adddatasourceprovider-went-with-it) |
 | `QuartzOptions.SchedulerName`, `.SchedulerId`, `.MisfireThreshold` removed | Each duplicated a typed option — see [`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings) |
 | Job execution metrics are published by every scheduler | The meters were configured only by `StdSchedulerFactory`, so a scheduler registered with `AddQuartz` published none |
-| `scheduling.quartz.execute.active` is an `UpDownCounter<long>` | It was a `Counter<long>` receiving the `-1` that ends an execution, which an exporter aggregating a monotonic sum may drop — see [Job execution metrics](#job-execution-metrics) |
-| Every job execution measurement is tagged with `scheduler.name` | A process can run several schedulers, whose measurements used to arrive as one series. One series per scheduler where there was one in total: a query that aggregated across everything needs to say so — see [Job execution metrics](#job-execution-metrics) |
-| The meter is built from the container's `IMeterFactory` | It was a process-wide static, so two containers in one process shared one set of instruments and `MetricCollector` could not see them. Names and subscriptions are unchanged, and an application that never calls `AddMetrics()` still gets a meter — see [Job execution metrics](#job-execution-metrics) |
-| `scheduling.quartz.exception_type` is `error.type`, naming the exception the job threw | The tag was added to a copy of the tag list and discarded, so the counter said only that something failed — and the type it named was the `JobExecutionException` the run shell wraps everything in. It is OpenTelemetry's conventional name now, it is on the duration histogram and the execution's span too, and a query matching the old name or expecting the old value has to be rewritten — see [Job execution metrics](#job-execution-metrics) |
+| **Every instrument and attribute was renamed, and two instruments were dropped** | `scheduling.quartz.*` became `quartz.job.execution.*`, unprefixed attributes became `quartz.*`, and the two counters gave way to the histogram's own count. Every dashboard, alert and recording rule keyed on the old names breaks — the [old → new table](#old-and-new-telemetry-names) is the complete mapping |
+| `quartz.job.execution.duration` records **seconds**, not milliseconds | A histogram's default bucket boundaries assume seconds, so every execution over ten seconds landed in the top bucket. A chart with a hard-coded millisecond axis reads 1000× low until it is changed — see [Job execution metrics](#job-execution-metrics) |
+| `quartz.job.execution.active` is an `UpDownCounter<long>`, unit `{job}` | It was a `Counter<long>` receiving the `-1` that ends an execution, which an exporter aggregating a monotonic sum may drop; `ea` is not a UCUM unit — see [Job execution metrics](#job-execution-metrics) |
+| Every job execution measurement is tagged with `quartz.scheduler.name` | A process can run several schedulers, whose measurements used to arrive as one series. One series per scheduler where there was one in total: a query that aggregated across everything needs to say so — see [Job execution metrics](#job-execution-metrics) |
+| The meter is built from the container's `IMeterFactory` | It was a process-wide static, so two containers in one process shared one set of instruments and `MetricCollector` could not see them. The meter's name and what an exporter subscribes to are unchanged, and an application that never calls `AddMetrics()` still gets a meter — see [Job execution metrics](#job-execution-metrics) |
+| `scheduling.quartz.exception_type` is `error.type`, naming the exception the job threw | The tag was added to a copy of the tag list and discarded, so the counter said only that something failed — and the type it named was the `JobExecutionException` the run shell wraps everything in. It is OpenTelemetry's conventional name now — the one attribute Quartz does not namespace — it is on the duration histogram and the execution's span, and a query matching the old name or expecting the old value has to be rewritten — see [Job execution metrics](#job-execution-metrics) |
+| `Quartz.Diagnostics.QuartzInstrumentation` publishes the `ActivitySource` and `Meter` names | `AddSource("Quartz")` / `AddMeter("Quartz")` were the only strings on the instrumentation surface with no constant behind them. Both values are still `"Quartz"`, so existing wiring keeps working; `InstrumentationOptions` is gone with the change — see [Job execution metrics](#job-execution-metrics) |
+| The vetoed-fire span is `Quartz.Job.Veto` | `OperationName.Job.Veto` read `"Quartz.Job.Vetoed"` — the constant's name and its value disagreed. `Quartz.Job.Execute` and the `Quartz.JobStore.*` span names are unchanged |
 | `XmlSchedulingOptions` and `JsonSchedulingOptions` merged | They were byte-for-byte identical and are now one type |
 | Constructing a scheduler no longer starts a thread | `QuartzScheduler` starts its scheduler thread from `Start()` rather than its constructor, so resolving the service graph, running a `ValidateOnBuild` pass or asserting on registrations no longer spins one up. The thread always started paused, so this changes when the thread exists, not when jobs run |
 | `IPersistentStoreBuilder.AcceptEnlistedTransactions()` | Never shipped; the setting is `Configure(o => o.AcceptEnlistedTransactions = true)`, like the other nineteen `AdoJobStoreOptions` settings — see [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction) |
@@ -6004,7 +6074,7 @@ Parameters and behavior are unchanged:
 | `TriggerUtils` became `Quartz.Extensibility.TriggerFireTimes` | A fire-time calculator over `IOperableTrigger`, named for what it computes; the three `Compute*` methods shortened with it — see [`TriggerUtils` became `TriggerFireTimes`](#triggerutils-became-triggerfiretimes) |
 | `TimeZoneUtil` became `Quartz.TimeZones` | `FindTimeZoneById` — now `FindById` — and the wall-clock `GetUtcOffset` are scheduling API, not utilities — see [`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones) |
 | `Quartz.Util.ObjectExtensions` is internal | `AssemblyQualifiedNameWithoutVersion()` is how Quartz spells a type name into a blob or onto the wire, not a general-purpose helper |
-| `Quartz.Diagnostics.ActivityOptions` is `ActivityTags` | It holds `Activity` tag names, not options, and `*Options` names an options type everywhere else. It replaced 3.x's `DiagnosticHeaders`; the tag names and values are unchanged |
+| `Quartz.Diagnostics.ActivityOptions` is `ActivityTags` | It holds `Activity` tag names, not options, and `*Options` names an options type everywhere else. It replaced 3.x's `DiagnosticHeaders`; the constant names are unchanged, but their **values** are all `quartz.*` now — see [Job execution metrics](#job-execution-metrics) |
 | `DBSemaphore` is `DbSemaphore` | The last `DB` spelling left in the ADO.NET surface. The type is abstract and is never named in configuration |
 | `StartingDailyAt` / `EndingDailyAt` take a `timeOfDay` | The parameter was `timeOfDayUtc`, and the value is wall-clock in the trigger's time zone rather than UTC — the property it sets, `StartTimeOfDay`, never claimed otherwise. `DailyTimeIntervalTriggerImpl`'s five constructors say `startTimeOfDay` / `endTimeOfDay` for the same reason |
 | `ITriggerSerializer.TriggerTypeForJson` is `TriggerTypeName` | `ICalendarSerializer.CalendarTypeName` names the same concept; both JSON serializers changed |
@@ -6059,7 +6129,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Impl.AdoJobStore.Common.DbMetadataFactory` | Internal | The metadata factory on `UseGenericDatabase` |
 | `Quartz.Impl.AdoJobStore.DBSemaphore` | Renamed `DbSemaphore` | Same abstract base, still public — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | `Quartz.Simpl.DedicatedThreadPool` | Internal | `IQuartzBuilder.UseThreadPool(IThreadPool)` for a pool of your own — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
-| `Quartz.Logging.DiagnosticHeaders` | Renamed `Quartz.Diagnostics.ActivityTags` | The tag names and values are unchanged — see [Other Breaking Changes](#other-breaking-changes) |
+| `Quartz.Logging.DiagnosticHeaders` | Renamed `Quartz.Diagnostics.ActivityTags` | The constant names are unchanged; every value is `quartz.*` now — see [Job execution metrics](#job-execution-metrics) |
 | `Quartz.Util.DictionaryExtensions` | Removed | No replacement — see [Other Breaking Changes](#other-breaking-changes) |
 | `Quartz.Impl.DirectSchedulerFactory` | Removed | `QuartzSchedulerBuilder`, with `UseThreadPool(IThreadPool)` / `UseJobStore(IJobStore)` for pre-built parts — see [Removed](#removed) |
 | `Quartz.Impl.AdoJobStore.Common.EmbeddedAssemblyResourceDbMetadataFactory` | Internal | The metadata factory on `UseGenericDatabase` |
