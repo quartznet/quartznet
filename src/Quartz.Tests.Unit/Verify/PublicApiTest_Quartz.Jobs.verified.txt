@@ -39,6 +39,15 @@ namespace Quartz.Jobs
     {
         System.Threading.Tasks.ValueTask FileUpdated(string fileName, System.Threading.CancellationToken cancellationToken = default);
     }
+    public sealed class MailInfo
+    {
+        public MailInfo() { }
+        public required System.Net.Mail.MailMessage MailMessage { get; init; }
+        public required string SmtpHost { get; init; }
+        public string? SmtpPassword { get; init; }
+        public int? SmtpPort { get; init; }
+        public string? SmtpUserName { get; init; }
+    }
     public class NativeJob : Quartz.IJob
     {
         public const string PropertyCommand = "command";
@@ -72,15 +81,6 @@ namespace Quartz.Jobs
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual string? GetOptionalParameter(Quartz.JobDataMap data, string propertyName) { }
         protected virtual string GetRequiredParameter(Quartz.JobDataMap data, string propertyName) { }
-        protected virtual System.Threading.Tasks.ValueTask Send(Quartz.Jobs.SendMailJob.MailInfo mailInfo, System.Threading.CancellationToken cancellationToken = default) { }
-        public class MailInfo
-        {
-            public MailInfo() { }
-            public System.Net.Mail.MailMessage MailMessage { get; set; }
-            public string SmtpHost { get; set; }
-            public string? SmtpPassword { get; set; }
-            public int? SmtpPort { get; set; }
-            public string? SmtpUserName { get; set; }
-        }
+        protected virtual System.Threading.Tasks.ValueTask Send(Quartz.Jobs.MailInfo mailInfo, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
