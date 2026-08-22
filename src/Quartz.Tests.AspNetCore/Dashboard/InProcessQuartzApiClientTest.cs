@@ -128,6 +128,11 @@ public class InProcessQuartzApiClientTest
             CronCalendar cronCalendar = stored.Should().BeOfType<CronCalendar>().Subject;
             cronCalendar.CronExpression.CronExpressionString.Should().Be("0 0 3 * * ?");
             cronCalendar.Description.Should().Be("maintenance window");
+
+            // and the detail page reads the calendar itself back, not a rendering of one
+            ICalendar readBack = await client.GetCalendar(scheduler.SchedulerName, "maintenance");
+            readBack.Should().BeOfType<CronCalendar>()
+                .Which.CronExpression.CronExpressionString.Should().Be("0 0 3 * * ?");
         }
         finally
         {
@@ -359,6 +364,122 @@ public class InProcessQuartzApiClientTest
             PagedResult<TriggerHeaderDto> errorCount = await client.GetTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Error });
             errorCount.Items.Should().BeEmpty();
             errorCount.TotalCount.Should().Be(0, "no trigger has failed, and the error tile reports that exactly");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task ScheduleJobStoresTheJobAndTheTriggerItWasGiven()
+    {
+        IScheduler scheduler = await CreateScheduler("ScheduleJobTest");
+        try
+        {
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            JobDetailDto job = new(
+                Name: "job1",
+                Group: "group1",
+                JobType: typeof(NoOpJob).FullName!,
+                Description: "scheduled from the dashboard",
+                Durable: true,
+                RequestsRecovery: false,
+                ConcurrentExecutionDisallowed: false,
+                PersistJobDataAfterExecution: false,
+                JobDataMap: new JobDataMap { ["colour"] = "green" });
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("trigger1", "group1")
+                .ForJob("job1", "group1")
+                .WithCronSchedule("0 0 1 * * ?")
+                .Build();
+
+            await client.ScheduleJob(scheduler.SchedulerName, new ScheduleJobRequest(trigger, job));
+
+            IJobDetail? stored = await scheduler.GetJobDetail(new JobKey("job1", "group1"));
+            stored.Should().NotBeNull();
+            stored!.Description.Should().Be("scheduled from the dashboard");
+            stored.JobDataMap["colour"].Should().Be("green", "the map travels as a JobDataMap, not as re-parsed JSON");
+            (await scheduler.GetTrigger(new TriggerKey("trigger1", "group1"))).Should().NotBeNull();
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task ScheduleJobWithNoJobSchedulesTheTriggerAgainstAStoredJob()
+    {
+        IScheduler scheduler = await CreateScheduler("ScheduleTriggerOnlyTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            await scheduler.AddJob(
+                JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build(),
+                new AddJobOptions { Replace = true });
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("trigger1", "group1")
+                .ForJob(jobKey)
+                .WithCronSchedule("0 0 1 * * ?")
+                .Build();
+
+            await client.ScheduleJob(scheduler.SchedulerName, new ScheduleJobRequest(trigger, Job: null));
+
+            (await scheduler.GetTrigger(new TriggerKey("trigger1", "group1"))).Should().NotBeNull(
+                "a request with no job detail schedules against the job already stored");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task TriggerJobWithDataPassesTheOverridesStraightThrough()
+    {
+        IScheduler scheduler = await CreateScheduler("TriggerWithDataTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            await scheduler.AddJob(
+                JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build(),
+                new AddJobOptions { Replace = true });
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            // in process there is no serializer between the page and the scheduler, so a value keeps
+            // the type it was given rather than the one a JSON reader would have guessed
+            JobDataMap overrides = new() { ["Count"] = 5 };
+            await client.TriggerJobWithData(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name), overrides);
+
+            PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers(new TriggerQuery { Job = jobKey });
+            triggers.Items.Should().ContainSingle("triggering a job now schedules the one-off trigger that fires it");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetCalendarThrowsForACalendarThatIsNotThere()
+    {
+        IScheduler scheduler = await CreateScheduler("GetMissingCalendarTest");
+        try
+        {
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            Func<Task> act = async () => await client.GetCalendar(scheduler.SchedulerName, "no-such-calendar");
+
+            await act.Should().ThrowAsync<KeyNotFoundException>()
+                .WithMessage("*no-such-calendar*",
+                    "the detail page shows the message, so it has to name what was missing");
         }
         finally
         {

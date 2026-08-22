@@ -124,6 +124,121 @@ public class QuartzApiClientTest : WebApiTest
             .MustHaveHappenedOnceExactly();
     }
 
+    [Test]
+    public async Task GetJobReadsAnAbsentJobDataMapAsAnEmptyOne()
+    {
+        IJobDetail withoutData = JobBuilder.Create<DummyJob>()
+            .WithIdentity("no-data", "DummyGroup")
+            .StoreDurably()
+            .Build();
+        A.CallTo(() => FakeScheduler.GetJobDetail(withoutData.Key, A<CancellationToken>._)).Returns(withoutData);
+
+        JobDetailDto job = await CreateClient().GetJob(TestData.SchedulerName, new JobKeyDto("DummyGroup", "no-data"));
+
+        job.JobDataMap.Should().BeEmpty("a job with no data is not a job whose data could not be read");
+    }
+
+    /// <summary>
+    /// The associated-triggers table loads the triggers, so it can name the kind and summarise the
+    /// schedule — and it names them the way the in-process client does.
+    /// </summary>
+    /// <remarks>
+    /// This used to echo the wire's <c>triggerType</c> discriminator, so the same trigger read
+    /// <c>CronTrigger</c> here and <c>Cron</c> in process. Both go through
+    /// <see cref="TriggerDisplay" /> now, and this is the test that says so.
+    /// </remarks>
+    [Test]
+    public async Task GetJobTriggersNamesTheKindTheWayTheInProcessClientDoes()
+    {
+        JobKey jobKey = new("DummyJob", "DummyGroup");
+        ITrigger cron = TriggerBuilder.Create()
+            .WithIdentity("nightly", "reports")
+            .ForJob(jobKey)
+            .WithExecutionGroup("imports")
+            .WithCronSchedule("0 0 1 * * ?")
+            .Build();
+        ITrigger simple = TriggerBuilder.Create()
+            .WithIdentity("often", "reports")
+            .ForJob(jobKey)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(30)).WithRepeatCount(2))
+            .Build();
+
+        // GetTriggersOfJob is an extension over QueryTriggers + GetTriggers, so those are what a fake
+        // scheduler can be told about
+        A.CallTo(() => FakeScheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<ITrigger> { cron, simple });
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>(
+                [HeaderFor(cron, TriggerState.Paused), HeaderFor(simple, TriggerState.Normal)],
+                HasMore: false,
+                TotalCount: 2));
+
+        List<TriggerHeaderDto> headers = await CreateClient().GetJobTriggers(
+            TestData.SchedulerName,
+            new JobKeyDto(jobKey.Group, jobKey.Name));
+
+        headers.Should().HaveCount(2);
+
+        TriggerHeaderDto cronHeader = headers.Single(x => x.Name == "nightly");
+        cronHeader.TriggerType.Should().Be("Cron", "not CronTrigger, which is the wire's discriminator");
+        cronHeader.ScheduleSummary.Should().Be("0 0 1 * * ?");
+        cronHeader.Group.Should().Be("reports");
+        cronHeader.ExecutionGroup.Should().Be("imports");
+        cronHeader.State.Should().Be(TriggerState.Paused, "the states come from one listing, not one call per trigger");
+
+        TriggerHeaderDto simpleHeader = headers.Single(x => x.Name == "often");
+        simpleHeader.TriggerType.Should().Be("Simple");
+        simpleHeader.ScheduleSummary.Should().Contain("Every").And.Contain("2 time(s)");
+        simpleHeader.State.Should().Be(TriggerState.Normal);
+    }
+
+    /// <summary>
+    /// The trigger listing does not load the triggers, so it reports no kind and no schedule summary —
+    /// deliberately, because the store's discriminator is not the display name above.
+    /// </summary>
+    [Test]
+    public async Task GetTriggersListsHeadersWithoutNamingTheKind()
+    {
+        ITrigger cron = TriggerBuilder.Create()
+            .WithIdentity("nightly", "reports")
+            .ForJob("DummyJob", "DummyGroup")
+            .WithExecutionGroup("imports")
+            .WithCronSchedule("0 0 1 * * ?")
+            .Build();
+
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>([HeaderFor(cron, TriggerState.Error)], HasMore: true, TotalCount: 7));
+
+        PagedResult<TriggerHeaderDto> page = await CreateClient().GetTriggers(
+            TestData.SchedulerName,
+            new DashboardTriggerQuery { Take = 1, State = TriggerState.Error });
+
+        TriggerHeaderDto header = page.Items.Should().ContainSingle().Subject;
+        header.Group.Should().Be("reports");
+        header.Name.Should().Be("nightly");
+        header.State.Should().Be(TriggerState.Error);
+        header.ExecutionGroup.Should().Be("imports");
+        header.TriggerType.Should().BeNull("a listing has no trigger to read a kind off");
+        header.ScheduleSummary.Should().BeNull("and no schedule to summarise");
+
+        page.HasMore.Should().BeTrue();
+        page.TotalCount.Should().Be(7);
+    }
+
+    private static TriggerHeader HeaderFor(ITrigger trigger, TriggerState state) => new(
+        trigger.Key,
+        trigger.JobKey,
+        Description: trigger.Description,
+        TriggerType: "CRON",
+        State: state,
+        StartTimeUtc: trigger.StartTimeUtc,
+        EndTimeUtc: trigger.EndTimeUtc,
+        NextFireTimeUtc: trigger.NextFireTimeUtc,
+        PreviousFireTimeUtc: trigger.PreviousFireTimeUtc,
+        CalendarName: trigger.CalendarName,
+        Priority: trigger.Priority,
+        ExecutionGroup: trigger.ExecutionGroup);
+
     private QuartzApiClient CreateClient()
     {
         IHttpClientFactory httpClientFactory = A.Fake<IHttpClientFactory>();
