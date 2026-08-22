@@ -72,7 +72,7 @@ namespace Quartz.Impl.Triggers;
 /// <author>Nuno Maia (.NET)</author>
 [Serializable]
 #pragma warning disable CA1708
-public sealed class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigger
+public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigger
 #pragma warning restore CA1708
 {
     /// <summary>
