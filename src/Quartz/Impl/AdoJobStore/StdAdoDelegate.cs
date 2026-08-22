@@ -60,6 +60,28 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
 
     private readonly ConcurrentDictionary<string, string> cachedQueries = new();
 
+    /// <summary>
+    /// The acquisition statement, and the misfire recovery statement, for each row limit they have been
+    /// asked for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Both statements carry their limit in the text — a <c>SELECT TOP n</c> spliced into the projection
+    /// on SQL Server, a <c>rownum</c> wrapper on Oracle, a trailing <c>LIMIT n</c> elsewhere — so the
+    /// dialect rebuilds around a kilobyte of SQL for every acquisition, and the table-prefix cache then
+    /// hashes all of it to hand back a string it already had. Both are pure functions of the limit, so
+    /// the finished statement is remembered against it instead.
+    /// </para>
+    /// <para>
+    /// The limits take few distinct values: acquisition asks for the smaller of the free thread count
+    /// and the configured batch size, and recovery for the configured misfire batch, so both dictionaries
+    /// settle within a handful of entries.
+    /// </para>
+    /// </remarks>
+    private readonly ConcurrentDictionary<int, string> acquisitionSqlByMaxCount = new();
+
+    private readonly ConcurrentDictionary<int, string> misfireRecoverySqlByCount = new();
+
     protected IDbProvider DbProvider { get; private set; } = null!;
 
     /// <summary>
@@ -102,42 +124,42 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     //---------------------------------------------------------------------------
 
     /// <summary>
+    /// The statements <see cref="ClearData" /> issues, in the order the foreign keys require: the
+    /// type tables before TRIGGERS, TRIGGERS before JOB_DETAILS.
+    /// </summary>
+    private static readonly string[] clearDataStatements =
+    [
+        StdAdoConstants.SqlDeleteAllSimpleTriggers,
+        StdAdoConstants.SqlDeleteAllSimpropTriggers,
+        StdAdoConstants.SqlDeleteAllCronTriggers,
+        StdAdoConstants.SqlDeleteAllBlobTriggers,
+        StdAdoConstants.SqlDeleteAllTriggers,
+        StdAdoConstants.SqlDeleteAllJobDetails,
+        StdAdoConstants.SqlDeleteAllCalendars,
+        StdAdoConstants.SqlDeleteAllPausedTriggerGrps,
+        StdAdoConstants.SqlDeleteFiredTriggers
+    ];
+
+    /// <summary>
     /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar" />s.
     /// </summary>
     /// <remarks>
+    /// Nine deletes that used to be nine round trips and nine commands nobody disposed. They go out as
+    /// one batch where the provider supports batching, and one disposed command at a time where it does
+    /// not. The order matters and the batch preserves it: a batch executes its commands in sequence.
     /// </remarks>
-    public virtual async ValueTask ClearData(
+    public virtual ValueTask ClearData(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        DbCommand ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllSimpleTriggers));
-        AddCommandParameter(ps, "schedulerName", schedulerName);
-        await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllSimpropTriggers));
-        AddCommandParameter(ps, "schedulerName", schedulerName);
-        await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllCronTriggers));
-        AddCommandParameter(ps, "schedulerName", schedulerName);
-        await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllBlobTriggers));
-        AddCommandParameter(ps, "schedulerName", schedulerName);
-        await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllTriggers));
-        AddCommandParameter(ps, "schedulerName", schedulerName);
-        await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllJobDetails));
-        AddCommandParameter(ps, "schedulerName", schedulerName);
-        await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllCalendars));
-        AddCommandParameter(ps, "schedulerName", schedulerName);
-        await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllPausedTriggerGrps));
-        AddCommandParameter(ps, "schedulerName", schedulerName);
-        await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteFiredTriggers));
-        AddCommandParameter(ps, "schedulerName", schedulerName);
-        await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        List<SqlStatement> statements = new(clearDataStatements.Length);
+        foreach (string sql in clearDataStatements)
+        {
+            statements.Add(new SqlStatement(ReplaceTablePrefix(sql), [new SqlStatementParameter("schedulerName", schedulerName)]));
+        }
+
+        return ExecuteStatements(conn, statements, cancellationToken);
     }
 
     //---------------------------------------------------------------------------
