@@ -2410,13 +2410,14 @@ recommended path anyway; see
 
 The following properties have been removed from `TriggerBase` as they are redundant with the `Key` and `JobKey` properties:
 
-| Removed Property | Replacement |
-|-----------------|-------------|
+| Removed property | Replacement |
+|---|---|
 | `Name` | `Key.Name` |
-| `GroupName` | `Key.Group` |
+| `Group` | `Key.Group` |
 | `JobName` | `JobKey.Name` |
 | `JobGroup` | `JobKey.Group` |
 | `FullName` | `Key.ToString()` |
+| `FullJobName` | `JobKey.ToString()` |
 
 `HasMillisecondPrecision` left `ITrigger` and is `protected abstract` on `TriggerBase`. It is how a
 trigger describes its own schedule to the base class — which rounds the start time down to the second when it
@@ -4000,7 +4001,7 @@ reads the same values from the context:
 + public sealed class ConsulSemaphore : ISemaphore
   {
 -     public string TablePrefix { get; set; } = "";
--     public string? SchedulerName { get; set; }
+-     public string? SchedName { get; set; }
 +     public string? SchedulerName { get; private set; }
 +
 +     public void Initialize(SemaphoreContext context)
@@ -4011,8 +4012,10 @@ reads the same values from the context:
 
 With the setters gone, the configuration keys that reached them by property injection went too:
 `quartz.jobStore.lockHandler.tablePrefix` and `quartz.jobStore.lockHandler.schedulerName` are rejected
-with advice naming this seam. The store hands the handler its own `quartz.jobStore.tablePrefix` value,
-so the lock rows follow the store's table prefix without separate configuration.
+with advice naming this seam. The 3.x property was called `SchedName`, so a configuration carried over
+from 3.x spells the second key `quartz.jobStore.lockHandler.schedName` — delete that one too. The store
+hands the handler its own `quartz.jobStore.tablePrefix` value, so the lock rows follow the store's table
+prefix without separate configuration.
 
 ## A job store of your own can join your transaction
 
@@ -6243,8 +6246,16 @@ readable while you migrate it to JSON — see
 | `BLOB_TRIGGERS.BLOB_DATA` | `TriggerBase`, `SimpleTriggerImpl`, `CronTriggerImpl`, `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` |
 
 A trigger reaches that third row when no trigger persistence delegate handles it — a type of your own, or one
-deriving from a built-in trigger with `HasAdditionalProperties` returning `true`. The store writes the whole
-object into `BLOB_TRIGGERS`, so the trigger class hierarchy is part of the blob graph.
+deriving from `CronTriggerImpl` or `SimpleTriggerImpl` (the two that are still open) with
+`HasAdditionalProperties` returning `true`. The store writes the whole object into `BLOB_TRIGGERS`, so the
+trigger class hierarchy is part of the blob graph.
+
+`RecurrenceTriggerImpl` is the one trigger implementation *not* on that list: it does not carry
+`[Serializable]`, where `TriggerBase` and the other four do. In practice a recurrence trigger is written to
+`SIMPROP_TRIGGERS` by `RecurrenceTriggerPersistenceDelegate` and never takes the blob path — it is `sealed`,
+so `HasAdditionalProperties` cannot be overridden to `true`. It did carry the attribute on 3.x, though, so a
+3.x database that somehow holds a binary recurrence-trigger blob (which takes a delegate list with that
+delegate removed) should have that row migrated to JSON on 3.x before the upgrade.
 
 3.x listed `StringKeyDirtyFlagMap` and `DirtyFlagMap<TKey, TValue>` in the first row; both are
 internal now. That costs nothing for existing blobs: `BinaryFormatter` records an `ISerializable`
@@ -6534,7 +6545,7 @@ Parameters and behavior are unchanged:
 
 | Change | Details |
 |--------|---------|
-| `SimpleTriggerImpl` `endUtc` no longer nullable | The constructor argument is now required |
+| `SimpleTriggerImpl.GetFireTimeBefore(DateTimeOffset? endUtc)` takes a non-nullable `DateTimeOffset` | The nullable parameter was a lie: after the one guard, 3.x dereferenced `endUtc!.Value`, so passing null threw rather than meaning "no bound". A caller holding a nullable end checks it first. `EndTimeUtc` itself is still `DateTimeOffset?` |
 | `QuartzScheduler` and `QuartzSchedulerResources` are internal | Resolve `IScheduler` / `ISchedulerFactory`; scheduler-wide settings are `QuartzSchedulerOptions` |
 | `JobType` introduced | Stores job type info without requiring an actual `Type` instance. A `Type` converts implicitly (validated: it must implement `IJob`); a string converts only explicitly or via the constructor, because resolving the name is deferred and can fail — `Type` throws for a name that does not resolve, `TryResolve` is the non-throwing probe. Equality (`Equals`, `==`/`!=`) is by `FullName`. There is deliberately **no** implicit conversion back to `Type`: `jobDetail.JobType.Type` spells out that assembly probing may happen, and can throw, at that read |
 | `JobBuilder.OfType(JobType)` added | Carries a stored type name and its resolver through a rebuild without forcing the name to resolve; `OfType(string)` constructs an unvalidated `JobType` for the same reason |
@@ -6805,7 +6816,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.IServiceCollectionQuartzConfigurator` | Renamed `IQuartzBuilder` | The same members, on one interface shared with the standalone builder — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
 | `Quartz.Spi.ITypeLoadHelper` | Renamed `Quartz.Extensibility.ITypeLoader` | The last `*Helper` left in the public surface; the builder method `UseTypeLoader<T>()` already had the new spelling. `Initialize()` is gone; `LoadType` is the whole interface. `AdoJobStoreBase.TypeLoadHelper` and `DriverDelegateContext.TypeLoadHelper` are `TypeLoader` to match |
 | `Quartz.Impl.JobDetailImpl` | Internal | `JobBuilder.Create<TJob>()`; read an `IJobDetail` |
-| `Quartz.JobFactoryOptions` | Removed | Nothing; both of its properties were already `[Obsolete]` no-ops in 3.x — see [The job factory hands out a scope](#the-job-factory-hands-out-a-scope) |
+| `Quartz.JobFactoryOptions` | Kept, but emptied and refilled | Its two 3.x properties — `AllowDefaultConstructor` and `CreateScope` — were already `[Obsolete]` no-ops and are gone. The type is `sealed` and carries `ConfigureScope`, the per-scheduler hook for a scope Quartz opens — see [The job factory hands out a scope](#the-job-factory-hands-out-a-scope) |
 | `Quartz.Core.JobRunShell` | Internal | No replacement; use `IJobListener` to observe a fire |
 | `Quartz.Impl.AdoJobStore.JobStoreCMT` | Renamed `ExternalTransactionJobStore` | The old spelling still resolves in configuration, with a warning — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
 | `Quartz.Impl.AdoJobStore.JobStoreTX` | Renamed `LocalTransactionJobStore` | As above — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
@@ -6880,7 +6891,7 @@ removals on types that are still public and still open, which no section above n
 | 3.x member | What happened | What to use instead |
 |---|---|---|
 | `AbstractTrigger.CompareTo(ITrigger)` | Removed; neither `TriggerBase` nor `ITrigger` itself implements `IComparable<ITrigger>` any more | It compared keys — `trigger.Key.CompareTo(other.Key)`. `List<ITrigger>.Sort()` and friends still compile and now throw — see [The trigger family interfaces are read models](#the-trigger-family-interfaces-are-read-models) |
-| `AbstractTrigger.FullJobName` | Removed | `JobKey.ToString()`, alongside the four in [TriggerBase Property Removals](#triggerbase-property-removals) |
+| `AbstractTrigger.FullJobName` | Removed | `JobKey.ToString()`, alongside the rest in [TriggerBase Property Removals](#triggerbase-property-removals) |
 | `CronExpression`'s `protected` constants, fields and parse hooks, and `OnDeserialization` | Gone with the type, which is `sealed` now and no longer implements `IDeserializationCallback` | No replacement; the parsed sets were never a contract — see [The parser is not a subclassing seam](#the-parser-is-not-a-subclassing-seam) |
 | `CronExpression.MaxYear` | Removed (a `public static readonly int`) | No replacement. It was `DateTime.Now.Year + 100`, computed once per process — see [`CronExpression` is immutable](#cronexpression-is-immutable) |
 | `CronTriggerImpl.GetTimeAfter(DateTimeOffset)` | Removed (it was `protected`) | `GetFireTimeAfter(DateTimeOffset?)`, or `CronExpression.GetNextValidTimeAfter` for the expression on its own |
