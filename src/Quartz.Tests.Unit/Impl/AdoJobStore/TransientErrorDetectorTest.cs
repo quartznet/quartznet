@@ -89,6 +89,17 @@ public class TransientErrorDetectorTest
         TransientErrorDetector.IsTransient(new SqlServerException(2627, 1205)).Should().BeTrue();
     }
 
+    /// <summary>
+    /// The error-number check recognises a shape, not a base class. A driver or a wrapper that reports
+    /// SQL Server errors this way without deriving from <see cref="DbException" /> is recognised too,
+    /// which is what the integration suite's simulator relies on.
+    /// </summary>
+    [Test]
+    public void SqlServerErrorNumberIsFoundOnAnyExceptionThatCarriesIt()
+    {
+        TransientErrorDetector.IsTransient(new LooksLikeSqlServerException()).Should().BeTrue();
+    }
+
     [TestCase(5, TestName = "SqliteBusyIsTransient")]
     [TestCase(6, TestName = "SqliteLockedIsTransient")]
     public void SqliteErrorCodeIsTransient(int code)
@@ -165,6 +176,12 @@ public class TransientErrorDetectorTest
         }
 
         public SqlServerErrorCollection Errors { get; }
+    }
+
+    /// <summary>An exception carrying SQL Server errors without deriving from <see cref="DbException" />.</summary>
+    private sealed class LooksLikeSqlServerException : Exception
+    {
+        public SqlServerErrorCollection Errors { get; } = new([49920]);
     }
 
     private sealed class SqlServerErrorCollection : IEnumerable

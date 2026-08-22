@@ -685,16 +685,22 @@ public partial class StdAdoDelegate
     /// </summary>
     /// <remarks>
     /// Reading a column by name asks the provider for its position first, and the trigger row has
-    /// eighteen of them. Every statement <see cref="ReadTriggerRow" /> serves projects the same
-    /// columns, so a reader's layout is fixed for as long as it is open.
+    /// sixteen of them. Every statement <see cref="ReadTriggerRow" /> serves projects the same columns,
+    /// so a reader's layout is fixed for as long as it is open.
     /// </remarks>
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
     private readonly struct TriggerRowOrdinals
     {
-        public TriggerRowOrdinals(DbDataReader rs)
+        /// <param name="rs">The reader whose layout to record.</param>
+        /// <param name="includesKey">
+        /// Whether the statement projects the trigger key as well. The batch statements append it — they
+        /// have to, since the row is all the caller has to tell one trigger from another — while the
+        /// single-trigger select already knows which key it asked for and leaves the columns out.
+        /// </param>
+        public TriggerRowOrdinals(DbDataReader rs, bool includesKey)
         {
-            TriggerName = rs.GetOrdinal(AdoConstants.ColumnTriggerName);
-            TriggerGroup = rs.GetOrdinal(AdoConstants.ColumnTriggerGroup);
+            TriggerName = includesKey ? rs.GetOrdinal(AdoConstants.ColumnTriggerName) : -1;
+            TriggerGroup = includesKey ? rs.GetOrdinal(AdoConstants.ColumnTriggerGroup) : -1;
             JobName = rs.GetOrdinal(AdoConstants.ColumnJobName);
             JobGroup = rs.GetOrdinal(AdoConstants.ColumnJobGroup);
             Description = rs.GetOrdinal(AdoConstants.ColumnDescription);
@@ -870,7 +876,7 @@ public partial class StdAdoDelegate
                 return null;
             }
 
-            row = await ReadTriggerRow(rs, new TriggerRowOrdinals(rs)).ConfigureAwait(false);
+            row = await ReadTriggerRow(rs, new TriggerRowOrdinals(rs, includesKey: false)).ConfigureAwait(false);
         }
 
         if (row.TriggerType == AdoConstants.TriggerTypeBlob)
@@ -1677,7 +1683,7 @@ public partial class StdAdoDelegate
                     break;
                 }
 
-                ordinals ??= new TriggerRowOrdinals(rs);
+                ordinals ??= new TriggerRowOrdinals(rs, includesKey: true);
                 keys.Add(ordinals.Value.ReadKey(rs));
                 rows.Add(await ReadTriggerRow(rs, ordinals.Value).ConfigureAwait(false));
             }
@@ -1728,7 +1734,7 @@ public partial class StdAdoDelegate
             TriggerRowOrdinals? ordinals = null;
             while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                ordinals ??= new TriggerRowOrdinals(rs);
+                ordinals ??= new TriggerRowOrdinals(rs, includesKey: true);
                 keys.Add(ordinals.Value.ReadKey(rs));
                 rows.Add(await ReadTriggerRow(rs, ordinals.Value).ConfigureAwait(false));
             }
