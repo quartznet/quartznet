@@ -39,6 +39,17 @@ public static class TestData
     public static readonly IJobExecutionContext ExecutingJobOne;
     public static readonly IJobExecutionContext ExecutingJobTwo;
 
+    /// <summary>
+    /// A firing that is running: every member populated, job key included.
+    /// </summary>
+    public static readonly FireInstance ExecutingFireInstance;
+
+    /// <summary>
+    /// A firing that is only reserved: no job key, no scheduled time, no execution group — the shape a
+    /// round trip is most likely to mangle.
+    /// </summary>
+    public static readonly FireInstance AcquiredFireInstance;
+
     static TestData()
     {
         Metadata = new SchedulerMetadata
@@ -52,6 +63,7 @@ public static class TestData
             Shutdown = false,
             RunningSince = DateTimeOffset.Now.AddDays(-1),
             JobsExecuted = 1_000_000,
+            LocalExecutingJobs = 3,
             JobStoreTypeName = typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion(),
             JobStorePersistent = false,
             JobStoreClustered = false,
@@ -214,6 +226,26 @@ public static class TestData
             job: new DummyJob()
         );
 
+        ExecutingFireInstance = new FireInstance(
+            FireInstanceId: "fire-instance-1",
+            TriggerKey: CronTrigger.Key,
+            JobKey: JobDetail.Key,
+            SchedulerInstanceId: SchedulerInstanceId,
+            State: FireInstanceState.Executing,
+            FireTimeUtc: new DateTimeOffset(2024, 5, 6, 7, 8, 9, TimeSpan.Zero),
+            ScheduledFireTimeUtc: new DateTimeOffset(2024, 5, 6, 7, 8, 0, TimeSpan.Zero),
+            ExecutionGroup: "reports");
+
+        AcquiredFireInstance = new FireInstance(
+            FireInstanceId: "fire-instance-2",
+            TriggerKey: SimpleTrigger.Key,
+            JobKey: null,
+            SchedulerInstanceId: SchedulerInstanceId,
+            State: FireInstanceState.Acquired,
+            FireTimeUtc: new DateTimeOffset(2024, 5, 6, 7, 8, 10, TimeSpan.Zero),
+            ScheduledFireTimeUtc: null,
+            ExecutionGroup: null);
+
         ExecutingJobTwo = new JobExecutionContextImpl(
             scheduler: A.Fake<IScheduler>(),
             firedBundle: new TriggerFiredBundle
@@ -271,6 +303,7 @@ public static class TestData
                 Shutdown = false,
                 RunningSince = StartTime,
                 JobsExecuted = 1_000_000,
+                LocalExecutingJobs = 3,
                 JobStoreTypeName = typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion(),
                 JobStorePersistent = false,
                 JobStoreClustered = false,

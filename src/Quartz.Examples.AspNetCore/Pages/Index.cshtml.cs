@@ -17,12 +17,12 @@ public class IndexModel : PageModel
     }
 
     public IReadOnlyCollection<TriggerKey> Triggers { get; set; } = [];
-    public IReadOnlyCollection<IJobExecutionContext> CurrentlyExecutingJobs { get; set; } = [];
+    public IReadOnlyCollection<FireInstance> CurrentlyExecutingJobs { get; set; } = [];
 
     public async Task OnGet()
     {
         var scheduler = await schedulerFactory.GetScheduler();
         Triggers = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup());
-        CurrentlyExecutingJobs = await scheduler.GetCurrentlyExecutingJobs();
+        CurrentlyExecutingJobs = (await scheduler.QueryFireInstances(new FireInstanceQuery())).Items;
     }
 }

@@ -134,14 +134,6 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         if (options.GenerateInstanceId)
         {
             resources.InstanceId = await GenerateInstanceId(resources, cancellationToken).ConfigureAwait(false);
-
-            // The job store was constructed before the id existed, and its rows are keyed by it, so it
-            // has to be told the generated value rather than keeping the placeholder.
-            if (resources.JobStore is AdoJobStoreBase persistentStore)
-            {
-                persistentStore.InstanceId = resources.InstanceId;
-                persistentStore.InstanceName = resources.Name;
-            }
         }
 
         await resources.ThreadPool.Initialize(cancellationToken).ConfigureAwait(false);
@@ -170,7 +162,16 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
                 scheduler.Context[pair.Key] = pair.Value;
             }
 
-            await resources.JobStore.Initialize(cancellationToken).ConfigureAwait(false);
+            // The identity is handed over here rather than at construction because a generated instance
+            // id does not exist until the generator above has run — and every store needs it, not only
+            // the persistent one, since a firing is reported with the id of the node that owns it.
+            SchedulerIdentity identity = new()
+            {
+                SchedulerName = resources.Name,
+                InstanceId = resources.InstanceId
+            };
+
+            await resources.JobStore.Initialize(identity, cancellationToken).ConfigureAwait(false);
 
             resources.JobRunShellFactory.Initialize(scheduler);
 

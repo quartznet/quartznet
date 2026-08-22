@@ -110,13 +110,11 @@ public class InterruptableJobTest
 
         started.WaitOne(); // make sure the job starts running...
 
-        var executingJobs = await scheduler.GetCurrentlyExecutingJobs();
+        var executingJobs = await scheduler.QueryFireInstances(new FireInstanceQuery());
 
-        Assert.That(executingJobs, Has.Count.EqualTo(1), "Number of executing jobs should be 1 ");
+        executingJobs.Items.Should().ContainSingle("one execution is running");
 
-        IJobExecutionContext context = executingJobs.First();
-
-        bool interruptResult = await scheduler.InterruptFireInstance(context.FireInstanceId);
+        bool interruptResult = await scheduler.InterruptFireInstance(executingJobs.Items[0].FireInstanceId);
 
         ended.WaitOne(); // wait for the job to terminate
 

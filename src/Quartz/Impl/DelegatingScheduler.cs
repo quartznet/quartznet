@@ -28,9 +28,9 @@ public class DelegatingScheduler : IScheduler
         return scheduler.GetMetadata(cancellationToken);
     }
 
-    public virtual ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
+    public virtual ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetCurrentlyExecutingJobs(cancellationToken);
+        return scheduler.QueryFireInstances(query, cancellationToken);
     }
 
     public virtual IListenerManager ListenerManager => scheduler.ListenerManager;

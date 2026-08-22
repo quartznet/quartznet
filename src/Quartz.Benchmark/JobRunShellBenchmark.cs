@@ -175,7 +175,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask Initialize(CancellationToken cancellationToken = default)
+        public ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -206,6 +206,11 @@ public class JobRunShellBenchmark
         }
 
         public ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

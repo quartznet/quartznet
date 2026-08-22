@@ -143,11 +143,11 @@
             PagedResult<JobKeyDto> jobs = await Api.GetJobs(schedulerName, new DashboardJobQuery { Take = 0 });
             PagedResult<TriggerHeaderDto> triggers = await Api.GetTriggers(schedulerName, new DashboardTriggerQuery { Take = 0 });
             PagedResult<TriggerHeaderDto> errorTriggers = await Api.GetTriggers(schedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Error });
-            List<CurrentlyExecutingJobDto> executing = await Api.GetCurrentlyExecutingJobs(schedulerName);
+            PagedResult<FireInstanceDto> executing = await Api.GetFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 });
 
             _totalJobs = jobs.TotalCount ?? 0;
             _totalTriggers = triggers.TotalCount ?? 0;
-            _currentlyExecuting = executing.Count;
+            _currentlyExecuting = executing.TotalCount ?? 0;
             _errorTriggers = errorTriggers.TotalCount ?? 0;
 
             RefreshRecentActions(schedulerName);
@@ -223,8 +223,8 @@
                 return;
             }
 
-            List<CurrentlyExecutingJobDto> executing = await Api.GetCurrentlyExecutingJobs(schedulerName);
-            _currentlyExecuting = executing.Count;
+            PagedResult<FireInstanceDto> executing = await Api.GetFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 });
+            _currentlyExecuting = executing.TotalCount ?? 0;
         }
         catch (Exception ex)
         {

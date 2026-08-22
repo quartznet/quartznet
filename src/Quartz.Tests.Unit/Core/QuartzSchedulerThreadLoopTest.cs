@@ -49,7 +49,7 @@ public sealed class QuartzSchedulerThreadLoopTest
     public async Task SetUp()
     {
         store = new FaultInjectingJobStore();
-        await store.Initialize();
+        await store.Initialize(TestJobStores.Identity());
 
         threadPool = A.Fake<IThreadPool>();
         A.CallTo(() => threadPool.PoolSize).Returns(AvailableThreads);

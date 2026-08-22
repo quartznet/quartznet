@@ -253,26 +253,71 @@ public class JobEndpointsTest : WebApiTest
     }
 
     [Test]
-    public async Task CurrentlyExecutingJobsShouldWork()
+    public async Task QueryFireInstancesShouldRoundTripEveryMember()
     {
-        A.CallTo(() => FakeScheduler.GetCurrentlyExecutingJobs(A<CancellationToken>._)).Returns([TestData.ExecutingJobOne, TestData.ExecutingJobTwo]);
+        A.CallTo(() => FakeScheduler.QueryFireInstances(A<FireInstanceQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<FireInstance>([TestData.ExecutingFireInstance, TestData.AcquiredFireInstance], HasMore: true, TotalCount: 7));
 
-        var jobs = await HttpScheduler.GetCurrentlyExecutingJobs();
-        jobs.Count.Should().Be(2);
-        AssertJob(jobs, TestData.ExecutingJobOne);
-        AssertJob(jobs, TestData.ExecutingJobTwo);
+        PagedResult<FireInstance> result = await HttpScheduler.QueryFireInstances(new FireInstanceQuery());
 
-        static void AssertJob(IEnumerable<IJobExecutionContext> jobs, IJobExecutionContext expected)
+        using (new AssertionScope())
         {
-            var actual = jobs.Single(x => x.JobDetail.Key.Equals(expected.JobDetail.Key));
-            actual.Should().BeEquivalentTo(expected, options => options
-                .Using<TimeSpan>(x => x.Subject.Should().BeCloseTo(x.Expectation, TimeSpan.FromMilliseconds(100))).WhenTypeIs<TimeSpan>()
-                .Excluding(y => y.Scheduler)
-                .Excluding(y => y.RecoveringTriggerKey)
-                .Excluding(y => y.JobInstance)
-                .Excluding(y => y.CancellationToken)
-            );
+            result.Items.Should().BeEquivalentTo([TestData.ExecutingFireInstance, TestData.AcquiredFireInstance],
+                "every member of a fire instance has to survive the wire, the nullable job key included");
+            result.HasMore.Should().BeTrue();
+            result.TotalCount.Should().Be(7);
         }
+    }
+
+    [Test]
+    public async Task QueryFireInstancesShouldPassEveryFilter()
+    {
+        A.CallTo(() => FakeScheduler.QueryFireInstances(A<FireInstanceQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<FireInstance>([], HasMore: false));
+
+        FireInstanceQuery query = new()
+        {
+            TriggerGroup = GroupMatcher<TriggerKey>.GroupStartsWith("group"),
+            TriggerName = NameMatcher<TriggerKey>.NameEquals("trigger1"),
+            Job = new JobKey("job1", "jobs"),
+            SchedulerInstanceId = "node-2",
+            State = FireInstanceState.Acquired,
+            Skip = 3,
+            Take = 4,
+            IncludeTotalCount = true
+        };
+
+        await HttpScheduler.QueryFireInstances(query);
+
+        A.CallTo(() => FakeScheduler.QueryFireInstances(query, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task QueryFireInstancesShouldDefaultToExecutingAndSayWhenItWantsEveryState()
+    {
+        FireInstanceQuery captured = null!;
+        A.CallTo(() => FakeScheduler.QueryFireInstances(A<FireInstanceQuery>._, A<CancellationToken>._))
+            .Invokes((FireInstanceQuery q, CancellationToken _) => captured = q)
+            .Returns(new PagedResult<FireInstance>([], HasMore: false));
+
+        // A request that names no state at all: the endpoint has to leave the record's own default alone.
+        using var client = WebApplicationFactory.CreateClient();
+        var response = await client.GetAsync($"schedulers/{HttpScheduler.SchedulerName}/jobs/fire-instances");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        captured.State.Should().Be(FireInstanceState.Executing, "a bare request lists what is running");
+
+        await HttpScheduler.QueryFireInstances(new FireInstanceQuery { State = null });
+        captured.State.Should().BeNull("the client says 'any' out loud, so the server can tell it apart from silence");
+    }
+
+    [Test]
+    public async Task QueryFireInstancesShouldRejectAnUnknownState()
+    {
+        using var client = WebApplicationFactory.CreateClient();
+        var response = await client.GetAsync($"schedulers/{HttpScheduler.SchedulerName}/jobs/fire-instances?state=not-a-state");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest,
+            "a state the API cannot honour is a bad request, not a silently unfiltered listing");
     }
 
     [Test]

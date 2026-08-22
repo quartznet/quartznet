@@ -190,18 +190,6 @@ internal interface AddCalendarRequest
     bool UpdateTriggers { get; }
 }
 
-internal interface CurrentlyExecutingJobDto
-{
-    HttpApiContract.JobDetailDto JobDetail { get; }
-    Trigger Trigger { get; }
-    Calendar? Calendar { get; }
-    bool Recovering { get; }
-    DateTimeOffset FireTime { get; }
-    DateTimeOffset? ScheduledFireTime { get; }
-    DateTimeOffset? PreviousFireTime { get; }
-    DateTimeOffset? NextFireTime { get; }
-}
-
 internal interface ScheduleJobRequest
 {
     Trigger Trigger { get; }

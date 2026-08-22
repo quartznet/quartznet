@@ -66,7 +66,6 @@ public class ShutdownDuringTriggerAcquisitionTest
                 await Task.Delay(2000);
 
                 // Check that the job executed
-                var executions = await newScheduler.GetCurrentlyExecutingJobs();
                 var triggerState = await newScheduler.GetTriggerState(trigger.Key);
                 
                 // The trigger should not be in ERROR state

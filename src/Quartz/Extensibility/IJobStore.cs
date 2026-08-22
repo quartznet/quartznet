@@ -68,12 +68,16 @@ public interface IJobStore
     /// Called before the <see cref="IJobStore" /> is used, to give it a chance to initialize.
     /// </summary>
     /// <remarks>
-    /// Everything a job store needs — its scheduler's identity, the type loader, the signaler,
-    /// the time provider — is supplied through its constructor. What remains here is work that has to
-    /// happen before the scheduler runs and that cannot be done during construction, such as verifying
-    /// a database schema.
+    /// Nearly everything a job store needs — the type loader, the signaler, the time provider — is
+    /// supplied through its constructor. What remains here is the scheduler's identity, which is not
+    /// settled until the container has built the graph, and work that has to happen before the
+    /// scheduler runs and cannot be done during construction, such as verifying a database schema.
     /// </remarks>
-    ValueTask Initialize(CancellationToken cancellationToken = default);
+    /// <param name="identity">The scheduler this store stores for, and the node it is running on. A
+    /// store records the instance id against the firings this node owns, so that
+    /// <see cref="QueryFireInstances" /> can say which node is running what.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
@@ -354,6 +358,25 @@ public interface IJobStore
     /// <param name="query">Which names to select and which page of them to return.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists firings matching the query, as <see cref="FireInstance" />s, ordered by trigger group,
+    /// then trigger name, then fire instance id (all ordinal).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The tiebreaker is what makes a page deterministic here: one trigger can have several firings in
+    /// flight, so a store must not collapse them and must not order two of them arbitrarily.
+    /// </para>
+    /// <para>
+    /// A store that keeps firings durably answers for the whole cluster; the in-memory store answers for
+    /// its own process, which is the whole of its world. Either way the reported
+    /// <see cref="FireInstance.SchedulerInstanceId" /> is the id the owning node was initialized with.
+    /// </para>
+    /// </remarks>
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves the given jobs in one round trip. Keys that do not exist are simply

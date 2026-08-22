@@ -17,7 +17,7 @@
     <h1 class="display-4">Currently Executing Jobs</h1>
     @foreach (var job in Model.CurrentlyExecutingJobs)
     {
-        <span>@job.JobDetail.Key.Group / @job.JobDetail.Key.Name  - triggered by @job.Trigger.Key.Group / @job.Trigger.Key.Name</span>
+        <span>@job.JobKey?.Group / @job.JobKey?.Name  - triggered by @job.TriggerKey.Group / @job.TriggerKey.Name</span>
         <br/>
     }
 

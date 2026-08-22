@@ -60,9 +60,9 @@ public class DelegatingJobStore : IJobStore
 
     public virtual bool Clustered => jobStore.Clustered;
 
-    public virtual ValueTask Initialize(CancellationToken cancellationToken = default)
+    public virtual ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default)
     {
-        return jobStore.Initialize(cancellationToken);
+        return jobStore.Initialize(identity, cancellationToken);
     }
 
     public virtual ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
@@ -198,6 +198,11 @@ public class DelegatingJobStore : IJobStore
     public virtual ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
     {
         return jobStore.QueryCalendarNames(query, cancellationToken);
+    }
+
+    public virtual ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default)
+    {
+        return jobStore.QueryFireInstances(query, cancellationToken);
     }
 
     public virtual ValueTask<List<IJobDetail>> GetJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)

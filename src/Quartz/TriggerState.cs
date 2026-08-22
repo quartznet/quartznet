@@ -95,8 +95,9 @@ public enum TriggerState
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Unlike <see cref="IScheduler.GetCurrentlyExecutingJobs" />, which only sees the node it is called
-    /// on, this state is observable across every node of a cluster when a persistent job store is used.
+    /// Like <see cref="IScheduler.QueryFireInstances" />, and unlike anything a scheduler could answer
+    /// from process-local state, this is observable across every node of a cluster when a persistent job
+    /// store is used.
     /// </para>
     ///
     /// <para>

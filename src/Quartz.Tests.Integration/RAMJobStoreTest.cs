@@ -518,7 +518,7 @@ public abstract class AbstractSchedulerTest
             string jobName = Guid.NewGuid().ToString();
             await scheduler.AddJob(JobBuilder.Create<TestJobWithSync>().WithIdentity(jobName).StoreDurably().Build());
             await scheduler.ScheduleJob(TriggerBuilder.Create().ForJob(jobName).StartNow().Build());
-            while ((await scheduler.GetCurrentlyExecutingJobs()).Count == 0)
+            while ((await scheduler.QueryFireInstances(new FireInstanceQuery())).Items.Count == 0)
             {
                 await Task.Delay(50);
             }
@@ -546,7 +546,7 @@ public abstract class AbstractSchedulerTest
             string jobName = Guid.NewGuid().ToString();
             await scheduler.AddJob(JobBuilder.Create<TestJobWithSync>().WithIdentity(jobName).StoreDurably().Build());
             await scheduler.ScheduleJob(TriggerBuilder.Create().ForJob(jobName).StartNow().Build());
-            while ((await scheduler.GetCurrentlyExecutingJobs()).Count == 0)
+            while ((await scheduler.QueryFireInstances(new FireInstanceQuery())).Items.Count == 0)
             {
                 await Task.Delay(50);
             }

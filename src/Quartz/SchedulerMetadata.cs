@@ -91,6 +91,17 @@ public sealed record SchedulerMetadata
     public int JobsExecuted { get; init; }
 
     /// <summary>
+    /// The number of executions running on this node right now.
+    /// </summary>
+    /// <remarks>
+    /// Node-local, as the name says: it counts the executions this scheduler instance is hosting, and a
+    /// clustered scheduler is running more than these elsewhere. Use
+    /// <see cref="IScheduler.QueryFireInstances" /> for the cluster-wide count — the two numbers describe
+    /// different things and will differ, which is why this one does not pretend otherwise.
+    /// </remarks>
+    public int LocalExecutingJobs { get; init; }
+
+    /// <summary>
     /// The assembly-qualified name (without version) of the <see cref="IJobStore" />
     /// implementation the <see cref="IScheduler" /> uses.
     /// </summary>

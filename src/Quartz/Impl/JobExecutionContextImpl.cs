@@ -47,15 +47,12 @@ namespace Quartz.Impl;
 /// </para>
 ///
 /// <para>
-/// <see cref="IJobExecutionContext" /> s are also returned from the
-/// <see cref="IScheduler.GetCurrentlyExecutingJobs" />
-/// method. These are the same instances as those past into the jobs that are
-/// currently executing within the scheduler. The exception to this is when your
-/// application is using Quartz remotely (i.e. via remoting or WCF) - in which case you get
-/// a clone of the <see cref="IJobExecutionContext" />s, and their references to
-/// the <see cref="IScheduler" /> and <see cref="IJob" /> instances have been lost (a
-/// clone of the <see cref="JobDetail" /> is still available - just not a handle
-/// to the job instance that is running).
+/// A context exists only inside the process running the job, and only for as long as it runs. The
+/// scheduler does not hand it out: <see cref="IScheduler.QueryFireInstances" /> lists firings across the
+/// cluster as <see cref="FireInstance" /> projections, which carry keys, times and the owning node but
+/// none of the live state below. Code that needs the live state — the job instance, the merged job data,
+/// the result, the cancellation handle — gets it from an <see cref="IJobListener" /> of its own, which is
+/// handed the context and can keep it for the duration of the execution.
 /// </para>
 /// </remarks>
 /// <seealso cref="JobDetail" />

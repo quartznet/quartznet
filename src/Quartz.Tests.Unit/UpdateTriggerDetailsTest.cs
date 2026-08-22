@@ -18,7 +18,7 @@ public class UpdateTriggerDetailsTest
     {
         jobStore = TestJobStores.Ram();
         TestSignaler signaler = new TestSignaler();
-        await jobStore.Initialize();
+        await jobStore.Initialize(TestJobStores.Identity());
         await jobStore.SchedulerStarted();
 
         jobDetail = JobBuilder.Create()

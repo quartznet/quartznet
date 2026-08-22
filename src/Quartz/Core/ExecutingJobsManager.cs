@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 using Quartz.Extensibility;
 
@@ -51,6 +52,18 @@ internal sealed class ExecutingJobsManager : IJobListener
     /// The jobs that are currently executing.
     /// </value>
     public List<IJobExecutionContext> GetExecutingJobs => [..executingJobs.Values];
+
+    /// <summary>
+    /// Finds one running execution by its fire instance id, which is the key this manager already uses.
+    /// </summary>
+    /// <remarks>
+    /// The point of the member is that interrupting one execution does not have to materialize every
+    /// other one to find it.
+    /// </remarks>
+    public bool TryGetExecutingJob(string fireInstanceId, [NotNullWhen(true)] out IJobExecutionContext? context)
+    {
+        return executingJobs.TryGetValue(fireInstanceId, out context);
+    }
 
     public ValueTask JobToBeExecuted(
         IJobExecutionContext context,
