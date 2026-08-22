@@ -322,9 +322,9 @@ public sealed class DailyCalendar : BaseCalendar, IEquatable<DailyCalendar>
     /// A bound carries precision finer than a whole millisecond, or the range does not start
     /// before it ends.
     /// </exception>
-    public (TimeOnly Start, TimeOnly End) TimeRange
+    public TimeRange TimeRange
     {
-        get => (rangeStart, rangeEnd);
+        get => new(rangeStart, rangeEnd);
         set
         {
             ValidateRange(value.Start, value.End);

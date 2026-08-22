@@ -1410,6 +1410,16 @@ namespace Quartz
         public ThreadPoolOptions() { }
         public int MaxConcurrency { get; set; }
     }
+    public readonly struct TimeRange : System.IEquatable<Quartz.TimeRange>
+    {
+        public TimeRange(System.TimeOnly Start, System.TimeOnly End) { }
+        public System.TimeOnly End { get; init; }
+        public System.TimeOnly Start { get; init; }
+        public override string ToString() { }
+        public static Quartz.TimeRange op_Implicit([System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Start",
+                "End"})] System.ValueTuple<System.TimeOnly, System.TimeOnly> value) { }
+    }
     public enum TimeSpanParseRule
     {
         Milliseconds = 0,
@@ -2750,10 +2760,7 @@ namespace Quartz.Impl.Calendar
     {
         public DailyCalendar(System.TimeOnly rangeStart, System.TimeOnly rangeEnd, Quartz.ICalendar? baseCalendar = null) { }
         public bool InvertTimeRange { get; set; }
-        [System.Runtime.CompilerServices.TupleElementNames(new string[] {
-                "Start",
-                "End"})]
-        public System.ValueTuple<System.TimeOnly, System.TimeOnly> TimeRange { get; set; }
+        public Quartz.TimeRange TimeRange { get; set; }
         public override Quartz.ICalendar Clone() { }
         public bool Equals(Quartz.Impl.Calendar.DailyCalendar? other) { }
         public override bool Equals(object? obj) { }
