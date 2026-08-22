@@ -19,6 +19,8 @@
 
 #endregion
 
+using AwesomeAssertions.Execution;
+
 using Quartz.Extensibility;
 using Quartz.Impl.Calendar;
 
@@ -1027,6 +1029,207 @@ public abstract class JobStoreContractTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Fire instances
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AFiringIsListedWithEverythingTheStoreKnowsAboutIt()
+    {
+        IOperableTrigger trigger = await GivenAFiringInFlight("listed", executionGroup: "reports");
+
+        PagedResult<FireInstance> page = await Store.QueryFireInstances(new FireInstanceQuery());
+
+        FireInstance firing = page.Items.Should().ContainSingle().Subject;
+        using (new AssertionScope())
+        {
+            firing.FireInstanceId.Should().Be(trigger.FireInstanceId);
+            firing.TriggerKey.Should().Be(trigger.Key);
+            firing.JobKey.Should().Be(trigger.JobKey, "an execution that has started knows its job");
+            firing.State.Should().Be(FireInstanceState.Executing);
+            firing.SchedulerInstanceId.Should().Be(StoreInstanceId,
+                "the firing is owned by the node whose identity the store was initialized with");
+            firing.ExecutionGroup.Should().Be("reports",
+                "the execution group is recorded with the firing, not looked up from the trigger afterwards");
+            firing.FireTimeUtc.Should().NotBe(default(DateTimeOffset));
+            page.HasMore.Should().BeFalse();
+        }
+    }
+
+    [Test]
+    public async Task ConcurrentFiringsOfOneTriggerAreListedSeparately()
+    {
+        // The point of a fire instance: a trigger whose job allows concurrent execution can have several
+        // executions in flight, and a listing that keyed on the trigger would collapse them into one.
+        IOperableTrigger first = await GivenAFiringInFlight("multiple");
+        IOperableTrigger second = await FireAgain(first);
+
+        PagedResult<FireInstance> page = await Store.QueryFireInstances(new FireInstanceQuery());
+
+        using (new AssertionScope())
+        {
+            first.FireInstanceId.Should().NotBe(second.FireInstanceId, "each firing is its own");
+            page.Items.Should().HaveCount(2, "two executions of the same trigger are two firings");
+            page.Items.Select(x => x.FireInstanceId).Should().BeEquivalentTo([first.FireInstanceId, second.FireInstanceId]);
+            page.Items.Select(x => x.TriggerKey).Should().AllBeEquivalentTo(first.Key);
+        }
+
+        // ...and completing one of them leaves the other running.
+        await Store.TriggeredJobComplete(first, await Store.GetJob(first.JobKey), SchedulerInstruction.NoInstruction);
+
+        (await Store.QueryFireInstances(new FireInstanceQuery())).Items
+            .Should().ContainSingle().Which.FireInstanceId.Should().Be(second.FireInstanceId);
+    }
+
+    [Test]
+    public async Task AReservedFiringIsListedOnlyWhenItIsAskedFor()
+    {
+        IOperableTrigger acquired = await GivenAnAcquiredTrigger("reserved");
+
+        using (new AssertionScope())
+        {
+            (await Store.QueryFireInstances(new FireInstanceQuery())).Items.Should().BeEmpty(
+                "the default listing is what is running, and nothing has started");
+
+            FireInstance reserved = (await Store.QueryFireInstances(new FireInstanceQuery { State = FireInstanceState.Acquired }))
+                .Items.Should().ContainSingle().Subject;
+            reserved.FireInstanceId.Should().Be(acquired.FireInstanceId);
+            reserved.TriggerKey.Should().Be(acquired.Key);
+            reserved.State.Should().Be(FireInstanceState.Acquired);
+            reserved.JobKey.Should().BeNull("a reservation is written before the job is loaded");
+            reserved.SchedulerInstanceId.Should().Be(StoreInstanceId);
+
+            (await Store.QueryFireInstances(new FireInstanceQuery { State = null })).Items
+                .Should().ContainSingle("a null state filter is every state");
+        }
+
+        // Once it fires the same firing moves state rather than becoming a second one.
+        await Store.TriggersFired([acquired]);
+
+        using (new AssertionScope())
+        {
+            (await Store.QueryFireInstances(new FireInstanceQuery { State = FireInstanceState.Acquired })).Items
+                .Should().BeEmpty("a firing that started is no longer merely reserved");
+            (await Store.QueryFireInstances(new FireInstanceQuery())).Items
+                .Should().ContainSingle().Which.FireInstanceId.Should().Be(acquired.FireInstanceId);
+        }
+    }
+
+    [Test]
+    public async Task FiringsPageInAStableOrderWithTheFireInstanceIdAsTheTiebreaker()
+    {
+        // Two firings of one trigger and one of another: group and name alone cannot order the first
+        // two, so a page boundary between them is exactly where an unstable order shows up.
+        IOperableTrigger first = await GivenAFiringInFlight("paged-a");
+        await FireAgain(first);
+        await GivenAFiringInFlight("paged-b");
+
+        PagedResult<FireInstance> all = await Store.QueryFireInstances(new FireInstanceQuery { IncludeTotalCount = true });
+        all.Items.Should().HaveCount(3);
+        all.TotalCount.Should().Be(3);
+
+        List<string> paged = [];
+        for (int skip = 0; skip < 3; skip++)
+        {
+            PagedResult<FireInstance> page = await Store.QueryFireInstances(new FireInstanceQuery { Skip = skip, Take = 1 });
+            page.Items.Should().ContainSingle();
+            page.HasMore.Should().Be(skip < 2, "the last page is the one with nothing after it");
+            paged.Add(page.Items[0].FireInstanceId);
+        }
+
+        paged.Should().Equal(all.Items.Select(x => x.FireInstanceId),
+            "paging one at a time has to walk the same order, with no firing seen twice and none missed");
+
+        PagedResult<FireInstance> counted = await Store.QueryFireInstances(new FireInstanceQuery { Take = 0, IncludeTotalCount = true });
+        counted.Items.Should().BeEmpty("the count idiom reads no page");
+        counted.TotalCount.Should().Be(3);
+    }
+
+    [Test]
+    public async Task FiringsFilterByTriggerJobAndOwningNode()
+    {
+        IOperableTrigger wanted = await GivenAFiringInFlight("wanted");
+        await GivenAFiringInFlight("other");
+
+        using (new AssertionScope())
+        {
+            (await Store.QueryFireInstances(new FireInstanceQuery { TriggerName = NameMatcher<TriggerKey>.NameEquals(wanted.Key.Name) }))
+                .Items.Should().ContainSingle().Which.TriggerKey.Should().Be(wanted.Key);
+
+            (await Store.QueryFireInstances(new FireInstanceQuery { TriggerGroup = GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA) }))
+                .Items.Should().HaveCount(2, "both firings are in that trigger group");
+
+            (await Store.QueryFireInstances(new FireInstanceQuery { TriggerGroup = GroupMatcher<TriggerKey>.GroupEquals(OtherGroup) }))
+                .Items.Should().BeEmpty();
+
+            (await Store.QueryFireInstances(new FireInstanceQuery { Job = wanted.JobKey }))
+                .Items.Should().ContainSingle().Which.JobKey.Should().Be(wanted.JobKey);
+
+            (await Store.QueryFireInstances(new FireInstanceQuery { SchedulerInstanceId = StoreInstanceId }))
+                .Items.Should().HaveCount(2, "both firings are owned by this node");
+
+            (await Store.QueryFireInstances(new FireInstanceQuery { SchedulerInstanceId = "some-other-node" }))
+                .Items.Should().BeEmpty("a firing owned by this node must not answer for another one");
+        }
+    }
+
+    /// <summary>
+    /// Acquires a trigger due right away and hands the acquired copy back, without firing it.
+    /// </summary>
+    private async Task<IOperableTrigger> GivenAnAcquiredTrigger(string name, string executionGroup = null)
+    {
+        IJobDetail job = CreateJob(name, JobGroupA);
+        IOperableTrigger trigger = CreateTrigger(name, TriggerGroupA, job.Key,
+            startAt: DateTimeOffset.UtcNow.AddSeconds(5), executionGroup: executionGroup);
+        await Store.ScheduleJob(job, trigger);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 1
+        });
+
+        return acquired.Should().ContainSingle(x => x.Key.Equals(trigger.Key),
+            "the trigger due next is the one under test").Subject;
+    }
+
+    /// <summary>
+    /// Acquires and fires a trigger, leaving the execution in flight for the test to observe.
+    /// </summary>
+    private async Task<IOperableTrigger> GivenAFiringInFlight(string name, string executionGroup = null)
+    {
+        IOperableTrigger acquired = await GivenAnAcquiredTrigger(name, executionGroup);
+
+        List<TriggerFiredResult> fired = await Store.TriggersFired([acquired]);
+        fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull(
+            "the firing has to be committed before it can be listed");
+
+        return acquired;
+    }
+
+    /// <summary>
+    /// Fires the same trigger a second time while the first execution is still in flight, by reaching
+    /// far enough ahead to acquire its next scheduled fire.
+    /// </summary>
+    private async Task<IOperableTrigger> FireAgain(IOperableTrigger trigger)
+    {
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddHours(2),
+            MaxCount = 1
+        });
+
+        IOperableTrigger again = acquired.Should().ContainSingle(x => x.Key.Equals(trigger.Key)).Subject;
+        await Store.TriggersFired([again]);
+        return again;
+    }
+
+    /// <summary>
+    /// The instance id this fixture's store was initialized with, which is what every
+    /// <see cref="FireInstance.SchedulerInstanceId" /> it reports has to say.
+    /// </summary>
+    protected abstract string StoreInstanceId { get; }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Helpers
     //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1121,7 +1324,8 @@ public abstract class JobStoreContractTest
         string group,
         JobKey jobKey,
         DateTimeOffset? startAt = null,
-        string calendarName = null)
+        string calendarName = null,
+        string executionGroup = null)
     {
         TriggerBuilder<IJob> builder = TriggerBuilder.Create()
             .WithIdentity(name, group)
@@ -1133,6 +1337,11 @@ public abstract class JobStoreContractTest
         if (calendarName is not null)
         {
             builder = builder.WithCalendarName(calendarName);
+        }
+
+        if (executionGroup is not null)
+        {
+            builder = builder.WithExecutionGroup(executionGroup);
         }
 
         IOperableTrigger trigger = (IOperableTrigger) builder.Build();

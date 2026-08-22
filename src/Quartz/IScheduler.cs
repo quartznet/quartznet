@@ -171,8 +171,9 @@ public interface IScheduler : IAsyncDisposable
     /// or finished.
     /// </para>
     /// <para>
-    /// A firing vetoed by an <see cref="ITriggerListener" /> is never listed: the veto removes it before
-    /// the job starts.
+    /// A firing an <see cref="ITriggerListener" /> vetoes does not linger here: applying the veto
+    /// completes the firing, which removes it. It can be listed for the instant between the store
+    /// recording the firing and the veto being decided, and never after.
     /// </para>
     /// </remarks>
     /// <param name="query">What to select and which page of it to return.</param>

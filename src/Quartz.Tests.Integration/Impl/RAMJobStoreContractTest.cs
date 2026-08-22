@@ -34,10 +34,14 @@ public sealed class RAMJobStoreContractTest : JobStoreContractTest
     /// </summary>
     protected override bool ReportsJobGroupPauseState => true;
 
+    protected override string StoreInstanceId => InstanceId;
+
+    private const string InstanceId = "ram-contract-instance";
+
     protected override async ValueTask<IJobStore> CreateStore()
     {
         IJobStore store = TestJobStores.Ram();
-        await store.Initialize(TestJobStores.Identity());
+        await store.Initialize(TestJobStores.Identity(instanceId: InstanceId));
         return store;
     }
 }
