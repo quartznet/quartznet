@@ -5,7 +5,8 @@ using Quartz.Impl;
 namespace Quartz.Configuration;
 
 /// <summary>
-/// Reads per-node execution group limits from the <c>quartz.executionLimit.*</c> property keys.
+/// Reads execution group limits from the <c>quartz.executionLimit.*</c> and
+/// <c>quartz.clusterExecutionLimit.*</c> property keys.
 /// </summary>
 internal static class ExecutionLimitsParser
 {
@@ -15,17 +16,25 @@ internal static class ExecutionLimitsParser
     public static ExecutionLimits? Parse(NameValueCollection properties)
     {
         var builder = ExecutionLimitsBuilder.Create();
-        var prefix = LegacyPropertyKeys.ExecutionLimitPrefix + ".";
+        var nodePrefix = LegacyPropertyKeys.ExecutionLimitPrefix + ".";
+        var clusterPrefix = LegacyPropertyKeys.ClusterExecutionLimitPrefix + ".";
         var configured = false;
 
         foreach (var key in properties.AllKeys)
         {
-            if (key is null || !key.StartsWith(prefix, StringComparison.Ordinal))
+            if (key is null)
             {
                 continue;
             }
 
-            configured |= Apply(builder, key[prefix.Length..].Trim(), properties[key]?.Trim(), key);
+            if (key.StartsWith(nodePrefix, StringComparison.Ordinal))
+            {
+                configured |= Apply(builder, key[nodePrefix.Length..].Trim(), properties[key]?.Trim(), key, ExecutionLimitScope.Node);
+            }
+            else if (key.StartsWith(clusterPrefix, StringComparison.Ordinal))
+            {
+                configured |= Apply(builder, key[clusterPrefix.Length..].Trim(), properties[key]?.Trim(), key, ExecutionLimitScope.Cluster);
+            }
         }
 
         // Whether anything was configured is tracked as it happens rather than read back off the
@@ -37,7 +46,7 @@ internal static class ExecutionLimitsParser
     /// <summary>
     /// Applies one key, and reports whether it configured anything.
     /// </summary>
-    private static bool Apply(ExecutionLimitsBuilder builder, string groupKey, string? rawValue, string key)
+    private static bool Apply(ExecutionLimitsBuilder builder, string groupKey, string? rawValue, string key, ExecutionLimitScope scope)
     {
         if (groupKey.Length == 0)
         {
@@ -53,7 +62,7 @@ internal static class ExecutionLimitsParser
                 return false;
             }
 
-            builder.ForOtherGroups(limit.Value);
+            builder.ForOtherGroups(limit.Value, scope);
             return true;
         }
 
@@ -65,16 +74,17 @@ internal static class ExecutionLimitsParser
                 return false;
             }
 
-            builder.ForDefaultGroup(limit.Value);
+            builder.ForDefaultGroup(limit.Value, scope);
             return true;
         }
 
         if (limit.HasValue)
         {
-            builder.ForGroup(groupKey, limit.Value);
+            builder.ForGroup(groupKey, limit.Value, scope);
         }
         else
         {
+            // Unlimited takes no scope: there is no number to count, in either of them.
             builder.Unlimited(groupKey);
         }
 

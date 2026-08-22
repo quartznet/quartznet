@@ -635,9 +635,16 @@ internal sealed class QuartzSchedulerThread
     }
 
     /// <summary>
-    /// Takes prescribed limits for execution groups (if any) and lowers them
+    /// Takes prescribed limits for execution groups (if any) and lowers the node-scoped ones
     /// according to jobs currently executing on this node.
     /// </summary>
+    /// <remarks>
+    /// A <see cref="ExecutionLimitScope.Cluster" /> limit is deliberately left alone here. This node's
+    /// firings are already reservations in the job store — rows in <c>QRTZ_FIRED_TRIGGERS</c> for the
+    /// ADO.NET store — and the store subtracts that count when it builds the acquisition ledger.
+    /// Subtracting them a second time from this side would charge a busy node twice for its own work and
+    /// halve the quota, which no single-node test would show.
+    /// </remarks>
     private ExecutionLimits? ComputeAvailableExecutionGroupLimits()
     {
         ExecutionLimits? limits = qs.GetExecutionLimits();
@@ -646,35 +653,11 @@ internal sealed class QuartzSchedulerThread
             return null;
         }
 
-        Dictionary<string, int?> available = limits.ToWorkingCopy();
+        Dictionary<string, ExecutionGroupAllowance> available = limits.ToWorkingCopy();
 
         foreach (KeyValuePair<string, int> running in runningExecutionGroupCounts)
         {
-            string runningGroup = running.Key;
-            int runningCount = running.Value;
-            if (runningCount <= 0)
-            {
-                continue;
-            }
-
-            if (available.TryGetValue(runningGroup, out int? limit))
-            {
-                if (limit is not null)
-                {
-                    available[runningGroup] = Math.Max(limit.Value - runningCount, 0);
-                }
-                // null means unlimited, nothing to update
-            }
-            else if (runningGroup != ExecutionLimits.DefaultGroupKey
-                     && available.TryGetValue(ExecutionLimits.OtherGroups, out int? defaultLimit))
-            {
-                // OtherGroups ("*") applies to named groups only, not to the
-                // default (ungrouped) key - consistent with CheckExecutionLimits
-                if (defaultLimit is not null)
-                {
-                    available[runningGroup] = Math.Max(defaultLimit.Value - runningCount, 0);
-                }
-            }
+            ExecutionLimits.SubtractInFlight(available, running.Key, running.Value, ExecutionLimitScope.Node);
         }
 
         // The remaining-capacity map carries the derivation flag with it, because the store that reads it

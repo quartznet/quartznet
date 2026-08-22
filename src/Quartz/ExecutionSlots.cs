@@ -34,6 +34,13 @@ namespace Quartz;
 /// the ones shipped with Quartz rather than reinventing them.
 /// </para>
 /// <para>
+/// A <see cref="ExecutionLimitScope.Cluster" /> limit reaches this ledger already lowered by what the
+/// cluster holds in flight, because <see cref="ExecutionLimits.CreateSlots" /> subtracts the counts the
+/// store passed it. Nothing about <see cref="TryTake" /> changes for one: by the time it is asked, a
+/// cluster-scoped group's remaining count is what the whole cluster has left rather than what this node
+/// has left, and it counts down the same way.
+/// </para>
+/// <para>
 /// It is mutable and not thread-safe: one acquisition pass owns one ledger, which is why
 /// <see cref="ExecutionLimits" /> hands out a new one instead of being one. Create a ledger per attempt,
 /// because a retried acquisition must start from the limits again rather than from what the failed
@@ -42,10 +49,10 @@ namespace Quartz;
 /// </remarks>
 public sealed class ExecutionSlots
 {
-    private readonly Dictionary<string, int?> available;
+    private readonly Dictionary<string, ExecutionGroupAllowance> available;
     private readonly bool usesTriggerGroupWhenUnset;
 
-    internal ExecutionSlots(Dictionary<string, int?> available, bool usesTriggerGroupWhenUnset)
+    internal ExecutionSlots(Dictionary<string, ExecutionGroupAllowance> available, bool usesTriggerGroupWhenUnset)
     {
         this.available = available;
         this.usesTriggerGroupWhenUnset = usesTriggerGroupWhenUnset;
@@ -66,23 +73,23 @@ public sealed class ExecutionSlots
     {
         string key = ExecutionLimits.ResolveGroupKey(executionGroup, triggerGroup, usesTriggerGroupWhenUnset);
 
-        int? limit;
-        if (available.TryGetValue(key, out int? groupLimit))
+        ExecutionGroupAllowance allowance;
+        if (available.TryGetValue(key, out ExecutionGroupAllowance groupAllowance))
         {
-            limit = groupLimit;
+            allowance = groupAllowance;
         }
-        else if (key != ExecutionLimits.DefaultGroupKey && available.TryGetValue(ExecutionLimits.OtherGroups, out int? otherLimit))
+        else if (key != ExecutionLimits.DefaultGroupKey && available.TryGetValue(ExecutionLimits.OtherGroups, out ExecutionGroupAllowance otherAllowance))
         {
             // OtherGroups ("*") is a catch-all for named groups only,
             // not for the default (null/ungrouped) triggers
-            limit = otherLimit;
+            allowance = otherAllowance;
         }
         else
         {
             return true; // no limit configured for this group
         }
 
-        if (limit is null)
+        if (allowance.MaxConcurrent is not int limit)
         {
             return true; // unlimited
         }
@@ -94,7 +101,7 @@ public sealed class ExecutionSlots
 
         // Count down against the specific group key, even when the value came from the OtherGroups
         // default, so that each unlisted group gets its own allowance rather than sharing one.
-        available[key] = limit - 1;
+        available[key] = allowance with { MaxConcurrent = limit - 1 };
         return true;
     }
 
@@ -109,6 +116,13 @@ public sealed class ExecutionSlots
     /// that has not been taken from yet.</returns>
     public bool TryGetRemaining(string? executionGroup, out int? remaining)
     {
-        return available.TryGetValue(ExecutionLimits.NormalizeGroupKey(executionGroup), out remaining);
+        if (available.TryGetValue(ExecutionLimits.NormalizeGroupKey(executionGroup), out ExecutionGroupAllowance allowance))
+        {
+            remaining = allowance.MaxConcurrent;
+            return true;
+        }
+
+        remaining = null;
+        return false;
     }
 }

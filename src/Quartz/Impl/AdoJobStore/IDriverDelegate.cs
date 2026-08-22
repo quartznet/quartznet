@@ -835,6 +835,33 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Counts what the cluster currently holds in flight for each (execution group, trigger group)
+    /// pair, which is what a <see cref="ExecutionLimitScope.Cluster" /> execution limit is counted
+    /// against.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The answer is an aggregate over the fired-triggers table, whose rows already have exactly the
+    /// lifetime a reservation needs: written when a trigger is acquired, updated when it fires, deleted
+    /// when it completes or when cluster recovery cleans up after the node that owned it. So the count
+    /// includes a peer's reservation that has not started yet, and a dead node's rows keep holding
+    /// slots until recovery clears them — under-serving the quota rather than over-serving it, which is
+    /// the safe direction.
+    /// </para>
+    /// <para>
+    /// Both group names are returned because the limits derive their key from the pair; see
+    /// <see cref="ExecutionGroupInFlight" />. Rows are bounded by the distinct pairs currently in
+    /// flight, not by the size of the schedule.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>One entry per distinct pair with work in flight; empty when the cluster is idle.</returns>
+    ValueTask<List<ExecutionGroupInFlight>> SelectExecutionGroupsInFlight(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Select the distinct instance names of all fired-trigger records.
     /// </summary>
     /// <remarks>

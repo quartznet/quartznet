@@ -74,6 +74,17 @@ internal static class LegacyPropertyKeys
     internal const string DataSourcePrefix = "quartz.dataSource";
     internal const string DbProvider = "quartz.dbprovider";
     internal const string ExecutionLimitPrefix = "quartz.executionLimit";
+
+    /// <summary>
+    /// The cluster-scoped twin of <see cref="ExecutionLimitPrefix" />: the same group keys and the same
+    /// values, counted across every node sharing the job store rather than on this one.
+    /// </summary>
+    /// <remarks>
+    /// A prefix of its own rather than a magic value under the existing one, because every key under
+    /// <c>quartz.executionLimit</c> is a group name and every value is a count — there is no spelling
+    /// left in either half that could not also be a real group or a real number.
+    /// </remarks>
+    internal const string ClusterExecutionLimitPrefix = "quartz.clusterExecutionLimit";
     internal const string PluginPrefix = "quartz.plugin";
     internal const string PluginType = "type";
     internal const string JobListenerPrefix = "quartz.jobListener";
@@ -132,6 +143,7 @@ internal static class LegacyPropertyKeys
         DataSourcePrefix,
         DbProvider,
         ExecutionLimitPrefix,
+        ClusterExecutionLimitPrefix,
         PluginPrefix,
         JobListenerPrefix,
         TriggerListenerPrefix,

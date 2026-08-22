@@ -912,13 +912,43 @@ internal sealed class QuartzApiClient : IQuartzApiClient
             return null;
         }
 
-        Dictionary<string, int?> dict = new();
+        Dictionary<string, DashboardExecutionLimit> dict = new();
         foreach (JsonProperty prop in limitsElement.EnumerateObject())
         {
             string key = prop.Name is "" or "_" ? "(default)" : prop.Name;
-            dict[key] = prop.Value.ValueKind == JsonValueKind.Null ? null : prop.Value.GetInt32();
+            dict[key] = ReadExecutionLimit(prop.Value);
         }
 
         return dict.Count > 0 ? new ExecutionLimitsDto(dict) : null;
+    }
+
+    /// <summary>
+    /// Reads one group's limit out of the execution-limits body.
+    /// </summary>
+    /// <remarks>
+    /// A payload that carries no scope reads as <see cref="ExecutionLimitScope.Node" />, which is what
+    /// an execution limit meant before scopes existed and what a bare number on the wire still means.
+    /// The dashboard talks to whatever API it was pointed at, so this degrades rather than throws.
+    /// </remarks>
+    private static DashboardExecutionLimit ReadExecutionLimit(JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.Object)
+        {
+            return new DashboardExecutionLimit(
+                value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null,
+                ExecutionLimitScope.Node);
+        }
+
+        int? maxConcurrent = value.TryGetProperty("maxConcurrent", out JsonElement max) && max.ValueKind == JsonValueKind.Number
+            ? max.GetInt32()
+            : null;
+
+        ExecutionLimitScope scope = value.TryGetProperty("scope", out JsonElement scopeElement)
+                                    && scopeElement.ValueKind == JsonValueKind.String
+                                    && Enum.TryParse(scopeElement.GetString(), ignoreCase: true, out ExecutionLimitScope parsed)
+            ? parsed
+            : ExecutionLimitScope.Node;
+
+        return new DashboardExecutionLimit(maxConcurrent, scope);
     }
 }

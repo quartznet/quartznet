@@ -326,11 +326,19 @@ namespace Quartz
         public bool IsMatch(TKey key) { }
         public static Quartz.EverythingMatcher<TKey> All() { }
     }
+    public readonly struct ExecutionGroupInFlight : System.IEquatable<Quartz.ExecutionGroupInFlight>
+    {
+        public ExecutionGroupInFlight(string? ExecutionGroup, string TriggerGroup, int Count) { }
+        public int Count { get; init; }
+        public string? ExecutionGroup { get; init; }
+        public string TriggerGroup { get; init; }
+    }
     public readonly struct ExecutionGroupLimit : System.IEquatable<Quartz.ExecutionGroupLimit>
     {
-        public ExecutionGroupLimit(Quartz.ExecutionGroupScope Scope, int? MaxConcurrent) { }
+        public ExecutionGroupLimit(Quartz.ExecutionGroupScope Group, int? MaxConcurrent, Quartz.ExecutionLimitScope Scope = 0) { }
+        public Quartz.ExecutionGroupScope Group { get; init; }
         public int? MaxConcurrent { get; init; }
-        public Quartz.ExecutionGroupScope Scope { get; init; }
+        public Quartz.ExecutionLimitScope Scope { get; init; }
     }
     public readonly struct ExecutionGroupScope : System.IEquatable<Quartz.ExecutionGroupScope>
     {
@@ -342,21 +350,27 @@ namespace Quartz
         public override string ToString() { }
         public static Quartz.ExecutionGroupScope Named(string name) { }
     }
+    public enum ExecutionLimitScope
+    {
+        Node = 0,
+        Cluster = 1,
+    }
     public sealed class ExecutionLimits
     {
         public const string OtherGroups = "*";
         public System.Collections.Generic.IReadOnlyList<Quartz.ExecutionGroupLimit> Groups { get; }
+        public bool HasClusterScopedLimits { get; }
         public bool IsEmpty { get; }
         public bool UsesTriggerGroupWhenUnset { get; }
-        public Quartz.ExecutionSlots CreateSlots() { }
-        public bool TryGetLimit(Quartz.ExecutionGroupScope scope, out int? maxConcurrent) { }
+        public Quartz.ExecutionSlots CreateSlots(System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupInFlight>? clusterInFlight = null) { }
+        public bool TryGetLimit(Quartz.ExecutionGroupScope group, out int? maxConcurrent) { }
     }
     public sealed class ExecutionLimitsBuilder
     {
         public Quartz.ExecutionLimits Build() { }
-        public Quartz.ExecutionLimitsBuilder ForDefaultGroup(int maxConcurrent) { }
-        public Quartz.ExecutionLimitsBuilder ForGroup(string group, int maxConcurrent) { }
-        public Quartz.ExecutionLimitsBuilder ForOtherGroups(int maxConcurrent) { }
+        public Quartz.ExecutionLimitsBuilder ForDefaultGroup(int maxConcurrent, Quartz.ExecutionLimitScope scope = 0) { }
+        public Quartz.ExecutionLimitsBuilder ForGroup(string group, int maxConcurrent, Quartz.ExecutionLimitScope scope = 0) { }
+        public Quartz.ExecutionLimitsBuilder ForOtherGroups(int maxConcurrent, Quartz.ExecutionLimitScope scope = 0) { }
         public Quartz.ExecutionLimitsBuilder Unlimited(string group) { }
         public Quartz.ExecutionLimitsBuilder UseTriggerGroupWhenUnset() { }
         public static Quartz.ExecutionLimitsBuilder Create() { }
@@ -2283,6 +2297,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<int> RepinTriggersFromDeadNode(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string oldPreferredNode, string newPreferredNode, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.ICalendar?> SelectCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> SelectCalendarNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ExecutionGroupInFlight>> SelectExecutionGroupsInFlight(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.FireInstance>> SelectFireInstances(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.FireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> SelectFiredTriggerInstanceNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.FiredTriggerRecord>> SelectFiredTriggerRecords(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.FiredTriggerQuery query, System.Threading.CancellationToken cancellationToken = default);
@@ -2616,6 +2631,7 @@ namespace Quartz.Impl.AdoJobStore
         protected string ReplaceTablePrefix(string query) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.ICalendar?> SelectCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> SelectCalendarNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ExecutionGroupInFlight>> SelectExecutionGroupsInFlight(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.FireInstance>> SelectFireInstances(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.FireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> SelectFiredTriggerInstanceNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.FiredTriggerRecord>> SelectFiredTriggerRecords(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.FiredTriggerQuery query, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2699,6 +2715,7 @@ namespace Quartz.Impl.AdoJobStore
     public sealed class TriggerAcquisitionCriteria : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerAcquisitionCriteria>
     {
         public TriggerAcquisitionCriteria() { }
+        public System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupInFlight>? ClusterInFlight { get; init; }
         public Quartz.ExecutionLimits? ExecutionLimits { get; init; }
         public required System.DateTimeOffset LiveNodeCutoff { get; init; }
         public required int MaxCount { get; init; }

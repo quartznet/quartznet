@@ -3481,6 +3481,12 @@ public abstract class AdoJobStoreBase : IJobStore
     /// silent one.
     /// </para>
     /// <para>
+    /// One property is filled in after this returns:
+    /// <see cref="TriggerAcquisitionCriteria.ClusterInFlight" /> is read from the delegate when the
+    /// limits contain a cluster-scoped one and the override left it <see langword="null" />. An
+    /// override that sets it keeps its own answer.
+    /// </para>
+    /// <para>
     /// <see cref="TriggerAcquisitionCriteria" />'s remarks state the contract a new filter has to
     /// keep: it is another optional property on that record, defaulting to "no additional filtering".
     /// </para>
@@ -3528,6 +3534,18 @@ public abstract class AdoJobStoreBase : IJobStore
             {
                 // Built inside the loop, so each retry asks again and sees the time it retried at.
                 TriggerAcquisitionCriteria criteria = CreateAcquisitionCriteria(request);
+
+                // A cluster-scoped limit is counted against the fired-triggers table, so the count is
+                // read here rather than derived from anything this node remembers. One aggregate per
+                // attempt, and none at all unless a cluster-scoped limit is configured - which is also
+                // why an override that already answered the question is left alone.
+                if (criteria.ClusterInFlight is null && criteria.ExecutionLimits?.HasClusterScopedLimits == true)
+                {
+                    criteria = criteria with
+                    {
+                        ClusterInFlight = await Delegate.SelectExecutionGroupsInFlight(conn, cancellationToken).ConfigureAwait(false),
+                    };
+                }
 
                 List<TriggerAcquireResult> results = await Delegate.SelectTriggersToAcquire(conn, criteria, cancellationToken).ConfigureAwait(false);
 

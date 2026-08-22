@@ -1223,6 +1223,97 @@ public abstract class JobStoreContractTest
             .Which.Key.Should().Be(trigger.Key);
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Cluster-scoped execution limits
+    //
+    // A cluster-scoped limit is counted against what the store itself holds in flight, not against
+    // anything the caller remembers, so these assertions are about the store's own ledger: the
+    // reservations and executions it is already holding when acquisition asks it for more. Both stores
+    // answer them - the in-memory store's cluster is one process, which makes a cluster-scoped limit
+    // and a node-scoped one the same number there, not a feature it declines.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AClusterScopedLimitCountsTheReservationsTheStoreAlreadyHolds()
+    {
+        await GivenAnAcquiredTrigger("held", executionGroup: "tenant");
+        await GivenDueTriggers("tenant", "candidate-one");
+
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
+            .ForGroup("tenant", 1, ExecutionLimitScope.Cluster)
+            .Build();
+
+        (await AcquireWith(limits)).Should().BeEmpty(
+            "the reservation the store is already holding is the group's one cluster-wide slot, whoever took it");
+    }
+
+    [Test]
+    public async Task AClusterScopedLimitCountsAFiringThatHasAlreadyStarted()
+    {
+        await GivenAFiringInFlight("running", executionGroup: "tenant");
+        await GivenDueTriggers("tenant", "candidate-one");
+
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
+            .ForGroup("tenant", 1, ExecutionLimitScope.Cluster)
+            .Build();
+
+        (await AcquireWith(limits)).Should().BeEmpty(
+            "a reservation that has turned into a running execution holds the same slot it always did");
+    }
+
+    [Test]
+    public async Task ANodeScopedLimitDoesNotCountWhatTheStoreHoldsInFlight()
+    {
+        await GivenAnAcquiredTrigger("held", executionGroup: "tenant");
+        await GivenDueTriggers("tenant", "candidate-one");
+
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create().ForGroup("tenant", 1).Build();
+
+        (await AcquireWith(limits)).Should().ContainSingle(
+            "a node-scoped limit is what the caller has left to spend, and the caller said one - subtracting this node's own in-flight work from it is the scheduler thread's job, not the store's, and doing it in both places would halve the limit");
+    }
+
+    [Test]
+    public async Task AClusterScopedLimitGoesOnCountingDownWithinOneBatch()
+    {
+        await GivenAnAcquiredTrigger("held", executionGroup: "tenant");
+        await GivenDueTriggers("tenant", "candidate-one", "candidate-two");
+
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
+            .ForGroup("tenant", 2, ExecutionLimitScope.Cluster)
+            .Build();
+
+        (await AcquireWith(limits)).Should().ContainSingle(
+            "one of the two cluster slots is spoken for, so the batch may take exactly one more - a cluster baseline that did not also count down would let the batch take both");
+    }
+
+    [Test]
+    public async Task AClusterScopedLimitLeavesAnotherGroupAlone()
+    {
+        await GivenAnAcquiredTrigger("held", executionGroup: "tenant");
+        await GivenDueTriggers("other-tenant", "candidate-one");
+
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
+            .ForGroup("tenant", 1, ExecutionLimitScope.Cluster)
+            .Build();
+
+        (await AcquireWith(limits)).Should().ContainSingle(
+            "the ceiling is per execution group, so work in one group is not charged to another");
+    }
+
+    /// <summary>
+    /// Schedules one due trigger per name, all in the same execution group.
+    /// </summary>
+    private async Task GivenDueTriggers(string executionGroup, params string[] names)
+    {
+        foreach (string name in names)
+        {
+            IJobDetail job = CreateJob(name, JobGroupA);
+            await Store.ScheduleJob(job, CreateTrigger(name, TriggerGroupA, job.Key,
+                startAt: DateTimeOffset.UtcNow.AddSeconds(5), executionGroup: executionGroup));
+        }
+    }
+
     private async Task GivenTwoDueTriggersInOneGroup()
     {
         // Two jobs rather than one, so that DisallowConcurrentExecution is not what limits the batch.

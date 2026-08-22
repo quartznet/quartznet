@@ -39,6 +39,40 @@ public class SchedulerEndpointsTest : WebApiTest
         }
     }
 
+    /// <summary>
+    /// The wire carries a limit's scope, because a limit that lost it would come back as a per-node one
+    /// — a quota silently multiplied by the node count, which is the very thing the scope exists to say.
+    /// </summary>
+    [Test]
+    public async Task ExecutionLimitsRoundTripKeepsEachLimitsScope()
+    {
+        ExecutionLimits? captured = null;
+        A.CallTo(() => FakeScheduler.SetExecutionLimits(A<ExecutionLimits>._, A<CancellationToken>._))
+            .Invokes((ExecutionLimits limits, CancellationToken _) => captured = limits);
+        A.CallTo(() => FakeScheduler.GetExecutionLimits(A<CancellationToken>._))
+            .ReturnsLazily(() => new ValueTask<ExecutionLimits?>(captured));
+
+        await HttpScheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create()
+            .ForGroup("batch", 2)
+            .ForGroup("tenant", 8, ExecutionLimitScope.Cluster)
+            .ForOtherGroups(1, ExecutionLimitScope.Cluster)
+            .ForDefaultGroup(3)
+            .Build());
+
+        captured.Should().NotBeNull("the server builds the limits it was sent before anything can be read back");
+
+        ExecutionLimits? readBack = await HttpScheduler.GetExecutionLimits();
+
+        readBack.Should().NotBeNull();
+        readBack.Groups.Should().BeEquivalentTo(new[]
+        {
+            new ExecutionGroupLimit(ExecutionGroupScope.Named("batch"), 2),
+            new ExecutionGroupLimit(ExecutionGroupScope.Named("tenant"), 8, ExecutionLimitScope.Cluster),
+            new ExecutionGroupLimit(ExecutionGroupScope.OtherGroups, 1, ExecutionLimitScope.Cluster),
+            new ExecutionGroupLimit(ExecutionGroupScope.Default, 3),
+        });
+    }
+
     [Test]
     public async Task GetSchedulerDetailsShouldWork()
     {

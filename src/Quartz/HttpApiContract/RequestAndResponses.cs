@@ -186,9 +186,19 @@ internal record UnscheduleJobsRequest(KeyDto[] Triggers) : IValidatable
     public IEnumerable<string> Validate() => Triggers is null ? ["Missing trigger keys"] : Triggers.SelectMany(x => x.Validate());
 }
 
-internal record ExecutionLimitsResponse(Dictionary<string, int?>? Limits, bool UseTriggerGroupWhenUnset = false);
+/// <summary>
+/// One group's limit on the wire: the count, and what it is counted against.
+/// </summary>
+/// <remarks>
+/// A record rather than a bare number because a limit that lost its scope in transit would come back
+/// as a per-node one, which is a quieter lie than a missing field. <see cref="Scope" /> defaults to
+/// <see cref="ExecutionLimitScope.Node" />, so a body that omits it says what it always said.
+/// </remarks>
+internal record ExecutionLimitDto(int? MaxConcurrent, ExecutionLimitScope Scope = ExecutionLimitScope.Node);
 
-internal record SetExecutionLimitsRequest(Dictionary<string, int?>? Limits, bool UseTriggerGroupWhenUnset = false) : IValidatable
+internal record ExecutionLimitsResponse(Dictionary<string, ExecutionLimitDto>? Limits, bool UseTriggerGroupWhenUnset = false);
+
+internal record SetExecutionLimitsRequest(Dictionary<string, ExecutionLimitDto>? Limits, bool UseTriggerGroupWhenUnset = false) : IValidatable
 {
     public IEnumerable<string> Validate()
     {
@@ -205,9 +215,20 @@ internal record SetExecutionLimitsRequest(Dictionary<string, int?>? Limits, bool
                 yield return $"Limit key '{kvp.Key}' is invalid";
             }
 
-            if (kvp.Value.HasValue && kvp.Value.Value < 0)
+            if (kvp.Value is null)
             {
-                yield return $"Limit value for group '{kvp.Key}' must be non-negative, got {kvp.Value.Value}";
+                yield return $"Limit for group '{kvp.Key}' is missing";
+                continue;
+            }
+
+            if (kvp.Value.MaxConcurrent < 0)
+            {
+                yield return $"Limit value for group '{kvp.Key}' must be non-negative, got {kvp.Value.MaxConcurrent}";
+            }
+
+            if (kvp.Value.Scope is not (ExecutionLimitScope.Node or ExecutionLimitScope.Cluster))
+            {
+                yield return $"Limit scope for group '{kvp.Key}' must be Node or Cluster, got {kvp.Value.Scope}";
             }
         }
     }

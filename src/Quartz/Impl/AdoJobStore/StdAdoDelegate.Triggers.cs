@@ -1232,8 +1232,9 @@ public partial class StdAdoDelegate
         AddPreferredNodeParameters(cmd, criteria.LiveNodeCutoff);
 
         // Work on a copy: the slots are decremented as rows are taken, and the caller may reuse the
-        // criteria across retries.
-        ExecutionSlots? executionSlots = criteria.ExecutionLimits?.CreateSlots();
+        // criteria across retries. Cluster-scoped limits arrive already lowered by what the cluster
+        // holds in flight; node-scoped ones were lowered by the scheduler thread before the request.
+        ExecutionSlots? executionSlots = criteria.ExecutionLimits?.CreateSlots(criteria.ClusterInFlight);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         int execGroupOrdinal = -1;
@@ -1283,6 +1284,31 @@ public partial class StdAdoDelegate
         }
 
         return nextTriggers;
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<List<ExecutionGroupInFlight>> SelectExecutionGroupsInFlight(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectExecutionGroupsInFlight));
+        AddCommandParameter(cmd, "schedulerName", schedulerName);
+
+        List<ExecutionGroupInFlight> counts = [];
+
+        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            // Read positionally: the projection is this statement's own and COUNT(*) has no column name
+            // to ask for. Its type is provider-dependent - Int32 on SQL Server, Int64 on PostgreSQL,
+            // MySQL and SQLite - so it is converted rather than read as either.
+            counts.Add(new ExecutionGroupInFlight(
+                rs.IsDBNull(0) ? null : rs.GetString(0),
+                rs.GetString(1),
+                Convert.ToInt32(rs.GetValue(2), CultureInfo.InvariantCulture)));
+        }
+
+        return counts;
     }
 
     /// <inheritdoc />

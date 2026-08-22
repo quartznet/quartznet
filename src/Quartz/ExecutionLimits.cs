@@ -19,21 +19,28 @@
 
 #endregion
 
+using System.Runtime.InteropServices;
+
 namespace Quartz;
 
 /// <summary>
-/// An immutable set of per-node thread limits for execution groups. Execution groups are optional
+/// An immutable set of concurrency limits for execution groups. Execution groups are optional
 /// tags on triggers that characterize the resource requirements of the associated job
 /// (e.g. "batch-jobs", "high-cpu", "large-ram").
 /// </summary>
 /// <remarks>
-/// <para>Each scheduler node can declare its own limits independently:
+/// <para>Every limit says how many concurrent executions its group may have:
 /// <list type="bullet">
 ///   <item>A positive value limits how many threads the group may consume concurrently.</item>
-///   <item>A value of <c>0</c> forbids the group from running on this node.</item>
+///   <item>A value of <c>0</c> forbids the group from running.</item>
 ///   <item><see langword="null"/> means unlimited (no restriction).</item>
 /// </list>
 /// </para>
+/// <para>Every limit also says what it is counted against — see <see cref="ExecutionLimitScope"/>.
+/// A <see cref="ExecutionLimitScope.Node"/> limit, the default, is what this node may run; a
+/// <see cref="ExecutionLimitScope.Cluster"/> limit is what every node sharing the job store may run
+/// between them. The two coexist: a heterogeneous cluster caps heavy work per node, a multi-tenant
+/// one caps a tenant across the cluster, and one deployment can want both.</para>
 /// <para>Use <see cref="OtherGroups"/> as a catch-all default for groups not explicitly listed.</para>
 /// <para>Build one with <see cref="ExecutionLimitsBuilder"/>, either directly or through
 /// <see cref="IQuartzBuilder.UseExecutionLimits"/>; hand it to
@@ -49,7 +56,7 @@ public sealed class ExecutionLimits
     /// <summary>
     /// The key used internally to represent triggers that have no execution group
     /// (<see cref="ITrigger.ExecutionGroup"/> is <see langword="null"/>). It is never a group name a
-    /// caller can use: <see cref="ExecutionGroupLimit.Scope"/> reports the default group as
+    /// caller can use: <see cref="ExecutionGroupLimit.Group"/> reports the default group as
     /// <see cref="ExecutionGroupScope.Default"/>, and
     /// <see cref="ExecutionLimitsBuilder.ForDefaultGroup"/> configures it.
     /// </summary>
@@ -67,19 +74,42 @@ public sealed class ExecutionLimits
     /// </summary>
     internal const string DefaultGroupNullAlias = "null";
 
-    private readonly Dictionary<string, int?> limits;
+    private readonly Dictionary<string, ExecutionGroupAllowance> limits;
     private ExecutionGroupLimit[]? groups;
 
-    internal ExecutionLimits(Dictionary<string, int?> limits, bool usesTriggerGroupWhenUnset = false)
+    internal ExecutionLimits(Dictionary<string, ExecutionGroupAllowance> limits, bool usesTriggerGroupWhenUnset = false)
     {
         this.limits = limits;
         UsesTriggerGroupWhenUnset = usesTriggerGroupWhenUnset;
+
+        foreach (KeyValuePair<string, ExecutionGroupAllowance> pair in limits)
+        {
+            // Null is unlimited and zero is forbidden; neither needs a count to enforce, so neither is
+            // a reason to make a store go and read one.
+            if (pair.Value.Scope == ExecutionLimitScope.Cluster && pair.Value.MaxConcurrent > 0)
+            {
+                HasClusterScopedLimits = true;
+                break;
+            }
+        }
     }
 
     /// <summary>
     /// <see langword="true"/> when nothing is limited, in which case every trigger is free to fire.
     /// </summary>
     public bool IsEmpty => limits.Count == 0;
+
+    /// <summary>
+    /// Whether any group is limited across the cluster rather than on this node alone.
+    /// </summary>
+    /// <remarks>
+    /// A job store reads this to decide whether a cluster-wide in-flight count is worth fetching:
+    /// with no cluster-scoped limit there is nothing such a count could constrain, so the round trip
+    /// is skipped. A group that is explicitly unlimited, or forbidden outright with <c>0</c>, does not
+    /// make this <see langword="true"/> whatever scope it was declared in — neither answer depends on
+    /// what is in flight.
+    /// </remarks>
+    public bool HasClusterScopedLimits { get; }
 
     /// <summary>
     /// Whether a trigger that carries no execution group of its own is limited as though it belonged to
@@ -109,28 +139,42 @@ public sealed class ExecutionLimits
     public IReadOnlyList<ExecutionGroupLimit> Groups => groups ??= Materialize();
 
     /// <summary>
-    /// Reads the limit configured for one scope.
+    /// Reads the limit configured for one group.
     /// </summary>
-    /// <param name="scope">The scope to read: <see cref="ExecutionGroupScope.Default"/>,
+    /// <remarks>
+    /// Only the number; whether it is counted per node or per cluster is on the entries
+    /// <see cref="Groups"/> hands out.
+    /// </remarks>
+    /// <param name="group">The bucket to read: <see cref="ExecutionGroupScope.Default"/>,
     /// <see cref="ExecutionGroupScope.OtherGroups"/>, or a named group via
     /// <see cref="ExecutionGroupScope.Named"/>.</param>
-    /// <param name="maxConcurrent">The limit: a positive count, <c>0</c> when the scope is forbidden,
+    /// <param name="maxConcurrent">The limit: a positive count, <c>0</c> when the group is forbidden,
     /// or <see langword="null"/> when it is explicitly unlimited.</param>
-    /// <returns><see langword="true"/> when the scope has a limit of its own. <see langword="false"/>
+    /// <returns><see langword="true"/> when the group has a limit of its own. <see langword="false"/>
     /// does not mean unlimited — <see cref="ExecutionGroupScope.OtherGroups"/> may still apply to a
     /// named group.</returns>
-    public bool TryGetLimit(ExecutionGroupScope scope, out int? maxConcurrent)
+    public bool TryGetLimit(ExecutionGroupScope group, out int? maxConcurrent)
     {
-        return limits.TryGetValue(scope.StorageKey, out maxConcurrent);
+        if (limits.TryGetValue(group.StorageKey, out ExecutionGroupAllowance allowance))
+        {
+            maxConcurrent = allowance.MaxConcurrent;
+            return true;
+        }
+
+        maxConcurrent = null;
+        return false;
     }
 
     private ExecutionGroupLimit[] Materialize()
     {
         ExecutionGroupLimit[] result = new ExecutionGroupLimit[limits.Count];
         int i = 0;
-        foreach (KeyValuePair<string, int?> pair in limits)
+        foreach (KeyValuePair<string, ExecutionGroupAllowance> pair in limits)
         {
-            result[i++] = new ExecutionGroupLimit(ExecutionGroupScope.FromStorageKey(pair.Key), pair.Value);
+            result[i++] = new ExecutionGroupLimit(
+                ExecutionGroupScope.FromStorageKey(pair.Key),
+                pair.Value.MaxConcurrent,
+                pair.Value.Scope);
         }
         return result;
     }
@@ -140,17 +184,89 @@ public sealed class ExecutionLimits
     /// takes triggers. The snapshot itself is unaffected, so a retried acquisition starts from the limits
     /// again by creating another ledger.
     /// </summary>
-    public ExecutionSlots CreateSlots()
+    /// <param name="clusterInFlight">What the whole cluster already holds in flight, one entry per
+    /// distinct (execution group, trigger group) pair, or <see langword="null"/> when the caller has no
+    /// such count. Only <see cref="ExecutionLimitScope.Cluster"/> limits are lowered by it: a
+    /// <see cref="ExecutionLimitScope.Node"/> limit has already had this node's running work subtracted
+    /// by the scheduler thread, and subtracting a count that includes the same firings again would halve
+    /// the limit on a busy node.</param>
+    public ExecutionSlots CreateSlots(IReadOnlyCollection<ExecutionGroupInFlight>? clusterInFlight = null)
     {
-        return new ExecutionSlots(ToWorkingCopy(), UsesTriggerGroupWhenUnset);
+        Dictionary<string, ExecutionGroupAllowance> working = ToWorkingCopy();
+
+        if (clusterInFlight is not null)
+        {
+            foreach (ExecutionGroupInFlight inFlight in clusterInFlight)
+            {
+                SubtractInFlight(
+                    working,
+                    ResolveGroupKey(inFlight.ExecutionGroup, inFlight.TriggerGroup, UsesTriggerGroupWhenUnset),
+                    inFlight.Count,
+                    ExecutionLimitScope.Cluster);
+            }
+        }
+
+        return new ExecutionSlots(working, UsesTriggerGroupWhenUnset);
     }
 
     /// <summary>
     /// Creates a mutable working copy of the configured limits.
     /// </summary>
-    internal Dictionary<string, int?> ToWorkingCopy()
+    internal Dictionary<string, ExecutionGroupAllowance> ToWorkingCopy()
     {
-        return new Dictionary<string, int?>(limits, StringComparer.Ordinal);
+        return new Dictionary<string, ExecutionGroupAllowance>(limits, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// Lowers one group's remaining allowance by what is already in flight against it, but only when
+    /// that allowance is counted in <paramref name="scope"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Both places that subtract in-flight work go through this, and they subtract in different scopes:
+    /// the scheduler thread takes off what is running on this node
+    /// (<see cref="ExecutionLimitScope.Node"/>), and a store takes off what the cluster holds
+    /// (<see cref="ExecutionLimitScope.Cluster"/>). Each skips the other's limits, which is what keeps a
+    /// cluster-scoped group from being charged twice for the same firing — this node's reservations are
+    /// already rows in the store's ledger.
+    /// </para>
+    /// <para>
+    /// Repeated calls for one key compose, because the second one reads the value the first wrote.
+    /// </para>
+    /// </remarks>
+    internal static void SubtractInFlight(
+        Dictionary<string, ExecutionGroupAllowance> available,
+        string groupKey,
+        int inFlight,
+        ExecutionLimitScope scope)
+    {
+        if (inFlight <= 0)
+        {
+            return;
+        }
+
+        if (available.TryGetValue(groupKey, out ExecutionGroupAllowance allowance))
+        {
+            if (allowance.Scope == scope && allowance.MaxConcurrent is int limit)
+            {
+                available[groupKey] = allowance with { MaxConcurrent = Math.Max(limit - inFlight, 0) };
+            }
+
+            // A null limit is explicitly unlimited, and a limit in the other scope is not this
+            // caller's to lower.
+            return;
+        }
+
+        // OtherGroups ("*") is a catch-all for named groups only, never for the ungrouped bucket — the
+        // same rule ExecutionSlots.TryTake applies. Materializing the entry here gives each unlisted
+        // group its own allowance rather than one shared between them.
+        if (groupKey != DefaultGroupKey
+            && available.TryGetValue(OtherGroups, out ExecutionGroupAllowance catchAll)
+            && catchAll.Scope == scope
+            && catchAll.MaxConcurrent is int catchAllLimit)
+        {
+            available[groupKey] = catchAll with { MaxConcurrent = Math.Max(catchAllLimit - inFlight, 0) };
+        }
     }
 
     /// <summary>
@@ -203,11 +319,84 @@ public sealed class ExecutionLimits
 /// <summary>
 /// One entry in an <see cref="ExecutionLimits"/> snapshot.
 /// </summary>
-/// <param name="Scope">Which bucket the limit applies to: the default (ungrouped) bucket, the
+/// <param name="Group">Which bucket the limit applies to: the default (ungrouped) bucket, the
 /// catch-all for other groups, or one named group.</param>
-/// <param name="MaxConcurrent">The limit: a positive count, <c>0</c> when the scope is forbidden on
-/// this node, or <see langword="null"/> when it is explicitly unlimited.</param>
-public readonly record struct ExecutionGroupLimit(ExecutionGroupScope Scope, int? MaxConcurrent);
+/// <param name="MaxConcurrent">The limit: a positive count, <c>0</c> when the group is forbidden,
+/// or <see langword="null"/> when it is explicitly unlimited.</param>
+/// <param name="Scope">What the limit is counted against: this node alone, or the whole cluster.</param>
+public readonly record struct ExecutionGroupLimit(
+    ExecutionGroupScope Group,
+    int? MaxConcurrent,
+    ExecutionLimitScope Scope = ExecutionLimitScope.Node);
+
+/// <summary>
+/// What an execution limit is counted against.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The two are not alternatives to each other and one set of limits may use both. A node-scoped limit
+/// describes what this machine can stand — the reason a batch node and an API node in the same cluster
+/// declare different numbers. A cluster-scoped limit describes a quota — the reason a tenant may run
+/// eight jobs at a time no matter how many nodes are up.
+/// </para>
+/// </remarks>
+public enum ExecutionLimitScope
+{
+    /// <summary>
+    /// The limit is what this node may run concurrently. Every node enforces its own copy, so an
+    /// N-node cluster can be running N times the number. This is the default, and it is what execution
+    /// limits have always meant.
+    /// </summary>
+    Node = 0,
+
+    /// <summary>
+    /// The limit is what every node sharing the job store may run between them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The count comes from the store, not from any node's memory: for the ADO.NET store it is the
+    /// <c>QRTZ_FIRED_TRIGGERS</c> rows, which already hold both reservations and running executions and
+    /// are already cleaned up when a node dies. That makes the ceiling fail closed — a node that cannot
+    /// reach the store cannot acquire anything either — but also approximate: the default acquisition
+    /// path takes no cluster lock, so two nodes can read the same remaining count and each take from it.
+    /// The overshoot is bounded by the nodes acquiring at that instant, and setting
+    /// <c>AcquireTriggersWithinLock</c> removes it at the cost of serializing acquisition.
+    /// </para>
+    /// <para>
+    /// A store whose <see cref="Extensibility.IJobStore.Clustered"/> is <see langword="false"/> has one
+    /// node, so a cluster-scoped limit and a node-scoped one are the same number there.
+    /// </para>
+    /// </remarks>
+    Cluster = 1,
+}
+
+/// <summary>
+/// How much work one execution group already has in flight across the cluster, as a store reports it
+/// to <see cref="ExecutionLimits.CreateSlots"/>.
+/// </summary>
+/// <remarks>
+/// Both group names are carried because a limit's key is derived from the pair rather than from either
+/// alone: <see cref="ExecutionLimits.UsesTriggerGroupWhenUnset"/> lets the trigger group stand in when
+/// the trigger carries no execution group. A store therefore reports what it has — for the ADO.NET
+/// store, one row per distinct pair in <c>QRTZ_FIRED_TRIGGERS</c> — and the limits resolve the key,
+/// so that the count and the filter can never key work differently.
+/// </remarks>
+/// <param name="ExecutionGroup">The execution group the in-flight work carries, or
+/// <see langword="null"/> when it carries none.</param>
+/// <param name="TriggerGroup">The trigger group the in-flight work belongs to.</param>
+/// <param name="Count">How many reservations and executions the pair has in flight.</param>
+public readonly record struct ExecutionGroupInFlight(string? ExecutionGroup, string TriggerGroup, int Count);
+
+/// <summary>
+/// What one execution group is allowed, as the limits hold it internally: the count and the scope it
+/// is counted in.
+/// </summary>
+/// <remarks>
+/// The public read-side shape is <see cref="ExecutionGroupLimit"/>, which pairs the same two values
+/// with the group they belong to; this one is the dictionary value, so the group is the key.
+/// </remarks>
+[StructLayout(LayoutKind.Auto)]
+internal readonly record struct ExecutionGroupAllowance(int? MaxConcurrent, ExecutionLimitScope Scope);
 
 /// <summary>
 /// Which bucket an execution limit applies to: the default (ungrouped) bucket, the catch-all for

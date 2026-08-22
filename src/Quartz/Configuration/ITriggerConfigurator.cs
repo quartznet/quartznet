@@ -104,9 +104,9 @@ public interface ITriggerConfigurator<TJob> : ITriggerConfigurator where TJob : 
     ITriggerConfigurator<TJob> WithPriority(int priority);
 
     /// <summary>
-    /// Set the execution group for the Trigger. Execution groups allow per-node
-    /// thread limits to be configured so that resource-intensive jobs do not
-    /// saturate all available threads.
+    /// Set the execution group for the Trigger. Execution groups allow thread
+    /// limits to be configured - per node or across the cluster - so that
+    /// resource-intensive jobs do not saturate all available threads.
     /// </summary>
     /// <param name="executionGroup">the execution group name, or <see langword="null"/> to clear</param>
     /// <returns>the updated TriggerBuilder</returns>

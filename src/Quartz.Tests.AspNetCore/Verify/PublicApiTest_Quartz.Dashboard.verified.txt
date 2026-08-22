@@ -121,6 +121,12 @@ namespace Quartz.Dashboard.Services
         public bool Replace { get; init; }
         public bool? StoreNonDurableWhileAwaitingScheduling { get; init; }
     }
+    public readonly struct DashboardExecutionLimit : System.IEquatable<Quartz.Dashboard.Services.DashboardExecutionLimit>
+    {
+        public DashboardExecutionLimit(int? MaxConcurrent, Quartz.ExecutionLimitScope Scope) { }
+        public int? MaxConcurrent { get; init; }
+        public Quartz.ExecutionLimitScope Scope { get; init; }
+    }
     public sealed class DashboardFireInstanceQuery : Quartz.PagedQuery, System.IEquatable<Quartz.Dashboard.Services.DashboardFireInstanceQuery>
     {
         public DashboardFireInstanceQuery() { }
@@ -160,8 +166,8 @@ namespace Quartz.Dashboard.Services
     }
     public sealed class ExecutionLimitsDto : System.IEquatable<Quartz.Dashboard.Services.ExecutionLimitsDto>
     {
-        public ExecutionLimitsDto(System.Collections.Generic.Dictionary<string, int?> Limits) { }
-        public System.Collections.Generic.Dictionary<string, int?> Limits { get; init; }
+        public ExecutionLimitsDto(System.Collections.Generic.Dictionary<string, Quartz.Dashboard.Services.DashboardExecutionLimit> Limits) { }
+        public System.Collections.Generic.Dictionary<string, Quartz.Dashboard.Services.DashboardExecutionLimit> Limits { get; init; }
     }
     public sealed class FireInstanceDto : System.IEquatable<Quartz.Dashboard.Services.FireInstanceDto>
     {
