@@ -1580,7 +1580,7 @@ namespace Quartz.Diagnostics
         public static class Job
         {
             public const string Execute = "Quartz.Job.Execute";
-            public const string Veto = "Quartz.Job.Vetoed";
+            public const string Veto = "Quartz.Job.Veto";
         }
         public static class JobStore
         {

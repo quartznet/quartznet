@@ -343,7 +343,7 @@ public sealed class JobExecutionObservabilityTest
 
         Activity activity = ActivityFor(execution.JobKey);
 
-        activity.OperationName.Should().Be(OperationName.Job.Execute);
+        activity.OperationName.Should().Be("Quartz.Job.Execute");
         activity.Source.Name.Should().Be(QuartzInstrumentation.ActivitySourceName,
             "the source name is what a tracer is told to subscribe to");
         activity.Kind.Should().Be(ActivityKind.Internal);
@@ -358,6 +358,39 @@ public sealed class JobExecutionObservabilityTest
         activity.GetTagItem(TriggerNameTag).Should().Be(execution.TriggerKey.Name);
         activity.GetTagItem(JobGroupTag).Should().Be(execution.JobKey.Group);
         activity.GetTagItem(JobNameTag).Should().Be(execution.JobKey.Name);
+    }
+
+    /// <summary>
+    /// A vetoed fire is a span of its own, and nothing an execution histogram ever hears about.
+    /// </summary>
+    /// <remarks>
+    /// The span's name was <c>Quartz.Job.Vetoed</c> while the constant naming it was <c>Veto</c>; it is
+    /// <c>Quartz.Job.Veto</c> now, in the present tense the rest of <see cref="OperationName"/> uses.
+    /// </remarks>
+    [Test]
+    public async Task VetoedExecution_EmitsVetoActivityAndNoExecutionMeasurements()
+    {
+        Execution execution = await RunJob<SucceedingJob>(veto: true);
+
+        Activity vetoed = ActivityFor(execution.JobKey, "Quartz.Job.Veto");
+
+        vetoed.Source.Name.Should().Be(QuartzInstrumentation.ActivitySourceName);
+        vetoed.GetTagItem(SchedulerNameTag).Should().Be(execution.SchedulerName);
+        vetoed.GetTagItem(TriggerGroupTag).Should().Be(execution.TriggerKey.Group);
+        vetoed.GetTagItem(TriggerNameTag).Should().Be(execution.TriggerKey.Name);
+        vetoed.GetTagItem(JobGroupTag).Should().Be(execution.JobKey.Group);
+        vetoed.GetTagItem(JobNameTag).Should().Be(execution.JobKey.Name);
+        vetoed.GetTagItem(FireInstanceIdTag).Should().Be(execution.FireInstanceId);
+
+        StoppedActivities().Should().NotContain(a =>
+                a.OperationName == "Quartz.Job.Execute"
+                && Equals(a.GetTagItem(JobNameTag), execution.JobKey.Name),
+            "the job never ran, so there is no execution to trace");
+
+        MeasurementsFor(execution.JobKey).Should().BeEmpty(
+            "the histogram's count is what an exporter reads as the number of executions, and a fire a "
+            + "listener refused is not one — the instruments are started after the veto decision, so a "
+            + "vetoed fire never arrives as a zero-duration success");
     }
 
     [Test]
@@ -385,7 +418,7 @@ public sealed class JobExecutionObservabilityTest
     /// Builds a scheduler the way an application does, runs the job its trigger fires exactly once, and
     /// shuts everything down before returning — so an assertion never races the execution it is about.
     /// </summary>
-    private static async Task<Execution> RunJob<TJob>() where TJob : IJob
+    private static async Task<Execution> RunJob<TJob>(bool veto = false) where TJob : IJob
     {
         string id = Guid.NewGuid().ToString("N");
         JobKey jobKey = new($"job-{id}", $"job-group-{id}");
@@ -400,6 +433,10 @@ public sealed class JobExecutionObservabilityTest
         {
             quartz.ConfigureScheduler(options => options.InstanceName = $"observability-{id}");
             quartz.AddJobListener(completion);
+            if (veto)
+            {
+                quartz.AddTriggerListener(new VetoingTriggerListener());
+            }
             quartz.AddJob<TJob>(job => job.WithIdentity(jobKey));
             quartz.AddTrigger<TJob>(trigger => trigger
                 .ForJob(jobKey)
@@ -415,7 +452,8 @@ public sealed class JobExecutionObservabilityTest
             await scheduler.Start();
 
             Task finished = await Task.WhenAny(completion.Executed, Task.Delay(TimeSpan.FromSeconds(30)));
-            finished.Should().BeSameAs(completion.Executed, "the scheduled job should have run");
+            finished.Should().BeSameAs(completion.Executed,
+                veto ? "the scheduled job should have been vetoed" : "the scheduled job should have run");
 
             return new Execution(
                 jobKey,
@@ -459,14 +497,22 @@ public sealed class JobExecutionObservabilityTest
         }
     }
 
-    private Activity ActivityFor(JobKey jobKey)
+    private Activity ActivityFor(JobKey jobKey, string operationName = "Quartz.Job.Execute")
     {
         lock (stoppedActivities)
         {
             return stoppedActivities.Should().ContainSingle(a =>
-                    a.OperationName == OperationName.Job.Execute
+                    a.OperationName == operationName
                     && Equals(a.GetTagItem(JobNameTag), jobKey.Name))
                 .Subject;
+        }
+    }
+
+    private List<Activity> StoppedActivities()
+    {
+        lock (stoppedActivities)
+        {
+            return [.. stoppedActivities];
         }
     }
 
@@ -487,7 +533,8 @@ public sealed class JobExecutionObservabilityTest
 
     /// <summary>
     /// Signals once the shell has finished with the execution, which is after both the activity and the
-    /// meter measurements have been closed out.
+    /// meter measurements have been closed out — or once a fire has been vetoed, which is the only other
+    /// way a shell reaches an end a listener hears about.
     /// </summary>
     private sealed class ExecutionCompletionListener : IJobListener
     {
@@ -499,12 +546,29 @@ public sealed class JobExecutionObservabilityTest
 
         public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 
-        public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+        public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            executed.TrySetResult(context.FireInstanceId);
+            return default;
+        }
 
         public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException, CancellationToken cancellationToken = default)
         {
             executed.TrySetResult(context.FireInstanceId);
             return default;
+        }
+    }
+
+    /// <summary>
+    /// Refuses every fire, so the shell takes the veto path instead of running the job.
+    /// </summary>
+    private sealed class VetoingTriggerListener : ITriggerListener
+    {
+        public string Name => "vetoing";
+
+        public ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<bool>(true);
         }
     }
 
