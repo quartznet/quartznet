@@ -308,4 +308,3 @@ builder.Services.AddQuartz(q =>
     });
 });
 ```
-

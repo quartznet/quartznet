@@ -6,11 +6,10 @@ Quartz HTTP API is provided by [Quartz.AspNetCore](https://www.nuget.org/package
 
 ## Installation
 
-Add package references:
+`Quartz.AspNetCore` depends on `Quartz`, so one reference is enough:
 
 ```shell
-Install-Package Quartz.AspNetCore
-Install-Package Quartz
+dotnet add package Quartz.AspNetCore
 ```
 
 ## Basic setup
@@ -18,10 +17,12 @@ Install-Package Quartz
 Configure Quartz and enable the HTTP API:
 
 ```csharp
-services.AddQuartzHttpApi();
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-services.AddQuartz(q => { });
-services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+builder.Services.AddQuartzHttpApi();
+
+builder.AddQuartz(q => { });
+builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 
 The API serves every scheduler in the container through one set of endpoints — a request names the
@@ -32,15 +33,12 @@ scheduler and one place that configures it.
 Map endpoints:
 
 ```csharp
-app.UseRouting();
+WebApplication app = builder.Build();
+
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseAntiforgery();
 
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
-});
+app.MapQuartzHttpApi("/quartz-api").RequireAuthorization();
 ```
 
 ### Where the API is served
@@ -49,10 +47,10 @@ app.UseEndpoints(endpoints =>
 
 ```csharp
 // at the map site, beside the application's other routes
-endpoints.MapQuartzHttpApi("/ops/api");
+app.MapQuartzHttpApi("/ops/api");
 
 // or at registration
-services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
+builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/ops/api");
 ```
 
 Naming the path where the endpoints are mapped is how the rest of ASP.NET Core reads —
@@ -216,6 +214,32 @@ There is one set of these per process, not one per scheduler: `ApiPath` describe
 every scheduler is reached under it. Calling `AddQuartzHttpApi(configure)` from inside two `AddQuartz`
 callbacks therefore configures the same options twice, and the callback registered last wins for any
 setting both of them touch.
+
+## Calling it from .NET
+
+`Quartz.HttpClient` is the client half of this contract. Its `HttpScheduler` implements `IScheduler` over
+these endpoints, so code that schedules jobs against a remote scheduler looks like code that schedules them
+against a local one:
+
+```shell
+dotnet add package Quartz.HttpClient
+```
+
+```csharp
+IScheduler scheduler = new HttpScheduler("MyScheduler", httpClient);
+await scheduler.TriggerJob(new JobKey("nightly-report"));
+```
+
+In an application with a container, register it instead and inject `IScheduler` as usual — naming the
+`IHttpClientFactory` client that carries the base address and the authentication:
+
+```csharp
+builder.Services.AddHttpClient("quartz", client => client.BaseAddress = new Uri("https://scheduler.example.com/"));
+builder.Services.AddQuartzHttpClient(schedulerName: "MyScheduler", httpClientName: "quartz");
+```
+
+The wire format is the one documented on this page, so any HTTP client speaks it; the package is the
+convenience of not writing that yourself.
 
 ## Production hardening
 

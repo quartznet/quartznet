@@ -90,6 +90,8 @@ builder.Services.AddOpenTelemetry()
 
 `Quartz.OpenTelemetry.Instrumentation` is obsolete and is not part of 4.x. Use the community package above.
 
+### Coming from Quartz.OpenTracing
+
 `Quartz.OpenTracing` is not part of 4.x either. It was built on the `DiagnosticSource` events that 4.x
 replaced with `System.Diagnostics.Activity`, and there is no 4.x release of it — the OpenTracing project
 itself is archived. Replace an `AddQuartzOpenTracing` call with the OpenTelemetry setup at the top of this
