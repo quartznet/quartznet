@@ -63,7 +63,8 @@ and every 20 minutes between 1:00 pm and 10:00 pm". The solution in this scenari
 CronTrigger instances are built using `TriggerBuilder` (for the trigger's main properties) and `WithCronSchedule`
 extension method (for the CronTrigger-specific properties).
 
-You can also use `CronScheduleBuilder`'s static methods to create schedules.
+`CronScheduleBuilder.Create(cronExpression)` builds the schedule on its own when you want to hold it in a
+variable or share it between triggers; `WithCronSchedule` is the same thing inline.
 
 To compose the cron expression string itself programmatically, see
 [Building cron expressions programmatically](../cron-expressions.md#building-cron-expressions-programmatically).
@@ -104,21 +105,28 @@ ITrigger trigger = TriggerBuilder.Create()
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .WithCronSchedule("0 42 10 ? * WED", x => x
-        .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Central America Standard Time")))
+        .InTimeZone(TimeZones.FindById("Central America Standard Time")))
     .ForJob(myJobKey)
     .Build();
 ```
 
-or -
+or, with the schedule built first so that several triggers can share it -
 
 ```csharp
+CronScheduleBuilder schedule = CronScheduleBuilder
+    .Create("0 42 10 ? * WED")
+    .InTimeZone(TimeZones.FindById("Central America Standard Time"));
+
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
-    .WithCronSchedule("0 42 10 ? * WED", x => x
-        .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Central America Standard Time")))
+    .WithCronSchedule(schedule)
     .ForJob(myJobKey)
     .Build();
 ```
+
+`TimeZones.FindById` is `TimeZoneInfo.FindSystemTimeZoneById` plus whatever resolvers are registered — which is
+what makes a Windows id resolve on Linux once the
+[TimeZoneConverter plugin](../packages/timezoneconverter-integration.md) is added.
 
 **Build a trigger that fires once per day at a hash-derived time between midnight and 7:59 AM, spreading load across triggers:**
 
@@ -141,8 +149,10 @@ the `CronTriggerMisfireInstruction` enum (and API documentation has description 
 - `CronTriggerMisfireInstruction.FireAndProceed`
 
 All triggers have the `SmartPolicy` instruction available for use, and this instruction is also the default for all trigger types.
-The 'smart policy' instruction is interpreted by CronTrigger as `FireAndProceed`. The API documentation for the
-`CronTrigger.UpdateAfterMisfire()` method explains the exact details of this behavior.
+The 'smart policy' instruction is interpreted by CronTrigger as `FireAndProceed`: one firing happens as soon as the
+scheduler is back, and the schedule then continues from the next time it comes round. `DoNothing` skips the missed
+firings entirely and waits for the next scheduled time; `IgnoreMisfires` fires every missed firing, as fast as the
+scheduler can, until the schedule has caught up. `CronTriggerImpl.UpdateAfterMisfire` is where this happens.
 
 When building CronTriggers, you specify the misfire instruction as part of the cron schedule (via `WithCronSchedule` extension method):
 

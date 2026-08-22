@@ -3,123 +3,163 @@
 title: 'Using Quartz'
 ---
 
-Before you can use the scheduler, it needs to be instantiated (who'd have guessed?).
-To do this, you use an implementor of ISchedulerFactory.
+Quartz runs inside your application. You register a scheduler with the application's service container,
+describe the jobs and triggers it should start with, and let the host start and stop it. This lesson
+wires up a scheduler that runs one job; the lessons that follow explain each piece of it.
 
-Once a scheduler is instantiated, it can be started, placed in stand-by mode, and shutdown.
-Note that once a scheduler is shutdown, it cannot be restarted without being re-instantiated.
-Triggers do not fire (jobs do not execute) until the scheduler has been started, nor while it is
-in the paused state.
+## Install the package
 
-Here's a quick snippet of code, that instantiates and starts a scheduler, and schedules a job for execution:
-
-### Install Quartz.NET NuGets
-
-```sh
-Install-Package Microsoft.Extensions.Hosting
-Install-Package Quartz
+```shell
+dotnet add package Quartz
 ```
 
-### Configure `Program.cs`
+That is the whole install for a hosted application. Dependency injection and the hosted service are part
+of the core package — in 3.x they were the separate `Quartz.Extensions.DependencyInjection` and
+`Quartz.Extensions.Hosting` packages.
 
-A minimal style example of configuring Quartz.NET with the Microsoft Hosting framework
-looks like this.
+## Write a job
 
-```csharp
-using Microsoft.Extensions.Hosting;
-using Quartz;
-
-var builder = Host.CreateDefaultBuilder()
-    .ConfigureServices((cxt, services) =>
-    {
-        services.AddQuartz(q =>
-        {
-            // your options and configuration against the q here
-        });
-        services.AddQuartzHostedService(opt =>
-        {
-            opt.WaitForJobsToComplete = true;
-        });
-    }).Build();
-
-// will block until the last running job completes
-await builder.RunAsync();
-```
-
-Let's add a job to this.
+A job is a class that implements `IJob`:
 
 ```csharp
-
-using Microsoft.Extensions.Hosting;
-using Quartz;
-
-var builder = Host.CreateDefaultBuilder()
-    .ConfigureServices((cxt, services) =>
-    {
-        services.AddQuartz(q =>
-        {
-            // your options and configuration against q here
-        });
-        services.AddQuartzHostedService(opt =>
-        {
-            opt.WaitForJobsToComplete = true;
-        });
-    }).Build();
-
-var schedulerFactory = builder.Services.GetRequiredService<ISchedulerFactory>();
-var scheduler = await schedulerFactory.GetScheduler();
-
-// define the job and tie it to our HelloJob class
-var job = JobBuilder.Create<HelloJob>()
-    .WithIdentity("myJob", "group1")
-    .Build();
-
-// Trigger the job to run now, and then every 40 seconds
-var trigger = TriggerBuilder.Create()
-    .WithIdentity("myTrigger", "group1")
-    .StartNow()
-    .WithSimpleSchedule(x => x
-        .WithInterval(TimeSpan.FromSeconds(40))
-        .RepeatForever())
-    .Build();
-
-await scheduler.ScheduleJob(job, trigger);
-
-// will block until the last running job completes
-await builder.RunAsync();
-```
-
-As you can see, working with Quartz.NET is rather simple. In [Lesson 2](jobs-and-triggers.md) we'll give a quick overview of Jobs and Triggers, so that you can more fully understand this example.
-
-## Traditional Program.cs
-
-If you are working in a pre-minimal API project, you can use the same old `Program.cs` structure
-as well.
-
-```csharp
-using Microsoft.Extensions.Hosting;
-using Quartz;
-
-namespace Example;
-
-public class Program
+public sealed class HelloJob : IJob
 {
-    public static async Task Main(string[] args) {
-        var builder = Host.CreateDefaultBuilder()
-            .ConfigureServices((cxt, services) =>
-            {
-                services.AddQuartz(q =>
-                {
-                    // your options and configuration against q here
-                });
-                services.AddQuartzHostedService(opt =>
-                {
-                    opt.WaitForJobsToComplete = true;
-                });
-            }).Build();
+    private readonly ILogger<HelloJob> logger;
 
-        // will block until the last running job completes
-        await builder.RunAsync();
+    public HelloJob(ILogger<HelloJob> logger)
+    {
+        this.logger = logger;
+    }
+
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Hello from {JobKey}", context.JobDetail.Key);
+        return default;
     }
 }
 ```
+
+The job is constructed from the container for every fire, so it can take whatever the rest of your
+application takes — a logger, a `DbContext`, a typed `HttpClient`. The `cancellationToken` is the same
+token as `context.CancellationToken`; pass it on to everything you await, so a shutdown or an
+`Interrupt` call actually reaches your work.
+
+## Configure the host
+
+```csharp
+using Microsoft.Extensions.Hosting;
+using Quartz;
+
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+
+builder.AddQuartz(q =>
+{
+    // run HelloJob now, and then every 40 seconds
+    q.ScheduleJob<HelloJob>(trigger => trigger
+        .WithIdentity("helloTrigger")
+        .StartNow()
+        .WithSimpleSchedule(x => x
+            .WithInterval(TimeSpan.FromSeconds(40))
+            .RepeatForever()));
+});
+
+builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+IHost host = builder.Build();
+
+// blocks until the host is stopped, and then until the last running job completes
+await host.RunAsync();
+```
+
+`AddQuartz` registers the scheduler and everything it is made of. `AddQuartzHostedService` starts it when
+the host starts and shuts it down when the host stops; `WaitForJobsToComplete` makes shutdown wait for
+jobs that are still running instead of cancelling them.
+
+Both hang off `IHostApplicationBuilder`, so the same two lines work in a web application built with
+`WebApplication.CreateBuilder(args)`. They are also available on `IServiceCollection`
+(`builder.Services.AddQuartz(…)`) when the registration lives in a method that only has the collection.
+
+## Describing jobs and triggers
+
+`q.ScheduleJob<TJob>(…)` is the short form for the common case: one job, one trigger, the job's identity
+taken from the trigger's. When a job has several triggers, or when the job is registered somewhere other
+than where its schedule is, name them separately:
+
+```csharp
+builder.AddQuartz(q =>
+{
+    JobKey jobKey = new("reportJob");
+
+    q.AddJob<ReportJob>(j => j
+        .WithIdentity(jobKey)
+        .WithDescription("nightly and on-demand sales report"));
+
+    q.AddTrigger<ReportJob>(t => t
+        .ForJob(jobKey)
+        .WithIdentity("nightly")
+        .WithCronSchedule("0 0 2 * * ?"));
+
+    q.AddTrigger<ReportJob>(t => t
+        .ForJob(jobKey)
+        .WithIdentity("hourly-on-weekdays")
+        .WithCronSchedule("0 0 9-17 ? * MON-FRI"));
+});
+```
+
+The type argument on `AddTrigger<TJob>` is the job the trigger fires. It is what lets the trigger's data
+be named as properties of that job — see
+[More About Jobs & JobDetails](more-about-jobs.md#naming-the-property-instead-of-the-key). Use
+`AddTrigger<IJob>` when the trigger only names its job by key and you do not need that.
+
+Everything registered this way is stored when the scheduler starts. With a persistent job store it is
+also what the store already holds that matters: registrations replace stored definitions of the same
+name by default, which is what makes this list the description of the schedule rather than a one-time
+seed.
+
+## Scheduling at run time
+
+Not every schedule is known at startup. `IScheduler` is an ordinary service, so inject it and schedule
+whenever you like:
+
+```csharp
+public sealed class ReportRequests
+{
+    private readonly IScheduler scheduler;
+
+    public ReportRequests(IScheduler scheduler)
+    {
+        this.scheduler = scheduler;
+    }
+
+    public async ValueTask QueueFor(string customer, CancellationToken cancellationToken)
+    {
+        IJobDetail job = JobBuilder.Create<ReportJob>()
+            .WithIdentity(customer, "reports")
+            .UsingJobData("customer", customer)
+            .Build();
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity(customer, "reports")
+            .StartAt(DateTimeOffset.UtcNow.AddMinutes(5))
+            .Build();
+
+        await scheduler.ScheduleJob(job, trigger, cancellationToken);
+    }
+}
+```
+
+An application with several schedulers registers each under a name, and injects one by that name with
+`[FromKeyedServices("reporting")] IScheduler scheduler` — see
+[Multiple schedulers](../packages/multiple-schedulers.md).
+
+## The scheduler's lifecycle
+
+* Triggers do not fire until the scheduler has been started. The hosted service does that for you.
+* `Standby()` stops firing without shutting anything down; `Start()` resumes. Jobs already running keep
+  running.
+* `Shutdown()` is final. A scheduler that has been shut down cannot be started again — build a new one.
+* The scheduler is `IAsyncDisposable`, and disposing it shuts it down and releases what it owns. Under a
+  host, the host does that.
+
+In [Lesson 2](jobs-and-triggers.md) we take a quick tour of jobs and triggers, so that the code above
+reads as more than an incantation.
