@@ -5457,7 +5457,13 @@ Two behaviors worth knowing:
   namespace, with `MonthDay.From(DateOnly)` for when you hold a date. A `DateOnly` always carries a year,
   so a set of them had to lie: what you put in was not what you read back, and `DaysExcluded.Contains`
   disagreed with `AddExcludedDay`. `MonthDay` says exactly what is stored — the same date every year —
-  and February 29th is a valid value.
+  and February 29th is a valid value. Its text form is the ISO 8601 spelling of a recurring month-day,
+  `--MM-DD`, and it implements the full BCL set around that one form: `IParsable<MonthDay>`,
+  `ISpanParsable<MonthDay>`, `ISpanFormattable` and `IUtf8SpanFormattable`, so it reads out of
+  configuration, a route value or a JSON string like any other primitive. There is nothing to vary, so
+  the format string and the format provider those interfaces pass are ignored. What
+  `AnnualCalendar` payloads carry is unchanged — a serialized day is still the date-shaped form pinned
+  to the year 2000.
 * `AnnualCalendar.IsDayExcluded` now answers only about the calendar's own set. The base calendar is
   consulted by `IsTimeIncluded`, which is the member that asks a question about an instant.
 
