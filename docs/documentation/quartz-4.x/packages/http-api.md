@@ -127,7 +127,7 @@ with no rows is `?take=0&includeTotalCount=true`, which the stores answer with t
 
 | Endpoint | Returns | Filters (besides paging) |
 |---|---|---|
-| `GET {ApiPath}/schedulers/{name}/jobs` | Job headers: key, description, job type name, durable, concurrent-execution-disallowed, persist-job-data, requests-recovery | `groupEquals`, `groupContains`, `groupStartsWith`, `groupEndsWith` |
+| `GET {ApiPath}/schedulers/{name}/jobs` | Job headers: key, description, `jobType` (the same assembly-qualified name the detail body carries), durable, concurrent-execution-disallowed, persist-job-data, requests-recovery | `groupEquals`, `groupContains`, `groupStartsWith`, `groupEndsWith` |
 | `GET {ApiPath}/schedulers/{name}/jobs/groups` | Job groups: `name`, `paused` | `paused` |
 | `GET {ApiPath}/schedulers/{name}/triggers` | Trigger headers: key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority, execution group | the four `group*` filters, plus `jobName` + `jobGroup` (give both or neither), `calendarName`, `state` |
 | `GET {ApiPath}/schedulers/{name}/triggers/groups` | Trigger groups: `name`, `paused` | `paused` |
