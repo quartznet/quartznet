@@ -33,13 +33,12 @@ public sealed class RecurrenceTriggerPersistenceDelegate : SimplePropertiesTrigg
                 "RecurrenceRule string exceeds maximum length of 512 characters for database persistence.");
         }
 
-        SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
-
-        props.String1 = recTrig.RecurrenceRule;
-        props.Int1 = recTrig.TimesTriggered;
-        props.TimeZoneId = recTrig.TimeZone.Id;
-
-        return props;
+        return new SimplePropertiesTriggerProperties
+        {
+            String1 = recTrig.RecurrenceRule,
+            Int1 = recTrig.TimesTriggered,
+            TimeZoneId = recTrig.TimeZone.Id,
+        };
     }
 
     protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)

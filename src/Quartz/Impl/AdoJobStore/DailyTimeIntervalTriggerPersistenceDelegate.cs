@@ -52,15 +52,9 @@ public sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProperti
     protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
     {
         DailyTimeIntervalTriggerImpl dailyTrigger = (DailyTimeIntervalTriggerImpl) trigger;
-        SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
-
-        props.Int1 = dailyTrigger.RepeatInterval;
-        props.String1 = dailyTrigger.RepeatIntervalUnit.ToString();
-        props.Int2 = dailyTrigger.TimesTriggered;
 
         var days = dailyTrigger.DaysOfWeek;
         string daysStr = string.Join(",", days.Cast<int>().Select(x => x.ToString(CultureInfo.InvariantCulture)).ToArray());
-        props.String2 = daysStr;
 
         StringBuilder timeOfDayBuffer = new StringBuilder();
         TimeOnly startTimeOfDay = dailyTrigger.StartTimeOfDay;
@@ -72,10 +66,17 @@ public sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProperti
         timeOfDayBuffer.Append(endTimeOfDay.Hour).Append(',');
         timeOfDayBuffer.Append(endTimeOfDay.Minute).Append(',');
         timeOfDayBuffer.Append(endTimeOfDay.Second);
-        props.String3 = timeOfDayBuffer.ToString();
-        props.Long1 = dailyTrigger.RepeatCount;
-        props.TimeZoneId = dailyTrigger.TimeZone.Id;
-        return props;
+
+        return new SimplePropertiesTriggerProperties
+        {
+            Int1 = dailyTrigger.RepeatInterval,
+            String1 = dailyTrigger.RepeatIntervalUnit.ToString(),
+            Int2 = dailyTrigger.TimesTriggered,
+            String2 = daysStr,
+            String3 = timeOfDayBuffer.ToString(),
+            Long1 = dailyTrigger.RepeatCount,
+            TimeZoneId = dailyTrigger.TimeZone.Id,
+        };
     }
 
     protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)

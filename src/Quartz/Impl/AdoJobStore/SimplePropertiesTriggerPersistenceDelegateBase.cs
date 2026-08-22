@@ -181,20 +181,21 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
 
     public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
     {
-        SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties();
-
-        properties.String1 = rs.GetString(ColumnStrProp1);
-        properties.String2 = rs.GetString(ColumnStrProp2);
-        properties.String3 = rs.GetString(ColumnStrProp3);
-        properties.Int1 = rs.GetInt32(ColumnIntProp1);
-        properties.Int2 = rs.GetInt32(ColumnIntProp2);
-        properties.Long1 = rs.GetInt64(ColumnLongProp1);
-        properties.Long2 = rs.GetInt64(ColumnLongProp2);
-        properties.Decimal1 = rs.GetDecimal(ColumnDecProp1);
-        properties.Decimal2 = rs.GetDecimal(ColumnDecProp2);
-        properties.Boolean1 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp1]);
-        properties.Boolean2 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp2]);
-        properties.TimeZoneId = rs.GetString(ColumnTimeZoneId);
+        SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties
+        {
+            String1 = rs.GetString(ColumnStrProp1),
+            String2 = rs.GetString(ColumnStrProp2),
+            String3 = rs.GetString(ColumnStrProp3),
+            Int1 = rs.GetInt32(ColumnIntProp1),
+            Int2 = rs.GetInt32(ColumnIntProp2),
+            Long1 = rs.GetInt64(ColumnLongProp1),
+            Long2 = rs.GetInt64(ColumnLongProp2),
+            Decimal1 = rs.GetDecimal(ColumnDecProp1),
+            Decimal2 = rs.GetDecimal(ColumnDecProp2),
+            Boolean1 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp1]),
+            Boolean2 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp2]),
+            TimeZoneId = rs.GetString(ColumnTimeZoneId),
+        };
 
         return GetTriggerPropertyBundle(properties);
     }
