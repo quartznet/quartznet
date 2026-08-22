@@ -1172,6 +1172,82 @@ public abstract class JobStoreContractTest
         }
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Execution limits
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task ATriggerGroupIsNotAnExecutionGroupUnlessTheLimitsSayItIs()
+    {
+        await GivenTwoDueTriggersInOneGroup();
+
+        ExecutionLimits plain = ExecutionLimitsBuilder.Create().ForGroup(TriggerGroupA, 1).Build();
+
+        (await AcquireWith(plain)).Should().HaveCount(2,
+            "neither trigger carries an execution group, so a limit on a group of that name catches nothing");
+    }
+
+    [Test]
+    public async Task WithTheOptionOnAGroupPartitionedScheduleIsCappedByItsTriggerGroup()
+    {
+        await GivenTwoDueTriggersInOneGroup();
+
+        ExecutionLimits derived = ExecutionLimitsBuilder.Create()
+            .ForGroup(TriggerGroupA, 1)
+            .UseTriggerGroupWhenUnset()
+            .Build();
+
+        List<IOperableTrigger> acquired = await AcquireWith(derived);
+
+        acquired.Should().ContainSingle("the trigger group stands in for the execution group the triggers do not carry");
+        acquired[0].ExecutionGroup.Should().BeNull(
+            "the derivation is evaluated, never stored: what the trigger carries is unchanged");
+    }
+
+    [Test]
+    public async Task AnExplicitExecutionGroupStillWinsOverTheDerivedOne()
+    {
+        IJobDetail job = CreateJob("explicit", JobGroupA);
+        IOperableTrigger trigger = CreateTrigger("explicit", TriggerGroupA, job.Key,
+            startAt: DateTimeOffset.UtcNow.AddSeconds(5), executionGroup: "cpu");
+        await Store.ScheduleJob(job, trigger);
+
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
+            .ForGroup(TriggerGroupA, 0)
+            .ForGroup("cpu", 1)
+            .UseTriggerGroupWhenUnset()
+            .Build();
+
+        (await AcquireWith(limits)).Should().ContainSingle(
+            "the trigger names its execution group, so the group it is in does not decide for it")
+            .Which.Key.Should().Be(trigger.Key);
+    }
+
+    private async Task GivenTwoDueTriggersInOneGroup()
+    {
+        // Two jobs rather than one, so that DisallowConcurrentExecution is not what limits the batch.
+        foreach (string name in (string[]) ["partitioned-one", "partitioned-two"])
+        {
+            IJobDetail job = CreateJob(name, JobGroupA);
+            await Store.ScheduleJob(job, CreateTrigger(name, TriggerGroupA, job.Key,
+                startAt: DateTimeOffset.UtcNow.AddSeconds(5)));
+        }
+    }
+
+    private ValueTask<List<IOperableTrigger>> AcquireWith(ExecutionLimits limits)
+    {
+        return Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 5,
+            // Wide enough that the batch does not close on the first trigger's fire time: two triggers
+            // scheduled milliseconds apart have to be in the same batch for a limit to be what excludes
+            // one of them.
+            TimeWindow = TimeSpan.FromMinutes(1),
+            ExecutionLimits = limits
+        });
+    }
+
     /// <summary>
     /// Acquires a trigger due right away and hands the acquired copy back, without firing it.
     /// </summary>

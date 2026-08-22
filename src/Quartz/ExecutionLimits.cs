@@ -70,15 +70,38 @@ public sealed class ExecutionLimits
     private readonly Dictionary<string, int?> limits;
     private ExecutionGroupLimit[]? groups;
 
-    internal ExecutionLimits(Dictionary<string, int?> limits)
+    internal ExecutionLimits(Dictionary<string, int?> limits, bool usesTriggerGroupWhenUnset = false)
     {
         this.limits = limits;
+        UsesTriggerGroupWhenUnset = usesTriggerGroupWhenUnset;
     }
 
     /// <summary>
     /// <see langword="true"/> when nothing is limited, in which case every trigger is free to fire.
     /// </summary>
     public bool IsEmpty => limits.Count == 0;
+
+    /// <summary>
+    /// Whether a trigger that carries no execution group of its own is limited as though it belonged to
+    /// a group named after its own <see cref="Key{T}.Group"/>. Off unless
+    /// <see cref="ExecutionLimitsBuilder.UseTriggerGroupWhenUnset"/> asked for it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The derivation is an evaluation-time rule and nothing else: what a trigger carries and what the
+    /// store persists in EXECUTION_GROUP are unchanged, and <see cref="ITrigger.ExecutionGroup"/> still
+    /// reads <see langword="null"/>. It exists for schedules that already partition work by trigger
+    /// group — a tenant per group, a subsystem per group — where restating every group as an execution
+    /// group would be a second copy of the same fact.
+    /// </para>
+    /// <para>
+    /// An explicit execution group always wins. Turning this on also moves the ungrouped triggers out of
+    /// <see cref="ExecutionLimitsBuilder.ForDefaultGroup"/>'s bucket and under
+    /// <see cref="OtherGroups"/>'s catch-all, because they are no longer ungrouped as far as the limits
+    /// are concerned.
+    /// </para>
+    /// </remarks>
+    public bool UsesTriggerGroupWhenUnset { get; }
 
     /// <summary>
     /// Every configured group and its limit.
@@ -119,7 +142,7 @@ public sealed class ExecutionLimits
     /// </summary>
     public ExecutionSlots CreateSlots()
     {
-        return new ExecutionSlots(ToWorkingCopy());
+        return new ExecutionSlots(ToWorkingCopy(), UsesTriggerGroupWhenUnset);
     }
 
     /// <summary>
@@ -136,6 +159,25 @@ public sealed class ExecutionLimits
     internal static string NormalizeGroupKey(string? executionGroup)
     {
         return executionGroup ?? DefaultGroupKey;
+    }
+
+    /// <summary>
+    /// The key a trigger's firing counts against, applying the
+    /// <see cref="UsesTriggerGroupWhenUnset" /> derivation. Every place that evaluates a limit — both
+    /// stores' acquisition filters and the scheduler thread's in-flight ledger — goes through this, or
+    /// the ledger and the filter would be counting different things.
+    /// </summary>
+    internal static string ResolveGroupKey(string? executionGroup, string triggerGroup, bool useTriggerGroupWhenUnset)
+    {
+        if (executionGroup is not null || !useTriggerGroupWhenUnset)
+        {
+            return NormalizeGroupKey(executionGroup);
+        }
+
+        // A trigger group is free to be called "*" or "_"; an execution group is not. Deriving one from
+        // the other would otherwise quietly drop such a trigger into the catch-all or the default bucket,
+        // which is not what its name says. It stays ungrouped instead.
+        return IsReservedGroupName(triggerGroup) ? DefaultGroupKey : triggerGroup;
     }
 
     /// <summary>

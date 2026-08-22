@@ -510,8 +510,13 @@ internal sealed class QuartzSchedulerThread
                                 continue;
                             }
 
-                            string? execGroup = trigger.ExecutionGroup;
-                            string normalizedGroup = ExecutionLimits.NormalizeGroupKey(execGroup);
+                            // Resolved the same way the stores resolve it when they filter, derivation
+                            // included: a ledger keyed differently from the filter would subtract from
+                            // one bucket what the filter had allowed out of another.
+                            string normalizedGroup = ExecutionLimits.ResolveGroupKey(
+                                trigger.ExecutionGroup,
+                                trigger.Key.Group,
+                                qs.GetExecutionLimits()?.UsesTriggerGroupWhenUnset == true);
 
                             // Always track counts so that limits enabled at runtime
                             // will see accurate in-flight counts immediately
@@ -672,7 +677,9 @@ internal sealed class QuartzSchedulerThread
             }
         }
 
-        return new ExecutionLimits(available);
+        // The remaining-capacity map carries the derivation flag with it, because the store that reads it
+        // has to resolve a candidate's group the same way this ledger did.
+        return new ExecutionLimits(available, limits.UsesTriggerGroupWhenUnset);
     }
 
     private async Task SafeReleaseAcquiredTrigger(IOperableTrigger trigger, string context)

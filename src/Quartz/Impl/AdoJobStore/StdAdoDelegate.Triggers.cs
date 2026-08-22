@@ -1192,16 +1192,21 @@ public partial class StdAdoDelegate
                     ? null
                     : rs.GetString(execGroupOrdinal);
 
-                if (executionSlots is not null && !executionSlots.TryTake(executionGroup))
+                // Read before the limit check rather than after it: the limits may be configured to
+                // stand in the trigger group for an execution group the trigger does not carry.
+                TriggerKey triggerKey = new(
+                    (string) rs[AdoConstants.ColumnTriggerName],
+                    (string) rs[AdoConstants.ColumnTriggerGroup]);
+
+                if (executionSlots is not null && !executionSlots.TryTake(executionGroup, triggerKey.Group))
                 {
                     continue; // skip this trigger, its group is at limit
                 }
 
-                var result = new TriggerAcquireResult(
-                    new TriggerKey((string) rs[AdoConstants.ColumnTriggerName], (string) rs[AdoConstants.ColumnTriggerGroup]),
+                nextTriggers.Add(new TriggerAcquireResult(
+                    triggerKey,
                     (string) rs[AdoConstants.ColumnJobClass],
-                    executionGroup);
-                nextTriggers.Add(result);
+                    executionGroup));
             }
             else
             {

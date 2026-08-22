@@ -46,6 +46,7 @@ namespace Quartz;
 public sealed class ExecutionLimitsBuilder
 {
     private readonly Dictionary<string, int?> limits = new(StringComparer.Ordinal);
+    private bool useTriggerGroupWhenUnset;
 
     internal ExecutionLimitsBuilder()
     {
@@ -117,11 +118,37 @@ public sealed class ExecutionLimitsBuilder
     }
 
     /// <summary>
+    /// Treats a trigger that carries no execution group as belonging to a group named after its own
+    /// <see cref="Key{T}.Group" />, for the purpose of these limits.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For a schedule that already partitions work by trigger group — a tenant per group, a subsystem
+    /// per group — this caps each partition without restating every group name as an execution group on
+    /// every trigger. <see cref="ForGroup" /> then names trigger groups, and
+    /// <see cref="ForOtherGroups" /> caps the ones not named.
+    /// </para>
+    /// <para>
+    /// The derivation is applied where a limit is evaluated and nowhere else: the trigger still carries
+    /// no execution group, and the store still persists none. A trigger that does carry one is limited
+    /// by that one. Two consequences worth knowing: ungrouped triggers stop falling under
+    /// <see cref="ForDefaultGroup" /> — with this on, nothing is ungrouped — and a trigger whose group
+    /// happens to be a name the limits reserve (<c>*</c>, <c>_</c>, <c>null</c>) is left ungrouped
+    /// rather than folded into the bucket that name means.
+    /// </para>
+    /// </remarks>
+    public ExecutionLimitsBuilder UseTriggerGroupWhenUnset()
+    {
+        useTriggerGroupWhenUnset = true;
+        return this;
+    }
+
+    /// <summary>
     /// Takes an immutable snapshot of what has been configured so far.
     /// </summary>
     public ExecutionLimits Build()
     {
-        return new ExecutionLimits(new Dictionary<string, int?>(limits, StringComparer.Ordinal));
+        return new ExecutionLimits(new Dictionary<string, int?>(limits, StringComparer.Ordinal), useTriggerGroupWhenUnset);
     }
 
     private static string RequireGroupName(string group)

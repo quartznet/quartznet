@@ -43,10 +43,12 @@ namespace Quartz;
 public sealed class ExecutionSlots
 {
     private readonly Dictionary<string, int?> available;
+    private readonly bool usesTriggerGroupWhenUnset;
 
-    internal ExecutionSlots(Dictionary<string, int?> available)
+    internal ExecutionSlots(Dictionary<string, int?> available, bool usesTriggerGroupWhenUnset)
     {
         this.available = available;
+        this.usesTriggerGroupWhenUnset = usesTriggerGroupWhenUnset;
     }
 
     /// <summary>
@@ -54,11 +56,15 @@ public sealed class ExecutionSlots
     /// </summary>
     /// <param name="executionGroup">The trigger's <see cref="ITrigger.ExecutionGroup" />, which may be
     /// <see langword="null" />.</param>
+    /// <param name="triggerGroup">The trigger's <see cref="Key{T}.Group" />, which the limits fall
+    /// back to when <see cref="ExecutionLimits.UsesTriggerGroupWhenUnset" /> is on and the trigger
+    /// carries no execution group. Required rather than optional so that a store cannot silently opt out
+    /// of the derivation by not passing it.</param>
     /// <returns><see langword="true" /> when the trigger may fire on this node, in which case a slot has
     /// been taken. <see langword="false" /> when its group is forbidden or has run out.</returns>
-    public bool TryTake(string? executionGroup)
+    public bool TryTake(string? executionGroup, string triggerGroup)
     {
-        string key = ExecutionLimits.NormalizeGroupKey(executionGroup);
+        string key = ExecutionLimits.ResolveGroupKey(executionGroup, triggerGroup, usesTriggerGroupWhenUnset);
 
         int? limit;
         if (available.TryGetValue(key, out int? groupLimit))
