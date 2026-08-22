@@ -2485,8 +2485,9 @@ public sealed class RAMJobStore : IJobStore
                 // Check execution group limits
                 if (executionSlots is not null)
                 {
-                    string? execGroup = tw.Trigger.ExecutionGroup;
-                    if (!executionSlots.TryTake(execGroup))
+                    // The trigger group goes along because the limits may be configured to stand in for
+                    // an execution group the trigger does not carry.
+                    if (!executionSlots.TryTake(tw.Trigger.ExecutionGroup, tw.TriggerKey.Group))
                     {
                         excludedTriggers.Add(tw);
                         continue;

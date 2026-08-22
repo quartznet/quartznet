@@ -347,6 +347,7 @@ namespace Quartz
         public const string OtherGroups = "*";
         public System.Collections.Generic.IReadOnlyList<Quartz.ExecutionGroupLimit> Groups { get; }
         public bool IsEmpty { get; }
+        public bool UsesTriggerGroupWhenUnset { get; }
         public Quartz.ExecutionSlots CreateSlots() { }
         public bool TryGetLimit(Quartz.ExecutionGroupScope scope, out int? maxConcurrent) { }
     }
@@ -357,12 +358,13 @@ namespace Quartz
         public Quartz.ExecutionLimitsBuilder ForGroup(string group, int maxConcurrent) { }
         public Quartz.ExecutionLimitsBuilder ForOtherGroups(int maxConcurrent) { }
         public Quartz.ExecutionLimitsBuilder Unlimited(string group) { }
+        public Quartz.ExecutionLimitsBuilder UseTriggerGroupWhenUnset() { }
         public static Quartz.ExecutionLimitsBuilder Create() { }
     }
     public sealed class ExecutionSlots
     {
         public bool TryGetRemaining(string? executionGroup, out int? remaining) { }
-        public bool TryTake(string? executionGroup) { }
+        public bool TryTake(string? executionGroup, string triggerGroup) { }
     }
     public sealed class FireInstance : System.IEquatable<Quartz.FireInstance>
     {

@@ -182,7 +182,7 @@ internal static class SchedulerEndpoints
                     dict[limit.Scope.ToConfigurationKey()] = limit.MaxConcurrent;
                 }
             }
-            return new ExecutionLimitsResponse(dict);
+            return new ExecutionLimitsResponse(dict, limits?.UsesTriggerGroupWhenUnset ?? false);
         });
     }
 
@@ -218,6 +218,11 @@ internal static class SchedulerEndpoints
                         if (kvp.Value.HasValue) builder.ForGroup(key, kvp.Value.Value);
                         else builder.Unlimited(key);
                     }
+                }
+
+                if (request.UseTriggerGroupWhenUnset)
+                {
+                    builder.UseTriggerGroupWhenUnset();
                 }
 
                 limits = builder.Build();

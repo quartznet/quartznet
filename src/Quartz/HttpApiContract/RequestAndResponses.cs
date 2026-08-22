@@ -178,9 +178,9 @@ internal record UnscheduleJobsRequest(KeyDto[] Triggers) : IValidatable
 
 internal record UnscheduleJobsResponse(bool AllTriggersFound);
 
-internal record ExecutionLimitsResponse(Dictionary<string, int?>? Limits);
+internal record ExecutionLimitsResponse(Dictionary<string, int?>? Limits, bool UseTriggerGroupWhenUnset = false);
 
-internal record SetExecutionLimitsRequest(Dictionary<string, int?>? Limits) : IValidatable
+internal record SetExecutionLimitsRequest(Dictionary<string, int?>? Limits, bool UseTriggerGroupWhenUnset = false) : IValidatable
 {
     public IEnumerable<string> Validate()
     {

@@ -6,6 +6,12 @@ namespace Quartz.Tests.Unit;
 
 public sealed class ExecutionGroupsTest
 {
+    /// <summary>
+    /// The trigger group a slot request carries when the limits are not deriving anything from it, which
+    /// is every case except the <see cref="ExecutionLimitsBuilder.UseTriggerGroupWhenUnset" /> ones.
+    /// </summary>
+    private const string AnyTriggerGroup = "trigger-group";
+
     [Test]
     public void TriggerBuilder_WithExecutionGroup_SetsProperty()
     {
@@ -185,7 +191,7 @@ public sealed class ExecutionGroupsTest
     {
         ExecutionSlots slots = ExecutionLimitsBuilder.Create().Build().CreateSlots();
 
-        slots.TryTake("batch-jobs").Should().BeTrue();
+        slots.TryTake("batch-jobs", AnyTriggerGroup).Should().BeTrue();
     }
 
     [Test]
@@ -193,8 +199,8 @@ public sealed class ExecutionGroupsTest
     {
         ExecutionSlots slots = ExecutionLimitsBuilder.Create().Unlimited("batch-jobs").Build().CreateSlots();
 
-        slots.TryTake("batch-jobs").Should().BeTrue();
-        slots.TryTake("batch-jobs").Should().BeTrue();
+        slots.TryTake("batch-jobs", AnyTriggerGroup).Should().BeTrue();
+        slots.TryTake("batch-jobs", AnyTriggerGroup).Should().BeTrue();
     }
 
     [Test]
@@ -202,7 +208,7 @@ public sealed class ExecutionGroupsTest
     {
         ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForGroup("batch-jobs", 0).Build().CreateSlots();
 
-        slots.TryTake("batch-jobs").Should().BeFalse();
+        slots.TryTake("batch-jobs", AnyTriggerGroup).Should().BeFalse();
     }
 
     [Test]
@@ -210,13 +216,13 @@ public sealed class ExecutionGroupsTest
     {
         ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForGroup("batch-jobs", 2).Build().CreateSlots();
 
-        slots.TryTake("batch-jobs").Should().BeTrue();
+        slots.TryTake("batch-jobs", AnyTriggerGroup).Should().BeTrue();
         Remaining(slots, "batch-jobs").Should().Be(1);
 
-        slots.TryTake("batch-jobs").Should().BeTrue();
+        slots.TryTake("batch-jobs", AnyTriggerGroup).Should().BeTrue();
         Remaining(slots, "batch-jobs").Should().Be(0);
 
-        slots.TryTake("batch-jobs").Should().BeFalse();
+        slots.TryTake("batch-jobs", AnyTriggerGroup).Should().BeFalse();
     }
 
     [Test]
@@ -224,11 +230,11 @@ public sealed class ExecutionGroupsTest
     {
         ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForOtherGroups(1).Build().CreateSlots();
 
-        slots.TryTake("unknown-group").Should().BeTrue();
+        slots.TryTake("unknown-group", AnyTriggerGroup).Should().BeTrue();
         Remaining(slots, "unknown-group").Should().Be(0,
             "the catch-all allowance is counted down per group, not shared between them");
 
-        slots.TryTake("unknown-group").Should().BeFalse();
+        slots.TryTake("unknown-group", AnyTriggerGroup).Should().BeFalse();
     }
 
     [Test]
@@ -236,7 +242,7 @@ public sealed class ExecutionGroupsTest
     {
         ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForOtherGroups(0).Build().CreateSlots();
 
-        slots.TryTake(null).Should().BeTrue("'*' is a catch-all for named groups, not for ungrouped triggers");
+        slots.TryTake(null, AnyTriggerGroup).Should().BeTrue("'*' is a catch-all for named groups, not for ungrouped triggers");
     }
 
     [Test]
@@ -244,8 +250,8 @@ public sealed class ExecutionGroupsTest
     {
         ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForDefaultGroup(1).Build().CreateSlots();
 
-        slots.TryTake(null).Should().BeTrue();
-        slots.TryTake(null).Should().BeFalse();
+        slots.TryTake(null, AnyTriggerGroup).Should().BeTrue();
+        slots.TryTake(null, AnyTriggerGroup).Should().BeFalse();
     }
 
     [Test]
@@ -253,7 +259,7 @@ public sealed class ExecutionGroupsTest
     {
         ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForGroup("batch-jobs", 0).Build().CreateSlots();
 
-        slots.TryTake("other-group").Should().BeTrue();
+        slots.TryTake("other-group", AnyTriggerGroup).Should().BeTrue();
     }
 
     [Test]
@@ -265,7 +271,7 @@ public sealed class ExecutionGroupsTest
         int allowed = 0;
         for (int i = 0; i < 3; i++)
         {
-            if (slots.TryTake("batch-jobs"))
+            if (slots.TryTake("batch-jobs", AnyTriggerGroup))
             {
                 allowed++;
             }
@@ -275,17 +281,98 @@ public sealed class ExecutionGroupsTest
     }
 
     [Test]
+    public void UseTriggerGroupWhenUnset_IsOffUnlessAskedFor()
+    {
+        ExecutionLimitsBuilder.Create().Build().UsesTriggerGroupWhenUnset.Should().BeFalse();
+        ExecutionLimitsBuilder.Create().UseTriggerGroupWhenUnset().Build().UsesTriggerGroupWhenUnset.Should().BeTrue();
+    }
+
+    [Test]
+    public void UseTriggerGroupWhenUnset_CapsATriggerGroupThatNoTriggerNames()
+    {
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create()
+            .ForGroup("reports", 1)
+            .UseTriggerGroupWhenUnset()
+            .Build()
+            .CreateSlots();
+
+        // Neither trigger carries an execution group; both are in trigger group "reports".
+        slots.TryTake(executionGroup: null, "reports").Should().BeTrue();
+        slots.TryTake(executionGroup: null, "reports").Should().BeFalse("the trigger group stood in for the execution group");
+        slots.TryTake(executionGroup: null, "ingest").Should().BeTrue("a different trigger group is a different bucket");
+    }
+
+    [Test]
+    public void WithoutTheOption_ATriggerGroupIsNotAnExecutionGroup()
+    {
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForGroup("reports", 1).Build().CreateSlots();
+
+        slots.TryTake(executionGroup: null, "reports").Should().BeTrue();
+        slots.TryTake(executionGroup: null, "reports").Should().BeTrue(
+            "an ungrouped trigger is ungrouped, whatever its trigger group is called");
+    }
+
+    [Test]
+    public void UseTriggerGroupWhenUnset_LeavesAnExplicitExecutionGroupAlone()
+    {
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create()
+            .ForGroup("reports", 0)
+            .ForGroup("cpu", 1)
+            .UseTriggerGroupWhenUnset()
+            .Build()
+            .CreateSlots();
+
+        slots.TryTake("cpu", "reports").Should().BeTrue(
+            "a trigger that names its execution group is limited by that one, not by its trigger group");
+        slots.TryTake("cpu", "reports").Should().BeFalse();
+        slots.TryTake(executionGroup: null, "reports").Should().BeFalse("the derived group is forbidden");
+    }
+
+    [Test]
+    public void UseTriggerGroupWhenUnset_MovesUngroupedTriggersUnderTheCatchAll()
+    {
+        ExecutionSlots derived = ExecutionLimitsBuilder.Create()
+            .ForDefaultGroup(0)
+            .ForOtherGroups(1)
+            .UseTriggerGroupWhenUnset()
+            .Build()
+            .CreateSlots();
+
+        // With the derivation on there is no ungrouped trigger left for ForDefaultGroup to forbid.
+        derived.TryTake(executionGroup: null, "reports").Should().BeTrue();
+        derived.TryTake(executionGroup: null, "reports").Should().BeFalse("the catch-all applies to it now");
+    }
+
+    [Test]
+    public void UseTriggerGroupWhenUnset_DoesNotDeriveANameTheLimitsReserve()
+    {
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create()
+            .ForDefaultGroup(1)
+            .ForOtherGroups(0)
+            .UseTriggerGroupWhenUnset()
+            .Build()
+            .CreateSlots();
+
+        // A trigger group may legitimately be called "*"; an execution group may not. Deriving one from
+        // the other would drop the trigger into the catch-all, which is not what its name says.
+        slots.TryTake(executionGroup: null, ExecutionLimits.OtherGroups).Should().BeTrue(
+            "a trigger group named like a reserved limits key leaves the trigger ungrouped");
+        slots.TryTake(executionGroup: null, ExecutionLimits.OtherGroups).Should().BeFalse(
+            "...and so it counts against the default group's one slot");
+    }
+
+    [Test]
     public void CreateSlots_LeavesTheSnapshotAlone()
     {
         ExecutionLimits limits = ExecutionLimitsBuilder.Create().ForGroup("batch-jobs", 2).Build();
 
         ExecutionSlots first = limits.CreateSlots();
-        first.TryTake("batch-jobs").Should().BeTrue();
-        first.TryTake("batch-jobs").Should().BeTrue();
-        first.TryTake("batch-jobs").Should().BeFalse();
+        first.TryTake("batch-jobs", AnyTriggerGroup).Should().BeTrue();
+        first.TryTake("batch-jobs", AnyTriggerGroup).Should().BeTrue();
+        first.TryTake("batch-jobs", AnyTriggerGroup).Should().BeFalse();
 
         ExecutionSlots second = limits.CreateSlots();
-        second.TryTake("batch-jobs").Should().BeTrue("a retried acquisition starts from the limits again");
+        second.TryTake("batch-jobs", AnyTriggerGroup).Should().BeTrue("a retried acquisition starts from the limits again");
         LimitFor(limits, ExecutionGroupScope.Named("batch-jobs")).Should().Be(2);
     }
 
@@ -462,7 +549,7 @@ public sealed class ExecutionGroupsTest
         // "unknown" is not listed, so it is not tracked until it takes from the catch-all
         slots.TryGetRemaining("unknown", out _).Should().BeFalse();
 
-        slots.TryTake("unknown").Should().BeTrue();
+        slots.TryTake("unknown", AnyTriggerGroup).Should().BeTrue();
         Remaining(slots, "unknown").Should().Be(2); // 3 - 1 = 2
     }
 

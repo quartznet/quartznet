@@ -108,6 +108,39 @@ await scheduler.SetExecutionLimits(
 
 `ExecutionLimitsBuilder` is mutable and `ExecutionLimits` — what `Build()` returns and what the scheduler
 reads — is not, so limits cannot change underneath the scheduler thread that is acquiring triggers with them.
+
+### Letting the trigger group stand in
+
+Some schedules already partition their work by trigger group: a group per tenant, a group per subsystem.
+Tagging every one of those triggers with an execution group of the same name would be a second copy of a
+fact the key already carries. `UseTriggerGroupWhenUnset()` says so once instead:
+
+```csharp
+await scheduler.SetExecutionLimits(
+    ExecutionLimitsBuilder.Create()
+        .UseTriggerGroupWhenUnset()
+        .ForGroup("tenant-a", 4)   // names a trigger group here, because none of its triggers name one
+        .ForOtherGroups(2)         // every other tenant gets two
+        .Build());
+```
+
+With the option on, a trigger that carries no execution group is limited as though its group were its own
+`TriggerKey.Group`. Three things are worth knowing:
+
+* **An explicit execution group always wins.** A trigger that names one is limited by that one, whatever
+  group it is in. The derivation only fills a gap.
+* **Nothing is persisted differently.** `ITrigger.ExecutionGroup` still reads `null`, and the store still
+  writes `null` to `EXECUTION_GROUP`. The rule is applied where a limit is evaluated — the scheduler
+  thread's in-flight counting and both job stores' acquisition filters — and nowhere else. Turning it off
+  again changes nothing but how the limits are read.
+* **`ForDefaultGroup` stops applying.** With the derivation on, no trigger is ungrouped, so ungrouped
+  triggers fall under `ForGroup`/`ForOtherGroups` like any other. The one exception is a trigger whose
+  group is spelled like a name the limits reserve (`*`, `_`, `null`): it stays ungrouped rather than being
+  folded into the bucket that spelling means.
+
+The option is a code-level one. There is no `quartz.executionLimit.*` property for it, because every key
+under that prefix is a group name and a magic one would collide with a group that happened to share the
+spelling.
 Read one back with `TryGetLimit(scope, out int? maxConcurrent)`, or enumerate `Groups`. Each entry's
 `ExecutionGroupScope` is one of exactly three cases — `Default` (triggers with no execution group),
 `OtherGroups` (the catch-all) and `Named(name)` — so reading limits never involves sentinel strings:
@@ -177,10 +210,12 @@ quartz.executionLimit.* = 10
 
 ## Interaction with DisallowConcurrentExecution
 
-`[DisallowConcurrentExecution]` is always respected regardless of execution group configuration.
-In the ADO job store, execution group filtering happens at the SQL level during trigger candidate selection,
-while `[DisallowConcurrentExecution]` is enforced afterward in the acquisition loop. Both constraints
-are applied — a trigger must satisfy both to be acquired.
+`[DisallowConcurrentExecution]` is always respected regardless of execution group configuration. Both
+constraints are applied — a trigger must satisfy both to be acquired. In the ADO job store, neither is a
+SQL predicate: the candidate select projects each trigger's execution group and the delegate counts slots
+down as it reads the rows, and `[DisallowConcurrentExecution]` is checked afterwards in the acquisition
+loop. One statement therefore serves every limits configuration, which is also why letting the trigger
+group stand in for an unset execution group needs no dialect SQL of its own.
 
 ## Database schema
 
@@ -200,10 +235,11 @@ ALTER TABLE QRTZ_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL;
 ALTER TABLE QRTZ_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200) NULL);
 ```
 
-The standard 4.x schema also includes an `EXECUTION_GROUP` column on `QRTZ_FIRED_TRIGGERS`.
-It is currently not read or written by execution group logic, but is reserved for forward
-compatibility and possible future cluster-wide execution group counting. If upgrading from 3.x,
-add it alongside the `QRTZ_TRIGGERS` column:
+The standard 4.x schema also includes an `EXECUTION_GROUP` column on `QRTZ_FIRED_TRIGGERS`. It records
+the execution group a firing belongs to, so that `IScheduler.QueryFireInstances` can report it from any
+node in the cluster. Acquisition still reads limits from `QRTZ_TRIGGERS`; this column is what the listing
+reads. Rows written by a 4.0 preview before it went live hold `NULL`. If upgrading from 3.x, add it
+alongside the `QRTZ_TRIGGERS` column:
 
 ```sql
 ALTER TABLE QRTZ_FIRED_TRIGGERS ADD EXECUTION_GROUP NVARCHAR(200) NULL;  -- SQL Server

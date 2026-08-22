@@ -314,7 +314,7 @@ public sealed class HttpScheduler : IScheduler
             }
             await httpClient.Post(
                 $"{SchedulerEndpointUrl()}/execution-limits",
-                new SetExecutionLimitsRequest(dict),
+                new SetExecutionLimitsRequest(dict, limits.UsesTriggerGroupWhenUnset),
                 jsonSerializerOptions,
                 cancellationToken).ConfigureAwait(false);
         }
@@ -345,6 +345,11 @@ public sealed class HttpScheduler : IScheduler
                 if (kvp.Value.HasValue) builder.ForGroup(kvp.Key, kvp.Value.Value);
                 else builder.Unlimited(kvp.Key);
             }
+        }
+
+        if (response.UseTriggerGroupWhenUnset)
+        {
+            builder.UseTriggerGroupWhenUnset();
         }
 
         return builder.Build();
