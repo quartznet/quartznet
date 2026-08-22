@@ -225,7 +225,7 @@ builder.Services.AddQuartz(q =>
             ConsumeStreams = true,
         }));
 
-    q.AddTrigger(t => t
+    q.AddTrigger<NativeJob>(t => t
         .ForJob("nightlyReport")
         .WithCronSchedule("0 0 2 * * ?"));
 });

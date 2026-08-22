@@ -14,7 +14,9 @@ This guide covers common issues users encounter with Quartz.NET and how to diagn
 **Common Causes:**
 
 1. **Thread pool exhaustion** — All worker threads are occupied by long-running jobs. Other jobs queue up and eventually misfire.
-   * Check `quartz.threadPool.threadCount` (default: 10). Increase if you have many concurrent jobs.
+   * Check the thread pool size (default: 10) — `ThreadPool:MaxConcurrency` in 4.x,
+     `quartz.threadPool.threadCount` as a flat key on both versions. Increase it if you have many
+     concurrent jobs.
    * Ensure jobs don't block threads indefinitely. Use cancellation tokens and timeouts.
    * Consider using `[DisallowConcurrentExecution]` to prevent a single slow job from consuming all threads.
 
@@ -85,30 +87,40 @@ A **misfire** occurs when a trigger's scheduled fire time passes without the job
 
 1. On startup (and periodically during operation), Quartz scans for triggers whose `NEXT_FIRE_TIME` is older than `now - misfireThreshold`.
 2. For each misfired trigger, Quartz applies the trigger's configured misfire instruction.
-3. The default `misfireThreshold` is 60 seconds (configurable via `quartz.jobStore.misfireThreshold`).
+3. The default misfire threshold is 60 seconds for a persistent store — `JobStore:MisfireThreshold` in 4.x,
+   `quartz.jobStore.misfireThreshold` as a flat key on both versions.
 
 ### Misfire Instructions by Trigger Type
 
-| Trigger Type | Instruction | Behavior |
-|-------------|-------------|----------|
-| **SimpleTrigger** | `FireNow` | Fire immediately, remaining repeat count unchanged |
-| | `RescheduleNowWithExistingRepeatCount` | Fire now, keep original repeat count |
-| | `RescheduleNowWithRemainingRepeatCount` | Fire now, only remaining repeats |
-| | `RescheduleNextWithExistingCount` | Skip to next scheduled time, keep original count |
-| | `RescheduleNextWithRemainingCount` | Skip to next scheduled time, remaining count |
-| **CronTrigger** | `FireOnceNow` | Fire immediately once, then resume schedule |
-| | `DoNothing` | Skip missed firings, wait for next scheduled time |
-| **RecurrenceTrigger** | `FireOnceNow` (default) | Fire immediately once, then resume schedule |
-| | `DoNothing` | Skip missed firings, wait for next scheduled time |
+Each family of triggers has its own instructions. Quartz 4.x names them on an enum per family
+(`SimpleTriggerMisfireInstruction`, `CronTriggerMisfireInstruction` and so on); Quartz 3.x names the same
+values as constants under `MisfireInstruction`, sometimes with a longer spelling.
 
-The default "smart policy" varies by trigger type. For `CronTrigger` and `RecurrenceTrigger`, it defaults to `FireOnceNow`. For `SimpleTrigger`, it depends on the repeat count configuration.
+| Trigger Type | 4.x | 3.x | Behavior |
+|-------------|-----|-----|----------|
+| **SimpleTrigger** | `FireNow` | `FireNow` | Fire immediately, remaining repeat count unchanged |
+| | `NowWithExistingCount` | `RescheduleNowWithExistingRepeatCount` | Fire now, keep original repeat count |
+| | `NowWithRemainingCount` | `RescheduleNowWithRemainingRepeatCount` | Fire now, only remaining repeats |
+| | `NextWithExistingCount` | `RescheduleNextWithExistingCount` | Skip to next scheduled time, keep original count |
+| | `NextWithRemainingCount` | `RescheduleNextWithRemainingCount` | Skip to next scheduled time, remaining count |
+| **CronTrigger** | `FireAndProceed` | `FireOnceNow` | Fire immediately once, then resume schedule |
+| | `DoNothing` | `DoNothing` | Skip missed firings, wait for next scheduled time |
+| **RecurrenceTrigger** | `FireAndProceed` (default) | — | Fire immediately once, then resume schedule |
+| | `DoNothing` | — | Skip missed firings, wait for next scheduled time |
+
+Every family also has `IgnoreMisfires`, which fires every missed firing as fast as it can, and
+`SmartPolicy`, which is the default. What smart policy resolves to varies by trigger type: for
+`CronTrigger` and `RecurrenceTrigger` it fires once now and resumes; for `SimpleTrigger` it depends on the
+repeat count.
 
 ### Tuning
 
 If triggers misfire frequently under normal operation, consider:
 
-* Increasing `quartz.threadPool.threadCount` to handle more concurrent jobs.
-* Increasing `quartz.jobStore.misfireThreshold` if slight delays are acceptable.
+* Raising the thread pool size to handle more concurrent jobs — `ThreadPool:MaxConcurrency` in 4.x,
+  `quartz.threadPool.threadCount` as a flat key on both versions.
+* Raising the misfire threshold if slight delays are acceptable — `JobStore:MisfireThreshold` in 4.x,
+  `quartz.jobStore.misfireThreshold` as a flat key on both.
 * Splitting high-frequency triggers across multiple scheduler instances using clustering.
 
 ## Job Deserialization Failures After Refactoring
@@ -148,7 +160,8 @@ WHERE JOB_CLASS_NAME = 'OldNamespace.OldClassName, OldAssembly';
    * Verify network latency between the scheduler and database server.
 
 3. **Lock contention** — Multiple scheduler instances competing for the same rows.
-   * Ensure all scheduler instances use the same `quartz.scheduler.instanceName` only when clustering is enabled.
+   * Two schedulers share a name (`Scheduler:InstanceName`, or `quartz.scheduler.instanceName`) only when
+     they are meant to be one cluster, and then clustering has to be enabled on both.
    * Never point multiple non-clustered schedulers at the same database tables (see [Best Practices](best-practices.md#adonet-jobstore)).
 
 ### Datasource Configuration Example

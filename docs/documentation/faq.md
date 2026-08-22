@@ -152,9 +152,9 @@ so if all you want is constructor injection into your jobs you do not need to wr
 
 ## How do I keep a Job from being removed after it completes?
 
-Set the property JobDetail.Durable = true - which instructs Quartz not to
-delete the Job when it becomes an "orphan" (when the Job not longer has a
-Trigger referencing it).
+Build it with `JobBuilder.Create<MyJob>().StoreDurably()`, which instructs Quartz not to
+delete the Job when it becomes an "orphan" (when the Job no longer has a
+Trigger referencing it). `IJobDetail.Durable` reports the flag; it is set when the detail is built.
 
 ## How do I keep a Job from firing concurrently?
 
@@ -172,22 +172,41 @@ documentation for `IStatefulJob` for more information.
 
 Quartz 1.x and 2.x: See the `Quartz.IInterruptableJob` interface, and the `IScheduler.Interrupt(string, string)` method.
 
-Quartz 3.x and 4.x: Check `IJobExecutionContext.CancellationToken.IsCancellationRequested` in your job's `Execute` method and return early when cancellation is requested.
+Quartz 3.x and 4.x: ask the scheduler to interrupt it — `IScheduler.Interrupt(jobKey)` for every execution of
+a job, or one particular firing by its fire instance id (`InterruptFireInstance(id)` in 4.x, the
+`Interrupt(string)` overload in 3.x). Both cancel the token
+the execution was given, so the job has to co-operate: check
+`IJobExecutionContext.CancellationToken.IsCancellationRequested`, or forward the token to what you await, and
+return early when cancellation is requested. In 4.x the token is also a parameter of `Execute`, so forwarding
+it is the default thing to do.
 
 # Questions About Triggers
 
 ## How do I chain Job execution? Or, how do I create a workflow?
 
-There currently is no "direct" or "free" way to chain triggers with Quartz.
-However there are several ways you can accomplish it without much effort.
-Below is an outline of a couple approaches:
+For the simple case — when this job finishes, run that one — Quartz ships
+`JobChainingJobListener`. Register it with the pairs you want chained, and it triggers the second job
+when the first completes:
+
+```csharp
+JobChainingJobListener chain = new("chain");
+chain.AddJobChainLink(new JobKey("extract"), new JobKey("transform"));
+chain.AddJobChainLink(new JobKey("transform"), new JobKey("load"));
+
+scheduler.ListenerManager.AddJobListener(chain);
+```
+
+The links live in memory with the listener, so they are re-registered on every start, and the
+second job is fired rather than scheduled — there is no trigger to see in the store.
+
+For anything more than that, there is no "direct" way to chain triggers with Quartz, but there are
+several ways to accomplish it without much effort. Below is an outline of a couple of approaches:
 
 One way is to use a listener (i.e. a TriggerListener, JobListener or
 SchedulerListener) that can notice the completion of a job/trigger and then
 immediately schedule a new trigger to fire. This approach can get a bit
-involved, since you'll have to inform the listener which job follows which
-
-* and you may need to worry about persistence of this information.
+involved, since you'll have to inform the listener which job follows which,
+and you may need to worry about persistence of this information.
 
 Another way is to build a Job that contains within its JobDataMap the name
 of the next job to fire, and as the job completes (the last step in its

@@ -1,6 +1,6 @@
 ---
 
-title : Serialization (System.Text.Json)
+title: Serialization (System.Text.Json)
 ---
 
 ::: tip
@@ -78,8 +78,12 @@ class CustomJsonSerializer : SystemTextJsonObjectSerializer
 
 ```csharp
 store.UseSerializer<CustomJsonSerializer>();
-// or
-"quartz.serializer.type" = "MyProject.CustomJsonSerializer, MyProject"
+```
+
+or, as a flat property key:
+
+```text
+quartz.serializer.type = MyProject.CustomJsonSerializer, MyProject
 ```
 
 The registry the serializer was built with is available to the subclass through the protected `Registry`
