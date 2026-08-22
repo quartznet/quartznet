@@ -27,9 +27,11 @@ internal static class HttpApiConstants
     /// The problem-details member naming the exception type the server raised.
     /// </summary>
     /// <remarks>
-    /// Present on every error body, whichever layer produced it, so that the shape of an error does
-    /// not depend on its cause. A client maps the Quartz exception names back to typed exceptions and
-    /// treats every other value as opaque — the framework's own names appear here too.
+    /// Present on every client-actionable error — every <c>400</c> and every <c>404</c>, whichever
+    /// layer produced it — so that the shape of such an error does not depend on its cause. A client
+    /// maps the Quartz exception names back to typed exceptions and treats every other value as
+    /// opaque; the framework's own names appear here too. A <c>500</c> deliberately does not carry it:
+    /// a fault the caller cannot act on has nothing to gain from naming the type behind it.
     /// </remarks>
     public const string ProblemDetailsExceptionType = "Quartz-ExceptionType";
 

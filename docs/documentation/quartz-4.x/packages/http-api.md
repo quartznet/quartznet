@@ -121,34 +121,47 @@ was:
 | A read that found its target | `200` with the object |
 | A read whose target does not exist | `404` with RFC 7807 problem details |
 | A mutation that always acts | `200` with an **empty body** — `AddJob`, `TriggerJob`, `PauseAll`, `ScheduleJobs`, `AddCalendar`, `Start`, `Standby`, `Shutdown`, `Clear`, the execution-limit writes |
-| A mutation whose effect may be a no-op | `200` with `{ "applied": … }` |
+| A mutation whose effect may be a no-op | `200` with one flag, **named for what it reports** — `{ "applied": … }` almost everywhere, `{ "allFound": … }` on the two forms below |
 | …the same, aimed at a group matcher or a key set | `200` with what it applied to — `{ "groups": [ … ] }`, `{ "jobs": [ … ] }`, `{ "triggers": [ … ] }` |
 | A mutation that computed something | `200` with that value — `{ "firstFireTimeUtc": … }` from schedule and reschedule |
 
 An unknown scheduler is `404` whatever the operation was.
 
-`applied` means **the operation applied to everything it was aimed at**. For a single-key mutation
-that is the one key; for the plural `POST …/jobs/delete` and `POST …/triggers/unschedule` it is every
-key in the body, so a partial hit is `false` even though the keys that were found were still deleted.
+The flag is always one boolean, and it is **named for the fact it reports**: `applied` — the entity
+existed and the operation changed it — except where the underlying scheduler API can only answer
+whether *every* key was found, which is `allFound`:
+
+| Endpoint | Flag | Means |
+|---|---|---|
+| every other single-key mutation | `applied` | this key existed and the operation changed it |
+| `POST …/jobs/delete` | `allFound` | every key in the body was found |
+| `POST …/triggers/unschedule` | `allFound` | every key in the body was found |
+
+Those two report `allFound` rather than `applied` because a partial hit **still deletes the keys it
+found** — `IScheduler.DeleteJobs` and `UnscheduleJobs` return one `bool` for the whole set and cannot
+say which. Calling that `"applied": false` would be a false statement about what happened, and a
+caller who retried on it would never learn that most of the work had already succeeded. Answering
+with the applied keys, as the key-set pause and resume do, is the better end state and is tracked in
+[#3360](https://github.com/quartznet/quartznet/issues/3360).
 
 ::: warning Changed in 4.x
-Six endpoints spelled this flag their own way in the 4.0 previews. They all say `applied` now:
+Five endpoints spelled the applied flag their own way in the 4.0 previews:
 
 | Endpoint | 4.0 preview | 4.0 |
 |---|---|---|
 | `DELETE …/jobs/{group}/{name}` | `{ "jobFound": … }` | `{ "applied": … }` |
-| `POST …/jobs/delete` | `{ "allJobsFound": … }` | `{ "applied": … }` |
 | `POST …/jobs/{group}/{name}/interrupt`, `POST …/jobs/interrupt/{fireInstanceId}` | `{ "interrupted": … }` | `{ "applied": … }` |
 | `POST …/triggers/{group}/{name}/unschedule` | `{ "triggerFound": … }` | `{ "applied": … }` |
-| `POST …/triggers/unschedule` | `{ "allTriggersFound": … }` | `{ "applied": … }` |
 | `DELETE …/calendars/{name}` | `{ "calendarFound": … }` | `{ "applied": … }` |
+| `POST …/jobs/delete` | `{ "allJobsFound": … }` | `{ "allFound": … }` |
+| `POST …/triggers/unschedule` | `{ "allTriggersFound": … }` | `{ "allFound": … }` |
 :::
 
-### Errors are one shape
+### Errors are one shape per kind
 
-Every error the API produces is RFC 7807 problem details with the same members, whichever layer
-raised it: `type`, `title`, `status`, `detail`, and `Quartz-ExceptionType` naming the exception the
-server raised.
+Every error the API produces is RFC 7807 problem details. A **client-actionable** error — every `400`
+and every `404` — carries `type`, `title`, `status`, `detail` and `Quartz-ExceptionType` naming the
+exception the server raised, whichever layer raised it:
 
 ```json
 {
@@ -164,6 +177,19 @@ A client maps the Quartz exception names — `SchedulerException`, `JobPersisten
 `ObjectAlreadyExistsException`, … — back to typed exceptions, and treats any other value as opaque;
 `HttpScheduler` does exactly that. `Quartz-ExceptionStackTrace` joins them only when
 `IncludeStackTraceInProblemDetails` is on.
+
+A **`500` deliberately does not carry `Quartz-ExceptionType`.** It is a fault the caller cannot act
+on, so naming the type behind it would say something about the server's internals and nothing a
+client could use:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+  "title": "An error occurred while processing your request.",
+  "status": 500,
+  "detail": "…"
+}
+```
 
 ::: warning Changed in 4.x
 `Quartz-ExceptionType` rode only on the `SchedulerException` path in the 4.0 previews, so a `400`
@@ -251,20 +277,23 @@ calendar listings. Both shapes are gone; every listing returns the paged envelop
 ## Pause and resume report what they did
 
 Pause and resume are the mutations most often aimed at a key that has gone, so they are worth spelling
-out — but the rule is the general one above, and every mutation that can be a no-op answers the same
-way:
+out — but the rule is the general one above, and every single-key mutation that can be a no-op answers
+the same way:
 
 - `POST …/jobs/{group}/{name}/pause`, `…/resume`
 - `POST …/triggers/{group}/{name}/pause`, `…/resume`
 - `POST …/triggers/{group}/{name}/reset-from-error-state`
-- `POST …/triggers/{group}/{name}/unschedule`, `POST …/triggers/unschedule`
+- `POST …/triggers/{group}/{name}/unschedule`
 - `POST …/jobs/{group}/{name}/interrupt`, `POST …/jobs/interrupt/{fireInstanceId}`
-- `DELETE …/jobs/{group}/{name}`, `POST …/jobs/delete`
+- `DELETE …/jobs/{group}/{name}`
 - `DELETE …/calendars/{name}`
 
 ```json
 { "applied": true }
 ```
+
+(`POST …/jobs/delete` and `POST …/triggers/unschedule` take a key set and answer `{ "allFound": … }`
+instead, [for the reason given above](#response-shape-conventions).)
 
 `applied` is `false` when the key does not exist or the operation was a no-op (pausing an already
 paused trigger, resuming a trigger that was not paused, resetting a trigger that is not in the error

@@ -4971,37 +4971,45 @@ Only these two enums are affected, and the converters are registered per enum ty
 its converters to the application's shared `JsonOptions`, and a host's own endpoints must keep rendering
 their own enums the way they always did.
 
-## Every mutation says `applied`, and every error is one shape
+## One flag per mutation, named for what it reports
 
 Which body a `200` carries is now a rule rather than a per-endpoint fact: **a `200` carries a body
 exactly when the operation has something to say that the caller could not have worked out for
 itself.** A mutation that always acts — `AddJob`, `TriggerJob`, `PauseAll`, `ScheduleJobs`,
 `AddCalendar`, the scheduler and execution-limit writes — answers with an empty body; a mutation whose
-effect may be a no-op answers `{"applied": …}`; a mutation aimed at a group matcher or a key set
+effect may be a no-op answers with one boolean flag; a mutation aimed at a group matcher or a key set
 answers with what it applied to; and a mutation that computed something answers with that value.
 
-The empty-body and `{"applied": …}` halves were already split that way. What was not consistent was
-the *name*: six endpoints spelled the flag their own way, so a caller had to look up the body per
-endpoint instead of predicting it.
+The empty-body and flag-carrying halves were already split that way. What was not consistent was the
+*name*: seven spellings of the same question, so a caller had to look up the body per endpoint instead
+of predicting it.
 
 | Endpoint | 4.0 preview | 4.0 |
 |---|---|---|
 | `DELETE …/jobs/{group}/{name}` | `{"jobFound": …}` | `{"applied": …}` |
-| `POST …/jobs/delete` | `{"allJobsFound": …}` | `{"applied": …}` |
 | `POST …/jobs/{group}/{name}/interrupt` | `{"interrupted": …}` | `{"applied": …}` |
 | `POST …/jobs/interrupt/{fireInstanceId}` | `{"interrupted": …}` | `{"applied": …}` |
 | `POST …/triggers/{group}/{name}/unschedule` | `{"triggerFound": …}` | `{"applied": …}` |
-| `POST …/triggers/unschedule` | `{"allTriggersFound": …}` | `{"applied": …}` |
 | `DELETE …/calendars/{name}` | `{"calendarFound": …}` | `{"applied": …}` |
+| `POST …/jobs/delete` | `{"allJobsFound": …}` | `{"allFound": …}` |
+| `POST …/triggers/unschedule` | `{"allTriggersFound": …}` | `{"allFound": …}` |
 
-`applied` means the operation applied to everything it was aimed at. For a single key that is the one
-key; for the two plural forms it is every key in the body, which is what `allJobsFound` and
-`allTriggersFound` meant — a partial hit is `false`, and the keys that were found are still deleted.
-`HttpScheduler` reads the new spelling, so a client and server upgraded together need no code change;
+`applied` means the entity existed and the operation changed it. The last two rows keep a name of
+their own because they report a different fact: `IScheduler.DeleteJobs` and `UnscheduleJobs` answer
+one `bool` for a whole key set, meaning "every key was found", and a partial hit **still deletes the
+keys it found**. Calling that `"applied": false` would be a false statement about what happened, and
+a caller who retried on it would never learn that most of the work had already succeeded. What is
+uniform is the *shape* — one boolean, on the operations that have something to report; the name still
+has to describe the value. Having those two answer with the applied keys, as the key-set pause and
+resume do, is the better end state and is tracked in
+[#3360](https://github.com/quartznet/quartznet/issues/3360).
+
+`HttpScheduler` reads the new spellings, so a client and server upgraded together need no code change;
 a hand-written client reading the old names does.
 
-Errors gained the same treatment. Every problem-details body the API produces now carries the same
-members whichever layer raised it — `type`, `title`, `status`, `detail` and `Quartz-ExceptionType`:
+Errors gained a rule of their own: **a client-actionable error names the exception type it came from;
+a server fault does not.** Every `400` and every `404` now carries the same members whichever layer
+raised it — `type`, `title`, `status`, `detail` and `Quartz-ExceptionType`:
 
 ```json
 {
@@ -5016,9 +5024,12 @@ members whichever layer raised it — `type`, `title`, `status`, `detail` and `Q
 `Quartz-ExceptionType` used to ride only on the `SchedulerException` path, so a `400` from request
 validation and a `400` from the scheduler were two different shapes, and a client could not tell a
 body the member was missing from a body that never carries it. It now names the exception type on
-every error, including the framework's own — `BadHttpRequestException` for a request the endpoint
-rejected, `NotFoundException` for a `404`. Map the Quartz names back to typed exceptions and treat the
-rest as opaque, which is what `HttpScheduler` does.
+every `400` and `404`, including the framework's own — `BadHttpRequestException` for a request the
+endpoint rejected, `NotFoundException` for a `404`. Map the Quartz names back to typed exceptions and
+treat the rest as opaque, which is what `HttpScheduler` does.
+
+A `500` deliberately does **not** carry it. It is a fault the caller cannot act on, so naming the type
+behind it would say something about the server's internals and nothing a client could use.
 
 The one `400` that still has no body is not the API's: a query parameter the framework could not bind
 never reaches an endpoint, so nothing of ours writes the response.
