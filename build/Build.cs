@@ -27,10 +27,14 @@ partial class Build : FalloutBuild, ICompile, IPack
     [Parameter("Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, basic, all)")]
     readonly string Database;
 
+    [Parameter("Collect line and branch coverage while running the unit tests, in OpenCover format")]
+    readonly bool Coverage;
+
     [GitRepository] readonly GitRepository GitRepository;
 
     AbsolutePath SourceDirectory => RootDirectory / "src";
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
+    AbsolutePath CoverageDirectory => ArtifactsDirectory / "coverage";
 
     // Null when the repository can't be resolved, e.g. in a git worktree, where the local build
     // simply has no tag to version from. CI always checks out a plain clone.
@@ -152,16 +156,33 @@ partial class Build : FalloutBuild, ICompile, IPack
                 Log.Information("Unit tests: {Project} ({Framework})", project.Name, framework);
             }
 
-            DotNetTest(s => s
-                .EnableNoRestore()
-                .EnableNoBuild()
-                .SetConfiguration(configuration)
-                .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : [])
-                .CombineWith(testRuns, (_, run) => _
+            if (Coverage)
+            {
+                CoverageDirectory.CreateOrCleanDirectory();
+            }
+
+            DotNetTest(s =>
+            {
+                s = s.EnableNoRestore()
+                    .EnableNoBuild()
+                    .SetConfiguration(configuration)
+                    .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : []);
+
+                if (Coverage)
+                {
+                    // Opt-in, because instrumenting every assembly costs test time that only the Sonar
+                    // analysis has a use for — the other workflows run the same target without it. coverlet
+                    // writes one <guid>/coverage.opencover.xml per run below the results directory, which is
+                    // the layout sonar.cs.opencover.reportsPaths globs for in .github/workflows/sonar.yml.
+                    s = s.SetDataCollector("XPlat Code Coverage;Format=opencover")
+                        .SetResultsDirectory(CoverageDirectory);
+                }
+
+                return s.CombineWith(testRuns, (_, run) => _
                     .SetProjectFile(run.Project)
                     .SetFramework(run.Framework)
-                )
-            );
+                );
+            });
         });
 
     static readonly string[] DatabaseCategories =

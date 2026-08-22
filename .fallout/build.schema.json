@@ -124,6 +124,10 @@
             "Release"
           ]
         },
+        "Coverage": {
+          "type": "boolean",
+          "description": "Collect line and branch coverage while running the unit tests, in OpenCover format"
+        },
         "Database": {
           "type": "string",
           "description": "Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, basic, all)"
