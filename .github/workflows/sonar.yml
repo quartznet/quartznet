@@ -73,12 +73,21 @@ jobs:
           # Without this the scanner reports an empty sonar.token as a format error, which reads
           # like a typo rather than a missing secret.
           [ -n "$SONAR_TOKEN" ] || { echo "::error::SONAR_TOKEN is not set — see the header of .github/workflows/sonar.yml"; exit 1; }
+          # sonar.coverage.exclusions, not sonar.exclusions: the scanner imports C# coverage only
+          # (sonar.cs.opencover.reportsPaths below), so JavaScript build tooling arrives as new code
+          # carrying no coverage data at all and fails the new-code coverage condition by itself. It
+          # stays in analysis, where the bug and security rules still apply to it; what it is excused
+          # from is a coverage figure this workflow is not configured to produce. Its own control is
+          # `npm run docs:check-links-test`.
           dotnet-sonarscanner begin \
             /k:"quartznet_quartznet" \
             /o:"quartznet" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$SONAR_TOKEN" \
-            /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml"             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**"             /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**"
+            /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
+            /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**" \
+            /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**" \
+            /d:sonar.coverage.exclusions="docs/.vuepress/**"
       # Has to sit between begin and end: the scanner analyses through MSBuild, so only projects
       # actually built while it is active are measured.
       - name: 'Run: Compile, UnitTest'
