@@ -1747,21 +1747,87 @@ unambiguously, and is what the rest of the API has spoken since 3.0:
 
 | 3.x / earlier 4.x | 4.0 |
 |---|---|
-| `protected void DirectoryScanJob.GetUpdatedOrNewFiles(string, DateTime, DateTime, IReadOnlyCollection<FileInfo>, out List<FileInfo>, out List<FileInfo>, out List<FileInfo>, string, bool)` | `protected DirectoryScanResult GetUpdatedOrNewFiles(string directoryName, DateTimeOffset lastModifiedTime, DateTimeOffset maxAgeTime, IReadOnlyCollection<FileInfo> currentFileList, string searchPattern = "*", bool includeSubDirectories = false)` |
 | `protected virtual DateTime FileScanJob.GetLastModifiedDate(string)`, returning `DateTime.MinValue` for a missing file | `protected virtual DateTimeOffset? GetLastModifiedTime(string fileName)`, returning `null` for a missing file |
+| `protected void DirectoryScanJob.GetUpdatedOrNewFiles(string, DateTime, DateTime, IReadOnlyCollection<FileInfo>, out List<FileInfo>, out List<FileInfo>, out List<FileInfo>, string, bool)` | private, along with the `DirectoryScanResult` it returns |
 
-`DirectoryScanResult` is a `readonly record struct` carrying `All`, `Updated` and `Deleted`. Nine
-parameters, three of them `out`, described one answer; the record is that answer, and the two genuinely
-optional inputs stay optional:
-
-```diff
-- GetUpdatedOrNewFiles(dir, lastModified, maxAge, current, out var all, out var updated, out var deleted);
-+ DirectoryScanResult scanned = GetUpdatedOrNewFiles(dir, lastModified, maxAge, current);
-```
+`GetUpdatedOrNewFiles` was `protected` but never `virtual`, and `DirectoryScanJob.Execute` is not
+virtual either, so no subclass could take part in the scan or do anything with a result it computed.
+`IDirectoryScanListener` is the seam, and it is handed the files themselves.
 
 The `LAST_MODIFIED_TIME` entry these jobs keep in their own job data is written as a `DateTimeOffset`
 now. A `DateTime` written by an earlier version is still read, as the instant it denoted, so an upgraded
 scheduler does not re-report every file it has already seen.
+
+### The shipped jobs are configured by name
+
+Every job in `Quartz.Jobs` was configured by `const string` keys read out of the merged `JobDataMap`,
+which is a configuration model with no compiler in it: the key can be misspelled, the value can be of
+the wrong type, and a setting the job honours can simply be missing from the documentation — as
+`SEARCH_PATTERN` and `INCLUDE_SUB_DIRECTORIES` were, `internal const`s that `DirectoryScanJob` read on
+every fire.
+
+Each job now has an options record that maps onto its keys in one place, and an extension that writes
+it:
+
+| Job | Options | Extension |
+|---|---|---|
+| `DirectoryScanJob` | `DirectoryScanOptions` | `UsingDirectoryScanOptions(…)` |
+| `FileScanJob` | `FileScanOptions` | `UsingFileScanOptions(…)` |
+| `NativeJob` | `NativeJobOptions` | `UsingNativeJobOptions(…)` |
+| `SendMailJob` | `SendMailOptions` | `UsingSendMailOptions(…)` |
+
+```diff
+  IJobDetail job = JobBuilder.Create<DirectoryScanJob>()
+      .WithIdentity("inboxScan")
+-     .UsingJobData(DirectoryScanJob.DirectoryNames, "/var/spool/inbox")
+-     .UsingJobData(DirectoryScanJob.DirectoryScanListenerName, nameof(InboxListener))
+-     .UsingJobData("SEARCH_PATTERN", "*.csv")
+-     .UsingJobData(DirectoryScanJob.MinimumUpdateAge, 30000L)
++     .UsingDirectoryScanOptions(new DirectoryScanOptions
++     {
++         Directories = ["/var/spool/inbox"],
++         ScanListenerName = nameof(InboxListener),
++         SearchPattern = "*.csv",
++         MinimumUpdateAge = TimeSpan.FromSeconds(30),
++     })
+      .Build();
+```
+
+Nothing about what is stored changes. The extensions write the same keys, `FromJobData` reads them
+back, and a job scheduled by 3.x reads identically — including a value a job store in
+`StoreJobDataAsStrings` mode left behind as a string. Configuring key by key still works, and
+`SEARCH_PATTERN` and `INCLUDE_SUB_DIRECTORIES` are `public const`s now, so the literal is no longer
+the only way to reach them. `MinimumUpdateAge` is a `TimeSpan` in the options and a millisecond count
+in the map, as it has always been.
+
+The extensions are generic in the configurator, so both configuration surfaces keep their type: a
+`JobBuilder<TJob>` chain still ends in `Build()`, and the `IJobConfigurator<TJob>` that `AddJob` hands
+you still chains its own members.
+
+### The SMTP password does not belong in job data
+
+`SendMailJob` read its credential from the `smtp_username` and `smtp_password` job data entries. Job
+data is durable: a persistent job store writes it to `QRTZ_JOB_DETAILS`, every node in the cluster
+reads it, the dashboard shows it, and a support-bundle export of that table carries it. `SendMailJob`
+takes the credential from the container instead:
+
+```csharp
+services.AddSingleton<ICredentialsByHost>(new NetworkCredential("mailer", smtpPassword));
+```
+
+`ICredentialsByHost` is what `SmtpClient.Credentials` takes, so a `CredentialCache` covers several
+servers. `SendMailOptions` deliberately has no user name or password on it.
+
+The two keys are still read when nothing is registered, so a job scheduled by an earlier version keeps
+sending; the job logs a warning saying where the credential now lives. A credential from the container
+wins over one in job data.
+
+| 3.x | 4.0 |
+|---|---|
+| `SendMailJob()` | `SendMailJob(ICredentialsByHost? credentials = null)`, which the job factory fills from the container |
+| `MailInfo.SmtpUserName` / `MailInfo.SmtpPassword` | `MailInfo.Credentials`, an `ICredentialsByHost?`. An override of `Send` routing mail through another transport gets whichever credential applied |
+| `protected virtual MailMessage BuildMessageFromParameters(JobDataMap data)` | `protected virtual MailMessage BuildMessage(SendMailOptions options)` — the same override point, reading a value instead of a bag |
+| `protected virtual string GetRequiredParameter(JobDataMap, string)`, `GetOptionalParameter(JobDataMap, string)` | removed; `SendMailOptions.FromJobData` is the one reader, and it reports the same missing key |
 
 ## Logging
 
@@ -6056,7 +6122,8 @@ Parameters and behavior are unchanged:
 | `UsingJobData` takes an `object?` | The nine primitive overloads collapsed into one — see [Nine `UsingJobData` overloads became one](#nine-usingjobdata-overloads-became-one) |
 | `IDirectoryScanListener` is asynchronous | `FilesUpdatedOrAdded` and `FilesDeleted` return `ValueTask` and take a `CancellationToken` |
 | `SendMailJob.Send` is asynchronous | `protected virtual ValueTask Send(MailInfo mailInfo, CancellationToken cancellationToken = default)`. It uses `SmtpClient.SendMailAsync`, so a job fired on the scheduler's thread pool no longer blocks it for the length of an SMTP round trip, and `Execute` forwards its token. An override returns `default` where it used to return nothing |
-| `SendMailJob.MailInfo` is `Quartz.Jobs.MailInfo` | The nested class became a top-level `sealed` type in the same namespace, with `required`/`init` members: `MailMessage` and `SmtpHost` are required, the three SMTP settings are optional. An override of `Send` keeps compiling — `MailInfo` resolves through the `Quartz.Jobs` using — and code that constructed one with an object initializer keeps compiling too. Assigning to a property after construction does not: build the whole value in the initializer |
+| `SendMailJob.MailInfo` is `Quartz.Jobs.MailInfo` | The nested class became a top-level `sealed` type in the same namespace, with `required`/`init` members: `MailMessage` and `SmtpHost` are required, `SmtpPort` and `Credentials` are optional. An override of `Send` keeps compiling — `MailInfo` resolves through the `Quartz.Jobs` using — and code that constructed one with an object initializer keeps compiling too. Assigning to a property after construction does not: build the whole value in the initializer. The two credential strings became one `Credentials`, see [The SMTP password does not belong in job data](#the-smtp-password-does-not-belong-in-job-data) |
+| The jobs in `Quartz.Jobs` have options types | `DirectoryScanOptions`, `FileScanOptions`, `NativeJobOptions` and `SendMailOptions`, written by `Using*Options(…)` on the job's configurator. The job data keys are unchanged and configuring key by key still works — see [The shipped jobs are configured by name](#the-shipped-jobs-are-configured-by-name) |
 | `JobDataMap.GetEnumerator` returns the interface | `IEnumerator<KeyValuePair<string, object?>>` rather than `Dictionary<string, object?>.Enumerator`, matching `SchedulerContext`. `foreach` is unaffected; a variable declared as the concrete struct type needs retyping |
 | `CronTriggerImpl.WillFireOn` is one method | `WillFireOn(DateTimeOffset timeUtc, bool dayOnly = false)`. The two overloads differed only by that default. Both call shapes compile unchanged |
 | `JobExecutionContextImpl.IncrementRefireCount()` and the `JobRunTime` setter are internal | Both record what the scheduler observed while running the job; `JobRunShell` is the only caller, and writing either from a job or a listener reported a fire that never happened |
