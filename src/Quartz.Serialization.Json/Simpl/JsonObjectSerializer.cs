@@ -4,7 +4,6 @@ using System.IO;
 using System.Text;
 
 using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 
 using Quartz.Converters;
 using Quartz.Serialization.Json.Triggers;
@@ -41,10 +40,7 @@ public class JsonObjectSerializer : IObjectSerializer
             },
             ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
             TypeNameHandling = TypeNameHandling.Auto,
-            ContractResolver = new DefaultContractResolver
-            {
-                IgnoreSerializableInterface = true
-            },
+            ContractResolver = new QuartzContractResolver(),
             NullValueHandling = NullValueHandling.Ignore,
             DateParseHandling = DateParseHandling.DateTimeOffset
         };
