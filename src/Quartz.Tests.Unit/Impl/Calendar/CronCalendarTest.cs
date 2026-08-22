@@ -105,6 +105,30 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
             "and the New York calendar says the same of the instant it includes");
     }
 
+    /// <summary>
+    /// From an instant the calendar EXCLUDES, the next-included search used to walk forward with
+    /// <see cref="CronExpression.GetNextValidTimeAfter" /> - which by definition lands on another
+    /// satisfied, i.e. excluded, instant - so it crawled the excluded run millisecond by millisecond
+    /// and, with no base calendar to leap it forward, never returned at all. The end of the excluded
+    /// range is <see cref="CronExpression.GetNextInvalidTimeAfter" />, which is what Java's
+    /// CronCalendar always used.
+    /// </summary>
+    [Test]
+    public async Task NextIncludedTimeFromAnExcludedInstantIsTheEndOfTheExcludedRange()
+    {
+        CronCalendar calendar = new CronCalendar(null, "* * 9 ? * *", TimeZoneInfo.Utc);
+        DateTimeOffset insideTheExcludedHour = new DateTimeOffset(2026, 1, 1, 9, 30, 0, TimeSpan.Zero);
+
+        // Through a task with a deadline so a regression fails the test instead of hanging the run.
+        Task<DateTimeOffset> search = Task.Run(() => calendar.GetNextIncludedTimeUtc(insideTheExcludedHour));
+        Task finished = await Task.WhenAny(search, Task.Delay(TimeSpan.FromSeconds(10)));
+
+        finished.Should().BeSameAs(search,
+            "the search must step to the end of the excluded range, not crawl it millisecond by millisecond");
+        (await search).Should().Be(new DateTimeOffset(2026, 1, 1, 10, 0, 0, TimeSpan.Zero),
+            "the first included instant after 09:30 is the top of the next hour, where the expression stops matching");
+    }
+
     protected override CronCalendar GetTargetObject()
     {
         return new CronCalendar("* * 1-3 ? * *")
