@@ -31,8 +31,6 @@ internal sealed class Meters
     private static readonly Lazy<Meters> shared = new(static () => new Meters(meterFactory: null));
 
     private readonly Meter meter;
-    private readonly Counter<long> jobExecuteTotal;
-    private readonly Counter<long> jobExecuteErrorTotal;
     private readonly UpDownCounter<long> jobExecuteInProgress;
     private readonly Histogram<double> jobExecuteDuration;
 
@@ -42,20 +40,25 @@ internal sealed class Meters
 
         meter = meterFactory?.Create(options) ?? new Meter(options);
 
-        jobExecuteTotal = meter.CreateCounter<long>("scheduling.quartz.execute", "ea", "Number jobs executed");
-        jobExecuteErrorTotal = meter.CreateCounter<long>("scheduling.quartz.execute.errors", "ea", "Number of job execution errors");
         // An up-down counter, not a counter: the number of jobs running goes down as often as it goes up,
         // and a counter is monotonic by definition, so an aggregating exporter is entitled to drop or
-        // mis-render the decrement and show a running count that only ever climbs.
-        jobExecuteInProgress = meter.CreateUpDownCounter<long>("scheduling.quartz.execute.active", "ea", "Number of jobs currently running");
-        jobExecuteDuration = meter.CreateHistogram<double>("scheduling.quartz.execute.duration", "ms", "Elapsed time spent executing a job, in milliseconds");
+        // mis-render the decrement and show a running count that only ever climbs. The unit is UCUM's
+        // annotation form for a dimensionless count of a thing, which is how OpenTelemetry spells one.
+        jobExecuteInProgress = meter.CreateUpDownCounter<long>("quartz.job.execution.active", "{job}", "Number of jobs currently running");
+
+        // Seconds, per OpenTelemetry's duration convention. A histogram's default bucket boundaries assume
+        // a duration is in seconds, so recording milliseconds piled every execution longer than ten
+        // seconds into the last bucket, next to every other duration series in the application.
+        jobExecuteDuration = meter.CreateHistogram<double>("quartz.job.execution.duration", "s", "Elapsed time spent executing a job");
     }
 
     public static Meters Shared => shared.Value;
 
     public Instrumentation StartJobExecute(IJobExecutionContext context)
     {
-        if (!jobExecuteTotal.Enabled)
+        // Nothing is subscribed to either instrument, so the whole tag list is work for a measurement no
+        // one will read. Both are asked: an application is free to configure a view that keeps one.
+        if (!jobExecuteDuration.Enabled && !jobExecuteInProgress.Enabled)
         {
             return default;
         }
@@ -71,7 +74,6 @@ internal sealed class Meters
             { ActivityTags.JobName, context.JobDetail.Key.Name },
         };
 
-        jobExecuteTotal.Add(1, tagList);
         jobExecuteInProgress.Add(1, tagList);
 
         return new Instrumentation(this, tagList);
@@ -92,10 +94,12 @@ internal sealed class Meters
             // The exception the job threw, not the JobExecutionException the run shell wrapped it in —
             // which is also what the execution's span reports, so the two signals name the same failure.
             tags.Add(ErrorType.TagName, ErrorType.Of(exception));
-            jobExecuteErrorTotal.Add(1, tags);
         }
 
-        jobExecuteDuration.Record(duration.TotalMilliseconds, tags);
+        // The one measurement per execution: its count is the number of executions and its error.type
+        // subset is the number of failures, so the two counters that used to report those numbers were
+        // two extra instrument writes per fire for something the exporter already had.
+        jobExecuteDuration.Record(duration.TotalSeconds, tags);
     }
 }
 
