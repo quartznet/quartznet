@@ -4,6 +4,9 @@ title: HTTP API
 
 Quartz HTTP API is provided by [Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore) and exposes scheduler management endpoints for ASP.NET Core apps.
 
+This page is the server half and the wire format. For driving one of these endpoints from .NET, see
+[HTTP Client](http-client.md), whose `HttpScheduler` implements `IScheduler` over exactly this contract.
+
 ## Installation
 
 `Quartz.AspNetCore` depends on `Quartz`, so one reference is enough:
@@ -266,7 +269,8 @@ builder.Services.AddQuartzHttpClient(schedulerName: "MyScheduler", httpClientNam
 ```
 
 The wire format is the one documented on this page, so any HTTP client speaks it; the package is the
-convenience of not writing that yourself.
+convenience of not writing that yourself. [HTTP Client](http-client.md) covers registration,
+authentication, serializer matching and what does not travel.
 
 ## Production hardening
 
