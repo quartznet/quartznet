@@ -21,6 +21,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
@@ -32,6 +33,15 @@ namespace Quartz.Dashboard.Services;
 internal sealed class QuartzApiClient : IQuartzApiClient
 {
     private static readonly JsonSerializerOptions historySerializerOptions = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// How an execution limit comes off the wire: web casing, and the scope by name rather than by
+    /// ordinal, which is how <c>HttpApiJson.ConfigureWireFormat</c> writes it on the server.
+    /// </summary>
+    private static readonly JsonSerializerOptions executionLimitSerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter<ExecutionLimitScope>() }
+    };
 
     private readonly IHttpClientFactory httpClientFactory;
     private readonly IHttpContextAccessor httpContextAccessor;
@@ -915,40 +925,16 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         Dictionary<string, DashboardExecutionLimit> dict = new();
         foreach (JsonProperty prop in limitsElement.EnumerateObject())
         {
-            string key = prop.Name is "" or "_" ? "(default)" : prop.Name;
-            dict[key] = ReadExecutionLimit(prop.Value);
+            // Deserialized through the wire contract's own DTO rather than read property by property,
+            // so the body's shape has one definition and the scope cannot be dropped here by omission.
+            ExecutionLimitDto? limit = prop.Value.Deserialize<ExecutionLimitDto>(executionLimitSerializerOptions);
+            if (limit is not null)
+            {
+                string key = prop.Name is "" or "_" ? "(default)" : prop.Name;
+                dict[key] = new DashboardExecutionLimit(limit.MaxConcurrent, limit.Scope);
+            }
         }
 
         return dict.Count > 0 ? new ExecutionLimitsDto(dict) : null;
-    }
-
-    /// <summary>
-    /// Reads one group's limit out of the execution-limits body.
-    /// </summary>
-    /// <remarks>
-    /// A payload that carries no scope reads as <see cref="ExecutionLimitScope.Node" />, which is what
-    /// an execution limit meant before scopes existed and what a bare number on the wire still means.
-    /// The dashboard talks to whatever API it was pointed at, so this degrades rather than throws.
-    /// </remarks>
-    private static DashboardExecutionLimit ReadExecutionLimit(JsonElement value)
-    {
-        if (value.ValueKind != JsonValueKind.Object)
-        {
-            return new DashboardExecutionLimit(
-                value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null,
-                ExecutionLimitScope.Node);
-        }
-
-        int? maxConcurrent = value.TryGetProperty("maxConcurrent", out JsonElement max) && max.ValueKind == JsonValueKind.Number
-            ? max.GetInt32()
-            : null;
-
-        ExecutionLimitScope scope = value.TryGetProperty("scope", out JsonElement scopeElement)
-                                    && scopeElement.ValueKind == JsonValueKind.String
-                                    && Enum.TryParse(scopeElement.GetString(), ignoreCase: true, out ExecutionLimitScope parsed)
-            ? parsed
-            : ExecutionLimitScope.Node;
-
-        return new DashboardExecutionLimit(maxConcurrent, scope);
     }
 }
