@@ -511,6 +511,57 @@ public class InProcessQuartzApiClientTest
         }
     }
 
+    /// <summary>
+    /// The dashboard reads a limit's scope as well as its number, so a cluster-wide quota is not shown
+    /// as a per-node one.
+    /// </summary>
+    [Test]
+    public async Task GetExecutionLimitsShouldReportEachLimitsScope()
+    {
+        IScheduler scheduler = await CreateScheduler("GetExecutionLimitsTest");
+        try
+        {
+            await scheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create()
+                .ForGroup("batch", 2)
+                .ForGroup("tenant-acme", 8, ExecutionLimitScope.Cluster)
+                .ForDefaultGroup(3)
+                .Build());
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            ExecutionLimitsDto? limits = await client.GetExecutionLimits(scheduler.SchedulerName);
+
+            limits.Should().NotBeNull();
+            limits.Limits.Should().BeEquivalentTo(new Dictionary<string, DashboardExecutionLimit>
+            {
+                ["batch"] = new(2, ExecutionLimitScope.Node),
+                ["tenant-acme"] = new(8, ExecutionLimitScope.Cluster),
+                ["(default)"] = new(3, ExecutionLimitScope.Node),
+            });
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetExecutionLimitsShouldBeNullWhenNothingIsLimited()
+    {
+        IScheduler scheduler = await CreateScheduler("GetExecutionLimitsEmptyTest");
+        try
+        {
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            (await client.GetExecutionLimits(scheduler.SchedulerName)).Should().BeNull(
+                "a scheduler with no limits has nothing to show, which is not the same as showing zeros");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
     private static async Task<IScheduler> CreateScheduler(string testName)
     {
         NameValueCollection properties = new()

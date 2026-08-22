@@ -112,6 +112,20 @@ public sealed class ExecutionLimitScopeTest
     }
 
     [Test]
+    public void AnInFlightCountOfNothingLowersNothing()
+    {
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
+            .ForGroup("tenant", 1, ExecutionLimitScope.Cluster)
+            .Build();
+
+        // A store is free to report a pair it is tracking but currently holds nothing for, and a row
+        // like that must not spend a slot.
+        ExecutionSlots slots = limits.CreateSlots([new ExecutionGroupInFlight("tenant", AnyTriggerGroup, 0)]);
+
+        slots.TryTake("tenant", AnyTriggerGroup).Should().BeTrue("nothing is in flight, so the whole quota is free");
+    }
+
+    [Test]
     public void ClusterInFlightWorkNeverPushesALimitBelowZero()
     {
         ExecutionLimits limits = ExecutionLimitsBuilder.Create()

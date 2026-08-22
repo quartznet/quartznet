@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -21,6 +21,7 @@
 
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
@@ -1574,7 +1575,7 @@ public sealed class RAMJobStore : IJobStore
         {
             if (tw.state == StoredTriggerState.Acquired)
             {
-                Count(tw.Trigger.ExecutionGroup, tw.TriggerKey.Group);
+                CountOne(counts, tw.Trigger.ExecutionGroup, tw.TriggerKey.Group);
             }
         }
 
@@ -1582,7 +1583,7 @@ public sealed class RAMJobStore : IJobStore
         {
             foreach (FireInstanceEntry entry in byTrigger.Value.Values)
             {
-                Count(entry.ExecutionGroup, byTrigger.Key.Group);
+                CountOne(counts, entry.ExecutionGroup, byTrigger.Key.Group);
             }
         }
 
@@ -1593,12 +1594,24 @@ public sealed class RAMJobStore : IJobStore
         }
 
         return result;
+    }
 
-        void Count(string? executionGroup, string triggerGroup)
-        {
-            (string? ExecutionGroup, string TriggerGroup) key = (executionGroup, triggerGroup);
-            counts[key] = counts.TryGetValue(key, out int existing) ? existing + 1 : 1;
-        }
+    /// <summary>
+    /// Adds one firing to the tally for its (execution group, trigger group) pair.
+    /// </summary>
+    /// <remarks>
+    /// One hash probe rather than the two a lookup-then-assign costs, and a method taking the
+    /// dictionary rather than a local function closing over it — a captured collection that only grows
+    /// inside a local function reads to symbolic analysis as one nothing ever writes to, which makes
+    /// the caller's enumeration of it look dead.
+    /// </remarks>
+    private static void CountOne(
+        Dictionary<(string? ExecutionGroup, string TriggerGroup), int> counts,
+        string? executionGroup,
+        string triggerGroup)
+    {
+        ref int tally = ref CollectionsMarshal.GetValueRefOrAddDefault(counts, (executionGroup, triggerGroup), out _);
+        tally++;
     }
 
     /// <inheritdoc />
