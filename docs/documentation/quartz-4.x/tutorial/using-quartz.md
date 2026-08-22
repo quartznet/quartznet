@@ -111,6 +111,11 @@ be named as properties of that job — see
 [More About Jobs & JobDetails](more-about-jobs.md#naming-the-property-instead-of-the-key). Use
 `AddTrigger<IJob>` when the trigger only names its job by key and you do not need that.
 
+`"0 0 2 * * ?"` is a cron expression: second, minute, hour, day-of-month, month, day-of-week, so that one
+is "every day at 02:00". The fields and their special characters are in the
+[Cron Expression Reference](../cron-expressions.md), and cron is only one of five schedule kinds — the
+others are in [Lesson 2](jobs-and-triggers.md).
+
 Everything registered this way is stored when the scheduler starts. With a persistent job store it is
 also what the store already holds that matters: registrations replace stored definitions of the same
 name by default, which is what makes this list the description of the schedule rather than a one-time
@@ -118,8 +123,12 @@ seed.
 
 ## Scheduling at run time
 
-Not every schedule is known at startup. `IScheduler` is an ordinary service, so inject it and schedule
-whenever you like:
+The registrations above are *declarative*: the application describes the schedule it wants, and the
+scheduler makes the store match on every start. That is the shape to prefer for a schedule that is part
+of the application.
+
+Not every schedule is known at startup, though. `IScheduler` is an ordinary service, so inject it and
+schedule whenever you like:
 
 ```csharp
 public sealed class ReportRequests
