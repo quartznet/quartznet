@@ -3528,7 +3528,7 @@ public abstract class AdoJobStoreBase : IJobStore
                             // Clone so that trigger.Triggered() mutation doesn't affect retries
                             var triggerCopy = (IOperableTrigger) trigger.Clone();
                             var bundle = await TriggerFired(conn, triggerCopy, cancellationToken).ConfigureAwait(false);
-                            result = new TriggerFiredResult(bundle);
+                            result = bundle is null ? TriggerFiredResult.NotFired : TriggerFiredResult.Fired(bundle);
                         }
                         catch (JobPersistenceException jpe)
                         {
@@ -3537,7 +3537,7 @@ public abstract class AdoJobStoreBase : IJobStore
                                 throw; // Let ExecuteInLocalTransactionLock retry the whole transaction
                             }
                             Logger.LogError(jpe, "Caught job persistence exception: {ExceptionMessage}", jpe.Message);
-                            result = new TriggerFiredResult(jpe);
+                            result = TriggerFiredResult.Failed(jpe);
                         }
                         catch (Exception ex)
                         {
@@ -3547,7 +3547,7 @@ public abstract class AdoJobStoreBase : IJobStore
                                 throw new JobPersistenceException("Transient error firing trigger: " + ex.Message, ex);
                             }
                             Logger.LogError(ex, "Caught exception: {ExceptionMessage}", ex.Message);
-                            result = new TriggerFiredResult(ex);
+                            result = TriggerFiredResult.Failed(ex);
                         }
 
                         results.Add(result);

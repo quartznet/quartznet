@@ -170,7 +170,7 @@ public sealed class QuartzSchedulerThreadLoopTest
                 // Results are index-aligned with the triggers handed in, which is how the loop pairs
                 // a failure back to the trigger it belongs to.
                 failed = triggers.First().Key;
-                results[0] = new TriggerFiredResult(new FiredTriggerWriteException());
+                results[0] = TriggerFiredResult.Failed(new FiredTriggerWriteException());
             }
 
             return results;

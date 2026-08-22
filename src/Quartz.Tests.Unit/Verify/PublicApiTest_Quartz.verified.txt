@@ -1800,10 +1800,11 @@ namespace Quartz.Extensibility
     }
     public sealed class TriggerFiredResult
     {
-        public TriggerFiredResult(Quartz.Extensibility.TriggerFiredBundle? triggerFiredBundle) { }
-        public TriggerFiredResult(System.Exception exception) { }
         public System.Exception? Exception { get; }
         public Quartz.Extensibility.TriggerFiredBundle? TriggerFiredBundle { get; }
+        public static Quartz.Extensibility.TriggerFiredResult NotFired { get; }
+        public static Quartz.Extensibility.TriggerFiredResult Failed(System.Exception exception) { }
+        public static Quartz.Extensibility.TriggerFiredResult Fired(Quartz.Extensibility.TriggerFiredBundle triggerFiredBundle) { }
     }
     public static class TriggerStateResolver
     {
