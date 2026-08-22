@@ -1,11 +1,12 @@
 ---
 
-title : JSON Serialization
+title: JSON Serialization
 ---
 
 ::: tip
-JSON is recommended persistent format to store data in database for greenfield projects.
-You should also strongly consider setting useProperties to true to restrict key-values to be strings.
+JSON is the recommended format for data a job store persists. Consider also setting
+`StoreJobDataAsStrings`, which keeps job data out of the serializer altogether by restricting it to
+strings.
 :::
 
 ::: tip
@@ -23,40 +24,56 @@ System.Text.Json serialization is built into the `Quartz` package and is the def
 You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
-Install-Package Quartz.Serialization.Newtonsoft
+dotnet add package Quartz.Serialization.Newtonsoft
 ```
 
 ### Configuring
 
-**Classic property-based configuration**
+**Configuring the store**
 
 ```csharp
-var properties = new NameValueCollection
+builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 {
- ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
- ["quartz.serializer.type"] = "json"
-};
-ISchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
-    .UseProperties(properties)
-    .Build();
-```
-
-**Configuring using scheduler builder**
-
-```csharp
-var builder = QuartzSchedulerBuilder.Create();
-builder.UsePersistentStore(store =>
-{
-    store.UseGenericDatabase("MyProvider", "my connection string");
+    store.UseSqlServer(connectionString);
 
     // it's generally recommended to stick with
     // string property keys and values when serializing
     store.Configure(options => options.StoreJobDataAsStrings = true);
 
     store.UseNewtonsoftJsonSerializer();
-});
+}));
+```
 
-ISchedulerFactory schedulerFactory = builder.Build();
+Without a host, the same calls hang off `QuartzSchedulerBuilder`:
+
+```csharp
+await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
+    .UsePersistentStore(store =>
+    {
+        store.UseGenericDatabase("MyProvider", "my connection string");
+        store.Configure(options => options.StoreJobDataAsStrings = true);
+        store.UseNewtonsoftJsonSerializer();
+    })
+    .Build();
+```
+
+`Build()` returns a `StandaloneSchedulerFactory`, which owns the container it built: dispose it — with
+`await using`, as above — and the scheduler shuts down with it.
+
+**Classic property-based configuration**
+
+The flat keys 3.x used still work, and mean the same thing:
+
+```csharp
+NameValueCollection properties = new()
+{
+    ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
+    ["quartz.serializer.type"] = "newtonsoft"
+};
+
+await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
+    .UseProperties(properties)
+    .Build();
 ```
 
 `UseGenericDatabase` is the right method only for a database Quartz has no specific support for; use
@@ -87,7 +104,7 @@ Because the package does not change `BinaryFormatter`'s type identity, only your
   <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
 </PropertyGroup>
 <ItemGroup>
-  <!-- match the package version to your application's target framework, e.g. 9.0.x on net9.0 -->
+  <!-- match the package's major version to your application's target framework -->
   <PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.0" />
 </ItemGroup>
 ```
@@ -173,8 +190,12 @@ class CustomJsonSerializer : NewtonsoftJsonObjectSerializer
 
 ```csharp
 store.UseSerializer<CustomJsonSerializer>();
-// or
-"quartz.serializer.type" = "MyProject.CustomJsonSerializer, MyProject"
+```
+
+or, as a flat property key:
+
+```text
+quartz.serializer.type = MyProject.CustomJsonSerializer, MyProject
 ```
 
 ### Customizing calendar serialization
@@ -238,14 +259,13 @@ assembly-qualified name, which is what payloads written by 3.x carry.
 **Configuring custom calendar serializer**
 
 ```csharp
-var builder = QuartzSchedulerBuilder.Create();
-builder.UsePersistentStore(store =>
+builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 {
     store.UseNewtonsoftJsonSerializer(json =>
     {
         json.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
     });
-});
+}));
 ```
 
 ::: warning Changed in 4.0
@@ -261,9 +281,9 @@ If you build a serializer yourself rather than through the store builder, hand i
 so registering a custom one adds to that set:
 
 ```csharp
-var registry = new NewtonsoftJsonSerializerRegistry()
+NewtonsoftJsonSerializerRegistry registry = new NewtonsoftJsonSerializerRegistry()
     .AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer())
     .AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer());
 
-var serializer = new NewtonsoftJsonObjectSerializer(registry);
+NewtonsoftJsonObjectSerializer serializer = new(registry);
 ```

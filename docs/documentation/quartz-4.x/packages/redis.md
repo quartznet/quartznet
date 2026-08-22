@@ -15,7 +15,7 @@ Quartz 4.0 or later required.
 ## Installation
 
 ```shell
-Install-Package Quartz.Extensions.Redis
+dotnet add package Quartz.Extensions.Redis
 ```
 
 ## Why Redis Locks?
@@ -33,8 +33,7 @@ The Redis lock handler replaces these database locks with Redis `SET NX PX` dist
 ### Using the builder (recommended)
 
 ```csharp
-var builder = QuartzSchedulerBuilder.Create();
-builder.UsePersistentStore(store =>
+builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 {
     store.UseSqlServer(connectionString);
     store.UseSystemTextJsonSerializer();
@@ -43,36 +42,21 @@ builder.UsePersistentStore(store =>
     {
         redis.RedisConfiguration = "redis-server:6379";
     });
-});
-
-ISchedulerFactory schedulerFactory = builder.Build();
+}));
 ```
 
-The same `UseRedisLockHandler` call works under a host: `services.AddQuartz(q => q.UsePersistentStore(store => …))`.
+The same `UseRedisLockHandler` call works without a host, on `QuartzSchedulerBuilder.Create()`.
 
-### Using properties
+## Configuration
 
-```csharp
-var properties = new NameValueCollection
-{
-    ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
-    ["quartz.jobStore.clustered"] = "true",
-    ["quartz.jobStore.lockHandler.type"] = "Quartz.Extensions.Redis.RedisSemaphore, Quartz.Extensions.Redis",
-    ["quartz.jobStore.lockHandler.redisConfiguration"] = "redis-server:6379"
-};
-```
+`RedisLockHandlerOptions`:
 
-## Configuration Properties
-
-| Property | Default | Description |
+| Option | Default | Description |
 |---|---|---|
-| `redisConfiguration` | `localhost:6379` | StackExchange.Redis connection string |
-| `keyPrefix` | `quartz:lock:` | Prefix for Redis lock keys |
-| `lockTimeToLive` | `30000` (30 seconds) | Lock TTL &mdash; the lock auto-expires after this duration |
-| `lockRetryInterval` | `100` (100 milliseconds) | Polling interval between `SET NX` retry attempts |
-
-`LockTimeToLive` and `LockRetryInterval` are `TimeSpan` properties, and a bare number in a `quartz.*` key is read as
-milliseconds. In code they take a `TimeSpan`:
+| `RedisConfiguration` | `localhost:6379` | StackExchange.Redis connection string |
+| `KeyPrefix` | `quartz:lock:` | Prefix for Redis lock keys |
+| `LockTimeToLive` | 30 seconds | Lock TTL &mdash; the lock auto-expires after this duration |
+| `LockRetryInterval` | 100 milliseconds | Polling interval between `SET NX` retry attempts |
 
 ```csharp
 store.UseRedisLockHandler(redis =>
@@ -83,9 +67,28 @@ store.UseRedisLockHandler(redis =>
 });
 ```
 
-All properties are set under `quartz.jobStore.lockHandler.*`. The scheduler name that namespaces the
-lock keys is not configured here: the job store tells the handler which scheduler it locks for through
-`ISemaphore.Initialize(SemaphoreContext)` before the handler is used.
+The scheduler name that namespaces the lock keys is not configured here: the job store tells the handler
+which scheduler it locks for, through `ISemaphore.Initialize(SemaphoreContext)`, before the handler is used.
+
+### Using properties
+
+The same handler chosen with flat keys, under `quartz.jobStore.lockHandler.*`. A bare number in one of the
+two time settings is read as milliseconds:
+
+```csharp
+NameValueCollection properties = new()
+{
+    ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
+    ["quartz.jobStore.clustered"] = "true",
+    ["quartz.jobStore.lockHandler.type"] = "Quartz.Extensions.Redis.RedisSemaphore, Quartz.Extensions.Redis",
+    ["quartz.jobStore.lockHandler.redisConfiguration"] = "redis-server:6379",
+    ["quartz.jobStore.lockHandler.lockTimeToLive"] = "30000"
+};
+
+await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
+    .UseProperties(properties)
+    .Build();
+```
 
 ## How It Works
 

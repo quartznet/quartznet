@@ -1,6 +1,6 @@
 ---
 
-title : Plugins
+title: Plugins
 ---
 
 [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) provides some useful ready-made plugins for your convenience.
@@ -19,22 +19,53 @@ and ensuring that the scheduler shuts down cleanly when the process exits.
 You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
-Install-Package Quartz.Plugins
+dotnet add package Quartz.Plugins
 ```
 
 ## Configuration
 
-Plugins are configured by using either DI configuration extensions or adding required configuration keys.
+Every plugin in this package has an extension method that adds and configures it in one call. That is the
+way to reach for; the flat keys, in the format `quartz.plugin.{name-to-refer-with}.{property}`, are the 3.x
+spelling of the same thing and still work.
 
-Configuration key in in format `quartz.plugin.{name-to-refer-with}.{property}`.
+| Plugin | Extension | Options |
+|---|---|---|
+| `LoggingJobHistoryPlugin` | `UseJobHistoryLogging(…)` | `JobHistoryLoggingOptions` |
+| `LoggingTriggerHistoryPlugin` | `UseTriggerHistoryLogging(…)` | `TriggerHistoryLoggingOptions` |
+| `StructuredLoggingJobHistoryPlugin` | `UseStructuredJobLogging(…)` | `JobHistoryLoggingOptions` |
+| `StructuredLoggingTriggerHistoryPlugin` | `UseStructuredTriggerLogging(…)` | `TriggerHistoryLoggingOptions` |
+| `ShutdownHookPlugin` | `UseShutdownHook(…)` | `ShutdownHookOptions` |
+| `XmlSchedulingDataProcessorPlugin` | `UseXmlSchedulingConfiguration(…)` | `FileSchedulingOptions` |
+| `JsonSchedulingDataProcessorPlugin` | `UseJsonSchedulingConfiguration(…)` | `FileSchedulingOptions` |
+| `JobInterruptMonitorPlugin` | `UseJobAutoInterrupt(…)` | `JobAutoInterruptOptions` |
 
-[See configuration reference](../configuration/reference.html#plug-ins) on how to configure each plugin
+They hang off `IQuartzBuilder`, so they work the same under `AddQuartz` and on a standalone
+`QuartzSchedulerBuilder`. See the
+[configuration reference](../configuration/reference.md#listeners-calendars-and-plugins) for how a plugin
+is registered and named.
 
 ## Features
 
 ### LoggingJobHistoryPlugin
 
-Logs a history of all job executions (and execution vetoes) and writes the entries to configured logging infrastructure.
+Logs a history of all job executions (and execution vetoes) and writes the entries to configured logging
+infrastructure. `LoggingTriggerHistoryPlugin` does the same for trigger firings, misfires and completions.
+
+```csharp
+services.AddQuartz(q =>
+{
+    q.UseJobHistoryLogging(options =>
+    {
+        // each message left unset keeps the plugin's own default
+        options.JobSuccessMessage = "Job {1}.{0} completed";
+    });
+
+    q.UseTriggerHistoryLogging();
+});
+```
+
+Both use index-based placeholders in their messages. Prefer the structured plugins below unless you have
+existing message templates to keep.
 
 ### StructuredLoggingJobHistoryPlugin
 
@@ -101,11 +132,33 @@ Recommended over `LoggingTriggerHistoryPlugin` when using structured logging pro
 
 ### ShutdownHookPlugin
 
-This plugin catches the event of the VM terminating (such as upon a CRTL-C) and tells the scheduler to Shutdown.
+This plugin catches the event of the process terminating (such as upon a Ctrl-C) and tells the scheduler to
+shut down.
+
+```csharp
+services.AddQuartz(q => q.UseShutdownHook(options => options.CleanShutdown = true));
+```
+
+`CleanShutdown` decides whether the shutdown waits for jobs that are still running. Under a host,
+[the hosted service](hosted-services-integration.md) already stops the scheduler with the application, so
+this plugin is for a scheduler that has no host to stop it.
 
 ### XmlSchedulingDataProcessorPlugin
 
 This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes.
+
+```csharp
+services.AddQuartz(q =>
+{
+    q.UseXmlSchedulingConfiguration(x =>
+    {
+        x.Files.Add("~/quartz_jobs.config");
+        x.ScanInterval = TimeSpan.FromMinutes(1);
+        x.FailOnFileNotFound = true;
+        x.FailOnSchedulingError = true;
+    });
+});
+```
 
 ::: warning
 The periodically scanning of files for changes is not currently supported in a clustered environment.
@@ -140,19 +193,24 @@ See [JSON Configuration](../configuration/json.md) for the full JSON file format
 
 This plugin catches the event of job running for a long time (more than the configured max time) and tells the scheduler to "try" interrupting it if enabled.
 
-::: tip
-Quartz 3.3 or later required.
-:::
+```csharp
+services.AddQuartz(q => q.UseJobAutoInterrupt(options =>
+{
+    // the default, applied to every job that opts in
+    options.DefaultMaxRunTime = TimeSpan.FromMinutes(5);
+}));
+```
 
 Each job configuration needs to have `JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable` key's value set to true in order for plugin to monitor the execution timeout.
 Jobs can also define custom timeout value instead of global default by using key `JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime`.
 
 ```csharp
-var job = JobBuilder.Create<SlowJob>()
+IJobDetail job = JobBuilder.Create<SlowJob>()
     .WithIdentity("slowJob")
     .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
-    // allow only five seconds for this job, overriding default configuration
-    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString())
+    // allow only five seconds for this job, overriding default configuration.
+    // the value is milliseconds, and the plugin reads it as a string
+    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, "5000")
     .Build();
 ```
 
