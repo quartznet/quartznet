@@ -25,6 +25,7 @@
     "docs:publish": "cd docs/.vuepress/dist && git init && git fetch https://github.com/quartznet/quartznet.github.io.git && git checkout 9966bc53c0685311bc9199498ef2338629f6ec4d && git checkout -b master && git add . && git commit -am \"Deploy Documentation\" && git push --force --set-upstream https://github.com/quartznet/quartznet.github.io.git master",
     "docs:check-links": "node docs/.vuepress/check-links.mjs",
     "docs:check-links-test": "node --test docs/.vuepress/check-links.test.mjs",
+    "docs:snippets": "dotnet fallout DocsSnippets",
     "docs:lint": "markdownlint-cli2 \"docs/**/*.md\" \"!docs/.vuepress/**\"",
     "docs:lint-fix": "markdownlint-cli2-fix \"docs/**/*.md\" \"!docs/_posts/**\" \"!docs/.vuepress/**\"",
     "postinstall": "patch-package"

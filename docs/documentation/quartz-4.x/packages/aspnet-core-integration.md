@@ -34,6 +34,7 @@ See [Quartz documentation](microsoft-di-integration) to learn more about configu
 
 **Example Program.cs configuration**
 
+<!-- snippet: sample_aspnetcore_registration -->
 ```csharp
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -51,6 +52,7 @@ builder.AddQuartzHostedService(options =>
 
 WebApplication app = builder.Build();
 ```
+<!-- endSnippet -->
 
 ## A practical example of the setup
 
@@ -65,6 +67,7 @@ The class should extend the `IJob` interface and implement the `Execute` method.
 
 **Example SendEmailJob.cs configuration**
 
+<!-- snippet: sample_aspnetcore_job -->
 ```csharp
 public sealed class SendEmailJob : IJob
 {
@@ -82,6 +85,7 @@ public sealed class SendEmailJob : IJob
     }
 }
 ```
+<!-- endSnippet -->
 
 A job whose work is asynchronous is written `async ValueTask` as usual. One that only forwards a call, like
 this one, can return it directly and skip the state machine; one with nothing to await at all returns
@@ -92,6 +96,7 @@ After that, you just need to build Quartz trigger in `Program.cs`, which guarant
 
 **Example Program.cs configuration**
 
+<!-- snippet: sample_aspnetcore_schedule_job -->
 ```csharp
 builder.AddQuartz(q =>
 {
@@ -108,6 +113,7 @@ builder.AddQuartz(q =>
 
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
+<!-- endSnippet -->
 
 For more on cron triggers see the [CronTriggers lesson](../tutorial/crontriggers.md), and for the expression
 syntax itself the [Cron Expression Reference](../cron-expressions.md).
@@ -131,6 +137,7 @@ compose with.
 The registration can be customized via the optional configuration callback, for example to attach
 tags so the check can be filtered into separate liveness and readiness probes:
 
+<!-- snippet: sample_aspnetcore_health_check_options -->
 ```csharp
 builder.Services.AddHealthChecks().AddQuartz(options =>
 {
@@ -139,6 +146,7 @@ builder.Services.AddHealthChecks().AddQuartz(options =>
     options.FailureStatus = HealthStatus.Unhealthy;
 });
 ```
+<!-- endSnippet -->
 
 The callback is one source of `QuartzHealthCheckOptions` among several: the settings go through the
 options pipeline, so `services.Configure<QuartzHealthCheckOptions>(...)` and a bound configuration
@@ -147,22 +155,28 @@ section mean the same thing, whichever order they are written in.
 A named scheduler has a check of its own, reporting on *its* scheduler. Name it on the health checks
 builder, or ask for one from inside `AddQuartz`:
 
+<!-- snippet: sample_aspnetcore_named_health_check -->
 ```csharp
 builder.Services.AddHealthChecks().AddQuartz("reporting", options => options.Tags.Add("ready"));
 
 // or, where the scheduler is configured
 builder.Services.AddQuartz("reporting", q => q.AddQuartzHealthChecks());
 ```
+<!-- endSnippet -->
 
 Its options are that scheduler's, so they are configured under its name:
 
+<!-- snippet: sample_aspnetcore_named_health_check_options -->
 ```csharp
 builder.Services.Configure<QuartzHealthCheckOptions>("reporting", options => options.Tags.Add("ready"));
 ```
+<!-- endSnippet -->
 
+<!-- snippet: sample_aspnetcore_map_health_checks -->
 ```csharp
 app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("ready")
 });
 ```
+<!-- endSnippet -->

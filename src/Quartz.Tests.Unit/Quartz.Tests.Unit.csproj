@@ -51,6 +51,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <!--
+      The documentation samples. DocumentedConfigurationTest runs the ones the Microsoft DI page shows,
+      so the page's registration is checked for what it does and not only for whether it compiles.
+    -->
+    <ProjectReference Include="..\Quartz.Documentation.Samples\Quartz.Documentation.Samples.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />

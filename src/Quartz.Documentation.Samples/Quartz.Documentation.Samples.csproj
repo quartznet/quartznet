@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The code the documentation shows.
+
+    Every fenced sample on a converted docs page is a #region in this project, injected into the
+    markdown by MarkdownSnippets (see mdsnippets.json). Nothing here ships, and nothing here runs:
+    the point is that `dotnet build` refuses a sample that no longer compiles, so a documented call
+    cannot outlive the API it names. See CONTRIBUTING.md, "Code samples in the documentation".
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SignAssembly>false</SignAssembly>
+    <SonarQubeExclude>true</SonarQubeExclude>
+
+    <!--
+      Sample code is written to read well on a documentation page. The compiler still has to accept
+      it — that is the whole guarantee — but the style analyzers are turned down to what a reader
+      would recognise as idiomatic: a page shows `await scheduler.Start()`, not
+      `await scheduler.Start().ConfigureAwait(false)`, and it names a job `ExampleJob` without an
+      XML documentation comment. The same relaxations the test projects take.
+    -->
+    <AnalysisLevel>none</AnalysisLevel>
+
+    <!--
+      CS1998: a sample method may be async purely to show `await` at the call site.
+      CS9113: a sample may show a constructor signature — `OpsController(IScheduler scheduler)` — without
+              a body that uses the parameter, because the injection is the point being made.
+      CS0219, CS0168, IDE0059: a sample often ends by naming its result (`IJobDetail job = …`), which is
+              what makes the type visible on the page, and then does nothing with it.
+    -->
+    <NoWarn>$(NoWarn);CS1998;CS9113;CS0219;CS0168;IDE0059</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ASP.NET Core types for the hosting, health-check, HTTP API and dashboard pages. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
+    <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
+    <ProjectReference Include="..\Quartz.Extensions.Redis\Quartz.Extensions.Redis.csproj" />
+    <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
+    <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
+    <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
+    <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
+    <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Microsoft.Extensions.Hosting, Options and Configuration arrive with the ASP.NET Core framework
+      reference above; referencing them again is NU1510.
+    -->
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
+</Project>

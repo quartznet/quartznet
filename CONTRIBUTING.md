@@ -29,6 +29,59 @@ The documentation website is built and published from this **`main`** branch. Al
 
 The published Quartz 3.x package pages under `docs/documentation/quartz-3.x/packages/` are mirrored, in compact NuGet-rendered form, by the per-package `src/<Project>/README.md` files on the `3.x` branch (which are packed into the NuGet packages). When you change one, update the other in a companion PR so the published page and the shipped package README stay consistent.
 
+### Code samples in the documentation
+
+**Do not type C# into a markdown file.** Write it as ordinary code in
+[`src/Quartz.Documentation.Samples`](src/Quartz.Documentation.Samples), which is a project in the
+solution, and let the build inject it into the page. A sample that stops compiling then fails the
+build like any other code, and the page cannot drift from it, because the page is generated from it.
+
+Wrap the lines the page should show in a `#region`, named `sample_` followed by something unique:
+
+```csharp
+public static void ShutdownHook(IServiceCollection services)
+{
+    #region sample_plugins_shutdown_hook
+
+    services.AddQuartz(q => q.UseShutdownHook(options => options.CleanShutdown = true));
+
+    #endregion
+}
+```
+
+Then put a marker pair where the fenced block would have gone:
+
+```markdown
+<!-- snippet: sample_plugins_shutdown_hook -->
+<!-- endSnippet -->
+```
+
+and run `npm run docs:snippets` (or `dotnet fallout DocsSnippets`) to fill it in. Commit the filled-in
+markdown: it is what GitHub and the published site both render, and reviewing the generated code is
+half the point.
+
+A few things worth knowing:
+
+- **Names must be unique across the whole samples project.** Two regions with one name are not an error
+  upstream — both are emitted, one after the other — so `DocsSnippets` treats a duplicate as an error.
+- **The region's indentation is removed**, so a fragment can live inside whatever scaffolding makes it
+  compile: put the region inside an `AddQuartz(q => { … })` body and the page shows just the `q.…` lines.
+- **Two samples can show a type of the same name** by living in different namespaces or in different
+  nested classes; the region never includes the enclosing declaration.
+- **A page that must show `using` directives** needs its region to start at the top of a file, which
+  means that file has no namespace of its own — see `CustomCalendarSample.cs`.
+- **Sample code still has to satisfy the compiler.** The samples project turns the *style* analyzers
+  down so a sample reads like a documentation page rather than like library code, but it is built with
+  the same `TreatWarningsAsErrors` as everything else.
+- Some blocks are deliberately left as plain fences: those calling a package this repository does not
+  reference, and the `BinaryFormatter` migration sample, which would drag in an unsupported
+  compatibility package. Adding a NuGet dependency purely to compile a sample is not worth it.
+
+`dotnet fallout VerifyDocsSnippets` is what CI runs. It fails when a page names a snippet that does not
+exist, when a marker was left empty, and when the committed markdown no longer matches the samples.
+Nothing regenerates the documentation behind your back — a stale page is your pull request's problem,
+not a bot's.
+
 ## Bugs and feature requests?
 
 Please log a new issue in the GitHub repo.

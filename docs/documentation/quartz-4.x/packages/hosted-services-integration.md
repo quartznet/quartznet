@@ -30,6 +30,7 @@ service was asked for, so something was meant to run. Register a scheduler with 
 
 **Example program utilizing hosted services configuration**
 
+<!-- snippet: sample_hosted_program -->
 ```csharp
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -48,6 +49,7 @@ builder.AddQuartzHostedService(options =>
 
 await builder.Build().RunAsync();
 ```
+<!-- endSnippet -->
 
 ## Options
 
@@ -63,18 +65,22 @@ To take part in the lifecycle itself — a warm-up before the scheduler starts, 
 from `QuartzHostedService` and register the subclass; its `StartingAsync`, `StartedAsync`, `StoppingAsync` and
 `StoppedAsync` are virtual, and `Schedulers` gives it the schedulers it is running:
 
+<!-- snippet: sample_hosted_derived_service -->
 ```csharp
 builder.AddQuartzHostedService<WarmUpBeforeSchedulingService>(options => options.WaitForJobsToComplete = true);
 ```
+<!-- endSnippet -->
 
 `builder.AddQuartz(...)` is `builder.Services.AddQuartz(...)` with the application's configuration
 already found: it reads the `Quartz` section, so anything described in `appsettings.json` is applied
 before your callback. The `IServiceCollection` overloads are unchanged, and are what to use for a
 configuration section under a different name:
 
+<!-- snippet: sample_hosted_configuration_section -->
 ```csharp
 builder.Services.AddQuartz(builder.Configuration.GetSection("Scheduling"), q => { });
 ```
+<!-- endSnippet -->
 
 A string names a scheduler, here as everywhere else in Quartz — `builder.AddQuartz("reporting", …)`
 registers a scheduler called `reporting`, reading its settings from `Quartz:Schedulers:reporting` when

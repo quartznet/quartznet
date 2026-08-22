@@ -32,6 +32,7 @@ The Redis lock handler replaces these database locks with Redis `SET NX PX` dist
 
 ### Using the builder (recommended)
 
+<!-- snippet: sample_redis_lock_handler -->
 ```csharp
 builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 {
@@ -44,6 +45,7 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
     });
 }));
 ```
+<!-- endSnippet -->
 
 The same `UseRedisLockHandler` call works without a host, on `QuartzSchedulerBuilder.Create()`.
 
@@ -58,6 +60,7 @@ The same `UseRedisLockHandler` call works without a host, on `QuartzSchedulerBui
 | `LockTimeToLive` | 30 seconds | Lock TTL &mdash; the lock auto-expires after this duration |
 | `LockRetryInterval` | 100 milliseconds | Polling interval between `SET NX` retry attempts |
 
+<!-- snippet: sample_redis_lock_handler_options -->
 ```csharp
 store.UseRedisLockHandler(redis =>
 {
@@ -66,6 +69,7 @@ store.UseRedisLockHandler(redis =>
     redis.LockRetryInterval = TimeSpan.FromMilliseconds(100);
 });
 ```
+<!-- endSnippet -->
 
 The scheduler name that namespaces the lock keys is not configured here: the job store tells the handler
 which scheduler it locks for, through `ISemaphore.Initialize(SemaphoreContext)`, before the handler is used.
@@ -75,6 +79,7 @@ which scheduler it locks for, through `ISemaphore.Initialize(SemaphoreContext)`,
 The same handler chosen with flat keys, under `quartz.jobStore.lockHandler.*`. A bare number in one of the
 two time settings is read as milliseconds:
 
+<!-- snippet: sample_redis_properties -->
 ```csharp
 NameValueCollection properties = new()
 {
@@ -89,6 +94,7 @@ await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
     .UseProperties(properties)
     .Build();
 ```
+<!-- endSnippet -->
 
 ## How It Works
 

@@ -19,6 +19,7 @@ Need several independent schedulers in one application? See [Multiple Schedulers
 
 ## Registering a scheduler
 
+<!-- snippet: sample_di_registering_a_scheduler -->
 ```csharp
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
@@ -31,6 +32,7 @@ builder.AddQuartz(q =>
 
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
+<!-- endSnippet -->
 
 `AddQuartz` and `AddQuartzHostedService` hang off `IHostApplicationBuilder`, so the same two calls work in a
 web application built with `WebApplication.CreateBuilder(args)`. Both are also available on
@@ -59,6 +61,7 @@ name:
 The `Quartz` section is bound automatically when the scheduler is registered through `IHostApplicationBuilder`.
 On `IServiceCollection`, where there is no configuration to hand, pass the section:
 
+<!-- snippet: sample_di_configuration_section -->
 ```csharp
 services.AddQuartz(configuration.GetSection("Quartz"), q =>
 {
@@ -66,6 +69,7 @@ services.AddQuartz(configuration.GetSection("Quartz"), q =>
     q.ConfigureScheduler(options => options.InstanceId = "Scheduler-Core");
 });
 ```
+<!-- endSnippet -->
 
 The section names, the options under each and the whole schedule-in-configuration format are in
 [Configuration Reference](../configuration/reference.md) and
@@ -84,6 +88,7 @@ work. A job should have only one public constructor.
 
 The registration is a `TryAdd`, so your own registration always wins:
 
+<!-- snippet: sample_di_registration_wins -->
 ```csharp
 // your lifetime, your factory, your implementation type - kept
 services.AddSingleton<SendReportsJob>(_ => SendReportsJob.ForTenant("acme"));
@@ -93,6 +98,7 @@ services.AddQuartz(q =>
     q.AddJob<SendReportsJob>(j => j.WithIdentity("send-reports"));
 });
 ```
+<!-- endSnippet -->
 
 ::: warning
 A singleton job serves every fire from one instance, so it must be thread-safe and it cannot take
@@ -109,11 +115,13 @@ Development environment — sees it and checks that its constructor can be satis
 something nobody registered therefore fails when the container is built, naming the job and the
 dependency:
 
+<!-- snippet: sample_di_validate_on_build -->
 ```csharp
 services.AddQuartz(q => q.AddJob<SendReportsJob>(j => j.WithIdentity("send-reports")));
 
 // throws: Unable to resolve service for type 'IReportStore' while attempting to activate 'SendReportsJob'
 ```
+<!-- endSnippet -->
 
 Before 4.0 the job type was not registered, so validation never saw it and the failure arrived at fire
 time instead: the trigger had already fired, the job never ran, and every trigger of that job was
@@ -125,8 +133,9 @@ your own — can still fail that way. If you need to react to such a failure at 
 prevent it — to fail whatever scheduled the work, for instance — `ISchedulerListener.SchedulerError`
 receives a `JobInstantiationException` naming the trigger, the job and the fire instance:
 
+<!-- snippet: sample_di_instantiation_failure_listener -->
 ```csharp
-public sealed class InstantiationFailureListener : ISchedulerListener
+public sealed class InstantiationFailureListener(ILogger<InstantiationFailureListener> logger) : ISchedulerListener
 {
     public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
     {
@@ -140,6 +149,7 @@ public sealed class InstantiationFailureListener : ISchedulerListener
     }
 }
 ```
+<!-- endSnippet -->
 
 `ISchedulerListener.TriggersInError` is raised alongside it, and reports the same thing from the job
 store's side: every trigger of that job is now in the error state.
@@ -160,6 +170,7 @@ schedule accumulates duplicates. Naming only the job and the trigger is enough �
 the same value every time.
 :::
 
+<!-- snippet: sample_di_persistent_store -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -183,11 +194,13 @@ builder.Services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 Settings of the store itself go through `store.Configure(...)`, which configures `AdoJobStoreOptions`; the
 database call and the clustering call are the ones that hang off the builder. How duplicate scheduling data is
 treated is a setting of its own:
 
+<!-- snippet: sample_di_duplicate_scheduling_data -->
 ```csharp
 services.Configure<QuartzOptions>(options =>
 {
@@ -195,6 +208,7 @@ services.Configure<QuartzOptions>(options =>
     options.Scheduling.IgnoreDuplicates = false;     // default: false
 });
 ```
+<!-- endSnippet -->
 
 ## A worked configuration
 
@@ -203,6 +217,7 @@ The rest of this page is one registration, broken into the things you might want
 **Jobs and triggers.** `ScheduleJob<T>` is a job and its one trigger; `AddJob` plus `AddTrigger` is a job that
 several triggers share, each able to carry its own data.
 
+<!-- snippet: sample_di_jobs_and_triggers -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -242,9 +257,11 @@ builder.Services.AddQuartz(q =>
         .WithDescription("fires once per minute at a hash-derived second"));
 });
 ```
+<!-- endSnippet -->
 
 **Calendars**, to exclude days from a schedule:
 
+<!-- snippet: sample_di_calendars -->
 ```csharp
 const string calendarName = "myHolidayCalendar";
 
@@ -259,9 +276,11 @@ q.AddTrigger<ExampleJob>(t => t
     .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
     .WithCalendarName(calendarName));
 ```
+<!-- endSnippet -->
 
 **Plugins**, including a schedule kept in a file and watched for changes:
 
+<!-- snippet: sample_di_plugins -->
 ```csharp
 q.UseXmlSchedulingConfiguration(x =>
 {
@@ -289,22 +308,26 @@ q.ScheduleJob<SlowJob>(
         // the value is milliseconds, and either a number or a string holding one works
         .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, "5000"));
 ```
+<!-- endSnippet -->
 
 Every plugin Quartz ships has an extension like these; they are listed in
 [Plugins](quartz-plugins.md).
 
 **Listeners**, constructed from the container and in place before the scheduler starts:
 
+<!-- snippet: sample_di_listeners -->
 ```csharp
 q.AddSchedulerListener<SampleSchedulerListener>();
 q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals("awesome group"));
 q.AddTriggerListener<SampleTriggerListener>();
 ```
+<!-- endSnippet -->
 
 **Registration that depends on your own configuration.** Whether something is scheduled at all is decided
 here, in ordinary code; a value needed to build the trigger is read from the container when the trigger is
 built:
 
+<!-- snippet: sample_di_registration_from_options -->
 ```csharp
 services.Configure<SampleOptions>(configuration.GetSection("Sample"));
 
@@ -323,3 +346,4 @@ services.AddQuartz(q =>
     }
 });
 ```
+<!-- endSnippet -->

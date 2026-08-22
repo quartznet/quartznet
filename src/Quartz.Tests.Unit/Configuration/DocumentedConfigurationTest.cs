@@ -1,39 +1,66 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+using Quartz.Documentation.Samples.Packages;
 
 namespace Quartz.Tests.Unit.Configuration;
 
 /// <summary>
-/// The configuration snippets the documentation shows, compiled.
+/// Runs the configuration samples the documentation shows.
 /// </summary>
 /// <remarks>
-/// The DI configurator and the concrete trigger builder carry two parallel families of schedule
-/// extensions, and a gap in either one makes documented code stop compiling without any test noticing.
+/// <para>
+/// This test used to hold its own transcription of the pages' snippets, which is the arrangement that let
+/// a page ship a call that did not exist: the page and the test were two copies of the same code and
+/// nothing compared them. The samples now live in <c>src/Quartz.Documentation.Samples</c> and the pages
+/// are generated from them, so compiling that project is what keeps the documentation honest.
+/// </para>
+/// <para>
+/// What is left here is the part compilation cannot check — that the registration the DI page shows
+/// really does produce the schedule it claims to.
+/// </para>
 /// </remarks>
 public class DocumentedConfigurationTest
 {
-    public class ExampleJob : IJob
+    [Test]
+    public void TheWorkedConfigurationSchedulesEveryTriggerItShows()
     {
-        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+        HostApplicationBuilder builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings());
+        builder.Services.AddLogging();
+
+        MicrosoftDiIntegrationSamples.JobsAndTriggers(builder);
+        MicrosoftDiIntegrationSamples.TheRestOfTheWorkedConfiguration(builder);
+
+        using ServiceProvider provider = builder.Services.BuildServiceProvider();
+
+        provider.ScheduledTriggers().Select(x => x.Key.Name).Should().BeEquivalentTo(
+            [
+                "Combined Configuration Trigger",
+                "Simple Trigger",
+                "Cron Trigger",
+                "Spread Cron Trigger",
+                "Daily Trigger",
+                "slowJobTrigger"
+            ],
+            "every trigger the worked configuration on the Microsoft DI page shows should be scheduled");
     }
 
     [Test]
-    public void TheDiIntegrationSnippetsCompile()
+    public void TheScheduleJobSampleRegistersItsJobAndTrigger()
     {
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddQuartz(q =>
-        {
-            q.ScheduleJob<ExampleJob>(trigger => trigger
-                .WithIdentity("Combined Configuration Trigger")
-                .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second)));
+        services.AddQuartz(q => q.ScheduleJob<ExampleJob>(trigger => trigger
+            .WithIdentity("example")
+            .WithCronSchedule("0 0/5 * * * ?")));
 
-            var jobKey = new JobKey("awesome job", "awesome group");
-            q.AddJob<ExampleJob>(j => j.WithIdentity(jobKey).WithDescription("my awesome job"));
-            q.AddTrigger<IJob>(t => t.WithIdentity("t2").ForJob(jobKey)
-                .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second)));
-        });
+        using ServiceProvider provider = services.BuildServiceProvider();
 
-        using var provider = services.BuildServiceProvider();
-        provider.ScheduledTriggers().Should().HaveCount(2);
+        provider.ScheduledTriggers().Should().ContainSingle().Which.Key.Name.Should().Be("example");
+    }
+
+    public class ExampleJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 }

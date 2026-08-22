@@ -11,6 +11,7 @@ whatever collects them.
 
 The two names are public constants, so they can be subscribed to without typing a string twice:
 
+<!-- snippet: sample_opentelemetry_subscribe -->
 ```csharp
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
@@ -20,6 +21,7 @@ builder.Services.AddOpenTelemetry()
         .AddMeter(QuartzInstrumentation.MeterName)
         .AddOtlpExporter());
 ```
+<!-- endSnippet -->
 
 `QuartzInstrumentation` is in the `Quartz.Diagnostics` namespace, and both constants are `"Quartz"`, so an
 existing `AddSource("Quartz")` keeps working.

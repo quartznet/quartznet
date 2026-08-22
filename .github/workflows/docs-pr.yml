@@ -8,6 +8,9 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '**/docs*.yml'
+      # the compiled samples the documentation shows, and the target that injects them
+      - 'src/Quartz.Documentation.Samples/**'
+      - 'build/**'
 permissions:
   contents: read
 jobs:
@@ -18,14 +21,31 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
+
+      # Its own step, and its own line, so the target's exit code is the step's result. It fails when a
+      # page names a snippet that no longer exists, when a marker was left empty, and when the committed
+      # markdown no longer matches the samples — the last of which the author fixes with
+      # 'dotnet fallout DocsSnippets'. Nothing regenerates the documentation behind the author's back.
+      - name: Verify documentation snippets
+        run: dotnet fallout VerifyDocsSnippets
+
+      - name: Install
+        run: npm ci
+
       - name: Build
-        run: |
-          npm ci
-          npm run docs:build
+        run: npm run docs:build
 
       # markdownlint's MD051 cannot check fragments against a VuePress slugger, so it is off;
       # this is the replacement. See the note in .markdownlint.jsonc.
+      - name: Test the link checker
+        run: npm run docs:check-links-test
+
       - name: Check links and anchors
-        run: |
-          npm run docs:check-links-test
-          npm run docs:check-links
+        run: npm run docs:check-links

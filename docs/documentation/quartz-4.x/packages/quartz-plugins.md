@@ -51,6 +51,7 @@ is registered and named.
 Logs a history of all job executions (and execution vetoes) and writes the entries to configured logging
 infrastructure. `LoggingTriggerHistoryPlugin` does the same for trigger firings, misfires and completions.
 
+<!-- snippet: sample_plugins_history_logging -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -63,6 +64,7 @@ services.AddQuartz(q =>
     q.UseTriggerHistoryLogging();
 });
 ```
+<!-- endSnippet -->
 
 Both use index-based placeholders in their messages. Prefer the structured plugins below unless you have
 existing message templates to keep.
@@ -84,6 +86,7 @@ Available template properties:
 
 **DI configuration:**
 
+<!-- snippet: sample_plugins_structured_job_logging -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -94,6 +97,7 @@ services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 ::: tip
 Recommended over `LoggingJobHistoryPlugin` when using structured logging providers (Serilog, NLog, etc.).
@@ -115,6 +119,7 @@ Available template properties:
 
 **DI configuration:**
 
+<!-- snippet: sample_plugins_structured_trigger_logging -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -125,6 +130,7 @@ services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 ::: tip
 Recommended over `LoggingTriggerHistoryPlugin` when using structured logging providers (Serilog, NLog, etc.).
@@ -135,9 +141,11 @@ Recommended over `LoggingTriggerHistoryPlugin` when using structured logging pro
 This plugin catches the event of the process terminating (such as upon a Ctrl-C) and tells the scheduler to
 shut down.
 
+<!-- snippet: sample_plugins_shutdown_hook -->
 ```csharp
 services.AddQuartz(q => q.UseShutdownHook(options => options.CleanShutdown = true));
 ```
+<!-- endSnippet -->
 
 `CleanShutdown` decides whether the shutdown waits for jobs that are still running. Under a host,
 [the hosted service](hosted-services-integration.md) already stops the scheduler with the application, so
@@ -147,6 +155,7 @@ this plugin is for a scheduler that has no host to stop it.
 
 This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes.
 
+<!-- snippet: sample_plugins_xml_scheduling -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -159,6 +168,7 @@ services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 ::: warning
 The periodically scanning of files for changes is not currently supported in a clustered environment.
@@ -174,6 +184,7 @@ The periodically scanning of files for changes is not currently supported in a c
 
 **DI configuration:**
 
+<!-- snippet: sample_plugins_json_scheduling -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -186,6 +197,7 @@ services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 See [JSON Configuration](../configuration/json.md) for the full JSON file format and trigger type reference.
 
@@ -193,6 +205,7 @@ See [JSON Configuration](../configuration/json.md) for the full JSON file format
 
 This plugin catches the event of job running for a long time (more than the configured max time) and tells the scheduler to "try" interrupting it if enabled.
 
+<!-- snippet: sample_plugins_job_auto_interrupt -->
 ```csharp
 services.AddQuartz(q => q.UseJobAutoInterrupt(options =>
 {
@@ -200,10 +213,12 @@ services.AddQuartz(q => q.UseJobAutoInterrupt(options =>
     options.DefaultMaxRunTime = TimeSpan.FromMinutes(5);
 }));
 ```
+<!-- endSnippet -->
 
 Each job configuration needs to have `JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable` key's value set to true in order for plugin to monitor the execution timeout.
 Jobs can also define custom timeout value instead of global default by using key `JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime`.
 
+<!-- snippet: sample_plugins_job_auto_interrupt_job_data -->
 ```csharp
 IJobDetail job = JobBuilder.Create<SlowJob>()
     .WithIdentity("slowJob")
@@ -213,6 +228,7 @@ IJobDetail job = JobBuilder.Create<SlowJob>()
     .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, "5000")
     .Build();
 ```
+<!-- endSnippet -->
 
 Both `AutoInterruptable` and `MaxRunTime` are read from the merged job data map, so a trigger's data map can also enable interruption or override the timeout for its own fires.
 
@@ -223,6 +239,7 @@ Only the execution that exceeded its allowed run time is interrupted — the plu
 `AddPlugin` comes in the same three shapes as the listener registrations: the container builds the
 plugin, you build it, or you configure options it is given.
 
+<!-- snippet: sample_plugins_add_plugin -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -236,14 +253,17 @@ services.AddQuartz(q =>
     q.AddPlugin<MyPlugin, MyPluginOptions>(options => options.SomeSetting = "value");
 });
 ```
+<!-- endSnippet -->
 
 Every shape takes an optional name as its last argument:
 
+<!-- snippet: sample_plugins_add_plugin_names -->
 ```csharp
 q.AddPlugin<MyPlugin>("myPlugin");
 q.AddPlugin(provider => new MyPlugin(), "myPlugin");
 q.AddPlugin<MyPlugin, MyPluginOptions>(options => options.SomeSetting = "value", "myPlugin");
 ```
+<!-- endSnippet -->
 
 The name is how the scheduler refers to the plugin, and some plugins derive persisted job and trigger
 keys from it — so it is part of the deployment's identity rather than a label. It is also the name a
@@ -268,6 +288,7 @@ When you write your own `ISchedulerPlugin`, offer the same experience as the bui
 extension method on `IQuartzBuilder`. Take an options object of your own, apply it to the plugin, and
 register the plugin under its conventional name:
 
+<!-- snippet: sample_plugins_authoring_extension -->
 ```csharp
 public static class MyPluginConfigurationExtensions
 {
@@ -299,9 +320,11 @@ public sealed class MyPluginOptions
     public string? SomeSetting { get; set; }
 }
 ```
+<!-- endSnippet -->
 
 The same extension method works wherever an `IQuartzBuilder` does, which is both configuration styles:
 
+<!-- snippet: sample_plugins_using_the_extension -->
 ```csharp
 // under a host
 services.AddQuartz(q => q.UseMyPlugin(options => options.SomeSetting = "value"));
@@ -312,6 +335,7 @@ builder.UseMyPlugin(options => options.SomeSetting = "value");
 
 var scheduler = await builder.BuildScheduler();
 ```
+<!-- endSnippet -->
 
 Configuration written this way and configuration written as `quartz.plugin.myPlugin.someSetting`
 reach the same plugin instance, because they agree on its name: the properties are applied to the

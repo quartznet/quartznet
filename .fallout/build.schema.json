@@ -28,6 +28,7 @@
         "Clean",
         "Compile",
         "DocsBuild",
+        "DocsSnippets",
         "GenerateMigrations",
         "IntegrationTest",
         "Pack",
@@ -36,6 +37,7 @@
         "PublishAot",
         "Restore",
         "UnitTest",
+        "VerifyDocsSnippets",
         "VerifyMigrations"
       ]
     },

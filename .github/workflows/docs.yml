@@ -8,6 +8,9 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '**/docs*.yml'
+      # the compiled samples the documentation shows, and the target that injects them
+      - 'src/Quartz.Documentation.Samples/**'
+      - 'build/**'
 permissions:
   contents: read
 jobs:
@@ -18,10 +21,23 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
+
+      # The site is never published from markdown that disagrees with the samples it shows.
+      - name: Verify documentation snippets
+        run: dotnet fallout VerifyDocsSnippets
+
+      - name: Install
+        run: npm ci
+
       - name: Build
-        run: |
-          npm ci
-          npm run docs:build
+        run: npm run docs:build
 
       - name: Deploy
         working-directory: ./docs/.vuepress/dist

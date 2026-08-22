@@ -16,6 +16,7 @@ persistent store gets when nothing else is configured.
 
 **Code-first configuration**
 
+<!-- snippet: sample_stj_registration -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -31,9 +32,11 @@ services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 **Classic property-based configuration**
 
+<!-- snippet: sample_stj_properties -->
 ```csharp
 var properties = new NameValueCollection
 {
@@ -44,6 +47,7 @@ ISchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
     .UseProperties(properties)
     .Build();
 ```
+<!-- endSnippet -->
 
 ## Migrating from binary serialization
 
@@ -56,6 +60,7 @@ it applies to System.Text.Json the same way.
 If you need to customize serialization, inherit a custom implementation and override
 `CreateSerializerOptions`.
 
+<!-- snippet: sample_stj_custom_serializer -->
 ```csharp
 class CustomJsonSerializer : SystemTextJsonObjectSerializer
 {
@@ -73,12 +78,15 @@ class CustomJsonSerializer : SystemTextJsonObjectSerializer
     }
 }
 ```
+<!-- endSnippet -->
 
 **And then configure it to use**
 
+<!-- snippet: sample_stj_use_custom_serializer -->
 ```csharp
 store.UseSerializer<CustomJsonSerializer>();
 ```
+<!-- endSnippet -->
 
 or, as a flat property key:
 
@@ -96,6 +104,7 @@ There's a convenience base class `CalendarSerializer` that gives you a strongly-
 
 **Custom calendar and serializer**
 
+<!-- snippet: sample_stj_custom_calendar -->
 ```csharp
 using System.Text.Json;
 
@@ -128,6 +137,7 @@ public sealed class CustomCalendarSerializer : CalendarSerializer<CustomCalendar
     }
 }
 ```
+<!-- endSnippet -->
 
 ## Customizing trigger serialization
 
@@ -139,6 +149,7 @@ blob, which can be read back only by the exact same type.
 
 Both kinds are registered through the `UseSystemTextJsonSerializer` callback:
 
+<!-- snippet: sample_stj_register_custom_serializers -->
 ```csharp
 services.AddQuartz(q => q.UsePersistentStore(store =>
 {
@@ -150,6 +161,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
     });
 }));
 ```
+<!-- endSnippet -->
 
 ::: warning Changed in 4.0
 `SystemTextJsonObjectSerializer.AddCalendarSerializer` and `AddTriggerSerializer` were static in 3.x, so
@@ -160,6 +172,7 @@ decided which one won. They have been removed - use the callback above.
 **What the callback registers belongs to that scheduler alone.** This is the point of the change: two
 schedulers in one container can now serialize different custom types.
 
+<!-- snippet: sample_stj_per_scheduler_serializers -->
 ```csharp
 services.AddQuartz("reporting", q => q.UsePersistentStore(store =>
 {
@@ -173,6 +186,7 @@ services.AddQuartz("ingest", q => q.UsePersistentStore(store =>
     store.UseSystemTextJsonSerializer(json => json.AddTriggerSerializer<IngestTrigger>(new IngestTriggerSerializer()));
 }));
 ```
+<!-- endSnippet -->
 
 ### Making custom serializers visible outside the job store
 
@@ -182,6 +196,7 @@ a single scheduler. They read the container-wide registry instead, so a serializ
 scheduler's callback knows about is invisible to them. Register it on the container to make it visible
 everywhere:
 
+<!-- snippet: sample_stj_container_registry -->
 ```csharp
 services.AddSingleton(new SystemTextJsonSerializerRegistry()
     .AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer())
@@ -195,6 +210,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
     store.UseSystemTextJsonSerializer();
 }));
 ```
+<!-- endSnippet -->
 
 `SystemTextJsonSerializerRegistry` lives in the `Quartz.Serialization.SystemTextJson` namespace. It always starts
 out knowing every built-in trigger and calendar type, so registering a custom one adds to that set rather
@@ -203,10 +219,12 @@ than replacing it. Both `Add*` methods return the registry, so registrations cha
 A single scheduler can also be given its own registry directly, which is the same thing the callback does
 under the hood:
 
+<!-- snippet: sample_stj_keyed_registry -->
 ```csharp
 services.AddKeyedSingleton("reporting", new SystemTextJsonSerializerRegistry()
     .AddTriggerSerializer<ReportTrigger>(new ReportTriggerSerializer()));
 ```
+<!-- endSnippet -->
 
 `Quartz.HttpClient` resolves the container's registry when the scheduler is registered with
 `AddQuartzHttpClient`; when a `HttpScheduler` is constructed by hand, pass one to its `serializerRegistry`
