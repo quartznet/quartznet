@@ -3,7 +3,7 @@
 title: Multiple Schedulers with Microsoft DI
 ---
 
-Quartz.NET has always supported running multiple schedulers in a single process -- each `QuartzSchedulerBuilder` builds an independent scheduler, and an `ISchedulerRepository` tracks by name the schedulers built alongside it. However, configuring multiple schedulers through the Microsoft DI `AddQuartz()` API required workarounds because the registration model was designed around a single scheduler per container.
+Quartz.NET has always supported running multiple schedulers in a single process — each `QuartzSchedulerBuilder` builds an independent scheduler, and an `ISchedulerRepository` tracks by name the schedulers built alongside it. However, configuring multiple schedulers through the Microsoft DI `AddQuartz()` API required workarounds because the registration model was designed around a single scheduler per container.
 
 The named `AddQuartz(string name, ...)` overload makes this first-class: each named scheduler gets its own isolated configuration, jobs, triggers, listeners, and calendars, all managed through the familiar DI fluent API.
 
@@ -13,9 +13,9 @@ If you are not using Microsoft DI, you can create multiple schedulers from separ
 
 ## When to Use Named Schedulers
 
-- **Different job stores** -- one scheduler uses in-memory storage for transient jobs, another uses a persistent database store for durable jobs
-- **Workload isolation** -- separate critical jobs from background maintenance tasks with independent thread pools
-- **Different configurations** -- schedulers with different misfire thresholds, batch sizes, or clustering settings
+- **Different job stores** — one scheduler uses in-memory storage for transient jobs, another uses a persistent database store for durable jobs
+- **Workload isolation** — separate critical jobs from background maintenance tasks with independent thread pools
+- **Different configurations** — schedulers with different misfire thresholds, batch sizes, or clustering settings
 
 ## Basic Configuration
 
@@ -113,14 +113,14 @@ var standard = provider.GetRequiredService<IScheduler>();   // the default sched
 ```
 
 Everything a named scheduler is built from is registered under that key, so `ISchedulerFactory` and the
-rest are reachable the same way -- `GetRequiredKeyedService<ISchedulerFactory>("FastScheduler")` -- while
+rest are reachable the same way — `GetRequiredKeyedService<ISchedulerFactory>("FastScheduler")` — while
 the unkeyed registrations belong to the default scheduler.
 
 ::: warning
 What is injected is a handle that builds the scheduler on first use, because building one is
 asynchronous and a container constructs synchronously. Every asynchronous member awaits it being built,
-so they are always safe. The synchronous ones -- `IsStarted`, `InStandbyMode`, `IsShutdown`,
-`SchedulerInstanceId`, `Context` and `ListenerManager` -- can only answer once the scheduler exists, and
+so they are always safe. The synchronous ones — `IsStarted`, `InStandbyMode`, `IsShutdown`,
+`SchedulerInstanceId`, `Context` and `ListenerManager` — can only answer once the scheduler exists, and
 throw `InvalidOperationException` if reading one would have to build it. Under
 `AddQuartzHostedService()` that cannot happen: every scheduler in the container is built and started
 before the application runs. `SchedulerName` never builds anything.
@@ -128,8 +128,8 @@ before the application runs. `SchedulerName` never builds anything.
 
 ### Finding a scheduler at runtime
 
-Where the name is not known until runtime -- a dashboard listing what is running, a request naming the
-scheduler it is for -- the container's `ISchedulerRepository` holds every scheduler that has been built:
+Where the name is not known until runtime — a dashboard listing what is running, a request naming the
+scheduler it is for — the container's `ISchedulerRepository` holds every scheduler that has been built:
 
 ```csharp
 public class MyService
@@ -157,11 +157,11 @@ public class MyService
 
 ::: warning
 The repository holds schedulers that have been *built*, so during application startup it may not yet
-hold them all -- injecting them by key does not have that problem, since the handle builds the scheduler
+hold them all — injecting them by key does not have that problem, since the handle builds the scheduler
 it names.
 
 The repository is scoped to the container, not the process. A scheduler built by a
-`QuartzSchedulerBuilder` of its own is not in it -- see
+`QuartzSchedulerBuilder` of its own is not in it — see
 [the migration guide](../migration-guide.md#no-process-global-scheduler-or-connection-state).
 :::
 
@@ -261,5 +261,5 @@ builder.Services.AddQuartzHostedService("DurableScheduler", options =>
 
 ## Limitations
 
-- **Job types are shared** -- job classes are resolved from the shared DI container. The same job type can be used across multiple schedulers.
-- **Scheduler names must be unique** -- each call to `AddQuartz(name, ...)` must use a distinct name.
+- **Job types are shared** — job classes are resolved from the shared DI container. The same job type can be used across multiple schedulers.
+- **Scheduler names must be unique** — each call to `AddQuartz(name, ...)` must use a distinct name.

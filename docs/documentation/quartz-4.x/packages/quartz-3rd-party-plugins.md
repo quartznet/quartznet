@@ -1,9 +1,10 @@
 ---
 
-title : 3rd Party Plugins for Quartz
+title: 3rd Party Plugins for Quartz
 ---
 
-# 3rd party packages that have integration with the Quartz.Net Library
+Packages by other authors that integrate with Quartz.NET. They are listed here for convenience; they are not
+maintained by the Quartz.NET project, and their compatibility with a given Quartz version is theirs to state.
 
 ## Migrations
 
