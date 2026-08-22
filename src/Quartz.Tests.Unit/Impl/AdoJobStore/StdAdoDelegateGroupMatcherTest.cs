@@ -399,6 +399,205 @@ public class StdAdoDelegateGroupMatcherTest
         header.State.Should().Be(expected);
     }
 
+    [Test]
+    public async Task SelectFireInstances_BuildsExpectedSql()
+    {
+        await adoDelegate.SelectFireInstances(conn, new FireInstanceQuery());
+
+        string expectedCommandText = "SELECT ENTRY_ID, TRIGGER_NAME, TRIGGER_GROUP, JOB_NAME, JOB_GROUP, "
+                                     + "INSTANCE_NAME, STATE, FIRED_TIME, SCHED_TIME, EXECUTION_GROUP "
+                                     + "FROM QRTZ_FIRED_TRIGGERS "
+                                     + "WHERE SCHED_NAME = @schedulerName "
+                                     + "AND STATE <> @entryState "
+                                     + "ORDER BY TRIGGER_GROUP, TRIGGER_NAME, ENTRY_ID "
+                                     + "OFFSET @pageSkip ROWS FETCH NEXT @pageTake ROWS ONLY";
+        command.CommandText.Should().Be(expectedCommandText);
+
+        // The entry id is in the ORDER BY because trigger group and name do not identify a firing —
+        // without it a page boundary between two firings of one trigger is arbitrary.
+        parameters.Value("@entryState").Should().Be(AdoConstants.StateAcquired,
+            "the default listing is everything that is not merely reserved");
+        parameters.Value("@pageTake").Should().Be(PagedQuery.DefaultTake + 1,
+            "one row past the page is what HasMore reads");
+    }
+
+    [Test]
+    public async Task SelectFireInstances_FilteringByAcquired_ComparesAgainstTheSameStoredState()
+    {
+        await adoDelegate.SelectFireInstances(conn, new FireInstanceQuery { State = FireInstanceState.Acquired });
+
+        command.CommandText.Should().Contain("AND STATE = @entryState");
+        command.CommandText.Should().NotContain("STATE <> ");
+        parameters.Value("@entryState").Should().Be(AdoConstants.StateAcquired);
+    }
+
+    [Test]
+    public async Task SelectFireInstances_WithoutAStateFilter_ListsEveryState()
+    {
+        await adoDelegate.SelectFireInstances(conn, new FireInstanceQuery { State = null });
+
+        command.CommandText.Should().NotContain("@entryState", "a null state filter is no predicate at all");
+        parameters.Value("@entryState").Should().BeNull();
+    }
+
+    [Test]
+    public async Task SelectFireInstances_CarriesEveryFilterItWasGiven()
+    {
+        await adoDelegate.SelectFireInstances(conn, new FireInstanceQuery
+        {
+            TriggerGroup = GroupMatcher<TriggerKey>.GroupStartsWith("50%"),
+            TriggerName = NameMatcher<TriggerKey>.NameEquals("trigger1"),
+            Job = new JobKey("job1", "jobGroup1"),
+            SchedulerInstanceId = "node-2"
+        });
+
+        command.CommandText.Should().Contain("AND TRIGGER_GROUP LIKE @triggerGroup ESCAPE '!'");
+        command.CommandText.Should().Contain("AND TRIGGER_NAME = @triggerName");
+        command.CommandText.Should().Contain("AND JOB_NAME = @jobName AND JOB_GROUP = @jobGroup");
+        command.CommandText.Should().Contain("AND INSTANCE_NAME = @instanceName");
+
+        parameters.Value("@triggerGroup").Should().Be("50!%%", "a group literally named 50% is not a wildcard");
+        parameters.Value("@triggerName").Should().Be("trigger1");
+        parameters.Value("@jobName").Should().Be("job1");
+        parameters.Value("@instanceName").Should().Be("node-2");
+    }
+
+    [Test]
+    public async Task SelectFireInstances_CountOnly_ShouldCarryTheSameFilter()
+    {
+        A.CallTo(command)
+            .Where(x => x.Method.Name == "ExecuteScalarAsync")
+            .WithReturnType<Task<object>>()
+            .Returns(Task.FromResult<object>(3));
+
+        PagedResult<FireInstance> result = await adoDelegate.SelectFireInstances(
+            conn,
+            new FireInstanceQuery { SchedulerInstanceId = "node-2", Take = 0, IncludeTotalCount = true });
+
+        result.Items.Should().BeEmpty("the count idiom reads no page");
+        result.TotalCount.Should().Be(3);
+
+        command.CommandText.Should().StartWith("SELECT COUNT(*) FROM QRTZ_FIRED_TRIGGERS");
+        command.CommandText.Should().Contain("AND INSTANCE_NAME = @instanceName",
+            "a count that filtered differently from the page would report a total for another question");
+        command.CommandText.Should().NotContain("ORDER BY", "nothing is ordered when nothing is returned");
+    }
+
+    /// <summary>
+    /// The projection and <c>ReadFireInstance</c> agree on where each column is: the reader takes them
+    /// from fixed ordinals, so a column added to the SELECT list would silently shift every one after it.
+    /// </summary>
+    [Test]
+    public async Task SelectFireInstances_ReadsEveryColumnFromTheProjection()
+    {
+        InstallFireInstanceReader(AdoConstants.StateExecuting);
+
+        PagedResult<FireInstance> result = await adoDelegate.SelectFireInstances(conn, new FireInstanceQuery());
+
+        FireInstance instance = result.Items.Should().ContainSingle().Subject;
+        instance.FireInstanceId.Should().Be("entry1");
+        instance.TriggerKey.Should().Be(new TriggerKey("trigger1", "group1"));
+        instance.JobKey.Should().Be(new JobKey("job1", "jobGroup1"));
+        instance.SchedulerInstanceId.Should().Be("node-1");
+        instance.State.Should().Be(FireInstanceState.Executing);
+        instance.ExecutionGroup.Should().Be("executionGroup");
+    }
+
+    [Test]
+    public async Task SelectFireInstances_ReadsAReservationWithoutItsJob()
+    {
+        InstallFireInstanceReader(AdoConstants.StateAcquired);
+
+        PagedResult<FireInstance> result = await adoDelegate.SelectFireInstances(conn, new FireInstanceQuery { State = null });
+
+        FireInstance instance = result.Items.Should().ContainSingle().Subject;
+        instance.State.Should().Be(FireInstanceState.Acquired);
+        instance.JobKey.Should().BeNull("the job columns of a reservation hold nothing yet");
+    }
+
+    [Test]
+    public async Task InsertFiredTrigger_WritesTheExecutionGroup()
+    {
+        IOperableTrigger trigger = FireInstanceTrigger("reports");
+
+        await adoDelegate.InsertFiredTrigger(conn, trigger, StoredTriggerState.Acquired, job: null);
+
+        command.CommandText.Should().Contain("EXECUTION_GROUP");
+        command.CommandText.Should().Contain("@triggerExecutionGroup");
+        parameters.Value("@triggerExecutionGroup").Should().Be("reports",
+            "the column was dead schema until the listing needed to read it back");
+    }
+
+    [Test]
+    public async Task UpdateFiredTrigger_WritesTheExecutionGroup()
+    {
+        IOperableTrigger trigger = FireInstanceTrigger(executionGroup: null);
+        IJobDetail job = JobBuilder.Create<FireInstanceTestJob>().WithIdentity("job1", "jobGroup1").Build();
+
+        await adoDelegate.UpdateFiredTrigger(conn, trigger, StoredTriggerState.Executing, job);
+
+        command.CommandText.Should().Contain("EXECUTION_GROUP = @executionGroup");
+        parameters.Value("@executionGroup").Should().Be(DBNull.Value,
+            "a trigger with no execution group writes a null rather than leaving the column stale");
+    }
+
+    private sealed class FireInstanceTestJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    private static IOperableTrigger FireInstanceTrigger(string executionGroup)
+    {
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("trigger1", "group1")
+            .ForJob("job1", "jobGroup1")
+            .WithExecutionGroup(executionGroup)
+            .StartNow()
+            .Build();
+
+        trigger.FireInstanceId = "entry1";
+        return trigger;
+    }
+
+    /// <summary>
+    /// Fakes one fire-instance row. The values are positional on purpose: this is what pins the
+    /// projection's column order to the reader's ordinals.
+    /// </summary>
+    private void InstallFireInstanceReader(string entryState)
+    {
+        var strings = new Dictionary<int, string>
+        {
+            [0] = "entry1",
+            [1] = "trigger1",
+            [2] = "group1",
+            [3] = "job1",
+            [4] = "jobGroup1",
+            [5] = "node-1",
+            [6] = entryState,
+            [9] = "executionGroup"
+        };
+
+        DbDataReader reader = A.Fake<DbDataReader>();
+        bool read = false;
+        A.CallTo(() => reader.ReadAsync(A<CancellationToken>._)).ReturnsLazily(() =>
+        {
+            bool first = !read;
+            read = true;
+            return first;
+        });
+
+        A.CallTo(() => reader.GetString(A<int>._)).ReturnsLazily((int i) => strings[i]);
+        A.CallTo(() => reader.IsDBNull(A<int>._)).ReturnsLazily((int i) => !strings.ContainsKey(i));
+
+        // The two timestamps come back as DBNull so the reader's own null handling applies.
+        A.CallTo(() => reader.GetValue(A<int>._)).ReturnsLazily((int _) => DBNull.Value);
+
+        A.CallTo(command)
+            .Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+            .WithReturnType<Task<DbDataReader>>()
+            .Returns(Task.FromResult(reader));
+    }
+
     /// <summary>
     /// Fakes one listing row. The values are positional on purpose: this is what pins the projection's
     /// column order to the reader's ordinals.

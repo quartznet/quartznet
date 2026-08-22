@@ -47,6 +47,8 @@ public sealed class SQLiteJobStoreContractTest : JobStoreContractTest
     /// </summary>
     protected override bool ReportsJobGroupPauseState => false;
 
+    protected override string StoreInstanceId => InstanceId;
+
     protected override async ValueTask<IJobStore> CreateStore()
     {
         dbFileName = $"test-store-contract-{Guid.NewGuid():N}.db";
