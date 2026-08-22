@@ -5290,7 +5290,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         {
             try
             {
-                return (bool) (isTransientProperty.GetValue(ex) ?? false);
+                // Only a true answer settles it. Since .NET 6 every DbException carries this property
+                // and most providers - SqlException among them - never override it, so returning the
+                // driver's verdict either way would leave every check below unreachable.
+                if ((bool) (isTransientProperty.GetValue(ex) ?? false))
+                {
+                    return true;
+                }
             }
             catch
             {
