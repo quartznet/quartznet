@@ -2665,11 +2665,9 @@ namespace Quartz.Impl.AdoJobStore.Common
         public bool BindByName { get; init; }
         public System.Type? CommandType { get; init; }
         public System.Type? ConnectionType { get; init; }
-        public System.Enum? DbBinaryType { get; }
         public string? DbBinaryTypeName { get; init; }
         public System.Type? ExceptionType { get; init; }
         public System.Type? ParameterDbType { get; init; }
-        public System.Reflection.PropertyInfo? ParameterDbTypeProperty { get; }
         public string ParameterDbTypePropertyName { get; init; }
         public string? ParameterNamePrefix { get; init; }
         public System.Type? ParameterType { get; init; }

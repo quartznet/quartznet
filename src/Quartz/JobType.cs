@@ -104,7 +104,7 @@ public sealed class JobType : IEquatable<JobType>
     /// <summary>
     /// JobType Serialized Full name
     /// </summary>
-    public string FullName { get; private set; }
+    public string FullName { get; }
 
     public Type Type => type.Value;
 
