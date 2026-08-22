@@ -22,9 +22,19 @@ services.AddQuartz(q => q.ConfigureScheduler(options => options.MaxBatchSize = 5
 }
 ```
 
-Options are bound from the `Quartz` section by section name — `Scheduler`, `ThreadPool`, `JobStore`,
-`DataSource` — and validated at startup, so a bad value is reported against the setting that is wrong
-rather than failing later during scheduling.
+Options are bound from the `Quartz` section by section name and validated at startup, so a bad value is
+reported against the setting that is wrong rather than failing later during scheduling. The sections are:
+
+| Section | Options | |
+|---|---|---|
+| `Scheduler` | `QuartzSchedulerOptions` | [below](#scheduler) |
+| `ThreadPool` | `ThreadPoolOptions` | [below](#thread-pool) |
+| `JobStore` | `InMemoryJobStoreOptions` or `AdoJobStoreOptions` | [below](#in-memory-job-store) |
+| `JobStore:Clustering` | `ClusteringOptions` | [below](#clustering) |
+| `DataSource` | `DataSourceOptions`, one per named data source | [below](#data-source) |
+| `Scheduling` | `SchedulingOptions` — what happens when registered jobs and triggers already exist in the store | [below](#scheduling) |
+| `Schedulers` | one sub-section per named scheduler | [below](#several-schedulers) |
+| `Schedule`, `ProcessingDirectives` | jobs and triggers declared in configuration | [JSON configuration](json.md) |
 
 ::: tip
 Everything on this page can also be written as flat `quartz.*` keys, which earlier versions used and
@@ -44,7 +54,7 @@ which Quartz still accepts. See [Legacy property keys](#legacy-property-keys).
 | `MaxBatchSize` | int | `1` | How many triggers may be acquired at once. Only an upper bound — `BatchTriggerAcquisitionFireAheadTimeWindow` decides how many are actually taken — and it may not exceed `ThreadPool:MaxConcurrency`. See [Batching trigger acquisition](../tutorial/advanced-enterprise-features.md#batching-trigger-acquisition). |
 | `BatchTriggerAcquisitionFireAheadTimeWindow` | TimeSpan | `00:00:00` | How far ahead of its fire time a trigger may be included in the current batch. The other half of `MaxBatchSize`: at the default of zero, neither batches anything. |
 | `ShutdownJobInterruption` | `ShutdownJobInterruption` | `Never` | When a shutting-down scheduler signals cancellation to the jobs still executing. |
-| `Context` | dictionary | empty | Values seeded into `SchedulerContext`. |
+| `Context` | dictionary | empty | Values seeded into `SchedulerContext`. Get-only: add to it (`options.Context["environment"] = "staging"`) rather than assigning a new dictionary. |
 
 `ShutdownJobInterruption` has four values, because a shutdown either waits for running jobs or it
 does not and interrupting them is a reasonable thing to want in either case, or in only one of them:
@@ -418,6 +428,21 @@ store.UseSystemTextJsonSerializer();
 store.UseNewtonsoftJsonSerializer();   // Quartz.Serialization.Newtonsoft
 ```
 
+## Scheduling
+
+`SchedulingOptions`, bound from `Quartz:Scheduling`. These decide what happens when the jobs and triggers
+registered in code, or declared in a file, already exist in the store under the same names.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `OverwriteExistingData` | bool | `true` | A registration replaces the stored job or trigger of the same name. |
+| `IgnoreDuplicates` | bool | `false` | With `OverwriteExistingData` off, a name that already exists is skipped instead of throwing. |
+| `ScheduleTriggerRelativeToReplacedTrigger` | bool | `false` | A replaced trigger's next fire time is computed from the old trigger's last fire time rather than from now. |
+
+```csharp
+services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates = true);
+```
+
 ## Job factory
 
 By default jobs are resolved from the container, in a scope created per firing, so a job may take scoped
@@ -426,6 +451,29 @@ dependencies. To replace it:
 ```csharp
 services.AddQuartz(q => q.UseJobFactory<MyJobFactory>());
 ```
+
+To keep it and only add to the scope it opens:
+
+```csharp
+services.AddQuartz(q => q.ConfigureJobScope((scope, bundle, scheduler) => { /* … */ }));
+```
+
+## The other seams
+
+Each of these replaces one collaborator of the scheduler. All are `IQuartzBuilder` members, so they work
+identically under `AddQuartz` and on a standalone `QuartzSchedulerBuilder`.
+
+| Method | Replaces | Default |
+|---|---|---|
+| `UseTimeProvider(timeProvider)` | the clock every trigger, store and misfire calculation reads | `TimeProvider.System`, or the container's registration when there is one |
+| `UseTypeLoader<T>()` | how a type named by a string — a stored `JOB_CLASS_NAME`, a `.type` key — is resolved | resolution through the container's assemblies, with the 3.x namespace fallbacks |
+| `UseInstanceIdGenerator<T>()` | how `InstanceId` is derived when `GenerateInstanceId` is on | `SimpleInstanceIdGenerator`: host name plus a timestamp |
+| `UseJobStore<T>()`, `UseJobStore<T, TOptions>()` | the job store, for one that is neither of the two Quartz ships | the in-memory store |
+| `UseDriverDelegate<T>()` (on the persistent store builder) | the SQL dialect the ADO.NET store speaks | selected by the database method — `UseSqlServer` picks `SqlServerDelegate`, and so on |
+
+`UseTimeProvider` is the one to reach for in a test: a `FakeTimeProvider` makes `TriggerBuilder`,
+`GetFireTimeAfter` and misfire calculations see the time you set. It does not drive the scheduler's own
+waiting, which is on the real clock.
 
 ## Listeners, calendars and plugins
 
@@ -548,6 +596,8 @@ Two differences are worth knowing:
 | `quartz.jobStore.lockHandler.type` | `UseLockHandler<T>()` |
 | `quartz.scheduler.jobFactory.type` | `UseJobFactory<T>()` |
 | `quartz.scheduler.typeLoadHelper.type` | `UseTypeLoader<T>()` |
+| `quartz.scheduler.instanceIdGenerator.type` | `UseInstanceIdGenerator<T>()`; other `quartz.scheduler.instanceIdGenerator.*` keys configure it |
+| `quartz.timeProvider.type` | `UseTimeProvider(timeProvider)` |
 | `quartz.jobListener.NAME.type` | `AddJobListener<T>(matchers)` |
 | `quartz.triggerListener.NAME.type` | `AddTriggerListener<T>(matchers)` |
 
