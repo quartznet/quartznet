@@ -573,9 +573,9 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     /// To be implemented by the concrete classes that extend this class.
     /// </para>
     /// <para>
-    /// The implementation should update the <see cref="ITrigger" />'s state
-    /// based on the MISFIRE_INSTRUCTION_XXX that was selected when the <see cref="ITrigger" />
-    /// was created.
+    /// The implementation should update the <see cref="ITrigger" />'s state according to the misfire
+    /// instruction the <see cref="ITrigger" /> was built with, read as
+    /// <see cref="ITrigger.MisfireInstructionCode" />.
     /// </para>
     /// </summary>
     public abstract void UpdateAfterMisfire(ICalendar? calendar);
