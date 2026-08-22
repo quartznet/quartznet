@@ -36,6 +36,10 @@ internal static class CalendarEndpoints
         int skip = 0,
         int? take = null,
         bool includeTotalCount = false,
+        string? nameContains = null,
+        string? nameEndsWith = null,
+        string? nameStartsWith = null,
+        string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
@@ -44,7 +48,8 @@ internal static class CalendarEndpoints
             CalendarQuery query = new()
             {
                 Skip = skip,
-                IncludeTotalCount = includeTotalCount
+                IncludeTotalCount = includeTotalCount,
+                Name = EndpointHelper.GetCalendarNameMatcher(nameContains, nameEndsWith, nameStartsWith, nameEquals)
             };
 
             // a request that names no take gets the query record's own default page size

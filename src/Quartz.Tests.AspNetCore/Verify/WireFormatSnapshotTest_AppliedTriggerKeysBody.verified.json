@@ -1,0 +1,12 @@
+﻿{
+  "triggers": [
+    {
+      "name": "first",
+      "group": "group"
+    },
+    {
+      "name": "second",
+      "group": "group"
+    }
+  ]
+}

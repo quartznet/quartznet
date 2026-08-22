@@ -203,6 +203,26 @@ public partial class StdAdoDelegate
             : (likePredicate, ToSqlLikeClause(matcher));
     }
 
+    /// <summary>
+    /// The <see cref="CalendarNameMatcher" /> form of <see cref="BuildMatcherPredicate{T}" />: a
+    /// calendar has no key type, so its matcher is not a <see cref="StringMatcher{TKey}" />, but the
+    /// equality-versus-LIKE decision and the wildcard escaping are the same.
+    /// </summary>
+    private (string Predicate, string? Parameter) BuildMatcherPredicate(
+        CalendarNameMatcher? matcher,
+        string equalsPredicate,
+        string likePredicate)
+    {
+        if (matcher is null)
+        {
+            return ("", null);
+        }
+
+        return matcher.CompareWithOperator.Equals(StringOperator.Equality)
+            ? (equalsPredicate, matcher.CompareToValue)
+            : (likePredicate, ToSqlLikeClause(matcher.CompareWithOperator, matcher.CompareToValue));
+    }
+
     /// <inheritdoc />
     public virtual async ValueTask<PagedResult<JobHeader>> SelectJobHeaders(
         ConnectionAndTransactionHolder conn,
@@ -549,10 +569,13 @@ public partial class StdAdoDelegate
         CalendarQuery query,
         CancellationToken cancellationToken = default)
     {
+        (string namePredicate, string? nameParameter) = BuildMatcherPredicate(query.Name, StdAdoConstants.SqlCalendarNameEqualsPredicate, StdAdoConstants.SqlCalendarNameLikePredicate);
+
         if (IsCountOnly(query))
         {
-            using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountCalendarNames));
+            using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountCalendarNames + namePredicate));
             AddCommandParameter(countCmd, "schedulerName", schedulerName);
+            BindCalendarNameFilter(countCmd, nameParameter);
 
             return CountOnlyResult<string>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
         }
@@ -560,9 +583,10 @@ public partial class StdAdoDelegate
         List<string> items;
         bool hasMore;
 
-        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectCalendarNamesOrdered, query))))
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectCalendarNames + namePredicate + StdAdoConstants.SqlOrderByCalendarName, query))))
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
+            BindCalendarNameFilter(cmd, nameParameter);
             BindPaging(cmd, query);
 
             (items, hasMore) = await ReadPage(cmd, query, static rs => rs.GetString(0), cancellationToken).ConfigureAwait(false);
@@ -571,11 +595,24 @@ public partial class StdAdoDelegate
         int? totalCount = null;
         if (query.IncludeTotalCount)
         {
-            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountCalendarNames));
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountCalendarNames + namePredicate));
             AddCommandParameter(cmd, "schedulerName", schedulerName);
+            BindCalendarNameFilter(cmd, nameParameter);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }
 
         return new PagedResult<string>(items, hasMore, totalCount);
+    }
+
+    /// <summary>
+    /// Binds the calendar listing's optional name filter, after the scheduler name the statement
+    /// already carries: providers that adapt named parameters positionally depend on that order.
+    /// </summary>
+    private void BindCalendarNameFilter(DbCommand cmd, string? nameParameter)
+    {
+        if (nameParameter is not null)
+        {
+            AddCommandParameter(cmd, "calendarName", nameParameter);
+        }
     }
 }

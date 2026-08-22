@@ -503,6 +503,46 @@ public class StdAdoDelegateGroupMatcherTest
     }
 
     [Test]
+    public async Task SelectCalendarNames_WithNameMatcher_ShouldUseLikeWithEscape()
+    {
+        await adoDelegate.SelectCalendarNames(conn, new CalendarQuery { Name = CalendarNameMatcher.NameStartsWith("50%") });
+
+        command.CommandText.Should().Contain("CALENDAR_NAME LIKE @calendarName ESCAPE '!'");
+        command.CommandText.Should().Contain("ORDER BY CALENDAR_NAME", "the listing keeps its deterministic order after the filter");
+        parameters.Value("@calendarName").Should().Be("50!%%", "the matcher's own text is a literal, so its wildcards are escaped");
+    }
+
+    [Test]
+    public async Task SelectCalendarNames_WithEqualityMatcher_ShouldCompareWithEquals()
+    {
+        await adoDelegate.SelectCalendarNames(conn, new CalendarQuery { Name = CalendarNameMatcher.NameEquals("holiday") });
+
+        command.CommandText.Should().Contain("CALENDAR_NAME = @calendarName");
+        command.CommandText.Should().NotContain("CALENDAR_NAME LIKE", "an equality matcher must not fall back to LIKE");
+        parameters.Value("@calendarName").Should().Be("holiday");
+    }
+
+    [Test]
+    public async Task SelectCalendarNames_CountOnly_ShouldCarryTheSameFilter()
+    {
+        A.CallTo(command).Where(x => x.Method.Name == "ExecuteScalarAsync")
+            .WithReturnType<Task<object>>()
+            .Returns(Task.FromResult<object>(3));
+
+        await adoDelegate.SelectCalendarNames(conn, new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameContains("day"),
+            Take = 0,
+            IncludeTotalCount = true
+        });
+
+        command.CommandText.Should().StartWith("SELECT COUNT(*)");
+        command.CommandText.Should().Contain("CALENDAR_NAME LIKE @calendarName ESCAPE '!'",
+            "a count that ignored the filter would not be the count of the page's result set");
+        parameters.Value("@calendarName").Should().Be("%day%");
+    }
+
+    [Test]
     public async Task SelectJobGroups_WithName_ShouldFilterInSql()
     {
         await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Name = "reports" });

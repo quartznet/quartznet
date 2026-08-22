@@ -860,34 +860,66 @@ public sealed class RAMJobStore : IJobStore
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            // does the trigger exist?
-            if (!triggersByKey.TryGetValue(triggerKey, out var tw) || tw.Trigger is null)
-            {
-                return false;
-            }
-
-            // is the trigger in error state?
-            if (tw.state != StoredTriggerState.Error)
-            {
-                return false;
-            }
-
-            if (pausedTriggerGroups.Contains(triggerKey.Group))
-            {
-                tw.state = StoredTriggerState.Paused;
-            }
-            else
-            {
-                tw.state = StoredTriggerState.Waiting;
-                timeTriggers.Add(tw);
-            }
-
-            return true;
+            return ResetTriggerFromErrorStateNoLock(triggerKey);
         }
         finally
         {
             lockObject.Release();
         }
+    }
+
+    /// <summary>
+    /// Resets the whole set inside one lock pass rather than taking the lock per key.
+    /// </summary>
+    public async ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            List<TriggerKey> reset = new List<TriggerKey>(triggerKeys.Count);
+            foreach (TriggerKey triggerKey in triggerKeys)
+            {
+                if (ResetTriggerFromErrorStateNoLock(triggerKey))
+                {
+                    reset.Add(triggerKey);
+                }
+            }
+
+            return reset;
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+    }
+
+    private bool ResetTriggerFromErrorStateNoLock(TriggerKey triggerKey)
+    {
+        // does the trigger exist?
+        if (!triggersByKey.TryGetValue(triggerKey, out var tw) || tw.Trigger is null)
+        {
+            return false;
+        }
+
+        // is the trigger in error state?
+        if (tw.state != StoredTriggerState.Error)
+        {
+            return false;
+        }
+
+        if (pausedTriggerGroups.Contains(triggerKey.Group))
+        {
+            tw.state = StoredTriggerState.Paused;
+        }
+        else
+        {
+            tw.state = StoredTriggerState.Waiting;
+            timeTriggers.Add(tw);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -1354,12 +1386,19 @@ public sealed class RAMJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        List<string> names;
+        CalendarNameMatcher? nameMatcher = query.Name;
+        List<string> names = [];
 
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            names = [..calendarsByName.Keys];
+            foreach (string calendarName in calendarsByName.Keys)
+            {
+                if (nameMatcher is null || nameMatcher.IsMatch(calendarName))
+                {
+                    names.Add(calendarName);
+                }
+            }
         }
         finally
         {
@@ -1573,6 +1612,33 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
+    /// Pauses the whole set inside one lock pass rather than taking the lock per key.
+    /// </summary>
+    public async ValueTask<List<TriggerKey>> PauseTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            List<TriggerKey> paused = new List<TriggerKey>(triggerKeys.Count);
+            foreach (TriggerKey triggerKey in triggerKeys)
+            {
+                if (PauseTriggerNoLock(triggerKey))
+                {
+                    paused.Add(triggerKey);
+                }
+            }
+
+            return paused;
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+    }
+
+    /// <summary>
     /// Moves one trigger into the paused state, and reports whether it moved.
     /// </summary>
     /// <remarks>
@@ -1676,24 +1742,56 @@ public sealed class RAMJobStore : IJobStore
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (!jobsByKey.ContainsKey(jobKey))
-            {
-                return false;
-            }
-
-            resumedJobsInPausedGroups.Remove(jobKey);
-            var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
-            foreach (TriggerKey key in triggerKeysForJob)
-            {
-                PauseTriggerNoLock(key);
-            }
-
-            return true;
+            return PauseJobNoLock(jobKey);
         }
         finally
         {
             lockObject.Release();
         }
+    }
+
+    /// <summary>
+    /// Pauses the whole set inside one lock pass rather than taking the lock per key.
+    /// </summary>
+    public async ValueTask<List<JobKey>> PauseJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            List<JobKey> paused = new List<JobKey>(jobKeys.Count);
+            foreach (JobKey jobKey in jobKeys)
+            {
+                if (PauseJobNoLock(jobKey))
+                {
+                    paused.Add(jobKey);
+                }
+            }
+
+            return paused;
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+    }
+
+    private bool PauseJobNoLock(JobKey jobKey)
+    {
+        if (!jobsByKey.ContainsKey(jobKey))
+        {
+            return false;
+        }
+
+        resumedJobsInPausedGroups.Remove(jobKey);
+        var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
+        foreach (TriggerKey key in triggerKeysForJob)
+        {
+            PauseTriggerNoLock(key);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -1768,6 +1866,33 @@ public sealed class RAMJobStore : IJobStore
         try
         {
             return await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+    }
+
+    /// <summary>
+    /// Resumes the whole set inside one lock pass rather than taking the lock per key.
+    /// </summary>
+    public async ValueTask<List<TriggerKey>> ResumeTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            List<TriggerKey> resumed = new List<TriggerKey>(triggerKeys.Count);
+            foreach (TriggerKey triggerKey in triggerKeys)
+            {
+                if (await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false))
+                {
+                    resumed.Add(triggerKey);
+                }
+            }
+
+            return resumed;
         }
         finally
         {
@@ -1881,28 +2006,60 @@ public sealed class RAMJobStore : IJobStore
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (!jobsByKey.ContainsKey(jobKey))
-            {
-                return false;
-            }
-
-            if (pausedJobGroups.Contains(jobKey.Group))
-            {
-                resumedJobsInPausedGroups.Add(jobKey);
-            }
-
-            var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
-            foreach (TriggerKey key in triggerKeysForJob)
-            {
-                await ResumeTriggerNoLock(key).ConfigureAwait(false);
-            }
-
-            return true;
+            return await ResumeJobNoLock(jobKey).ConfigureAwait(false);
         }
         finally
         {
             lockObject.Release();
         }
+    }
+
+    /// <summary>
+    /// Resumes the whole set inside one lock pass rather than taking the lock per key.
+    /// </summary>
+    public async ValueTask<List<JobKey>> ResumeJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            List<JobKey> resumed = new List<JobKey>(jobKeys.Count);
+            foreach (JobKey jobKey in jobKeys)
+            {
+                if (await ResumeJobNoLock(jobKey).ConfigureAwait(false))
+                {
+                    resumed.Add(jobKey);
+                }
+            }
+
+            return resumed;
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+    }
+
+    private async ValueTask<bool> ResumeJobNoLock(JobKey jobKey)
+    {
+        if (!jobsByKey.ContainsKey(jobKey))
+        {
+            return false;
+        }
+
+        if (pausedJobGroups.Contains(jobKey.Group))
+        {
+            resumedJobsInPausedGroups.Add(jobKey);
+        }
+
+        var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
+        foreach (TriggerKey key in triggerKeysForJob)
+        {
+            await ResumeTriggerNoLock(key).ConfigureAwait(false);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -1953,7 +2110,7 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
-    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
+    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
     /// on every group.
     /// <para>
     /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
@@ -1978,7 +2135,7 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
-    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
+    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
     /// on every trigger group and setting all job groups unpaused />.
     /// <para>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the

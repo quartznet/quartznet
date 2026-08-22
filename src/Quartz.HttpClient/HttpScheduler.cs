@@ -391,6 +391,15 @@ public sealed class HttpScheduler : IScheduler
         return [.. result.Groups];
     }
 
+    public async ValueTask<List<JobKey>> PauseJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKeys);
+
+        var request = new JobKeySetRequest([.. jobKeys.Select(KeyDto.Create)]);
+        var result = await httpClient.PostWithResponse<JobKeySetRequest, AppliedJobKeysResponse>($"{JobEndpointUrl()}/keys/pause", request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Jobs.Select(x => x.AsJobKey())];
+    }
+
     public async ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{TriggerEndpointUrl(triggerKey)}/pause", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
@@ -402,6 +411,15 @@ public sealed class HttpScheduler : IScheduler
         var urlParams = matcher.ToUrlParameters();
         var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{TriggerEndpointUrl()}/pause?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return [.. result.Groups];
+    }
+
+    public async ValueTask<List<TriggerKey>> PauseTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        var request = new TriggerKeySetRequest([.. triggerKeys.Select(KeyDto.Create)]);
+        var result = await httpClient.PostWithResponse<TriggerKeySetRequest, AppliedTriggerKeysResponse>($"{TriggerEndpointUrl()}/keys/pause", request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Triggers.Select(x => x.AsTriggerKey())];
     }
 
     public async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -417,6 +435,15 @@ public sealed class HttpScheduler : IScheduler
         return [.. result.Groups];
     }
 
+    public async ValueTask<List<JobKey>> ResumeJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKeys);
+
+        var request = new JobKeySetRequest([.. jobKeys.Select(KeyDto.Create)]);
+        var result = await httpClient.PostWithResponse<JobKeySetRequest, AppliedJobKeysResponse>($"{JobEndpointUrl()}/keys/resume", request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Jobs.Select(x => x.AsJobKey())];
+    }
+
     public async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{TriggerEndpointUrl(triggerKey)}/resume", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
@@ -428,6 +455,15 @@ public sealed class HttpScheduler : IScheduler
         var urlParams = matcher.ToUrlParameters();
         var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{TriggerEndpointUrl()}/resume?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return [.. result.Groups];
+    }
+
+    public async ValueTask<List<TriggerKey>> ResumeTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        var request = new TriggerKeySetRequest([.. triggerKeys.Select(KeyDto.Create)]);
+        var result = await httpClient.PostWithResponse<TriggerKeySetRequest, AppliedTriggerKeysResponse>($"{TriggerEndpointUrl()}/keys/resume", request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Triggers.Select(x => x.AsTriggerKey())];
     }
 
     public ValueTask PauseAll(CancellationToken cancellationToken = default)
@@ -540,6 +576,7 @@ public sealed class HttpScheduler : IScheduler
 
         QueryStringBuilder parameters = new();
         parameters.AddPaging(query);
+        parameters.AddNameMatcher(query.Name);
 
         PagedResultDto<string> result = await httpClient
             .Get<PagedResultDto<string>>($"{CalendarEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
@@ -629,6 +666,15 @@ public sealed class HttpScheduler : IScheduler
     {
         var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{TriggerEndpointUrl(triggerKey)}/reset-from-error-state", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return result.Applied;
+    }
+
+    public async ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        var request = new TriggerKeySetRequest([.. triggerKeys.Select(KeyDto.Create)]);
+        var result = await httpClient.PostWithResponse<TriggerKeySetRequest, AppliedTriggerKeysResponse>($"{TriggerEndpointUrl()}/keys/reset-from-error-state", request, jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Triggers.Select(x => x.AsTriggerKey())];
     }
 
     public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)

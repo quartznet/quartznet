@@ -1,0 +1,8 @@
+﻿{
+  "jobs": [
+    {
+      "name": "first",
+      "group": "group"
+    }
+  ]
+}

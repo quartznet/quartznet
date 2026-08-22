@@ -127,14 +127,16 @@ with no rows is `?take=0&includeTotalCount=true`, which the stores answer with t
 
 | Endpoint | Returns | Filters (besides paging) |
 |---|---|---|
-| `GET {ApiPath}/schedulers/{name}/jobs` | Job headers: key, description, `jobType` (the same assembly-qualified name the detail body carries), durable, concurrent-execution-disallowed, persist-job-data, requests-recovery | `groupEquals`, `groupContains`, `groupStartsWith`, `groupEndsWith` |
-| `GET {ApiPath}/schedulers/{name}/jobs/groups` | Job groups: `name`, `paused` | `paused` |
-| `GET {ApiPath}/schedulers/{name}/triggers` | Trigger headers: key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority, execution group | the four `group*` filters, plus `jobName` + `jobGroup` (give both or neither), `calendarName`, `state` |
-| `GET {ApiPath}/schedulers/{name}/triggers/groups` | Trigger groups: `name`, `paused` | `paused` |
-| `GET {ApiPath}/schedulers/{name}/calendars` | Calendar names | — |
+| `GET {ApiPath}/schedulers/{name}/jobs` | Job headers: key, description, `jobType` (the same assembly-qualified name the detail body carries), durable, concurrent-execution-disallowed, persist-job-data, requests-recovery | `groupEquals`, `groupContains`, `groupStartsWith`, `groupEndsWith`, and the four `name*` filters |
+| `GET {ApiPath}/schedulers/{name}/jobs/groups` | Job groups: `name`, `paused` | `name` (one group, matched exactly), `paused` |
+| `GET {ApiPath}/schedulers/{name}/triggers` | Trigger headers: key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority, execution group | the four `group*` and four `name*` filters, plus `jobName` + `jobGroup` (give both or neither), `calendarName`, `state` |
+| `GET {ApiPath}/schedulers/{name}/triggers/groups` | Trigger groups: `name`, `paused` | `name` (one group, matched exactly), `paused` |
+| `GET {ApiPath}/schedulers/{name}/calendars` | Calendar names | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith` |
 
 Results are ordered by group and then name, and every page uses the same ordering, so paging through a
-result is consistent.
+result is consistent. At most one `name*` filter may be given per request; more than one is a `400`.
+The filter's text is a literal — a calendar named `50%` is matched by `?nameStartsWith=50%25` and is
+not a wildcard.
 
 A listing gives you headers, not whole objects. To get the full detail for a page, post the keys back:
 
@@ -177,6 +179,31 @@ These endpoints previously returned `200 OK` with an empty body. Old clients tha
 keep working, but a 4.0-final `HttpScheduler` against a 4.0-preview server throws on these calls
 because it expects the body — upgrade the server first.
 :::
+
+### A whole set of keys in one call
+
+Pausing forty triggers one request at a time is forty round trips, forty scheduling signals and forty
+chances to get half of them done. The key-set forms take the keys in the body and answer with the keys
+they applied to:
+
+| Endpoint | Body | Answers |
+|---|---|---|
+| `POST …/jobs/keys/pause`, `…/jobs/keys/resume` | `{ "jobs": [ { "name": …, "group": … } ] }` | `{ "jobs": [ … ] }` |
+| `POST …/triggers/keys/pause`, `…/triggers/keys/resume` | `{ "triggers": [ { "name": …, "group": … } ] }` | `{ "triggers": [ … ] }` |
+| `POST …/triggers/keys/reset-from-error-state` | `{ "triggers": [ … ] }` | `{ "triggers": [ … ] }` |
+
+The answer is the plural of `{ "applied": … }`: a key the operation did not apply to — one that names
+nothing, one that was already paused, one that was not in the error state — is simply **absent** from
+the list, never an error. The order is the order the keys were given in.
+
+They live under `keys/` because the collection-level `pause` and `resume` already belong to the
+group-matcher forms, which select by query string rather than by body.
+
+The server does the whole set in one pass — one lock and one transaction for the ADO store — and
+signals the scheduling change once for the call. Listener events stay per key: one `TriggerPaused` /
+`JobPaused` / `TriggerResumed` / `JobResumed` for each key the operation applied to, and nothing at
+all for the rest. There is no key-set listener event, deliberately: `TriggersPaused(null)` means
+*every group*, and a monitoring listener would read it as a total outage.
 
 ## Configuration options
 

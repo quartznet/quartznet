@@ -39,11 +39,19 @@ internal static class JobEndpoints
         yield return builder.MapPost(patternPrefix + "/pause", PauseJobs)
             .WithQuartzDefaults(nameof(PauseJobs), "Pause jobs");
 
+        // The key-set forms live under "keys" because the collection-level "pause" and "resume"
+        // already belong to the group-matcher forms, which select by query string rather than body.
+        yield return builder.MapPost(patternPrefix + "/keys/pause", PauseJobKeys)
+            .WithQuartzDefaults(nameof(PauseJobKeys), "Pause jobs by key");
+
         yield return builder.MapPost(patternPrefix + "/{jobGroup}/{jobName}/resume", ResumeJob)
             .WithQuartzDefaults(nameof(ResumeJob), "Resume job");
 
         yield return builder.MapPost(patternPrefix + "/resume", ResumeJobs)
             .WithQuartzDefaults(nameof(ResumeJobs), "Resume jobs");
+
+        yield return builder.MapPost(patternPrefix + "/keys/resume", ResumeJobKeys)
+            .WithQuartzDefaults(nameof(ResumeJobKeys), "Resume jobs by key");
 
         yield return builder.MapPost(patternPrefix + "/{jobGroup}/{jobName}/trigger", TriggerJob)
             .WithQuartzDefaults(nameof(TriggerJob), "Trigger job");
@@ -228,6 +236,23 @@ internal static class JobEndpoints
         });
     }
 
+    [ProducesResponseType(typeof(AppliedJobKeysResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> PauseJobKeys(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        JobKeySetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertIsValid(request);
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
+            var paused = await scheduler.PauseJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+            return new AppliedJobKeysResponse([.. paused.Select(KeyDto.Create)]);
+        });
+    }
+
     [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> ResumeJob(
         EndpointHelper endpointHelper,
@@ -260,6 +285,23 @@ internal static class JobEndpoints
             var matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
             var resumedGroups = await scheduler.ResumeJobs(matcher, cancellationToken).ConfigureAwait(false);
             return new AffectedGroupsResponse([.. resumedGroups]);
+        });
+    }
+
+    [ProducesResponseType(typeof(AppliedJobKeysResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> ResumeJobKeys(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        JobKeySetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertIsValid(request);
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
+            var resumed = await scheduler.ResumeJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+            return new AppliedJobKeysResponse([.. resumed.Select(KeyDto.Create)]);
         });
     }
 

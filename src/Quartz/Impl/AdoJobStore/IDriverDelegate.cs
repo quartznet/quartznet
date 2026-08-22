@@ -1050,7 +1050,7 @@ public interface IDriverDelegate
     /// Selects one page of calendar names, ordered by name.
     /// </summary>
     /// <param name="conn">The DB connection.</param>
-    /// <param name="query">Which page to return.</param>
+    /// <param name="query">Which names to select and which page of them to return.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<PagedResult<string>> SelectCalendarNames(
         ConnectionAndTransactionHolder conn,

@@ -82,5 +82,19 @@ internal sealed class QueryStringBuilder
         }
     }
 
+    public void AddNameMatcher(CalendarNameMatcher? matcher)
+    {
+        if (matcher is null)
+        {
+            return;
+        }
+
+        string urlParameters = matcher.ToUrlParameters();
+        if (urlParameters.Length > 0)
+        {
+            parameters.Add(urlParameters);
+        }
+    }
+
     public override string ToString() => parameters.Count == 0 ? "" : "?" + string.Join('&', parameters);
 }

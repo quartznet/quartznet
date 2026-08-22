@@ -362,6 +362,16 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
+    public ValueTask<List<TriggerKey>> PauseTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseTriggers(triggerKeys, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
     public ValueTask<bool> PauseJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
@@ -377,6 +387,16 @@ internal sealed class StdScheduler : IScheduler
         CancellationToken cancellationToken = default)
     {
         return scheduler.PauseJobs(matcher, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public ValueTask<List<JobKey>> PauseJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.PauseJobs(jobKeys, cancellationToken);
     }
 
     /// <summary>
@@ -402,6 +422,16 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
+    public ValueTask<List<TriggerKey>> ResumeTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.ResumeTriggers(triggerKeys, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
     public ValueTask<bool> ResumeJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
@@ -417,6 +447,16 @@ internal sealed class StdScheduler : IScheduler
         CancellationToken cancellationToken = default)
     {
         return scheduler.ResumeJobs(matcher, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public ValueTask<List<JobKey>> ResumeJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.ResumeJobs(jobKeys, cancellationToken);
     }
 
     /// <summary>
@@ -525,6 +565,16 @@ internal sealed class StdScheduler : IScheduler
     public ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.ResetTriggersFromErrorState(triggerKeys, cancellationToken);
     }
 
     /// <summary>

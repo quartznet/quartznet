@@ -377,6 +377,14 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// <summary>
     /// Translates a group or name matcher into a LIKE pattern.
     /// </summary>
+    protected string ToSqlLikeClause<T>(StringMatcher<T> matcher) where T : Key<T>
+    {
+        return ToSqlLikeClause(matcher.CompareWithOperator, matcher.CompareToValue);
+    }
+
+    /// <summary>
+    /// Translates a matcher's operator and text into a LIKE pattern.
+    /// </summary>
     /// <remarks>
     /// The matcher's own text is a literal, so its wildcard characters are escaped with
     /// <see cref="StdAdoConstants.SqlLikeEscapeCharacter" />; the statements this feeds all name that
@@ -384,36 +392,41 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// group literally named "50%" is found by an exact match and by a "starts with 50" one, and not
     /// by a "starts with 5" one.
     /// </remarks>
-    protected virtual string ToSqlLikeClause<T>(StringMatcher<T> matcher) where T : Key<T>
+    /// <remarks>
+    /// This takes the operator and the text rather than the matcher, because a calendar is matched
+    /// by <see cref="CalendarNameMatcher" /> and a job or trigger by <see cref="StringMatcher{TKey}" />,
+    /// and the translation is the same for both.
+    /// </remarks>
+    protected virtual string ToSqlLikeClause(StringOperator compareWith, string compareToValue)
     {
-        if (StringOperator.Anything.Equals(matcher.CompareWithOperator))
+        if (StringOperator.Anything.Equals(compareWith))
         {
             return "%";
         }
 
-        string value = EscapeSqlLikeWildcards(matcher.CompareToValue);
+        string value = EscapeSqlLikeWildcards(compareToValue);
 
-        if (StringOperator.Equality.Equals(matcher.CompareWithOperator))
+        if (StringOperator.Equality.Equals(compareWith))
         {
             return value;
         }
 
-        if (StringOperator.Contains.Equals(matcher.CompareWithOperator))
+        if (StringOperator.Contains.Equals(compareWith))
         {
             return "%" + value + "%";
         }
 
-        if (StringOperator.EndsWith.Equals(matcher.CompareWithOperator))
+        if (StringOperator.EndsWith.Equals(compareWith))
         {
             return "%" + value;
         }
 
-        if (StringOperator.StartsWith.Equals(matcher.CompareWithOperator))
+        if (StringOperator.StartsWith.Equals(compareWith))
         {
             return value + "%";
         }
 
-        Throw.ArgumentOutOfRangeException("Don't know how to translate " + matcher.CompareWithOperator + " into SQL");
+        Throw.ArgumentOutOfRangeException("Don't know how to translate " + compareWith + " into SQL");
         return default;
     }
 

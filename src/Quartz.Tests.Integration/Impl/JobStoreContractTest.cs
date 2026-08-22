@@ -168,6 +168,110 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
+    public async Task PausingAndResumingASetOfTriggersReportsOnlyTheKeysItMoved()
+    {
+        IOperableTrigger first = await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
+        IOperableTrigger second = await ScheduleJobWithTrigger("second", JobGroupA, TriggerGroupB);
+        IOperableTrigger alreadyPaused = await ScheduleJobWithTrigger("already", JobGroupA, TriggerGroupA);
+
+        (await Store.PauseTrigger(alreadyPaused.Key)).Should().BeTrue();
+
+        List<TriggerKey> paused = await Store.PauseTriggers(
+            [first.Key, MissingTriggerKey, alreadyPaused.Key, second.Key]);
+
+        paused.Should().Equal([first.Key, second.Key],
+            "the answer names the keys the pause moved, in the order they were given — a missing key "
+            + "and an already-paused one are absent rather than a throw");
+
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Paused);
+
+        List<TriggerKey> resumed = await Store.ResumeTriggers([second.Key, MissingTriggerKey, first.Key]);
+
+        resumed.Should().Equal([second.Key, first.Key], "the resume answers in the order it was asked");
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Normal);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Normal);
+        (await Store.GetTriggerState(alreadyPaused.Key)).Should().Be(TriggerState.Paused,
+            "a key that was not asked for is not touched");
+    }
+
+    [Test]
+    public async Task PausingAndResumingASetOfJobsReportsOnlyTheKeysItFound()
+    {
+        IOperableTrigger first = await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
+        IOperableTrigger second = await ScheduleJobWithTrigger("second", JobGroupB, TriggerGroupB);
+
+        IJobDetail durable = JobBuilder.Create<ContractTestJob>()
+            .WithIdentity("durable", JobGroupA)
+            .StoreDurably()
+            .Build();
+        await Store.AddJob(durable, replace: false);
+
+        JobKey firstJob = new JobKey("first", JobGroupA);
+        JobKey secondJob = new JobKey("second", JobGroupB);
+
+        List<JobKey> paused = await Store.PauseJobs([firstJob, MissingJobKey, durable.Key, secondJob]);
+
+        paused.Should().Equal([firstJob, durable.Key, secondJob],
+            "a job with no triggers was still found, and only the key that names no job is absent");
+
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Paused);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Paused);
+
+        List<JobKey> resumed = await Store.ResumeJobs([firstJob, MissingJobKey, secondJob]);
+
+        resumed.Should().Equal([firstJob, secondJob]);
+        (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Normal);
+        (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    [Test]
+    public void TheKeySetMembersAreImplementedRatherThanLeftToTheLoopingDefault()
+    {
+        // The defaults on IJobStore walk the set one key at a time, which is correct but costs a lock
+        // or a round trip per key. Every shipped store does the walk in one pass instead, and the
+        // answers are identical either way — so this is the only place the difference is visible.
+        string[] keySetMembers =
+        [
+            nameof(IJobStore.PauseTriggers),
+            nameof(IJobStore.ResumeTriggers),
+            nameof(IJobStore.PauseJobs),
+            nameof(IJobStore.ResumeJobs),
+            nameof(IJobStore.ResetTriggersFromErrorState)
+        ];
+
+        System.Reflection.InterfaceMapping map = Store.GetType().GetInterfaceMap(typeof(IJobStore));
+
+        for (int i = 0; i < map.InterfaceMethods.Length; i++)
+        {
+            System.Reflection.MethodInfo declared = map.InterfaceMethods[i];
+            if (!keySetMembers.Contains(declared.Name)
+                || declared.GetParameters()[0].ParameterType.GetGenericTypeDefinition() != typeof(IReadOnlyCollection<>))
+            {
+                continue;
+            }
+
+            map.TargetMethods[i].DeclaringType.Should().NotBe(typeof(IJobStore),
+                $"{Store.GetType().Name}.{declared.Name} must coalesce the key set into one pass "
+                + "rather than inherit the per-key default");
+        }
+    }
+
+    [Test]
+    public async Task PausingAnEmptySetOfKeysIsANoOp()
+    {
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("untouched", JobGroupA, TriggerGroupA);
+
+        (await Store.PauseTriggers([])).Should().BeEmpty();
+        (await Store.ResumeTriggers([])).Should().BeEmpty();
+        (await Store.PauseJobs([])).Should().BeEmpty();
+        (await Store.ResumeJobs([])).Should().BeEmpty();
+        (await Store.ResetTriggersFromErrorState([])).Should().BeEmpty();
+
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    [Test]
     public async Task PausingAJobGroupPausesTheTriggersOfEveryJobInIt()
     {
         IOperableTrigger inGroup = await ScheduleJobWithTrigger("in-group", JobGroupA, TriggerGroupA);
@@ -410,6 +514,23 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
+    public async Task ResettingASetOfTriggersFromErrorStateReportsOnlyTheKeysItReset()
+    {
+        IOperableTrigger errored = await GivenATriggerInErrorState("errored");
+        IOperableTrigger fine = await ScheduleJobWithTrigger("fine", JobGroupA, TriggerGroupA);
+
+        List<TriggerKey> reset = await Store.ResetTriggersFromErrorState(
+            [errored.Key, fine.Key, MissingTriggerKey]);
+
+        reset.Should().Equal([errored.Key],
+            "only the trigger that was in error had anything to reset; the healthy one and the "
+            + "missing one are absent rather than a throw");
+
+        (await Store.GetTriggerState(errored.Key)).Should().Be(TriggerState.Normal);
+        (await Store.GetTriggerState(fine.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    [Test]
     public async Task ResetTriggerFromErrorStateIsANoOpForATriggerThatIsNotInError()
     {
         IOperableTrigger trigger = await ScheduleJobWithTrigger("fine", JobGroupA, TriggerGroupA);
@@ -562,6 +683,76 @@ public abstract class JobStoreContractTest
         PagedResult<string> pastEnd = await Store.QueryCalendarNames(new CalendarQuery { Skip = 5, Take = 5 });
         pastEnd.Items.Should().BeEmpty();
         pastEnd.HasMore.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task CalendarNamesAreFilteredByNameAndStillPaged()
+    {
+        foreach (string name in new[] { "holiday-easter", "holiday-xmas", "workday", "50%off" })
+        {
+            await Store.AddCalendar(name, new AnnualCalendar());
+        }
+
+        PagedResult<string> exact = await Store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameEquals("workday")
+        });
+        exact.Items.Should().Equal(["workday"]);
+
+        PagedResult<string> prefixed = await Store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameStartsWith("holiday-"),
+            IncludeTotalCount = true
+        });
+        prefixed.Items.Should().Equal(["holiday-easter", "holiday-xmas"]);
+        prefixed.TotalCount.Should().Be(2, "the total counts what the filter selects, not every calendar");
+
+        PagedResult<string> suffixed = await Store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameEndsWith("xmas")
+        });
+        suffixed.Items.Should().Equal(["holiday-xmas"]);
+
+        PagedResult<string> contained = await Store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameContains("day")
+        });
+        contained.Items.Should().Equal(["holiday-easter", "holiday-xmas", "workday"],
+            "a filtered listing keeps the ordering of an unfiltered one");
+
+        PagedResult<string> filteredPage = await Store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameContains("day"),
+            Skip = 1,
+            Take = 1,
+            IncludeTotalCount = true
+        });
+        filteredPage.Items.Should().Equal(["holiday-xmas"], "paging windows the filtered set");
+        filteredPage.HasMore.Should().BeTrue();
+        filteredPage.TotalCount.Should().Be(3);
+
+        PagedResult<string> counted = await Store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameStartsWith("holiday-"),
+            Take = 0,
+            IncludeTotalCount = true
+        });
+        counted.Items.Should().BeEmpty("Take = 0 is the count idiom");
+        counted.TotalCount.Should().Be(2);
+
+        // The matcher's own text is a literal: '%' is not a wildcard, and the ADO store has to escape
+        // it out of the LIKE it builds.
+        PagedResult<string> literalWildcard = await Store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameStartsWith("50%")
+        });
+        literalWildcard.Items.Should().Equal(["50%off"]);
+
+        PagedResult<string> notAPattern = await Store.QueryCalendarNames(new CalendarQuery
+        {
+            Name = CalendarNameMatcher.NameStartsWith("50%o_f")
+        });
+        notAPattern.Items.Should().BeEmpty("'_' is a literal too, so it does not match the 'f' in '50%off'");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -894,10 +1085,10 @@ public abstract class JobStoreContractTest
     /// Drives a trigger through a firing that ends in failure, which is how a trigger legitimately
     /// reaches <see cref="TriggerState.Error" />.
     /// </summary>
-    private async Task<IOperableTrigger> GivenATriggerInErrorState()
+    private async Task<IOperableTrigger> GivenATriggerInErrorState(string name = "failing")
     {
-        IJobDetail job = CreateJob("failing", JobGroupA);
-        IOperableTrigger trigger = CreateTrigger("failing", TriggerGroupA, job.Key, startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        IJobDetail job = CreateJob(name, JobGroupA);
+        IOperableTrigger trigger = CreateTrigger(name, TriggerGroupA, job.Key, startAt: DateTimeOffset.UtcNow.AddSeconds(5));
         await Store.ScheduleJob(job, trigger);
 
         List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest

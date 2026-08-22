@@ -321,6 +321,36 @@ public class JobEndpointsTest : WebApiTest
     }
 
     [Test]
+    public async Task PauseJobsByKeyShouldRoundTripTheAppliedKeys()
+    {
+        A.CallTo(() => FakeScheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .Returns(new List<JobKey> { jobKeyOne });
+
+        List<JobKey> paused = await HttpScheduler.PauseJobs([jobKeyOne, jobKeyTwo]);
+
+        paused.Should().Equal([jobKeyOne],
+            "the answer names the keys the pause applied to, and the key that named no job is absent");
+
+        A.CallTo(() => FakeScheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IReadOnlyCollection<JobKey> keys, CancellationToken _) => keys.SequenceEqual([jobKeyOne, jobKeyTwo]))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task ResumeJobsByKeyShouldRoundTripTheAppliedKeys()
+    {
+        A.CallTo(() => FakeScheduler.ResumeJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .Returns(new List<JobKey> { jobKeyOne, jobKeyTwo });
+
+        List<JobKey> resumed = await HttpScheduler.ResumeJobs([jobKeyOne, jobKeyTwo]);
+
+        resumed.Should().Equal([jobKeyOne, jobKeyTwo]);
+
+        A.CallTo(() => FakeScheduler.ResumeJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
     public async Task ResumeJobShouldWork()
     {
         A.CallTo(() => FakeScheduler.ResumeJob(jobKeyOne, A<CancellationToken>._)).Returns(true);

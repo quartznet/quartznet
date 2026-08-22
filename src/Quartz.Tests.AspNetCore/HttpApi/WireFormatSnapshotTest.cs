@@ -112,6 +112,58 @@ public class WireFormatSnapshotTest : WebApiTest
     }
 
     [Test]
+    public async Task AppliedJobKeysBody()
+    {
+        // a key-set pause answers with the keys it applied to: the plural of {"applied": bool}. The key
+        // the store did not find is absent from the answer rather than present with a false beside it.
+        A.CallTo(() => FakeScheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .Returns(new List<JobKey> { new JobKey("first", "group") });
+
+        const string requestJson = """
+            {
+              "jobs": [
+                { "name": "first", "group": "group" },
+                { "name": "missing", "group": "group" }
+              ]
+            }
+            """;
+
+        string body = await Post($"{SchedulerUrl}/jobs/keys/pause", requestJson);
+        await VerifyBody(body);
+    }
+
+    [Test]
+    public async Task AppliedTriggerKeysBody()
+    {
+        A.CallTo(() => FakeScheduler.ResetTriggersFromErrorState(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey> { new TriggerKey("first", "group"), new TriggerKey("second", "group") });
+
+        const string requestJson = """
+            {
+              "triggers": [
+                { "name": "first", "group": "group" },
+                { "name": "second", "group": "group" }
+              ]
+            }
+            """;
+
+        string body = await Post($"{SchedulerUrl}/triggers/keys/reset-from-error-state", requestJson);
+        await VerifyBody(body);
+    }
+
+    [Test]
+    public async Task AppliedKeysBodyIsEmptyWhenNothingApplied()
+    {
+        A.CallTo(() => FakeScheduler.ResumeTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey>());
+
+        const string requestJson = """{ "triggers": [ { "name": "first", "group": "group" } ] }""";
+
+        string body = await Post($"{SchedulerUrl}/triggers/keys/resume", requestJson);
+        await VerifyBody(body);
+    }
+
+    [Test]
     public async Task ValidationProblemDetailsBody()
     {
         // a job detail with no name: the request never reaches the scheduler, and the caller gets the
@@ -167,6 +219,8 @@ public class WireFormatSnapshotTest : WebApiTest
         A.CallTo(() => FakeScheduler.PauseJob(existingJob, A<CancellationToken>._)).Returns(true);
         A.CallTo(() => FakeScheduler.PauseJob(missingJob, A<CancellationToken>._)).Returns(false);
         A.CallTo(() => FakeScheduler.ResumeJob(existingJob, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => FakeScheduler.PauseJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .Returns(new List<JobKey> { existingJob });
         A.CallTo(() => FakeScheduler.DeleteJob(existingJob, A<CancellationToken>._)).Returns(true);
         A.CallTo(() => FakeScheduler.DeleteJob(missingJob, A<CancellationToken>._)).Returns(false);
         A.CallTo(() => FakeScheduler.DeleteCalendar("existing", A<CancellationToken>._)).Returns(true);
@@ -213,6 +267,16 @@ public class WireFormatSnapshotTest : WebApiTest
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/group/existing/pause", HttpStatusCode.OK, expectedBody: """{"applied":true}""");
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/group/missing/pause", HttpStatusCode.OK, expectedBody: """{"applied":false}""");
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/group/existing/resume", HttpStatusCode.OK, expectedBody: """{"applied":true}""");
+
+            // the key-set forms answer with the keys they applied to — the plural of the same rule, so a
+            // key the store did not find is missing from the list rather than an error
+            await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/keys/pause", HttpStatusCode.OK,
+                """{"jobs":[{"name":"existing","group":"group"},{"name":"missing","group":"group"}]}""",
+                expectedBody: """{"jobs":[{"name":"existing","group":"group"}]}""");
+
+            // ...and a key set with a nameless key never reaches the scheduler
+            await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/keys/pause", HttpStatusCode.BadRequest,
+                """{"jobs":[{"group":"group"}]}""");
 
             // deletes follow the same rule, under a name of their own
             await Row(HttpMethod.Delete, $"{SchedulerUrl}/jobs/group/existing", HttpStatusCode.OK, expectedBody: """{"jobFound":true}""");

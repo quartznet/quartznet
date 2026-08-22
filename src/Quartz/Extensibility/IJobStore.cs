@@ -351,7 +351,7 @@ public interface IJobStore
     /// <summary>
     /// Lists calendar names matching the query, ordered by name (ordinal).
     /// </summary>
-    /// <param name="query">Which page to return.</param>
+    /// <param name="query">Which names to select and which page of them to return.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default);
 
@@ -407,6 +407,27 @@ public interface IJobStore
     /// <seealso cref="TriggerState"/>
     ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Reset every one of the identified <see cref="ITrigger" />s from <see cref="TriggerState.Error" />
+    /// to <see cref="TriggerState.Normal" /> or <see cref="TriggerState.Paused" /> as appropriate.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation walks the set one key at a time. A store overrides it to do the
+    /// walk inside a single lock or connection scope; the answer must not change when it does.
+    /// </remarks>
+    /// <returns>
+    /// The keys this call reset, in the order they were given. A key that names no trigger, or one
+    /// that was not in the error state, is simply absent — the plural of the single-key
+    /// <see langword="bool" />, not a failure.
+    /// </returns>
+    /// <seealso cref="ResetTriggerFromErrorState" />
+    ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return ApplyToEach(triggerKeys, ResetTriggerFromErrorState, cancellationToken);
+    }
+
     /////////////////////////////////////////////////////////////////////////////
     //
     // Trigger State manipulation methods
@@ -422,6 +443,26 @@ public interface IJobStore
     /// paused, or it is in a state that cannot be paused (e.g. complete).
     /// </returns>
     ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Pause the <see cref="ITrigger" />s with the given keys.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation walks the set one key at a time. A store overrides it to do the
+    /// walk inside a single lock or connection scope; the answer must not change when it does.
+    /// </remarks>
+    /// <returns>
+    /// The keys this call moved into the paused state, in the order they were given. A key that
+    /// names no trigger, one that was already paused, and one in a state that cannot be paused are
+    /// each simply absent — the plural of the single-key <see langword="bool" />, not a failure.
+    /// </returns>
+    /// <seealso cref="PauseTrigger" />
+    ValueTask<List<TriggerKey>> PauseTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return ApplyToEach(triggerKeys, PauseTrigger, cancellationToken);
+    }
 
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the
@@ -443,6 +484,27 @@ public interface IJobStore
     /// triggers — <see langword="false" /> if there is no job with the given key.
     /// </returns>
     ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Pause the <see cref="IJob" />s with the given keys - by pausing all of their current
+    /// <see cref="ITrigger" />s.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation walks the set one key at a time. A store overrides it to do the
+    /// walk inside a single lock or connection scope; the answer must not change when it does.
+    /// </remarks>
+    /// <returns>
+    /// The keys this call found, in the order they were given — a job with no triggers is found and
+    /// so is present. A key that names no job is simply absent — the plural of the single-key
+    /// <see langword="bool" />, not a failure.
+    /// </returns>
+    /// <seealso cref="PauseJob" />
+    ValueTask<List<JobKey>> PauseJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return ApplyToEach(jobKeys, PauseJob, cancellationToken);
+    }
 
     /// <summary>
     /// Pause all of the <see cref="IJob" />s in the given
@@ -474,6 +536,32 @@ public interface IJobStore
     ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Resume (un-pause) the <see cref="ITrigger" />s with the given keys.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// If a <see cref="ITrigger" /> missed one or more fire-times, then its misfire instruction
+    /// will be applied.
+    /// </para>
+    /// <para>
+    /// The default implementation walks the set one key at a time. A store overrides it to do the
+    /// walk inside a single lock or connection scope; the answer must not change when it does.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// The keys this call resumed, in the order they were given. A key that names no trigger, and
+    /// one that was not paused, are each simply absent — the plural of the single-key
+    /// <see langword="bool" />, not a failure.
+    /// </returns>
+    /// <seealso cref="ResumeTrigger" />
+    ValueTask<List<TriggerKey>> ResumeTriggers(
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return ApplyToEach(triggerKeys, ResumeTrigger, cancellationToken);
+    }
+
+    /// <summary>
     /// Resume (un-pause) all of the <see cref="ITrigger" />s
     /// in the given group.
     /// <para>
@@ -499,6 +587,32 @@ public interface IJobStore
     ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Resume (un-pause) the <see cref="IJob" />s with the given keys.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// If any of the jobs' <see cref="ITrigger" />s missed one or more fire-times, then those
+    /// triggers' misfire instructions will be applied.
+    /// </para>
+    /// <para>
+    /// The default implementation walks the set one key at a time. A store overrides it to do the
+    /// walk inside a single lock or connection scope; the answer must not change when it does.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// The keys this call found, in the order they were given — a job with no triggers is found and
+    /// so is present. A key that names no job is simply absent — the plural of the single-key
+    /// <see langword="bool" />, not a failure.
+    /// </returns>
+    /// <seealso cref="ResumeJob" />
+    ValueTask<List<JobKey>> ResumeJobs(
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return ApplyToEach(jobKeys, ResumeJob, cancellationToken);
+    }
+
+    /// <summary>
     /// Resume (un-pause) all of the <see cref="IJob" />s in
     /// the given group.
     /// <para>
@@ -510,7 +624,7 @@ public interface IJobStore
     ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers" />
+    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
     /// on every group.
     /// <para>
     /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
@@ -521,7 +635,7 @@ public interface IJobStore
     ValueTask PauseAll(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers" />
+    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
     /// on every group.
     /// <para>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
@@ -585,4 +699,29 @@ public interface IJobStore
     /// <param name="failureCount">the number of successive failures seen so far</param>
     /// <returns>the time to wait before trying again</returns>
     TimeSpan GetAcquireRetryDelay(int failureCount);
+
+    /// <summary>
+    /// Walks a key set through a single-key operation, collecting the keys it applied to.
+    /// </summary>
+    /// <remarks>
+    /// This is what every key-set member falls back to when a store has not overridden it: correct
+    /// for any store, but one lock or round trip per key. A store that can do the whole set in one
+    /// pass overrides the member and keeps this answer.
+    /// </remarks>
+    private static async ValueTask<List<TKey>> ApplyToEach<TKey>(
+        IReadOnlyCollection<TKey> keys,
+        Func<TKey, CancellationToken, ValueTask<bool>> apply,
+        CancellationToken cancellationToken)
+    {
+        List<TKey> applied = new List<TKey>(keys.Count);
+        foreach (TKey key in keys)
+        {
+            if (await apply(key, cancellationToken).ConfigureAwait(false))
+            {
+                applied.Add(key);
+            }
+        }
+
+        return applied;
+    }
 }

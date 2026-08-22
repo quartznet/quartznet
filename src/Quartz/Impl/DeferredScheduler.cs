@@ -260,6 +260,12 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.PauseJobs(matcher, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<List<JobKey>> PauseJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.PauseJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
@@ -270,6 +276,12 @@ internal sealed class DeferredScheduler : IScheduler
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<List<TriggerKey>> PauseTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.PauseTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -284,6 +296,12 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.ResumeJobs(matcher, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<List<JobKey>> ResumeJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.ResumeJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
@@ -294,6 +312,12 @@ internal sealed class DeferredScheduler : IScheduler
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<List<TriggerKey>> ResumeTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.ResumeTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask PauseAll(CancellationToken cancellationToken = default)
@@ -372,6 +396,12 @@ internal sealed class DeferredScheduler : IScheduler
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.ResetTriggerFromErrorState(triggerKey, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.ResetTriggersFromErrorState(triggerKeys, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
