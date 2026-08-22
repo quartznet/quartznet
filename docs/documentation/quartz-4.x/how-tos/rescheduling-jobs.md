@@ -87,9 +87,9 @@ existing association in place.
 The return value is `true` when the trigger was found and updated, `false` when the key names nothing.
 
 Two of these do affect firing, just not the fire *times*: the misfire instruction changes what happens
-the next time the trigger is late, and the execution group changes which per-node limit the job counts
-against — from the next acquisition cycle, so a job already running keeps counting against the group it
-was acquired under.
+the next time the trigger is late, and the execution group changes which limit the job counts against —
+from the next acquisition cycle, so a job already running keeps counting against the group it was
+acquired under.
 
 ### Misfire instructions are validated against the trigger's family
 

@@ -171,17 +171,24 @@ q.AddJobListener<AuditListener>(Matchers.Group<JobKey>(StringOperator.Equality, 
 
 ### Per-tenant concurrency quotas
 
-Execution groups cap how many threads a category of work may use on a node. When the schedule already
-partitions work by trigger group — a tenant per group — the trigger group can stand in for the
-execution group, so a quota is one line per tenant and no change to any trigger:
+Execution groups cap how many threads a category of work may use. When the schedule already partitions
+work by trigger group — a tenant per group — the trigger group can stand in for the execution group, so
+a quota is one line per tenant and no change to any trigger:
 
 ```csharp
 q.UseExecutionLimits(limits => limits
     .UseTriggerGroupWhenUnset()
-    .ForGroup("acme", 8)          // a big tenant
-    .ForGroup("initech", 2)
-    .ForOtherGroups(1));          // everyone else gets one thread each
+    .ForGroup("acme", 8, ExecutionLimitScope.Cluster)          // a big tenant
+    .ForGroup("initech", 2, ExecutionLimitScope.Cluster)
+    .ForOtherGroups(1, ExecutionLimitScope.Cluster));          // everyone else gets one thread each
 ```
+
+`ExecutionLimitScope.Cluster` is what makes these quotas rather than capacity settings: the number is
+what every node sharing the job store may run **between them**, counted from the reservations the store
+itself is holding. Leave the scope off and each limit is per node instead, which on a three-node cluster
+means `ForGroup("acme", 8)` allows 24 concurrent Acme jobs. Both scopes are legitimate — node-scoped for
+"this machine can stand eight", cluster-scoped for "this tenant is entitled to eight" — and one set of
+limits can hold both.
 
 `UseTriggerGroupWhenUnset()` changes nothing about the data — the trigger still carries no execution
 group, and the store still persists none. It changes only how a limit is looked up. Three consequences:
@@ -195,13 +202,25 @@ group, and the store still persists none. It changes only how a limit is looked 
 `Unlimited(group)` is not the same as leaving a group out: an unlisted group falls back to
 `ForOtherGroups`, an explicitly unlimited one does not.
 
-Limits can also be changed at runtime, per node, with `SetExecutionLimits` / `GetExecutionLimits` — they
-take effect on the next acquisition cycle, and `null` clears them.
+Limits can also be changed at runtime with `SetExecutionLimits` / `GetExecutionLimits` — they take
+effect on the next acquisition cycle, and `null` clears them. The call is per node whichever scope the
+limits use: it replaces what *this* scheduler enforces, so a cluster-scoped quota you mean every node to
+honour has to be set on every node, or configured rather than set.
 
-::: warning
-Execution limits are **per node**, held in memory, and nothing about them is persisted. On a
-three-node cluster, `ForGroup("acme", 8)` means up to 24 concurrent Acme jobs. See
-[honest limits](#honest-limits).
+::: warning What a cluster-scoped quota does and does not promise
+The ceiling holds **within one acquisition round**, and by default acquisition takes no cluster lock, so
+a brief overshoot is possible while several nodes acquire at once — at most
+`limit + (nodes − 1) × batchSize`, until the losers notice. `AcquireTriggersWithinLock = true` makes it
+exact and serializes acquisition cluster-wide.
+
+It **fails closed**: the quota ledger and the work queue are the same database, so a node that cannot
+reach the store fires nothing at all rather than firing unmetered. Plan for a database outage stopping
+work, not for it removing the ceiling.
+
+A group held at its ceiling for longer than `MisfireThreshold` (one minute by default) feeds its backlog
+into misfire handling. Pair a tight quota with `MisfireInstruction.IgnoreMisfirePolicy` or a larger
+threshold. See [Execution Groups](tutorial/execution-groups.md#clustering-considerations) for the
+full statement.
 :::
 
 ## Shared database
@@ -296,14 +315,19 @@ not once at startup, if tenants can be reconfigured while the process runs.
 
 Things multi-tenant deployments ask Quartz for and do not get:
 
-**Execution limits are per node, not cluster-wide.** They live in a field on the in-process scheduler
-and count against an in-memory dictionary of what is running here. Nothing is persisted and nodes do not
-coordinate. A cluster-wide cap is not available; the closest approximation is dividing the cap by the
-node count, which is wrong whenever a node is down.
+**A cluster-wide concurrency ceiling is approximate, not exact, unless you pay for exactness.**
+`ExecutionLimitScope.Cluster` counts a group's in-flight work from `QRTZ_FIRED_TRIGGERS`, which is
+transactional and cluster-wide, but the default acquisition path takes no cluster lock — so the ceiling
+holds within one acquisition round and can transiently overshoot by up to
+`(nodes − 1) × batchSize` while several nodes acquire at once. `AcquireTriggersWithinLock = true` removes
+the overshoot and serializes acquisition for every group, limited or not. There is no third setting that
+gives you both.
 
 **There is no rate limiting.** Execution limits cap *concurrency*, not throughput. "This tenant may run
 100 jobs an hour" is not something Quartz can express; build it in the job, or in the thing the job
-calls.
+calls. It is worth asking whether concurrency is what you actually meant: "at most four of this tenant's
+jobs at once" is usually the real requirement behind "100 an hour", and it is the one Quartz can enforce
+honestly.
 
 **HTTP API and dashboard authorization is per process, all or nothing.** One `MapQuartzHttpApi` serves
 every scheduler in the container, with the scheduler named in the route
@@ -374,7 +398,7 @@ rest — so a view or a filter can reference them rather than repeat the strings
 ## See also
 
 - [Multiple Schedulers](packages/multiple-schedulers.md) — the mechanics of naming and keying schedulers
-- [Execution Groups](tutorial/execution-groups.md) — per-node thread limits in full
+- [Execution Groups](tutorial/execution-groups.md) — per-node and cluster-wide thread limits in full
 - [Querying Jobs and Triggers](tutorial/querying-jobs-and-triggers.md) — group-filtered listings
 - [Clustering](tutorial/advanced-enterprise-features.md) — what a shared database gives you
 - [Migration Guide](migration-guide.md) — including why a shut-down scheduler cannot be restarted
