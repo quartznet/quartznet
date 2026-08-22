@@ -29,6 +29,7 @@
       (Fallout-build/Fallout#638).
     -->
     <PackageReference Include="NuGet.Frameworks" Version="7.9.0" />
+    <PackageReference Include="Semver" Version="3.0.0" />
   </ItemGroup>
 
 </Project>
