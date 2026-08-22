@@ -37,14 +37,14 @@ create everything below.
 
 | Coming from | Going to | What to run |
 |---|---|---|
-| 1.x | any 2.x/3.x | [2.0](#v2-0), [2.2](#v2-2), [2.6](#v2-6), then 3.x as below |
-| 2.0 / 2.1 | 3.x | [2.2](#v2-2), [2.6](#v2-6), [3.0](#v3-0), then the optional 3.x ones |
-| 2.2–2.5 | 3.x | [2.6](#v2-6), [3.0](#v3-0), then the optional 3.x ones |
-| 2.6 | 3.x | [3.0](#v3-0), then the optional 3.x ones |
-| 3.0–3.16 | latest 3.x | [3.17](#v3-17), [3.18](#v3-18), [3.19](#v3-19), [3.20](#v3-20) — all optional |
-| any 3.x | 4.x | [4.0](#v4-0) — **mandatory**, and it folds in everything from 3.17 onward |
+| 1.x | any 2.x/3.x | [2.0](#version-2-0), [2.2](#version-2-2), [2.6](#version-2-6), then 3.x as below |
+| 2.0 / 2.1 | 3.x | [2.2](#version-2-2), [2.6](#version-2-6), [3.0](#version-3-0), then the optional 3.x ones |
+| 2.2–2.5 | 3.x | [2.6](#version-2-6), [3.0](#version-3-0), then the optional 3.x ones |
+| 2.6 | 3.x | [3.0](#version-3-0), then the optional 3.x ones |
+| 3.0–3.16 | latest 3.x | [3.17](#version-3-17), [3.18](#version-3-18), [3.19](#version-3-19), [3.20](#version-3-20) — all optional |
+| any 3.x | 4.x | [4.0](#version-4-0) — **mandatory**, and it folds in everything from 3.17 onward |
 
-## Upgrading to 4.x is mandatory {#v4-mandatory}
+## Upgrading to 4.x is mandatory
 
 This is the one migration you cannot defer.
 
@@ -53,11 +53,11 @@ Quartz.NET 3.x probes for `MISFIRE_ORIG_FIRE_TIME`, `EXECUTION_GROUP`, `PREFERRE
 turns the corresponding feature off — which is why those migrations are optional on 3.x.
 
 **4.x removed those probes** and assumes all four columns exist. A 3.x database that never ran
-the optional migrations will not work against 4.x until [4.0](#v4-0) has been applied.
+the optional migrations will not work against 4.x until [4.0](#version-4-0) has been applied.
 
 ---
 
-## 2.0 {#v2-0}
+## Version 2.0
 
 **Required** when upgrading from 1.x. Nothing later applies until this has run.
 
@@ -76,7 +76,7 @@ The script defaults `SCHED_NAME` to `TestScheduler`. If you have existing data, 
 match your `quartz.scheduler.instanceName`.
 :::
 
-## 2.2 {#v2-2}
+## Version 2.2
 
 **Required** when upgrading from 2.0 or 2.1.
 
@@ -93,7 +93,7 @@ it first:
 DELETE FROM QRTZ_FIRED_TRIGGERS;
 ```
 
-## 2.6 {#v2-6}
+## Version 2.6
 
 **Required** when upgrading from 2.5 or earlier.
 
@@ -108,7 +108,7 @@ the column too ([#1985](https://github.com/quartznet/quartznet/issues/1985)) —
 2.5→2.6 some time ago, check that both tables have it.
 :::
 
-## 3.0 {#v3-0}
+## Version 3.0
 
 **Required** when upgrading a SQL Server database from 2.6.
 
@@ -120,7 +120,7 @@ Converts the deprecated `IMAGE` columns to `VARBINARY(MAX)`
 - Script: [`migrations/3.0/schema_26_to_30_upgrade_sqlServer.sql`](https://github.com/quartznet/quartznet/blob/main/database/migrations/3.0/schema_26_to_30_upgrade_sqlServer.sql)
 - SQL Server only — no other dialect ever used `IMAGE`.
 
-## 3.17 {#v3-17}
+## Version 3.17
 
 **Optional on 3.x. Required on 4.x.**
 
@@ -139,7 +139,7 @@ trigger was *supposed* to fire. `RAMJobStore` is unaffected.
 ALTER TABLE QRTZ_TRIGGERS ADD MISFIRE_ORIG_FIRE_TIME bigint NULL;
 ```
 
-## 3.18 {#v3-18}
+## Version 3.18
 
 **Optional on 3.x. Required on 4.x.**
 
@@ -159,7 +159,7 @@ ALTER TABLE QRTZ_TRIGGERS ADD EXECUTION_GROUP nvarchar(200) NULL;
 ALTER TABLE QRTZ_FIRED_TRIGGERS ADD EXECUTION_GROUP nvarchar(200) NULL;
 ```
 
-## 3.19 {#v3-19}
+## Version 3.19
 
 **Optional on 3.x. Required on 4.x.**
 
@@ -182,7 +182,7 @@ ALTER TABLE QRTZ_TRIGGERS ADD PREFERRED_NODE nvarchar(200) NULL;
 ALTER TABLE QRTZ_TRIGGERS ADD PREFERRED_NODE_AUTO bit NOT NULL DEFAULT 0;
 ```
 
-## 3.20 {#v3-20}
+## Version 3.20
 
 **Optional, performance only.**
 
@@ -209,15 +209,16 @@ On a busy PostgreSQL database use `CREATE INDEX CONCURRENTLY` / `DROP INDEX CONC
 Neither can run inside a transaction block, so run those statements one at a time.
 :::
 
-## 4.0 {#v4-0}
+## Version 4.0
 
-**Mandatory.** See [above](#v4-mandatory) for why.
+**Mandatory.** See [above](#upgrading-to-4-x-is-mandatory) for why.
 
 - Scripts: [`migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) — all databases
 
-Applies everything from [3.17](#v3-17), [3.18](#v3-18), [3.19](#v3-19) and [3.20](#v3-20), plus
-the 4.x index shape, in one pass. Run it whether or not you applied the optional migrations —
-every statement is guarded, so it is safe on a partially-migrated database.
+Applies everything from [3.17](#version-3-17), [3.18](#version-3-18), [3.19](#version-3-19) and
+[3.20](#version-3-20), plus the 4.x index shape, in one pass. Run it whether or not you applied
+the optional migrations — every statement is guarded, so it is safe on a partially-migrated
+database.
 
 Sections, in order:
 
