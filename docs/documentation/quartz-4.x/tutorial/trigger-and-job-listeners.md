@@ -21,17 +21,20 @@ __The ITriggerListener Interface__
 ```csharp
 public interface ITriggerListener
 {
-  string Name { get; }
-  
-  ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context);
-  
-  ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context);
-  
-  ValueTask TriggerMisfired(ITrigger trigger);
-  
-  ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, int triggerInstructionCode);
+    string Name => GetType().Name;
+
+    ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default);
+
+    ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default);
+
+    ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default);
+
+    ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default);
 }
 ```
+
+`triggerInstructionCode` is the `SchedulerInstruction` the trigger returned for this fire — what the scheduler
+is about to do with the trigger, from `NoInstruction` through `SetTriggerComplete` to `DeleteTrigger`.
 
 Job-related events include: a notification that the job is about to be executed, and a notification when the job has completed execution.
 
@@ -40,15 +43,18 @@ __The IJobListener Interface__
 ```csharp
 public interface IJobListener
 {
- string Name { get; }
+    string Name => GetType().Name;
 
- ValueTask JobToBeExecuted(IJobExecutionContext context);
+    ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default);
 
- ValueTask JobExecutionVetoed(IJobExecutionContext context);
+    ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default);
 
- ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException);
-} 
+    ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default);
+}
 ```
+
+`jobException` is null when the job completed without throwing, so a listener that only reacts to failures
+starts with a null check rather than assuming there is an exception to log.
 
 ## Using Your Own Listeners
 
@@ -92,9 +98,36 @@ __Adding a JobListener that is interested in all jobs:__
 scheduler.ListenerManager.AddJobListener(myJobListener, Matchers.AllJobs());
 ```
 
+Passing no matcher at all means the same thing — a listener with no matchers hears about every job — so
+`AddJobListener(myJobListener)` is the shortest way to say it.
+
 The `Matchers` class is the entry point: its static factories build the roots (`Matchers.AllJobs()`,
 `Matchers.AllTriggers()`, `Matchers.Key(key)`, `Matchers.Group<JobKey>(StringOperator.StartsWith, "a")`,
 `Matchers.Name<JobKey>(…)`), and any matcher composes with the `And`, `Or` and `Not` extension methods.
+
+## Registering listeners with the container
+
+A listener that belongs to the application rather than to a moment in its run is registered where the
+scheduler is configured, and constructed from the container like anything else:
+
+```csharp
+builder.AddQuartz(q =>
+{
+    // every job
+    q.AddJobListener<AuditListener>();
+
+    // only the reporting group, and only triggers whose name starts with "nightly"
+    q.AddJobListener<ReportAuditListener>(GroupMatcher<JobKey>.GroupEquals("reports"));
+    q.AddTriggerListener<NightlyListener>(NameMatcher<TriggerKey>.NameStartsWith("nightly"));
+
+    // an instance you built yourself, or a factory over the provider
+    q.AddTriggerListener(new VetoWeekends(), Matchers.AllTriggers());
+    q.AddJobListener(provider => new MeteredListener(provider.GetRequiredService<IMeterFactory>()));
+});
+```
+
+This is the same registration the `ListenerManager` calls perform, done before the scheduler starts, which is
+what makes it survive a restart of the host without a startup hook of your own.
 
 Listeners are not used by most users of Quartz.NET, but are handy when application requirements create the need
 for the notification of events, without the Job itself explicitly notifying the application.

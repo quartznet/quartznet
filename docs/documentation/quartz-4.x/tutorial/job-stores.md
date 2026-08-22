@@ -8,8 +8,8 @@ title: 'Job Stores'
 JobStore's are responsible for keeping track of all the "work data" that you give to the scheduler:
 jobs, triggers, calendars, etc. Selecting the appropriate `IJobStore` implementation for your Quartz scheduler instance is an important step.
 Luckily, the choice should be a very easy one once you understand the differences between them.
-You declare which JobStore your scheduler should use (and it's configuration settings) in the properties file (or object) that
-you provide to the SchedulerFactory that you use to produce your scheduler instance.
+You declare which JobStore your scheduler should use, and how it is configured, where you configure the
+scheduler itself — `q.UseInMemoryStore()` or `q.UsePersistentStore(…)` inside `AddQuartz`.
 
 ::: warning
 Never use a JobStore instance directly in your code. For some reason many people attempt to do this.
@@ -27,9 +27,12 @@ For some applications this is acceptable - or even the desired behavior, but for
 
 **Configuring Quartz to use RAMJobStore**
 
-```text
- // this is actually the default, so you don't need to explicitly set this
- quartz.jobStore.type = Quartz.Impl.RAMJobStore, Quartz
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    // this is the default, so the call is only needed to change one of its settings
+    q.UseInMemoryStore(options => options.MisfireThreshold = TimeSpan.FromSeconds(30));
+});
 ```
 
 To use `RAMJobStore` you don't need to do anything special. Default configuration
@@ -49,146 +52,107 @@ One thing to note is that in these scripts, all the the tables start with the pr
 what the prefix is (in your Quartz.NET properties). Using different prefixes may be useful for creating multiple sets of tables,
 for multiple scheduler instances, within the same database.
 
-`LocalTransactionJobStore` creates transactions by itself and is the implementation you normally want. If you need
-scheduling to commit together with your application's own database work, `LocalTransactionJobStore` can also be told to
-use a connection you own - see [Joining an existing transaction](#joining-an-existing-transaction) below.
+`LocalTransactionJobStore` creates transactions by itself and is the implementation you normally want — it is
+what `UsePersistentStore` registers. If you need scheduling to commit together with your application's own
+database work, it can also be told to use a connection you own; see
+[Joining an existing transaction](#joining-an-existing-transaction) below. `ExternalTransactionJobStore` is the
+other one, for a container that manages the ambient transaction itself.
 
-The last piece of the puzzle is setting up a data source from which AdoJobStore can get connections to your database.
-Data sources are defined in your Quartz.NET properties. Data source information contains the connection string
-and ADO.NET delegate information.
+### Configuring a persistent store
 
-### Configuring Quartz to use LocalTransactionJobStore
+Everything the store needs is one call. Naming the database also selects the driver delegate that speaks its
+SQL dialect and the ADO.NET provider that talks to it, so a connection string is usually all you supply:
 
-```text
-    quartz.jobStore.type = Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.UsePersistentStore(store =>
+    {
+        store.UseSqlServer("Server=localhost;Database=quartz;Trusted_Connection=True;Encrypt=False");
+        store.UseSystemTextJsonSerializer();
+
+        store.Configure(options =>
+        {
+            options.TablePrefix = "QRTZ_";
+            options.StoreJobDataAsStrings = true;
+        });
+    });
+});
 ```
 
-Next, you need to select a `IDriverDelegate` implementation for the JobStore to use.
-The DriverDelegate is responsible for doing any ADO.NET work that may be needed for your specific database.
-`StdAdoDelegate` is a delegate that uses "vanilla" ADO.NET code (and SQL statements) to do its work.
-If there isn't another delegate made specifically for your database, try using this delegate -
-special delegates usually have better performance or workarounds for database specific issues.
-Other delegates can be found in the `Quartz.Impl.AdoJobStore` namespace, or in its sub-namespaces.
+One method per database:
+
+| Method | Database | Driver |
+|---|---|---|
+| `UseSqlServer` | Microsoft SQL Server | Microsoft.Data.SqlClient |
+| `UsePostgres` | PostgreSQL | Npgsql |
+| `UseMySql` | MySQL | MySql.Data |
+| `UseMySqlConnector` | MySQL | MySqlConnector |
+| `UseOracle` | Oracle | Oracle's managed driver |
+| `UseFirebird` | Firebird | FirebirdSql.Data.FirebirdClient |
+| `UseSqlite` | SQLite | Microsoft.Data.Sqlite |
+| `UseSystemDataSqlite` | SQLite | the legacy System.Data.SQLite |
+| `UseGenericDatabase` | anything else, using the generic SQL dialect | one you describe |
+
+The driver package itself is yours to reference: Quartz names the types, your project brings them. Each method
+also takes a callback over `DataSourceOptions` instead of a connection string, for a named connection string
+(`db => db.ConnectionStringName = "Scheduler"`) or for connecting through a `DbDataSource` the container already
+holds (`db => db.UseRegisteredDataSource = true`).
 
 ::: tip
-Quartz.NET will issue warning if you are using the default StdAdoDelegate as it has poor performance
-when you have a lot of triggers to select from. Specific delegates have special SQL to limit result
-set length (SqlServerDelegate uses `TOP n`, PostgreSQLDelegate `LIMIT n`, OracleDelegate `ROWCOUNT() <= n` etc.).
+`UseGenericDatabase` uses `StdAdoDelegate`, which writes portable SQL and therefore cannot limit a result set —
+it reads every candidate trigger and discards the surplus in memory. The database-specific delegates page their
+queries (`TOP n`, `LIMIT n`, `FETCH FIRST n ROWS ONLY`), which is the difference that shows up once a scheduler
+has a lot of triggers. Prefer a specific one, and
+[describe your driver](../configuration/reference.md#describing-a-driver-quartz-does-not-know) rather than
+falling back to the generic dialect if you can.
 :::
 
-Once you've selected your delegate, set its class name as the delegate for AdoJobStore to use.
+If your scheduler is very busy — nearly always executing as many jobs as the thread pool allows — set the
+maximum pool size of the data source to around `ThreadPool:MaxConcurrency` plus one. That is a setting of the
+ADO.NET connection string, not of Quartz.
 
-**Configuring AdoJobStore to use a DriverDelegate**
+Every setting of the store is on `AdoJobStoreOptions`, reached through `store.Configure(...)` or bound from the
+`Quartz:JobStore` configuration section; they are all tabulated in the
+[configuration reference](../configuration/reference.md#persistent-job-store).
 
-```text
-    quartz.jobStore.driverDelegateType = Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz
-```
+### Storing job data as strings
 
-Next, you need to inform the JobStore what table prefix (discussed above) you are using.
-
-**Configuring AdoJobStore with the Table Prefix**
-
-```text
-    quartz.jobStore.tablePrefix = QRTZ_
-```
-
-And finally, you need to set which data source should be used by the JobStore. The named data source must also be defined in your Quartz properties.
-In this case, we're specifying that Quartz should use the data source name "myDS" (that is defined elsewhere in the configuration properties).
-
-**Configuring AdoJobStore with the name of the data source to use**
-
-```text
-    quartz.jobStore.dataSource = myDS
-```
-
-One last thing that is needed for the configuration is to set data source connection string information and database provider. Connection
-string is the standard ADO.NET connection which is driver specific. Database provider is an abstraction of database drivers to create
-loose coupling between database drivers and Quartz.
-
-**Setting Data Source's Connection String And Database Provider**
-
-```text
-     quartz.dataSource.myDS.connectionString = Server=localhost;Database=quartz;Uid=quartznet;Pwd=quartznet
-     quartz.dataSource.myDS.provider = MySql
-```
-
-Currently following database providers are supported:
-
-* `SqlServer` - SQL Server driver
-    * For full framework this is by default System.Data.SqlClient (except in Quartz 3.1)
-    * From Quartz 3.2 onwards for .NET Core this is by default Microsoft.Data.SqlClient
-* `SystemDataSqlClient` - Available separately on .NET Core (default for full framework)
-* `MicrosoftDataSqlClient` - Available separately on full framework (default for .NET Core)
-* `OracleODP` - Oracle's Oracle Driver
-* `OracleODPManaged` - Oracle's managed driver for Oracle 11
-* `MySql` - MySQL Connector/.NET
-* `SQLite` - SQLite ADO.NET Provider
-* `SQLite-Microsoft` - Microsoft SQLite ADO.NET Provider
-* `Firebird` - Firebird ADO.NET Provider
-* `Npgsql` - PostgreSQL Npgsql
+`StoreJobDataAsStrings` instructs the store that all values in JobDataMaps will be strings, and therefore can be
+stored as name-value pairs, rather than storing more complex objects in their serialized form in the BLOB column.
+This is much safer in the long term, as you avoid the class versioning issues that come with serializing your own
+types into a BLOB.
 
 ::: tip
-There are many community contributed providers, like for NoSQL databases.
-
-They are not supported by Quartz.NET project though.
+This is the recommended configuration, because it greatly decreases the possibility of type serialization issues.
 :::
 
-**You can and should use latest version of driver if newer is available, just create an assembly binding redirect**
-
-If your Scheduler is very busy (i.e. nearly always executing the same number of jobs as the size of the thread pool, then you should
-probably set the number of connections in the data source to be the about the size of the thread pool + 1. This is commonly configured
-in the ADO.NET connection string - see your driver implementation for details.
-
-The `quartz.jobStore.useProperties` config parameter can be set to "true" (defaults to false) in order to instruct AdoJobStore that all values in JobDataMaps will be strings,
-and therefore can be stored as name-value pairs, rather than storing more complex objects in their serialized form in the BLOB column. This is much safer in the long term,
-as you avoid the class versioning issues that there are with serializing your non-String classes into a BLOB.
-
-### Configuring AdoJobStore to use strings as JobDataMap values
-
-::: tip
-This is recommended configuration because it greatly decreases the possibility of type serialization issues.
-:::
-
-```text
-    quartz.jobStore.useProperties = true
+```csharp
+store.Configure(options => options.StoreJobDataAsStrings = true);
 ```
+
+The flat key for the same setting is `quartz.jobStore.useProperties`, which is the name it had in 3.x.
 
 ### Choosing a serializer
 
-Quartz.NET supports both binary and JSON serialization. Using binary serialization is discouraged as it will no longer be supported in future versions.
+Whatever is not stored as a string — a calendar, a trigger's own state, a job data value under
+`StoreJobDataAsStrings = false` — is written through an `IObjectSerializer`, and a store has to be told which
+one. There are two, both JSON:
 
-* JSON serialization based on System.Text.Json comes bundled with Quartz
-* JSON serialization based on Newtonsoft.Json comes from separate [Quartz.Serialization.Newtonsoft](../packages/json-serialization) NuGet package
+* System.Text.Json, built into Quartz: `store.UseSystemTextJsonSerializer()`
+* Newtonsoft.Json, from the separate
+  [Quartz.Serialization.Newtonsoft](../packages/json-serialization.md) package:
+  `store.UseNewtonsoftJsonSerializer()`
 
-::: tip
-JSON is recommended persistent format to store data in database for greenfield projects.
-You should also strongly consider setting useProperties to true to restrict key-values to be strings.
+Reach for the Newtonsoft one only when you have data written by 3.x's Newtonsoft serializer, whose format it
+reads. New applications want System.Text.Json.
+
+::: warning
+Binary serialization is gone. 3.x could write job data as a `BinaryFormatter` blob, and .NET has since removed
+the formatter itself. A database that holds such blobs has to be converted while still on 3.x, before the
+upgrade — see
+[Migrating from binary serialization](../packages/json-serialization.md#migrating-from-binary-serialization).
 :::
-
-#### Using code
-
-```csharp
-var builder = QuartzSchedulerBuilder.Create();
-builder.UsePersistentStore(store =>
-{
-    // it's generally recommended to stick with
-    // string property keys and values when serializing
-    store.Configure(options => options.StoreJobDataAsStrings = true);
-
-    ....
-
-    store.UseSystemTextJsonSerializer();
-});
-ISchedulerFactory schedulerFactory = builder.Build();
-```
-
-#### Using properties
-
-```csharp
-    // "stj" is an alias for "Quartz.Impl.SystemTextJsonObjectSerializer, Quartz"
-    // "newtonsoft" is alias for "Quartz.Impl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft"
-    quartz.serializer.type = stj
-```
 
 ### Joining an existing transaction
 

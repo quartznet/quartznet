@@ -1,30 +1,27 @@
 ---
 
-title: 'Configuration, Resource Usage and SchedulerFactory'
+title: 'Configuration, Resource Usage and Building a Scheduler'
 ---
 
-# Configuration, Resource Usage and SchedulerFactory
+# Configuration, Resource Usage and Building a Scheduler
 
-Quartz is designed in modular way, and therefore to get it running, several components need to be "snapped" together.
-Fortunately, some helpers exist for making this happen.
+Quartz is designed in a modular way: a scheduler is assembled from a thread pool, a job store, whatever data
+sources that store needs, and the settings of the scheduler itself. The service container puts those pieces
+together, and `AddQuartz` is where you say which ones you want.
 
-The major components that need to be configured before Quartz can do its work are:
+The major components that can be configured are:
 
-* ThreadPool
-* JobStore
-* DataSources (if necessary)
-* The Scheduler itself
+* **The thread pool.** `DefaultThreadPool` runs jobs as tasks on
+  [the CLR's managed thread pool](https://learn.microsoft.com/dotnet/standard/threading/the-managed-thread-pool);
+  its one setting, `MaxConcurrency`, limits how many jobs a node runs at once. `q.UseDefaultThreadPool(20)`, or
+  `q.UseThreadPool<T>()` for one of your own.
+* **The job store**, discussed in [Lesson 10](job-stores.md): `q.UseInMemoryStore()` or
+  `q.UsePersistentStore(…)`.
+* **Data sources**, when the store is a persistent one — part of the same `UsePersistentStore` call.
+* **The scheduler itself**: `q.ConfigureScheduler(options => …)` for its name, id, idle wait time and batching.
 
-Thread pooling has changed a lot since the Task-based jobs were introduced.
-Now the default implementation, `DefaultThreadPool` uses [CLR's managed thread pool](https://docs.microsoft.com/en-us/dotnet/standard/threading/the-managed-thread-pool) to execute jobs as tasks.
-You can configure the pool that have max concurrency, which effectively limits how many concurrent tasks can be scheduled to the CLR's thread pool.
-See configuration reference for more details on how to configure the thread pool implementation.
-
-JobStores and DataSources were discussed in Lesson 9 of this tutorial. Worth noting here, is the fact that all JobStores
-implement the `IJobStore` interface - and that if one of the bundled JobStores does not fit your needs, then you can make your own.
-
-Finally, you need to create your Scheduler instance. The Scheduler itself needs to be given a name and handed
-instances of a JobStore and ThreadPool.
+Every option of every one of those, in both its typed and its flat spelling, is tabulated in the
+[configuration reference](../configuration/reference.md).
 
 ## Building a scheduler without a container
 
@@ -33,19 +30,30 @@ An application with no host — a console application, or a test — builds a sc
 its own and building from it, so what works in one works in the other:
 
 ```csharp
-var builder = QuartzSchedulerBuilder.Create();
-builder.ConfigureScheduler(options => options.InstanceName = "reporting")
+IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+    .ConfigureScheduler(options => options.InstanceName = "reporting")
     .UseDefaultThreadPool(maxConcurrency: 10)
-    .UseInMemoryStore();
-
-IScheduler scheduler = await builder.BuildScheduler();
+    .UseInMemoryStore()
+    .BuildScheduler();
 ```
 
-The builder is kept in a variable rather than built in one expression: its configuration methods are the
-same ones `AddQuartz` hands out, so they return that interface rather than the builder and cannot be
-chained into `BuildScheduler()`. Use `Build()` instead of `BuildScheduler()` when you want the factory
-rather than the scheduler it produces. It returns a `StandaloneSchedulerFactory`, which owns the
-container it built — dispose it, preferably with `await using`, to shut the scheduler down.
+Every configuration method returns the builder itself, so the whole thing is one expression.
+
+Use `Build()` instead of `BuildScheduler()` when you want the factory rather than the scheduler it produces. It
+returns a `StandaloneSchedulerFactory`, which owns the container it built — dispose it, preferably with
+`await using`, to shut the scheduler down:
+
+```csharp
+await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
+    .UseInMemoryStore()
+    .Build();
+
+IScheduler scheduler = await factory.GetScheduler();
+await scheduler.Start();
+```
+
+Nothing starts on its own here: without a hosted service, starting the scheduler is your call, and so is
+shutting it down.
 
 ## Configuring from properties
 
@@ -64,36 +72,24 @@ scheduler configured this way is the same scheduler, and the two can be mixed �
 wins. Keys are checked against the ones Quartz reads, so a misspelling is reported rather than silently
 leaving a setting at its default.
 
-You can find complete documentation in the "Configuration Reference" section of the Quartz documentation.
+Every key, and the option it maps to, is listed under
+[Legacy property keys](../configuration/reference.md#legacy-property-keys).
 
 ## Logging
 
-Quartz logs through `Microsoft.Extensions.Logging`. Under a host it uses whatever logging the
-application has configured, with no extra setup. Quartz does not log much: some information while
-starting, and then only serious problems while jobs run.
+Quartz logs through `Microsoft.Extensions.Logging`. Under a host, or anywhere else the scheduler is built from
+a container, it uses whatever logging the application has configured and there is nothing to set up. Quartz
+does not log much: some information while starting, and then only serious problems while jobs run.
 
-### Microsoft.Extensions.Logging
-
-You can configure Microsoft.Extensions.Logging.Abstractions either manually or using services found in [Quartz](https://www.nuget.org/packages/Quartz).
-
-#### Manual configuration
+Only code that reaches Quartz from outside a container — a static helper, a test that constructs pieces by
+hand — has to say where logging goes, and that is one call:
 
 ```csharp
 // obtain your logger factory, for example from IServiceProvider
 ILoggerFactory loggerFactory = ...;
 
-// Quartz 3.1
-Quartz.LogContext.SetCurrentLogProvider(loggerFactory);
-
-// Quartz 3.2 onwards
-Quartz.Logging.LogContext.SetCurrentLogProvider(loggerFactory);
+LogProvider.SetLogProvider(loggerFactory);
 ```
 
-#### Configuration using Microsoft DI integration
-
-```csharp
-services.AddQuartz(q =>
-{
-    // this automatically registers the Microsoft Logging
-});
-```
+`LogProvider` is in `Quartz.Diagnostics`, and also hands out loggers — `LogProvider.CreateLogger<T>()` — for
+the same situation.

@@ -65,3 +65,17 @@ __Removing a SchedulerListener:__
 ```csharp
 scheduler.ListenerManager.RemoveSchedulerListener(mySchedListener.Name);
 ```
+
+A listener that belongs to the application, rather than to a moment in its run, is better registered where the
+scheduler is configured — it is then constructed from the container, and it is in place before the scheduler
+starts, so it hears the starting and started notifications too:
+
+```csharp
+builder.AddQuartz(q =>
+{
+    q.AddSchedulerListener<AuditSchedulerListener>();
+});
+```
+
+There are overloads for an instance you built yourself and for a factory over the service provider, matching
+[the ones for job and trigger listeners](trigger-and-job-listeners.md#registering-listeners-with-the-container).
