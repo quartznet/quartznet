@@ -4,6 +4,8 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
+using Semver;
+
 using Fallout.Common;
 using Fallout.Common.CI;
 using Fallout.Common.CI.GitHubActions;
@@ -36,11 +38,25 @@ partial class Build : FalloutBuild, ICompile, IPack
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
     AbsolutePath CoverageDirectory => ArtifactsDirectory / "coverage";
 
-    // Null when the repository can't be resolved, e.g. in a git worktree, where the local build
-    // simply has no tag to version from. CI always checks out a plain clone.
-    string TagVersion => GitRepository?.Tags.SingleOrDefault(x => x.StartsWith('v'))?[1..];
+    // On GitHub Actions the ref itself is the authority: the host's RefName carries the tag name
+    // for both lightweight and annotated tags, where GitRepository.Tags only ever sees lightweight
+    // ones (it matches the ref's stored object id against the commit, and an annotated tag's ref
+    // points at the tag object). Locally GitRepository is the fallback -- and null in a git
+    // worktree, where the local build simply has no tag to version from.
+    string TagName =>
+        GitHubActions.Instance is { RefType: "tag" } actions
+            ? actions.RefName
+            : GitRepository?.Tags.FirstOrDefault(x => x.StartsWith('v'));
 
-    bool IsTaggedBuild => !string.IsNullOrWhiteSpace(TagVersion);
+    // The parsed release version, null when this is not a tagged build. A v-tag that is not valid
+    // semantic versioning fails the build in OnBuildInitialized rather than packing a garbage
+    // version string.
+    SemVersion TagSemVersion =>
+        TagName is { } name && name.StartsWith('v')
+            ? SemVersion.TryParse(name[1..], SemVersionStyles.Strict, out var parsed) ? parsed : null
+            : null;
+
+    bool IsTaggedBuild => TagName is { } name && name.StartsWith('v');
 
     string VersionPrefix;
     string VersionSuffix;
@@ -60,16 +76,23 @@ partial class Build : FalloutBuild, ICompile, IPack
         // untagged preview builds carry — a stale value there cannot affect a release.
         if (IsTaggedBuild)
         {
-            var separator = TagVersion.IndexOf('-');
-            VersionPrefix = separator < 0 ? TagVersion : TagVersion[..separator];
-            VersionSuffix = separator < 0 ? null : TagVersion[(separator + 1)..];
+            var version = TagSemVersion;
+            if (version is null)
+            {
+                throw new InvalidOperationException(
+                    $"Tag '{TagName}' is not valid semantic versioning after the 'v'. " +
+                    "A release tag looks like v4.0.0 or v4.0.0-alpha.1; fix the tag rather than the build.");
+            }
+
+            VersionPrefix = $"{version.Major}.{version.Minor}.{version.Patch}";
+            VersionSuffix = version.IsPrerelease ? version.Prerelease : null;
 
             if (VersionPrefix != PropsVersionPrefix)
             {
                 // Not fatal — the tag wins by design. Surfaced (as a ::warning:: annotation on CI, via
                 // Fallout's Serilog sink) so the props file gets caught up after the release.
-                Log.Warning("Releasing {FullVersion:l} from tag v{TagVersion:l}, but {File:l} still says {PropsVersion:l} — bump it after the release",
-                    FullVersion, TagVersion, VersionPropsFile.Name, PropsVersionPrefix);
+                Log.Warning("Releasing {FullVersion:l} from tag {TagName:l}, but {File:l} still says {PropsVersion:l} — bump it after the release",
+                    FullVersion, TagName, VersionPropsFile.Name, PropsVersionPrefix);
             }
         }
         else
