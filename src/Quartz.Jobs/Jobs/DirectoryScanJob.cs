@@ -80,15 +80,34 @@ public class DirectoryScanJob : IJob
 
     private readonly ILogger<DirectoryScanJob> logger;
     private readonly IServiceProvider? serviceProvider;
+    private readonly TimeProvider timeProvider;
 
-    public DirectoryScanJob()
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DirectoryScanJob" /> class.
+    /// </summary>
+    /// <param name="timeProvider">
+    /// The clock deciding how recently a file must have been written to still count as being written
+    /// to. <see langword="null" /> takes <see cref="TimeProvider.System" />.
+    /// </param>
+    public DirectoryScanJob(TimeProvider? timeProvider = null)
     {
+        this.timeProvider = timeProvider ?? TimeProvider.System;
         logger = LogProvider.CreateLogger<DirectoryScanJob>();
     }
 
-    public DirectoryScanJob(IServiceProvider serviceProvider)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DirectoryScanJob" /> class that resolves its
+    /// <see cref="IDirectoryScanListener" /> from the container.
+    /// </summary>
+    /// <param name="serviceProvider">The container the listener is registered in.</param>
+    /// <param name="timeProvider">
+    /// The clock deciding how recently a file must have been written to still count as being written
+    /// to. <see langword="null" /> takes <see cref="TimeProvider.System" />.
+    /// </param>
+    public DirectoryScanJob(IServiceProvider serviceProvider, TimeProvider? timeProvider = null)
     {
         this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        this.timeProvider = timeProvider ?? TimeProvider.System;
         logger = LogProvider.CreateLogger<DirectoryScanJob>();
     }
 
@@ -101,23 +120,24 @@ public class DirectoryScanJob : IJob
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context, serviceProvider);
+        DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context, serviceProvider, timeProvider);
 
         List<FileInfo> allFiles = new List<FileInfo>();
         List<FileInfo> updatedFiles = new List<FileInfo>();
         List<FileInfo> deletedFiles = new List<FileInfo>();
         Parallel.ForEach(model.DirectoriesToScan, d =>
         {
-            List<FileInfo> dirAllFiles;
-            List<FileInfo> dirNewOrUpdatedFiles;
-            List<FileInfo> dirDeletedFiles;
+            DirectoryScanResult scanned = GetUpdatedOrNewFiles(
+                d,
+                model.LastModifiedTime,
+                model.MaxAgeTime,
+                model.CurrentFileList,
+                model.SearchPattern,
+                model.IncludeSubDirectories);
 
-            GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate, model.CurrentFileList,
-                out dirAllFiles, out dirNewOrUpdatedFiles, out dirDeletedFiles, model.SearchPattern, model.IncludeSubDirectories);
-
-            AddToList(updatedFiles, dirNewOrUpdatedFiles);
-            AddToList(deletedFiles, dirDeletedFiles);
-            AddToList(allFiles, dirAllFiles);
+            AddToList(updatedFiles, scanned.Updated);
+            AddToList(deletedFiles, scanned.Deleted);
+            AddToList(allFiles, scanned.All);
         });
 
         if (updatedFiles.Count > 0 || deletedFiles.Count > 0)
@@ -131,8 +151,8 @@ public class DirectoryScanJob : IJob
             if (updatedFiles.Count > 0)
             {
                 await model.DirectoryScanListener.FilesUpdatedOrAdded(updatedFiles, cancellationToken).ConfigureAwait(false);
-                DateTime latestWriteTimeFromFiles = updatedFiles.Select(x => x.LastWriteTime).Max();
-                model.UpdateLastModifiedDate(latestWriteTimeFromFiles);
+                DateTimeOffset latestWriteTimeFromFiles = updatedFiles.Select(LastWriteTime).Max();
+                model.UpdateLastModifiedTime(latestWriteTimeFromFiles);
             }
             if (deletedFiles.Count > 0)
             {
@@ -151,30 +171,54 @@ public class DirectoryScanJob : IJob
         }
     }
 
-    protected void GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate, IReadOnlyCollection<FileInfo> currentFileList,
-        out List<FileInfo> allFiles, out List<FileInfo> updatedFiles, out List<FileInfo> deletedFiles, string searchPattern = "*", bool includeSubDirectories = false)
+    /// <summary>
+    /// Scans one directory and reports what it found.
+    /// </summary>
+    /// <param name="directoryName">The directory to scan.</param>
+    /// <param name="lastModifiedTime">
+    /// The write time the previous scan reported; a file written no later than this is unchanged.
+    /// </param>
+    /// <param name="maxAgeTime">
+    /// The write time a file must be older than to count as settled, which keeps a file still being
+    /// written from being reported half-finished.
+    /// </param>
+    /// <param name="currentFileList">What the previous scan saw, which is what a deletion is measured against.</param>
+    /// <param name="searchPattern">The pattern file names must match.</param>
+    /// <param name="includeSubDirectories">Whether to descend into sub-directories.</param>
+    protected DirectoryScanResult GetUpdatedOrNewFiles(
+        string directoryName,
+        DateTimeOffset lastModifiedTime,
+        DateTimeOffset maxAgeTime,
+        IReadOnlyCollection<FileInfo> currentFileList,
+        string searchPattern = "*",
+        bool includeSubDirectories = false)
     {
-        updatedFiles = new List<FileInfo>();
-        deletedFiles = new List<FileInfo>();
-        allFiles = new List<FileInfo>();
-
-        DirectoryInfo dir = new DirectoryInfo(dirName);
+        DirectoryInfo dir = new DirectoryInfo(directoryName);
         if (!dir.Exists)
         {
-            logger.LogWarning("Directory '{DirectoryName}' does not exist.", dirName);
-            return;
+            logger.LogWarning("Directory '{DirectoryName}' does not exist.", directoryName);
+            return new DirectoryScanResult([], [], []);
         }
 
         SearchOption searchOption = includeSubDirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
         FileInfo[] files = dir.GetFiles(searchPattern, searchOption);
-        updatedFiles = files
-            .Where(fileInfo => fileInfo.LastWriteTime > lastModifiedDate && fileInfo.LastWriteTime < maxAgeDate)
+
+        List<FileInfo> updatedFiles = files
+            .Where(fileInfo => LastWriteTime(fileInfo) > lastModifiedTime && LastWriteTime(fileInfo) < maxAgeTime)
             .ToList();
-        allFiles = files.ToList();
-        deletedFiles = currentFileList.Except(allFiles, new FileInfoComparer()).ToList();
+        List<FileInfo> allFiles = files.ToList();
+        List<FileInfo> deletedFiles = currentFileList.Except(allFiles, new FileInfoComparer()).ToList();
+
+        return new DirectoryScanResult(allFiles, updatedFiles, deletedFiles);
     }
 
-    private static void AddToList(List<FileInfo> fileList, List<FileInfo> updatedFileList)
+    /// <summary>
+    /// The file's last write time as an instant. <c>FileInfo.LastWriteTimeUtc</c> is what the file
+    /// system recorded; the local-time reading of it is the same instant said differently.
+    /// </summary>
+    private static DateTimeOffset LastWriteTime(FileInfo file) => new(file.LastWriteTimeUtc, TimeSpan.Zero);
+
+    private static void AddToList(List<FileInfo> fileList, IReadOnlyList<FileInfo> updatedFileList)
     {
         lock (fileList)
         {

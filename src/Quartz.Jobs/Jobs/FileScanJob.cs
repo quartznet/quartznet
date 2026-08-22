@@ -69,11 +69,18 @@ public class FileScanJob : IJob
     /// <value>The log.</value>
     private ILogger<FileScanJob> logger { get; }
 
+    private readonly TimeProvider timeProvider;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="FileScanJob"/> class.
     /// </summary>
-    public FileScanJob()
+    /// <param name="timeProvider">
+    /// The clock deciding how recently the file must have been written to still count as being
+    /// written to. <see langword="null" /> takes <see cref="TimeProvider.System" />.
+    /// </param>
+    public FileScanJob(TimeProvider? timeProvider = null)
     {
+        this.timeProvider = timeProvider ?? TimeProvider.System;
         logger = LogProvider.CreateLogger<FileScanJob>();
     }
 
@@ -125,11 +132,7 @@ public class FileScanJob : IJob
             throw new JobExecutionException($"FileScanListener named '{listenerName}' not found in SchedulerContext");
         }
 
-        DateTime lastDate = DateTime.MinValue;
-        if (mergedJobDataMap.ContainsKey(LastModifiedTime))
-        {
-            lastDate = mergedJobDataMap.GetDateTime(LastModifiedTime);
-        }
+        DateTimeOffset? lastTime = mergedJobDataMap.ReadTimestamp(LastModifiedTime);
 
         long minAge = 5000;
         if (mergedJobDataMap.ContainsKey(MinimumUpdateAge))
@@ -137,18 +140,17 @@ public class FileScanJob : IJob
             minAge = mergedJobDataMap.GetLong(MinimumUpdateAge);
         }
 
-        // Compared against GetLastModifiedDate, which reads FileInfo.LastWriteTime in local time.
-        DateTime maxAgeDate = TimeProvider.System.GetLocalNow().DateTime.AddMilliseconds(minAge);
+        DateTimeOffset maxAgeTime = timeProvider.GetUtcNow().AddMilliseconds(minAge);
 
-        DateTime newDate = GetLastModifiedDate(fileName);
+        DateTimeOffset? newTime = GetLastModifiedTime(fileName);
 
-        if (newDate == DateTime.MinValue)
+        if (newTime is null)
         {
             logger.LogWarning("File '{FileName}' does not exist.", fileName);
             return;
         }
 
-        if (lastDate != DateTime.MinValue && newDate != lastDate && newDate < maxAgeDate)
+        if (lastTime is not null && newTime != lastTime && newTime < maxAgeTime)
         {
             // notify call back...
             logger.LogInformation("File '{FileName}' updated, notifying listener.", fileName);
@@ -159,31 +161,25 @@ public class FileScanJob : IJob
             logger.LogDebug("File '{FileName}' unchanged.", fileName);
         }
 
-        context.JobDetail.JobDataMap[LastModifiedTime] = newDate;
+        context.JobDetail.JobDataMap[LastModifiedTime] = newTime.Value;
     }
 
     /// <summary>
-    /// Gets the last modified date.
+    /// Reads the time the file was last written to.
     /// </summary>
     /// <param name="fileName">Name of the file.</param>
-    /// <returns></returns>
-    protected virtual DateTime GetLastModifiedDate(string fileName)
+    /// <returns>
+    /// The last write time, or <see langword="null" /> when nothing exists at that path.
+    /// </returns>
+    protected virtual DateTimeOffset? GetLastModifiedTime(string fileName)
     {
         FileInfo file = new FileInfo(fileName);
 
-        bool tmpBool;
-        if (File.Exists(file.FullName))
+        if (!File.Exists(file.FullName) && !Directory.Exists(file.FullName))
         {
-            tmpBool = true;
+            return null;
         }
-        else
-        {
-            tmpBool = Directory.Exists(file.FullName);
-        }
-        if (!tmpBool)
-        {
-            return DateTime.MinValue;
-        }
-        return file.LastWriteTime;
+
+        return new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero);
     }
 }

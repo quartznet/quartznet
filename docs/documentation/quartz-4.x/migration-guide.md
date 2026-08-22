@@ -1726,6 +1726,43 @@ notwithstanding.
 Triggers built by `q.AddTrigger(...)` and `q.ScheduleJob(...)` are built with their scheduler's clock, so
 a trigger given no start time starts at the time that scheduler thinks it is.
 
+### The scanning jobs take a clock and speak `DateTimeOffset`
+
+`DirectoryScanJob` and `FileScanJob` compare a file's last write time against "now" to decide whether a
+file has settled enough to report. That "now" came from the system clock directly, which no test could
+move. Both take a `TimeProvider` now, defaulted so that the parameterless construction the job factory
+does still works:
+
+```csharp
+public DirectoryScanJob(TimeProvider? timeProvider = null);
+public DirectoryScanJob(IServiceProvider serviceProvider, TimeProvider? timeProvider = null);
+public FileScanJob(TimeProvider? timeProvider = null);
+```
+
+A `TimeProvider` registered in the container — including a scheduler's own, per the table above — is
+handed to them by the job factory. `null` means `TimeProvider.System`.
+
+The times they work in are `DateTimeOffset` rather than local `DateTime`, which is the same instant said
+unambiguously, and is what the rest of the API has spoken since 3.0:
+
+| 3.x / earlier 4.x | 4.0 |
+|---|---|
+| `protected void DirectoryScanJob.GetUpdatedOrNewFiles(string, DateTime, DateTime, IReadOnlyCollection<FileInfo>, out List<FileInfo>, out List<FileInfo>, out List<FileInfo>, string, bool)` | `protected DirectoryScanResult GetUpdatedOrNewFiles(string directoryName, DateTimeOffset lastModifiedTime, DateTimeOffset maxAgeTime, IReadOnlyCollection<FileInfo> currentFileList, string searchPattern = "*", bool includeSubDirectories = false)` |
+| `protected virtual DateTime FileScanJob.GetLastModifiedDate(string)`, returning `DateTime.MinValue` for a missing file | `protected virtual DateTimeOffset? GetLastModifiedTime(string fileName)`, returning `null` for a missing file |
+
+`DirectoryScanResult` is a `readonly record struct` carrying `All`, `Updated` and `Deleted`. Nine
+parameters, three of them `out`, described one answer; the record is that answer, and the two genuinely
+optional inputs stay optional:
+
+```diff
+- GetUpdatedOrNewFiles(dir, lastModified, maxAge, current, out var all, out var updated, out var deleted);
++ DirectoryScanResult scanned = GetUpdatedOrNewFiles(dir, lastModified, maxAge, current);
+```
+
+The `LAST_MODIFIED_TIME` entry these jobs keep in their own job data is written as a `DateTimeOffset`
+now. A `DateTime` written by an earlier version is still read, as the instant it denoted, so an upgraded
+scheduler does not re-report every file it has already seen.
+
 ## Logging
 
 LibLog has been replaced with `Microsoft.Extensions.Logging.Abstractions`.

@@ -10,10 +10,17 @@ namespace Quartz.Jobs
         public const string DirectoryProviderName = "DIRECTORY_PROVIDER_NAME";
         public const string DirectoryScanListenerName = "DIRECTORY_SCAN_LISTENER_NAME";
         public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
-        public DirectoryScanJob() { }
-        public DirectoryScanJob(System.IServiceProvider serviceProvider) { }
+        public DirectoryScanJob(System.TimeProvider? timeProvider = null) { }
+        public DirectoryScanJob(System.IServiceProvider serviceProvider, System.TimeProvider? timeProvider = null) { }
         public System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-        protected void GetUpdatedOrNewFiles(string dirName, System.DateTime lastModifiedDate, System.DateTime maxAgeDate, System.Collections.Generic.IReadOnlyCollection<System.IO.FileInfo> currentFileList, out System.Collections.Generic.List<System.IO.FileInfo> allFiles, out System.Collections.Generic.List<System.IO.FileInfo> updatedFiles, out System.Collections.Generic.List<System.IO.FileInfo> deletedFiles, string searchPattern = "*", bool includeSubDirectories = false) { }
+        protected Quartz.Jobs.DirectoryScanResult GetUpdatedOrNewFiles(string directoryName, System.DateTimeOffset lastModifiedTime, System.DateTimeOffset maxAgeTime, System.Collections.Generic.IReadOnlyCollection<System.IO.FileInfo> currentFileList, string searchPattern = "*", bool includeSubDirectories = false) { }
+    }
+    public readonly struct DirectoryScanResult : System.IEquatable<Quartz.Jobs.DirectoryScanResult>
+    {
+        public DirectoryScanResult(System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> All, System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> Updated, System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> Deleted) { }
+        public System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> All { get; init; }
+        public System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> Deleted { get; init; }
+        public System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> Updated { get; init; }
     }
     [Quartz.DisallowConcurrentExecution]
     [Quartz.PersistJobDataAfterExecution]
@@ -22,9 +29,9 @@ namespace Quartz.Jobs
         public const string FileName = "FILE_NAME";
         public const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
         public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
-        public FileScanJob() { }
+        public FileScanJob(System.TimeProvider? timeProvider = null) { }
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.DateTime GetLastModifiedDate(string fileName) { }
+        protected virtual System.DateTimeOffset? GetLastModifiedTime(string fileName) { }
     }
     public interface IDirectoryProvider
     {
