@@ -4378,6 +4378,16 @@ Reading still accepts both, so a request body or `?state=` filter written agains
 working; only responses changed. `HttpScheduler` reads the new spelling, so a client and server upgraded
 together need no code change — a hand-written client that read `status`/`state` as numbers does.
 
+One field was spelled twice for the same value, and now is not:
+
+| Body | 4.0 preview | 4.0 |
+|---|---|---|
+| `GET …/schedulers/{name}/jobs` item | `"jobTypeName": "Some.Job, Some.Assembly"` | `"jobType": "Some.Job, Some.Assembly"` |
+
+The value is unchanged — an assembly-qualified name in both places — and `jobType` is what
+`GET …/jobs/{group}/{name}` has always called it. Core's listing record keeps `JobHeader.JobTypeName`:
+the store's noun and the wire's need not agree, but the wire may not disagree with itself.
+
 Only these two enums are affected, and the converters are registered per enum type: the HTTP API adds
 its converters to the application's shared `JsonOptions`, and a host's own endpoints must keep rendering
 their own enums the way they always did.

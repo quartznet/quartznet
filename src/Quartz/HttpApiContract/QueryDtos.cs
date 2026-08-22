@@ -25,11 +25,17 @@ namespace Quartz.HttpApiContract;
 
 internal sealed record PagedResultDto<T>(T[] Items, bool HasMore, int? TotalCount);
 
+/// <remarks>
+/// <see cref="JobType" /> carries the same assembly-qualified name as
+/// <see cref="JobDetailDto.JobType" />: one value, one name on the wire. Core's own listing record calls
+/// it <see cref="JobHeader.JobTypeName" />, and keeps that name — a store's noun and the wire's need not
+/// agree, but the wire may not disagree with itself.
+/// </remarks>
 internal sealed record JobHeaderDto(
     string Name,
     string Group,
     string? Description,
-    string JobTypeName,
+    string JobType,
     bool Durable,
     bool ConcurrentExecutionDisallowed,
     bool PersistJobDataAfterExecution,
@@ -43,7 +49,7 @@ internal sealed record JobHeaderDto(
             Name: header.Key.Name,
             Group: header.Key.Group,
             Description: header.Description,
-            JobTypeName: header.JobTypeName,
+            JobType: header.JobTypeName,
             Durable: header.Durable,
             ConcurrentExecutionDisallowed: header.ConcurrentExecutionDisallowed,
             PersistJobDataAfterExecution: header.PersistJobDataAfterExecution,
@@ -56,7 +62,7 @@ internal sealed record JobHeaderDto(
         return new JobHeader(
             new JobKey(Name, Group),
             Description,
-            JobTypeName,
+            JobType,
             Durable,
             ConcurrentExecutionDisallowed,
             PersistJobDataAfterExecution,
