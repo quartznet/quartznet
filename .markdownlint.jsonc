@@ -18,6 +18,14 @@
     "MD046": {
         "style": "fenced"
     },
+    /* MD051 assumes GitHub's heading-slug algorithm. VuePress renders these docs and
+       slugifies with @mdit-vue/shared, which turns punctuation into a hyphen where GitHub
+       deletes it: "Quartz.Core" -> "quartz-core" (not "quartzcore"), "JobDataMap's" ->
+       "jobdatamap-s", "ScheduleBuilder<T>" -> "schedulebuilder-t". Every anchor MD051
+       reports here is one that resolves on the published site, and the anchors it would
+       accept instead are the ones that 404 there — so the rule is measuring the wrong
+       thing for this repo. Anchors are checked against the real slugifier instead. */
+    "MD051": false,
     "MD059": false, /* link text style - existing docs use short links */
     "MD060": false  /* table column style - existing docs use compact style */
 }
