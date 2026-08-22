@@ -55,10 +55,23 @@ public sealed class JobExecutionObservabilityTest
     private const string ExecuteErrors = "scheduling.quartz.execute.errors";
     private const string ExecuteActive = "scheduling.quartz.execute.active";
     private const string ExecuteDuration = "scheduling.quartz.execute.duration";
-    // OpenTelemetry's conventional attribute for what an operation failed with, spelled out here rather
-    // than read from Quartz, because the wire name is the contract an exporter and a dashboard are
-    // written against.
+    // Attribute names are spelled out here rather than read from Quartz, because the wire name is the
+    // contract an exporter and a dashboard are written against: reading them from the same constant the
+    // product publishes them from would let a rename pass unnoticed.
+    //
+    // error.type is OpenTelemetry's conventional attribute for what an operation failed with, and the one
+    // attribute Quartz does not namespace, because every instrumented failure in the process spells it
+    // this way.
     private const string ErrorTypeTag = "error.type";
+
+    private const string SchedulerNameTag = "quartz.scheduler.name";
+    private const string SchedulerIdTag = "quartz.scheduler.id";
+    private const string FireInstanceIdTag = "quartz.fire.instance.id";
+    private const string TriggerGroupTag = "quartz.trigger.group";
+    private const string TriggerNameTag = "quartz.trigger.name";
+    private const string JobTypeTag = "quartz.job.type";
+    private const string JobGroupTag = "quartz.job.group";
+    private const string JobNameTag = "quartz.job.name";
 
     private readonly List<RecordedMeasurement> measurements = [];
     private readonly List<Activity> stoppedActivities = [];
@@ -153,16 +166,34 @@ public sealed class JobExecutionObservabilityTest
 
         foreach (RecordedMeasurement measurement in published)
         {
-            measurement.Tags.Should().Contain(new KeyValuePair<string, object>(ActivityTags.SchedulerName, execution.SchedulerName))
-                .And.Contain(new KeyValuePair<string, object>(ActivityTags.TriggerGroup, execution.TriggerKey.Group))
-                .And.Contain(new KeyValuePair<string, object>(ActivityTags.TriggerName, execution.TriggerKey.Name))
-                .And.Contain(new KeyValuePair<string, object>(ActivityTags.JobGroup, execution.JobKey.Group))
-                .And.Contain(new KeyValuePair<string, object>(ActivityTags.JobName, execution.JobKey.Name));
+            measurement.Tags.Should().Contain(new KeyValuePair<string, object>(SchedulerNameTag, execution.SchedulerName))
+                .And.Contain(new KeyValuePair<string, object>(TriggerGroupTag, execution.TriggerKey.Group))
+                .And.Contain(new KeyValuePair<string, object>(TriggerNameTag, execution.TriggerKey.Name))
+                .And.Contain(new KeyValuePair<string, object>(JobGroupTag, execution.JobKey.Group))
+                .And.Contain(new KeyValuePair<string, object>(JobNameTag, execution.JobKey.Name));
 
             measurement.Tags.Should().HaveCount(5,
                 "an execution is identified by the scheduler that ran it, its trigger and its job, and "
                 + "nothing else is added to it");
         }
+    }
+
+    /// <summary>
+    /// Every attribute Quartz defines is spelled under <c>quartz.</c>, and the constants say so.
+    /// </summary>
+    [Test]
+    public void AttributeNames_AreNamespacedUnderQuartz()
+    {
+        ActivityTags.SchedulerName.Should().Be(SchedulerNameTag);
+        ActivityTags.SchedulerId.Should().Be(SchedulerIdTag);
+        ActivityTags.FireInstanceId.Should().Be(FireInstanceIdTag);
+        ActivityTags.TriggerGroup.Should().Be(TriggerGroupTag);
+        ActivityTags.TriggerName.Should().Be(TriggerNameTag);
+        ActivityTags.JobType.Should().Be(JobTypeTag);
+        ActivityTags.JobGroup.Should().Be(JobGroupTag);
+        ActivityTags.JobName.Should().Be(JobNameTag);
+        ActivityTags.TriggerCount.Should().Be("quartz.jobstore.trigger.count");
+        ActivityTags.BatchSize.Should().Be("quartz.jobstore.batch.size");
     }
 
     /// <summary>
@@ -227,7 +258,7 @@ public sealed class JobExecutionObservabilityTest
         CollectedMeasurement<long> measurement = collector.LastMeasurement;
         measurement.Should().NotBeNull("the container's meter factory published this execution");
         measurement.Value.Should().Be(1);
-        measurement.Tags.Should().ContainKey(ActivityTags.SchedulerName)
+        measurement.Tags.Should().ContainKey(SchedulerNameTag)
             .WhoseValue.Should().Be(schedulerName,
                 "a process can run several schedulers, and without the name their measurements are one "
                 + "series a dashboard cannot separate again");
@@ -318,15 +349,15 @@ public sealed class JobExecutionObservabilityTest
         activity.Kind.Should().Be(ActivityKind.Internal);
         activity.Status.Should().Be(ActivityStatusCode.Unset, "the job succeeded");
 
-        activity.GetTagItem(ActivityTags.SchedulerName).Should().Be(execution.SchedulerName);
-        activity.GetTagItem(ActivityTags.SchedulerId).Should().Be(execution.SchedulerInstanceId);
-        activity.GetTagItem(ActivityTags.JobType).Should().Be(new JobType(typeof(SucceedingJob)).FullName,
+        activity.GetTagItem(SchedulerNameTag).Should().Be(execution.SchedulerName);
+        activity.GetTagItem(SchedulerIdTag).Should().Be(execution.SchedulerInstanceId);
+        activity.GetTagItem(JobTypeTag).Should().Be(new JobType(typeof(SucceedingJob)).FullName,
             "the job type is reported the way the scheduler names it — assembly-qualified, without a version");
-        activity.GetTagItem(ActivityTags.FireInstanceId).Should().Be(execution.FireInstanceId);
-        activity.GetTagItem(ActivityTags.TriggerGroup).Should().Be(execution.TriggerKey.Group);
-        activity.GetTagItem(ActivityTags.TriggerName).Should().Be(execution.TriggerKey.Name);
-        activity.GetTagItem(ActivityTags.JobGroup).Should().Be(execution.JobKey.Group);
-        activity.GetTagItem(ActivityTags.JobName).Should().Be(execution.JobKey.Name);
+        activity.GetTagItem(FireInstanceIdTag).Should().Be(execution.FireInstanceId);
+        activity.GetTagItem(TriggerGroupTag).Should().Be(execution.TriggerKey.Group);
+        activity.GetTagItem(TriggerNameTag).Should().Be(execution.TriggerKey.Name);
+        activity.GetTagItem(JobGroupTag).Should().Be(execution.JobKey.Group);
+        activity.GetTagItem(JobNameTag).Should().Be(execution.JobKey.Name);
     }
 
     [Test]
@@ -422,7 +453,7 @@ public sealed class JobExecutionObservabilityTest
         lock (measurements)
         {
             return measurements
-                .Where(m => Equals(m.Tags.GetValueOrDefault(ActivityTags.JobName), jobKey.Name))
+                .Where(m => Equals(m.Tags.GetValueOrDefault(JobNameTag), jobKey.Name))
                 .ToList();
         }
     }
@@ -433,7 +464,7 @@ public sealed class JobExecutionObservabilityTest
         {
             return stoppedActivities.Should().ContainSingle(a =>
                     a.OperationName == OperationName.Job.Execute
-                    && Equals(a.GetTagItem(ActivityTags.JobName), jobKey.Name))
+                    && Equals(a.GetTagItem(JobNameTag), jobKey.Name))
                 .Subject;
         }
     }

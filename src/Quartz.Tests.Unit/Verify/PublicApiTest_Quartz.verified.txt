@@ -1558,16 +1558,16 @@ namespace Quartz.Diagnostics
 {
     public static class ActivityTags
     {
-        public const string BatchSize = "jobstore.batch.size";
-        public const string FireInstanceId = "fire.instance.id";
-        public const string JobGroup = "job.group";
-        public const string JobName = "job.name";
-        public const string JobType = "job.type";
-        public const string SchedulerId = "scheduler.id";
-        public const string SchedulerName = "scheduler.name";
-        public const string TriggerCount = "jobstore.trigger.count";
-        public const string TriggerGroup = "trigger.group";
-        public const string TriggerName = "trigger.name";
+        public const string BatchSize = "quartz.jobstore.batch.size";
+        public const string FireInstanceId = "quartz.fire.instance.id";
+        public const string JobGroup = "quartz.job.group";
+        public const string JobName = "quartz.job.name";
+        public const string JobType = "quartz.job.type";
+        public const string SchedulerId = "quartz.scheduler.id";
+        public const string SchedulerName = "quartz.scheduler.name";
+        public const string TriggerCount = "quartz.jobstore.trigger.count";
+        public const string TriggerGroup = "quartz.trigger.group";
+        public const string TriggerName = "quartz.trigger.name";
     }
     public static class LogProvider
     {

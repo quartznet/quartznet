@@ -1,19 +1,36 @@
 namespace Quartz.Diagnostics;
 
+/// <summary>
+/// The attribute names Quartz puts on its spans and its measurements.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Every one of them is spelled under <c>quartz.</c>, which is what OpenTelemetry asks of an attribute a
+/// library defines for itself: <c>job.name</c> is a name any other instrumented library in the same
+/// process could reasonably claim, and once two of them do, a dashboard has one attribute meaning two
+/// things and no way to tell which. The one exception is <see cref="ErrorType.TagName"/> — <c>error.type</c>
+/// is the semantic convention's shared attribute for what an operation failed with, and a Quartz-specific
+/// spelling would only keep these series from lining up with the rest of an application's failures.
+/// </para>
+/// <para>
+/// The values are a telemetry contract rather than a compile-time one, so code reading them by these
+/// constants needs no change while a dashboard, alert or recording rule matching the 3.x spellings does.
+/// </para>
+/// </remarks>
 public static class ActivityTags
 {
-    public const string SchedulerName = "scheduler.name";
-    public const string SchedulerId = "scheduler.id";
-    public const string FireInstanceId = "fire.instance.id";
-    public const string TriggerGroup = "trigger.group";
-    public const string TriggerName = "trigger.name";
-    public const string JobType = "job.type";
-    public const string JobGroup = "job.group";
-    public const string JobName = "job.name";
+    public const string SchedulerName = "quartz.scheduler.name";
+    public const string SchedulerId = "quartz.scheduler.id";
+    public const string FireInstanceId = "quartz.fire.instance.id";
+    public const string TriggerGroup = "quartz.trigger.group";
+    public const string TriggerName = "quartz.trigger.name";
+    public const string JobType = "quartz.job.type";
+    public const string JobGroup = "quartz.job.group";
+    public const string JobName = "quartz.job.name";
 
     // Job store operation tags
-    public const string TriggerCount = "jobstore.trigger.count";
-    public const string BatchSize = "jobstore.batch.size";
+    public const string TriggerCount = "quartz.jobstore.trigger.count";
+    public const string BatchSize = "quartz.jobstore.batch.size";
 }
 
 /// <summary>
