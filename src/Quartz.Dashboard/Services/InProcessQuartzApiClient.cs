@@ -17,52 +17,33 @@
  */
 #endregion
 
-using System.Text.Json;
-
 using Microsoft.Extensions.Options;
 
-using Quartz.Serialization.SystemTextJson;
 using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Dashboard.Services;
 
+/// <remarks>
+/// Nothing here serializes anything. The schedulers are in this process, so a trigger, a calendar and
+/// a job data map travel as themselves; the JSON round trip this client used to make existed only
+/// because the client's contract spoke <c>JsonElement</c>, and it lost every trigger type the
+/// serializer registry did not know.
+/// </remarks>
 internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 {
-    private static readonly JsonSerializerOptions serializerOptions = new()
-    {
-        WriteIndented = false,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-    private readonly JsonSerializerOptions deserializerOptions;
-
     private readonly ISchedulerRepository schedulerRepository;
     private readonly IOptions<QuartzDashboardOptions> options;
     private readonly IDashboardHistoryStore historyStore;
 
-    /// <remarks>
-    /// The dashboard shows every scheduler in the container through one client, so it reads the
-    /// container's <see cref="SystemTextJsonSerializerRegistry"/> rather than any single scheduler's — a
-    /// custom trigger or calendar serializer registered there is what makes a custom type render as
-    /// something other than a reflected blob.
-    /// </remarks>
-    /// <remarks>
-    /// <paramref name="quartzSerializerOptions"/> carries the Quartz converters and is built once from the
-    /// container's registry rather than per scope: this client is scoped, and System.Text.Json caches type
-    /// metadata per options instance.
-    /// </remarks>
     public InProcessQuartzApiClient(
         ISchedulerRepository schedulerRepository,
         IOptions<QuartzDashboardOptions> options,
-        IDashboardHistoryStore historyStore,
-        JsonSerializerOptions quartzSerializerOptions)
+        IDashboardHistoryStore historyStore)
     {
-        ArgumentNullException.ThrowIfNull(quartzSerializerOptions);
-
         this.schedulerRepository = schedulerRepository;
         this.options = options;
         this.historyStore = historyStore;
-        deserializerOptions = quartzSerializerOptions;
     }
 
     public ValueTask<List<SchedulerHeaderDto>> GetSchedulers(CancellationToken cancellationToken = default)
@@ -176,7 +157,6 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             throw new KeyNotFoundException($"Job '{key.Group}.{key.Name}' was not found in scheduler '{schedulerName}'.");
         }
 
-        JsonElement jobDataMap = JsonSerializer.SerializeToElement(jobDetail.JobDataMap, serializerOptions);
         return new JobDetailDto(
             Name: jobDetail.Key.Name,
             Group: jobDetail.Key.Group,
@@ -186,7 +166,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             RequestsRecovery: jobDetail.RequestsRecovery,
             ConcurrentExecutionDisallowed: jobDetail.ConcurrentExecutionDisallowed,
             PersistJobDataAfterExecution: jobDetail.PersistJobDataAfterExecution,
-            JobDataMap: jobDataMap);
+            JobDataMap: jobDetail.JobDataMap);
     }
 
     /// <remarks>
@@ -222,8 +202,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         {
             result.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name, trigger.ExecutionGroup)
             {
-                TriggerType = GetTriggerTypeName(trigger),
-                ScheduleSummary = DescribeSchedule(trigger),
+                TriggerType = TriggerDisplay.TypeName(trigger),
+                ScheduleSummary = TriggerDisplay.ScheduleSummary(trigger),
                 State = states.TryGetValue(trigger.Key, out TriggerState state) ? state : null
             });
         }
@@ -285,12 +265,12 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.TriggerJob(AsJobKey(key), cancellationToken: cancellationToken);
     }
 
-    public ValueTask TriggerJobWithData(string schedulerName, JobKeyDto key, JsonElement jobDataMap, CancellationToken cancellationToken = default)
+    public ValueTask TriggerJobWithData(string schedulerName, JobKeyDto key, JobDataMap jobDataMap, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobDataMap);
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        JobDataMap triggerDataMap = DeserializeJobDataMap(jobDataMap);
-        return scheduler.TriggerJob(AsJobKey(key), triggerDataMap, cancellationToken);
+        return scheduler.TriggerJob(AsJobKey(key), jobDataMap, cancellationToken);
     }
 
     public async ValueTask InterruptJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
@@ -360,7 +340,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new PagedResult<TriggerHeaderDto>(items, triggers.HasMore, triggers.TotalCount ?? items.Count);
     }
 
-    public async ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
+    public async ValueTask<ITrigger> GetTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
         TriggerKey triggerKey = AsTriggerKey(key);
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
@@ -370,7 +350,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             throw new KeyNotFoundException($"Trigger '{key.Group}.{key.Name}' was not found in scheduler '{schedulerName}'.");
         }
 
-        return new TriggerDetailDto(SerializeTrigger(trigger));
+        return trigger;
     }
 
     public ValueTask<TriggerState> GetTriggerState(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
@@ -405,14 +385,13 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         ArgumentNullException.ThrowIfNull(request);
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        ITrigger trigger = DeserializeTrigger(request.Trigger);
         if (request.Job is null)
         {
-            return ScheduleTriggerOnly(scheduler, trigger, cancellationToken);
+            return ScheduleTriggerOnly(scheduler, request.Trigger, cancellationToken);
         }
 
         IJobDetail jobDetail = BuildJobDetail(request.Job);
-        return ScheduleJobWithTrigger(scheduler, jobDetail, trigger, cancellationToken);
+        return ScheduleJobWithTrigger(scheduler, jobDetail, request.Trigger, cancellationToken);
     }
 
     public async ValueTask UnscheduleJob(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
@@ -427,8 +406,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         ArgumentNullException.ThrowIfNull(request);
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        ITrigger newTrigger = DeserializeTrigger(request.NewTrigger);
-        return RescheduleTrigger(scheduler, AsTriggerKey(key), newTrigger, cancellationToken);
+        return RescheduleTrigger(scheduler, AsTriggerKey(key), request.NewTrigger, cancellationToken);
     }
 
     public async ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default)
@@ -450,7 +428,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         }
     }
 
-    public async ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
+    public async ValueTask<ICalendar> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         ICalendar? calendar = await scheduler.GetCalendar(calendarName, cancellationToken).ConfigureAwait(false);
@@ -459,8 +437,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             throw new KeyNotFoundException($"Calendar '{calendarName}' was not found in scheduler '{schedulerName}'.");
         }
 
-        JsonElement calendarJson = JsonSerializer.SerializeToElement<object>(calendar, serializerOptions);
-        return new CalendarDetailDto(calendarJson);
+        return calendar;
     }
 
     public ValueTask AddCalendar(string schedulerName, AddCalendarRequest request, CancellationToken cancellationToken = default)
@@ -468,10 +445,9 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         ArgumentNullException.ThrowIfNull(request);
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        ICalendar calendar = DeserializeCalendar(request.Calendar);
         return scheduler.AddCalendar(
             request.CalendarName,
-            calendar,
+            request.Calendar,
             new AddCalendarOptions { Replace = request.Replace, UpdateTriggers = request.UpdateTriggers },
             cancellationToken);
     }
@@ -488,23 +464,6 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         ArgumentNullException.ThrowIfNull(query);
 
         return await historyStore.GetPage(query, cancellationToken).ConfigureAwait(false);
-    }
-
-    private JsonElement SerializeTrigger(ITrigger trigger)
-    {
-        try
-        {
-            // Use the canonical Quartz converters (same options used for deserialization) so the JSON
-            // exposes TriggerType, schedule fields, JobDataMap and fire times under the property names
-            // the dashboard UI reads. Plain reflection omits most of these.
-            return JsonSerializer.SerializeToElement<object>(trigger, deserializerOptions);
-        }
-        catch (JsonSerializationException)
-        {
-            // Custom trigger types aren't handled by the converter; fall back to a best-effort
-            // reflection serialization so the detail page still renders.
-            return JsonSerializer.SerializeToElement<object>(trigger, serializerOptions);
-        }
     }
 
     private static GroupMatcher<TKey>? BuildGroupMatcher<TKey>(string? groupFilter) where TKey : Key<TKey>
@@ -524,73 +483,14 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new TriggerKey(key.Name, key.Group);
     }
 
-    private static string GetTriggerTypeName(ITrigger trigger)
-    {
-        return trigger switch
-        {
-            ICronTrigger => "Cron",
-            ISimpleTrigger => "Simple",
-            ICalendarIntervalTrigger => "Calendar interval",
-            IDailyTimeIntervalTrigger => "Daily time interval",
-            _ => trigger.GetType().Name
-        };
-    }
-
-    private static string? DescribeSchedule(ITrigger trigger)
-    {
-        switch (trigger)
-        {
-            case ICronTrigger cron:
-                return cron.CronExpressionString;
-            case ISimpleTrigger simple:
-                string summary = "Every " + simple.RepeatInterval;
-                return summary + (simple.RepeatCount < 0 ? ", repeat forever" : ", " + simple.RepeatCount + " time(s)");
-            default:
-                return null;
-        }
-    }
-
-    private JobDataMap DeserializeJobDataMap(JsonElement element)
-    {
-        if (element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
-        {
-            return new JobDataMap();
-        }
-
-        JobDataMap? dataMap = element.Deserialize<JobDataMap>(deserializerOptions);
-        return dataMap ?? new JobDataMap();
-    }
-
-    private ITrigger DeserializeTrigger(JsonElement element)
-    {
-        ITrigger? trigger = element.Deserialize<ITrigger>(deserializerOptions);
-        if (trigger is null)
-        {
-            throw new InvalidOperationException("Trigger payload cannot be parsed.");
-        }
-
-        return trigger;
-    }
-
-    private ICalendar DeserializeCalendar(JsonElement element)
-    {
-        ICalendar? calendar = element.Deserialize<ICalendar>(deserializerOptions);
-        if (calendar is null)
-        {
-            throw new InvalidOperationException("Calendar payload cannot be parsed.");
-        }
-
-        return calendar;
-    }
-
-    private IJobDetail BuildJobDetail(JobDetailDto source)
+    private static IJobDetail BuildJobDetail(JobDetailDto source)
     {
         if (string.IsNullOrWhiteSpace(source.JobType))
         {
             throw new InvalidOperationException("Job type is required.");
         }
 
-        JobDataMap jobDataMap = DeserializeJobDataMap(source.JobDataMap);
+        JobDataMap jobDataMap = source.JobDataMap ?? new JobDataMap();
 
         // The type name is stored unresolved on purpose: resolving a name that arrived with the request
         // would have this process probe its assemblies for whatever the caller named. The scheduler

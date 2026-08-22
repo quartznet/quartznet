@@ -36,17 +36,28 @@ internal sealed class QuartzApiClient : IQuartzApiClient
     private readonly IHttpClientFactory httpClientFactory;
     private readonly IHttpContextAccessor httpContextAccessor;
     private readonly IOptions<QuartzDashboardOptions> options;
+    private readonly JsonSerializerOptions quartzSerializerOptions;
     private Uri? cachedBaseAddress;
     private string? cachedCookieHeader;
 
+    /// <remarks>
+    /// <paramref name="serializerOptions"/> carries the Quartz converters, which is what turns the
+    /// wire's discriminated trigger and calendar payloads back into <see cref="ITrigger"/> and
+    /// <see cref="ICalendar"/>. A kind no serializer is registered for cannot be read, and says so
+    /// rather than rendering as an anonymous bag of properties.
+    /// </remarks>
     public QuartzApiClient(
         IHttpClientFactory httpClientFactory,
         IHttpContextAccessor httpContextAccessor,
-        IOptions<QuartzDashboardOptions> options)
+        IOptions<QuartzDashboardOptions> options,
+        DashboardSerializerOptions serializerOptions)
     {
+        ArgumentNullException.ThrowIfNull(serializerOptions);
+
         this.httpClientFactory = httpClientFactory;
         this.httpContextAccessor = httpContextAccessor;
         this.options = options;
+        quartzSerializerOptions = serializerOptions.Deserializer;
     }
 
     public async ValueTask<List<SchedulerHeaderDto>> GetSchedulers(CancellationToken cancellationToken = default)
@@ -166,7 +177,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
             RequestsRecovery: GetBooleanProperty(json, "requestsRecovery"),
             ConcurrentExecutionDisallowed: GetBooleanProperty(json, "concurrentExecutionDisallowed"),
             PersistJobDataAfterExecution: GetBooleanProperty(json, "persistJobDataAfterExecution"),
-            JobDataMap: GetOptionalProperty(json, "jobDataMap"));
+            JobDataMap: ReadJobDataMap(GetOptionalProperty(json, "jobDataMap")));
     }
 
     /// <remarks>
@@ -288,12 +299,11 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return Post($"{JobPath(schedulerName, key)}/trigger", body: null, cancellationToken);
     }
 
-    public ValueTask TriggerJobWithData(string schedulerName, JobKeyDto key, JsonElement jobDataMap, CancellationToken cancellationToken = default)
+    public ValueTask TriggerJobWithData(string schedulerName, JobKeyDto key, JobDataMap jobDataMap, CancellationToken cancellationToken = default)
     {
-        object payload = new
-        {
-            JobData = jobDataMap
-        };
+        ArgumentNullException.ThrowIfNull(jobDataMap);
+
+        TriggerJobRequest payload = new(jobDataMap);
         return Post($"{JobPath(schedulerName, key)}/trigger", payload, cancellationToken);
     }
 
@@ -353,10 +363,11 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return new PagedResult<TriggerHeaderDto>(result, GetBooleanProperty(json, "hasMore"), totalCount);
     }
 
-    public async ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
+    public async ValueTask<ITrigger> GetTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
         JsonElement json = await GetJson(TriggerPath(schedulerName, key), cancellationToken).ConfigureAwait(false);
-        return new TriggerDetailDto(json);
+        return json.Deserialize<ITrigger>(quartzSerializerOptions)
+               ?? throw new InvalidOperationException($"Trigger '{key.Group}.{key.Name}' could not be read from the API response.");
     }
 
     public async ValueTask<TriggerState> GetTriggerState(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
@@ -426,10 +437,11 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
     }
 
-    public async ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
+    public async ValueTask<ICalendar> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
     {
         JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/calendars/{Uri.EscapeDataString(calendarName)}", cancellationToken).ConfigureAwait(false);
-        return new CalendarDetailDto(json);
+        return json.Deserialize<ICalendar>(quartzSerializerOptions)
+               ?? throw new InvalidOperationException($"Calendar '{calendarName}' could not be read from the API response.");
     }
 
     public ValueTask AddCalendar(string schedulerName, AddCalendarRequest request, CancellationToken cancellationToken = default)
@@ -575,6 +587,11 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return await ParseJson(response, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <remarks>
+    /// The body is written with the Quartz converters, because a request carrying a trigger, a
+    /// calendar or a job data map has to travel in the discriminated shape the API reads — reflection
+    /// over the concrete type writes something the server cannot parse back.
+    /// </remarks>
     private async ValueTask Post(string path, object? body = null, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
@@ -587,7 +604,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
         else
         {
-            response = await client.PostAsJsonAsync(path, body, cancellationToken).ConfigureAwait(false);
+            response = await client.PostAsJsonAsync(path, body, quartzSerializerOptions, cancellationToken).ConfigureAwait(false);
         }
 
         using (response)
@@ -880,6 +897,20 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
 
         return value.Clone();
+    }
+
+    /// <summary>
+    /// Reads the <c>jobDataMap</c> member of a job detail body. An absent or null one is an empty map:
+    /// a job with no data is not a job whose data could not be read.
+    /// </summary>
+    private JobDataMap ReadJobDataMap(JsonElement element)
+    {
+        if (element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            return new JobDataMap();
+        }
+
+        return element.Deserialize<JobDataMap>(quartzSerializerOptions) ?? new JobDataMap();
     }
 
     private static string? DescribeSchedule(JsonElement trigger)

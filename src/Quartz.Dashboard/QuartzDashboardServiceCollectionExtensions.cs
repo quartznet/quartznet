@@ -77,8 +77,7 @@ public static class QuartzDashboardServiceCollectionExtensions
         services.TryAddScoped<IQuartzApiClient>(static provider => new InProcessQuartzApiClient(
             provider.GetRequiredService<ISchedulerRepository>(),
             provider.GetRequiredService<IOptions<QuartzDashboardOptions>>(),
-            provider.GetRequiredService<IDashboardHistoryStore>(),
-            provider.GetRequiredService<DashboardSerializerOptions>().Deserializer));
+            provider.GetRequiredService<IDashboardHistoryStore>()));
         services.TryAddScoped<SchedulerState>();
         services.TryAddScoped<ToastService>();
         services.TryAddSingleton<IDashboardHistoryStore, DashboardHistoryStore>();

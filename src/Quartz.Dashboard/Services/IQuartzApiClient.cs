@@ -17,8 +17,6 @@
  */
 #endregion
 
-using System.Text.Json;
-
 namespace Quartz.Dashboard.Services;
 
 /// <summary>
@@ -26,12 +24,22 @@ namespace Quartz.Dashboard.Services;
 /// API somewhere else.
 /// </summary>
 /// <remarks>
+/// <para>
 /// This is the dashboard's own projection of the HTTP API, not the wire contract itself — it is shaped
 /// for the pages that read it, and it is public so that an application can replace it. It speaks Quartz's
 /// vocabulary throughout: <see cref="TriggerState" /> and <see cref="SchedulerStatus" /> rather than
 /// strings, <see cref="JobKeyDto" /> and <see cref="TriggerKeyDto" /> rather than loose group/name pairs,
-/// and <see cref="PagedQuery" />'s <c>Skip</c>/<c>Take</c> with <see cref="PagedResult{T}" /> rather than
-/// a paging model of its own.
+/// <see cref="PagedQuery" />'s <c>Skip</c>/<c>Take</c> with <see cref="PagedResult{T}" /> rather than
+/// a paging model of its own, and <see cref="ITrigger" />, <see cref="ICalendar" /> and
+/// <see cref="JobDataMap" /> rather than JSON.
+/// </para>
+/// <para>
+/// A trigger and a calendar arrive as themselves because Quartz already owns the polymorphism they
+/// need: the serializer registry maps each kind to its own serializer, custom kinds an application
+/// registered included, and the wire format is that discriminated shape. A DTO family of the
+/// dashboard's own would have to be extended for every trigger kind and would still not describe a
+/// kind it had never heard of.
+/// </para>
 /// </remarks>
 public interface IQuartzApiClient
 {
@@ -84,7 +92,11 @@ public interface IQuartzApiClient
 
     ValueTask TriggerJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
-    ValueTask TriggerJobWithData(string schedulerName, JobKeyDto jobKey, JsonElement jobDataMap, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Triggers the job once, with <paramref name="jobDataMap" /> merged over the job's own data for
+    /// that one firing.
+    /// </summary>
+    ValueTask TriggerJobWithData(string schedulerName, JobKeyDto jobKey, JobDataMap jobDataMap, CancellationToken cancellationToken = default);
 
     ValueTask InterruptJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
@@ -108,7 +120,11 @@ public interface IQuartzApiClient
     /// </summary>
     ValueTask<PagedResult<TriggerHeaderDto>> GetTriggers(string schedulerName, DashboardTriggerQuery query, CancellationToken cancellationToken = default);
 
-    ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Returns the trigger itself — a <see cref="ICronTrigger" />, <see cref="ISimpleTrigger" /> or
+    /// whichever kind it is, including one an application registered its own serializer for.
+    /// </summary>
+    ValueTask<ITrigger> GetTrigger(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
     ValueTask<TriggerState> GetTriggerState(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
@@ -138,7 +154,10 @@ public interface IQuartzApiClient
 
     ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Returns the calendar itself, of whichever kind it is.
+    /// </summary>
+    ValueTask<ICalendar> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default);
 
     ValueTask AddCalendar(string schedulerName, AddCalendarRequest request, CancellationToken cancellationToken = default);
 
@@ -220,6 +239,11 @@ public sealed record TriggerHeaderDto(string Group, string Name, string? Executi
     public TriggerState? State { get; init; }
 }
 
+/// <remarks>
+/// <see cref="JobDataMap" /> holds whatever the job was given, of whatever type — but that is exactly
+/// what <see cref="Quartz.JobDataMap" /> is for, and it is what the scheduler hands back, so there is
+/// no honesty to be had from a looser type here.
+/// </remarks>
 public sealed record JobDetailDto(
     string Name,
     string Group,
@@ -229,7 +253,7 @@ public sealed record JobDetailDto(
     bool RequestsRecovery,
     bool ConcurrentExecutionDisallowed,
     bool PersistJobDataAfterExecution,
-    JsonElement JobDataMap);
+    JobDataMap JobDataMap);
 
 /// <summary>
 /// One firing, as the dashboard shows it.
@@ -248,15 +272,17 @@ public sealed record FireInstanceDto(
     DateTimeOffset? ScheduledFireTimeUtc,
     string? ExecutionGroup);
 
-public sealed record TriggerDetailDto(JsonElement Value);
+/// <summary>
+/// A trigger to schedule, and the job it fires when that job is not already stored.
+/// </summary>
+public sealed record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job);
 
-public sealed record ScheduleJobRequest(JsonElement Trigger, JobDetailDto? Job);
+/// <summary>
+/// The trigger that replaces the one being rescheduled.
+/// </summary>
+public sealed record RescheduleRequest(ITrigger NewTrigger);
 
-public sealed record RescheduleRequest(JsonElement NewTrigger);
-
-public sealed record CalendarDetailDto(JsonElement Value);
-
-public sealed record AddCalendarRequest(string CalendarName, JsonElement Calendar, bool Replace, bool UpdateTriggers);
+public sealed record AddCalendarRequest(string CalendarName, ICalendar Calendar, bool Replace, bool UpdateTriggers);
 
 public sealed record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNonDurableWhileAwaitingScheduling);
 

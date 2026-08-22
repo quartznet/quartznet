@@ -1,120 +1,106 @@
-using System.Text.Json;
-
 using Quartz.Dashboard.Components.Shared;
+using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
 
 public class TriggerPayloadBuilderTest
 {
-    private static readonly JsonSerializerOptions serializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     /// <summary>
-    /// The shape the Quartz converters write and the dashboard's API client hands the detail page.
-    /// Every property is present; the unset ones are JSON null.
+    /// A trigger as the API client hands the detail page: every field populated, including the ones
+    /// the page never displays.
     /// </summary>
-    private static JsonElement SerializedTrigger(object? description = null, object? calendarName = null)
+    private static ITrigger CronTrigger(string? description = null, string? calendarName = null)
     {
-        return JsonSerializer.SerializeToElement(new
-        {
-            triggerType = "CronTrigger",
-            key = new { name = "trigger1", group = "group1" },
-            jobKey = new { name = "job1", group = "group1" },
-            description,
-            calendarName,
-            jobDataMap = new Dictionary<string, object?> { ["colour"] = "green" },
-            misfireInstruction = 0,
-            startTimeUtc = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            endTimeUtc = (DateTimeOffset?) null,
-            priority = 5,
-            nextFireTimeUtc = new DateTimeOffset(2025, 1, 2, 1, 0, 0, TimeSpan.Zero),
-            previousFireTimeUtc = (DateTimeOffset?) null,
-            executionGroup = "imports",
-            preferredNode = "node-a",
-            preferredNodeAuto = false,
-            cronExpressionString = "0 0 1 * * ?",
-            timeZone = "UTC"
-        }, serializerOptions);
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("trigger1", "group1")
+            .ForJob("job1", "group1")
+            .WithDescription(description)
+            .WithCalendarName(calendarName)
+            .UsingJobData("colour", "green")
+            .StartAt(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero))
+            .WithPriority(5)
+            .WithExecutionGroup("imports")
+            .WithPreferredNode(PreferredNode.For("node-a"))
+            .WithCronSchedule("0 0 1 * * ?", x => x.InTimeZone(TimeZoneInfo.Utc))
+            .Build();
+
+        ((CronTriggerImpl) trigger).NextFireTimeUtc = new DateTimeOffset(2025, 1, 2, 1, 0, 0, TimeSpan.Zero);
+        return trigger;
     }
 
     [Test(Description = "https://github.com/quartznet/quartznet/issues/3294")]
     public void TryWithCronExpressionLeavesTextTheTriggerDoesNotHaveAsNull()
     {
-        TriggerPayloadBuilder.TryWithCronExpression(SerializedTrigger(), "0 0 2 * * ?", out JsonElement payload)
+        TriggerPayloadBuilder.TryWithCronExpression(CronTrigger(), "0 0 2 * * ?", out ITrigger? payload)
             .Should().BeTrue();
 
-        payload.GetProperty("calendarName").ValueKind.Should().Be(JsonValueKind.Null,
+        payload!.CalendarName.Should().BeNull(
             "an empty calendar name names a calendar that cannot be found, and the trigger then never fires again");
-        payload.GetProperty("description").ValueKind.Should().Be(JsonValueKind.Null);
+        payload.Description.Should().BeNull();
     }
 
     [Test]
     public void TryWithCronExpressionCarriesEverythingElseThroughUntouched()
     {
         TriggerPayloadBuilder.TryWithCronExpression(
-            SerializedTrigger(description: "nightly import", calendarName: "holidays"),
+            CronTrigger(description: "nightly import", calendarName: "holidays"),
             "0 0 2 * * ?",
-            out JsonElement payload).Should().BeTrue();
+            out ITrigger? payload).Should().BeTrue();
 
-        payload.GetProperty("cronExpressionString").GetString().Should().Be("0 0 2 * * ?",
+        payload.Should().BeOfType<CronTriggerImpl>("the edit must not change what kind of trigger this is");
+
+        CronTriggerImpl cron = (CronTriggerImpl) payload!;
+        cron.CronExpressionString.Should().Be("0 0 2 * * ?",
             "the edited expression is the only thing a reschedule is meant to change");
-        payload.GetProperty("calendarName").GetString().Should().Be("holidays");
-        payload.GetProperty("description").GetString().Should().Be("nightly import");
-        payload.GetProperty("executionGroup").GetString().Should().Be("imports");
-        payload.GetProperty("preferredNode").GetString().Should().Be("node-a",
+        cron.TimeZone.Should().Be(TimeZoneInfo.Utc, "the expression is resolved in the zone it was written for");
+        cron.CalendarName.Should().Be("holidays");
+        cron.Description.Should().Be("nightly import");
+        cron.ExecutionGroup.Should().Be("imports");
+        cron.PreferredNode.Node.Should().Be("node-a",
             "the hand-written payload dropped the node pin, which silently unpinned the trigger");
-        payload.GetProperty("preferredNodeAuto").GetBoolean().Should().BeFalse();
-        payload.GetProperty("jobDataMap").GetProperty("colour").GetString().Should().Be("green");
-        payload.GetProperty("key").GetProperty("name").GetString().Should().Be("trigger1");
-        payload.GetProperty("jobKey").GetProperty("group").GetString().Should().Be("group1");
-        payload.GetProperty("priority").GetInt32().Should().Be(5);
-        payload.GetProperty("timeZone").GetString().Should().Be("UTC");
+        cron.PreferredNode.IsAutomatic.Should().BeFalse();
+        cron.JobDataMap["colour"].Should().Be("green");
+        cron.Key.Should().Be(new TriggerKey("trigger1", "group1"));
+        cron.JobKey.Should().Be(new JobKey("job1", "group1"));
+        cron.Priority.Should().Be(5);
+        cron.StartTimeUtc.Should().Be(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero));
     }
 
     [Test]
     public void TryWithCronExpressionClearsTheStoredNextFireTime()
     {
-        TriggerPayloadBuilder.TryWithCronExpression(SerializedTrigger(), "0 0 2 * * ?", out JsonElement payload)
+        TriggerPayloadBuilder.TryWithCronExpression(CronTrigger(), "0 0 2 * * ?", out ITrigger? payload)
             .Should().BeTrue();
 
-        payload.GetProperty("nextFireTimeUtc").ValueKind.Should().Be(JsonValueKind.Null,
+        payload!.NextFireTimeUtc.Should().BeNull(
             "the stored time was computed from the old expression, and RescheduleJob honours a non-null one verbatim");
     }
 
     [Test]
-    public void TryWithCronExpressionMatchesPropertyNamesWhateverTheirCasing()
+    public void TryWithCronExpressionDoesNotTouchTheTriggerItWasGiven()
     {
-        JsonElement trigger = JsonSerializer.SerializeToElement(new
-        {
-            TriggerType = "CronTrigger",
-            CalendarName = (string?) null,
-            NextFireTimeUtc = new DateTimeOffset(2025, 1, 2, 1, 0, 0, TimeSpan.Zero),
-            CronExpressionString = "0 0 1 * * ?"
-        });
+        ITrigger original = CronTrigger();
 
-        TriggerPayloadBuilder.TryWithCronExpression(trigger, "0 0 2 * * ?", out JsonElement payload)
-            .Should().BeTrue();
+        TriggerPayloadBuilder.TryWithCronExpression(original, "0 0 2 * * ?", out ITrigger? payload).Should().BeTrue();
 
-        payload.GetProperty("CronExpressionString").GetString().Should().Be("0 0 2 * * ?");
-        payload.GetProperty("NextFireTimeUtc").ValueKind.Should().Be(JsonValueKind.Null);
+        ((ICronTrigger) original).CronExpressionString.Should().Be("0 0 1 * * ?",
+            "the page still shows the trigger it loaded until the reschedule comes back");
+        original.NextFireTimeUtc.Should().NotBeNull();
+        payload.Should().NotBeSameAs(original);
     }
 
     [Test]
-    public void TryWithCronExpressionRefusesATriggerItCannotIdentify()
+    public void TryWithCronExpressionRefusesATriggerItCannotRebuild()
     {
-        // The API client falls back to reflection for trigger types the Quartz converters do not
-        // know, and that output carries no discriminator. Posting it back would either fail to
-        // deserialize or, as the hand-written payload did, reschedule it as some other type.
-        JsonElement reflected = JsonSerializer.SerializeToElement(new
-        {
-            key = new { name = "trigger1", group = "group1" },
-            cronExpressionString = "0 0 1 * * ?"
-        }, serializerOptions);
+        // A cron schedule this cannot set without knowing the type. Guessing means posting back some
+        // other trigger than the one on screen, which is how a custom cron trigger used to be
+        // rewritten as a plain one.
+        ITrigger simple = TriggerBuilder.Create()
+            .WithIdentity("trigger1", "group1")
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)))
+            .Build();
 
-        TriggerPayloadBuilder.TryWithCronExpression(reflected, "0 0 2 * * ?", out JsonElement payload)
-            .Should().BeFalse();
-        payload.ValueKind.Should().Be(JsonValueKind.Undefined);
+        TriggerPayloadBuilder.TryWithCronExpression(simple, "0 0 2 * * ?", out ITrigger? payload).Should().BeFalse();
+        payload.Should().BeNull();
     }
 }

@@ -1,5 +1,4 @@
 @page "/quartz/jobs/{Group}/{Name}"
-@using System.Text.Json
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -45,12 +44,12 @@
 
         <table class="qz-table">
             <tbody>
-                <tr><th>Type</th><td>@DisplayValueHelper.GetString(_job, "JobType")</td></tr>
-                <tr><th>Description</th><td>@DisplayValueHelper.GetString(_job, "Description")</td></tr>
-                <tr><th>Durable</th><td>@DisplayValueHelper.GetString(_job, "Durable")</td></tr>
-                <tr><th>Requests Recovery</th><td>@DisplayValueHelper.GetString(_job, "RequestsRecovery")</td></tr>
-                <tr><th>Disallow Concurrent Execution</th><td>@DisplayValueHelper.GetString(_job, "ConcurrentExecutionDisallowed")</td></tr>
-                <tr><th>Persist JobDataAfterExecution</th><td>@DisplayValueHelper.GetString(_job, "PersistJobDataAfterExecution")</td></tr>
+                <tr><th>Type</th><td>@_job.JobType</td></tr>
+                <tr><th>Description</th><td>@_job.Description</td></tr>
+                <tr><th>Durable</th><td>@_job.Durable</td></tr>
+                <tr><th>Requests Recovery</th><td>@_job.RequestsRecovery</td></tr>
+                <tr><th>Disallow Concurrent Execution</th><td>@_job.ConcurrentExecutionDisallowed</td></tr>
+                <tr><th>Persist JobDataAfterExecution</th><td>@_job.PersistJobDataAfterExecution</td></tr>
             </tbody>
         </table>
 
@@ -115,13 +114,9 @@
                OnCancel="CancelDeleteAsync" />
 
 @code {
-    private static readonly JsonSerializerOptions requestSerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
     private bool _isLoading = true;
     private string? _error;
-    private object? _job;
+    private JobDetailDto? _job;
     private readonly List<TriggerHeaderDto> _triggers = [];
     private bool _showDeleteConfirm;
     private JobDataMap _triggerDataMap = new();
@@ -136,7 +131,7 @@
 
     private JobKeyDto JobKey => new(Group, Name);
 
-    private JobDataMap? JobDataMap => DisplayValueHelper.GetJobDataMap(_job, "JobDataMap");
+    private JobDataMap? JobDataMap => _job?.JobDataMap;
 
     protected override async Task OnInitializedAsync()
     {
@@ -227,9 +222,8 @@
 
     private Task TriggerWithDataAsync()
     {
-        JsonElement jobDataMap = JsonSerializer.SerializeToElement(_triggerDataMap, requestSerializerOptions);
         return ExecuteMutatingActionAsync(
-            () => Api.TriggerJobWithData(Scheduler.ActiveSchedulerName!, JobKey, jobDataMap),
+            () => Api.TriggerJobWithData(Scheduler.ActiveSchedulerName!, JobKey, _triggerDataMap),
             "Triggered job " + DisplayValueHelper.FormatKey(Group, Name) + " with overrides.",
             actionName: "TriggerJobWithData",
             target: DisplayValueHelper.FormatKey(Group, Name));

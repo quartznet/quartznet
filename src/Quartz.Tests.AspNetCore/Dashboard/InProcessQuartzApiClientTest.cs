@@ -1,5 +1,4 @@
 using System.Collections.Specialized;
-using System.Text.Json;
 
 using Microsoft.Extensions.Options;
 
@@ -8,22 +7,16 @@ using Quartz.Dashboard.Services;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
-using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
 
 public class InProcessQuartzApiClientTest
 {
-    private static readonly JsonSerializerOptions requestSerializerOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     [Test]
-    public async Task RescheduleJobShouldAcceptCronTriggerPayload()
+    public async Task RescheduleJobStoresTheTriggerItWasGiven()
     {
-        // regression test for #3094 - rescheduling from the dashboard failed because the
-        // Quartz JSON converters were never registered and ITrigger could not be deserialized
+        // #3094 was this client failing to parse a trigger out of JSON. In-process there is no JSON:
+        // the request carries the trigger, and the client hands it to the scheduler as it stands.
         IScheduler scheduler = await CreateScheduler("RescheduleJobTest");
         try
         {
@@ -42,27 +35,15 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            // a hand-written payload, to pin the shape the HTTP API accepts independently of
-            // whatever TriggerDetail.razor happens to send
-            object payload = new
-            {
-                triggerType = "CronTrigger",
-                key = new { name = triggerKey.Name, group = triggerKey.Group },
-                jobKey = new { name = jobKey.Name, group = jobKey.Group },
-                description = "updated by dashboard",
-                calendarName = (string?) null,
-                jobDataMap = new Dictionary<string, object>(),
-                misfireInstruction = 0,
-                startTimeUtc = DateTimeOffset.UtcNow,
-                endTimeUtc = (DateTimeOffset?) null,
-                priority = 5,
-                timeZone = TimeZoneInfo.Utc.Id,
-                cronExpressionString = "0 0 2 * * ?",
-                executionGroup = "imports"
-            };
-            RescheduleRequest request = new(JsonSerializer.SerializeToElement(payload, requestSerializerOptions));
+            ITrigger replacement = TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(jobKey)
+                .WithDescription("updated by dashboard")
+                .WithExecutionGroup("imports")
+                .WithCronSchedule("0 0 2 * * ?")
+                .Build();
 
-            await client.RescheduleJob(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), request);
+            await client.RescheduleJob(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), new RescheduleRequest(replacement));
 
             ITrigger? updated = await scheduler.GetTrigger(triggerKey);
             CronTriggerImpl cronTrigger = updated.Should().BeOfType<CronTriggerImpl>().Subject;
@@ -104,11 +85,11 @@ public class InProcessQuartzApiClientTest
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
             // exactly what TriggerDetail.razor does: read the trigger, then edit its cron expression
-            TriggerDetailDto detail = await client.GetTrigger(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
-            TriggerPayloadBuilder.TryWithCronExpression(detail.Value, "0 0 2 * * ?", out JsonElement newTrigger)
+            ITrigger detail = await client.GetTrigger(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
+            TriggerPayloadBuilder.TryWithCronExpression(detail, "0 0 2 * * ?", out ITrigger? newTrigger)
                 .Should().BeTrue();
 
-            await client.RescheduleJob(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), new RescheduleRequest(newTrigger));
+            await client.RescheduleJob(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), new RescheduleRequest(newTrigger!));
 
             ITrigger? updated = await scheduler.GetTrigger(triggerKey);
             CronTriggerImpl cronTrigger = updated.Should().BeOfType<CronTriggerImpl>().Subject;
@@ -127,33 +108,24 @@ public class InProcessQuartzApiClientTest
     }
 
     [Test]
-    public async Task AddCalendarShouldAcceptCronCalendarPayload()
+    public async Task AddCalendarStoresTheCalendarItWasGiven()
     {
-        // the calendar deserialization path was broken the same way as reschedule (#3094)
         IScheduler scheduler = await CreateScheduler("AddCalendarTest");
         try
         {
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            // payload mirrors Calendars.razor calendarPayload
-            object payload = new
+            // the calendar Calendars.razor builds
+            CronCalendar calendar = new(baseCalendar: null, "0 0 3 * * ?", TimeZoneInfo.Utc)
             {
-                type = "CronCalendar",
-                description = "maintenance window",
-                timeZoneId = TimeZoneInfo.Utc.Id,
-                baseCalendar = (object?) null,
-                cronExpressionString = "0 0 3 * * ?"
+                Description = "maintenance window"
             };
-            AddCalendarRequest request = new(
-                "maintenance",
-                JsonSerializer.SerializeToElement(payload, requestSerializerOptions),
-                Replace: false,
-                UpdateTriggers: false);
+            AddCalendarRequest request = new("maintenance", calendar, Replace: false, UpdateTriggers: false);
 
             await client.AddCalendar(scheduler.SchedulerName, request);
 
-            ICalendar? calendar = await scheduler.GetCalendar("maintenance");
-            CronCalendar cronCalendar = calendar.Should().BeOfType<CronCalendar>().Subject;
+            ICalendar? stored = await scheduler.GetCalendar("maintenance");
+            CronCalendar cronCalendar = stored.Should().BeOfType<CronCalendar>().Subject;
             cronCalendar.CronExpression.CronExpressionString.Should().Be("0 0 3 * * ?");
             cronCalendar.Description.Should().Be("maintenance window");
         }
@@ -164,10 +136,11 @@ public class InProcessQuartzApiClientTest
     }
 
     [Test]
-    public async Task GetJobExposesJobDataMapThatConvertsBackToJobDataMap()
+    public async Task GetJobReturnsTheJobDataMapWithItsValuesAsTheyWereStored()
     {
-        // regression test for #3130 - JobDetail.razor cast the JsonElement directly to JobDataMap,
-        // which always produced null. DisplayValueHelper.GetJobDataMap now performs the conversion.
+        // #3130 was the detail page casting a JsonElement to JobDataMap and always getting null. The
+        // map is a JobDataMap on the way out now, so an int is an int and a bool is a bool - reading
+        // it back out of JSON turned every value into whatever the reader guessed.
         IScheduler scheduler = await CreateScheduler("GetJobDataMapTest");
         try
         {
@@ -184,13 +157,9 @@ public class InProcessQuartzApiClientTest
             InProcessQuartzApiClient client = CreateClient(scheduler);
             JobDetailDto dto = await client.GetJob(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
 
-            dto.JobDataMap.GetProperty("Name").GetString().Should().Be("abc");
-
-            JobDataMap? map = DisplayValueHelper.GetJobDataMap(dto, "JobDataMap");
-            map.Should().NotBeNull();
-            map!["Name"].Should().Be("abc");
-            map["Count"].Should().Be(5);
-            map["Enabled"].Should().Be(true);
+            dto.JobDataMap["Name"].Should().Be("abc");
+            dto.JobDataMap["Count"].Should().Be(5);
+            dto.JobDataMap["Enabled"].Should().Be(true);
         }
         finally
         {
@@ -199,11 +168,11 @@ public class InProcessQuartzApiClientTest
     }
 
     [Test]
-    public async Task GetTriggerForSimpleTriggerIncludesTypeScheduleAndJobDataMap()
+    public async Task GetTriggerReturnsTheTriggerItself()
     {
-        // regression test for #3130 - simple triggers were serialized via plain reflection, so the
-        // detail page was missing TriggerType / schedule / JobDataMap. GetTrigger now uses the
-        // canonical Quartz converters.
+        // #3130 was the detail page missing type, schedule and job data because the trigger had been
+        // reflected into JSON. There is no JSON in the way now: the page gets the trigger, and reads
+        // the schedule off the interface its kind implements.
         IScheduler scheduler = await CreateScheduler("GetSimpleTriggerTest");
         try
         {
@@ -219,14 +188,13 @@ public class InProcessQuartzApiClientTest
             await scheduler.ScheduleJob(job, trigger);
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
-            TriggerDetailDto detail = await client.GetTrigger(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
+            ITrigger detail = await client.GetTrigger(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
 
-            JsonElement value = detail.Value;
-            value.GetProperty("triggerType").GetString().Should().Be("SimpleTrigger");
-            value.GetProperty("jobDataMap").GetProperty("Color").GetString().Should().Be("red");
-            value.TryGetProperty("repeatIntervalTimeSpan", out _).Should().BeTrue();
-
-            DisplayValueHelper.GetJobDataMap(value, "JobDataMap", "jobDataMap")!["Color"].Should().Be("red");
+            ISimpleTrigger simple = detail.Should().BeAssignableTo<ISimpleTrigger>().Subject;
+            simple.RepeatInterval.Should().Be(TimeSpan.FromSeconds(30));
+            simple.RepeatCount.Should().Be(3);
+            detail.JobDataMap["Color"].Should().Be("red");
+            TriggerDisplay.TypeName(detail).Should().Be("Simple");
         }
         finally
         {
@@ -440,8 +408,7 @@ public class InProcessQuartzApiClientTest
         return new InProcessQuartzApiClient(
             repository,
             Options.Create(new QuartzDashboardOptions()),
-            new DashboardHistoryStore(),
-            new DashboardSerializerOptions(new SystemTextJsonSerializerRegistry()).Deserializer);
+            new DashboardHistoryStore());
     }
 
     private sealed class NoOpJob : IJob
