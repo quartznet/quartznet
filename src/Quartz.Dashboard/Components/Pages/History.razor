@@ -80,22 +80,15 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (object entry in _entries)
+                @foreach (DashboardHistoryEntry entry in _entries)
                 {
-                    string jobGroup = DisplayValueHelper.GetString(entry, "jobGroup");
-                    string jobName = DisplayValueHelper.GetString(entry, "jobName");
-                    string triggerGroup = DisplayValueHelper.GetString(entry, "triggerGroup");
-                    string triggerName = DisplayValueHelper.GetString(entry, "triggerName");
-                    DateTimeOffset? firedAtUtc = DisplayValueHelper.GetDateTimeOffset(entry, "firedAtUtc");
-                    string duration = DisplayValueHelper.GetString(entry, "durationMs");
-                    bool isSuccess = GetBool(entry, "succeeded", "Succeeded");
                     <tr>
-                        <td><KeyBadge GroupName="@jobGroup" ItemName="@jobName" /></td>
-                        <td><KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" /></td>
-                        <td>@FormatFiredAt(firedAtUtc)</td>
-                        <td>@FormatDuration(duration)</td>
-                        <td><StateIndicator State="@(isSuccess ? "Complete" : "Error")" /></td>
-                        <td>@DisplayValueHelper.GetString(entry, "exceptionMessage")</td>
+                        <td><KeyBadge GroupName="@entry.JobGroup" ItemName="@entry.JobName" /></td>
+                        <td><KeyBadge GroupName="@entry.TriggerGroup" ItemName="@entry.TriggerName" /></td>
+                        <td>@FormatFiredAt(entry.FiredAtUtc)</td>
+                        <td>@FormatDurationValue(entry.DurationMs)</td>
+                        <td><StateIndicator State="@(entry.Succeeded ? "Complete" : "Error")" /></td>
+                        <td>@entry.ExceptionMessage</td>
                     </tr>
                 }
             </tbody>
@@ -109,7 +102,7 @@
 </div>
 
 @code {
-    private readonly List<object> _entries = [];
+    private readonly List<DashboardHistoryEntry> _entries = [];
     private bool _isLoading = true;
     private bool _historyUnavailable;
     private string? _error;
@@ -244,28 +237,26 @@
                 return;
             }
 
-            JobHistoryQueryDto query = new(schedulerName, _page, _pageSize, _appliedJobFilter, _appliedTriggerFilter);
-            JobHistoryPageDto? page = await Api.GetHistory(query);
+            PagedResult<DashboardHistoryEntry>? page = await Api.GetHistory(HistoryQuery(schedulerName, _page));
             if (page is null)
             {
                 _historyUnavailable = true;
                 return;
             }
 
-            System.Text.Json.JsonElement payload = page.Value;
-            _page = Math.Max(1, GetInt(payload, "page", "Page"));
-            _currentPageSize = Math.Max(1, GetInt(payload, "pageSize", "PageSize"));
-            _totalCount = GetInt(payload, "totalCount", "TotalCount");
+            _currentPageSize = _pageSize;
+            _totalCount = page.TotalCount ?? page.Items.Count;
             _totalPages = Math.Max(1, (int) Math.Ceiling((double) _totalCount / _currentPageSize));
 
-            object? entries = DisplayValueHelper.GetObject(payload, "entries", "Entries");
-            if (entries is System.Text.Json.JsonElement entriesElement && entriesElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+            // A skip past the end answers with an empty page, where the reader asking for page 99 of 3
+            // means the last one. Clamp and ask again, as the job and trigger listings do.
+            if (_page > _totalPages)
             {
-                foreach (System.Text.Json.JsonElement item in entriesElement.EnumerateArray())
-                {
-                    _entries.Add(item.Clone());
-                }
+                _page = _totalPages;
+                page = await Api.GetHistory(HistoryQuery(schedulerName, _page)) ?? page;
             }
+
+            _entries.AddRange(page.Items);
 
             ComputeAnalytics();
         }
@@ -279,6 +270,19 @@
             _loadingInProgress = false;
         }
     }
+
+    /// <summary>
+    /// The 1-based page the pager speaks, as the <c>Skip</c>/<c>Take</c> the API speaks.
+    /// </summary>
+    private DashboardHistoryQuery HistoryQuery(string schedulerName, int page) => new()
+    {
+        SchedulerName = schedulerName,
+        JobFilter = _appliedJobFilter,
+        TriggerFilter = _appliedTriggerFilter,
+        Skip = Math.Max(0, page - 1) * _pageSize,
+        Take = _pageSize,
+        IncludeTotalCount = true
+    };
 
     private async Task OnPageChangedAsync(int page)
     {
@@ -370,16 +374,6 @@
         return jobPart + " · " + triggerPart;
     }
 
-    private static string FormatDuration(string durationMs)
-    {
-        if (!long.TryParse(durationMs, out long value))
-        {
-            return "n/a";
-        }
-
-        return value + " ms";
-    }
-
     private static string FormatDurationValue(long durationMs)
     {
         return durationMs > 0 ? durationMs + " ms" : "n/a";
@@ -402,76 +396,6 @@
         return ratio.ToString("P1", System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    private static int GetInt(System.Text.Json.JsonElement source, params string[] propertyNames)
-    {
-        object? value = DisplayValueHelper.GetObject(source, propertyNames);
-        if (value is System.Text.Json.JsonElement element)
-        {
-            if (element.ValueKind == System.Text.Json.JsonValueKind.Number && element.TryGetInt32(out int numberValue))
-            {
-                return numberValue;
-            }
-
-            if (element.ValueKind == System.Text.Json.JsonValueKind.String && int.TryParse(element.GetString(), out int parsedValue))
-            {
-                return parsedValue;
-            }
-
-            return 0;
-        }
-
-        return value is int intValue ? intValue : 0;
-    }
-
-    private static long GetLong(object source, params string[] propertyNames)
-    {
-        object? value = DisplayValueHelper.GetObject(source, propertyNames);
-        if (value is System.Text.Json.JsonElement element)
-        {
-            if (element.ValueKind == System.Text.Json.JsonValueKind.Number && element.TryGetInt64(out long numberValue))
-            {
-                return numberValue;
-            }
-
-            if (element.ValueKind == System.Text.Json.JsonValueKind.String &&
-                long.TryParse(element.GetString(), out long parsedValue))
-            {
-                return parsedValue;
-            }
-
-            return 0;
-        }
-
-        return value is long longValue ? longValue : 0;
-    }
-
-    private static bool GetBool(object source, params string[] propertyNames)
-    {
-        object? value = DisplayValueHelper.GetObject(source, propertyNames);
-        if (value is System.Text.Json.JsonElement element)
-        {
-            if (element.ValueKind == System.Text.Json.JsonValueKind.True)
-            {
-                return true;
-            }
-
-            if (element.ValueKind == System.Text.Json.JsonValueKind.False)
-            {
-                return false;
-            }
-
-            if (element.ValueKind == System.Text.Json.JsonValueKind.String &&
-                bool.TryParse(element.GetString(), out bool parsedElement))
-            {
-                return parsedElement;
-            }
-
-            return false;
-        }
-
-        return value is bool boolValue && boolValue;
-    }
-
     private void ComputeAnalytics()
     {
         List<long> durations = [];
@@ -480,10 +404,9 @@
         _pageAverageDurationMs = 0;
         _pageP95DurationMs = 0;
 
-        foreach (object entry in _entries)
+        foreach (DashboardHistoryEntry entry in _entries)
         {
-            bool succeeded = GetBool(entry, "succeeded", "Succeeded");
-            if (succeeded)
+            if (entry.Succeeded)
             {
                 _pageSuccessCount++;
             }
@@ -492,10 +415,9 @@
                 _pageFailureCount++;
             }
 
-            long duration = GetLong(entry, "durationMs", "DurationMs");
-            if (duration > 0)
+            if (entry.DurationMs > 0)
             {
-                durations.Add(duration);
+                durations.Add(entry.DurationMs);
             }
         }
 

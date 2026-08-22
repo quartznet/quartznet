@@ -41,7 +41,7 @@ internal record SchedulerDto(
         return new SchedulerDto(
             SchedulerInstanceId: scheduler.SchedulerInstanceId,
             Name: scheduler.SchedulerName,
-            Status: SchedulerHeaderDto.TranslateStatus(scheduler),
+            Status: scheduler.GetStatus(),
             ThreadPool: SchedulerThreadPoolDto.Create(metadata),
             JobStore: SchedulerJobStoreDto.Create(metadata),
             Statistics: SchedulerStatisticsDto.Create(metadata)

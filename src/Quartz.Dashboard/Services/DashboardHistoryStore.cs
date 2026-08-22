@@ -36,13 +36,10 @@ public interface IDashboardHistoryStore
 {
     ValueTask Add(DashboardHistoryEntry entry, CancellationToken cancellationToken = default);
 
-    ValueTask<DashboardHistoryPage> GetPage(
-        string schedulerName,
-        int page,
-        int pageSize,
-        string? jobFilter = null,
-        string? triggerFilter = null,
-        CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Returns one page of the recorded executions, newest first.
+    /// </summary>
+    ValueTask<PagedResult<DashboardHistoryEntry>> GetPage(DashboardHistoryQuery query, CancellationToken cancellationToken = default);
 }
 
 internal sealed class DashboardHistoryStore : IDashboardHistoryStore
@@ -65,18 +62,13 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
         return default;
     }
 
-    public ValueTask<DashboardHistoryPage> GetPage(
-        string schedulerName,
-        int page,
-        int pageSize,
-        string? jobFilter = null,
-        string? triggerFilter = null,
-        CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<DashboardHistoryEntry>> GetPage(DashboardHistoryQuery query, CancellationToken cancellationToken = default)
     {
-        int safePageSize = Math.Clamp(pageSize, 1, 100);
+        ArgumentNullException.ThrowIfNull(query);
+
         List<DashboardHistoryEntry> snapshot = [];
 
-        if (entriesByScheduler.TryGetValue(schedulerName, out List<DashboardHistoryEntry>? list))
+        if (entriesByScheduler.TryGetValue(query.SchedulerName, out List<DashboardHistoryEntry>? list))
         {
             lock (list)
             {
@@ -85,16 +77,16 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
         }
 
         IEnumerable<DashboardHistoryEntry> filtered = snapshot;
-        if (!string.IsNullOrWhiteSpace(jobFilter))
+        if (!string.IsNullOrWhiteSpace(query.JobFilter))
         {
-            string normalizedJobFilter = jobFilter.Trim();
+            string normalizedJobFilter = query.JobFilter.Trim();
             filtered = filtered.Where(x =>
                 MatchesFilter(x.JobGroup, x.JobName, normalizedJobFilter));
         }
 
-        if (!string.IsNullOrWhiteSpace(triggerFilter))
+        if (!string.IsNullOrWhiteSpace(query.TriggerFilter))
         {
-            string normalizedTriggerFilter = triggerFilter.Trim();
+            string normalizedTriggerFilter = query.TriggerFilter.Trim();
             filtered = filtered.Where(x =>
                 MatchesFilter(x.TriggerGroup, x.TriggerName, normalizedTriggerFilter));
         }
@@ -103,12 +95,11 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
             .OrderByDescending(x => x.FiredAtUtc)
             .ToList();
 
-        int totalCount = ordered.Count;
-        int totalPages = Math.Max(1, (int) Math.Ceiling((double) totalCount / safePageSize));
-        int safePage = Math.Clamp(page, 1, totalPages);
-        int skip = (safePage - 1) * safePageSize;
-        List<DashboardHistoryEntry> pageItems = ordered.Skip(skip).Take(safePageSize).ToList();
-        return ValueTask.FromResult(new DashboardHistoryPage(safePage, safePageSize, totalCount, pageItems));
+        // Skip past the end is an empty page rather than an error, the same answer a job store gives.
+        int skip = Math.Min(query.Skip, ordered.Count);
+        List<DashboardHistoryEntry> pageItems = ordered.Skip(skip).Take(query.Take).ToList();
+        bool hasMore = skip + pageItems.Count < ordered.Count;
+        return ValueTask.FromResult(new PagedResult<DashboardHistoryEntry>(pageItems, hasMore, ordered.Count));
     }
 
     private static bool MatchesFilter(string group, string name, string filter)
@@ -119,5 +110,3 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
                name.Contains(filter, StringComparison.OrdinalIgnoreCase);
     }
 }
-
-public sealed record DashboardHistoryPage(int Page, int PageSize, int TotalCount, List<DashboardHistoryEntry> Entries);

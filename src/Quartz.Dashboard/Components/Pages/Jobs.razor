@@ -121,6 +121,16 @@
 
     private IEnumerable<IGrouping<string, JobKeyDto>> GroupedJobs => _jobs.GroupBy(job => job.Group);
 
+    /// <summary>
+    /// The 1-based page the pager speaks, as the <c>Skip</c>/<c>Take</c> the API speaks.
+    /// </summary>
+    private DashboardJobQuery PageQuery(string? groupFilter, int page) => new()
+    {
+        GroupContains = groupFilter,
+        Skip = Math.Max(0, page - 1) * _pageSize,
+        Take = _pageSize
+    };
+
     protected override async Task OnInitializedAsync()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
@@ -151,17 +161,19 @@
             }
 
             string? groupFilter = string.IsNullOrWhiteSpace(_filter) ? null : _filter;
-            JobPageDto page = await Api.GetJobs(schedulerName, groupFilter, _currentPage, _pageSize);
+            PagedResult<JobKeyDto> page = await Api.GetJobs(schedulerName, PageQuery(groupFilter, _currentPage));
 
-            int totalPages = Math.Max(1, (int) Math.Ceiling((double) page.TotalCount / _pageSize));
+            int totalCount = page.TotalCount ?? page.Items.Count;
+            int totalPages = Math.Max(1, (int) Math.Ceiling((double) totalCount / _pageSize));
             if (_currentPage > totalPages)
             {
                 _currentPage = totalPages;
-                page = await Api.GetJobs(schedulerName, groupFilter, _currentPage, _pageSize);
+                page = await Api.GetJobs(schedulerName, PageQuery(groupFilter, _currentPage));
+                totalCount = page.TotalCount ?? page.Items.Count;
             }
 
             _jobs.AddRange(page.Items);
-            _totalJobs = page.TotalCount;
+            _totalJobs = totalCount;
 
             List<JobGroupDto> groups = await Api.GetJobGroups(schedulerName);
             foreach (JobGroupDto group in groups)
@@ -226,7 +238,7 @@
         }
 
         await ExecuteMutatingActionAsync(
-            () => Api.PauseJob(Scheduler.ActiveSchedulerName!, group, name),
+            () => Api.PauseJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(group, name)),
             "Paused job " + DisplayValueHelper.FormatKey(group, name) + ".",
             "Job " + DisplayValueHelper.FormatKey(group, name) + " was not paused - it no longer exists.",
             actionName: "PauseJob",
@@ -241,7 +253,7 @@
         }
 
         await ExecuteMutatingActionAsync(
-            () => Api.ResumeJob(Scheduler.ActiveSchedulerName!, group, name),
+            () => Api.ResumeJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(group, name)),
             "Resumed job " + DisplayValueHelper.FormatKey(group, name) + ".",
             "Job " + DisplayValueHelper.FormatKey(group, name) + " was not resumed - it no longer exists.",
             actionName: "ResumeJob",
@@ -256,7 +268,7 @@
         }
 
         await ExecuteMutatingActionAsync(
-            () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, group, name),
+            () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(group, name)),
             "Triggered job " + DisplayValueHelper.FormatKey(group, name) + ".",
             actionName: "TriggerJob",
             target: DisplayValueHelper.FormatKey(group, name));
@@ -266,7 +278,7 @@
     {
         return ExecuteGroupMutatingActionAsync(
             group,
-            (schedulerName, jobGroup, jobName) => Api.PauseJob(schedulerName, jobGroup, jobName),
+            (schedulerName, jobKey) => Api.PauseJob(schedulerName, jobKey),
             "Paused");
     }
 
@@ -274,7 +286,7 @@
     {
         return ExecuteGroupMutatingActionAsync(
             group,
-            (schedulerName, jobGroup, jobName) => Api.ResumeJob(schedulerName, jobGroup, jobName),
+            (schedulerName, jobKey) => Api.ResumeJob(schedulerName, jobKey),
             "Resumed");
     }
 
@@ -282,7 +294,7 @@
     {
         return ExecuteGroupMutatingActionAsync(
             group,
-            (schedulerName, jobGroup, jobName) => Api.TriggerJob(schedulerName, jobGroup, jobName),
+            (schedulerName, jobKey) => Api.TriggerJob(schedulerName, jobKey),
             "Triggered");
     }
 
@@ -303,7 +315,7 @@
         }
 
         await ExecuteMutatingActionAsync(
-            () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, _pendingDeleteGroup, _pendingDeleteName),
+            () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(_pendingDeleteGroup, _pendingDeleteName)),
             "Deleted job " + DisplayValueHelper.FormatKey(_pendingDeleteGroup, _pendingDeleteName) + ".",
             actionName: "DeleteJob",
             target: DisplayValueHelper.FormatKey(_pendingDeleteGroup, _pendingDeleteName));
@@ -380,14 +392,14 @@
 
     private async Task ExecuteGroupMutatingActionAsync(
         string group,
-        Func<string, string, string, ValueTask> operation,
+        Func<string, JobKeyDto, ValueTask> operation,
         string actionVerb)
     {
         await ExecuteGroupMutatingActionAsync(
             group,
-            async (schedulerName, jobGroup, jobName) =>
+            async (schedulerName, jobKey) =>
             {
-                await operation(schedulerName, jobGroup, jobName);
+                await operation(schedulerName, jobKey);
                 return true;
             },
             actionVerb);
@@ -395,7 +407,7 @@
 
     private async Task ExecuteGroupMutatingActionAsync(
         string group,
-        Func<string, string, string, ValueTask<bool>> operation,
+        Func<string, JobKeyDto, ValueTask<bool>> operation,
         string actionVerb)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
@@ -407,7 +419,9 @@
         try
         {
             // The group filter matches groups that contain it, so the exact group is selected here.
-            JobPageDto groupPage = await Api.GetJobs(schedulerName, group, page: 1, pageSize: int.MaxValue);
+            PagedResult<JobKeyDto> groupPage = await Api.GetJobs(
+                schedulerName,
+                new DashboardJobQuery { GroupContains = group, Take = int.MaxValue });
             List<JobKeyDto> jobsInGroup = [];
             foreach (JobKeyDto job in groupPage.Items)
             {
@@ -420,7 +434,7 @@
             int appliedCount = 0;
             foreach (JobKeyDto job in jobsInGroup)
             {
-                if (await operation(schedulerName, job.Group, job.Name))
+                if (await operation(schedulerName, job))
                 {
                     appliedCount++;
                 }

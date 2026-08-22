@@ -21,6 +21,18 @@ using System.Text.Json;
 
 namespace Quartz.Dashboard.Services;
 
+/// <summary>
+/// The data source behind the dashboard's pages: either the schedulers in this process or a Quartz HTTP
+/// API somewhere else.
+/// </summary>
+/// <remarks>
+/// This is the dashboard's own projection of the HTTP API, not the wire contract itself — it is shaped
+/// for the pages that read it, and it is public so that an application can replace it. It speaks Quartz's
+/// vocabulary throughout: <see cref="TriggerState" /> and <see cref="SchedulerStatus" /> rather than
+/// strings, <see cref="JobKeyDto" /> and <see cref="TriggerKeyDto" /> rather than loose group/name pairs,
+/// and <see cref="PagedQuery" />'s <c>Skip</c>/<c>Take</c> with <see cref="PagedResult{T}" /> rather than
+/// a paging model of its own.
+/// </remarks>
 public interface IQuartzApiClient
 {
     ValueTask<List<SchedulerHeaderDto>> GetSchedulers(CancellationToken cancellationToken = default);
@@ -38,17 +50,17 @@ public interface IQuartzApiClient
     ValueTask ResumeAll(string schedulerName, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns one page of jobs, ordered by group and then name. <paramref name="groupFilter"/> matches
-    /// groups that contain it, <paramref name="page"/> is 1-based, and a <paramref name="pageSize"/> of
-    /// zero returns no items but still counts them.
+    /// Returns one page of jobs, ordered by group and then name. The page always reports
+    /// <see cref="PagedResult{T}.HasMore" /> and, because the dashboard asks for it, a
+    /// <see cref="PagedResult{T}.TotalCount" />.
     /// </summary>
-    ValueTask<JobPageDto> GetJobs(string schedulerName, string? groupFilter, int page, int pageSize, CancellationToken cancellationToken = default);
+    ValueTask<PagedResult<JobKeyDto>> GetJobs(string schedulerName, DashboardJobQuery query, CancellationToken cancellationToken = default);
 
     ValueTask<List<JobGroupDto>> GetJobGroups(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask<JobDetailDto> GetJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
-    ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
     ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, CancellationToken cancellationToken = default);
 
@@ -56,59 +68,57 @@ public interface IQuartzApiClient
     /// Pauses the job. Returns <see langword="true" /> when the job existed and was paused,
     /// <see langword="false" /> when there was nothing to pause.
     /// </summary>
-    ValueTask<bool> PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask<bool> PauseJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resumes the job. Returns <see langword="true" /> when the job existed and was resumed,
     /// <see langword="false" /> when there was nothing to resume.
     /// </summary>
-    ValueTask<bool> ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask<bool> ResumeJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
-    ValueTask TriggerJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask TriggerJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
-    ValueTask TriggerJobWithData(string schedulerName, string group, string name, JsonElement jobDataMap, CancellationToken cancellationToken = default);
+    ValueTask TriggerJobWithData(string schedulerName, JobKeyDto jobKey, JsonElement jobDataMap, CancellationToken cancellationToken = default);
 
-    ValueTask InterruptJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask InterruptJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
-    ValueTask DeleteJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask DeleteJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
     ValueTask AddJob(string schedulerName, AddJobRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns one page of triggers, ordered by group and then name, each carrying its state and
-    /// execution group. <paramref name="groupFilter"/> matches groups that contain it,
-    /// <paramref name="state"/> limits the result to one trigger state, <paramref name="page"/> is
-    /// 1-based, and a <paramref name="pageSize"/> of zero returns no items but still counts them.
+    /// execution group.
     /// </summary>
-    ValueTask<TriggerPageDto> GetTriggers(string schedulerName, string? groupFilter, TriggerState? state, int page, int pageSize, CancellationToken cancellationToken = default);
+    ValueTask<PagedResult<TriggerHeaderDto>> GetTriggers(string schedulerName, DashboardTriggerQuery query, CancellationToken cancellationToken = default);
 
-    ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
-    ValueTask<string> GetTriggerState(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask<TriggerState> GetTriggerState(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Pauses the trigger. Returns <see langword="true" /> when the trigger existed and was moved
     /// into the paused state, <see langword="false" /> when there was nothing to pause.
     /// </summary>
-    ValueTask<bool> PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask<bool> PauseTrigger(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resumes the trigger. Returns <see langword="true" /> when the trigger existed in a paused
     /// state and was resumed, <see langword="false" /> when there was nothing to resume.
     /// </summary>
-    ValueTask<bool> ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask<bool> ResumeTrigger(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resets the trigger from the error state. Returns <see langword="true" /> when the trigger
     /// existed in the error state and was reset, <see langword="false" /> otherwise.
     /// </summary>
-    ValueTask<bool> ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask<bool> ResetTriggerFromErrorState(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
     ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default);
 
-    ValueTask UnscheduleJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    ValueTask UnscheduleJob(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
-    ValueTask RescheduleJob(string schedulerName, string group, string name, RescheduleRequest request, CancellationToken cancellationToken = default);
+    ValueTask RescheduleJob(string schedulerName, TriggerKeyDto triggerKey, RescheduleRequest request, CancellationToken cancellationToken = default);
 
     ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default);
 
@@ -118,21 +128,52 @@ public interface IQuartzApiClient
 
     ValueTask DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default);
 
-    ValueTask<JobHistoryPageDto?> GetHistory(JobHistoryQueryDto query, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Returns one page of execution history, newest first, or <see langword="null" /> when the data
+    /// source keeps no history.
+    /// </summary>
+    ValueTask<PagedResult<DashboardHistoryEntry>?> GetHistory(DashboardHistoryQuery query, CancellationToken cancellationToken = default);
 
     ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default);
 }
 
-public sealed record JobHistoryQueryDto(
-    string SchedulerName,
-    int Page = 1,
-    int PageSize = 25,
-    string? JobFilter = null,
-    string? TriggerFilter = null);
+/// <summary>
+/// One page of the job listing, optionally narrowed to the groups whose name contains
+/// <see cref="GroupContains" />.
+/// </summary>
+public sealed record DashboardJobQuery : PagedQuery
+{
+    public string? GroupContains { get; init; }
+}
 
-public sealed record SchedulerHeaderDto(string SchedulerName, string SchedulerInstanceId, string Status);
+/// <summary>
+/// One page of the trigger listing, optionally narrowed by group name and by state.
+/// </summary>
+public sealed record DashboardTriggerQuery : PagedQuery
+{
+    public string? GroupContains { get; init; }
 
-public sealed record SchedulerDetailDto(string SchedulerInstanceId, string SchedulerName, string Status);
+    public TriggerState? State { get; init; }
+}
+
+/// <summary>
+/// One page of the execution history of a scheduler, optionally narrowed by job and trigger.
+/// </summary>
+/// <remarks>
+/// A filter matches a key's group, its name, or the two joined as <c>group.name</c>, case-insensitively.
+/// </remarks>
+public sealed record DashboardHistoryQuery : PagedQuery
+{
+    public required string SchedulerName { get; init; }
+
+    public string? JobFilter { get; init; }
+
+    public string? TriggerFilter { get; init; }
+}
+
+public sealed record SchedulerHeaderDto(string SchedulerName, string SchedulerInstanceId, SchedulerStatus Status);
+
+public sealed record SchedulerDetailDto(string SchedulerInstanceId, string SchedulerName, SchedulerStatus Status);
 
 public sealed record JobKeyDto(string Group, string Name);
 
@@ -146,12 +187,8 @@ public sealed record TriggerHeaderDto(string Group, string Name, string? Executi
 
     public string? ScheduleSummary { get; init; }
 
-    public string? State { get; init; }
+    public TriggerState? State { get; init; }
 }
-
-public sealed record JobPageDto(int Page, int PageSize, int TotalCount, bool HasMore, List<JobKeyDto> Items);
-
-public sealed record TriggerPageDto(int Page, int PageSize, int TotalCount, bool HasMore, List<TriggerHeaderDto> Items);
 
 public sealed record JobDetailDto(
     string Name,
@@ -182,7 +219,5 @@ public sealed record CalendarDetailDto(JsonElement Value);
 public sealed record AddCalendarRequest(string CalendarName, JsonElement Calendar, bool Replace, bool UpdateTriggers);
 
 public sealed record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNonDurableWhileAwaitingScheduling);
-
-public sealed record JobHistoryPageDto(JsonElement Value);
 
 public sealed record ExecutionLimitsDto(Dictionary<string, int?> Limits);

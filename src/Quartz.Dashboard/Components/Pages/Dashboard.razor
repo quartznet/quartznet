@@ -25,7 +25,7 @@
     {
         <div class="qz-row">
             <h2>Scheduler status</h2>
-            <StateIndicator State="@_schedulerStatus" />
+            <StateIndicator State="@_schedulerStatus.ToString()" />
         </div>
 
         @if (!IsReadOnly)
@@ -91,7 +91,7 @@
     private bool _isLoading = true;
     private bool _isRefreshingExecuting;
     private string? _error;
-    private string _schedulerStatus = "Unknown";
+    private SchedulerStatus _schedulerStatus = SchedulerStatus.Unknown;
     private int _totalJobs;
     private int _totalTriggers;
     private int _currentlyExecuting;
@@ -128,7 +128,7 @@
             string? schedulerName = Scheduler.ActiveSchedulerName;
             if (string.IsNullOrWhiteSpace(schedulerName))
             {
-                _schedulerStatus = "Unknown";
+                _schedulerStatus = SchedulerStatus.Unknown;
                 _totalJobs = 0;
                 _totalTriggers = 0;
                 _currentlyExecuting = 0;
@@ -139,16 +139,16 @@
             SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName);
             _schedulerStatus = scheduler.Status;
 
-            // Counting queries: no items are fetched, only the exact totals the tiles show.
-            JobPageDto jobs = await Api.GetJobs(schedulerName, groupFilter: null, page: 1, pageSize: 0);
-            TriggerPageDto triggers = await Api.GetTriggers(schedulerName, groupFilter: null, state: null, page: 1, pageSize: 0);
-            TriggerPageDto errorTriggers = await Api.GetTriggers(schedulerName, groupFilter: null, state: TriggerState.Error, page: 1, pageSize: 0);
+            // Counting queries: Take = 0 fetches no items, only the exact totals the tiles show.
+            PagedResult<JobKeyDto> jobs = await Api.GetJobs(schedulerName, new DashboardJobQuery { Take = 0 });
+            PagedResult<TriggerHeaderDto> triggers = await Api.GetTriggers(schedulerName, new DashboardTriggerQuery { Take = 0 });
+            PagedResult<TriggerHeaderDto> errorTriggers = await Api.GetTriggers(schedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Error });
             List<CurrentlyExecutingJobDto> executing = await Api.GetCurrentlyExecutingJobs(schedulerName);
 
-            _totalJobs = jobs.TotalCount;
-            _totalTriggers = triggers.TotalCount;
+            _totalJobs = jobs.TotalCount ?? 0;
+            _totalTriggers = triggers.TotalCount ?? 0;
             _currentlyExecuting = executing.Count;
-            _errorTriggers = errorTriggers.TotalCount;
+            _errorTriggers = errorTriggers.TotalCount ?? 0;
 
             RefreshRecentActions(schedulerName);
         }

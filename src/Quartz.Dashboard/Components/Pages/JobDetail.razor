@@ -90,7 +90,7 @@
                         string triggerName = trigger.Name;
                         string triggerType = trigger.TriggerType ?? string.Empty;
                         string triggerSchedule = trigger.ScheduleSummary ?? string.Empty;
-                        string triggerState = trigger.State ?? "Unknown";
+                        string triggerState = trigger.State?.ToString() ?? "Unknown";
                         <tr>
                             <td>
                                 <a href="@GetTriggerPath(triggerGroup, triggerName)">
@@ -134,6 +134,8 @@
 
     private bool IsReadOnly => Options.Value.ReadOnly;
 
+    private JobKeyDto JobKey => new(Group, Name);
+
     private JobDataMap? JobDataMap => DisplayValueHelper.GetJobDataMap(_job, "JobDataMap");
 
     protected override async Task OnInitializedAsync()
@@ -169,9 +171,9 @@
                 return;
             }
 
-            _job = await Api.GetJob(schedulerName, Group, Name);
+            _job = await Api.GetJob(schedulerName, JobKey);
             _triggerDataMap = CloneJobDataMap(JobDataMap);
-            _triggers.AddRange(await Api.GetJobTriggers(schedulerName, Group, Name));
+            _triggers.AddRange(await Api.GetJobTriggers(schedulerName, JobKey));
         }
         catch (Exception ex)
         {
@@ -197,7 +199,7 @@
     private Task PauseAsync()
     {
         return ExecuteMutatingActionAsync(
-            () => Api.PauseJob(Scheduler.ActiveSchedulerName!, Group, Name),
+            () => Api.PauseJob(Scheduler.ActiveSchedulerName!, JobKey),
             "Paused job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             "Job " + DisplayValueHelper.FormatKey(Group, Name) + " was not paused - it no longer exists.",
             actionName: "PauseJob",
@@ -207,7 +209,7 @@
     private Task ResumeAsync()
     {
         return ExecuteMutatingActionAsync(
-            () => Api.ResumeJob(Scheduler.ActiveSchedulerName!, Group, Name),
+            () => Api.ResumeJob(Scheduler.ActiveSchedulerName!, JobKey),
             "Resumed job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             "Job " + DisplayValueHelper.FormatKey(Group, Name) + " was not resumed - it no longer exists.",
             actionName: "ResumeJob",
@@ -217,7 +219,7 @@
     private Task TriggerAsync()
     {
         return ExecuteMutatingActionAsync(
-            () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, Group, Name),
+            () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, JobKey),
             "Triggered job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             actionName: "TriggerJob",
             target: DisplayValueHelper.FormatKey(Group, Name));
@@ -227,7 +229,7 @@
     {
         JsonElement jobDataMap = JsonSerializer.SerializeToElement(_triggerDataMap, requestSerializerOptions);
         return ExecuteMutatingActionAsync(
-            () => Api.TriggerJobWithData(Scheduler.ActiveSchedulerName!, Group, Name, jobDataMap),
+            () => Api.TriggerJobWithData(Scheduler.ActiveSchedulerName!, JobKey, jobDataMap),
             "Triggered job " + DisplayValueHelper.FormatKey(Group, Name) + " with overrides.",
             actionName: "TriggerJobWithData",
             target: DisplayValueHelper.FormatKey(Group, Name));
@@ -247,7 +249,7 @@
     private async Task DeleteAsync()
     {
         bool succeeded = await ExecuteMutatingActionAsync(
-            () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, Group, Name),
+            () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, JobKey),
             "Deleted job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             actionName: "DeleteJob",
             target: DisplayValueHelper.FormatKey(Group, Name));
