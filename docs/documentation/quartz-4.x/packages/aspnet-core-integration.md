@@ -15,12 +15,12 @@ If you only need the generic host, [generic host integration](hosted-services-in
 You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
-Install-Package Quartz.AspNetCore
+dotnet add package Quartz.AspNetCore
 ```
 
 ## Using
 
-You can host the scheduler by invoking `AddQuartzHostedService` on `IServiceCollection`.
+You can host the scheduler by invoking `AddQuartzHostedService` on the web application builder.
 This adds a hosted Quartz server into the ASP.NET Core process that is started and stopped based on the application's lifetime.
 
 ::: tip
@@ -32,23 +32,24 @@ hosted service and a health check together, is gone — call `AddQuartzHealthChe
 See [Quartz documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
 :::
 
-**Example Startup.ConfigureServices configuration**
+**Example Program.cs configuration**
 
 ```csharp
-public void ConfigureServices(IServiceCollection services)
-{
-    services.AddQuartz(q =>
-    {
-        // base Quartz scheduler, job and trigger configuration
-    });
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-    // ASP.NET Core hosting
-    services.AddQuartzHostedService(options =>
-    {
-        // when shutting down we want jobs to complete gracefully
-        options.WaitForJobsToComplete = true;
-    });
-}
+builder.AddQuartz(q =>
+{
+    // base Quartz scheduler, job and trigger configuration
+});
+
+// ASP.NET Core hosting
+builder.AddQuartzHostedService(options =>
+{
+    // when shutting down we want jobs to complete gracefully
+    options.WaitForJobsToComplete = true;
+});
+
+WebApplication app = builder.Build();
 ```
 
 ## A practical example of the setup
@@ -65,40 +66,51 @@ The class should extend the `IJob` interface and implement the `Execute` method.
 **Example SendEmailJob.cs configuration**
 
 ```csharp
-public class SendEmailJob : IJob
+public sealed class SendEmailJob : IJob
 {
+    private readonly IEmailSender sender;
+
+    public SendEmailJob(IEmailSender sender)
+    {
+        this.sender = sender;
+    }
+
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         // Code that sends a periodic email to the user (for example)
-        // Note: This method must always return a value 
-        // This is especially important for trigger listers watching job execution 
-        return default;
+        return sender.SendDigest(cancellationToken);
     }
-}        
+}
 ```
+
+A job whose work is asynchronous is written `async ValueTask` as usual. One that only forwards a call, like
+this one, can return it directly and skip the state machine; one with nothing to await at all returns
+`default`, which is a completed `ValueTask` that allocates nothing. What a job must not do is block: the
+scheduler is holding a worker slot for it.
 
 After that, you just need to build Quartz trigger in `Program.cs`, which guarantees that the job will run according to the preset interval.
 
 **Example Program.cs configuration**
 
 ```csharp
-builder.Services.AddQuartz(q =>
+builder.AddQuartz(q =>
 {
     // Just use the name of your job that you created in the Jobs folder.
-    var jobKey = new JobKey("SendEmailJob");
+    JobKey jobKey = new("SendEmailJob");
     q.AddJob<SendEmailJob>(opts => opts.WithIdentity(jobKey));
-    
-    q.AddTrigger<IJob>(opts => opts
+
+    q.AddTrigger<SendEmailJob>(opts => opts
         .ForJob(jobKey)
         .WithIdentity("SendEmailJob-trigger")
-         //This Cron interval can be described as "run every minute" (when second is zero)
-        .WithCronSchedule("0 * * ? * *")
-    );
+        // This Cron interval can be described as "run every minute" (when second is zero)
+        .WithCronSchedule("0 * * ? * *"));
 });
-builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
+
+builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
 
-For more information on cron triggers and their format, you can use the tutorial directly from Quartz - [Cron Triggers](../tutorial/crontriggers.md).
+For more on cron triggers see the [CronTriggers lesson](../tutorial/crontriggers.md), and for the expression
+syntax itself the [Cron Expression Reference](../cron-expressions.md).
 
 ## Health checks
 

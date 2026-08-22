@@ -31,13 +31,7 @@ service was asked for, so something was meant to run. Register a scheduler with 
 **Example program utilizing hosted services configuration**
 
 ```csharp
-Log.Logger = new LoggerConfiguration()
-    .Enrich.FromLogContext()
-    .WriteTo.Console()
-    .CreateLogger();
-
-var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddSerilog();
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 // see Quartz documentation about how to configure different configuration aspects
 builder.AddQuartz(q =>
@@ -52,7 +46,25 @@ builder.AddQuartzHostedService(options =>
     options.WaitForJobsToComplete = true;
 });
 
-builder.Build().Run();
+await builder.Build().RunAsync();
+```
+
+## Options
+
+`QuartzHostedServiceOptions`:
+
+| Option | Default | Description |
+|---|---|---|
+| `WaitForJobsToComplete` | `false` | Shutdown does not return until the jobs still executing have finished. Without it the host stops while they are still running. Whether they are also asked to stop is the scheduler's `ShutdownJobInterruption` setting. |
+| `AwaitApplicationStarted` | `true` | Jobs do not start until application startup has completed, so nothing fires while the rest of the application is still coming up. |
+| `StartDelay` | none | Starts the scheduler this long after it otherwise would. With `AwaitApplicationStarted`, the delay is counted from the completion of startup. |
+
+To take part in the lifecycle itself — a warm-up before the scheduler starts, a drain after it stops — derive
+from `QuartzHostedService` and register the subclass; its `StartingAsync`, `StartedAsync`, `StoppingAsync` and
+`StoppedAsync` are virtual, and `Schedulers` gives it the schedulers it is running:
+
+```csharp
+builder.AddQuartzHostedService<WarmUpBeforeSchedulingService>(options => options.WaitForJobsToComplete = true);
 ```
 
 `builder.AddQuartz(...)` is `builder.Services.AddQuartz(...)` with the application's configuration
