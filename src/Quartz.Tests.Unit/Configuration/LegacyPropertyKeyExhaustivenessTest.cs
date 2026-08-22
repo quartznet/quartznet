@@ -138,7 +138,25 @@ public class LegacyPropertyKeyExhaustivenessTest
 
         // migration-guide.md
         "quartz.jobStore.lockHandler.tablePrefix",
+        "quartz.jobStore.lockHandler.schedName",
         "quartz.jobStore.lockHandler.schedulerName"
+    ];
+
+    /// <summary>
+    /// The lock handler identity keys, spelled the way 3.x spelled them.
+    /// </summary>
+    /// <remarks>
+    /// These are the two keys whose advice is aimed squarely at a file copied out of a 3.x
+    /// application, so getting the spelling wrong costs the whole entry: a key nobody ever wrote is
+    /// rejected by name, and the key they did write falls through to "unknown configuration
+    /// property". 3.x derived both from the property names on <c>ITablePrefixAware</c> —
+    /// <c>TablePrefix</c> and <c>SchedName</c> — which <c>StdSchedulerFactory</c> wrote into the lock
+    /// handler's property group as <c>tablePrefix</c> and <c>schedName</c>.
+    /// </remarks>
+    private static readonly string[] threeXTablePrefixAwareKeys =
+    [
+        "quartz.jobStore.lockHandler.tablePrefix",
+        "quartz.jobStore.lockHandler.schedName"
     ];
 
     [Test]
@@ -254,6 +272,23 @@ public class LegacyPropertyKeyExhaustivenessTest
         accepted.Should().BeEmpty(
             "the documentation promises these are rejected rather than ignored, which is the whole point "
             + "of listing them by name");
+    }
+
+    [Test]
+    public void TheLockHandlerIdentityKeysAreRejectedInTheSpelling3xUsed()
+    {
+        List<string> missed = threeXTablePrefixAwareKeys.Where(key => Rejection(key) is null).ToList();
+
+        missed.Should().BeEmpty(
+            "these are the keys a file copied out of a 3.x application actually contains, and advice "
+            + "attached to a spelling nobody ever wrote reaches nobody — the reader gets 'unknown "
+            + "configuration property' for the key they really have");
+
+        foreach (string key in threeXTablePrefixAwareKeys)
+        {
+            Rejection(key).Should().Contain("ISemaphore.Initialize",
+                "the point of naming the key is to say which seam replaced it");
+        }
     }
 
     [Test]

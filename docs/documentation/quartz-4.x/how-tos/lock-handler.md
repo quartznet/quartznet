@@ -193,8 +193,10 @@ s.UseRedisLockHandler(o =>
 });
 ```
 
-The legacy key is `quartz.jobStore.lockHandler.type`. Its `.tablePrefix` and `.schedulerName`
-sub-keys are rejected as obsolete, because `Initialize` supplies both.
+The legacy key is `quartz.jobStore.lockHandler.type`. Its `.tablePrefix` and `.schedName` sub-keys —
+3.x's spelling, from the `ITablePrefixAware` properties they wrote — are rejected as obsolete, because
+`Initialize` supplies both. `.schedulerName` is rejected with the same advice, since that is the key
+the 4.x property name suggests.
 
 ## A handler is always used
 
