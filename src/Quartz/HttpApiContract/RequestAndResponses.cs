@@ -51,17 +51,30 @@ internal record ExistsResponse(bool Exists);
 internal record GroupPausedResponse(bool Paused);
 
 /// <summary>
-/// The answer of a mutation whose effect may be a no-op: <c>Applied</c> is <see langword="true" />
-/// when the operation applied to everything it was aimed at.
+/// The answer of a mutation aimed at one entity whose effect may be a no-op: <c>Applied</c> is
+/// <see langword="true" /> when the entity existed and the operation changed it.
 /// </summary>
 /// <remarks>
 /// Every such endpoint answers with this one shape, so the body follows from what the operation is
-/// rather than from which endpoint it was. For a single-key mutation it is that one key — the entity
-/// existed and the operation changed it. For the key-set delete and unschedule forms it is every key
-/// given, so a partial hit is <see langword="false" /> even though the keys that were found were
-/// still deleted. A mutation that always acts answers with an empty body instead.
+/// rather than from which endpoint it was. A mutation that always acts answers with an empty body
+/// instead, and one aimed at a key set answers with what it applied to.
 /// </remarks>
 internal record OperationAppliedResponse(bool Applied);
+
+/// <summary>
+/// The answer of a key-set delete or unschedule: <c>AllFound</c> is <see langword="true" /> when every
+/// key given was found.
+/// </summary>
+/// <remarks>
+/// Deliberately not <see cref="OperationAppliedResponse" />, whose shape it shares. A partial hit
+/// deletes the keys it found and reports <see langword="false" />, so calling that "applied" would be
+/// a false statement about what happened, and a caller who retried on it would never learn that most
+/// of the work had already succeeded. <c>IScheduler.DeleteJobs</c> and <c>UnscheduleJobs</c> return
+/// one <see cref="bool" /> for the whole set and cannot say more; until they answer with the keys they
+/// applied to, as the key-set pause and resume do, this field is named for what it can actually
+/// report.
+/// </remarks>
+internal record AllKeysFoundResponse(bool AllFound);
 
 /// <summary>
 /// Answer of a group-matcher pause/resume: the names of the groups the operation affected.

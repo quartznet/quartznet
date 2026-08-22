@@ -448,7 +448,14 @@ internal static class TriggerEndpoints
         });
     }
 
-    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
+    /// <summary>
+    /// Unschedules a set of triggers, answering whether every key given was found.
+    /// </summary>
+    /// <remarks>
+    /// The one mutation body that is not <c>applied</c>: a partial hit unschedules the triggers it
+    /// found, so see <see cref="AllKeysFoundResponse" /> for why it may not claim to have applied.
+    /// </remarks>
+    [ProducesResponseType(typeof(AllKeysFoundResponse), StatusCodes.Status200OK)]
     private static Task<IResult> UnscheduleJobs(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -461,7 +468,7 @@ internal static class TriggerEndpoints
         {
             var triggerKeys = request.Triggers.Select(x => x.AsTriggerKey()).ToArray();
             var allTriggersFound = await scheduler.UnscheduleJobs(triggerKeys, cancellationToken).ConfigureAwait(false);
-            return new OperationAppliedResponse(allTriggersFound);
+            return new AllKeysFoundResponse(allTriggersFound);
         });
     }
 

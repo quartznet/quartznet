@@ -215,6 +215,24 @@ public class WireFormatSnapshotTest : WebApiTest
         await VerifyBody(body);
     }
 
+    /// <summary>
+    /// A fault the caller cannot act on: the same problem-details members, without the exception type.
+    /// </summary>
+    /// <remarks>
+    /// The client-actionable errors name the type they came from so that a caller can reconstruct and
+    /// handle them. A 500 is not one of those, and naming the type behind it would only say something
+    /// about this server's internals — so the member's absence here is contract, and pinned as such.
+    /// </remarks>
+    [Test]
+    public async Task ServerFaultProblemDetailsBody()
+    {
+        A.CallTo(() => FakeScheduler.PauseAll(A<CancellationToken>._))
+            .Throws(_ => new InvalidOperationException("Something the API never promised"));
+
+        string body = await Post($"{SchedulerUrl}/pause-all", requestJson: "", HttpStatusCode.InternalServerError);
+        await VerifyBody(body);
+    }
+
     [Test]
     public async Task UnknownSchedulerProblemDetailsBody()
     {
@@ -258,6 +276,7 @@ public class WireFormatSnapshotTest : WebApiTest
         A.CallTo(() => FakeScheduler.DeleteJob(existingJob, A<CancellationToken>._)).Returns(true);
         A.CallTo(() => FakeScheduler.DeleteJob(missingJob, A<CancellationToken>._)).Returns(false);
         A.CallTo(() => FakeScheduler.DeleteJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).Returns(false);
+        A.CallTo(() => FakeScheduler.UnscheduleJobs(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(true);
         A.CallTo(() => FakeScheduler.DeleteCalendar("existing", A<CancellationToken>._)).Returns(true);
         A.CallTo(() => FakeScheduler.DeleteCalendar("missing", A<CancellationToken>._)).Returns(false);
         A.CallTo(() => FakeScheduler.UnscheduleJob(existingTrigger, A<CancellationToken>._)).Returns(true);
@@ -328,11 +347,15 @@ public class WireFormatSnapshotTest : WebApiTest
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/group/existing/interrupt", HttpStatusCode.OK, expectedBody: """{"applied":true}""");
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/group/missing/interrupt", HttpStatusCode.OK, expectedBody: """{"applied":false}""");
 
-            // the plural delete and unschedule say it of the whole key set: a partial hit is false,
-            // even though the keys that were found were still deleted
+            // the plural delete and unschedule are the exception, and the field is named for what
+            // they can actually report: a partial hit deleted the keys it found, so calling that
+            // "applied": false would be a false statement about what happened
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/delete", HttpStatusCode.OK,
                 """{"jobs":[{"name":"existing","group":"group"},{"name":"missing","group":"group"}]}""",
-                expectedBody: """{"applied":false}""");
+                expectedBody: """{"allFound":false}""");
+            await Row(HttpMethod.Post, $"{SchedulerUrl}/triggers/unschedule", HttpStatusCode.OK,
+                """{"triggers":[{"name":"existing","group":"group"}]}""",
+                expectedBody: """{"allFound":true}""");
 
             // a malformed request is a 400, never a 404 or a 500
             await Row(HttpMethod.Get, $"{SchedulerUrl}/jobs?skip=-1", HttpStatusCode.BadRequest);

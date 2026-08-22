@@ -269,14 +269,14 @@ public sealed class HttpScheduler : IScheduler
     {
         ArgumentNullException.ThrowIfNull(triggerKeys);
 
-        var result = await httpClient.PostWithResponse<UnscheduleJobsRequest, OperationAppliedResponse>(
+        var result = await httpClient.PostWithResponse<UnscheduleJobsRequest, AllKeysFoundResponse>(
             $"{TriggerEndpointUrl()}/unschedule",
             new UnscheduleJobsRequest(triggerKeys.Select(KeyDto.Create).ToArray()),
             jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
-        return result.Applied;
+        return result.AllFound;
     }
 
     public async ValueTask<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger, CancellationToken cancellationToken = default)
@@ -376,14 +376,14 @@ public sealed class HttpScheduler : IScheduler
     {
         ArgumentNullException.ThrowIfNull(jobKeys);
 
-        var result = await httpClient.PostWithResponse<DeleteJobsRequest, OperationAppliedResponse>(
+        var result = await httpClient.PostWithResponse<DeleteJobsRequest, AllKeysFoundResponse>(
             $"{JobEndpointUrl()}/delete",
             new DeleteJobsRequest(jobKeys.Select(KeyDto.Create).ToArray()),
             jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
-        return result.Applied;
+        return result.AllFound;
     }
 
     public ValueTask TriggerJob(JobKey jobKey, JobDataMap? data = null, CancellationToken cancellationToken = default)

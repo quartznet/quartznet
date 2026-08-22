@@ -19,14 +19,22 @@ internal sealed class ExceptionHandler
     }
 
     /// <summary>
-    /// Turns an exception into the one problem-details shape the API answers errors with.
+    /// Turns an exception into the problem details the API answers errors with.
     /// </summary>
     /// <remarks>
-    /// Which layer raised the exception decides the status code and the wording, never the members:
-    /// every error body carries <c>type</c>, <c>title</c>, <c>status</c>, <c>detail</c> and
-    /// <see cref="HttpApiConstants.ProblemDetailsExceptionType" />. The exception type used to ride
-    /// only on the <see cref="SchedulerException" /> path, so a client could not tell a body it was
-    /// missing from a body that never carries it, and a 400 meant two different shapes.
+    /// <para>
+    /// A client-actionable error names the exception type it came from; a server fault does not. A
+    /// <c>400</c> and a <c>404</c> are things the caller can reconstruct and handle — that is what
+    /// <see cref="HttpApiConstants.ProblemDetailsExceptionType" /> is read for — so every one of them
+    /// carries it whichever layer raised it. It used to ride only on the
+    /// <see cref="SchedulerException" /> path, so a <c>400</c> from request validation and a
+    /// <c>400</c> from the scheduler were two different shapes and a client could not tell a body the
+    /// member was missing from one that never carries it.
+    /// </para>
+    /// <para>
+    /// A <c>500</c> is a fault the caller cannot act on, and naming the type that produced it buys
+    /// nothing it does not also leak.
+    /// </para>
     /// </remarks>
     public IResult HandleException(Exception exception, HttpContext context)
     {
@@ -55,20 +63,22 @@ internal sealed class ExceptionHandler
         }
 
         logger.LogError(exception, "Exception thrown when handling api request to url {Url}", context.Request.GetDisplayUrl());
-        return Problem(exception, exception.Message, StatusCodes.Status500InternalServerError);
-
-        static string GetMessageWithInnerExceptionMessage(Exception exception)
-        {
-            return exception.InnerException is not null ? $"{exception.Message} {exception.InnerException.Message}" : exception.Message;
-        }
+        return Problem(exception, exception.Message, StatusCodes.Status500InternalServerError, nameTheExceptionType: false);
     }
 
-    private IResult Problem(Exception exception, string detail, int statusCode)
+    private static string GetMessageWithInnerExceptionMessage(Exception exception)
     {
-        Dictionary<string, object?> extensions = new()
+        return exception.InnerException is not null ? $"{exception.Message} {exception.InnerException.Message}" : exception.Message;
+    }
+
+    private IResult Problem(Exception exception, string detail, int statusCode, bool nameTheExceptionType = true)
+    {
+        Dictionary<string, object?> extensions = new();
+
+        if (nameTheExceptionType)
         {
-            { HttpApiConstants.ProblemDetailsExceptionType, exception.GetType().Name }
-        };
+            extensions.Add(HttpApiConstants.ProblemDetailsExceptionType, exception.GetType().Name);
+        }
 
         if (includeStackTrace)
         {

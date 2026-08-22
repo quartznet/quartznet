@@ -423,7 +423,14 @@ internal static class JobEndpoints
         });
     }
 
-    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
+    /// <summary>
+    /// Deletes a set of jobs, answering whether every key given was found.
+    /// </summary>
+    /// <remarks>
+    /// The one mutation body that is not <c>applied</c>: a partial hit deletes the jobs it found, so
+    /// see <see cref="AllKeysFoundResponse" /> for why it may not claim to have applied.
+    /// </remarks>
+    [ProducesResponseType(typeof(AllKeysFoundResponse), StatusCodes.Status200OK)]
     private static Task<IResult> DeleteJobs(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -436,7 +443,7 @@ internal static class JobEndpoints
         {
             var jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
             var allJobsFound = await scheduler.DeleteJobs(jobKeys, cancellationToken).ConfigureAwait(false);
-            return new OperationAppliedResponse(allJobsFound);
+            return new AllKeysFoundResponse(allJobsFound);
         });
     }
 
