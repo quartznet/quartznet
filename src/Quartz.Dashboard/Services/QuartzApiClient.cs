@@ -58,7 +58,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         {
             string schedulerName = GetStringProperty(scheduler, "name");
             string schedulerInstanceId = GetStringProperty(scheduler, "schedulerInstanceId");
-            string status = TranslateSchedulerStatus(GetIntProperty(scheduler, "status"));
+            string status = GetSchedulerStatusProperty(scheduler, "status");
             result.Add(new SchedulerHeaderDto(schedulerName, schedulerInstanceId, status));
         }
 
@@ -70,7 +70,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}", cancellationToken).ConfigureAwait(false);
         string resolvedName = GetStringProperty(json, "name");
         string schedulerInstanceId = GetStringProperty(json, "schedulerInstanceId");
-        string status = TranslateSchedulerStatus(GetIntProperty(json, "status"));
+        string status = GetSchedulerStatusProperty(json, "status");
         return new SchedulerDetailDto(schedulerInstanceId, resolvedName, status);
     }
 
@@ -611,15 +611,34 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return document.RootElement.Clone();
     }
 
-    private static string TranslateSchedulerStatus(int status)
+    /// <summary>
+    /// Reads the scheduler status the API reports. It is a name on the wire; the numeric form is still
+    /// read so that a dashboard can talk to a server that predates the change.
+    /// </summary>
+    private static string GetSchedulerStatusProperty(JsonElement element, string propertyName)
     {
-        return status switch
+        if (element.ValueKind is not JsonValueKind.Object || !element.TryGetProperty(propertyName, out JsonElement value))
         {
-            1 => "Running",
-            2 => "Standby",
-            3 => "Shutdown",
-            _ => "Unknown"
-        };
+            return "Unknown";
+        }
+
+        if (value.ValueKind is JsonValueKind.String)
+        {
+            return value.GetString() ?? "Unknown";
+        }
+
+        if (value.ValueKind is JsonValueKind.Number && value.TryGetInt32(out int status))
+        {
+            return status switch
+            {
+                1 => "Running",
+                2 => "Standby",
+                3 => "Shutdown",
+                _ => "Unknown"
+            };
+        }
+
+        return "Unknown";
     }
 
     private static string GetStringProperty(JsonElement element, string propertyName)

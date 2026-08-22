@@ -78,6 +78,28 @@ public class WireFormatSnapshotTest : WebApiTest
     }
 
     [Test]
+    public async Task TriggerListingBody()
+    {
+        // the trigger listing is where the wire's enums live: a header carries the trigger's state, and
+        // it goes out as its name for the same reason the trigger body's repeatIntervalUnit does
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>([TriggerHeaderFor(TestData.Wire.CronTrigger, TriggerState.Paused)], HasMore: false, TotalCount: null));
+
+        string body = await Get($"{SchedulerUrl}/triggers");
+        await VerifyBody(body);
+    }
+
+    [Test]
+    public async Task TriggerStateBody()
+    {
+        TriggerKey triggerKey = TestData.Wire.CronTrigger.Key;
+        A.CallTo(() => FakeScheduler.GetTriggerState(triggerKey, A<CancellationToken>._)).Returns(TriggerState.Blocked);
+
+        string body = await Get($"{SchedulerUrl}/triggers/{triggerKey.Group}/{triggerKey.Name}/state");
+        await VerifyBody(body);
+    }
+
+    [Test]
     public async Task SchedulerBody()
     {
         A.CallTo(() => FakeScheduler.GetMetadata(A<CancellationToken>._)).Returns(TestData.Wire.Metadata);
@@ -201,6 +223,12 @@ public class WireFormatSnapshotTest : WebApiTest
             // a malformed request is a 400, never a 404 or a 500
             await Row(HttpMethod.Get, $"{SchedulerUrl}/jobs?skip=-1", HttpStatusCode.BadRequest);
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs", HttpStatusCode.BadRequest, """{"replace":true}""");
+
+            // ...but a 400 does not always carry a body: a query parameter the framework could not bind
+            // never reaches the endpoint, so it answers with the status code alone, where a request the
+            // endpoint rejected answers with problem details saying why
+            await Row(HttpMethod.Get, $"{SchedulerUrl}/jobs?take=not-a-number", HttpStatusCode.BadRequest, expectedBody: "");
+            await Row(HttpMethod.Get, $"{SchedulerUrl}/triggers?state=not-a-state", HttpStatusCode.BadRequest, expectedBody: "");
         }
 
         async Task Row(HttpMethod method, string url, HttpStatusCode expectedStatusCode, string? requestJson = null, string? expectedBody = null)
@@ -269,6 +297,20 @@ public class WireFormatSnapshotTest : WebApiTest
             .UseFileName($"WireFormatSnapshotTest_{testMethod}")
             .DisableRequireUniquePrefix();
     }
+
+    private static TriggerHeader TriggerHeaderFor(ITrigger trigger, TriggerState state) => new(
+        trigger.Key,
+        trigger.JobKey,
+        Description: trigger.Description,
+        TriggerType: "CRON",
+        State: state,
+        StartTimeUtc: trigger.StartTimeUtc,
+        EndTimeUtc: trigger.EndTimeUtc,
+        NextFireTimeUtc: trigger.NextFireTimeUtc,
+        PreviousFireTimeUtc: trigger.PreviousFireTimeUtc,
+        CalendarName: trigger.CalendarName,
+        Priority: trigger.Priority,
+        ExecutionGroup: trigger.ExecutionGroup);
 
     private static JobHeader JobHeaderFor(IJobDetail jobDetail) => new(
         jobDetail.Key,

@@ -23,9 +23,10 @@ namespace Quartz;
 /// All trigger states known to Scheduler.
 /// </summary>
 /// <remarks>
-/// Both the numeric values and the member names are a wire contract. The HTTP API returns this enum as an
-/// integer, so members must never be renumbered or reordered; it accepts a state filter by name, so
-/// members must never be renamed either. New members are appended.
+/// Both the numeric values and the member names are a wire contract. The HTTP API returns this enum as
+/// its name and accepts a state filter by name, so members must never be renamed; the numeric values are
+/// persisted by job stores and still accepted on the wire, so members must never be renumbered or
+/// reordered either. New members are appended.
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public enum TriggerState

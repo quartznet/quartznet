@@ -4356,6 +4356,32 @@ the group-matcher forms. This is additive for clients that ignored the body — 
 response body the old server never sends. Upgrade the server before, or together with, its remote
 clients.
 
+## One wire contract, and its enums have names
+
+The DTOs that define the HTTP API's JSON used to live in `Quartz.HttpClient`, and `Quartz.AspNetCore`
+reached them by depending on the client package. They now live in `Quartz`, internal, visible to both —
+so the server package no longer ships a dependency on the client package. Nothing public moved: the
+contract was internal before and is internal still, and every JSON property name survived the move
+unchanged.
+
+What did change is how the contract's enums are spelled. A trigger body has always said
+`"repeatIntervalUnit": "Hour"`, because Quartz's own converters write enums by name, while the DTOs
+beside it said `"status": 1`. One value now has one spelling everywhere:
+
+| Body | 4.0 preview | 4.0 |
+|---|---|---|
+| `GET …/schedulers` item, `GET …/schedulers/{name}` | `"status": 1` | `"status": "Running"` |
+| `GET …/schedulers/{name}/triggers` item | `"state": 1` | `"state": "Paused"` |
+| `GET …/schedulers/{name}/triggers/{group}/{name}/state` | `{"state": 1}` | `{"state": "Paused"}` |
+
+Reading still accepts both, so a request body or `?state=` filter written against a preview keeps
+working; only responses changed. `HttpScheduler` reads the new spelling, so a client and server upgraded
+together need no code change — a hand-written client that read `status`/`state` as numbers does.
+
+Only these two enums are affected, and the converters are registered per enum type: the HTTP API adds
+its converters to the application's shared `JsonOptions`, and a host's own endpoints must keep rendering
+their own enums the way they always did.
+
 ## `CheckExists` is `Exists`
 
 Both overloads, on `IScheduler` and `IJobStore`:

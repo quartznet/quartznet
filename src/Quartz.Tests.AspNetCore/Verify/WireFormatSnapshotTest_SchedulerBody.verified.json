@@ -1,7 +1,7 @@
 ﻿{
   "schedulerInstanceId": "TEST_NON_CLUSTERED",
   "name": "TestScheduler",
-  "status": 1,
+  "status": "Running",
   "threadPool": {
     "type": "Quartz.Impl.DefaultThreadPool, Quartz",
     "size": 10
