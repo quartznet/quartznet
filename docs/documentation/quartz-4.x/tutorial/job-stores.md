@@ -328,6 +328,11 @@ concurrency requirements - trigger acquisition has to be atomic against other sc
 handling has to be idempotent - so start from the semantics `RAMJobStore` and `AdoJobStoreBase` document rather
 than from the method signatures alone.
 
+A store that keeps job details as objects rather than as rows should re-store the data of a
+`[PersistJobDataAfterExecution]` job with `jobDetail.WithJobData(newData)`, not by rebuilding the detail through
+`JobBuilder`. An application may have supplied an [`IJobDetail` of its own](more-about-jobs.md#a-jobdetail-of-your-own),
+and rebuilding one silently swaps it for Quartz's implementation on the job's first completion.
+
 Either kind is registered the same way, by type:
 
 ```csharp

@@ -96,6 +96,42 @@ public class JobDetailTest
         }
     }
 
+    /// <summary>
+    /// A job store re-stores the data of a finished job by asking its detail for a copy of itself, so
+    /// the copy has to carry everything else across and the detail the store already handed out has to
+    /// be left as it was.
+    /// </summary>
+    [Test]
+    public void WithJobDataCopiesTheDetailAndLeavesTheOriginalAlone()
+    {
+        IJobDetail original = JobBuilder.Create<NoOpJob>()
+            .WithIdentity("job", "group")
+            .WithDescription("description")
+            .StoreDurably()
+            .RequestRecovery()
+            .UsingJobData("key", "original")
+            .Build();
+
+        JobDataMap replacement = new() { ["key"] = "replacement" };
+
+        IJobDetail updated = original.WithJobData(replacement);
+
+        using (new AssertionScope())
+        {
+            updated.Should().NotBeSameAs(original);
+            updated.JobDataMap.Should().BeSameAs(replacement, "the caller hands over a map it does not keep");
+            updated.Key.Should().Be(original.Key);
+            updated.Description.Should().Be(original.Description);
+            updated.JobType.Should().Be(original.JobType);
+            updated.Durable.Should().Be(original.Durable);
+            updated.RequestsRecovery.Should().Be(original.RequestsRecovery);
+            updated.PersistJobDataAfterExecution.Should().Be(original.PersistJobDataAfterExecution);
+            updated.ConcurrentExecutionDisallowed.Should().Be(original.ConcurrentExecutionDisallowed);
+            original.JobDataMap.GetString("key").Should().Be("original",
+                "a detail the store handed out earlier must not change under whoever holds it");
+        }
+    }
+
     public class GenericJob<T> : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;

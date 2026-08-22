@@ -38,6 +38,30 @@ namespace Quartz;
 /// are scheduled. Many <see cref="ITrigger" /> s can point to the same <see cref="IJob" />,
 /// but a single <see cref="ITrigger" /> can only point to one <see cref="IJob" />.
 /// </para>
+/// <para>
+/// The interface is implementable. Everything Quartz asks of a detail is declared here, including
+/// <see cref="WithJobData" />, which is how a job store re-stores the data of a
+/// <see cref="PersistJobDataAfterExecutionAttribute" /> job without having to rebuild the detail
+/// itself — a store cannot know how to construct an implementation it has never seen. How far such
+/// an implementation travels depends on the store:
+/// </para>
+/// <list type="bullet">
+/// <item>
+/// <description>
+/// <see cref="RAMJobStore" /> holds the instances it is given and hands back copies of them, so a
+/// detail of your own round-trips as itself.
+/// </description>
+/// </item>
+/// <item>
+/// <description>
+/// Anything that keeps a detail as data does not. The ADO.NET job store writes the columns of
+/// <c>QRTZ_JOB_DETAILS</c> and rebuilds every detail it loads through <see cref="JobBuilder" />, so
+/// what comes back is Quartz's own implementation; the HTTP client rebuilds one the same way from
+/// its wire payload. Whatever your type carries beyond the members declared here is gone by then,
+/// so anything that has to survive belongs in the <see cref="JobDataMap" />.
+/// </description>
+/// </item>
+/// </list>
 /// </remarks>
 /// <seealso cref="IJob" />
 /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
@@ -105,10 +129,23 @@ public interface IJobDetail
     bool RequestsRecovery { get; }
 
     /// <summary>
-    /// Get a <see cref="JobBuilder" /> that is configured to produce a 
-    /// <see cref="IJobDetail" /> identical to this one.
+    /// Return a detail like this one but carrying <paramref name="jobDataMap" /> as its
+    /// <see cref="JobDataMap" />, leaving this instance untouched.
     /// </summary>
-    JobBuilder<IJob> GetJobBuilder();
+    /// <remarks>
+    /// <para>
+    /// A job store calls this when a <see cref="PersistJobDataAfterExecutionAttribute" /> job finishes
+    /// and the data it left behind has to become the data the next firing sees. It is the one
+    /// mutation-shaped member on the interface, and it exists so that a store re-storing job data does
+    /// not have to construct a detail itself — which it could only do as Quartz's own implementation,
+    /// silently swapping out yours.
+    /// </para>
+    /// <para>
+    /// The map is taken as given rather than copied: the caller hands over a map it does not keep.
+    /// </para>
+    /// </remarks>
+    /// <param name="jobDataMap">The job data the returned detail carries.</param>
+    IJobDetail WithJobData(JobDataMap jobDataMap);
 
     IJobDetail Clone();
 }

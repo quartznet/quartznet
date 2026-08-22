@@ -319,6 +319,58 @@ In other words, non-durable jobs have a life span bounded by the existence of it
 (i.e. the process it is running within crashes, or the machine is shut off), then it is re-executed when the scheduler is started again.
 In this case, the `JobExecutionContext.Recovering` property will return true.
 
+## A JobDetail of your own
+
+`JobBuilder` builds Quartz's own `IJobDetail`, and that is what almost every application wants. If you need a
+job definition that carries something of yours alongside the ones above — a tenant, a correlation id, whatever
+the rest of your system keys on — you can implement `IJobDetail` yourself. Everything Quartz asks of a detail is
+declared on the interface:
+
+```csharp
+public sealed class TenantJobDetail : IJobDetail
+{
+    public TenantJobDetail(JobKey key, JobType jobType, string tenant, JobDataMap jobDataMap = null)
+    {
+        Key = key;
+        JobType = jobType;
+        Tenant = tenant;
+        JobDataMap = jobDataMap ?? new JobDataMap();
+    }
+
+    public string Tenant { get; }
+
+    public JobKey Key { get; }
+    public string Description => $"jobs for {Tenant}";
+    public JobType JobType { get; }
+    public JobDataMap JobDataMap { get; }
+    public bool Durable => true;
+    public bool PersistJobDataAfterExecution => true;
+    public bool ConcurrentExecutionDisallowed => true;
+    public bool RequestsRecovery => false;
+
+    // How a job store re-stores the data a [PersistJobDataAfterExecution] job left behind: it asks the
+    // detail for a copy of itself rather than building one, which it could only do as Quartz's own type.
+    public IJobDetail WithJobData(JobDataMap jobDataMap)
+        => new TenantJobDetail(Key, JobType, Tenant, jobDataMap);
+
+    public IJobDetail Clone()
+        => new TenantJobDetail(Key, JobType, Tenant, new JobDataMap(JobDataMap));
+}
+```
+
+::: warning How far it travels
+A detail of your own round-trips through `RAMJobStore`, which holds the instances it is given and hands back
+clones of them. It does not survive a store or a transport that keeps a detail as data: the ADO.NET job store
+writes the columns of `QRTZ_JOB_DETAILS` and rebuilds every detail it reads through `JobBuilder`, so what comes
+back is Quartz's own implementation, and the HTTP client rebuilds one the same way from its wire payload.
+Anything your type carries beyond the members above is gone by then — put it in the `JobDataMap` if it has to
+come back.
+:::
+
+`detail.GetJobBuilder()` is an extension method over the interface, so it works on a detail of your own too. It
+describes the detail rather than preserving it: what it builds is Quartz's `IJobDetail`. Use `WithJobData` to
+vary the data of a detail of your own, and `Clone()` to copy one.
+
 ## JobExecutionException
 
 Finally, we need to inform you of a few details of the `IJob.Execute(..)` method. The only type of exception
