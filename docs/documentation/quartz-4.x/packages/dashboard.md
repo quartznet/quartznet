@@ -161,7 +161,8 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 - Scheduler overview and summary cards
 - Jobs and triggers listing with search and pagination
 - Job details and trigger details pages
-- Currently executing jobs view
+- Currently executing jobs view — cluster-wide with a persistent job store, showing which node owns each
+  execution, and interrupting the one execution a row names rather than every execution of its job
 - Live event/log stream for scheduler activity
 - Pause, resume, trigger-now, and unschedule/delete actions (when not in read-only mode)
 - Trigger detail cron reschedule and job detail trigger-with-overrides actions

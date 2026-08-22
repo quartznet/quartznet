@@ -180,6 +180,11 @@ the execution was given, so the job has to co-operate: check
 return early when cancellation is requested. In 4.x the token is also a parameter of `Execute`, so forwarding
 it is the default thing to do.
 
+Ask the scheduler to set that token with `IScheduler.Interrupt(jobKey)`, which interrupts every execution of the
+job, or `IScheduler.InterruptFireInstance(fireInstanceId)` for one of them. In 4.x, list the executions to pick
+from with `IScheduler.QueryFireInstances(new FireInstanceQuery())` — with a persistent job store that sees the
+whole cluster, though the interrupt itself is handled by the node running the execution.
+
 # Questions About Triggers
 
 ## How do I chain Job execution? Or, how do I create a workflow?

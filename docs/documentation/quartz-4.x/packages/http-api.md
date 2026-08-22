@@ -62,7 +62,7 @@ validated against.
 ## Endpoint groups
 
 - **Schedulers**: list schedulers, read metadata/context, start, stand-by, shutdown, clear, pause-all, resume-all
-- **Jobs**: query jobs, fetch details by key, check existence, list currently executing, pause/resume, trigger, interrupt, add, delete
+- **Jobs**: query jobs, fetch details by key, check existence, list fire instances, pause/resume, trigger, interrupt, add, delete
 - **Triggers**: query triggers, fetch by key, read state, pause/resume, reset from error state, schedule/unschedule/reschedule
 - **Calendars**: query names, get details, add/replace, delete
 
@@ -130,11 +130,38 @@ with no rows is `?take=0&includeTotalCount=true`, which the stores answer with t
 | `GET {ApiPath}/schedulers/{name}/triggers` | Trigger headers: key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority, execution group | the four `group*` and four `name*` filters, plus `jobName` + `jobGroup` (give both or neither), `calendarName`, `state` |
 | `GET {ApiPath}/schedulers/{name}/triggers/groups` | Trigger groups: `name`, `paused` | `name` (one group, matched exactly), `paused` |
 | `GET {ApiPath}/schedulers/{name}/calendars` | Calendar names | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith` |
+| `GET {ApiPath}/schedulers/{name}/jobs/fire-instances` | Fire instances: `fireInstanceId`, trigger key, job key (`null` while only reserved), `schedulerInstanceId`, `state`, `fireTimeUtc`, `scheduledFireTimeUtc`, `executionGroup` | the four `group*` and four `name*` filters (they match the *trigger*), plus `jobName` + `jobGroup` (give both or neither), `schedulerInstanceId`, `state` |
 
 Results are ordered by group and then name, and every page uses the same ordering, so paging through a
-result is consistent. At most one `name*` filter may be given per request; more than one is a `400`.
+result is consistent. Fire instances add a third ordering key, the fire instance id, because one trigger
+can have several firings at once and group plus name would not order them. At most one `name*` filter may be given per request; more than one is a `400`.
 The filter's text is a literal — a calendar named `50%` is matched by `?nameStartsWith=50%25` and is
 not a wildcard.
+
+### Fire instances
+
+`GET {ApiPath}/schedulers/{name}/jobs/fire-instances` replaces 4.0-preview's
+`GET …/jobs/currently-executing`, which returned a bare array of whole job-execution contexts and could
+only ever describe the node that answered. The listing is store-backed, so with a persistent job store it
+covers the whole cluster.
+
+Its `state` filter is the one listing filter with a non-empty default: naming no `state` lists what is
+running (`Executing`), because that is the question the endpoint is usually asked. Ask for everything with
+`?state=Any`, or for reservations with `?state=Acquired`. Anything else is a `400`.
+
+Three caveats belong on any UI built over this:
+
+- A firing an `ITriggerListener` vetoes does not linger — applying the veto completes it. It can be listed
+  for the instant between the store recording the firing and the veto being decided, and never after.
+- Elapsed time is your clock minus `fireTimeUtc`, and `fireTimeUtc` was written by the firing node's
+  clock. On a cluster with skewed clocks the difference can be negative; clamp it at zero.
+- `scheduledFireTimeUtc` is the schedule as the owning node recorded it, which after a misfire is the
+  *rescheduled* time. It is not the fire time that was missed, and the gap to `fireTimeUtc` is not misfire
+  lateness.
+
+`POST {ApiPath}/schedulers/{name}/jobs/interrupt/{fireInstanceId}` interrupts one of them, where
+`POST …/jobs/{group}/{name}/interrupt` interrupts every execution of that job. Both are node-local on the
+server side: a firing owned by another node is interrupted by asking that node.
 
 A listing gives you headers, not whole objects. To get the full detail for a page, post the keys back:
 
