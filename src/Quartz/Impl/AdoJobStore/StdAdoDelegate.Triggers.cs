@@ -1156,7 +1156,12 @@ public partial class StdAdoDelegate
         // we want at least one trigger back
         int maxCount = criteria.MaxCount < 1 ? 1 : criteria.MaxCount;
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextTriggerToAcquireSql(maxCount)));
+        string sql = acquisitionSqlByMaxCount.GetOrAdd(
+            maxCount,
+            static (limit, self) => self.ReplaceTablePrefix(self.GetSelectNextTriggerToAcquireSql(limit)),
+            this);
+
+        using var cmd = PrepareCommand(conn, sql);
         List<TriggerAcquireResult> nextTriggers = new();
 
         AddCommandParameter(cmd, "schedulerName", schedulerName);
@@ -1170,13 +1175,19 @@ public partial class StdAdoDelegate
         ExecutionSlots? executionSlots = criteria.ExecutionLimits?.CreateSlots();
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        // signal cancel, otherwise ADO.NET might have trouble handling partial reads from open reader
         int execGroupOrdinal = -1;
-        var shouldStop = false;
+        int triggerNameOrdinal = -1;
+        int triggerGroupOrdinal = -1;
+        int jobClassOrdinal = -1;
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            if (shouldStop)
+            if (nextTriggers.Count >= maxCount)
             {
+                // Every dialect Quartz ships puts the batch size into the statement itself, so a row
+                // beyond the batch only turns up on a delegate whose SQL cannot be row-limited - the
+                // base one, or a driver delegate of somebody's own. There the result set is every
+                // waiting trigger, and simply disposing the reader would make the provider drain all
+                // of it off the wire. Cancelling abandons it instead.
                 cmd.Cancel();
                 break;
             }
@@ -1184,34 +1195,30 @@ public partial class StdAdoDelegate
             if (execGroupOrdinal < 0)
             {
                 execGroupOrdinal = rs.GetOrdinal(AdoConstants.ColumnExecutionGroup);
+                triggerNameOrdinal = rs.GetOrdinal(AdoConstants.ColumnTriggerName);
+                triggerGroupOrdinal = rs.GetOrdinal(AdoConstants.ColumnTriggerGroup);
+                jobClassOrdinal = rs.GetOrdinal(AdoConstants.ColumnJobClass);
             }
 
-            if (nextTriggers.Count < maxCount)
+            string? executionGroup = rs.IsDBNull(execGroupOrdinal)
+                ? null
+                : rs.GetString(execGroupOrdinal);
+
+            // Read before the limit check rather than after it: the limits may be configured to
+            // stand in the trigger group for an execution group the trigger does not carry.
+            TriggerKey triggerKey = new(
+                rs.GetString(triggerNameOrdinal),
+                rs.GetString(triggerGroupOrdinal));
+
+            if (executionSlots is not null && !executionSlots.TryTake(executionGroup, triggerKey.Group))
             {
-                string? executionGroup = rs.IsDBNull(execGroupOrdinal)
-                    ? null
-                    : rs.GetString(execGroupOrdinal);
-
-                // Read before the limit check rather than after it: the limits may be configured to
-                // stand in the trigger group for an execution group the trigger does not carry.
-                TriggerKey triggerKey = new(
-                    (string) rs[AdoConstants.ColumnTriggerName],
-                    (string) rs[AdoConstants.ColumnTriggerGroup]);
-
-                if (executionSlots is not null && !executionSlots.TryTake(executionGroup, triggerKey.Group))
-                {
-                    continue; // skip this trigger, its group is at limit
-                }
-
-                nextTriggers.Add(new TriggerAcquireResult(
-                    triggerKey,
-                    (string) rs[AdoConstants.ColumnJobClass],
-                    executionGroup));
+                continue; // skip this trigger, its group is at limit
             }
-            else
-            {
-                shouldStop = true;
-            }
+
+            nextTriggers.Add(new TriggerAcquireResult(
+                triggerKey,
+                rs.GetString(jobClassOrdinal),
+                executionGroup));
         }
 
         return nextTriggers;
@@ -1543,7 +1550,10 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         // Always read one past the limit so we can tell the caller whether the limit truncated the result.
-        var sql = ReplaceTablePrefix(GetSelectMisfiredTriggersToRecoverSql(count != -1 ? count + 1 : count));
+        var sql = misfireRecoverySqlByCount.GetOrAdd(
+            count,
+            static (limit, self) => self.ReplaceTablePrefix(self.GetSelectMisfiredTriggersToRecoverSql(limit != -1 ? limit + 1 : limit)),
+            this);
 
         List<TriggerKey> keys = [];
         List<TriggerRow> rows = [];
@@ -1923,26 +1933,40 @@ public partial class StdAdoDelegate
             BuildMisfireUpdateStatements(update, statements, blobTriggers);
         }
 
-        // Providers that cannot batch report CanCreateBatch = false (the DbConnection default), and get
-        // exactly the behaviour they had before batching existed.
-        if (!conn.CanCreateBatch)
-        {
-            await ExecuteStatementsIndividually(conn, statements, 0, statements.Count, cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            // Recovery runs unbounded (maxMisfiresToHandleAtATime is -1), so cap how much goes into one
-            // batch rather than handing the provider an arbitrarily large one.
-            for (var offset = 0; offset < statements.Count; offset += MaxStatementsPerBatch)
-            {
-                var length = Math.Min(MaxStatementsPerBatch, statements.Count - offset);
-                await ExecuteStatementBatch(conn, statements, offset, length, cancellationToken).ConfigureAwait(false);
-            }
-        }
+        await ExecuteStatements(conn, statements, cancellationToken).ConfigureAwait(false);
 
         foreach (var blobTrigger in blobTriggers)
         {
             await UpdateBlobTrigger(conn, blobTrigger, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Issues a list of statements in as few round trips as the provider allows.
+    /// </summary>
+    /// <remarks>
+    /// Providers that cannot batch report <see cref="ConnectionAndTransactionHolder.CanCreateBatch" />
+    /// as <see langword="false" /> (the <see cref="DbConnection" /> default) and get exactly the
+    /// behaviour they had before batching existed: one command per statement.
+    /// </remarks>
+    private async ValueTask ExecuteStatements(
+        ConnectionAndTransactionHolder conn,
+        List<SqlStatement> statements,
+        CancellationToken cancellationToken)
+    {
+        if (!conn.CanCreateBatch)
+        {
+            await ExecuteStatementsIndividually(conn, statements, 0, statements.Count, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        // Callers can hand this an unbounded list — misfire recovery runs with no limit when
+        // maxMisfiresToHandleAtATime is -1 — so cap how much goes into one batch rather than handing
+        // the provider an arbitrarily large one.
+        for (var offset = 0; offset < statements.Count; offset += MaxStatementsPerBatch)
+        {
+            var length = Math.Min(MaxStatementsPerBatch, statements.Count - offset);
+            await ExecuteStatementBatch(conn, statements, offset, length, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -1994,10 +2018,10 @@ public partial class StdAdoDelegate
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            // A batch fails as a unit, which would let one bad trigger block the whole recovery pass.
-            // Retry statement by statement so the others still get through, and so the exception that
+            // A batch fails as a unit, which would let one bad statement block the whole pass. Retry
+            // statement by statement so the others still get through, and so the exception that
             // surfaces names the statement that actually failed.
-            logger.LogWarning(e, "Batched misfire update failed, retrying {StatementCount} statement(s) individually", length);
+            logger.LogWarning(e, "Batched statement execution failed, retrying {StatementCount} statement(s) individually", length);
             await ExecuteStatementsIndividually(conn, statements, offset, length, cancellationToken).ConfigureAwait(false);
         }
     }
