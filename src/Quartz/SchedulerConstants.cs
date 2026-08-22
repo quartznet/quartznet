@@ -19,22 +19,19 @@
 
 #endregion
 
-using Quartz.Util;
-
 namespace Quartz;
 
 /// <summary>
 /// Scheduler constants.
 /// </summary>
+/// <remarks>
+/// The default group a job or trigger belongs to is <see cref="Key{T}.DefaultGroup" /> — spelled
+/// <c>JobKey.DefaultGroup</c> or <c>TriggerKey.DefaultGroup</c> at a call site — which is where the
+/// name of the thing it names lives.
+/// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public static class SchedulerConstants
 {
-    /// <summary>
-    /// A (possibly) useful constant that can be used for specifying the group
-    /// that <see cref="IJob" /> and <see cref="ITrigger" /> instances belong to.
-    /// </summary>
-    public const string DefaultGroup = Key<string>.DefaultGroup;
-
     /// <summary>
     /// A constant <see cref="ITrigger" /> group name used internally by the
     /// scheduler - clients should not use the value of this constant

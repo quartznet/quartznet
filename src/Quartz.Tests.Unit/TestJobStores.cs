@@ -44,7 +44,7 @@ public static class TestJobStores
 
     public static IOptions<AdoJobStoreOptions> StoreOptions(
         string dataSource = "test",
-        string tablePrefix = AdoJobStoreOptions.DefaultTablePrefix,
+        string tablePrefix = AdoConstants.DefaultTablePrefix,
         Action<AdoJobStoreOptions>? configure = null)
     {
         var options = new AdoJobStoreOptions { DataSource = dataSource, TablePrefix = tablePrefix };

@@ -66,7 +66,7 @@ namespace Quartz;
 ///         logical groupings or categorizations of <see cref="IJob"/>s and
 ///         <see cref="ITrigger"/>s. If you don't have need for assigning a group to a
 ///         given <see cref="IJob"/>s of <see cref="ITrigger"/>s, then you can use
-///         the <see cref="SchedulerConstants.DefaultGroup"/> constant defined on
+///         the <see cref="Key{T}.DefaultGroup"/> constant defined on
 ///         this interface.
 ///     </para>
 /// 	<para>

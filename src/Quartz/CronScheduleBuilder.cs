@@ -257,7 +257,7 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
             // Use unambiguous encoding to avoid hash collisions between different keys.
             // Default-group keys are prefixed with ':' (discriminator) so they cannot collide
             // with the non-default format which always starts with a digit (length prefix).
-            string hashKey = key.Group == SchedulerConstants.DefaultGroup
+            string hashKey = key.Group == TriggerKey.DefaultGroup
                 ? $":{key.Name}"
                 : $"{key.Group.Length}:{key.Group}{key.Name}";
             cronExpression = new CronExpression(deferredHashExpression, hashKey);

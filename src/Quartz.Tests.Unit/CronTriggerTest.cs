@@ -47,7 +47,7 @@ public class CronTriggerTest
         }
         TimeZoneInfo tz = TZConvert.GetTimeZoneInfo(tzStr);
         CronTriggerImpl trigger = new CronTriggerImpl();
-        trigger.Key = new TriggerKey("Quartz-579", SchedulerConstants.DefaultGroup);
+        trigger.Key = new TriggerKey("Quartz-579", TriggerKey.DefaultGroup);
         trigger.TimeZone = tz;
         trigger.CronExpressionString = "0 0 12 * * ?";
         Assert.That(trigger.TimeZone, Is.EqualTo(tz), "TimeZone was changed");
@@ -64,7 +64,7 @@ public class CronTriggerTest
         DateTimeOffset expectedFire = startDate.AddHours(5).AddMinutes(50);
 
         CronTriggerImpl trigger = new CronTriggerImpl();
-        trigger.Key = new TriggerKey("Quartz-Custom", SchedulerConstants.DefaultGroup);
+        trigger.Key = new TriggerKey("Quartz-Custom", TriggerKey.DefaultGroup);
         trigger.TimeZone = tz;
         trigger.CronExpressionString = "0 50 5,11,17,23 ? * *";
         trigger.StartTimeUtc = startDate;
@@ -84,7 +84,7 @@ public class CronTriggerTest
     public void BasicCronTriggerTest()
     {
         CronTriggerImpl trigger = new CronTriggerImpl();
-        trigger.Key = new TriggerKey("Quartz-Sample", SchedulerConstants.DefaultGroup);
+        trigger.Key = new TriggerKey("Quartz-Sample", TriggerKey.DefaultGroup);
         trigger.CronExpressionString = "0 0 12 1 1 ? 2099";
         trigger.StartTimeUtc = new DateTimeOffset(2099, 1, 1, 12, 0, 1, TimeSpan.Zero);
         trigger.EndTimeUtc = new DateTimeOffset(2099, 1, 1, 12, 0, 1, TimeSpan.Zero);
@@ -214,7 +214,7 @@ public class CronTriggerTest
         string cronExpression = "0 30 14 ? * MON,TUE,WED,THU,FRI *";
 
         CronTriggerImpl trigger = new CronTriggerImpl();
-        trigger.Key = new TriggerKey("PastTrigger", SchedulerConstants.DefaultGroup);
+        trigger.Key = new TriggerKey("PastTrigger", TriggerKey.DefaultGroup);
         trigger.CronExpressionString = cronExpression;
         trigger.StartTimeUtc = startDate;
         trigger.EndTimeUtc = endDate;
@@ -234,7 +234,7 @@ public class CronTriggerTest
         string cronExpression = "0 30 14 ? * MON,TUE,WED,THU,FRI *";
 
         CronTriggerImpl trigger = new CronTriggerImpl();
-        trigger.Key = new TriggerKey("ValidTrigger", SchedulerConstants.DefaultGroup);
+        trigger.Key = new TriggerKey("ValidTrigger", TriggerKey.DefaultGroup);
         trigger.CronExpressionString = cronExpression;
         trigger.StartTimeUtc = startDate;
         trigger.EndTimeUtc = endDate;
@@ -261,7 +261,7 @@ public class CronTriggerTest
 
         var trigger = new CronTriggerImpl
         {
-            Key = new TriggerKey("SameDateTrigger", SchedulerConstants.DefaultGroup),
+            Key = new TriggerKey("SameDateTrigger", TriggerKey.DefaultGroup),
             CronExpressionString = cronExpression,
             StartTimeUtc = sameDate,
             EndTimeUtc = sameDate

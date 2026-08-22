@@ -4390,6 +4390,17 @@ called out.
 | `Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin` | `Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin` — the namespace moved and the casing follows .NET rules. A `quartz.plugin.<name>.type` naming either old spelling still resolves, with a warning. Its nested `JobFile` class and its `JobFiles` property are internal now: they are how the plugin tracks what it has read, not something to call |
 | `Quartz.Xml.ValidationException` | `Quartz.SchedulingDataValidationException`. The old name collided with `System.ComponentModel.DataAnnotations.ValidationException` in any file that used both, and it was never XML-specific — the JSON processor throws it too. Its `ValidationExceptions` is an `IReadOnlyList<Exception>`; it was a `List<Exception>` a caller could add to |
 
+### One spelling per constant
+
+Three values were public twice under two names. The values are unchanged; one spelling of each survives,
+the one that sits next to the thing it describes.
+
+| Removed | Write instead |
+|---|---|
+| `SchedulerConstants.DefaultGroup` | `JobKey.DefaultGroup` / `TriggerKey.DefaultGroup` (both `Key<T>.DefaultGroup`, still `"DEFAULT"`) |
+| `AdoJobStoreOptions.DefaultTablePrefix` | `AdoConstants.DefaultTablePrefix`, alongside the table and column names it prefixes (still `"QRTZ_"`) |
+| `TaskSchedulingThreadPool.DefaultMaxConcurrency` (`protected`) | `ThreadPoolOptions.DefaultMaxConcurrency`, where the option it defaults is (still `10`) |
+
 ### Abbreviated parameter names were spelled out
 
 Parameter names inherited from the Java port were spelled out across the public surface. Only named

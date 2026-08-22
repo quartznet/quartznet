@@ -1,5 +1,7 @@
 using System.Data;
 
+using Quartz.Impl.AdoJobStore;
+
 namespace Quartz;
 
 /// <summary>
@@ -14,20 +16,16 @@ namespace Quartz;
 public sealed class AdoJobStoreOptions
 {
     /// <summary>
-    /// The default value for <see cref="TablePrefix"/>.
-    /// </summary>
-    public const string DefaultTablePrefix = "QRTZ_";
-
-    /// <summary>
     /// The name of the data source this job store reads and writes through.
     /// </summary>
     /// <remarks>Resolves the matching named <see cref="DataSourceOptions"/>.</remarks>
     public string DataSource { get; set; } = "";
 
     /// <summary>
-    /// The prefix applied to every Quartz table name.
+    /// The prefix applied to every Quartz table name. Defaults to
+    /// <see cref="AdoConstants.DefaultTablePrefix"/>.
     /// </summary>
-    public string TablePrefix { get; set; } = DefaultTablePrefix;
+    public string TablePrefix { get; set; } = AdoConstants.DefaultTablePrefix;
 
     /// <summary>
     /// When <see langword="true"/>, job data maps are persisted as name/value string pairs rather than

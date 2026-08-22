@@ -43,13 +43,12 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private SemaphoreSlim concurrencySemaphore = null!;
 
     private int maxConcurrency;
-    protected internal const int DefaultMaxConcurrency = 10;
 
     private TaskScheduler scheduler = null!;
     private bool isInitialized;
     private int shutdownInitialSignalDone;
 
-    protected TaskSchedulingThreadPool() : this(DefaultMaxConcurrency)
+    protected TaskSchedulingThreadPool() : this(ThreadPoolOptions.DefaultMaxConcurrency)
     {
     }
 

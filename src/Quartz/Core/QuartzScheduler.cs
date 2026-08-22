@@ -1028,7 +1028,7 @@ internal sealed class QuartzScheduler
         // TODO: use builder
         SimpleTriggerImpl trig = new SimpleTriggerImpl(
             NewTriggerId(),
-            SchedulerConstants.DefaultGroup,
+            TriggerKey.DefaultGroup,
             jobKey.Name,
             jobKey.Group,
             this.resources.TimeProvider.GetUtcNow(),
@@ -1052,7 +1052,7 @@ internal sealed class QuartzScheduler
             }
             catch (ObjectAlreadyExistsException)
             {
-                trig.Key = new TriggerKey(NewTriggerId(), SchedulerConstants.DefaultGroup);
+                trig.Key = new TriggerKey(NewTriggerId(), TriggerKey.DefaultGroup);
             }
         }
 
@@ -1081,7 +1081,7 @@ internal sealed class QuartzScheduler
             }
             catch (ObjectAlreadyExistsException)
             {
-                trigger.Key = new TriggerKey(NewTriggerId(), SchedulerConstants.DefaultGroup);
+                trigger.Key = new TriggerKey(NewTriggerId(), TriggerKey.DefaultGroup);
             }
         }
 
@@ -1119,7 +1119,7 @@ internal sealed class QuartzScheduler
 
         if (matcher is null)
         {
-            matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
+            matcher = GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup);
         }
 
         var pausedGroups = await resources.JobStore.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
@@ -1160,7 +1160,7 @@ internal sealed class QuartzScheduler
 
         if (groupMatcher is null)
         {
-            groupMatcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
+            groupMatcher = GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup);
         }
 
         var pausedGroups = await resources.JobStore.PauseJobs(groupMatcher, cancellationToken).ConfigureAwait(false);
@@ -1209,7 +1209,7 @@ internal sealed class QuartzScheduler
 
         if (matcher is null)
         {
-            matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
+            matcher = GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup);
         }
 
         var resumedGroups = await resources.JobStore.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
@@ -1258,7 +1258,7 @@ internal sealed class QuartzScheduler
 
         if (matcher is null)
         {
-            matcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
+            matcher = GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup);
         }
 
         var resumedGroups = await resources.JobStore.ResumeJobs(matcher, cancellationToken).ConfigureAwait(false);

@@ -13,7 +13,6 @@ namespace Quartz
     }
     public sealed class AdoJobStoreOptions
     {
-        public const string DefaultTablePrefix = "QRTZ_";
         public AdoJobStoreOptions() { }
         public bool AcceptEnlistedTransactions { get; set; }
         public bool AcquireTriggersWithinLock { get; set; }
@@ -1245,7 +1244,6 @@ namespace Quartz
     public static class SchedulerConstants
     {
         public const string DefaultFailOverGroup = "FAILED_OVER_JOBS";
-        public const string DefaultGroup = "DEFAULT";
         public const string DefaultRecoveryGroup = "RECOVERING_JOBS";
         public const string FailedJobOriginalTriggerFireTime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_AS_STRING";
         public const string FailedJobOriginalTriggerGroup = "QRTZ_FAILED_JOB_ORIG_TRIGGER_GROUP";
@@ -3095,7 +3093,6 @@ namespace Quartz.Impl
     }
     public abstract class TaskSchedulingThreadPool : Quartz.Extensibility.IThreadPool
     {
-        protected const int DefaultMaxConcurrency = 10;
         protected TaskSchedulingThreadPool() { }
         protected TaskSchedulingThreadPool(int maxConcurrency) { }
         public int MaxConcurrency { get; protected set; }

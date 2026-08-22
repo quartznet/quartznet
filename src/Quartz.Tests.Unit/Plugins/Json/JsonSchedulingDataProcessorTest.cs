@@ -135,8 +135,8 @@ public class JsonSchedulingDataProcessorTest
         var processor = CreateProcessor();
         processor.ProcessJsonContent(json);
 
-        processor.ParsedJobs[0].Key.Group.Should().Be(SchedulerConstants.DefaultGroup);
-        processor.ParsedTriggers[0].Key.Group.Should().Be(SchedulerConstants.DefaultGroup);
+        processor.ParsedJobs[0].Key.Group.Should().Be(JobKey.DefaultGroup);
+        processor.ParsedTriggers[0].Key.Group.Should().Be(TriggerKey.DefaultGroup);
     }
 
     [Test]
@@ -154,8 +154,8 @@ public class JsonSchedulingDataProcessorTest
         var processor = CreateProcessor();
         processor.ProcessJsonContent(json);
 
-        processor.ParsedJobs[0].Key.Group.Should().Be(SchedulerConstants.DefaultGroup);
-        processor.ParsedTriggers[0].Key.Group.Should().Be(SchedulerConstants.DefaultGroup);
+        processor.ParsedJobs[0].Key.Group.Should().Be(JobKey.DefaultGroup);
+        processor.ParsedTriggers[0].Key.Group.Should().Be(TriggerKey.DefaultGroup);
     }
 
     [Test]
