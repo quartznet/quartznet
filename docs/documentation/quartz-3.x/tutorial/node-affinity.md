@@ -161,7 +161,7 @@ await scheduler.UpdateTriggerDetails(
 
 `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` are **optional** columns on `QRTZ_TRIGGERS` in 3.x. Add them
 with the script for your database in [`database/migrations/3.19/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/3.19)
-(both columns must be added together). See [Database Schema Changes](../../database/schema-changes.md#v3-19).
+(both columns must be added together). See [Database Schema Changes](../../database/schema-changes.md#version-3-19).
 
 Quartz probes for them at startup. Without them the feature is simply unavailable: the scheduler logs a
 warning, pins are ignored, and everything else works exactly as before — so upgrading the assembly
