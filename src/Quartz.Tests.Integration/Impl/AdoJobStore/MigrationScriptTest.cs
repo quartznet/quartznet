@@ -46,11 +46,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// configured table prefix" instruction each script carries actually works.
 /// </para>
 /// <para>
-/// Two upgrade routes reach 4.0 and both are covered, because the 4.0 script claims to serve both:
-/// <c>QRTZM_</c> takes the stepped route, applying the optional 3.17-3.20 migrations first, so the
-/// 4.0 script lands on a partially-migrated database; <c>QRTZD_</c> takes the direct route, applying
-/// nothing but the mandatory 4.0 script to an untouched 3.16 database. Either way the end state has
-/// to be table-for-table, column-for-column and index-for-index what a fresh install produces.
+/// Two upgrade routes reach 4.0 and both are covered: <c>QRTZM_</c> takes the stepped route,
+/// applying the optional 3.17-3.20 migrations first, so the 4.0 script lands on a partially-migrated
+/// database; <c>QRTZD_</c> takes the direct route, applying nothing but the mandatory 4.0 script to
+/// an untouched 3.16 database. Either way the end state has to be table-for-table, column-for-column
+/// and index-for-index what a fresh install produces. Every dialect but SQLite says in its header
+/// that it serves both routes; SQLite's says the opposite, and the stepped route only reaches 4.0
+/// there because <see cref="SqliteAddColumnAlreadyApplied" /> does by hand what that header tells a
+/// reader to do.
 /// </para>
 /// <para>
 /// Re-runnability is asserted on the stepped route, where every migration is applied twice. SQLite is
@@ -442,9 +445,13 @@ public class MigrationScriptTest
     /// Every other dialect guards its own <c>ADD COLUMN</c>, which is what lets the same migration
     /// run twice, and what lets the 4.0 script land on a database that already took some of the
     /// optional 3.17-3.19 ones. SQLite has no conditional DDL for it, so both of those raise
-    /// "duplicate column name" — a limitation <c>database/README.md</c> records, and the only reason
-    /// this shim exists. It deliberately does nothing else: an unguarded <c>CREATE INDEX</c> would
-    /// still fail the re-run, which is what the second pass is there to catch.
+    /// "duplicate column name" — a limitation <c>database/README.md</c> records and every SQLite
+    /// script's header repeats, the 4.0 upgrade included: it is NOT IDEMPOTENT, and it tells a
+    /// reader whose database is partially migrated to consult <c>PRAGMA table_info</c> and apply
+    /// only the sections whose columns are absent. This shim is that instruction, executed, and it
+    /// is the only reason the stepped and re-run passes get through. It deliberately does nothing
+    /// else: an unguarded <c>CREATE INDEX</c> would still fail the re-run, which is what the second
+    /// pass is there to catch.
     /// </para>
     /// </remarks>
     private static async Task<bool> SqliteAddColumnAlreadyApplied(DbConnection connection, string batch)
