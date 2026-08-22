@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Runtime.Serialization;
 
 using Microsoft.Extensions.Logging;
@@ -128,7 +128,7 @@ public partial class StdAdoDelegate
 
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            job = await ReadJobDetail(rs, typeLoader).ConfigureAwait(false);
+            job = await ReadJobDetail(rs, new JobDetailRowOrdinals(rs), typeLoader).ConfigureAwait(false);
         }
 
         return job;
@@ -157,9 +157,11 @@ public partial class StdAdoDelegate
 
             using DbCommand cmd = PrepareJobKeySetCommand(conn, StdAdoConstants.SqlSelectJobDetailsByKeysPrefix, keys, offset, length);
             using DbDataReader rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+            JobDetailRowOrdinals? ordinals = null;
             while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                jobs.Add(await ReadJobDetail(rs, typeLoader).ConfigureAwait(false));
+                ordinals ??= new JobDetailRowOrdinals(rs);
+                jobs.Add(await ReadJobDetail(rs, ordinals.Value, typeLoader).ConfigureAwait(false));
             }
         }
 
@@ -195,19 +197,49 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
+    /// Where each column of a job detail select sits, worked out once for a reader rather than once per
+    /// column per row. Same reasoning as <see cref="TriggerRowOrdinals" />.
+    /// </summary>
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
+    private readonly struct JobDetailRowOrdinals
+    {
+        public JobDetailRowOrdinals(DbDataReader rs)
+        {
+            JobName = rs.GetOrdinal(AdoConstants.ColumnJobName);
+            JobGroup = rs.GetOrdinal(AdoConstants.ColumnJobGroup);
+            Description = rs.GetOrdinal(AdoConstants.ColumnDescription);
+            JobClass = rs.GetOrdinal(AdoConstants.ColumnJobClass);
+            IsDurable = rs.GetOrdinal(AdoConstants.ColumnIsDurable);
+            RequestsRecovery = rs.GetOrdinal(AdoConstants.ColumnRequestsRecovery);
+            IsNonConcurrent = rs.GetOrdinal(AdoConstants.ColumnIsNonConcurrent);
+            IsUpdateData = rs.GetOrdinal(AdoConstants.ColumnIsUpdateData);
+        }
+
+        public int JobName { get; }
+        public int JobGroup { get; }
+        public int Description { get; }
+        public int JobClass { get; }
+        public int IsDurable { get; }
+        public int RequestsRecovery { get; }
+        public int IsNonConcurrent { get; }
+        public int IsUpdateData { get; }
+    }
+
+    /// <summary>
     /// Reads the current row of a job detail select. Shared by the single-job and batch read paths so
     /// the two cannot drift apart.
     /// </summary>
-    private async ValueTask<IJobDetail> ReadJobDetail(DbDataReader rs, ITypeLoader typeLoader)
+    private async ValueTask<IJobDetail> ReadJobDetail(DbDataReader rs, JobDetailRowOrdinals ordinals, ITypeLoader typeLoader)
     {
-        // Due to CommandBehavior.SequentialAccess, columns must be read in order.
+        // Due to CommandBehavior.SequentialAccess, columns must be read in order. Asking for a column's
+        // position does not read it, so the ordinals may be taken in any order beforehand.
 
         var jobBuilder = JobBuilder.Create()
-            .WithIdentity(new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!))
-            .WithDescription(rs.GetString(AdoConstants.ColumnDescription))
-            .OfType(CreateJobType(rs.GetString(AdoConstants.ColumnJobClass)!, typeLoader))
-            .StoreDurably(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsDurable]))
-            .RequestRecovery(GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]));
+            .WithIdentity(new JobKey(rs.GetString(ordinals.JobName), rs.GetString(ordinals.JobGroup)))
+            .WithDescription(ReadNullableString(rs, ordinals.Description))
+            .OfType(CreateJobType(rs.GetString(ordinals.JobClass), typeLoader))
+            .StoreDurably(GetBooleanFromDbValue(rs.GetValue(ordinals.IsDurable)))
+            .RequestRecovery(GetBooleanFromDbValue(rs.GetValue(ordinals.RequestsRecovery)));
 
         var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
 
@@ -216,8 +248,8 @@ public partial class StdAdoDelegate
             jobBuilder.ReplaceJobData(new JobDataMap(map));
         }
 
-        jobBuilder.DisallowConcurrentExecution(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsNonConcurrent]))
-            .PersistJobDataAfterExecution(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsUpdateData]));
+        jobBuilder.DisallowConcurrentExecution(GetBooleanFromDbValue(rs.GetValue(ordinals.IsNonConcurrent)))
+            .PersistJobDataAfterExecution(GetBooleanFromDbValue(rs.GetValue(ordinals.IsUpdateData)));
 
         return jobBuilder.Build();
     }

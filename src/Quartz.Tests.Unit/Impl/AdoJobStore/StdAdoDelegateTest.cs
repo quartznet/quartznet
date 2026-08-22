@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -124,7 +124,7 @@ public class StdAdoDelegateTest
 
         A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-        var dataReader = A.Fake<DbDataReader>();
+        var dataReader = FakeReader();
         A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
             .WithReturnType<Task<DbDataReader>>()
             .Returns(dataReader);
@@ -175,7 +175,7 @@ public class StdAdoDelegateTest
 
         A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-        var dataReader = A.Fake<DbDataReader>();
+        var dataReader = FakeReader();
 
         A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
             .WithReturnType<Task<DbDataReader>>()
@@ -238,7 +238,7 @@ public class StdAdoDelegateTest
         var transaction = A.Fake<DbTransaction>();
         var conn = new ConnectionAndTransactionHolder(connection, transaction);
 
-        var dataReader = A.Fake<DbDataReader>();
+        var dataReader = FakeReader();
         A.CallTo(() => dataReader.ReadAsync(CancellationToken.None))
             .Returns(true)
             .Once();
@@ -347,7 +347,7 @@ public class StdAdoDelegateTest
         var transaction = A.Fake<DbTransaction>();
         var conn = new ConnectionAndTransactionHolder(connection, transaction);
 
-        var dataReader = A.Fake<DbDataReader>();
+        var dataReader = FakeReader();
         A.CallTo(() => dataReader.ReadAsync(CancellationToken.None))
             .Returns(true)
             .Once();
@@ -416,7 +416,7 @@ public class StdAdoDelegateTest
         var transaction = A.Fake<DbTransaction>();
         var conn = new ConnectionAndTransactionHolder(connection, transaction);
 
-        var dataReader = A.Fake<DbDataReader>();
+        var dataReader = FakeReader();
         A.CallTo(() => dataReader.ReadAsync(CancellationToken.None))
             .Returns(true)
             .Once();
@@ -479,7 +479,7 @@ public class StdAdoDelegateTest
 
         A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-        var dataReader = A.Fake<DbDataReader>();
+        var dataReader = FakeReader();
 
         A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
             .WithReturnType<Task<DbDataReader>>()
@@ -542,7 +542,7 @@ public class StdAdoDelegateTest
         A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
         A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-        var dataReader = A.Fake<DbDataReader>();
+        var dataReader = FakeReader();
         A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
             .WithReturnType<Task<DbDataReader>>()
             .Returns(Task.FromResult(dataReader));
@@ -622,7 +622,7 @@ public class StdAdoDelegateTest
         A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
         A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-        var dataReader = A.Fake<DbDataReader>();
+        var dataReader = FakeReader();
         A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
             .WithReturnType<Task<DbDataReader>>()
             .Returns(Task.FromResult(dataReader));
@@ -704,6 +704,54 @@ public class StdAdoDelegateTest
         var act = () => adoDelegate.Initialize(driverDelegateContext);
 
         act.Should().NotThrow("the registered set arrives typed, the same delegate twice included");
+    }
+
+    /// <summary>
+    /// A faked reader whose ordinal-taking reads resolve back to the columns a test stubs by name.
+    /// </summary>
+    /// <remarks>
+    /// The row readers ask for a column's position once and then read by position, which a fake stubbed
+    /// only by name cannot answer. Positions are handed out on first sight of a name and start well
+    /// above the handful of literal ordinals the tests below stub for themselves, so the two cannot
+    /// collide.
+    /// </remarks>
+    private static DbDataReader FakeReader()
+    {
+        const int firstOrdinal = 100;
+
+        DbDataReader reader = A.Fake<DbDataReader>();
+        List<string> columns = [];
+        Dictionary<string, int> ordinals = new(StringComparer.Ordinal);
+
+        int OrdinalOf(string name)
+        {
+            if (!ordinals.TryGetValue(name, out int ordinal))
+            {
+                ordinal = firstOrdinal + columns.Count;
+                columns.Add(name);
+                ordinals[name] = ordinal;
+            }
+
+            return ordinal;
+        }
+
+        object ValueAt(int ordinal)
+        {
+            int index = ordinal - firstOrdinal;
+            object value = index >= 0 && index < columns.Count ? reader[columns[index]] : null;
+
+            // A column the test did not describe is one the row does not have. FakeItEasy answers an
+            // unconfigured object-returning member with a dummy proxy, which lives in a dynamic
+            // assembly and is nothing a reader would ever hand back.
+            return value is null || value.GetType().Assembly.IsDynamic ? DBNull.Value : value;
+        }
+
+        A.CallTo(() => reader.GetOrdinal(A<string>._)).ReturnsLazily((string name) => OrdinalOf(name));
+        A.CallTo(() => reader.GetValue(A<int>._)).ReturnsLazily((int ordinal) => ValueAt(ordinal));
+        A.CallTo(() => reader.IsDBNull(A<int>._)).ReturnsLazily((int ordinal) => ValueAt(ordinal) is DBNull);
+        A.CallTo(() => reader.GetString(A<int>._)).ReturnsLazily((int ordinal) => ValueAt(ordinal) as string);
+
+        return reader;
     }
 
     private sealed class TestStdAdoDelegate : StdAdoDelegate
