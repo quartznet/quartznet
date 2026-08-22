@@ -35,7 +35,7 @@ public static class ActivityTags
 
 /// <summary>
 /// OpenTelemetry's <c>error.type</c> attribute: what a failed job execution failed with, named the
-/// same way on the span and on the errors counter.
+/// same way on the span and on the duration histogram.
 /// </summary>
 internal static class ErrorType
 {

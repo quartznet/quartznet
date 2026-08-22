@@ -66,7 +66,7 @@ internal readonly struct StartedActivity
         if (jobExEx != null)
         {
             _activity.SetStatus(ActivityStatusCode.Error, jobExEx.Message);
-            // The same value the errors counter is tagged with, so a failure can be found by the same
+            // The same value the duration measurement is tagged with, so a failure can be found by the same
             // attribute in a trace and in a metric. The exception event below keeps the whole chain,
             // wrappers included, because that is where the stack traces are.
             _activity.SetTag(ErrorType.TagName, ErrorType.Of(jobExEx));

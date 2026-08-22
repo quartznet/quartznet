@@ -51,13 +51,12 @@ namespace Quartz.Tests.Unit.Diagnostics;
 [NonParallelizable]
 public sealed class JobExecutionObservabilityTest
 {
-    private const string ExecuteCount = "scheduling.quartz.execute";
-    private const string ExecuteErrors = "scheduling.quartz.execute.errors";
-    private const string ExecuteActive = "scheduling.quartz.execute.active";
-    private const string ExecuteDuration = "scheduling.quartz.execute.duration";
-    // Attribute names are spelled out here rather than read from Quartz, because the wire name is the
-    // contract an exporter and a dashboard are written against: reading them from the same constant the
-    // product publishes them from would let a rename pass unnoticed.
+    private const string ExecuteActive = "quartz.job.execution.active";
+    private const string ExecuteDuration = "quartz.job.execution.duration";
+
+    // Instrument and attribute names are spelled out here rather than read from Quartz, because the wire
+    // name is the contract an exporter and a dashboard are written against: reading them from the same
+    // constant the product publishes them from would let a rename pass unnoticed.
     //
     // error.type is OpenTelemetry's conventional attribute for what an operation failed with, and the one
     // attribute Quartz does not namespace, because every instrumented failure in the process spells it
@@ -146,11 +145,16 @@ public sealed class JobExecutionObservabilityTest
         published.Select(m => m.Meter).Should().AllBe(QuartzInstrumentation.MeterName,
             "the meter name is the contract: it is what an exporter is told to subscribe to");
 
-        published.Should().ContainSingle(m => m.Instrument == ExecuteCount)
-            .Which.Value.Should().Be(1, "one execution counts once");
+        published.Select(m => m.Instrument).Distinct().Should().BeEquivalentTo([ExecuteActive, ExecuteDuration],
+            "an execution is two instruments and no more — the histogram's own count is how many executions "
+            + "there were, and its error.type-tagged subset is how many failed, so the counters that used to "
+            + "report those two numbers were extra writes per fire for something the exporter already had");
 
-        published.Should().ContainSingle(m => m.Instrument == ExecuteDuration)
-            .Which.Value.Should().BeGreaterThanOrEqualTo(0, "the duration is recorded in milliseconds");
+        RecordedMeasurement duration = published.Should().ContainSingle(m => m.Instrument == ExecuteDuration).Subject;
+        duration.Value.Should().BeGreaterThanOrEqualTo(0).And.BeLessThan(30);
+        duration.Unit.Should().Be("s",
+            "OpenTelemetry records a duration in seconds, and a histogram's default bucket boundaries are "
+            + "chosen for seconds — milliseconds piled every execution over ten seconds into the last bucket");
 
         List<RecordedMeasurement> active = published.Where(m => m.Instrument == ExecuteActive).ToList();
 
@@ -160,9 +164,9 @@ public sealed class JobExecutionObservabilityTest
         active.Should().AllSatisfy(m => m.InstrumentType.Should().Be<UpDownCounter<long>>(
             "a count of what is running goes down as often as it goes up, and an exporter aggregates a "
             + "Counter as monotonic — which is what made the decrement something it could drop"));
-
-        published.Should().NotContain(m => m.Instrument == ExecuteErrors,
-            "the job succeeded");
+        active.Should().AllSatisfy(m => m.Unit.Should().Be("{job}",
+            "UCUM's annotation form is how OpenTelemetry spells a dimensionless count of a thing; \"ea\" is "
+            + "not a UCUM unit at all"));
 
         foreach (RecordedMeasurement measurement in published)
         {
@@ -237,10 +241,10 @@ public sealed class JobExecutionObservabilityTest
 
         await using ServiceProvider provider = services.BuildServiceProvider();
 
-        using MetricCollector<long> collector = new(
+        using MetricCollector<double> collector = new(
             provider.GetRequiredService<IMeterFactory>(),
             QuartzInstrumentation.MeterName,
-            ExecuteCount);
+            ExecuteDuration);
 
         // The scheduler is injected rather than built from its factory, which is the other half of what
         // this fixture is for: an application asks the container for both of these.
@@ -255,9 +259,10 @@ public sealed class JobExecutionObservabilityTest
             await scheduler.Shutdown(waitForJobsToComplete: true);
         }
 
-        CollectedMeasurement<long> measurement = collector.LastMeasurement;
+        CollectedMeasurement<double> measurement = collector.LastMeasurement;
         measurement.Should().NotBeNull("the container's meter factory published this execution");
-        measurement.Value.Should().Be(1);
+        measurement.Value.Should().BeGreaterThanOrEqualTo(0);
+        collector.Instrument.Unit.Should().Be("s", "the histogram records seconds");
         measurement.Tags.Should().ContainKey(SchedulerNameTag)
             .WhoseValue.Should().Be(schedulerName,
                 "a process can run several schedulers, and without the name their measurements are one "
@@ -265,17 +270,11 @@ public sealed class JobExecutionObservabilityTest
     }
 
     [Test]
-    public async Task FailingJobExecution_PublishesErrorMetric()
+    public async Task FailingJobExecution_IsCountedByTheDurationHistogramAndTaggedWithTheFailure()
     {
         Execution execution = await RunJob<ThrowingJob>();
 
         List<RecordedMeasurement> published = MeasurementsFor(execution.JobKey);
-
-        published.Should().ContainSingle(m => m.Instrument == ExecuteCount)
-            .Which.Value.Should().Be(1, "a job that throws still executed");
-
-        published.Should().ContainSingle(m => m.Instrument == ExecuteErrors)
-            .Which.Value.Should().Be(1, "a job that throws is one execution error");
 
         List<RecordedMeasurement> active = published.Where(m => m.Instrument == ExecuteActive).ToList();
 
@@ -286,18 +285,19 @@ public sealed class JobExecutionObservabilityTest
             + "tags the increment carried or the series never comes back to zero"));
 
         published.Should().ContainSingle(m => m.Instrument == ExecuteDuration,
-            "how long a job ran is worth knowing whether or not it failed")
+            "a job that throws still executed, and one measurement is what an execution records — a failure "
+            + "is the same measurement wearing error.type, which is how an exporter counts the failures")
             .Which.Tags.Should().ContainKey(ErrorTypeTag,
                 "and a failed run's duration is worth telling apart from a successful one's");
     }
 
     /// <summary>
-    /// The errors counter says what went wrong, not only that something did.
+    /// The failure attribute says what went wrong, not only that something did.
     /// </summary>
     /// <remarks>
     /// The tag used to be added to <c>_tagList.Value</c>, and <see cref="Nullable{T}.Value"/> hands back a
     /// copy of the struct: it went onto a temporary that was thrown away on the next line, where a second
-    /// copy — still the four identity tags — was what the counter was given. Once it did arrive it named
+    /// copy — still the four identity tags — was what the instrument was given. Once it did arrive it named
     /// the <see cref="JobExecutionException"/> the run shell wraps anything a job throws in, which is the
     /// same answer for nearly every failure there is; what it reports now is the exception the job threw,
     /// found by unwrapping that pair of wrappers.
@@ -307,13 +307,13 @@ public sealed class JobExecutionObservabilityTest
     {
         Execution execution = await RunJob<ThrowingJob>();
 
-        RecordedMeasurement error = MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteErrors);
+        RecordedMeasurement failed = MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteDuration);
 
-        error.Tags.Should().ContainKey(ErrorTypeTag)
+        failed.Tags.Should().ContainKey(ErrorTypeTag)
             .WhoseValue.Should().Be(typeof(InvalidOperationException).FullName,
                 "the run shell wraps what a job throws as JobExecutionException -> "
                 + "JobExecutionProcessException -> the cause, and naming either wrapper would tell an "
-                + "exporter only that Quartz caught something, which it already knew from the counter");
+                + "exporter only that Quartz caught something, which it already knew from the measurement");
     }
 
     /// <summary>
@@ -325,15 +325,15 @@ public sealed class JobExecutionObservabilityTest
     {
         Execution execution = await RunJob<DeliberatelyFailingJob>();
 
-        RecordedMeasurement error = MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteErrors);
+        RecordedMeasurement failed = MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteDuration);
 
-        error.Tags.Should().ContainKey(ErrorTypeTag)
+        failed.Tags.Should().ContainKey(ErrorTypeTag)
             .WhoseValue.Should().Be(typeof(JobExecutionException).FullName,
                 "a JobExecutionException a job raised itself is not a wrapper the run shell added — there "
                 + "is no JobExecutionProcessException under it — and it is what the job chose to say");
 
         ActivityFor(execution.JobKey).GetTagItem(ErrorTypeTag).Should().Be(typeof(JobExecutionException).FullName,
-            "the span and the errors counter answer the same question the same way");
+            "the span and the duration histogram answer the same question the same way");
     }
 
     [Test]
@@ -372,11 +372,11 @@ public sealed class JobExecutionObservabilityTest
             "the exception the job threw is recorded on the span that failed");
 
         activity.GetTagItem(ErrorTypeTag).Should().Be(typeof(InvalidOperationException).FullName,
-            "the span classifies the failure with the attribute the errors counter is tagged with, so one "
+            "the span classifies the failure with the attribute the measurement is tagged with, so one "
             + "value finds the failed executions in a trace and in a metric alike");
 
-        RecordedMeasurement error = MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteErrors);
-        error.Tags[ErrorTypeTag].Should().Be(activity.GetTagItem(ErrorTypeTag),
+        RecordedMeasurement failed = MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteDuration);
+        failed.Tags[ErrorTypeTag].Should().Be(activity.GetTagItem(ErrorTypeTag),
             "the two signals are read together, and disagreeing about what failed is worse than either "
             + "of them being silent");
     }
@@ -443,8 +443,9 @@ public sealed class JobExecutionObservabilityTest
         lock (measurements)
         {
             // The instrument's own type is what an exporter reads to decide how to aggregate the values:
-            // a Counter is a monotonic sum, an UpDownCounter is not.
-            measurements.Add(new RecordedMeasurement(instrument.Meter.Name, instrument.Name, instrument.GetType(), value, copy));
+            // a Counter is a monotonic sum, an UpDownCounter is not. Its unit is read the same way, and it
+            // is what decides whether a duration lands in sensible histogram buckets.
+            measurements.Add(new RecordedMeasurement(instrument.Meter.Name, instrument.Name, instrument.GetType(), instrument.Unit, value, copy));
         }
     }
 
@@ -473,6 +474,7 @@ public sealed class JobExecutionObservabilityTest
         string Meter,
         string Instrument,
         Type InstrumentType,
+        string Unit,
         double Value,
         Dictionary<string, object> Tags);
 
