@@ -1,0 +1,89 @@
+# Hand-written rather than generated from build/Build.CI.GitHubActions.cs: an analysis wraps the build
+# ("begin", then compile and test, then "end") and needs a JDK, and the generator emits a fixed
+# checkout / setup / 'dotnet fallout <targets>' shape with no room for either.
+#
+# Two prerequisites live outside this repository, and until both are in place this workflow fails:
+#
+#   - a SONAR_TOKEN repository secret, holding a SonarCloud token with 'Execute Analysis' on
+#     quartznet_quartznet
+#   - Automatic Analysis switched off in the project's Administration -> Analysis Method. SonarCloud
+#     rejects a CI analysis while it is on, and Automatic Analysis cannot import coverage reports at
+#     all, which is the reason this workflow exists.
+name: sonar
+
+on:
+  push:
+    branches:
+      - main
+      - '3.x'
+    paths:
+      - '**/*'
+      - '!docs/**/*'
+      - '!package.json'
+      - '!package-lock.json'
+      - '!readme.md'
+  pull_request:
+    branches:
+      - main
+      - '3.x'
+    paths:
+      - '**/*'
+      - '!docs/**/*'
+      - '!package.json'
+      - '!package-lock.json'
+      - '!readme.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: analyze
+    # A pull request from a fork cannot read SONAR_TOKEN, so the scanner would have nothing to
+    # authenticate with. Those pull requests keep every other check.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The scanner attributes new code through git blame, which a shallow clone cannot answer.
+          fetch-depth: 0
+      - name: 'Setup: JDK'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
+      - name: 'Install: SonarScanner for .NET'
+        run: dotnet tool install --global dotnet-sonarscanner
+      - name: 'Sonar: begin'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          # Without this the scanner reports an empty sonar.token as a format error, which reads
+          # like a typo rather than a missing secret.
+          [ -n "$SONAR_TOKEN" ] || { echo "::error::SONAR_TOKEN is not set — see the header of .github/workflows/sonar.yml"; exit 1; }
+          dotnet-sonarscanner begin \
+            /k:"quartznet_quartznet" \
+            /o:"quartznet" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.token="$SONAR_TOKEN" \
+            /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml"
+      # Has to sit between begin and end: the scanner analyses through MSBuild, so only projects
+      # actually built while it is active are measured.
+      - name: 'Run: Compile, UnitTest'
+        run: dotnet fallout Compile UnitTest --coverage
+      - name: 'Sonar: end'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet-sonarscanner end /d:sonar.token="$SONAR_TOKEN"
