@@ -36,7 +36,7 @@ public sealed class JobStoreActivityTracerTest : IDisposable
     {
         activityListener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == ActivityTags.DefaultListenerName,
+            ShouldListenTo = source => source.Name == QuartzInstrumentation.ActivitySourceName,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
             ActivityStarted = activity => startedActivities.Add(activity),
             ActivityStopped = activity => stoppedActivities.Add(activity),

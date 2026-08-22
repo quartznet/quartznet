@@ -38,7 +38,7 @@ internal sealed class Meters
 
     public Meters(IMeterFactory? meterFactory)
     {
-        MeterOptions options = new(InstrumentationOptions.MeterName) { Version = InstrumentationOptions.Version };
+        MeterOptions options = new(QuartzInstrumentation.MeterName) { Version = QuartzInstrumentation.Version };
 
         meter = meterFactory?.Create(options) ?? new Meter(options);
 

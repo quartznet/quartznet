@@ -1614,6 +1614,11 @@ namespace Quartz.Diagnostics
             public const string UpdateTriggerDetails = "Quartz.JobStore.UpdateTriggerDetails";
         }
     }
+    public static class QuartzInstrumentation
+    {
+        public const string ActivitySourceName = "Quartz";
+        public const string MeterName = "Quartz";
+    }
 }
 namespace Quartz.Extensibility
 {

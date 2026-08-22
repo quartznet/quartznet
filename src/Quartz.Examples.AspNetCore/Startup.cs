@@ -15,6 +15,7 @@ using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Calendar;
 using Quartz.Plugins.History;
@@ -59,10 +60,10 @@ public class Startup
             .WithMetrics(metrics =>
             {
                 metrics.AddRuntimeInstrumentation()
-                    .AddMeter("Quartz", "Microsoft.AspNetCore.Hosting", "Microsoft.AspNetCore.Server.Kestrel", "System.Net.Http");
+                    .AddMeter(QuartzInstrumentation.MeterName, "Microsoft.AspNetCore.Hosting", "Microsoft.AspNetCore.Server.Kestrel", "System.Net.Http");
             })
             .WithTracing(x => x
-                .AddSource("Quartz")
+                .AddSource(QuartzInstrumentation.ActivitySourceName)
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
                 .AddConsoleExporter()

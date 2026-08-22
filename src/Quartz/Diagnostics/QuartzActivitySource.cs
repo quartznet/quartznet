@@ -6,7 +6,7 @@ namespace Quartz.Diagnostics;
 
 internal static class QuartzActivitySource
 {
-    internal static readonly ActivitySource Instance = new(ActivityTags.DefaultListenerName, ActivityTags.Version);
+    internal static readonly ActivitySource Instance = new(QuartzInstrumentation.ActivitySourceName, QuartzInstrumentation.Version);
 
     public static StartedActivity StartJobExecute(JobExecutionContextImpl context, DateTimeOffset startTime)
     {
