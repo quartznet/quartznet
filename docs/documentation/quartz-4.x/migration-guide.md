@@ -2063,7 +2063,7 @@ which made `UseNewtonsoftJsonSerializer` ambiguous when both were referenced.
 | `Quartz.JsonConfigurationExtensions` (Newtonsoft) | `Quartz.NewtonsoftJsonConfigurationExtensions` |
 | `Quartz.Triggers.ITriggerSerializer`, `TriggerSerializer<T>`, the built-in trigger serializers | `Quartz.Serialization.Newtonsoft.Triggers.*` |
 | `Quartz.ICalendarSerializer`, `Quartz.CalendarSerializer<T>` | `Quartz.Serialization.Newtonsoft.Calendars.*` — the same namespace shape as the System.Text.Json package's `Quartz.Serialization.SystemTextJson.Calendars` |
-| `Quartz.Converters.NameValueCollectionConverter` | `Quartz.Serialization.Newtonsoft.NameValueCollectionConverter` |
+| `Quartz.Converters.NameValueCollectionConverter` | internal — the serializer registers it itself, and the System.Text.Json package's converter of the same name has always been internal |
 
 `UseNewtonsoftJsonSerializer` itself is unchanged — only the `using` on a file that names one of these types.
 `AddCalendarSerializer<TCalendar>` is now constrained to `ICalendar`, matching the trigger side; a call that
