@@ -1322,6 +1322,13 @@ namespace Quartz
         public static System.Threading.Tasks.ValueTask<bool> IsJobGroupPaused(this Quartz.IScheduler scheduler, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(this Quartz.IScheduler scheduler, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public enum SchedulerStatus
+    {
+        Unknown = 0,
+        Running = 1,
+        Standby = 2,
+        Shutdown = 3,
+    }
     public sealed class SchedulingDataValidationException : System.Exception
     {
         public SchedulingDataValidationException() { }

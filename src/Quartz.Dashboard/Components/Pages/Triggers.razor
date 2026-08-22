@@ -73,7 +73,7 @@
                                     <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
                                 </td>
                                 <td class="qz-col-state">
-                                    <StateIndicator State="@(trigger.State ?? "Unknown")" />
+                                    <StateIndicator State="@(trigger.State?.ToString())" />
                                 </td>
                                 <td>
                                     @if (!string.IsNullOrEmpty(trigger.ExecutionGroup))
@@ -136,6 +136,17 @@
 
     private IEnumerable<IGrouping<string, TriggerHeaderDto>> GroupedTriggers => _triggers.GroupBy(trigger => trigger.Group);
 
+    /// <summary>
+    /// The 1-based page the pager speaks, as the <c>Skip</c>/<c>Take</c> the API speaks.
+    /// </summary>
+    private DashboardTriggerQuery PageQuery(string? groupFilter, int page) => new()
+    {
+        GroupContains = groupFilter,
+        State = _stateFilter,
+        Skip = Math.Max(0, page - 1) * _pageSize,
+        Take = _pageSize
+    };
+
     protected override async Task OnInitializedAsync()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
@@ -165,18 +176,19 @@
             }
 
             string? groupFilter = string.IsNullOrWhiteSpace(_filter) ? null : _filter;
-            TriggerState? state = _stateFilter;
-            TriggerPageDto page = await Api.GetTriggers(schedulerName, groupFilter, state, _currentPage, _pageSize);
+            PagedResult<TriggerHeaderDto> page = await Api.GetTriggers(schedulerName, PageQuery(groupFilter, _currentPage));
 
-            int totalPages = Math.Max(1, (int) Math.Ceiling((double) page.TotalCount / _pageSize));
+            int totalCount = page.TotalCount ?? page.Items.Count;
+            int totalPages = Math.Max(1, (int) Math.Ceiling((double) totalCount / _pageSize));
             if (_currentPage > totalPages)
             {
                 _currentPage = totalPages;
-                page = await Api.GetTriggers(schedulerName, groupFilter, state, _currentPage, _pageSize);
+                page = await Api.GetTriggers(schedulerName, PageQuery(groupFilter, _currentPage));
+                totalCount = page.TotalCount ?? page.Items.Count;
             }
 
             _triggers.AddRange(page.Items);
-            _totalTriggers = page.TotalCount;
+            _totalTriggers = totalCount;
         }
         catch (Exception ex)
         {
@@ -224,7 +236,7 @@
     private Task PauseTrigger(string group, string name)
     {
         return ExecuteMutatingActionAsync(
-            () => Api.PauseTrigger(Scheduler.ActiveSchedulerName!, group, name),
+            () => Api.PauseTrigger(Scheduler.ActiveSchedulerName!, new TriggerKeyDto(group, name)),
             "Paused trigger " + DisplayValueHelper.FormatKey(group, name) + ".",
             "Trigger " + DisplayValueHelper.FormatKey(group, name) + " was not paused - it no longer exists or cannot be paused.",
             actionName: "PauseTrigger",
@@ -234,7 +246,7 @@
     private Task ResumeTrigger(string group, string name)
     {
         return ExecuteMutatingActionAsync(
-            () => Api.ResumeTrigger(Scheduler.ActiveSchedulerName!, group, name),
+            () => Api.ResumeTrigger(Scheduler.ActiveSchedulerName!, new TriggerKeyDto(group, name)),
             "Resumed trigger " + DisplayValueHelper.FormatKey(group, name) + ".",
             "Trigger " + DisplayValueHelper.FormatKey(group, name) + " was not resumed - it no longer exists or was not paused.",
             actionName: "ResumeTrigger",
@@ -245,7 +257,7 @@
     {
         return ExecuteGroupMutatingActionAsync(
             group,
-            (schedulerName, triggerGroup, triggerName) => Api.PauseTrigger(schedulerName, triggerGroup, triggerName),
+            (schedulerName, triggerKey) => Api.PauseTrigger(schedulerName, triggerKey),
             "Paused");
     }
 
@@ -253,7 +265,7 @@
     {
         return ExecuteGroupMutatingActionAsync(
             group,
-            (schedulerName, triggerGroup, triggerName) => Api.ResumeTrigger(schedulerName, triggerGroup, triggerName),
+            (schedulerName, triggerKey) => Api.ResumeTrigger(schedulerName, triggerKey),
             "Resumed");
     }
 
@@ -292,7 +304,7 @@
         }
 
         await ExecuteMutatingActionAsync(
-            () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, _pendingGroup, _pendingName),
+            () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, new TriggerKeyDto(_pendingGroup, _pendingName)),
             "Unscheduled trigger " + DisplayValueHelper.FormatKey(_pendingGroup, _pendingName) + ".",
             actionName: "UnscheduleTrigger",
             target: DisplayValueHelper.FormatKey(_pendingGroup, _pendingName));
@@ -367,7 +379,7 @@
 
     private async Task ExecuteGroupMutatingActionAsync(
         string group,
-        Func<string, string, string, ValueTask<bool>> operation,
+        Func<string, TriggerKeyDto, ValueTask<bool>> operation,
         string actionVerb)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
@@ -379,7 +391,9 @@
         try
         {
             // The group filter matches groups that contain it, so the exact group is selected here.
-            TriggerPageDto groupPage = await Api.GetTriggers(schedulerName, group, state: null, page: 1, pageSize: int.MaxValue);
+            PagedResult<TriggerHeaderDto> groupPage = await Api.GetTriggers(
+                schedulerName,
+                new DashboardTriggerQuery { GroupContains = group, Take = int.MaxValue });
             List<TriggerHeaderDto> triggersInGroup = [];
             foreach (TriggerHeaderDto trigger in groupPage.Items)
             {
@@ -392,7 +406,7 @@
             int appliedCount = 0;
             foreach (TriggerHeaderDto trigger in triggersInGroup)
             {
-                if (await operation(schedulerName, trigger.Group, trigger.Name))
+                if (await operation(schedulerName, new TriggerKeyDto(trigger.Group, trigger.Name)))
                 {
                     appliedCount++;
                 }

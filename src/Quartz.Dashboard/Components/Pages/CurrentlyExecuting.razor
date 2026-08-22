@@ -193,7 +193,7 @@
 
         try
         {
-            await Api.InterruptJob(Scheduler.ActiveSchedulerName, group, name);
+            await Api.InterruptJob(Scheduler.ActiveSchedulerName, new JobKeyDto(group, name));
             await LoadDataAsync();
         }
         catch (Exception ex)

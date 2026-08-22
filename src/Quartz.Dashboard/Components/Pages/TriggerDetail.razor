@@ -32,7 +32,7 @@
     {
         <div class="qz-row">
             <KeyBadge GroupName="@Group" ItemName="@Name" />
-            <StateIndicator State="@_triggerState" />
+            <StateIndicator State="@_triggerState.ToString()" />
             <a class="qz-details-link" href="@GetHistoryPathForTrigger(Group, Name)">View execution history</a>
         </div>
 
@@ -93,7 +93,7 @@
     private bool _isLoading = true;
     private string? _error;
     private object? _trigger;
-    private string _triggerState = "Unknown";
+    private TriggerState _triggerState = TriggerState.None;
     private bool _showUnscheduleConfirm;
     private string? _cronExpression;
     private string _editedCronExpression = string.Empty;
@@ -105,6 +105,8 @@
     public string Name { get; set; } = string.Empty;
 
     private bool IsReadOnly => Options.Value.ReadOnly;
+
+    private TriggerKeyDto TriggerKey => new(Group, Name);
 
     private JobDataMap? TriggerDataMap => DisplayValueHelper.GetJobDataMap(_trigger, "JobDataMap", "jobDataMap");
 
@@ -136,13 +138,13 @@
             if (string.IsNullOrWhiteSpace(schedulerName))
             {
                 _trigger = null;
-                _triggerState = "Unknown";
+                _triggerState = TriggerState.None;
                 return;
             }
 
-            TriggerDetailDto detail = await Api.GetTrigger(schedulerName, Group, Name);
+            TriggerDetailDto detail = await Api.GetTrigger(schedulerName, TriggerKey);
             _trigger = detail.Value;
-            _triggerState = await Api.GetTriggerState(schedulerName, Group, Name);
+            _triggerState = await Api.GetTriggerState(schedulerName, TriggerKey);
             _cronExpression = DisplayValueHelper.GetString(_trigger, "CronExpressionString", "CronExpression");
             _editedCronExpression = _cronExpression ?? string.Empty;
         }
@@ -194,7 +196,7 @@
     private Task PauseAsync()
     {
         return ExecuteMutatingActionAsync(
-            () => Api.PauseTrigger(Scheduler.ActiveSchedulerName!, Group, Name),
+            () => Api.PauseTrigger(Scheduler.ActiveSchedulerName!, TriggerKey),
             "Paused trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not paused - it no longer exists or cannot be paused.",
             actionName: "PauseTrigger",
@@ -204,7 +206,7 @@
     private Task ResumeAsync()
     {
         return ExecuteMutatingActionAsync(
-            () => Api.ResumeTrigger(Scheduler.ActiveSchedulerName!, Group, Name),
+            () => Api.ResumeTrigger(Scheduler.ActiveSchedulerName!, TriggerKey),
             "Resumed trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not resumed - it no longer exists or was not paused.",
             actionName: "ResumeTrigger",
@@ -214,7 +216,7 @@
     private Task ResetFromErrorAsync()
     {
         return ExecuteMutatingActionAsync(
-            () => Api.ResetTriggerFromErrorState(Scheduler.ActiveSchedulerName!, Group, Name),
+            () => Api.ResetTriggerFromErrorState(Scheduler.ActiveSchedulerName!, TriggerKey),
             "Reset error state for trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not reset - it no longer exists or is not in the error state.",
             actionName: "ResetTriggerFromErrorState",
@@ -245,7 +247,7 @@
 
         RescheduleRequest request = new(newTrigger);
         _ = await ExecuteMutatingActionAsync(
-            () => Api.RescheduleJob(schedulerName, Group, Name, request),
+            () => Api.RescheduleJob(schedulerName, TriggerKey, request),
             "Rescheduled trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             actionName: "RescheduleTrigger",
             target: DisplayValueHelper.FormatKey(Group, Name));
@@ -265,7 +267,7 @@
     private async Task UnscheduleAsync()
     {
         bool succeeded = await ExecuteMutatingActionAsync(
-            () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, Group, Name),
+            () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, TriggerKey),
             "Unscheduled trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
             actionName: "UnscheduleTrigger",
             target: DisplayValueHelper.FormatKey(Group, Name));

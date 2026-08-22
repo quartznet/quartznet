@@ -4392,6 +4392,39 @@ Only these two enums are affected, and the converters are registered per enum ty
 its converters to the application's shared `JsonOptions`, and a host's own endpoints must keep rendering
 their own enums the way they always did.
 
+## The dashboard's client speaks one currency
+
+`IQuartzApiClient` is the dashboard's own projection of the HTTP API — public so that an application can
+replace it with its own data source. It used to answer in three vocabularies at once: an enum from
+`GetTriggers` and a `string` from `GetTriggerState`, a paging model of its own beside core's, and
+sixteen methods taking a loose `(schedulerName, group, name)` triplet next to a hub interface that
+already had `JobKeyDto` and `TriggerKeyDto`. Now it says what Quartz says:
+
+| Was | Is |
+|---|---|
+| `GetTriggerState(…)` → `string` | → `TriggerState` |
+| `TriggerHeaderDto.State` is `string?` | `TriggerState?` |
+| `SchedulerHeaderDto.Status`, `SchedulerDetailDto.Status` are `string` | `SchedulerStatus`, a new public enum in `Quartz` |
+| `GetJobs(name, string? groupFilter, int page, int pageSize)` → `JobPageDto` | `GetJobs(name, DashboardJobQuery)` → `PagedResult<JobKeyDto>` |
+| `GetTriggers(name, string? groupFilter, TriggerState?, int page, int pageSize)` → `TriggerPageDto` | `GetTriggers(name, DashboardTriggerQuery)` → `PagedResult<TriggerHeaderDto>` |
+| `GetHistory(JobHistoryQueryDto)` → `JobHistoryPageDto` (a `JsonElement`) | `GetHistory(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>?` |
+| `IDashboardHistoryStore.GetPage(name, page, pageSize, jobFilter, triggerFilter)` → `DashboardHistoryPage` | `GetPage(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>` |
+| `…Job(name, string group, string jobName)` — eight members | `…Job(name, JobKeyDto)` |
+| `…Trigger(name, string group, string triggerName)` — seven members | `…Trigger(name, TriggerKeyDto)` |
+
+`DashboardJobQuery`, `DashboardTriggerQuery` and `DashboardHistoryQuery` derive from `PagedQuery`, so they
+carry `Skip`, `Take` and `IncludeTotalCount` with the meanings the job stores give them, and every listing
+returns `PagedResult<T>` with `HasMore` and a nullable `TotalCount`. A 1-based page becomes
+`Skip = (page - 1) * pageSize, Take = pageSize`, computed once where the pager lives instead of at every
+call site. `JobPageDto`, `TriggerPageDto`, `DashboardHistoryPage`, `JobHistoryPageDto` and
+`JobHistoryQueryDto` are gone.
+
+`SchedulerStatus` collapses `IsStarted` / `InStandbyMode` / `IsShutdown` into one value, in the precedence
+those three have to be read in. It is the enum the HTTP API has always put on the wire; it is public now
+because the dashboard's contract needed a name for it. Note that a running scheduler is `Running`: the
+in-process client used to call it `"Started"` while the HTTP-backed client called the same state
+`"Running"`, and code that matched on either string now matches on the enum.
+
 ## `CheckExists` is `Exists`
 
 Both overloads, on `IScheduler` and `IJobStore`:
@@ -6101,7 +6134,8 @@ Parameters and behavior are unchanged:
 | Group matchers translate to SQL correctly | `SelectTriggerGroups`, `DeletePausedTriggerGroup` and both `UpdateTriggerGroupStateFromOtherState(s)` members always built a `LIKE`, even for an equality matcher; they take the `=` path now, which is exact and index-friendly. `LIKE` patterns escape `%`, `_` and the escape character in the matcher's own text with an explicit `ESCAPE` clause, so a group literally named `50%` matches itself. The escape character is `!` rather than a backslash, because MySQL applies C-style escaping inside string literals and `ESCAPE '\'` is a syntax error there |
 | `StdAdoConstants` group and fired-trigger statements were split | `SqlDeletePausedTriggerGroup`, `SqlSelectTriggerGroupsFiltered`, `SqlUpdateTriggerGroupStateFromState` and `SqlUpdateTriggerGroupStateFromStates` are `…Equals` / `…Like` pairs, and the FIRED_TRIGGERS statements are one `SqlSelectFiredTriggers` / `SqlDeleteFiredTriggers` base plus `SqlFiredTrigger*Predicate` fragments. The type is internal |
 | `IDashboardAuthorizationFilter` and `QuartzDashboardOptions.AuthorizationFilter` removed | Nothing ever invoked the filter, so setting it bought a false sense of security. Use `AuthorizationPolicy`, which is enforced |
-| `IDashboardHistoryStore` is asynchronous | `ValueTask Add`, `ValueTask<DashboardHistoryPage> GetPage`, so a store can talk to a database. `SearchFilter.DebounceMilliseconds` is a `TimeSpan Debounce`, and `QuartzApiClient` / `InProcessQuartzApiClient` are internal — resolve `IQuartzApiClient` |
+| `IDashboardHistoryStore` is asynchronous | `ValueTask Add`, `ValueTask<PagedResult<DashboardHistoryEntry>> GetPage(DashboardHistoryQuery)`, so a store can talk to a database. `SearchFilter.DebounceMilliseconds` is a `TimeSpan Debounce`, and `QuartzApiClient` / `InProcessQuartzApiClient` are internal — resolve `IQuartzApiClient` |
+| `IQuartzApiClient` speaks Quartz's vocabulary | See [The dashboard's client speaks one currency](#the-dashboards-client-speaks-one-currency) |
 | Serializers outside a scheduler read a container-wide registry | Because the serializer maps are per-serializer, the HTTP API, the dashboard and `Quartz.HttpClient` read a `SystemTextJsonSerializerRegistry` registered in the container. Register it as a singleton to make a custom serializer visible to them |
 | `IDriverDelegate` trigger states are `StoredTriggerState` | Eighteen members took the state as a `string`; the database still stores the same values — see [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate) |
 | The `…FromOtherStates` members take a state collection | Two or three fixed old-state parameters became one `IReadOnlyCollection<StoredTriggerState>` |

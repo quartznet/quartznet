@@ -30,14 +30,13 @@
 @code
 {
     private string _statusLabel = "Loading…";
-    private string _schedulerStatus = string.Empty;
+    private SchedulerStatus? _schedulerStatus;
 
     private string StatusDotClass => _schedulerStatus switch
     {
-        "Running" => "qz-state-running",
-        "Started" => "qz-state-running",
-        "Standby" => "qz-state-standby",
-        "Shutdown" => "qz-state-shutdown",
+        SchedulerStatus.Running => "qz-state-running",
+        SchedulerStatus.Standby => "qz-state-standby",
+        SchedulerStatus.Shutdown => "qz-state-shutdown",
         _ => "qz-state-waiting"
     };
 
@@ -72,7 +71,7 @@
         catch
         {
             _statusLabel = "Unavailable";
-            _schedulerStatus = string.Empty;
+            _schedulerStatus = null;
         }
     }
 
@@ -99,12 +98,12 @@
                 await ApiClient.GetScheduler(SchedulerState.ActiveSchedulerName);
 
             _schedulerStatus = detail.Status;
-            _statusLabel = detail.Status;
+            _statusLabel = detail.Status.ToString();
         }
         catch
         {
             _statusLabel = "Unknown";
-            _schedulerStatus = string.Empty;
+            _schedulerStatus = null;
         }
     }
 

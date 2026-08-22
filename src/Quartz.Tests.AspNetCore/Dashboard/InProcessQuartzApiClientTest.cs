@@ -62,7 +62,7 @@ public class InProcessQuartzApiClientTest
             };
             RescheduleRequest request = new(JsonSerializer.SerializeToElement(payload, requestSerializerOptions));
 
-            await client.RescheduleJob(scheduler.SchedulerName, triggerKey.Group, triggerKey.Name, request);
+            await client.RescheduleJob(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), request);
 
             ITrigger? updated = await scheduler.GetTrigger(triggerKey);
             CronTriggerImpl cronTrigger = updated.Should().BeOfType<CronTriggerImpl>().Subject;
@@ -104,11 +104,11 @@ public class InProcessQuartzApiClientTest
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
             // exactly what TriggerDetail.razor does: read the trigger, then edit its cron expression
-            TriggerDetailDto detail = await client.GetTrigger(scheduler.SchedulerName, triggerKey.Group, triggerKey.Name);
+            TriggerDetailDto detail = await client.GetTrigger(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
             TriggerPayloadBuilder.TryWithCronExpression(detail.Value, "0 0 2 * * ?", out JsonElement newTrigger)
                 .Should().BeTrue();
 
-            await client.RescheduleJob(scheduler.SchedulerName, triggerKey.Group, triggerKey.Name, new RescheduleRequest(newTrigger));
+            await client.RescheduleJob(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name), new RescheduleRequest(newTrigger));
 
             ITrigger? updated = await scheduler.GetTrigger(triggerKey);
             CronTriggerImpl cronTrigger = updated.Should().BeOfType<CronTriggerImpl>().Subject;
@@ -182,7 +182,7 @@ public class InProcessQuartzApiClientTest
             await scheduler.AddJob(job, new AddJobOptions { Replace = true });
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
-            JobDetailDto dto = await client.GetJob(scheduler.SchedulerName, jobKey.Group, jobKey.Name);
+            JobDetailDto dto = await client.GetJob(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
 
             dto.JobDataMap.GetProperty("Name").GetString().Should().Be("abc");
 
@@ -219,7 +219,7 @@ public class InProcessQuartzApiClientTest
             await scheduler.ScheduleJob(job, trigger);
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
-            TriggerDetailDto detail = await client.GetTrigger(scheduler.SchedulerName, triggerKey.Group, triggerKey.Name);
+            TriggerDetailDto detail = await client.GetTrigger(scheduler.SchedulerName, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
 
             JsonElement value = detail.Value;
             value.GetProperty("triggerType").GetString().Should().Be("SimpleTrigger");
@@ -253,7 +253,7 @@ public class InProcessQuartzApiClientTest
                     .WithCronSchedule("0 0 1 * * ?").Build());
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
-            List<TriggerHeaderDto> headers = await client.GetJobTriggers(scheduler.SchedulerName, jobKey.Group, jobKey.Name);
+            List<TriggerHeaderDto> headers = await client.GetJobTriggers(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
 
             headers.Should().HaveCount(2);
             TriggerHeaderDto simple = headers.Single(h => h.Name == "simple");
@@ -264,14 +264,14 @@ public class InProcessQuartzApiClientTest
             cron.ScheduleSummary.Should().Be("0 0 1 * * ?");
 
             headers.Should().AllSatisfy(
-                header => header.State.Should().Be("Normal"),
+                header => header.State.Should().Be(TriggerState.Normal),
                 "the states come from the single trigger query the associated triggers table used to make one call per trigger for");
 
             await scheduler.PauseTrigger(new TriggerKey("cron", "group1"));
-            headers = await client.GetJobTriggers(scheduler.SchedulerName, jobKey.Group, jobKey.Name);
+            headers = await client.GetJobTriggers(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
 
-            headers.Single(h => h.Name == "cron").State.Should().Be("Paused", "each header carries its own trigger's state");
-            headers.Single(h => h.Name == "simple").State.Should().Be("Normal");
+            headers.Single(h => h.Name == "cron").State.Should().Be(TriggerState.Paused, "each header carries its own trigger's state");
+            headers.Single(h => h.Name == "simple").State.Should().Be(TriggerState.Normal);
         }
         finally
         {
@@ -297,20 +297,20 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            JobPageDto firstPage = await client.GetJobs(scheduler.SchedulerName, groupFilter: null, page: 1, pageSize: 25);
+            PagedResult<JobKeyDto> firstPage = await client.GetJobs(scheduler.SchedulerName, new DashboardJobQuery { Take = 25 });
             firstPage.Items.Should().HaveCount(25, "the page size limits what the store returns");
             firstPage.TotalCount.Should().Be(30, "the total is counted regardless of paging");
             firstPage.HasMore.Should().BeTrue("30 jobs do not fit on one page of 25");
             firstPage.Items[0].Name.Should().Be("job01", "results are ordered by group and then name");
 
-            JobPageDto secondPage = await client.GetJobs(scheduler.SchedulerName, groupFilter: null, page: 2, pageSize: 25);
+            PagedResult<JobKeyDto> secondPage = await client.GetJobs(scheduler.SchedulerName, new DashboardJobQuery { Skip = 25, Take = 25 });
             secondPage.Items.Should().HaveCount(5, "the second page holds the remainder");
             secondPage.Items.Select(x => x.Name).Should().Equal(["job26", "job27", "job28", "job29", "job30"],
                 "page 2 continues where page 1 ended");
             secondPage.HasMore.Should().BeFalse("nothing matches beyond the second page");
             secondPage.TotalCount.Should().Be(30);
 
-            JobPageDto countOnly = await client.GetJobs(scheduler.SchedulerName, groupFilter: null, page: 1, pageSize: 0);
+            PagedResult<JobKeyDto> countOnly = await client.GetJobs(scheduler.SchedulerName, new DashboardJobQuery { Take = 0 });
             countOnly.Items.Should().BeEmpty("a page size of zero fetches no items");
             countOnly.TotalCount.Should().Be(30, "the dashboard total jobs tile is a count query, not a materialized list");
         }
@@ -331,7 +331,7 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            JobPageDto filtered = await client.GetJobs(scheduler.SchedulerName, groupFilter: "mpor", page: 1, pageSize: 25);
+            PagedResult<JobKeyDto> filtered = await client.GetJobs(scheduler.SchedulerName, new DashboardJobQuery { GroupContains = "mpor", Take = 25 });
 
             filtered.Items.Should().ContainSingle("the group filter matches groups that contain it")
                 .Which.Group.Should().Be("imports");
@@ -371,24 +371,24 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            TriggerPageDto firstPage = await client.GetTriggers(scheduler.SchedulerName, groupFilter: null, state: null, page: 1, pageSize: 25);
+            PagedResult<TriggerHeaderDto> firstPage = await client.GetTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 25 });
             firstPage.Items.Should().HaveCount(25);
             firstPage.TotalCount.Should().Be(30);
             firstPage.HasMore.Should().BeTrue("30 triggers do not fit on one page of 25");
-            firstPage.Items[0].State.Should().Be("Paused", "the header carries the state the listing used to fetch per trigger");
+            firstPage.Items[0].State.Should().Be(TriggerState.Paused, "the header carries the state the listing used to fetch per trigger");
             firstPage.Items[0].ExecutionGroup.Should().Be("imports", "the header carries the execution group without loading the trigger");
 
-            TriggerPageDto secondPage = await client.GetTriggers(scheduler.SchedulerName, groupFilter: null, state: null, page: 2, pageSize: 25);
+            PagedResult<TriggerHeaderDto> secondPage = await client.GetTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Skip = 25, Take = 25 });
             secondPage.Items.Select(x => x.Name).Should().Equal(["trigger26", "trigger27", "trigger28", "trigger29", "trigger30"],
                 "page 2 continues where page 1 ended");
             secondPage.HasMore.Should().BeFalse();
-            secondPage.Items.Last().State.Should().Be("Normal", "the last four triggers were never paused");
+            secondPage.Items[^1].State.Should().Be(TriggerState.Normal, "the last four triggers were never paused");
 
-            TriggerPageDto pausedCount = await client.GetTriggers(scheduler.SchedulerName, groupFilter: null, state: TriggerState.Paused, page: 1, pageSize: 0);
+            PagedResult<TriggerHeaderDto> pausedCount = await client.GetTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Paused });
             pausedCount.TotalCount.Should().Be(26,
                 "a state-filtered count is exact, where the dashboard tile used to count states over the first 25 items only");
 
-            TriggerPageDto errorCount = await client.GetTriggers(scheduler.SchedulerName, groupFilter: null, state: TriggerState.Error, page: 1, pageSize: 0);
+            PagedResult<TriggerHeaderDto> errorCount = await client.GetTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Error });
             errorCount.Items.Should().BeEmpty();
             errorCount.TotalCount.Should().Be(0, "no trigger has failed, and the error tile reports that exactly");
         }

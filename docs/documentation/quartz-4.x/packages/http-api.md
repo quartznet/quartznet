@@ -89,7 +89,7 @@ them as numbers needs to read names instead, or parse both.
 
 ## Response-shape conventions
 
-Three shapes, and which one an operation uses depends on what it has to say:
+Which shape an operation answers with depends on what it has to say:
 
 | Operation | Answers |
 |---|---|

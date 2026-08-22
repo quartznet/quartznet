@@ -29,6 +29,8 @@ namespace Quartz.Dashboard.Services;
 
 internal sealed class QuartzApiClient : IQuartzApiClient
 {
+    private static readonly JsonSerializerOptions historySerializerOptions = new(JsonSerializerDefaults.Web);
+
     private readonly IHttpClientFactory httpClientFactory;
     private readonly IHttpContextAccessor httpContextAccessor;
     private readonly IOptions<QuartzDashboardOptions> options;
@@ -58,7 +60,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         {
             string schedulerName = GetStringProperty(scheduler, "name");
             string schedulerInstanceId = GetStringProperty(scheduler, "schedulerInstanceId");
-            string status = GetSchedulerStatusProperty(scheduler, "status");
+            SchedulerStatus status = GetSchedulerStatusProperty(scheduler, "status");
             result.Add(new SchedulerHeaderDto(schedulerName, schedulerInstanceId, status));
         }
 
@@ -70,7 +72,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}", cancellationToken).ConfigureAwait(false);
         string resolvedName = GetStringProperty(json, "name");
         string schedulerInstanceId = GetStringProperty(json, "schedulerInstanceId");
-        string status = GetSchedulerStatusProperty(json, "status");
+        SchedulerStatus status = GetSchedulerStatusProperty(json, "status");
         return new SchedulerDetailDto(schedulerInstanceId, resolvedName, status);
     }
 
@@ -99,9 +101,11 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return Post($"{GetSchedulerPath(schedulerName)}/resume-all", body: null, cancellationToken);
     }
 
-    public async ValueTask<JobPageDto> GetJobs(string schedulerName, string? groupFilter, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<JobKeyDto>> GetJobs(string schedulerName, DashboardJobQuery query, CancellationToken cancellationToken = default)
     {
-        string path = BuildPagedPath($"{GetSchedulerPath(schedulerName)}/jobs", groupFilter, page, pageSize);
+        ArgumentNullException.ThrowIfNull(query);
+
+        string path = BuildPagedPath($"{GetSchedulerPath(schedulerName)}/jobs", query.GroupContains, query);
         JsonElement json = await GetJson(path, cancellationToken).ConfigureAwait(false);
         JsonElement items = GetOptionalProperty(json, "items");
 
@@ -115,7 +119,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
 
         int totalCount = GetNullableIntProperty(json, "totalCount") ?? result.Count;
-        return new JobPageDto(page, pageSize, totalCount, GetBooleanProperty(json, "hasMore"), result);
+        return new PagedResult<JobKeyDto>(result, GetBooleanProperty(json, "hasMore"), totalCount);
     }
 
     public async ValueTask<List<JobGroupDto>> GetJobGroups(string schedulerName, CancellationToken cancellationToken = default)
@@ -147,9 +151,9 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
     }
 
-    public async ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public async ValueTask<JobDetailDto> GetJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}", cancellationToken).ConfigureAwait(false);
+        JsonElement json = await GetJson(JobPath(schedulerName, key), cancellationToken).ConfigureAwait(false);
 
         return new JobDetailDto(
             Name: GetStringProperty(json, "name"),
@@ -167,45 +171,44 @@ internal sealed class QuartzApiClient : IQuartzApiClient
     /// The triggers themselves are needed for the schedule summary, and their states come from a single
     /// trigger listing filtered by job rather than one state request per trigger.
     /// </remarks>
-    public async ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public async ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/triggers", cancellationToken).ConfigureAwait(false);
+        JsonElement json = await GetJson($"{JobPath(schedulerName, key)}/triggers", cancellationToken).ConfigureAwait(false);
         if (json.ValueKind is not JsonValueKind.Array)
         {
             return [];
         }
 
-        Dictionary<(string Group, string Name), string?> states = await GetJobTriggerStates(schedulerName, group, name, cancellationToken).ConfigureAwait(false);
+        Dictionary<(string Group, string Name), TriggerState?> states = await GetJobTriggerStates(schedulerName, key, cancellationToken).ConfigureAwait(false);
 
         List<TriggerHeaderDto> result = [];
         foreach (JsonElement trigger in json.EnumerateArray())
         {
-            JsonElement key = GetOptionalProperty(trigger, "key");
-            string triggerName = GetStringProperty(key, "name");
-            string triggerGroup = GetStringProperty(key, "group");
+            JsonElement triggerKey = GetOptionalProperty(trigger, "key");
+            string triggerName = GetStringProperty(triggerKey, "name");
+            string triggerGroup = GetStringProperty(triggerKey, "group");
             string? executionGroup = GetNullableStringProperty(trigger, "executionGroup");
             result.Add(new TriggerHeaderDto(triggerGroup, triggerName, executionGroup)
             {
                 TriggerType = GetNullableStringProperty(trigger, "triggerType"),
                 ScheduleSummary = DescribeSchedule(trigger),
-                State = states.TryGetValue((triggerGroup, triggerName), out string? state) ? state : null
+                State = states.TryGetValue((triggerGroup, triggerName), out TriggerState? state) ? state : null
             });
         }
 
         return result;
     }
 
-    private async ValueTask<Dictionary<(string Group, string Name), string?>> GetJobTriggerStates(
+    private async ValueTask<Dictionary<(string Group, string Name), TriggerState?>> GetJobTriggerStates(
         string schedulerName,
-        string jobGroup,
-        string jobName,
+        JobKeyDto jobKey,
         CancellationToken cancellationToken = default)
     {
-        Dictionary<(string Group, string Name), string?> states = new();
+        Dictionary<(string Group, string Name), TriggerState?> states = new();
         int skip = 0;
         while (true)
         {
-            string path = $"{GetSchedulerPath(schedulerName)}/triggers?jobName={Uri.EscapeDataString(jobName)}&jobGroup={Uri.EscapeDataString(jobGroup)}&skip={skip.ToString(CultureInfo.InvariantCulture)}";
+            string path = $"{GetSchedulerPath(schedulerName)}/triggers?jobName={Uri.EscapeDataString(jobKey.Name)}&jobGroup={Uri.EscapeDataString(jobKey.Group)}&skip={skip.ToString(CultureInfo.InvariantCulture)}";
             JsonElement json = await GetJson(path, cancellationToken).ConfigureAwait(false);
             JsonElement items = GetOptionalProperty(json, "items");
             if (items.ValueKind is not JsonValueKind.Array)
@@ -264,38 +267,38 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public ValueTask<bool> PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause", cancellationToken);
+        return PostReadingAppliedFlag($"{JobPath(schedulerName, key)}/pause", cancellationToken);
     }
 
-    public ValueTask<bool> ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResumeJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/resume", cancellationToken);
+        return PostReadingAppliedFlag($"{JobPath(schedulerName, key)}/resume", cancellationToken);
     }
 
-    public ValueTask TriggerJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask TriggerJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        return Post($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/trigger", body: null, cancellationToken);
+        return Post($"{JobPath(schedulerName, key)}/trigger", body: null, cancellationToken);
     }
 
-    public ValueTask TriggerJobWithData(string schedulerName, string group, string name, JsonElement jobDataMap, CancellationToken cancellationToken = default)
+    public ValueTask TriggerJobWithData(string schedulerName, JobKeyDto key, JsonElement jobDataMap, CancellationToken cancellationToken = default)
     {
         object payload = new
         {
             JobData = jobDataMap
         };
-        return Post($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/trigger", payload, cancellationToken);
+        return Post($"{JobPath(schedulerName, key)}/trigger", payload, cancellationToken);
     }
 
-    public ValueTask InterruptJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask InterruptJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        return Post($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/interrupt", body: null, cancellationToken);
+        return Post($"{JobPath(schedulerName, key)}/interrupt", body: null, cancellationToken);
     }
 
-    public ValueTask DeleteJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask DeleteJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
-        return Delete($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}", cancellationToken);
+        return Delete(JobPath(schedulerName, key), cancellationToken);
     }
 
     public ValueTask AddJob(string schedulerName, AddJobRequest request, CancellationToken cancellationToken = default)
@@ -304,18 +307,17 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return Post($"{GetSchedulerPath(schedulerName)}/jobs", request, cancellationToken);
     }
 
-    public async ValueTask<TriggerPageDto> GetTriggers(
+    public async ValueTask<PagedResult<TriggerHeaderDto>> GetTriggers(
         string schedulerName,
-        string? groupFilter,
-        TriggerState? state,
-        int page,
-        int pageSize,
+        DashboardTriggerQuery query,
         CancellationToken cancellationToken = default)
     {
-        string path = BuildPagedPath($"{GetSchedulerPath(schedulerName)}/triggers", groupFilter, page, pageSize);
-        if (state.HasValue)
+        ArgumentNullException.ThrowIfNull(query);
+
+        string path = BuildPagedPath($"{GetSchedulerPath(schedulerName)}/triggers", query.GroupContains, query);
+        if (query.State.HasValue)
         {
-            path += $"&state={Uri.EscapeDataString(state.Value.ToString())}";
+            path += $"&state={Uri.EscapeDataString(query.State.Value.ToString())}";
         }
 
         JsonElement json = await GetJson(path, cancellationToken).ConfigureAwait(false);
@@ -337,34 +339,34 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
 
         int totalCount = GetNullableIntProperty(json, "totalCount") ?? result.Count;
-        return new TriggerPageDto(page, pageSize, totalCount, GetBooleanProperty(json, "hasMore"), result);
+        return new PagedResult<TriggerHeaderDto>(result, GetBooleanProperty(json, "hasMore"), totalCount);
     }
 
-    public async ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public async ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}", cancellationToken).ConfigureAwait(false);
+        JsonElement json = await GetJson(TriggerPath(schedulerName, key), cancellationToken).ConfigureAwait(false);
         return new TriggerDetailDto(json);
     }
 
-    public async ValueTask<string> GetTriggerState(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public async ValueTask<TriggerState> GetTriggerState(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/state", cancellationToken).ConfigureAwait(false);
-        return FormatTriggerState(GetIntProperty(json, "state"));
+        JsonElement json = await GetJson($"{TriggerPath(schedulerName, key)}/state", cancellationToken).ConfigureAwait(false);
+        return GetTriggerStateProperty(json, "state") ?? TriggerState.None;
     }
 
-    public ValueTask<bool> PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
-        return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause", cancellationToken);
+        return PostReadingAppliedFlag($"{TriggerPath(schedulerName, key)}/pause", cancellationToken);
     }
 
-    public ValueTask<bool> ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResumeTrigger(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
-        return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/resume", cancellationToken);
+        return PostReadingAppliedFlag($"{TriggerPath(schedulerName, key)}/resume", cancellationToken);
     }
 
-    public ValueTask<bool> ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResetTriggerFromErrorState(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
-        return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/reset-from-error-state", cancellationToken);
+        return PostReadingAppliedFlag($"{TriggerPath(schedulerName, key)}/reset-from-error-state", cancellationToken);
     }
 
     public ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default)
@@ -373,15 +375,15 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return Post($"{GetSchedulerPath(schedulerName)}/triggers/schedule", request, cancellationToken);
     }
 
-    public ValueTask UnscheduleJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask UnscheduleJob(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
-        return Post($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/unschedule", body: null, cancellationToken);
+        return Post($"{TriggerPath(schedulerName, key)}/unschedule", body: null, cancellationToken);
     }
 
-    public ValueTask RescheduleJob(string schedulerName, string group, string name, RescheduleRequest request, CancellationToken cancellationToken = default)
+    public ValueTask RescheduleJob(string schedulerName, TriggerKeyDto key, RescheduleRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return Post($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/reschedule", request, cancellationToken);
+        return Post($"{TriggerPath(schedulerName, key)}/reschedule", request, cancellationToken);
     }
 
     public async ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default)
@@ -430,12 +432,17 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return Delete($"{GetSchedulerPath(schedulerName)}/calendars/{Uri.EscapeDataString(calendarName)}", cancellationToken);
     }
 
-    public async ValueTask<JobHistoryPageDto?> GetHistory(JobHistoryQueryDto query, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// Execution history is the dashboard's own record, kept by whichever process runs the schedulers.
+    /// A Quartz HTTP API does not serve it, so this asks and reports "no history" when the answer is a
+    /// 404 — which, against a plain HTTP API, it always is.
+    /// </remarks>
+    public async ValueTask<PagedResult<DashboardHistoryEntry>?> GetHistory(DashboardHistoryQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
         HttpClient client = CreateClient();
-        string path = $"{GetSchedulerPath(query.SchedulerName)}/history?page={query.Page}&pageSize={query.PageSize}";
+        string path = $"{GetSchedulerPath(query.SchedulerName)}/history?skip={query.Skip.ToString(CultureInfo.InvariantCulture)}&take={query.Take.ToString(CultureInfo.InvariantCulture)}";
         if (!string.IsNullOrWhiteSpace(query.JobFilter))
         {
             path += $"&jobFilter={Uri.EscapeDataString(query.JobFilter)}";
@@ -453,8 +460,10 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         }
 
         response.EnsureSuccessStatusCode();
-        JsonElement json = await ParseJson(response, cancellationToken).ConfigureAwait(false);
-        return new JobHistoryPageDto(json);
+        PagedResult<DashboardHistoryEntry>? page = await response.Content
+            .ReadFromJsonAsync<PagedResult<DashboardHistoryEntry>>(historySerializerOptions, cancellationToken)
+            .ConfigureAwait(false);
+        return page ?? new PagedResult<DashboardHistoryEntry>([], HasMore: false, TotalCount: 0);
     }
 
     private string ApiPath => options.Value.TrimmedApiPath;
@@ -464,26 +473,31 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return $"{ApiPath}/schedulers/{Uri.EscapeDataString(schedulerName)}";
     }
 
-    private static string BuildPagedPath(string path, string? groupFilter, int page, int pageSize)
+    private string JobPath(string schedulerName, JobKeyDto key)
     {
-        string result = $"{path}?skip={GetSkip(page, pageSize).ToString(CultureInfo.InvariantCulture)}&take={pageSize.ToString(CultureInfo.InvariantCulture)}&includeTotalCount=true";
+        ArgumentNullException.ThrowIfNull(key);
+        return $"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(key.Group)}/{Uri.EscapeDataString(key.Name)}";
+    }
+
+    private string TriggerPath(string schedulerName, TriggerKeyDto key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        return $"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(key.Group)}/{Uri.EscapeDataString(key.Name)}";
+    }
+
+    /// <remarks>
+    /// <c>take</c> is always sent, because omitting it hands the page size to the server's own default
+    /// rather than to the caller — the same reason <c>QueryStringBuilder</c> always sends it.
+    /// </remarks>
+    private static string BuildPagedPath(string path, string? groupFilter, PagedQuery query)
+    {
+        string result = $"{path}?skip={query.Skip.ToString(CultureInfo.InvariantCulture)}&take={query.Take.ToString(CultureInfo.InvariantCulture)}&includeTotalCount=true";
         if (!string.IsNullOrWhiteSpace(groupFilter))
         {
             result += $"&groupContains={Uri.EscapeDataString(groupFilter)}";
         }
 
         return result;
-    }
-
-    private static int GetSkip(int page, int pageSize)
-    {
-        if (page <= 1 || pageSize <= 0)
-        {
-            return 0;
-        }
-
-        long skip = (long) (page - 1) * pageSize;
-        return skip > int.MaxValue ? int.MaxValue : (int) skip;
     }
 
     private HttpClient CreateClient()
@@ -615,30 +629,26 @@ internal sealed class QuartzApiClient : IQuartzApiClient
     /// Reads the scheduler status the API reports. It is a name on the wire; the numeric form is still
     /// read so that a dashboard can talk to a server that predates the change.
     /// </summary>
-    private static string GetSchedulerStatusProperty(JsonElement element, string propertyName)
+    private static SchedulerStatus GetSchedulerStatusProperty(JsonElement element, string propertyName)
     {
         if (element.ValueKind is not JsonValueKind.Object || !element.TryGetProperty(propertyName, out JsonElement value))
         {
-            return "Unknown";
+            return SchedulerStatus.Unknown;
         }
 
         if (value.ValueKind is JsonValueKind.String)
         {
-            return value.GetString() ?? "Unknown";
+            return Enum.TryParse(value.GetString(), ignoreCase: true, out SchedulerStatus parsed)
+                ? parsed
+                : SchedulerStatus.Unknown;
         }
 
-        if (value.ValueKind is JsonValueKind.Number && value.TryGetInt32(out int status))
+        if (value.ValueKind is JsonValueKind.Number && value.TryGetInt32(out int status) && Enum.IsDefined((SchedulerStatus) status))
         {
-            return status switch
-            {
-                1 => "Running",
-                2 => "Standby",
-                3 => "Shutdown",
-                _ => "Unknown"
-            };
+            return (SchedulerStatus) status;
         }
 
-        return "Unknown";
+        return SchedulerStatus.Unknown;
     }
 
     private static string GetStringProperty(JsonElement element, string propertyName)
@@ -728,7 +738,11 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return null;
     }
 
-    private static string? GetTriggerStateProperty(JsonElement element, string propertyName)
+    /// <summary>
+    /// Reads a trigger state the API reports. It is a name on the wire; the numeric form is still read so
+    /// that a dashboard can talk to a server that predates the change.
+    /// </summary>
+    private static TriggerState? GetTriggerStateProperty(JsonElement element, string propertyName)
     {
         if (element.ValueKind is not JsonValueKind.Object)
         {
@@ -742,25 +756,15 @@ internal sealed class QuartzApiClient : IQuartzApiClient
 
         if (value.ValueKind is JsonValueKind.String)
         {
-            return value.GetString();
+            return Enum.TryParse(value.GetString(), ignoreCase: true, out TriggerState parsed) ? parsed : null;
         }
 
-        if (value.ValueKind is JsonValueKind.Number && value.TryGetInt32(out int intValue))
+        if (value.ValueKind is JsonValueKind.Number && value.TryGetInt32(out int intValue) && Enum.IsDefined((TriggerState) intValue))
         {
-            return FormatTriggerState(intValue);
+            return (TriggerState) intValue;
         }
 
         return null;
-    }
-
-    private static string FormatTriggerState(int state)
-    {
-        if (Enum.IsDefined(typeof(TriggerState), state))
-        {
-            return ((TriggerState) state).ToString();
-        }
-
-        return state.ToString(CultureInfo.InvariantCulture);
     }
 
     private static bool GetBooleanProperty(JsonElement element, string propertyName)
