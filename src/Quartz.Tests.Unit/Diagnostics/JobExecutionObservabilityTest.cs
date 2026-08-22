@@ -83,7 +83,7 @@ public sealed class JobExecutionObservabilityTest
         {
             InstrumentPublished = static (instrument, listener) =>
             {
-                if (instrument.Meter.Name == InstrumentationOptions.MeterName)
+                if (instrument.Meter.Name == QuartzInstrumentation.MeterName)
                 {
                     listener.EnableMeasurementEvents(instrument);
                 }
@@ -95,7 +95,7 @@ public sealed class JobExecutionObservabilityTest
 
         activityListener = new ActivityListener
         {
-            ShouldListenTo = static source => source.Name == ActivityTags.DefaultListenerName,
+            ShouldListenTo = static source => source.Name == QuartzInstrumentation.ActivitySourceName,
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
             ActivityStopped = activity =>
             {
@@ -130,7 +130,7 @@ public sealed class JobExecutionObservabilityTest
             + "of what an application's OpenTelemetry exporter sees, and it saw nothing while configuring "
             + "the meter was wired to one construction path");
 
-        published.Select(m => m.Meter).Should().AllBe(InstrumentationOptions.MeterName,
+        published.Select(m => m.Meter).Should().AllBe(QuartzInstrumentation.MeterName,
             "the meter name is the contract: it is what an exporter is told to subscribe to");
 
         published.Should().ContainSingle(m => m.Instrument == ExecuteCount)
@@ -166,6 +166,16 @@ public sealed class JobExecutionObservabilityTest
     }
 
     /// <summary>
+    /// The two strings an application types to subscribe are published, so nobody has to write "Quartz".
+    /// </summary>
+    [Test]
+    public void SubscriptionNames_ArePublicConstants()
+    {
+        QuartzInstrumentation.ActivitySourceName.Should().Be("Quartz");
+        QuartzInstrumentation.MeterName.Should().Be("Quartz");
+    }
+
+    /// <summary>
     /// The measurements a container's own <c>IMeterFactory</c> publishes, read the way an application's
     /// tests read them.
     /// </summary>
@@ -198,7 +208,7 @@ public sealed class JobExecutionObservabilityTest
 
         using MetricCollector<long> collector = new(
             provider.GetRequiredService<IMeterFactory>(),
-            InstrumentationOptions.MeterName,
+            QuartzInstrumentation.MeterName,
             ExecuteCount);
 
         // The scheduler is injected rather than built from its factory, which is the other half of what
@@ -303,7 +313,7 @@ public sealed class JobExecutionObservabilityTest
         Activity activity = ActivityFor(execution.JobKey);
 
         activity.OperationName.Should().Be(OperationName.Job.Execute);
-        activity.Source.Name.Should().Be(ActivityTags.DefaultListenerName,
+        activity.Source.Name.Should().Be(QuartzInstrumentation.ActivitySourceName,
             "the source name is what a tracer is told to subscribe to");
         activity.Kind.Should().Be(ActivityKind.Internal);
         activity.Status.Should().Be(ActivityStatusCode.Unset, "the job succeeded");

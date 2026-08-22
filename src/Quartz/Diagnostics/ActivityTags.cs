@@ -2,9 +2,6 @@ namespace Quartz.Diagnostics;
 
 public static class ActivityTags
 {
-    internal const string DefaultListenerName = "Quartz";
-    internal static readonly string? Version = typeof(ActivityTags).Assembly.GetName().Version?.ToString();
-
     public const string SchedulerName = "scheduler.name";
     public const string SchedulerId = "scheduler.id";
     public const string FireInstanceId = "fire.instance.id";
