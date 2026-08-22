@@ -68,10 +68,17 @@ public abstract class SerializationTestSupport<T, TInterface> where T : class wh
     }
 
     /// <summary>
-    /// Use this method in the future to generate other versions of
-    /// of the serialized object file.
+    /// Writes a <c>.ser</c> file holding the current serialized form of the target object, for use as
+    /// a fixture by a future version reading it back.
     /// </summary>
+    /// <remarks>
+    /// Explicit because it is a tool, not a test: it asserts nothing, and left runnable it wrote a file
+    /// into the test working directory on every build — once per fixture per serializer — while
+    /// reporting a pass whatever it produced. Run it on purpose (by name, or with
+    /// <c>--filter "Name=WriteJobDataFile"</c>) when a baseline is actually wanted.
+    /// </remarks>
     [Test]
+    [Explicit("baseline generator")]
     public void WriteJobDataFile()
     {
         Assembly asm = GetType().Assembly;
