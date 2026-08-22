@@ -94,7 +94,12 @@ internal static class LegacyPropertyKeys
     /// <summary>
     /// The key prefixes a scheduler understands, used to reject a misspelled one.
     /// </summary>
-    private static readonly string[] supportedKeys =
+    /// <remarks>
+    /// Internal rather than private so that the completeness test can read it: rejecting an unknown key
+    /// is only safe while this list covers every key some reader still consults, and that is a property
+    /// of the pair rather than of either list on its own.
+    /// </remarks>
+    internal static readonly string[] supportedKeys =
     [
         SchedulerInstanceName,
         SchedulerInstanceId,
@@ -125,10 +130,16 @@ internal static class LegacyPropertyKeys
     /// Keys Quartz used to read, and what to do instead.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Reported by name rather than as merely unknown: a configuration that still carries one of these
     /// was configuring something real, and "unknown property" reads like a typo.
+    /// </para>
+    /// <para>
+    /// Internal rather than private for the same reason as <see cref="supportedKeys" />: no key listed
+    /// here may still be one a reader consults, and only a test that sees both lists can say so.
+    /// </para>
     /// </remarks>
-    private static readonly (string Prefix, string Advice)[] removedKeys =
+    internal static readonly (string Prefix, string Advice)[] removedKeys =
     [
         ("quartz.scheduler.proxy",
             "Remoting a scheduler is not supported on modern .NET. Talk to a remote scheduler over HTTP "
