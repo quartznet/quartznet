@@ -209,6 +209,11 @@ plus a bridge entry on main.
 - **Ported code that fails to build is usually a rename, not a missing feature.** Check the tables
   above and `docs/documentation/quartz-4.x/migration-guide.md`, which explains the reasoning for each.
 - **`docs/documentation/quartz-3.x/` must keep the old names.** Only update `quartz-4.x/`.
+- **Heading fragments are checked with the site's own slugger, not GitHub's.** `npm run docs:check-links`
+  parses the docs with the markdown-it instance VuePress renders them with, so the ids it validates
+  against are the ids the published pages carry — `Quartz.Core` is `#quartz-core`, not `#quartzcore`.
+  It runs on every docs pull request. markdownlint's MD051 is off for exactly this reason; do not
+  take its fragment suggestions, they 404. `npm run docs:check-links-test` is the checker's control.
 - **`src/Quartz.Tests.Unit/Verify/PublicApiTest_*.verified.txt` are the public API baselines.**
   Any change to public API fails those tests; review the diff, and if the change is intended,
   accept the new baseline and carry the same diff into

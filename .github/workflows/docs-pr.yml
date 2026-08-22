@@ -22,3 +22,10 @@ jobs:
         run: |
           npm ci
           npm run docs:build
+
+      # markdownlint's MD051 cannot check fragments against a VuePress slugger, so it is off;
+      # this is the replacement. See the note in .markdownlint.jsonc.
+      - name: Check links and anchors
+        run: |
+          npm run docs:check-links-test
+          npm run docs:check-links
