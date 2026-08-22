@@ -32,15 +32,15 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// <para>
 /// An init-only record: a description is built once — with an object initializer, or copied with a
 /// <c>with</c> expression — and cannot drift afterwards. Everything on it is something you say about a
-/// driver; the two reflection lookups that description implies —
-/// <see cref="DbBinaryTypeName" /> resolved against <see cref="ParameterDbType" />, and the property
-/// <see cref="ParameterDbTypePropertyName" /> names on <see cref="ParameterType" /> — are computed
-/// internally when a parameter is bound, replacing the old two-phase <c>Initialize()</c> that had to
-/// be remembered.
+/// driver. The two reflection lookups that description implies — <see cref="DbBinaryTypeName" />
+/// resolved against <see cref="ParameterDbType" />, and the property
+/// <see cref="ParameterDbTypePropertyName" /> names on <see cref="ParameterType" /> — are Quartz's
+/// own, and are internal.
 /// </para>
 /// <para>
-/// A description that cannot work fails where it is made: the lookups are performed once as the
-/// metadata is registered, not at the first binary parameter.
+/// They replace the old two-phase <c>Initialize()</c> that had to be remembered. A description that
+/// cannot work still fails where it is made rather than at the first binary parameter: both lookups
+/// are performed once, as the metadata is registered.
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma</author>
