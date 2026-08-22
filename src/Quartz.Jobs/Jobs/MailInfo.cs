@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Net;
 using System.Net.Mail;
 
 namespace Quartz.Jobs;
@@ -49,12 +50,13 @@ public sealed class MailInfo
     public int? SmtpPort { get; init; }
 
     /// <summary>
-    /// The user name to authenticate with, or <see langword="null" /> to send unauthenticated.
+    /// What to authenticate to the SMTP server with, or <see langword="null" /> to send
+    /// unauthenticated.
     /// </summary>
-    public string? SmtpUserName { get; init; }
-
-    /// <summary>
-    /// The password that goes with <see cref="SmtpUserName" />.
-    /// </summary>
-    public string? SmtpPassword { get; init; }
+    /// <remarks>
+    /// The credential registered with the container, or — for a job scheduled before there was one —
+    /// the <c>smtp_username</c> and <c>smtp_password</c> job data entries as a
+    /// <see cref="System.Net.NetworkCredential" />.
+    /// </remarks>
+    public ICredentialsByHost? Credentials { get; init; }
 }

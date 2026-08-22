@@ -9,18 +9,26 @@ namespace Quartz.Jobs
         public const string DirectoryNames = "DIRECTORY_NAMES";
         public const string DirectoryProviderName = "DIRECTORY_PROVIDER_NAME";
         public const string DirectoryScanListenerName = "DIRECTORY_SCAN_LISTENER_NAME";
+        public const string IncludeSubDirectories = "INCLUDE_SUB_DIRECTORIES";
         public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
+        public const string SearchPattern = "SEARCH_PATTERN";
         public DirectoryScanJob(System.TimeProvider? timeProvider = null) { }
         public DirectoryScanJob(System.IServiceProvider serviceProvider, System.TimeProvider? timeProvider = null) { }
         public System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-        protected Quartz.Jobs.DirectoryScanResult GetUpdatedOrNewFiles(string directoryName, System.DateTimeOffset lastModifiedTime, System.DateTimeOffset maxAgeTime, System.Collections.Generic.IReadOnlyCollection<System.IO.FileInfo> currentFileList, string searchPattern = "*", bool includeSubDirectories = false) { }
     }
-    public readonly struct DirectoryScanResult : System.IEquatable<Quartz.Jobs.DirectoryScanResult>
+    public sealed class DirectoryScanOptions : System.IEquatable<Quartz.Jobs.DirectoryScanOptions>
     {
-        public DirectoryScanResult(System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> All, System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> Updated, System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> Deleted) { }
-        public System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> All { get; init; }
-        public System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> Deleted { get; init; }
-        public System.Collections.Generic.IReadOnlyList<System.IO.FileInfo> Updated { get; init; }
+        public DirectoryScanOptions() { }
+        public System.Collections.Generic.IReadOnlyList<string> Directories { get; init; }
+        public string? DirectoryProviderName { get; init; }
+        public bool IncludeSubDirectories { get; init; }
+        public System.TimeSpan MinimumUpdateAge { get; init; }
+        public required string ScanListenerName { get; init; }
+        public string SearchPattern { get; init; }
+        public bool Equals(Quartz.Jobs.DirectoryScanOptions? other) { }
+        public override int GetHashCode() { }
+        public Quartz.JobDataMap ToJobData() { }
+        public static Quartz.Jobs.DirectoryScanOptions FromJobData(Quartz.JobDataMap data) { }
     }
     [Quartz.DisallowConcurrentExecution]
     [Quartz.PersistJobDataAfterExecution]
@@ -32,6 +40,15 @@ namespace Quartz.Jobs
         public FileScanJob(System.TimeProvider? timeProvider = null) { }
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.DateTimeOffset? GetLastModifiedTime(string fileName) { }
+    }
+    public sealed class FileScanOptions : System.IEquatable<Quartz.Jobs.FileScanOptions>
+    {
+        public FileScanOptions() { }
+        public required string FileName { get; init; }
+        public System.TimeSpan MinimumUpdateAge { get; init; }
+        public required string ScanListenerName { get; init; }
+        public Quartz.JobDataMap ToJobData() { }
+        public static Quartz.Jobs.FileScanOptions FromJobData(Quartz.JobDataMap data) { }
     }
     public interface IDirectoryProvider
     {
@@ -46,14 +63,24 @@ namespace Quartz.Jobs
     {
         System.Threading.Tasks.ValueTask FileUpdated(string fileName, System.Threading.CancellationToken cancellationToken = default);
     }
+    public static class JobConfiguratorExtensions
+    {
+        public static TConfigurator UsingDirectoryScanOptions<TConfigurator>(this TConfigurator configurator, Quartz.Jobs.DirectoryScanOptions options)
+            where TConfigurator :  class, Quartz.IJobConfigurator<Quartz.Jobs.DirectoryScanJob> { }
+        public static TConfigurator UsingFileScanOptions<TConfigurator>(this TConfigurator configurator, Quartz.Jobs.FileScanOptions options)
+            where TConfigurator :  class, Quartz.IJobConfigurator<Quartz.Jobs.FileScanJob> { }
+        public static TConfigurator UsingNativeJobOptions<TConfigurator>(this TConfigurator configurator, Quartz.Jobs.NativeJobOptions options)
+            where TConfigurator :  class, Quartz.IJobConfigurator<Quartz.Jobs.NativeJob> { }
+        public static TConfigurator UsingSendMailOptions<TConfigurator>(this TConfigurator configurator, Quartz.Jobs.SendMailOptions options)
+            where TConfigurator :  class, Quartz.IJobConfigurator<Quartz.Jobs.SendMailJob> { }
+    }
     public sealed class MailInfo
     {
         public MailInfo() { }
+        public System.Net.ICredentialsByHost? Credentials { get; init; }
         public required System.Net.Mail.MailMessage MailMessage { get; init; }
         public required string SmtpHost { get; init; }
-        public string? SmtpPassword { get; init; }
         public int? SmtpPort { get; init; }
-        public string? SmtpUserName { get; init; }
     }
     public class NativeJob : Quartz.IJob
     {
@@ -64,6 +91,17 @@ namespace Quartz.Jobs
         public const string PropertyWorkingDirectory = "workingDirectory";
         public NativeJob() { }
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class NativeJobOptions : System.IEquatable<Quartz.Jobs.NativeJobOptions>
+    {
+        public NativeJobOptions() { }
+        public required string Command { get; init; }
+        public bool ConsumeStreams { get; init; }
+        public string? Parameters { get; init; }
+        public bool WaitForProcess { get; init; }
+        public string? WorkingDirectory { get; init; }
+        public Quartz.JobDataMap ToJobData() { }
+        public static Quartz.Jobs.NativeJobOptions FromJobData(Quartz.JobDataMap data) { }
     }
     public sealed class NoOpJob : Quartz.IJob
     {
@@ -83,11 +121,24 @@ namespace Quartz.Jobs
         public const string PropertySmtpPort = "smtp_port";
         public const string PropertySubject = "subject";
         public const string PropertyUsername = "smtp_username";
-        public SendMailJob() { }
-        protected virtual System.Net.Mail.MailMessage BuildMessageFromParameters(Quartz.JobDataMap data) { }
+        public SendMailJob(System.Net.ICredentialsByHost? credentials = null) { }
+        protected virtual System.Net.Mail.MailMessage BuildMessage(Quartz.Jobs.SendMailOptions options) { }
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual string? GetOptionalParameter(Quartz.JobDataMap data, string propertyName) { }
-        protected virtual string GetRequiredParameter(Quartz.JobDataMap data, string propertyName) { }
         protected virtual System.Threading.Tasks.ValueTask Send(Quartz.Jobs.MailInfo mailInfo, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class SendMailOptions : System.IEquatable<Quartz.Jobs.SendMailOptions>
+    {
+        public SendMailOptions() { }
+        public string? CcRecipient { get; init; }
+        public string? Encoding { get; init; }
+        public required string Message { get; init; }
+        public required string Recipient { get; init; }
+        public string? ReplyTo { get; init; }
+        public required string Sender { get; init; }
+        public required string SmtpHost { get; init; }
+        public int? SmtpPort { get; init; }
+        public required string Subject { get; init; }
+        public Quartz.JobDataMap ToJobData() { }
+        public static Quartz.Jobs.SendMailOptions FromJobData(Quartz.JobDataMap data) { }
     }
 }

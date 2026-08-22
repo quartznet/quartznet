@@ -9,27 +9,16 @@ internal sealed class DefaultDirectoryProvider : IDirectoryProvider
 {
     public List<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap)
     {
-        List<string> directoriesToScan = new List<string>();
-        var dirName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryName);
-        var dirNames = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryNames);
-
-        if (dirName is null && dirNames is null)
-        {
-            throw new JobExecutionException($"The parameter '{DirectoryScanJob.DirectoryName}' or '{DirectoryScanJob.DirectoryNames}' " +
-                                            "is required and was not found in merged JobDataMap");
-        }
-
         /*
             If the user supplied both DirectoryScanJob.DirectoryName and DirectoryScanJob.DirectoryNames,
             then just use both. The directory names will be 'distincted' by the caller.
         */
-        if (dirName is not null)
+        List<string> directoriesToScan = DirectoryScanOptions.ReadDirectories(mergedJobDataMap);
+
+        if (directoriesToScan.Count == 0)
         {
-            directoriesToScan.Add(dirName);
-        }
-        if (dirNames is not null)
-        {
-            directoriesToScan.AddRange(dirNames.Split(';', StringSplitOptions.RemoveEmptyEntries));
+            throw new JobExecutionException($"The parameter '{DirectoryScanJob.DirectoryName}' or '{DirectoryScanJob.DirectoryNames}' " +
+                                            "is required and was not found in merged JobDataMap");
         }
 
         return directoriesToScan;

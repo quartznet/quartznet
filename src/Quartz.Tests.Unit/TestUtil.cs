@@ -17,6 +17,8 @@
  */
 #endregion
 
+using FakeItEasy;
+
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Jobs;
@@ -80,5 +82,15 @@ public static class TestUtil
     public static IJobExecutionContext NewJobExecutionContextFor(IJob job)
     {
         return new JobExecutionContextImpl(null, NewMinimalTriggerFiredBundle(), job);
+    }
+
+    /// <summary>
+    /// A context whose scheduler carries the given context, for a job that looks a listener up in it.
+    /// </summary>
+    public static IJobExecutionContext NewJobExecutionContextFor(IJob job, SchedulerContext schedulerContext)
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.Context).Returns(schedulerContext);
+        return new JobExecutionContextImpl(scheduler, NewMinimalTriggerFiredBundle(), job);
     }
 }

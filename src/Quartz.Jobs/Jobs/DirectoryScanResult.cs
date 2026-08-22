@@ -24,6 +24,11 @@ namespace Quartz.Jobs;
 /// <summary>
 /// What one pass of <see cref="DirectoryScanJob" /> over a directory found.
 /// </summary>
+/// <remarks>
+/// Internal because the scan is: <see cref="DirectoryScanJob.Execute" /> is not virtual, so the
+/// per-directory pass was never something a subclass could take part in.
+/// <see cref="IDirectoryScanListener" /> is the seam, and it is handed the files themselves.
+/// </remarks>
 /// <param name="All">
 /// Every file the scan matched. This is what the next scan compares against to notice a deletion.
 /// </param>
@@ -33,7 +38,7 @@ namespace Quartz.Jobs;
 /// <param name="Deleted">
 /// The files the previous scan saw and this one did not.
 /// </param>
-public readonly record struct DirectoryScanResult(
+internal readonly record struct DirectoryScanResult(
     IReadOnlyList<FileInfo> All,
     IReadOnlyList<FileInfo> Updated,
     IReadOnlyList<FileInfo> Deleted);

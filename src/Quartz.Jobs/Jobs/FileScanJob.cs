@@ -30,6 +30,12 @@ namespace Quartz.Jobs;
 /// <see cref="IFileScanListener" /> that can be found in the
 /// <see cref="SchedulerContext" />.
 /// </summary>
+/// <remarks>
+/// What is watched is configured through the job data keys below. <see cref="FileScanOptions" />
+/// names them all, and <see cref="JobConfiguratorExtensions.UsingFileScanOptions{TConfigurator}" />
+/// writes them, so the settings can be given as a value rather than as string keys; the keys stay the
+/// persisted form either way.
+/// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 /// <seealso cref="IFileScanListener" />
@@ -58,6 +64,7 @@ public class FileScanJob : IJob
     ///
     /// <para>If this parameter is not specified, a default value of
     /// 5000 (five seconds) will be used.</para>
+    /// <para><see cref="FileScanOptions.MinimumUpdateAge" /> says the same thing as a <see cref="TimeSpan" />.</para>
     /// </summary>
     public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
 
@@ -113,34 +120,19 @@ public class FileScanJob : IJob
             throw new JobExecutionException("Error obtaining scheduler context.", e);
         }
 
-        var fileName = mergedJobDataMap.GetString(FileName);
-        var listenerName = mergedJobDataMap.GetString(FileScanListenerName);
+        FileScanOptions options = FileScanOptions.FromJobData(mergedJobDataMap);
+        string fileName = options.FileName;
 
-        if (fileName is null)
-        {
-            throw new JobExecutionException($"Required parameter '{FileName}' not found in JobDataMap");
-        }
-        if (listenerName is null)
-        {
-            throw new JobExecutionException($"Required parameter '{FileScanListenerName}' not found in JobDataMap");
-        }
-
-        IFileScanListener? listener = (IFileScanListener?) schedCtxt[listenerName];
+        IFileScanListener? listener = (IFileScanListener?) schedCtxt[options.ScanListenerName];
 
         if (listener is null)
         {
-            throw new JobExecutionException($"FileScanListener named '{listenerName}' not found in SchedulerContext");
+            throw new JobExecutionException($"FileScanListener named '{options.ScanListenerName}' not found in SchedulerContext");
         }
 
         DateTimeOffset? lastTime = mergedJobDataMap.ReadTimestamp(LastModifiedTime);
 
-        long minAge = 5000;
-        if (mergedJobDataMap.ContainsKey(MinimumUpdateAge))
-        {
-            minAge = mergedJobDataMap.GetLong(MinimumUpdateAge);
-        }
-
-        DateTimeOffset maxAgeTime = timeProvider.GetUtcNow().AddMilliseconds(minAge);
+        DateTimeOffset maxAgeTime = timeProvider.GetUtcNow() + options.MinimumUpdateAge;
 
         DateTimeOffset? newTime = GetLastModifiedTime(fileName);
 

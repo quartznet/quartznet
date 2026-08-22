@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Net;
 using System.Net.Mail;
 
 using Quartz.Jobs;
@@ -109,13 +110,67 @@ public class SendMailJobTest
         job.Execute(context);
 
         //Then
-        Assert.Multiple(() =>
+        job.actualSmtpHost.Should().Be("someserver");
+        job.actualSmtpPort.Should().Be(123);
+        job.actualCredentials.Should().BeOfType<NetworkCredential>()
+            .Which.Should().Match<NetworkCredential>(x => x.UserName == "user 123" && x.Password == "pass 321",
+                "job data written before the credential moved to the container still authenticates");
+    }
+
+    [Test]
+    public void ShouldTakeItsMessageFromTypedOptions()
+    {
+        var job = new TestSendMailJob();
+        var context = TestUtil.NewJobExecutionContextFor(job);
+
+        JobDataMap data = new SendMailOptions
         {
-            Assert.That(job.actualSmtpHost, Is.EqualTo("someserver"));
-            Assert.That(job.actualSmtpUserName, Is.EqualTo("user 123"));
-            Assert.That(job.actualSmtpPassword, Is.EqualTo("pass 321"));
-            Assert.That(job.actualSmtpPort, Is.EqualTo(123));
-        });
+            SmtpHost = "someserver",
+            SmtpPort = 123,
+            Recipient = "christian@acca.co.uk",
+            CcRecipient = "anthony@acca.co.uk",
+            Sender = "katie@acca.co.uk",
+            ReplyTo = "therese@acca.co.uk",
+            Subject = "test mail",
+            Message = "test mail body",
+        }.ToJobData();
+
+        foreach (var pair in data)
+        {
+            context.MergedJobDataMap[pair.Key] = pair.Value;
+        }
+
+        job.Execute(context);
+
+        job.actualSmtpHost.Should().Be("someserver");
+        job.actualSmtpPort.Should().Be(123);
+        job.actualMailSent.To.Should().ContainSingle().Which.Address.Should().Be("christian@acca.co.uk");
+        job.actualMailSent.CC.Should().ContainSingle().Which.Address.Should().Be("anthony@acca.co.uk");
+        job.actualMailSent.ReplyToList.Should().ContainSingle().Which.Address.Should().Be("therese@acca.co.uk");
+        job.actualMailSent.Subject.Should().Be("test mail");
+        job.actualMailSent.Body.Should().Be("test mail body");
+        job.actualCredentials.Should().BeNull("nothing named a credential, in job data or in the container");
+    }
+
+    [Test]
+    public void ShouldPreferTheCredentialFromTheContainer()
+    {
+        var registered = new NetworkCredential("registered", "secret");
+        var job = new TestSendMailJob(registered);
+        var context = TestUtil.NewJobExecutionContextFor(job);
+
+        context.MergedJobDataMap[SendMailJob.PropertySmtpHost] = "someserver";
+        context.MergedJobDataMap[SendMailJob.PropertyRecipient] = "christian@acca.co.uk";
+        context.MergedJobDataMap[SendMailJob.PropertySender] = "katie@acca.co.uk";
+        context.MergedJobDataMap[SendMailJob.PropertySubject] = "test mail";
+        context.MergedJobDataMap[SendMailJob.PropertyMessage] = "test mail body";
+        context.MergedJobDataMap[SendMailJob.PropertyUsername] = "from job data";
+        context.MergedJobDataMap[SendMailJob.PropertyPassword] = "also from job data";
+
+        job.Execute(context);
+
+        job.actualCredentials.Should().BeSameAs(registered,
+            "a credential the application registered beats one that was left in the job store");
     }
 }
 
@@ -164,16 +219,18 @@ internal sealed class TestSendMailJob : SendMailJob
 {
     public MailMessage actualMailSent = new MailMessage();
     public string actualSmtpHost = "ad";
-    public string actualSmtpUserName;
-    public string actualSmtpPassword;
+    public ICredentialsByHost actualCredentials;
     public int? actualSmtpPort;
+
+    public TestSendMailJob(ICredentialsByHost credentials = null) : base(credentials)
+    {
+    }
 
     protected override ValueTask Send(MailInfo mailInfo, CancellationToken cancellationToken = default)
     {
         actualMailSent = mailInfo.MailMessage;
         actualSmtpHost = mailInfo.SmtpHost;
-        actualSmtpUserName = mailInfo.SmtpUserName;
-        actualSmtpPassword = mailInfo.SmtpPassword;
+        actualCredentials = mailInfo.Credentials;
         actualSmtpPort = mailInfo.SmtpPort;
         return default;
     }

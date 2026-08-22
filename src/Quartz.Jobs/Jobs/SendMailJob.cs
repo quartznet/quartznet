@@ -33,11 +33,27 @@ namespace Quartz.Jobs;
 /// A Job which sends an e-mail with the configured content to the configured
 /// recipient.
 /// </summary>
+/// <remarks>
+/// <para>
+/// The message is configured through the job data keys below. <see cref="SendMailOptions" /> names
+/// them all, and <see cref="JobConfiguratorExtensions.UsingSendMailOptions{TConfigurator}" /> writes
+/// them, so the settings can be given as a value rather than as string keys; the keys stay the
+/// persisted form either way.
+/// </para>
+/// <para>
+/// The SMTP credential is the exception, and is taken from the container: register an
+/// <see cref="ICredentialsByHost" /> and the job authenticates with it. Job data is durable,
+/// cluster-replicated and visible in the dashboard, which is no place for a password. The
+/// <see cref="PropertyUsername" /> and <see cref="PropertyPassword" /> keys are still read when
+/// nothing is registered, so a job scheduled by an earlier version keeps sending — with a warning.
+/// </para>
+/// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public class SendMailJob : IJob
 {
     private readonly ILogger<SendMailJob> logger;
+    private readonly ICredentialsByHost? credentials;
 
     /// <summary> The host name of the smtp server. REQUIRED.</summary>
     public const string PropertySmtpHost = "smtp_host";
@@ -45,10 +61,22 @@ public class SendMailJob : IJob
     /// <summary> The port of the smtp server. Optional.</summary>
     public const string PropertySmtpPort = "smtp_port";
 
-    /// <summary> Username for authenticated session. Password must also be set if username is used. Optional.</summary>
+    /// <summary>
+    /// Username for authenticated session. Password must also be set if username is used. Optional.
+    /// <para>
+    /// Legacy. Register an <see cref="ICredentialsByHost" /> with the container instead — job data is
+    /// persisted, replicated to every node and readable from the dashboard.
+    /// </para>
+    /// </summary>
     public const string PropertyUsername = "smtp_username";
 
-    /// <summary> Password for authenticated session. Optional.</summary>
+    /// <summary>
+    /// Password for authenticated session. Optional.
+    /// <para>
+    /// Legacy, and a credential written to <c>QRTZ_JOB_DETAILS</c> in whatever the configured
+    /// serializer emits. Register an <see cref="ICredentialsByHost" /> with the container instead.
+    /// </para>
+    /// </summary>
     public const string PropertyPassword = "smtp_password";
 
     /// <summary> The e-mail address to send the mail to. REQUIRED.</summary>
@@ -72,8 +100,18 @@ public class SendMailJob : IJob
     /// <summary> The message subject and body content type. Optional.</summary>
     public const string PropertyEncoding = "encoding";
 
-    public SendMailJob()
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SendMailJob" /> class.
+    /// </summary>
+    /// <param name="credentials">
+    /// What to authenticate to the SMTP server with, taken from the container. A
+    /// <see cref="NetworkCredential" /> covers one account; a <see cref="CredentialCache" /> covers
+    /// several servers. <see langword="null" /> falls back to the credential in job data, if there is
+    /// one, and otherwise sends unauthenticated.
+    /// </param>
+    public SendMailJob(ICredentialsByHost? credentials = null)
     {
+        this.credentials = credentials;
         logger = LogProvider.CreateLogger<SendMailJob>();
     }
 
@@ -86,24 +124,17 @@ public class SendMailJob : IJob
     {
         JobDataMap data = context.MergedJobDataMap;
 
-        MailMessage message = BuildMessageFromParameters(data);
+        SendMailOptions options = SendMailOptions.FromJobData(data);
+        MailMessage message = BuildMessage(options);
 
         try
         {
-            var portString = GetOptionalParameter(data, PropertySmtpPort);
-            int? port = null;
-            if (!string.IsNullOrEmpty(portString))
-            {
-                port = int.Parse(portString);
-            }
-
             var info = new MailInfo
             {
                 MailMessage = message,
-                SmtpHost = GetRequiredParameter(data, PropertySmtpHost),
-                SmtpPort = port,
-                SmtpUserName = GetOptionalParameter(data, PropertyUsername),
-                SmtpPassword = GetOptionalParameter(data, PropertyPassword)
+                SmtpHost = options.SmtpHost,
+                SmtpPort = options.SmtpPort,
+                Credentials = ResolveCredentials(data)
             };
             await Send(info, cancellationToken).ConfigureAwait(false);
         }
@@ -113,38 +144,35 @@ public class SendMailJob : IJob
         }
     }
 
-    protected virtual MailMessage BuildMessageFromParameters(JobDataMap data)
+    /// <summary>
+    /// Builds the message to send. Override to add to it — an attachment, a header — or to build a
+    /// different one entirely.
+    /// </summary>
+    protected virtual MailMessage BuildMessage(SendMailOptions options)
     {
-        string to = GetRequiredParameter(data, PropertyRecipient);
-        string from = GetRequiredParameter(data, PropertySender);
-        string subject = GetRequiredParameter(data, PropertySubject);
-        string message = GetRequiredParameter(data, PropertyMessage);
-
-        string? cc = GetOptionalParameter(data, PropertyCcRecipient);
-        string? replyTo = GetOptionalParameter(data, PropertyReplyTo);
-
-        string? encoding = GetOptionalParameter(data, PropertyEncoding);
+        ArgumentNullException.ThrowIfNull(options);
 
         MailMessage mailMessage = new MailMessage();
-        mailMessage.To.Add(to);
+        mailMessage.To.Add(options.Recipient);
 
-        if (!string.IsNullOrEmpty(cc))
+        if (options.CcRecipient is not null)
         {
-            mailMessage.CC.Add(cc);
-        }
-        mailMessage.From = new MailAddress(from);
-
-        if (!string.IsNullOrEmpty(replyTo))
-        {
-            mailMessage.ReplyToList.Add(new MailAddress(replyTo));
+            mailMessage.CC.Add(options.CcRecipient);
         }
 
-        mailMessage.Subject = subject;
-        mailMessage.Body = message;
+        mailMessage.From = new MailAddress(options.Sender);
 
-        if (!string.IsNullOrEmpty(encoding))
+        if (options.ReplyTo is not null)
         {
-            var encodingToUse = Encoding.GetEncoding(encoding);
+            mailMessage.ReplyToList.Add(new MailAddress(options.ReplyTo));
+        }
+
+        mailMessage.Subject = options.Subject;
+        mailMessage.Body = options.Message;
+
+        if (options.Encoding is not null)
+        {
+            var encodingToUse = Encoding.GetEncoding(options.Encoding);
             mailMessage.BodyEncoding = encodingToUse;
             mailMessage.SubjectEncoding = encodingToUse;
         }
@@ -152,20 +180,26 @@ public class SendMailJob : IJob
         return mailMessage;
     }
 
-    protected virtual string GetRequiredParameter(JobDataMap data, string propertyName)
+    /// <summary>
+    /// The credential registered with the container, or the one in job data when there is none.
+    /// </summary>
+    private ICredentialsByHost? ResolveCredentials(JobDataMap data)
     {
-        var value = data.GetString(propertyName);
-        if (string.IsNullOrEmpty(value))
+        if (credentials is not null)
         {
-            throw new ArgumentException(propertyName + " not specified.", nameof(propertyName));
+            return credentials;
         }
-        return value!;
-    }
 
-    protected virtual string? GetOptionalParameter(JobDataMap data, string propertyName)
-    {
-        data.TryGetString(propertyName, out string? value);
-        return string.IsNullOrEmpty(value) ? null : value;
+        NetworkCredential? fromJobData = SendMailOptions.ReadJobDataCredentials(data);
+        if (fromJobData is not null)
+        {
+            logger.LogWarning(
+                "SMTP credentials are being read from job data ('{UserNameKey}' / '{PasswordKey}'), which a persistent job store writes to the database and replicates to every node in the cluster. Register an ICredentialsByHost with the container instead.",
+                PropertyUsername,
+                PropertyPassword);
+        }
+
+        return fromJobData;
     }
 
     /// <summary>
@@ -178,9 +212,9 @@ public class SendMailJob : IJob
 
         using (var client = new SmtpClient(mailInfo.SmtpHost))
         {
-            if (mailInfo.SmtpUserName is not null)
+            if (mailInfo.Credentials is not null)
             {
-                client.Credentials = new NetworkCredential(mailInfo.SmtpUserName, mailInfo.SmtpPassword);
+                client.Credentials = mailInfo.Credentials;
             }
 
             if (mailInfo.SmtpPort is not null)
