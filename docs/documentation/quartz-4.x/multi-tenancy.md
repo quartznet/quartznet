@@ -99,7 +99,12 @@ foreach (SchedulerRegistration tenant in await registry.QuerySchedulers())
 }
 ```
 
-`Status` is `null` exactly when nothing has been built under that name, and asking does not build it.
+`Status` is `null` when no scheduler exists under that name, and asking does not build one. A scheduler
+that has been *shut down* reads as `null` too rather than as `Shutdown`, because the repository drops a
+shut-down scheduler as soon as a read notices it — and a shut-down scheduler cannot be rebuilt in the same
+container anyway, so "not yet" and "not any more" are the same answer here: not a name you can get a
+working scheduler out of.
+
 `Origin` says where the scheduler came from: `Container` for one `AddQuartz` registered, `Runtime` for
 one that is in the repository without a registration behind it — a `QuartzSchedulerBuilder` scheduler
 bound by hand, or a remote scheduler from `AddQuartzHttpClient`. The default scheduler appears under its
