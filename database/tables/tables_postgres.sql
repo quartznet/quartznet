@@ -11,6 +11,7 @@ BEGIN
     SET client_min_messages = WARNING;
     DROP TABLE IF EXISTS qrtz_fired_triggers;
     DROP TABLE IF EXISTS qrtz_paused_trigger_grps;
+    DROP TABLE IF EXISTS qrtz_paused_job_grps;
     DROP TABLE IF EXISTS qrtz_scheduler_state;
     DROP TABLE IF EXISTS qrtz_locks;
     DROP TABLE IF EXISTS qrtz_simprop_triggers;
@@ -141,6 +142,13 @@ CREATE TABLE qrtz_paused_trigger_grps
     sched_name TEXT NOT NULL,
     trigger_group TEXT NOT NULL,
     PRIMARY KEY (sched_name, trigger_group)
+);
+
+CREATE TABLE qrtz_paused_job_grps
+  (
+    sched_name TEXT NOT NULL,
+    job_group TEXT NOT NULL,
+    PRIMARY KEY (sched_name, job_group)
 );
 
 CREATE TABLE qrtz_fired_triggers

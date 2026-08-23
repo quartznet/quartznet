@@ -12,6 +12,10 @@
 --   4.x removed those probes and assumes all four exist, so a 3.x database that never
 --   ran the optional migrations will fail against 4.x until this script has run.
 --
+--   4.x also adds a table 3.x never had, QRTZ_PAUSED_JOB_GRPS, and validates its whole
+--   schema at startup -- so this script is required even for a 3.x database that took
+--   every optional migration going.
+--
 -- This script supersedes the optional per-feature migrations in ../3.17, ../3.18,
 -- ../3.19 and ../3.20 -- it applies everything they do, and it assumes none of them
 -- were applied. Run it exactly once, against a database that took none of the optional
@@ -25,10 +29,16 @@
 --   1. MISFIRE_ORIG_FIRE_TIME column                REQUIRED
 --   2. EXECUTION_GROUP columns                      REQUIRED
 --   3. PREFERRED_NODE / PREFERRED_NODE_AUTO         REQUIRED
---   4. Index set aligned with the 4.x schema        optional
+--   4. QRTZ_PAUSED_JOB_GRPS table                   REQUIRED
+--   5. Index set aligned with the 4.x schema        optional
 --
--- Run the sections in order: the drops in section 4 assume the creates above them have
+-- Run the sections in order: the drops in section 5 assume the creates above them have
 -- already succeeded.
+--
+-- Section 4 has no 3.x counterpart. 3.x pauses a job group without recording it anywhere,
+-- so a paused job group could not be listed or asked about; 4.x keeps the group names in
+-- QRTZ_PAUSED_JOB_GRPS, which is what makes JobGroup.Paused answer truthfully and what
+-- carries the pause across a restart (#3336).
 --
 -- Replace 'QRTZ_' with your configured table prefix if different.
 -- NOT IDEMPOTENT: SQLite has no conditional DDL, so re-running this fails with a
@@ -56,7 +66,18 @@ ALTER TABLE QRTZ_TRIGGERS ADD COLUMN PREFERRED_NODE NVARCHAR(200) NULL;
 
 ALTER TABLE QRTZ_TRIGGERS ADD COLUMN PREFERRED_NODE_AUTO BIT NOT NULL DEFAULT 0;
 
--- === 4. Index set ===
+-- === 4. QRTZ_PAUSED_JOB_GRPS ===
+-- REQUIRED for 4.x, and new in it -- 3.x has no equivalent. One row per paused job
+-- group, mirroring QRTZ_PAUSED_TRIGGER_GRPS. Guarded on every dialect, SQLite
+-- included: CREATE TABLE IF NOT EXISTS is conditional DDL SQLite does have.
+
+CREATE TABLE IF NOT EXISTS QRTZ_PAUSED_JOB_GRPS (
+  SCHED_NAME NVARCHAR(120) NOT NULL,
+  JOB_GROUP NVARCHAR(150) NOT NULL,
+  PRIMARY KEY (SCHED_NAME,JOB_GROUP)
+);
+
+-- === 5. Index set ===
 -- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a
 -- non-trivial number of triggers; the drops only reclaim write cost and storage.
 
