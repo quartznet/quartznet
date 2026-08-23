@@ -4842,10 +4842,38 @@ Only relevant if you implement `IThreadPool` yourself:
 + ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default);
 + ValueTask Initialize(CancellationToken cancellationToken = default);
 + ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default);
++ ValueTask<bool> Drain(CancellationToken cancellationToken = default);
 ```
 
 The two renamed methods used to block the calling thread on a semaphore, and the caller is the scheduler's own
 asynchronous loop, so waiting for pool capacity tied up a thread. Use `WaitAsync` in your implementation.
+
+### `Drain` is the shutdown that can be given a deadline
+
+`Drain` stops the pool accepting work, waits for the work already running, and **reports** whether it
+finished waiting or gave up. It is what `Shutdown(waitForJobsToComplete: true)` could never be: that
+member's wait is unbounded by contract, and a caller that abandoned it by throwing would skip the job
+store shutdown, the plugin shutdown and the listener notification that follow it. So `IScheduler.Shutdown`
+now passes its own token down to `Drain` rather than `CancellationToken.None`, and a host stop that runs
+out of its budget stops *waiting* rather than being stuck.
+
+The token cancels the wait and nothing else. Running jobs are not cancelled — whether a shutting-down
+scheduler interrupts its jobs is `ShutdownJobInterruption`'s decision, and it still defaults to never.
+
+**Implementing it is optional.** A pool that does not override it gets a default implementation that calls
+`Shutdown(waitForJobsToComplete: true, CancellationToken.None)` and returns `true`, which is exactly what a
+3.x-shaped pool did. Overriding it is worth it when your pool can honour a deadline, and the one rule to
+get right is what the barrier covers:
+
+> `TryRun` is handed the *whole* of a job's execution, and the last act of that execution is the job store
+> update that completes the trigger. A pool that waits for its work items therefore waits for those writes
+> too. A count of executing jobs does not: the job listeners are told the job was executed before the store
+> update is issued, so `NumberOfJobsExecutingHere` reads zero while a persistent store is still being
+> written to. Do not build the barrier on it.
+
+`TaskSchedulingThreadPool` implements both members over one asynchronous barrier, so `Shutdown` no longer
+blocks a thread either — its wait is awaited rather than `CountdownEvent.Wait`-ed. A caller that never
+awaited the returned `ValueTask` used to get the wait anyway; it has to await it now.
 
 `TryRun`'s work item is a `Func<ValueTask>`: it was the one place an extensibility SPI still made you
 write `async Task` in a surface that is `ValueTask` everywhere else, and the `Task`-shaped delegate
@@ -7030,6 +7058,7 @@ Parameters and behavior are unchanged:
 | `IJobDetail.GetJobBuilder()` removed from the interface | The same call still compiles: it is an extension method on `IJobDetail` in the `Quartz` namespace, built from the detail's public state. Only an implementation of the interface has to change — see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own) |
 | `IJobDetail.WithJobData(JobDataMap)` added | The one member a job store needs of a detail it cannot construct: a copy of it carrying the given data. `RAMJobStore` calls it where it used to rebuild the detail through `JobBuilder`, so a custom `IJobDetail` survives its first `[PersistJobDataAfterExecution]` completion — see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own) |
 | `RecoveringTriggerKey` behavior | `IJobExecutionContext.RecoveringTriggerKey` now returns `null` when not recovering instead of throwing |
+| `IScheduler.Shutdown`'s token bounds the wait for running jobs | It was ignored on that path: 3.x and early 4.0 handed the thread pool `CancellationToken.None`, so `Shutdown(waitForJobsToComplete: true, ct)` waited however long the slowest job took. It now stops waiting when the token fires — the rest of the shutdown still runs, and the jobs are not cancelled — see [`Drain` is the shutdown that can be given a deadline](#drain-is-the-shutdown-that-can-be-given-a-deadline) |
 | `DictionaryExtensions` removed | `Quartz.Util.DictionaryExtensions` type was removed |
 | `AdoJobStoreBase` connection methods | `GetLocalTransactionConnection` (was `GetNonManagedTXConnection`) and `GetConnection` now return `ValueTask<ConnectionAndTransactionHolder>` |
 | `JobStoreSupport.UseProperties` `string` setter removed | The `bool` `AdoJobStoreOptions.StoreJobDataAsStrings` option and the read-only `CanUseProperties` remain; the property bridge parses the key |

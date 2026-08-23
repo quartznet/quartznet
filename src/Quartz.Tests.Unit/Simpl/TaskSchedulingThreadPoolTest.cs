@@ -1,3 +1,4 @@
+using Quartz.Extensibility;
 using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Simpl;
@@ -260,6 +261,208 @@ public class TaskSchedulingThreadPoolTest
         await act.Should().NotThrowAsync("two shutdowns racing each other still have to leave the pool shut down, not faulted");
     }
 
+    [Test]
+    public async Task DrainReportsThatItDrainedOnceRunningWorkFinishes()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new CustomTaskSchedulingThreadPool(TaskScheduler.Default, 2);
+        await threadPool.Initialize();
+
+        using ManualResetEventSlim release = new ManualResetEventSlim(false);
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        bool finished = false;
+
+        bool scheduled = await threadPool.TryRun(() =>
+        {
+            started.TrySetResult();
+            release.Wait(TimeSpan.FromSeconds(30));
+            Volatile.Write(ref finished, true);
+            return ValueTask.CompletedTask;
+        });
+
+        scheduled.Should().BeTrue("an idle initialized pool has to accept the work item");
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        using CancellationTokenSource deadline = new(TimeSpan.FromSeconds(30));
+        ValueTask<bool> drain = threadPool.Drain(deadline.Token);
+
+        drain.IsCompleted.Should().BeFalse("the work item is still running, so the drain cannot be over yet");
+
+        release.Set();
+
+        bool drained = await drain;
+
+        drained.Should().BeTrue("the work item finished well inside the deadline, so the pool really did drain");
+        Volatile.Read(ref finished).Should().BeTrue("a drain that reports success has to have waited for the work item to finish");
+    }
+
+    [Test]
+    public async Task DrainReportsThatItGaveUpWhenTheDeadlineExpiresFirst()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new CustomTaskSchedulingThreadPool(TaskScheduler.Default, 2);
+        await threadPool.Initialize();
+
+        using ManualResetEventSlim release = new ManualResetEventSlim(false);
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource finished = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await threadPool.TryRun(() =>
+        {
+            started.TrySetResult();
+            release.Wait(TimeSpan.FromSeconds(30));
+            finished.TrySetResult();
+            return ValueTask.CompletedTask;
+        });
+
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        using CancellationTokenSource deadline = new(TimeSpan.FromMilliseconds(50));
+
+        bool drained = true;
+        Func<Task> act = async () => drained = await threadPool.Drain(deadline.Token);
+
+        await act.Should().NotThrowAsync(
+            "a deadline that expires is an answer, not a failure - the caller still has the rest of its shutdown to run");
+
+        drained.Should().BeFalse("the work item outlived the deadline, so the pool did not drain");
+        finished.Task.IsCompleted.Should().BeFalse("giving up on the wait must not have waited for the work item after all");
+
+        release.Set();
+        await finished.Task.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    [Test]
+    public async Task DrainCancelsTheWaitWithoutCancellingTheWork()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new CustomTaskSchedulingThreadPool(TaskScheduler.Default, 2);
+        await threadPool.Initialize();
+
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<bool> ranToCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using CancellationTokenSource deadline = new();
+
+        // The work item is handed the very token the drain will be given, which is what passing a
+        // shutdown deadline through looks like from here.
+        await threadPool.TryRun(async () =>
+        {
+            started.TrySetResult();
+            await release.Task.ConfigureAwait(false);
+            ranToCompletion.TrySetResult(deadline.IsCancellationRequested);
+        }, deadline.Token);
+
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        await deadline.CancelAsync();
+
+        bool drained = await threadPool.Drain(deadline.Token);
+
+        drained.Should().BeFalse("the token had already fired while the work item was running, so the drain had to give up rather than wait");
+        ranToCompletion.Task.IsCompleted.Should().BeFalse(
+            "the work item waits on the test rather than on the token, so giving up on the drain must not have ended it");
+
+        release.TrySetResult();
+        bool tokenHadFiredWhileTheWorkRan = await ranToCompletion.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        tokenHadFiredWhileTheWorkRan.Should().BeTrue(
+            "cancelling the drain cancels the waiting and nothing else - the work ran on with the token already fired, "
+            + "which is the guarantee that keeps a shutdown deadline from killing jobs mid-write");
+    }
+
+    [Test]
+    public async Task DrainDoesNotBlockTheCallingThread()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new CustomTaskSchedulingThreadPool(TaskScheduler.Default, 2);
+        await threadPool.Initialize();
+
+        using ManualResetEventSlim release = new ManualResetEventSlim(false);
+        TaskCompletionSource started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await threadPool.TryRun(() =>
+        {
+            started.TrySetResult();
+            release.Wait(TimeSpan.FromSeconds(30));
+            return ValueTask.CompletedTask;
+        });
+
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // No Task.Run around this: if the drain blocked, this thread would never get here, and the test
+        // would hang rather than fail. The assertion is that control came back at all.
+        ValueTask<bool> drain = threadPool.Drain(CancellationToken.None);
+
+        drain.IsCompleted.Should().BeFalse(
+            "the drain has to hand control back to its caller and finish asynchronously rather than block the thread on the running work");
+
+        release.Set();
+        (await drain).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task DrainOfAnUninitializedPoolReportsThatItDrained()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new CustomTaskSchedulingThreadPool(TaskScheduler.Default, 1);
+
+        bool drained = await threadPool.Drain();
+
+        drained.Should().BeTrue("a pool that was never initialized has nothing running, so there is nothing left to wait for");
+    }
+
+    [Test]
+    public async Task DrainRefusesWorkTheWayShutdownDoes()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new CustomTaskSchedulingThreadPool(TaskScheduler.Default, 1);
+        await threadPool.Initialize();
+
+        await threadPool.Drain();
+
+        bool ran = false;
+        bool scheduled = await threadPool.TryRun(() =>
+        {
+            ran = true;
+            return ValueTask.CompletedTask;
+        });
+
+        scheduled.Should().BeFalse("a drained pool is a shut down pool, so work handed over afterwards has to be refused");
+        ran.Should().BeFalse("a refused work item must not run, since nothing will wait for it any more");
+    }
+
+    [Test]
+    public async Task DrainingAndShuttingDownInEitherOrderIsSafe()
+    {
+        CustomTaskSchedulingThreadPool threadPool = new CustomTaskSchedulingThreadPool(TaskScheduler.Default, 2);
+        await threadPool.Initialize();
+
+        Func<Task> act = async () =>
+        {
+            (await threadPool.Drain()).Should().BeTrue();
+            (await threadPool.Drain()).Should().BeTrue();
+            await threadPool.Shutdown(waitForJobsToComplete: true);
+            await threadPool.Shutdown(waitForJobsToComplete: false);
+        };
+
+        await act.Should().NotThrowAsync(
+            "the guard count is dropped once, so repeating either form of shutdown must not end a wait early or fault");
+    }
+
+    [Test]
+    public async Task DrainOfAPoolThatDoesNotImplementItFallsBackToAnUnboundedShutdown()
+    {
+        using CancellationTokenSource alreadyCancelled = new();
+        await alreadyCancelled.CancelAsync();
+
+        PoolWithoutADrainOfItsOwn threadPool = new PoolWithoutADrainOfItsOwn();
+
+        bool drained = await ((IThreadPool) threadPool).Drain(alreadyCancelled.Token);
+
+        drained.Should().BeTrue(
+            "a pool written before Drain existed cannot give up on its wait, so the only truthful answer is that it drained");
+        threadPool.ShutdownWaitedForJobs.Should().BeTrue(
+            "the fallback has to be the waiting form of shutdown, which is the behaviour it preserves");
+        threadPool.ShutdownTokenCouldBeCancelled.Should().BeFalse(
+            "the caller's token must not reach a Shutdown that would throw out of it rather than report");
+    }
+
     private sealed class CustomTaskSchedulingThreadPool : TaskSchedulingThreadPool
     {
         private readonly TaskScheduler taskScheduler;
@@ -273,6 +476,32 @@ public class TaskSchedulingThreadPoolTest
         protected override TaskScheduler GetDefaultScheduler()
         {
             return taskScheduler;
+        }
+    }
+
+    /// <summary>
+    /// A third-party pool as one was written before <see cref="IThreadPool.Drain" /> existed: it implements
+    /// the four original members and inherits the default drain.
+    /// </summary>
+    private sealed class PoolWithoutADrainOfItsOwn : IThreadPool
+    {
+        public bool? ShutdownWaitedForJobs { get; private set; }
+
+        public bool ShutdownTokenCouldBeCancelled { get; private set; }
+
+        public int PoolSize => 1;
+
+        public ValueTask Initialize(CancellationToken cancellationToken = default) => default;
+
+        public ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default) => new ValueTask<int>(1);
+
+        public ValueTask<bool> TryRun(Func<ValueTask> action, CancellationToken cancellationToken = default) => new ValueTask<bool>(false);
+
+        public ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default)
+        {
+            ShutdownWaitedForJobs = waitForJobsToComplete;
+            ShutdownTokenCouldBeCancelled = cancellationToken.CanBeCanceled;
+            return default;
         }
     }
 }
