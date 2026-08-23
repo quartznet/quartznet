@@ -333,6 +333,12 @@ internal sealed class QuartzSchedulerThread
                             TimeWindow = qsRsrcs.BatchTimeWindow,
                             ExecutionLimits = availableLimits,
                         };
+                        // Copied on purpose, and IJobStore.AcquireNextTriggers says so: this loop removes
+                        // entries below while it waits out the first trigger's fire time, and the store is
+                        // allowed to hand back a list it still holds. The copy is around ten nanoseconds
+                        // and sixty-four bytes per attempt, measured in AcquiredTriggerHandoffBenchmark,
+                        // which is nothing beside the round trip a persistent store just made — and far
+                        // less than a caller-owns rule would cost the stores nobody here can see (#3344).
                         triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(request, CancellationToken.None).ConfigureAwait(false));
                         acquiresFailed = 0;
                         if (logger.IsEnabled(LogLevel.Debug))

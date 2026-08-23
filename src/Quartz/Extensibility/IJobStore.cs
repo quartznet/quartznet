@@ -705,10 +705,23 @@ public interface IJobStore
     /// <summary>
     /// Acquires the next triggers to be fired, respecting execution group limits.
     /// </summary>
+    /// <remarks>
+    /// The returned list stays the store's. <see cref="Quartz.Core.QuartzSchedulerThread" /> copies it
+    /// before working with it, because it removes entries from its own copy while it waits out the
+    /// first trigger's fire time and would otherwise be editing something the store still holds. A
+    /// store is therefore free to hand back a list it keeps a reference to, or to reuse one between
+    /// calls; it does not have to build a fresh list to be safe. The copy costs the scheduler around ten
+    /// nanoseconds and sixty-four bytes per acquisition attempt (<c>AcquiredTriggerHandoffBenchmark</c>),
+    /// against an attempt that is a database round trip, and is kept in preference to a caller-owns rule
+    /// that every store would have to keep and that would break silently in one that did not (#3344).
+    /// </remarks>
     /// <param name="request">What to acquire: the cut-off time, how many, the batching window
     /// and the per-execution-group capacity still available.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>The acquired triggers.</returns>
+    /// <returns>
+    /// The acquired triggers. The caller copies this list rather than taking it over, so it may be one
+    /// the store keeps.
+    /// </returns>
     ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
         TriggerAcquisitionRequest request,
         CancellationToken cancellationToken = default);
