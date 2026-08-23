@@ -3640,10 +3640,16 @@ Behavioral notes:
 - The exception a failed fire raises now names the fire rather than the individual statement:
   `Couldn't record the fire of trigger '…' for '…' job`, where it used to be one of `Couldn't update fired
   trigger`, `Couldn't update states of blocked triggers` or `Couldn't store trigger '…'`.
-- `IDriverDelegate.UpdateFiredTrigger` is still there but the fire path no longer calls it, and neither
-  does the fire path call `TriggerExists` or `UpdateTrigger` any more. **A delegate that overrode any of
-  those to change what a fire stores has to move that override to `ApplyTriggerFired`** — the old members
-  still compile and still work, they are simply no longer on this path.
+- **`IDriverDelegate.UpdateFiredTrigger` is gone.** It was the fire path's only caller, and `ApplyTriggerFired`
+  writes that row as one command of its batch instead. A delegate that overrode it to change what a fire
+  records has to override `ApplyTriggerFired` — which is why the member was removed rather than left in
+  place: an override that is never invoked fails silently, and a customisation discovered to have stopped
+  working in production is worse than one that fails to compile at upgrade time. The statement itself is
+  unchanged; `StdAdoConstants.SqlUpdateFiredTrigger` still spells it.
+- The fire path also no longer calls `TriggerExists` or `UpdateTrigger`, both of which stay because other
+  paths still use them. **A delegate that overrode either of those to change what a fire stores has to move
+  that override to `ApplyTriggerFired` as well** — they still compile and still work, they are simply no
+  longer on this path.
 - Completion no longer loads a job's triggers to ask the database for each one's state. It asks for the
   keys in the state it cares about, loads those in one read, and applies their misfire policies as one
   batched write, which is what misfire recovery already did. A trigger that runs out of fire times while
@@ -7165,6 +7171,7 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate` gains a transition-list `UpdateTriggerStatesForJobFromOtherState` and a state-filtered `SelectTriggerKeysForJob` | Overloads beside the existing ones, so the blocking and unblocking of a job's triggers is one round trip and completion stops reading a state per trigger — see [Batched trigger fire](#batched-trigger-fire) |
 | `StoredTriggerHeader` carries `TriggerType` | A fifth positional parameter; it comes off the row the state came from, which is what removes the separate type lookup — see [Batched trigger fire](#batched-trigger-fire) |
 | `ITriggerPersistenceDelegate.TryDescribeUpdateExtendedTriggerProperties` added | A default interface member returning `false`, so an existing persistence delegate is unaffected; implementing it puts a trigger's schedule in the same round trip as its row — see [Batched trigger fire](#batched-trigger-fire) |
+| `IDriverDelegate.UpdateFiredTrigger` removed | `ApplyTriggerFired` writes the fired-trigger row as one command of its batch, and nothing else called it; an override of it would have stopped taking effect silently — see [Batched trigger fire](#batched-trigger-fire) |
 | `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |
 | `GetSelectNextTriggerToAcquireWith*Sql` removed | The `…WithExecutionGroupSql`, `…WithPreferredNodeSql` and `…WithPreferredNodeOnlySql` hooks, on `StdAdoDelegate` and all six dialect delegates. One statement covers every case now, so a dialect delegate keeps only its `GetSelectNextTriggerToAcquireSql` override — see [The three extra acquisition SQL hooks went with them](#the-three-extra-acquisition-sql-hooks-went-with-them) |
 | `IDbConnectionManager` / `DbConnectionManager` removed | The container is the provider registry, keyed by scheduler name; register a provider with `UseConnectionProvider` — see [The connection manager is gone](#the-connection-manager-is-gone) |

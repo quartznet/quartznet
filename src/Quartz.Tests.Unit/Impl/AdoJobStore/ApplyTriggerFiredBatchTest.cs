@@ -72,6 +72,36 @@ public class ApplyTriggerFiredBatchTest
             "the fired-trigger row has to say when this fire was due, not when the next one is");
     }
 
+    /// <summary>
+    /// The column was dead schema until the fire-instance listing needed to read it back, and a trigger
+    /// with no execution group has to write a null rather than leave whatever was there before.
+    /// </summary>
+    [Test]
+    public async Task WritesTheExecutionGroupOntoTheFiredTriggerRow()
+    {
+        StubBatchingConnection connection = new();
+        ConnectionAndTransactionHolder conn = new(connection, null);
+        CountingDelegate del = CountingDelegate.Create();
+
+        SimpleTriggerImpl grouped = CreateTrigger();
+        grouped.ExecutionGroup = "reports";
+        await del.ApplyTriggerFired(conn, CreateUpdate(grouped));
+
+        StubBatchingConnection ungroupedConnection = new();
+        await del.ApplyTriggerFired(new ConnectionAndTransactionHolder(ungroupedConnection, null), CreateUpdate());
+
+        FiredTriggerParameter(connection, "@executionGroup").Should().Be("reports");
+        FiredTriggerParameter(ungroupedConnection, "@executionGroup").Should().Be(DBNull.Value,
+            "a trigger with no execution group writes a null rather than leaving the column stale");
+    }
+
+    private static object FiredTriggerParameter(StubBatchingConnection connection, string name)
+    {
+        return connection.Batches[0].Commands
+            .Single(x => x.CommandText.StartsWith("UPDATE QRTZ_FIRED_TRIGGERS", StringComparison.Ordinal))
+            .Parameters.Cast<DbParameter>().Single(x => x.ParameterName == name).Value;
+    }
+
     [Test]
     public async Task BlocksTheJobsOtherTriggersBeforeWritingItsOwnRow()
     {

@@ -1538,30 +1538,6 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<int> UpdateFiredTrigger(
-        ConnectionAndTransactionHolder conn,
-        IOperableTrigger trigger,
-        StoredTriggerState state,
-        IJobDetail job,
-        CancellationToken cancellationToken = default)
-    {
-        var ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateFiredTrigger));
-        AddCommandParameter(ps, "schedulerName", schedulerName);
-        AddCommandParameter(ps, "instanceName", instanceId);
-        AddCommandParameter(ps, "firedTime", GetDbDateTimeValue(timeProvider.GetUtcNow()));
-        AddCommandParameter(ps, "scheduledTime", GetDbDateTimeValue(trigger.NextFireTimeUtc));
-        AddCommandParameter(ps, "entryState", state.ToStoredValue());
-        AddCommandParameter(ps, "jobName", trigger.JobKey.Name);
-        AddCommandParameter(ps, "jobGroup", trigger.JobKey.Group);
-        AddCommandParameter(ps, "isNonConcurrent", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
-        AddCommandParameter(ps, "requestsRecover", GetDbBooleanValue(job.RequestsRecovery));
-        AddCommandParameter(ps, "executionGroup", (object?) trigger.ExecutionGroup ?? DBNull.Value);
-        AddCommandParameter(ps, "entryId", trigger.FireInstanceId);
-
-        return await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
     public virtual async ValueTask<List<FiredTriggerRecord>> SelectFiredTriggerRecords(
         ConnectionAndTransactionHolder conn,
         FiredTriggerQuery query,
