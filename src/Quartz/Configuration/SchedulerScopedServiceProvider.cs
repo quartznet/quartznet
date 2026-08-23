@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -35,7 +36,12 @@ internal sealed class SchedulerScopedServiceProvider
     /// <summary>
     /// The services registered once per scheduler rather than once per container.
     /// </summary>
-    private static readonly HashSet<Type> schedulerScoped =
+    /// <remarks>
+    /// Frozen because it is read on the way to every service a named scheduler's components resolve —
+    /// the job type and each of a job's dependencies, once per fire — and never written after type
+    /// initialization. <c>SchedulerScopedServiceProviderBenchmark</c> puts the two shapes side by side.
+    /// </remarks>
+    private static readonly FrozenSet<Type> schedulerScoped = FrozenSet.ToFrozenSet(
     [
         typeof(ISchedulerSignaler),
         typeof(IJobStore),
@@ -53,7 +59,7 @@ internal sealed class SchedulerScopedServiceProvider
         typeof(QuartzScheduler),
         typeof(ContainerConfigurationProcessor),
         typeof(SchedulerContentInitializer),
-    ];
+    ]);
 
     /// <summary>
     /// The options a scheduler's components ask for, in each of the shapes the options framework offers
@@ -74,8 +80,13 @@ internal sealed class SchedulerScopedServiceProvider
     /// plugin's own — say so with <see cref="SchedulerNamedOptions"/>, which is closed over its type
     /// where that type is still known at compile time.
     /// </para>
+    /// <para>
+    /// Frozen for the same reason <see cref="schedulerScoped"/> is: it is consulted on every request
+    /// that set does not answer, and it is never written after type initialization.
+    /// </para>
     /// </remarks>
-    private static readonly Dictionary<Type, Func<IServiceProvider, string, object>> namedOptions = DeclareQuartzOptions();
+    private static readonly FrozenDictionary<Type, Func<IServiceProvider, string, object>> namedOptions
+        = DeclareQuartzOptions().ToFrozenDictionary();
 
     /// <summary>
     /// The two lookup tables above, so that <c>SchedulerScopedServiceProviderBenchmark</c> measures the
