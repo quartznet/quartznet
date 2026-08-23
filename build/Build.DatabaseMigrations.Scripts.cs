@@ -79,28 +79,6 @@ partial class Build
         ["firebird"] = MySqlOracleFirebird3X,
     };
 
-    /// <summary>
-    /// The 4.x index set. Uniform apart from the misfire index, which PostgreSQL and SQLite omit:
-    /// its second column only ever appears as <c>MISFIRE_INSTR &lt;&gt; -1</c>, which a btree cannot
-    /// use as a scan boundary. The other dialects keep it because the MySQL delegate FORCE INDEXes it.
-    /// </summary>
-    static readonly IndexDef[] Target4XAll =
-    [
-        new("IDX_QRTZ_J_G_N", TableJobs, "SCHED_NAME, JOB_GROUP, JOB_NAME"),
-        new("IDX_QRTZ_T_J", TableTriggers, "SCHED_NAME, JOB_NAME, JOB_GROUP"),
-        new("IDX_QRTZ_T_G_N", TableTriggers, "SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME"),
-        new("IDX_QRTZ_T_C", TableTriggers, "SCHED_NAME, CALENDAR_NAME"),
-        new("IDX_QRTZ_T_NFT_ST", TableTriggers, "SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME"),
-        new("IDX_QRTZ_T_NFT_ST_MISFIRE", TableTriggers, "SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE"),
-        new("IDX_QRTZ_FT_INST_JOB_REQ_RCVRY", TableFired, "SCHED_NAME, INSTANCE_NAME, REQUESTS_RECOVERY"),
-        new("IDX_QRTZ_FT_J_G", TableFired, "SCHED_NAME, JOB_NAME, JOB_GROUP"),
-        new("IDX_QRTZ_FT_T_G", TableFired, "SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP"),
-    ];
-
-    static IndexDef[] Target4X(string dialect) => Target4XAll
-        .Where(i => !(i.Name == "IDX_QRTZ_T_NFT_ST_MISFIRE" && dialect is "postgres" or "sqlite"))
-        .ToArray();
-
     /// <summary>Every index name Quartz has ever created, plus PostgreSQL's older single-column ones.</summary>
     static readonly (string Name, string Table)[] AllLegacyIndexes =
     [
@@ -347,92 +325,11 @@ partial class Build
                     indexExtra)
                 + "\n\n" + Converge(d, Indexes3X[d])));
 
-            // --- 4.0: everything above, plus the 4.x index shape ---
-            files.Add(($"4.0/schema_30_to_40_upgrade_{d}.sql", Build40Script(d)));
+            // The 3.x to 4.0 upgrade script used to be generated here too. It is 4.x's own schema
+            // history, so it moved to `main`, which is where it is kept current; this branch links
+            // to it from database/README.md rather than carrying a copy that would quietly rot.
         }
 
         return files;
-    }
-
-    static string Build40Script(string dialect)
-    {
-        // Every dialect but SQLite guards its ADD COLUMN, so its script can land on a database that
-        // already took some of the optional 3.x migrations. SQLite has no conditional DDL, so saying
-        // the same thing there was a lie -- it fails on the first column that is already present
-        // (#3322). Sections 1-3 are the unguarded ones; section 4 is guarded on every dialect.
-        string[] supersedes = dialect == "sqlite"
-            ?
-            [
-                "This script supersedes the optional per-feature migrations in ../3.17, ../3.18,",
-                "../3.19 and ../3.20 -- it applies everything they do, and it assumes none of them",
-                "were applied. Run it exactly once, against a database that took none of the optional",
-                "3.x column migrations.",
-                "",
-                "On a partially-migrated database take the stepped route instead -- run the",
-                "per-feature files you are still missing -- or check PRAGMA table_info(<table>) and",
-                "apply only the sections whose columns are absent.",
-            ]
-            :
-            [
-                "This script supersedes the optional per-feature migrations in ../3.17, ../3.18,",
-                "../3.19 and ../3.20 -- it applies everything they do. If you already ran some of",
-                "them, run this anyway: every statement checks first, so it is safe on a",
-                "partially-migrated database.",
-            ];
-
-        List<string> extra =
-        [
-            .. supersedes,
-            "",
-            "Sections, in order:",
-            "  1. MISFIRE_ORIG_FIRE_TIME column                REQUIRED",
-            "  2. EXECUTION_GROUP columns                      REQUIRED",
-            "  3. PREFERRED_NODE / PREFERRED_NODE_AUTO         REQUIRED",
-            "  4. Index set aligned with the 4.x schema        optional",
-            "",
-            "Run the sections in order: the drops in section 4 assume the creates above them have",
-            "already succeeded.",
-        ];
-
-        if (dialect == "mysql_innodb")
-        {
-            extra.AddRange(MySqlBlobNote);
-        }
-
-        string header = Header(dialect, "3.x to 4.0", null, null,
-            [
-                "MANDATORY. This is the one migration you cannot skip.",
-                "",
-                "Quartz.NET 3.x probes for MISFIRE_ORIG_FIRE_TIME, EXECUTION_GROUP, PREFERRED_NODE",
-                "and PREFERRED_NODE_AUTO at startup and degrades gracefully when they are absent.",
-                "4.x removed those probes and assumes all four exist, so a 3.x database that never",
-                "ran the optional migrations will fail against 4.x until this script has run.",
-            ],
-            extra,
-            sqliteNotIdempotent: true);
-
-        string[] sections =
-        [
-            "-- === 1. MISFIRE_ORIG_FIRE_TIME on QRTZ_TRIGGERS ===\n"
-                + "-- REQUIRED for 4.x. Optional in 3.17, so it may already be present.\n\n"
-                + AddColumn(dialect, TableTriggers, "MISFIRE_ORIG_FIRE_TIME", MisfireOrigFireTime[dialect]),
-
-            "-- === 2. EXECUTION_GROUP on QRTZ_TRIGGERS and QRTZ_FIRED_TRIGGERS ===\n"
-                + "-- REQUIRED for 4.x. Optional in 3.18, so it may already be present.\n\n"
-                + AddColumn(dialect, TableTriggers, "EXECUTION_GROUP", ExecutionGroup[dialect])
-                + "\n\n" + AddColumn(dialect, TableFired, "EXECUTION_GROUP", ExecutionGroup[dialect]),
-
-            "-- === 3. PREFERRED_NODE and PREFERRED_NODE_AUTO on QRTZ_TRIGGERS ===\n"
-                + "-- REQUIRED for 4.x. Optional in 3.19, so it may already be present.\n\n"
-                + AddColumn(dialect, TableTriggers, "PREFERRED_NODE", PreferredNode[dialect])
-                + "\n\n" + AddColumn(dialect, TableTriggers, "PREFERRED_NODE_AUTO", PreferredNodeAuto[dialect]),
-
-            "-- === 4. Index set ===\n"
-                + "-- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a\n"
-                + "-- non-trivial number of triggers; the drops only reclaim write cost and storage.\n\n"
-                + Converge(dialect, Target4X(dialect)),
-        ];
-
-        return header + "\n\n" + string.Join("\n\n", sections);
     }
 }
