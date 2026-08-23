@@ -438,6 +438,8 @@ rather than an isolation one.
 | Cluster-wide concurrency quota | No | Yes, `ExecutionLimitScope.Cluster` — approximate unless `AcquireTriggersWithinLock` |
 | Rate limiting (N per window) | No | No |
 | Node affinity (persisted, cluster-aware) | Yes, `WithPreferredNode` | Yes, `WithPreferredNode` |
+| Per-scheduler job type registration | No — one unkeyed registration, first wins | Yes, `AddJobType<TJob, TImplementation>()` |
+| Per-scheduler plugin instance from `quartz.plugin.*` | Yes for an activated type, no for a registered one | Yes — the probe is keyed by scheduler |
 | Preparing the job's DI scope | Subclass and override `ConfigureScope` | `ConfigureJobScope(…)` delegate |
 | Per-scheduler health check | No — one check, on the default scheduler | Yes, `AddQuartzHealthChecks` per scheduler |
 | Metrics | No | Yes |
@@ -499,14 +501,15 @@ and the trigger's misfire instruction — not the limit — decides whether the 
 rescheduled. Set per-tenant limits with that in mind, and pick misfire instructions deliberately for
 triggers in limited groups.
 
-**Job types are not keyed by scheduler.** Jobs are resolved from the one container by type, with no
-scheduler key, so two schedulers in one container cannot have different implementations of the same
-job type. On 4.x, `AddJob<T>` registers the type with `TryAdd` semantics and the first registration
-wins, silently and without a warning; on 3.x nothing is registered for you at all and whatever the
-application registered is what every scheduler gets. Keying the *job type* does not help either — the
-factory looks it up unkeyed and silently falls back to direct activation. Give each tenant its own job
-type, or — far better — use one job type that reads its tenant from the firing and resolves what it
-needs, by key if you like, inside `Execute`.
+**On 3.x, job types are not keyed by scheduler.** Jobs are resolved from the one container by type,
+with no scheduler key, so two 3.x schedulers in one container cannot have different implementations or
+lifetimes of the same job type: nothing is registered for you, the factory looks the type up unkeyed,
+and whatever the application registered is what every scheduler gets. 4.x keeps the unkeyed
+registration as the default — `AddJob<T>` still registers the type with `TryAdd` semantics — but
+`AddJobType<TJob, TImplementation>()`, `AddJobType<TJob>(lifetime)` and `AddJobType<TJob>(factory)`
+register under one scheduler's key, and the job factory reads that key first. On either version, a job
+type per tenant stops scaling long before groups do; one job type that reads its tenant from the firing
+and resolves what it needs, by key if you like, inside `Execute` is the shape to prefer.
 
 **Nothing stops a job reaching another tenant's data.** Groups are a naming partition. In AWS's terms
 Quartz.NET gives you partitioning, and isolation is your application's job — a tenant id read from

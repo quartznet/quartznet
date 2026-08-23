@@ -291,6 +291,115 @@ public static class QuartzBuilderExtensions
     }
 
     /// <summary>
+    /// Registers how <em>this</em> scheduler builds a job type, so two schedulers in one container can
+    /// build the same job type differently.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="AddJob{T}(IQuartzBuilder, Action{IJobConfigurator{T}})"/> registers the job type with
+    /// the container unkeyed, which is what a single-scheduler application wants and what container
+    /// validation reads. Under a scheduler per tenant that one registration is shared: whichever
+    /// implementation or lifetime was registered first is what every scheduler gets. This says the
+    /// registration belongs to one scheduler, and the job factory looks there first.
+    /// </para>
+    /// <para>
+    /// The registration is made under this scheduler's service key, or unkeyed for the default
+    /// scheduler — whose registrations are the unkeyed ones, so an empty key would not be the same
+    /// thing. It replaces rather than defers to what <c>AddJob</c> registered: naming the
+    /// implementation is the whole point of the call.
+    /// </para>
+    /// <para>
+    /// The default lifetime is <see cref="ServiceLifetime.Scoped"/>, matching the lifetime the job
+    /// factory resolves with: a scope is opened per fire, the job is resolved from it, and the scope is
+    /// disposed once the job returns.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TJob">The job type, as named on the job detail.</typeparam>
+    /// <param name="builder">The builder.</param>
+    /// <param name="lifetime">How long one instance lives.</param>
+    public static IQuartzBuilder AddJobType<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TJob>(
+        this IQuartzBuilder builder,
+        ServiceLifetime lifetime = ServiceLifetime.Scoped) where TJob : class, IJob
+    {
+        return builder.AddJobType<TJob, TJob>(lifetime);
+    }
+
+    /// <summary>
+    /// Registers the implementation this scheduler builds a job type with.
+    /// </summary>
+    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder, ServiceLifetime)" path="/remarks" />
+    /// <typeparam name="TJob">The job type, as named on the job detail.</typeparam>
+    /// <typeparam name="TImplementation">The type actually constructed.</typeparam>
+    /// <param name="builder">The builder.</param>
+    /// <param name="lifetime">How long one instance lives.</param>
+    public static IQuartzBuilder AddJobType<
+            TJob,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TImplementation>(
+        this IQuartzBuilder builder,
+        ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        where TJob : class, IJob
+        where TImplementation : class, TJob
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.Add(Describe(builder, typeof(TJob), lifetime, implementationType: typeof(TImplementation)));
+        return builder;
+    }
+
+    /// <summary>
+    /// Registers how this scheduler constructs a job type, with a factory of your own.
+    /// </summary>
+    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder, ServiceLifetime)" path="/remarks" />
+    /// <remarks>
+    /// The factory is handed the provider the job is being built from, which is the per-fire scope — so
+    /// a scoped dependency resolved out of it belongs to that fire.
+    /// </remarks>
+    /// <typeparam name="TJob">The job type, as named on the job detail.</typeparam>
+    /// <param name="builder">The builder.</param>
+    /// <param name="implementationFactory">Builds the job.</param>
+    /// <param name="lifetime">How long one instance lives.</param>
+    public static IQuartzBuilder AddJobType<TJob>(
+        this IQuartzBuilder builder,
+        Func<IServiceProvider, TJob> implementationFactory,
+        ServiceLifetime lifetime = ServiceLifetime.Scoped) where TJob : class, IJob
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(implementationFactory);
+
+        builder.Services.Add(Describe(builder, typeof(TJob), lifetime, factory: provider => implementationFactory(provider)));
+        return builder;
+    }
+
+    /// <summary>
+    /// Describes a job-type registration belonging to one scheduler: keyed by its name, or unkeyed for
+    /// the default scheduler.
+    /// </summary>
+    private static ServiceDescriptor Describe(
+        IQuartzBuilder builder,
+        Type serviceType,
+        ServiceLifetime lifetime,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? implementationType = null,
+        Func<IServiceProvider, object>? factory = null)
+    {
+        // Options.DefaultName is the empty string, and IQuartzBuilder.SchedulerName is that for the
+        // default scheduler. A key of "" is not the same as no key to a container, so the two spellings
+        // cannot be collapsed.
+        object? key = string.IsNullOrEmpty(builder.SchedulerName) ? null : builder.SchedulerName;
+
+        if (key is null)
+        {
+            return implementationType is not null
+                ? ServiceDescriptor.Describe(serviceType, implementationType, lifetime)
+                : ServiceDescriptor.Describe(serviceType, factory!, lifetime);
+        }
+
+        return implementationType is not null
+            ? ServiceDescriptor.DescribeKeyed(serviceType, key, implementationType, lifetime)
+            : ServiceDescriptor.DescribeKeyed(serviceType, key, (provider, _) => factory!(provider), lifetime);
+    }
+
+    /// <summary>
     /// Registers the job type with the container, so a dependency it cannot be given is reported when
     /// the container is validated rather than when the trigger fires.
     /// </summary>

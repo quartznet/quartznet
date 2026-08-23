@@ -1240,7 +1240,30 @@ that scheduler's view of the container and was handed its parts. It is now resol
 like any other service, which resolves those unkeyed: with a default scheduler present it gets the
 default scheduler's, and with only named schedulers it fails validation. Take the scheduler from
 `IJobExecutionContext.Scheduler`, which is the scheduler that is actually running the job, or register
-the job yourself with a factory that resolves what it needs by key.
+the job with `AddJobType<T>(factory)` — below — and resolve what it needs by key inside the factory.
+
+### `AddJobType` gives one scheduler its own build of a job type
+
+New in 4.0, and only interesting when a container holds more than one scheduler. `AddJob<T>`'s
+registration is unkeyed and `TryAdd`, so under a scheduler per tenant the first registration is what
+every scheduler gets — different implementations or different lifetimes for one job type were not
+expressible. `AddJobType` says the registration belongs to *this* scheduler:
+
+```csharp
+services.AddQuartz("acme", q =>
+{
+    q.AddJobType<ReportJob, AcmeReportJob>();                        // a different implementation
+    q.AddJobType<AuditJob>(ServiceLifetime.Singleton);               // a different lifetime
+    q.AddJobType<ExportJob>(sp => new ExportJob(sp.GetRequiredKeyedService<IExportSink>("acme")));
+    q.AddJob<ReportJob>(j => j.WithIdentity("report"));
+});
+```
+
+The registration is made under the scheduler's service key, or unkeyed for the default scheduler —
+whose registrations *are* the unkeyed ones, so an empty key would not be the same thing. The job
+factory looks there first and falls back to the container's unkeyed registration, so a scheduler that
+was given nothing of its own resolves exactly as before, and the default scheduler resolves in one
+lookup as it always has. Nothing about a single-scheduler application changes.
 
 ## The job scope is prepared without writing a job factory
 
