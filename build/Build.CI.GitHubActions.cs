@@ -16,7 +16,7 @@ using Quartz.Build;
     OnPullRequestIncludePaths = ["**/*"],
     OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"],
     PublishArtifacts = false,
-    InvokedTargets = [nameof(VerifyMigrations), nameof(ICompile.Compile), nameof(UnitTest), nameof(PublishAot)],
+    InvokedTargets = [nameof(VerifyMigrations), nameof(ICompile.Compile), nameof(UnitTest), nameof(PublishTrimmed)],
     CacheKeyFiles = [],
     TimeoutMinutes = 10,
     ConcurrencyCancelInProgress = true,
