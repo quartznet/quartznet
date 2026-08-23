@@ -160,11 +160,178 @@ public class ApplyTriggerFiredBatchTest
         del.PreparedCommands.Should().BeEmpty("replaying onto a connection that just dropped can only produce a different, unrecognisable failure");
     }
 
+    /// <summary>
+    /// Every trigger type Quartz ships describes its own schedule, so every one of them travels in the
+    /// batch rather than costing a round trip of its own.
+    /// </summary>
+    [TestCase(AdoConstants.TriggerTypeSimple, "QRTZ_SIMPLE_TRIGGERS")]
+    [TestCase(AdoConstants.TriggerTypeCron, "QRTZ_CRON_TRIGGERS")]
+    [TestCase(AdoConstants.TriggerTypeCalendarInterval, "QRTZ_SIMPROP_TRIGGERS")]
+    [TestCase(AdoConstants.TriggerTypeDailyTimeInterval, "QRTZ_SIMPROP_TRIGGERS")]
+    public async Task DescribesTheScheduleOfEveryShippedTriggerType(string discriminator, string expectedTable)
+    {
+        StubBatchingConnection connection = new();
+        ConnectionAndTransactionHolder conn = new(connection, null);
+        CountingDelegate del = CountingDelegate.Create();
+
+        IOperableTrigger trigger = CreateTriggerOfType(discriminator);
+
+        await del.ApplyTriggerFired(conn, CreateUpdate(trigger, storedTriggerType: discriminator));
+
+        connection.Batches.Should().HaveCount(1);
+        connection.Batches[0].Commands.Should().ContainSingle(x => x.CommandText.Contains(expectedTable, StringComparison.Ordinal));
+        del.PreparedCommands.Should().BeEmpty("a delegate that can describe its update must not also be given a round trip");
+    }
+
+    /// <summary>
+    /// A persistence delegate written before the describe member existed does not implement it, and its
+    /// default says so. The trigger's own row still batches; the schedule falls back to its own command.
+    /// </summary>
+    [Test]
+    public async Task GivesTheScheduleItsOwnRoundTrip_WhenThePersistenceDelegateCannotDescribeIt()
+    {
+        StubBatchingConnection connection = new();
+        ConnectionAndTransactionHolder conn = new(connection, null);
+        CountingDelegate del = CountingDelegate.Create();
+
+        UndescribingPersistenceDelegate persistenceDelegate = new();
+        del.AddTriggerPersistenceDelegate(persistenceDelegate);
+
+        UndescribableTrigger trigger = new()
+        {
+            Key = new TriggerKey("t1", "g1"),
+            JobKey = new JobKey("j1", "jg1"),
+            StartTimeUtc = new DateTimeOffset(2026, 8, 23, 9, 0, 0, TimeSpan.Zero),
+            FireInstanceId = "fire-1",
+        };
+        trigger.NextFireTimeUtc = new DateTimeOffset(2026, 8, 23, 10, 0, 0, TimeSpan.Zero);
+
+        await del.ApplyTriggerFired(conn, CreateUpdate(trigger, storedTriggerType: UndescribingPersistenceDelegate.Discriminator));
+
+        connection.Batches[0].Commands.Should().HaveCount(2, "the fired-trigger row and the trigger's own row still travel together");
+        persistenceDelegate.UpdateCalls.Should().Be(1, "the delegate that could not describe its update must still be asked to issue it");
+    }
+
+    [Test]
+    public async Task WritesTheJobDataMapOnlyWhenItIsDirty()
+    {
+        StubBatchingConnection clean = new();
+        CountingDelegate del = CountingDelegate.Create();
+        await del.ApplyTriggerFired(new ConnectionAndTransactionHolder(clean, null), CreateUpdate());
+
+        SimpleTriggerImpl dirty = CreateTrigger();
+        dirty.JobDataMap["changed"] = "yes";
+        StubBatchingConnection dirtyConnection = new();
+        await del.ApplyTriggerFired(new ConnectionAndTransactionHolder(dirtyConnection, null), CreateUpdate(dirty));
+
+        TriggerRowUpdate(clean).Should().NotContain("JOB_DATA = @triggerJobJobDataMap",
+            "serializing and shipping a blob that did not change is work for nothing");
+        TriggerRowUpdate(dirtyConnection).Should().Contain("JOB_DATA = @triggerJobJobDataMap");
+    }
+
+    /// <summary>
+    /// A trigger on the fire path carries the pin it was loaded with, and writing that back would clobber
+    /// a concurrent re-pin. Only a pin this instance actually changed is written.
+    /// </summary>
+    [Test]
+    public async Task WritesThePreferredNodeOnlyWhenThePinWasChangedHere()
+    {
+        StubBatchingConnection loaded = new();
+        CountingDelegate del = CountingDelegate.Create();
+        await del.ApplyTriggerFired(new ConnectionAndTransactionHolder(loaded, null), CreateUpdate());
+
+        SimpleTriggerImpl claimed = CreateTrigger();
+        claimed.SetPreferredNode(PreferredNode.ClaimedBy("NODE-01"), markDirty: true);
+        StubBatchingConnection claimedConnection = new();
+        await del.ApplyTriggerFired(new ConnectionAndTransactionHolder(claimedConnection, null), CreateUpdate(claimed));
+
+        TriggerRowUpdate(loaded).Should().NotContain("PREFERRED_NODE = @triggerPreferredNode");
+        TriggerRowUpdate(claimedConnection).Should().Contain("PREFERRED_NODE = @triggerPreferredNode");
+    }
+
+    [Test]
+    public async Task IssuesEveryJobTriggerTransitionInOneBatch()
+    {
+        StubBatchingConnection connection = new();
+        ConnectionAndTransactionHolder conn = new(connection, null);
+        CountingDelegate del = CountingDelegate.Create();
+
+        await del.UpdateTriggerStatesForJobFromOtherState(conn, new JobKey("j1", "jg1"),
+        [
+            new TriggerStateTransition(StoredTriggerState.Blocked, StoredTriggerState.Waiting),
+            new TriggerStateTransition(StoredTriggerState.PausedBlocked, StoredTriggerState.Paused)
+        ]);
+
+        connection.Batches.Should().HaveCount(1);
+        connection.Batches[0].Commands.Should().HaveCount(2);
+        del.PreparedCommands.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task IssuesNothingForAnEmptyTransitionList()
+    {
+        StubBatchingConnection connection = new();
+        ConnectionAndTransactionHolder conn = new(connection, null);
+        CountingDelegate del = CountingDelegate.Create();
+
+        await del.UpdateTriggerStatesForJobFromOtherState(conn, new JobKey("j1", "jg1"), []);
+
+        connection.Batches.Should().BeEmpty();
+        del.PreparedCommands.Should().BeEmpty();
+    }
+
+    private static string TriggerRowUpdate(StubBatchingConnection connection)
+    {
+        return connection.Batches[0].Commands
+            .Single(x => x.CommandText.StartsWith("UPDATE QRTZ_TRIGGERS SET JOB_NAME", StringComparison.Ordinal))
+            .CommandText;
+    }
+
+    private static IOperableTrigger CreateTriggerOfType(string discriminator)
+    {
+        DateTimeOffset start = new(2026, 8, 23, 9, 0, 0, TimeSpan.Zero);
+        IOperableTrigger trigger = discriminator switch
+        {
+            AdoConstants.TriggerTypeSimple => CreateTrigger(),
+            AdoConstants.TriggerTypeCron => new CronTriggerImpl
+            {
+                Key = new TriggerKey("t1", "g1"),
+                JobKey = new JobKey("j1", "jg1"),
+                StartTimeUtc = start,
+                CronExpressionString = "0 0 * * * ?",
+            },
+            AdoConstants.TriggerTypeCalendarInterval => new CalendarIntervalTriggerImpl
+            {
+                Key = new TriggerKey("t1", "g1"),
+                JobKey = new JobKey("j1", "jg1"),
+                StartTimeUtc = start,
+                RepeatIntervalUnit = IntervalUnit.Day,
+                RepeatInterval = 1,
+            },
+            AdoConstants.TriggerTypeDailyTimeInterval => new DailyTimeIntervalTriggerImpl
+            {
+                Key = new TriggerKey("t1", "g1"),
+                JobKey = new JobKey("j1", "jg1"),
+                StartTimeUtc = start,
+                StartTimeOfDay = new TimeOnly(9, 0),
+                EndTimeOfDay = new TimeOnly(17, 0),
+                RepeatIntervalUnit = IntervalUnit.Minute,
+                RepeatInterval = 30,
+            },
+            _ => throw new ArgumentOutOfRangeException(nameof(discriminator), discriminator, "unknown trigger type"),
+        };
+
+        trigger.FireInstanceId = "fire-1";
+        trigger.NextFireTimeUtc = new DateTimeOffset(2026, 8, 23, 10, 0, 0, TimeSpan.Zero);
+        return trigger;
+    }
+
     private static TriggerFiredUpdate CreateUpdate(
-        SimpleTriggerImpl trigger = null,
+        IOperableTrigger trigger = null,
         DateTimeOffset? scheduledFireTimeUtc = null,
         bool clearMisfireOriginalFireTime = false,
-        bool blockJobTriggers = false)
+        bool blockJobTriggers = false,
+        string storedTriggerType = AdoConstants.TriggerTypeSimple)
     {
         trigger ??= CreateTrigger();
 
@@ -173,7 +340,7 @@ public class ApplyTriggerFiredBatchTest
             Trigger = trigger,
             JobDetail = JobBuilder.Create<FireTestJob>().WithIdentity(trigger.JobKey).Build(),
             NewState = blockJobTriggers ? StoredTriggerState.Blocked : StoredTriggerState.Waiting,
-            StoredTriggerType = AdoConstants.TriggerTypeSimple,
+            StoredTriggerType = storedTriggerType,
             ScheduledFireTimeUtc = scheduledFireTimeUtc ?? trigger.NextFireTimeUtc,
             ClearMisfireOriginalFireTime = clearMisfireOriginalFireTime,
             BlockJobTriggers = blockJobTriggers,
@@ -198,5 +365,50 @@ public class ApplyTriggerFiredBatchTest
     private sealed class FireTestJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// A persistence delegate as one written before the describe member existed: it does not implement
+    /// it, so it takes the interface's default and is issued its own command.
+    /// </summary>
+    private sealed class UndescribingPersistenceDelegate : ITriggerPersistenceDelegate
+    {
+        public const string Discriminator = "UNDESCRIBABLE";
+
+        public int UpdateCalls { get; private set; }
+
+        public void Initialize(TriggerPersistenceDelegateContext context)
+        {
+        }
+
+        public bool CanHandleTriggerType(IOperableTrigger trigger) => trigger is UndescribableTrigger;
+
+        public string GetHandledTriggerTypeDiscriminator() => Discriminator;
+
+        public ValueTask<int> InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, StoredTriggerState state, IJobDetail jobDetail, CancellationToken cancellationToken = default)
+            => new(0);
+
+        public ValueTask<int> UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, StoredTriggerState state, IJobDetail jobDetail, CancellationToken cancellationToken = default)
+        {
+            UpdateCalls++;
+            return new ValueTask<int>(1);
+        }
+
+        public ValueTask<int> DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            => new(0);
+
+        public ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs) => throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// Carries something a <see cref="SimpleTriggerImpl" /> does not, which is what makes the built-in
+    /// simple-trigger delegate decline it and the one above claim it.
+    /// </summary>
+    private sealed class UndescribableTrigger : SimpleTriggerImpl
+    {
+        public override bool HasAdditionalProperties => true;
     }
 }

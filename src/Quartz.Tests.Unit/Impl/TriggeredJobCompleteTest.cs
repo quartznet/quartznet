@@ -3,6 +3,7 @@ using FakeItEasy;
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.Triggers;
 using Quartz.Tests.Unit.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Unit.Impl;
@@ -488,6 +489,60 @@ public sealed class TriggeredJobCompleteTest
                 A<DateTimeOffset?>.Ignored,
                 A<CancellationToken>.Ignored))
             .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A trigger that runs out of fire times while it was blocked is stored COMPLETE by the misfire
+    /// policy, and a COMPLETE row would linger where callers expect the trigger to be gone.
+    /// </summary>
+    [Test]
+    public async Task AdoStoreDeletesAnUnblockedTriggerThatMisfiredItsWayToCompletion()
+    {
+        CompletingAdoJobStore store = new();
+        IDriverDelegate driverDelegate = GivenADriverDelegate(store);
+
+        IJobDetail job = CreateJob<DisallowConcurrentCompletionTestJob>(durable: true);
+        IOperableTrigger trigger = CreateTrigger("fired", job, DateTimeOffset.UtcNow);
+        trigger.FireInstanceId = "fire-1";
+
+        // One fire, an hour ago, and its misfire instruction throws the missed fire away.
+        SimpleTriggerImpl onceOnly = new()
+        {
+            Key = new TriggerKey("once", "g"),
+            JobKey = job.Key,
+            StartTimeUtc = DateTimeOffset.UtcNow.AddHours(-1),
+            RepeatCount = 0,
+            RepeatInterval = TimeSpan.Zero,
+        };
+        onceOnly.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount;
+        onceOnly.NextFireTimeUtc = DateTimeOffset.UtcNow.AddHours(-1);
+
+        A.CallTo(() => driverDelegate.SelectTriggerKeysForJob(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                job.Key,
+                StoredTriggerState.Waiting,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<TriggerKey>>([onceOnly.Key]));
+
+        A.CallTo(() => driverDelegate.SelectTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyCollection<TriggerKey>>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<IOperableTrigger>>([onceOnly]));
+
+        await store.TriggeredJobComplete(trigger, job, SchedulerInstruction.NoInstruction);
+
+        A.CallTo(() => driverDelegate.UpdateMisfiredTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyList<MisfiredTriggerUpdate>>.That.Matches(x => x.Count == 1 && x[0].NewState == StoredTriggerState.Complete),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                onceOnly.Key,
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
     }
 
     private sealed class CompletingAdoJobStore : AdoJobStoreBaseTest.TestAdoJobStoreBase
