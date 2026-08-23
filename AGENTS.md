@@ -222,6 +222,12 @@ plus a bridge entry on main.
   blocks deliberately left as plain fences, are written up in `CONTRIBUTING.md` under "Code samples in
   the documentation". Pages outside `docs/documentation/quartz-4.x/packages/` still carry hand-written
   fences; converting one is welcome, converting it halfway is not.
+- **A package's readme is `src/<Project>/README.md`, never a documentation page.** That file is what
+  nuget.org renders, and nuget.org renders CommonMark with none of VuePress's extensions — frontmatter
+  becomes a horizontal rule and a literal `title:`, a `::: tip` becomes literal text, a relative link
+  404s. `PackageReadmeTest` fails on each of those, on a packable project with no readme, and on a csproj
+  that packs anything out of `docs/`. The readmes carry the same `<!-- snippet: … -->` markers as the
+  documentation, so keep them short and let the site hold the prose.
 - **`src/Quartz.Tests.Unit/Verify/PublicApiTest_*.verified.txt` are the public API baselines.**
   Any change to public API fails those tests; review the diff, and if the change is intended,
   accept the new baseline and carry the same diff into

@@ -29,6 +29,20 @@ The documentation website is built and published from this **`main`** branch. Al
 
 The published Quartz 3.x package pages under `docs/documentation/quartz-3.x/packages/` are mirrored, in compact NuGet-rendered form, by the per-package `src/<Project>/README.md` files on the `3.x` branch (which are packed into the NuGet packages). When you change one, update the other in a companion PR so the published page and the shipped package README stay consistent.
 
+### Package readmes
+
+Every packable project carries its own `src/<Project>/README.md`. That file is what `dotnet pack` puts in
+the `.nupkg` and what nuget.org renders on the package page, and it is deliberately **not** a
+documentation page: nuget.org renders CommonMark with none of VuePress's extensions, so frontmatter comes
+out as a horizontal rule followed by a literal `title:`, a `::: tip` container comes out as literal text,
+and a relative link 404s. `PackageReadmeTest` fails on all three, on a missing or undeclared readme, and
+on a csproj that packs anything out of `docs/`.
+
+Keep them short — what the package is, how to install it, the smallest useful example, and absolute links
+to the documentation site, which is where longer prose belongs. Their code samples come from the same
+compiled-snippet mechanism as the documentation pages, described below, so a readme carries snippet
+markers rather than typed C#.
+
 ### Building the site
 
 `npm ci` then `npm run docs:build`. `npm ci` runs `postinstall`, which is `patch-package`, which applies
@@ -69,7 +83,8 @@ Then put a marker pair where the fenced block would have gone:
 
 and run `npm run docs:snippets` (or `dotnet fallout DocsSnippets`) to fill it in. Commit the filled-in
 markdown: it is what GitHub and the published site both render, and reviewing the generated code is
-half the point.
+half the point. The same markers work in the package readmes under `src/<Project>/README.md`, which are
+processed by the same target.
 
 A few things worth knowing:
 
