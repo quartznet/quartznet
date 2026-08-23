@@ -387,8 +387,8 @@ Four things keep tests from contaminating each other:
 - **One container per test.** `QuartzSchedulerBuilder.Build()` creates its own service provider and
   therefore its own scheduler repository — two builders never see each other's schedulers. That is what
   makes parallel tests safe, and it is also why a test cannot look up another test's scheduler.
-- **`await using` the factory.** Disposing `StandaloneSchedulerFactory` disposes its container and
-  shuts the scheduler down. A leaked scheduler keeps a scheduling loop running for the rest of the run.
+- **`await using` the factory.** Disposing `StandaloneSchedulerFactory` shuts the scheduler down and
+  disposes its container. A leaked scheduler keeps a scheduling loop running for the rest of the run.
 - **`Shutdown(waitForJobsToComplete: true)`** when a job may still be in flight and you need it
   finished before assertions or cleanup.
 
