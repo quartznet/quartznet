@@ -259,9 +259,11 @@ happens to point the same way as the tenancy one.
 
 Also worth knowing if you lean on group matchers: Java Quartz warns that
 `pauseTriggers(GroupMatcher)` has "a limitation that only exactly matched groups can be remembered as
-paused", so pausing by prefix does not keep newly-added triggers paused. Quartz.NET's group pause
-state has its own caveat — job group pause state is not persisted by the ADO store — which is why both
-per-version guides tell you to suspend a tenant by *trigger* group.
+paused", so pausing by prefix does not keep newly-added triggers paused. Quartz.NET records the groups
+a prefix *matched*, so those keep imposing the pause; a group that held nothing when the prefix ran was
+never matched and so is not one of them. On 3.x there is a second caveat — job group pause state is not
+persisted by the ADO store, which is why the 3.x guide tells you to suspend a tenant by *trigger* group.
+4.x persists it, so either group works there.
 
 ### Sidekiq removed its namespaces on purpose
 

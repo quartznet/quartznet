@@ -160,6 +160,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         StdAdoConstants.SqlDeleteAllJobDetails,
         StdAdoConstants.SqlDeleteAllCalendars,
         StdAdoConstants.SqlDeleteAllPausedTriggerGrps,
+        StdAdoConstants.SqlDeleteAllPausedJobGrps,
         StdAdoConstants.SqlDeleteFiredTriggers
     ];
 
@@ -168,9 +169,10 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// <see cref="ICalendar" />s.
     /// </summary>
     /// <remarks>
-    /// Nine deletes that used to be nine round trips and nine commands nobody disposed. They go out as
-    /// one batch where the provider supports batching, and one disposed command at a time where it does
-    /// not. The order matters and the batch preserves it: a batch executes its commands in sequence.
+    /// One delete per table, which used to be one round trip and one undisposed command each. They go
+    /// out as one batch where the provider supports batching, and one disposed command at a time where
+    /// it does not. The order matters and the batch preserves it: a batch executes its commands in
+    /// sequence.
     /// </remarks>
     public virtual ValueTask ClearData(
         ConnectionAndTransactionHolder conn,

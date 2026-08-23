@@ -38,9 +38,9 @@ public sealed record JobGroupQuery : PagedQuery
     /// unpaused only, null for all groups.
     /// </summary>
     /// <remarks>
-    /// The ADO job store does not persist job group pause state and reports every job
-    /// group as not paused, matching the behavior the removed
-    /// <c>IsJobGroupPaused</c> member always had there.
+    /// A group can be paused while it holds no jobs, so <c>Paused = true</c> can report a
+    /// group the unfiltered listing does not — the unfiltered listing enumerates the groups
+    /// jobs are in, and an empty group is not one of them.
     /// </remarks>
     public bool? Paused { get; init; }
 }

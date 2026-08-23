@@ -236,10 +236,16 @@ To stop one of them, `InterruptFireInstance(fireInstanceId)` targets a single fi
 `GetPausedTriggerGroups()`, and `new TriggerGroupQuery { Name = "reporting", Take = 1 }` answers "is
 this one group paused?" without listing the rest.
 
-`JobGroup.Paused` is a different story. The ADO job store does not persist job group pause state and
-reports every job group as not paused — which is exactly what `IsJobGroupPaused` always did there. The
-property exists so the two group listings have the same shape; do not build a feature on it against a
-persistent store.
+`JobGroup.Paused` works the same way, and on both stores: 4.x records paused job groups in
+`QRTZ_PAUSED_JOB_GRPS`, so `QueryJobGroups(new JobGroupQuery { Paused = true })` is a real listing and
+`new JobGroupQuery { Name = "reporting", Take = 1 }` answers for one group. On 3.x this was the one
+thing the ADO store could not report — `IsJobGroupPaused` answered `false` for every group there —
+which is why the [4.0 schema migration](../../database/schema-changes.md#version-4-0) is mandatory even
+for a database that took every optional 3.x migration.
+
+A group can be paused while it holds nothing. `Paused = true` reports such a group; the unfiltered
+listing does not, because it enumerates the groups jobs and triggers are actually in. Pausing an empty
+group is how you pause what is about to be added to it.
 
 Pausing and resuming by matcher tells you which groups it touched:
 

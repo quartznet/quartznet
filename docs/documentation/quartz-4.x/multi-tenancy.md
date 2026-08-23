@@ -193,8 +193,9 @@ PagedResult<TriggerGroup> group = await scheduler.QueryTriggerGroups(
 bool suspended = group.Items is [{ Paused: true }];
 ```
 
-Pause state is real and queryable for **trigger** groups. Job group pause state is not persisted by the
-ADO store, which reports every job group as unpaused — pause tenants by trigger group.
+Pause state is real and queryable for both trigger groups and job groups — the ADO store persists a
+paused job group in `QRTZ_PAUSED_JOB_GRPS`, so `QueryJobGroups(new JobGroupQuery { Name = tenantId,
+Take = 1 })` answers for a tenant partitioned by job group just as well.
 
 Listeners take matchers too, so a per-tenant listener is one registration:
 

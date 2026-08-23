@@ -611,6 +611,51 @@ public interface IDriverDelegate
         string groupName,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Records that a job group is paused.
+    /// </summary>
+    /// <remarks>
+    /// The row is what makes the pause outlive the process and reach the other nodes of a cluster,
+    /// and what a caller adding a job to the group later reads. The table's primary key rejects a
+    /// duplicate, so callers check first — under the trigger-access lock, which is what keeps two
+    /// nodes pausing the same group from racing.
+    /// </remarks>
+    /// <param name="conn">The database connection.</param>
+    /// <param name="groupName">Name of the group.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The number of rows inserted.</returns>
+    ValueTask<int> InsertPausedJobGroup(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes the paused job groups the matcher selects. A single group is
+    /// <see cref="GroupMatcher{TKey}.GroupEquals" />.
+    /// </summary>
+    /// <param name="conn">The database connection.</param>
+    /// <param name="matcher">Criteria for matching groups.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The number of rows deleted.</returns>
+    ValueTask<int> DeletePausedJobGroup(
+        ConnectionAndTransactionHolder conn,
+        GroupMatcher<JobKey> matcher,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Determines whether the specified job group is paused.
+    /// </summary>
+    /// <param name="conn">The database connection.</param>
+    /// <param name="groupName">Name of the group.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>
+    /// 	<c>true</c> if the job group is paused; otherwise, <c>false</c>.
+    /// </returns>
+    ValueTask<bool> IsJobGroupPaused(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        CancellationToken cancellationToken = default);
+
     //---------------------------------------------------------------------------
     // calendars
     //---------------------------------------------------------------------------
@@ -1067,8 +1112,10 @@ public interface IDriverDelegate
     /// Selects one page of job groups, ordered by name.
     /// </summary>
     /// <remarks>
-    /// The ADO store does not persist job group pause state, so every group is reported as not paused
-    /// and a query for paused job groups only is empty.
+    /// A query for paused groups only reads PAUSED_JOB_GRPS, so it reports a paused group that
+    /// currently holds no jobs as well. That table has no counterpart to
+    /// <see cref="AdoConstants.AllGroupsPaused" />: pause-all is a trigger operation and writes no
+    /// marker row here.
     /// </remarks>
     /// <param name="conn">The DB connection.</param>
     /// <param name="query">What to select and which page of it to return.</param>

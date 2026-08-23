@@ -39,9 +39,8 @@ namespace Quartz.Tests.Integration.Impl;
 /// <para>
 /// Where the two genuinely disagree the difference is a hook, not a missing assertion: each store says
 /// which way it behaves and both branches are asserted, so the divergence is written down and can be
-/// found by anyone deciding whether to close it. One hook is left,
-/// <see cref="ReportsJobGroupPauseState" />: the ADO schema has a paused-groups table for triggers and
-/// none for jobs, so closing it is a schema change rather than a code change.
+/// found by anyone deciding whether to close it. There are none left — the last one, job group pause
+/// state, was closed by giving the ADO schema a PAUSED_JOB_GRPS table (#3336).
 /// </para>
 /// </remarks>
 public abstract class JobStoreContractTest
@@ -78,12 +77,6 @@ public abstract class JobStoreContractTest
     /// has been shut down.
     /// </summary>
     protected virtual ValueTask DisposeStore() => default;
-
-    /// <summary>
-    /// Whether the store can report that a job group is paused through
-    /// <see cref="IJobStore.QueryJobGroups" />.
-    /// </summary>
-    protected abstract bool ReportsJobGroupPauseState { get; }
 
     [SetUp]
     public async Task BuildStoreUnderTest()
@@ -467,32 +460,82 @@ public abstract class JobStoreContractTest
     }
 
     [Test]
-    public async Task PausedJobGroupsAreReportedAsFarAsTheStoreCanReportThem()
+    public async Task PausingAJobGroupIsRememberedAndReported()
     {
         IOperableTrigger trigger = await ScheduleJobWithTrigger("job", JobGroupA, TriggerGroupA);
+        IOperableTrigger elsewhere = await ScheduleJobWithTrigger("elsewhere", JobGroupB, TriggerGroupB);
 
         await Store.PauseJobs(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
 
         (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
-            "whatever the store can report about the group, pausing it has to stop the triggers");
+            "pausing the group has to stop the triggers of the jobs in it");
 
-        PagedResult<JobGroup> paused = await Store.QueryJobGroups(new JobGroupQuery { Paused = true });
-        PagedResult<JobGroup> listed = await Store.QueryJobGroups(new JobGroupQuery { Name = JobGroupA });
+        (await Store.QueryJobGroups(new JobGroupQuery { Paused = true })).Items
+            .Select(x => x.Name).Should().Equal([JobGroupA],
+                "a store has to remember which job groups are paused, or the pause is forgotten");
 
-        if (ReportsJobGroupPauseState)
-        {
-            paused.Items.Select(x => x.Name).Should().Equal([JobGroupA]);
-            listed.Items.Should().ContainSingle().Which.Paused.Should().BeTrue();
-        }
-        else
-        {
-            // A deliberate asymmetry, documented on JobGroupQuery.Paused: the ADO schema has a paused
-            // groups table for triggers and none for jobs, so a paused job group is not something the
-            // store can report. Pausing the group still pauses the triggers of the jobs in it, which
-            // is the part callers depend on.
-            paused.Items.Should().BeEmpty("the ADO store has nowhere to record a paused job group");
-            listed.Items.Should().ContainSingle().Which.Paused.Should().BeFalse();
-        }
+        (await Store.QueryJobGroups(new JobGroupQuery { Name = JobGroupA })).Items
+            .Should().ContainSingle().Which.Paused.Should().BeTrue();
+
+        (await Store.QueryJobGroups(new JobGroupQuery { Paused = false })).Items
+            .Select(x => x.Name).Should().Equal([JobGroupB],
+                "the unpaused listing is the complement of the paused one");
+
+        await Store.ResumeJobs(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+        (await Store.GetTriggerState(elsewhere.Key)).Should().Be(TriggerState.Normal);
+        (await Store.QueryJobGroups(new JobGroupQuery { Paused = true })).Items.Should().BeEmpty(
+            "resuming the group takes it off the paused list");
+    }
+
+    [Test]
+    public async Task PausingJobGroupsByPrefixRecordsTheGroupsItMatchedRatherThanThePattern()
+    {
+        await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
+        await ScheduleJobWithTrigger("second", JobGroupB, TriggerGroupB);
+        await ScheduleJobWithTrigger("untouched", OtherGroup, OtherGroup);
+
+        await Store.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+
+        (await Store.QueryJobGroups(new JobGroupQuery { Paused = true })).Items
+            .Select(x => x.Name).Should().BeEquivalentTo([JobGroupA, JobGroupB],
+                "what a prefix pause records is the groups it matched, never the pattern itself");
+
+        await Store.ResumeJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+
+        (await Store.QueryJobGroups(new JobGroupQuery { Paused = true })).Items.Should().BeEmpty(
+            "the same prefix that paused the groups takes the pause off them again");
+    }
+
+    [Test]
+    public async Task PausingAJobGroupThatHasNoJobsStillRemembersThePause()
+    {
+        List<string> paused = await Store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("empty-group"));
+
+        paused.Should().Equal(["empty-group"],
+            "pausing a group that holds nothing yet is how a caller pauses what is about to be added to it");
+
+        (await Store.QueryJobGroups(new JobGroupQuery { Paused = true })).Items
+            .Select(x => x.Name).Should().Equal(["empty-group"],
+                "a paused group with no jobs is still a paused group");
+
+        (await Store.QueryJobGroups(new JobGroupQuery())).Items.Should().BeEmpty(
+            "the unfiltered listing enumerates the groups jobs are in, and this one has none");
+    }
+
+    [Test]
+    public async Task ResumeAllReachesAJobGroupThatIsPausedButEmpty()
+    {
+        await ScheduleJobWithTrigger("elsewhere", JobGroupA, TriggerGroupA);
+        await Store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("empty-group"));
+
+        await Store.ResumeAll();
+
+        // A resume-all reaches a group that is paused but holds no jobs, which the group listing could
+        // otherwise never show a caller a way to resume.
+        (await Store.QueryJobGroups(new JobGroupQuery { Paused = true })).Items.Should().BeEmpty(
+            "resume-all resumed everything, job groups included");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

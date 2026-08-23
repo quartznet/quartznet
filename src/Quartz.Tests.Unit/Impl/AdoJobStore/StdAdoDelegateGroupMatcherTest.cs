@@ -746,9 +746,61 @@ public class StdAdoDelegateGroupMatcherTest
     {
         await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Name = "reports" });
 
-        command.CommandText.Should().Contain("JOB_GROUP = @groupName");
-        command.CommandText.Should().Contain("ORDER BY JOB_GROUP", "the listing keeps its deterministic order after the filter");
+        command.CommandText.Should().Contain("j.JOB_GROUP = @groupName", "the unfiltered listing reads JOB_DETAILS under the alias 'j'");
+        command.CommandText.Should().Contain("ORDER BY j.JOB_GROUP", "the listing keeps its deterministic order after the filter");
         parameters.Value("@groupName").Should().Be("reports");
+    }
+
+    [Test]
+    public async Task SelectJobGroups_WithNameAndPaused_ShouldFilterThePausedGroupsTable()
+    {
+        await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Name = "reports", Paused = true });
+
+        command.CommandText.Should().Contain("PAUSED_JOB_GRPS", "a paused listing reads the paused groups table");
+        command.CommandText.Should().NotContain("JOB_DETAILS",
+            "a group paused while it holds no jobs has no row in JOB_DETAILS, so reading it would lose the group");
+        command.CommandText.Should().Contain("JOB_GROUP = @groupName");
+        parameters.Value("@groupName").Should().Be("reports");
+    }
+
+    [Test]
+    public async Task SelectJobGroups_WithoutPausedFilter_ShouldProjectThePausedFlag()
+    {
+        await adoDelegate.SelectJobGroups(conn, new JobGroupQuery());
+
+        command.CommandText.Should().Contain("CASE WHEN EXISTS", "an unfiltered listing reports each group's paused state");
+        command.CommandText.Should().Contain("PAUSED_JOB_GRPS");
+        command.CommandText.Should().Contain("pg.SCHED_NAME = j.SCHED_NAME",
+            "the subquery correlates on the outer column rather than binding @schedulerName twice, "
+            + "because a provider that adapts named parameters positionally would then find one placeholder too many");
+    }
+
+    [Test]
+    public async Task SelectJobGroups_UnpausedOnly_ShouldExcludeThePausedGroups()
+    {
+        await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Paused = false });
+
+        command.CommandText.Should().Contain("NOT EXISTS", "the unpaused listing is the complement of the paused one");
+        command.CommandText.Should().Contain("PAUSED_JOB_GRPS");
+    }
+
+    [Test]
+    public async Task DeletePausedJobGroup_WithPrefixMatcher_ShouldUseLikeWithEscape()
+    {
+        await adoDelegate.DeletePausedJobGroup(conn, GroupMatcher<JobKey>.GroupStartsWith("50%"));
+
+        command.CommandText.Should().Contain("JOB_GROUP LIKE @jobGroup ESCAPE '!'");
+        parameters.Value("@jobGroup").Should().Be("50!%%", "the matcher's own text is a literal, so its wildcards are escaped");
+    }
+
+    [Test]
+    public async Task DeletePausedJobGroup_WithEqualityMatcher_ShouldCompareWithEquals()
+    {
+        await adoDelegate.DeletePausedJobGroup(conn, GroupMatcher<JobKey>.GroupEquals("reports"));
+
+        command.CommandText.Should().Contain("JOB_GROUP = @jobGroup");
+        command.CommandText.Should().NotContain("JOB_GROUP LIKE", "an equality matcher must not fall back to LIKE");
+        parameters.Value("@jobGroup").Should().Be("reports");
     }
 
     [Test]

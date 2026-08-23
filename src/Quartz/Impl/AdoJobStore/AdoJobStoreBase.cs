@@ -2965,8 +2965,50 @@ public abstract class AdoJobStoreBase : IJobStore
                     groupNames.Add(jobKey.Group);
                 }
 
+                // Account for an exact group match on a group that holds no jobs yet: pausing one is
+                // how a caller records a pause for what is about to be added to it, and the trigger
+                // group pause has always worked that way.
+                if (StringOperator.Equality.Equals(matcher.CompareWithOperator))
+                {
+                    groupNames.Add(matcher.CompareToValue);
+                }
+
+                // The pause is recorded per matched group, never as the matcher's own text: a pattern
+                // is not a group, and a listing must never hand a caller a name no job can belong to.
+                await RecordPausedJobGroups(conn, groupNames, cancellationToken).ConfigureAwait(false);
+
                 return new List<string>(groupNames);
             }, cancellationToken));
+    }
+
+    /// <summary>
+    /// Writes a PAUSED_JOB_GRPS row for every group that does not already have one.
+    /// </summary>
+    /// <remarks>
+    /// The check-then-insert is safe across a cluster because every caller holds the trigger-access
+    /// lock for the whole operation, which is the same guarantee <see cref="PauseTriggerGroup" />
+    /// relies on. The table's primary key is the backstop: were the lock ever bypassed, the second
+    /// insert would fail rather than leave the group paused twice.
+    /// </remarks>
+    private async ValueTask RecordPausedJobGroups(
+        ConnectionAndTransactionHolder conn,
+        IEnumerable<string> groupNames,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            foreach (string group in groupNames)
+            {
+                if (!await Delegate.IsJobGroupPaused(conn, group, cancellationToken).ConfigureAwait(false))
+                {
+                    await Delegate.InsertPausedJobGroup(conn, group, cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Throw.JobPersistenceException("Couldn't pause job groups: " + e.Message, e);
+        }
     }
 
     /// <summary>
@@ -3194,6 +3236,18 @@ public abstract class AdoJobStoreBase : IJobStore
             OperationName.JobStore.ResumeJobs,
             () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
+                // Forget the pause of every group the matcher selects, whatever operator it carries —
+                // a prefix pause recorded a row per matched group, so a resume that only understood
+                // equality would leave them paused forever.
+                try
+                {
+                    await Delegate.DeletePausedJobGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    Throw.JobPersistenceException("Couldn't resume job groups: " + e.Message, e);
+                }
+
                 var jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
                 var groupNames = new HashSet<string>();
 
@@ -3393,6 +3447,10 @@ public abstract class AdoJobStoreBase : IJobStore
             // trigger table knows about, so a group that was paused while empty would keep its row and
             // go on pausing whatever was added to it after a resume-all resumed everything.
             await Delegate.DeletePausedTriggerGroup(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
+
+            // Resume-all means everything, job groups included — otherwise a paused job group would
+            // survive it and go on reporting itself paused with nothing left to resume it.
+            await Delegate.DeletePausedJobGroup(conn, GroupMatcher<JobKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
