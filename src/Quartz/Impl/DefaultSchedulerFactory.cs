@@ -173,6 +173,10 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
 
             await resources.JobStore.Initialize(identity, cancellationToken).ConfigureAwait(false);
 
+            // After the store has validated its own schema, so a missing table is reported as the error
+            // it is before anything is said about how this scheduler's tables relate to a sibling's.
+            serviceProvider.GetRequiredService<SharedDatabaseValidator>().Validate(resources.Name, resources.JobStore);
+
             resources.JobRunShellFactory.Initialize(scheduler);
 
             foreach (var (name, plugin) in plugins)

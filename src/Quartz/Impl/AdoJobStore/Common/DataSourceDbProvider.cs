@@ -21,6 +21,17 @@ internal sealed class DataSourceDbProvider : DbProvider
         this.source = source;
     }
 
+    /// <summary>
+    /// The data source connections come from.
+    /// </summary>
+    /// <remarks>
+    /// Read by the shared-database check, which uses the object itself as the identity of the database:
+    /// a data source keeps its connection details to itself, so <see cref="DbProvider.ConnectionString"/>
+    /// is empty here and cannot answer for it, while two schedulers pointed at one registered data source
+    /// hold the same instance.
+    /// </remarks>
+    internal DbDataSource DataSource => source;
+
     public override DbConnection CreateConnection()
     {
         return source.CreateConnection();

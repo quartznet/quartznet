@@ -1459,6 +1459,24 @@ make when you want the live schedulers themselves rather than an inventory.
 sketches for runtime tenant lifecycle. Adding and removing schedulers at runtime is a 4.1 concern; when it
 lands, its manager interface extends this one rather than replacing it.
 
+## A shared database says so when two schedulers disagree about the table prefix
+
+Two schedulers sharing a database are told apart by `SCHED_NAME` and share one table prefix. Pointing one
+of them at a different prefix by accident used to be silent in the worst possible way: the scheduler
+connects, `PerformSchemaValidation` passes against the tables it *was* pointed at, it starts, it reports
+healthy, and it never sees its tenant's data.
+
+Creating a scheduler now records its database and table prefix, and a scheduler that shares a database
+with one already created but disagrees about the prefix is reported at `Warning`, naming both schedulers
+and both prefixes. It is a warning rather than an error because separate table sets in one database are
+legal and occasionally deliberate; the message says which two registrations to look at and leaves the
+decision where it belongs.
+
+The check sees what one container can see, which is its own schedulers. Two processes, or two containers
+in one process, sharing a database cannot be compared this way, and a database reached through a provider
+that reports no connection string and no `DbDataSource` is not guessed about. Nothing about the check is
+configurable, and nothing fails because of it.
+
 ## Several schedulers are registered explicitly
 
 `AddQuartz(IConfiguration)` used to look for a `Schedulers` sub-section and, if it found one, register
