@@ -95,4 +95,52 @@ public interface IThreadPool
     /// <param name="waitForJobsToComplete">Whether to wait for executing jobs to finish first.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stops the pool accepting new work, waits for the work already running to finish, and frees the
+    /// pool's resources.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The bounded form of <see cref="Shutdown" /> with <c>waitForJobsToComplete: true</c>: the wait
+    /// ends when <paramref name="cancellationToken" /> fires, and the outcome is reported rather than
+    /// thrown. That is what lets a caller say "drain, but give up after this long" and still carry on
+    /// with the rest of its own shutdown — which <see cref="Shutdown" /> cannot express, because a wait
+    /// it abandoned by throwing would skip everything the caller still has to tear down.
+    /// </para>
+    /// <para>
+    /// The wait must not block the calling thread. Callers include a host's graceful-shutdown path, and
+    /// an implementation that blocks pins a thread for as long as the slowest job runs.
+    /// </para>
+    /// <para>
+    /// Giving up abandons the wait, never the work: running work is not cancelled, because the pool has
+    /// no means to interrupt it and whether a shutting-down scheduler interrupts its jobs is
+    /// <see cref="ShutdownJobInterruption" />'s decision, already made by the time this is called. The
+    /// pool is left shut down either way, so the answer says what was true when it stopped waiting, not
+    /// what the caller should do about it.
+    /// </para>
+    /// <para>
+    /// The barrier has to cover everything a work item does, and not merely the part of it a caller can
+    /// see: <see cref="TryRun" /> is handed the whole of a job's execution, of which the last act is the
+    /// job store update that completes the trigger. A pool that waits for its work items therefore waits
+    /// for those writes too — which a count of executing jobs does not, since a job leaves that count
+    /// before its store update is issued.
+    /// </para>
+    /// <para>
+    /// The default implementation calls <see cref="Shutdown" /> with <c>waitForJobsToComplete: true</c>,
+    /// whose wait cannot be given up on, and so it can only report that it drained. That keeps a pool
+    /// written before this member existed correct rather than fast; override it to honour a deadline.
+    /// </para>
+    /// </remarks>
+    /// <param name="cancellationToken">Cancels the wait, not the running work.</param>
+    /// <returns><see langword="true" /> if the work that was running finished; <see langword="false" />
+    /// if <paramref name="cancellationToken" /> fired first and work is still running.</returns>
+    async ValueTask<bool> Drain(CancellationToken cancellationToken = default)
+    {
+        // The token is dropped rather than forwarded. Shutdown's contract is to wait for the running jobs
+        // however long they take, so a pool that honoured a token there would throw where this member says
+        // report - and this fallback exists precisely for pools written before it existed.
+        await Shutdown(waitForJobsToComplete: true, CancellationToken.None).ConfigureAwait(false);
+        return true;
+    }
 }

@@ -1880,6 +1880,7 @@ namespace Quartz.Extensibility
     public interface IThreadPool
     {
         int PoolSize { get; }
+        System.Threading.Tasks.ValueTask<bool> Drain(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.ValueTask> action, System.Threading.CancellationToken cancellationToken = default);
@@ -3298,6 +3299,7 @@ namespace Quartz.Impl
         public int MaxConcurrency { get; protected set; }
         public virtual int PoolSize { get; }
         public System.Threading.Tasks.TaskScheduler Scheduler { get; protected set; }
+        public System.Threading.Tasks.ValueTask<bool> Drain(System.Threading.CancellationToken cancellationToken = default) { }
         protected abstract System.Threading.Tasks.TaskScheduler GetDefaultScheduler();
         public virtual System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default) { }

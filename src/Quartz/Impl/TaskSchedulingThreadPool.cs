@@ -21,15 +21,30 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private readonly CancellationTokenSource shutdownCancellation = new CancellationTokenSource();
 
     /// <summary>
-    /// Guards <see cref="runningTasksCountdown" />. A lock of its own, because the countdown itself is
-    /// replaced by <see cref="Initialize" /> and is a BCL type others could lock on.
+    /// Guards <see cref="runningTasks" /> and <see cref="runningTasksDrained" /> against the shutdown
+    /// that closes the pool to new work. A lock of its own, because both are replaced by
+    /// <see cref="Initialize" />.
     /// </summary>
     private readonly Lock runningTasksLock = new();
 
     /// <summary>
-    /// Allows us to wait until no running tasks remain.
+    /// The number of work items still running, plus one for as long as the pool accepts new work.
     /// </summary>
-    private CountdownEvent runningTasksCountdown = null!;
+    /// <remarks>
+    /// That extra count is what keeps the pool from looking drained before it has been closed to new
+    /// work; shutdown drops it, and the last work item to finish afterwards takes the count to zero.
+    /// </remarks>
+    private int runningTasks;
+
+    /// <summary>
+    /// Completes when <see cref="runningTasks" /> reaches zero, which is when nothing the pool was given
+    /// is still running.
+    /// </summary>
+    /// <remarks>
+    /// Continuations run asynchronously, so that the work item which happens to finish last does not run
+    /// the rest of a caller's shutdown on the pool's own thread.
+    /// </remarks>
+    private TaskCompletionSource runningTasksDrained = null!;
 
     /// <summary>
     /// Cached delegate to mark a given task as complete.
@@ -46,7 +61,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
 
     private TaskScheduler scheduler = null!;
     private bool isInitialized;
-    private int shutdownInitialSignalDone;
+    private int guardCountDropped;
 
     protected TaskSchedulingThreadPool() : this(ThreadPoolOptions.DefaultMaxConcurrency)
     {
@@ -136,12 +151,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         // Initialize the concurrency semaphore with the proper initial count
         concurrencySemaphore = new SemaphoreSlim(MaxConcurrency);
 
-        // We start with an initial count of one to make sure it doesn't start in "signaled" state.
-        // Assigned under the lock that guards it, so that a caller already inside TryRun cannot add a
-        // count to the countdown this replaces.
+        // We start with the guard count, to make sure the pool doesn't start out looking drained.
+        // Assigned under the lock that guards them, so that a caller already inside TryRun cannot count
+        // itself into the pair this replaces.
         lock (runningTasksLock)
         {
-            runningTasksCountdown = new CountdownEvent(1);
+            runningTasks = 1;
+            runningTasksDrained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         // Reduce allocations by caching the delegate to mark a task as complete
@@ -245,8 +261,9 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
                 return false;
             }
 
-            // Record an extra running task
-            runningTasksCountdown.AddCount();
+            // Record an extra running task. Interlocked because the completion continuation decrements
+            // without taking this lock; the lock is here to order the increment against shutdown.
+            Interlocked.Increment(ref runningTasks);
         }
 
         // Register a callback to remove the task from the running list once it has completed
@@ -287,7 +304,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         }
 
         concurrencySemaphore.Release();
-        runningTasksCountdown.Signal();
+
+        if (Interlocked.Decrement(ref runningTasks) == 0)
+        {
+            // Zero is only reachable once shutdown has dropped the guard count, so this really is the
+            // last work item the pool was given, and nothing more can be handed to it.
+            runningTasksDrained.TrySetResult();
+        }
     }
 
     /// <summary>
@@ -296,55 +319,115 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// <param name="waitForJobsToComplete"><see langword="true"/> to wait for currently executing tasks to finish; otherwise, <see langword="false"/>.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <remarks>
-    /// The wait for running jobs is still a blocking one. Shutdown happens once, off the scheduling
-    /// loop, so it is not the hot path that <see cref="WaitForAvailableThreads" /> and
-    /// <see cref="TryRun" /> are.
+    /// The wait for running jobs is deliberately unbounded and not cancellable, which is what this
+    /// member has always promised. <see cref="Drain" /> is the same wait with a deadline and an answer.
     /// </remarks>
-    public ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default)
+    public async ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default)
     {
-        // A pool that was never initialized has no countdown, no semaphore and nothing running.
+        // A pool that was never initialized has no counter, no semaphore and nothing running.
         if (!isInitialized)
         {
-            return default;
+            return;
         }
 
         logger.LogDebug("Shutting down threadpool...");
 
-        // Cancel using our shutdown token
-        shutdownCancellation.Cancel();
+        Task drained = CloseToNewWork();
 
         // If waitForJobsToComplete is true, wait for running tasks to complete
         if (waitForJobsToComplete)
         {
-            lock (runningTasksLock)
-            {
-                // Cancellation has been signaled, so no new tasks will begin once
-                // shutdown has acquired this lock. CurrentCount includes the +1 guard
-                // that keeps the event from starting in "signaled" state.
-                logger.LogDebug("Waiting for {RunningTaskCount} running tasks to complete.", runningTasksCountdown.CurrentCount - 1);
-            }
-
-            // Signal the initial count that we used to make sure the CountDownEvent didn't start
-            // in "signaled" state. One-shot so that concurrent or repeated shutdowns cannot
-            // double-signal, which would end the wait one running task early.
-            if (Interlocked.Exchange(ref shutdownInitialSignalDone, 1) == 0)
-            {
-                runningTasksCountdown.Signal();
-            }
-
-            // Wait for pending tasks to complete. Deliberately not cancellable: the caller is
-            // QuartzScheduler.Shutdown, and abandoning this wait would skip the job store shutdown,
-            // plugin shutdown and listener notification that follow it, leaving the scheduler wedged.
-            runningTasksCountdown.Wait(CancellationToken.None);
+            // The wait is awaited rather than blocked on, so it costs no thread, but it still cannot be
+            // abandoned: a caller of this overload has no way to learn that it was, and everything it
+            // tears down afterwards would run with jobs still writing to the store.
+            await drained.ConfigureAwait(false);
 
             logger.LogDebug("No executing jobs remaining, all threads stopped.");
         }
 
+        ReleaseResources();
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<bool> Drain(CancellationToken cancellationToken = default)
+    {
+        // A pool that was never initialized has nothing running, so it is drained by definition.
+        if (!isInitialized)
+        {
+            return true;
+        }
+
+        logger.LogDebug("Draining threadpool...");
+
+        Task drained = CloseToNewWork();
+        bool drainedInTime = true;
+
+        if (!drained.IsCompleted)
+        {
+            try
+            {
+                await drained.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The work carries on; only the waiting stops. Reported rather than thrown, so that the
+                // caller's own shutdown continues instead of unwinding out of it - the answer is the
+                // return value, and the caller is the one that knows what it means for it.
+                drainedInTime = false;
+            }
+        }
+
+        if (drainedInTime)
+        {
+            logger.LogDebug("No executing jobs remaining, all threads stopped.");
+        }
+        else
+        {
+            logger.LogDebug("Gave up waiting for the thread pool to drain; work is still running.");
+        }
+
+        ReleaseResources();
+        return drainedInTime;
+    }
+
+    /// <summary>
+    /// Closes the pool to new work and hands back the task that completes once the work it is already
+    /// running has finished.
+    /// </summary>
+    private Task CloseToNewWork()
+    {
+        // Cancel using our shutdown token
+        shutdownCancellation.Cancel();
+
+        lock (runningTasksLock)
+        {
+            // Cancellation has been signalled, so no new work can begin once this lock is held: TryRun
+            // re-checks the token under this same lock before counting itself in.
+            //
+            // Dropping the guard count is one-shot, so that concurrent or repeated shutdowns cannot drop
+            // it twice, which would call the pool drained one running task early.
+            int remaining = Interlocked.Exchange(ref guardCountDropped, 1) == 0
+                ? Interlocked.Decrement(ref runningTasks)
+                : Volatile.Read(ref runningTasks);
+
+            logger.LogDebug("Thread pool closed to new work with {RunningTaskCount} running tasks remaining.", remaining);
+
+            if (remaining == 0)
+            {
+                // Nothing was running, so no completion is coming to do this. Safe under the lock
+                // because the continuations of this task are configured to run asynchronously.
+                runningTasksDrained.TrySetResult();
+            }
+
+            return runningTasksDrained.Task;
+        }
+    }
+
+    private void ReleaseResources()
+    {
         // Dispose the scheduler to release its resources (e.g. QueuedTaskScheduler threads)
         (scheduler as IDisposable)?.Dispose();
 
         logger.LogDebug("Shutdown of threadpool complete.");
-
-        return default;
     }
 }

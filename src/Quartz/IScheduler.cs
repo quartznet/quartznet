@@ -262,7 +262,12 @@ public interface IScheduler : IAsyncDisposable
     /// if <see langword="true" /> the scheduler will not allow this method
     /// to return until all currently executing jobs have completed.
     /// </param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <param name="cancellationToken">
+    /// Bounds the wait for running jobs, so that a shutdown can be given a deadline. Cancelling it stops
+    /// the scheduler waiting; it does not cancel the jobs, and the shutdown itself always runs to the
+    /// end, so the job store, the plugins and the listeners are told the scheduler has stopped either
+    /// way.
+    /// </param>
     ValueTask Shutdown(bool waitForJobsToComplete = false, CancellationToken cancellationToken = default);
 
     /// <summary>

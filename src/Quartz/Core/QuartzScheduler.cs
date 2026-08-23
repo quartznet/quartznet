@@ -425,7 +425,11 @@ internal sealed class QuartzScheduler
     /// if <see langword="true" /> the scheduler will not allow this method
     /// to return until all currently executing jobs have completed.
     /// </param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <param name="cancellationToken">
+    /// Bounds the wait for running jobs, and nothing else. Cancelling it stops the scheduler waiting —
+    /// it does not cancel the jobs, and it does not abandon the shutdown, which always runs to the end
+    /// so that the job store, the plugins and the listeners are all told the scheduler has stopped.
+    /// </param>
     public async ValueTask Shutdown(
         bool waitForJobsToComplete = false,
         CancellationToken cancellationToken = default)
@@ -443,11 +447,14 @@ internal sealed class QuartzScheduler
         {
             logger.LogInformation("Scheduler {SchedulerIdentifier} shutting down.", resources.GetUniqueIdentifier());
 
-            await Standby(cancellationToken).ConfigureAwait(false);
+            // Not the caller's token, for the same reason as the teardown below: the shutdown is claimed
+            // atomically and cannot be retried, so a step that gave up here would leave the scheduler
+            // neither running nor shut down. The token bounds the wait for running jobs and nothing else.
+            await Standby(CancellationToken.None).ConfigureAwait(false);
 
             await schedThread.Halt(waitForJobsToComplete).ConfigureAwait(false);
 
-            await NotifySchedulerListenersShuttingDown(cancellationToken).ConfigureAwait(false);
+            await NotifySchedulerListenersShuttingDown(CancellationToken.None).ConfigureAwait(false);
 
             bool interruptRunningJobs = resources.ShutdownJobInterruption switch
             {
@@ -473,10 +480,24 @@ internal sealed class QuartzScheduler
                 }
             }
 
-            // Deliberately not the caller's token: waiting for running jobs must not be abandoned
-            // part-way, because everything after it here still has to run. A third-party pool that
-            // honoured the token would otherwise skip the rest of shutdown.
-            await resources.ThreadPool.Shutdown(waitForJobsToComplete, CancellationToken.None).ConfigureAwait(false);
+            if (waitForJobsToComplete)
+            {
+                // The caller's token bounds the wait for running jobs and nothing else: Drain reports
+                // that it gave up rather than throwing, so everything below still runs. The barrier
+                // covers each job's job store update as well as the job itself, because the pool was
+                // handed the whole of the execution, of which that update is the last act.
+                if (!await resources.ThreadPool.Drain(cancellationToken).ConfigureAwait(false))
+                {
+                    logger.LogWarning(
+                        "Scheduler {SchedulerIdentifier} gave up waiting for its running jobs, which are still executing. "
+                        + "Their job store updates may not complete, and the store is about to be shut down under them.",
+                        resources.GetUniqueIdentifier());
+                }
+            }
+            else
+            {
+                await resources.ThreadPool.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
+            }
 
             // Scheduler thread may have be waiting for the fire time of an acquired
             // trigger and need time to release the trigger once halted, so make sure
