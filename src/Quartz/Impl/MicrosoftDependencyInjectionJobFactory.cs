@@ -3,6 +3,7 @@ using System.Runtime.ExceptionServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.Configuration;
 using Quartz.Extensibility;
 
 namespace Quartz.Impl;
@@ -16,6 +17,12 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
     private readonly JobActivatorCache activatorCache = new();
     private readonly JobFactoryOptions options;
 
+    /// <summary>
+    /// The service key this factory's scheduler registers its parts under, or <see langword="null" />
+    /// for the default scheduler, whose registrations are the unkeyed ones.
+    /// </summary>
+    private readonly object? schedulerKey;
+
     /// <param name="serviceProvider">The container jobs are built from.</param>
     /// <param name="options">
     /// The factory's settings, which is where <see cref="JobFactoryOptions.ConfigureScope"/> arrives from.
@@ -28,6 +35,11 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
     {
         this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         this.options = options?.Value ?? new JobFactoryOptions();
+
+        // Read once rather than per fire. A factory handed the raw container - by a caller constructing
+        // one itself, or because this is the default scheduler, which has no wrapper - has no key, and
+        // resolves jobs exactly as it always did.
+        schedulerKey = (serviceProvider as SchedulerScopedServiceProvider)?.SchedulerServiceKey;
     }
 
     /// <remarks>
@@ -132,9 +144,30 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
         options.ConfigureScope?.Invoke(scope, bundle, scheduler);
     }
 
+    /// <summary>
+    /// Produces the job instance for one fire: this scheduler's registration of the job type, then the
+    /// container's, and failing both an instance this factory activates itself.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The keyed lookup is what lets two schedulers in one container build the same job type
+    /// differently — <c>AddJobType&lt;T&gt;</c> is how that registration is made. It is skipped entirely
+    /// for the default scheduler, which has no service key, so the single-scheduler case resolves in
+    /// exactly one lookup as it always has.
+    /// </para>
+    /// <para>
+    /// The unkeyed registration remains the fallback rather than being replaced, because it is where
+    /// <c>AddJob&lt;T&gt;</c> puts the job type and where an application registering the type itself
+    /// most naturally puts it. A scheduler that was given nothing of its own therefore still gets what
+    /// the container holds.
+    /// </para>
+    /// </remarks>
     private (IJob Job, bool FromContainer) ResolveJob(TriggerFiredBundle bundle, IServiceProvider serviceProvider)
     {
-        var job = (IJob?) serviceProvider.GetService(bundle.JobDetail.JobType.Type);
+        var jobType = bundle.JobDetail.JobType.Type;
+
+        var job = schedulerKey is null ? null : (IJob?) serviceProvider.GetKeyedService(jobType, schedulerKey);
+        job ??= (IJob?) serviceProvider.GetService(jobType);
 
         if (job is not null)
         {
@@ -142,7 +175,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
             return (job, true);
         }
 
-        return (activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType.Type), false);
+        return (activatorCache.CreateInstance(serviceProvider, jobType), false);
     }
 
     /// <summary>

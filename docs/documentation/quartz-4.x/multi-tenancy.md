@@ -136,6 +136,39 @@ builder.Services.AddQuartz("acme", q => q.UseTimeProvider(acmeClock));
 A scheduler with no clock of its own inherits the container's, which is what lets an application-wide
 `TimeProvider` reach all of them without being told about each.
 
+### Job types
+
+`AddJob<T>` registers the job type with the container so that a dependency it cannot be given is
+reported when the container is validated. That registration is unkeyed and `TryAdd`, which is right for
+one scheduler and not enough for several: the first registration would be what every scheduler got.
+
+`AddJobType` gives one scheduler its own:
+
+```csharp
+builder.Services.AddQuartz("acme", q =>
+{
+    q.AddJobType<ReportJob, AcmeReportJob>();            // a different implementation
+    q.AddJobType<AuditJob>(ServiceLifetime.Singleton);   // a different lifetime
+    q.AddJobType<ExportJob>(sp => new ExportJob(sp.GetRequiredKeyedService<IExportSink>("acme")));
+
+    q.AddJob<ReportJob>(j => j.WithIdentity("report"));
+});
+```
+
+The job factory looks for this scheduler's registration first and falls back to the container's, so a
+scheduler given nothing of its own resolves what the container holds and the default scheduler — which
+has no service key — resolves in one lookup as it always has.
+
+Two things worth knowing before reaching for it:
+
+- The lifetime the job factory is built around is **scoped**: a scope is opened per fire, the job is
+  resolved from it, and the scope is disposed when the job returns. `ServiceLifetime.Singleton` means
+  one instance serves every fire of that job on that scheduler, so it must be thread-safe and must not
+  capture scoped dependencies.
+- A job type per tenant is usually the wrong shape at more than a handful of tenants. One job type that
+  reads its tenant from the firing and resolves what it needs — by key, if you like — inside `Execute`
+  scales where a registration per tenant does not.
+
 ### Plugins named by properties
 
 A `quartz.plugin.<name>.*` entry is read from the property bag of the scheduler it was configured on,

@@ -102,6 +102,16 @@ internal sealed class SchedulerScopedServiceProvider
     private string Name => key as string ?? Options.DefaultName;
 
     /// <summary>
+    /// The service key this scheduler's parts are registered under.
+    /// </summary>
+    /// <remarks>
+    /// Read by components that resolve a type the container knows nothing about in advance — a job type
+    /// is the case — and so cannot be routed by the type lists above. The default scheduler has no
+    /// wrapper at all, so a component that finds one of these knows it belongs to a named scheduler.
+    /// </remarks>
+    internal object? SchedulerServiceKey => key;
+
+    /// <summary>
     /// Finds the resolver for an options type this scheduler owns, whether Quartz declared it or a plugin
     /// brought it, or <see langword="null"/> when the request is for something else.
     /// </summary>
