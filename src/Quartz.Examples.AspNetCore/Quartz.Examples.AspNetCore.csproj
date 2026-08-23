@@ -7,15 +7,27 @@
     <NoWarn>$(NoWarn);MA0004</NoWarn>
     <!-- https://github.com/dotnet/aspnetcore/issues/50836 -->
     <NoWarn>$(NoWarn);AD0001</NoWarn>
-
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>full</TrimMode>
-    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
-    <!-- we want to publish despite the warnings to see if app runs -->
-    <NoWarn>$(NoWarn);IL2080;IL2065;IL2075;IL2087;IL2057;IL2060;IL2070;IL2067;IL2072;IL2026;IL2104</NoWarn>
-    <!-- Blazor Server component libraries trigger these when parameters with DynamicallyAccessedMembers are set via reflection -->
-    <NoWarn>$(NoWarn);IL2110;IL2111</NoWarn>
   </PropertyGroup>
+
+  <!--
+    This example is deliberately not published trimmed, and putting it back needs an argument.
+
+    It used to be, under a NoWarn that silenced the whole IL2xxx family. Unsuppressing that (issue
+    #3341, step 1) produced 217 warnings, of which 106 belong to assemblies Quartz cannot fix and never
+    will: Razor Pages says so itself ("Razor Pages does not currently support trimming or native AOT"),
+    and MVC model binding, Blazor Server's route table, NSwag/NJsonSchema/Newtonsoft.Json, YamlDotNet,
+    Microsoft.Data.SqlClient and System.Configuration.ConfigurationManager are all reflection-driven by
+    design. Trimming this application measured the framework, not Quartz, and every ASP.NET Core patch
+    bump would have churned whatever baseline recorded it.
+
+    The trim gate lives where it says something instead: Quartz.Examples.Worker publishes fully trimmed
+    over Quartz alone and must stay warning-free, and Quartz itself compiles with EnableTrimAnalyzer.
+    Quartz.AspNetCore (214 analyzer warnings) and Quartz.Dashboard (26) are still unanalysed; that is
+    tracked on issue #3341 rather than hidden here.
+
+    Publishing it at all is still worth doing, because publish is where a Blazor asset or an
+    NSwag document generator breaks in ways a build never notices.
+  -->
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />

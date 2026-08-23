@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  The ILLink half of the trim baseline recorded in issue #3341. It lists exactly the same types as
+  TrimAnalysisBaseline.cs beside it, for exactly the same reasons — read that file first; the reasoning
+  lives there and is not repeated here.
+
+  Two files are needed because the two tools cannot be told the same way. SuppressMessageAttribute is
+  [Conditional("CODE_ANALYSIS")], so the C# baseline never reaches metadata and ILLink cannot see it;
+  ILLink is told through its link-attributes option instead. The unconditional attribute would cover
+  both, but it would be baked into the shipped assembly and silence these warnings for every consumer
+  publishing a trimmed application. That would be a lie: the reflection below can break under trimming, and
+  a consumer deserves to be told. So this file is applied only by our own example publish, which is what
+  makes the CI trim leg green without making anyone else's build quieter than it should be.
+
+  fullname carries a trailing '*' throughout, because ILLink reports against compiler-generated closure
+  and state-machine types (Type/<>c__DisplayClass4_0, Type/<AsyncMethod>d__7) whose names change the
+  moment a lambda is added to or removed from the file. Matching the type and its nested companions in
+  one entry keeps the baseline stable under ordinary edits; naming them individually would not survive a
+  refactoring.
+
+  When ILLink reports a warning against a type that is not listed here, that is the baseline working.
+  Fix the reflection, or make the case for a new entry — see TrimAnalysisBaseline.cs for the order to
+  try the fixes in.
+
+  One local-only wrinkle: the link step is incremental on the assemblies it consumes and does not track
+  this file, so editing it alone may not re-link. Delete the example's linked output, or touch a source
+  file, to see the effect. CI always builds from clean and is unaffected.
+-->
+<linker>
+  <assembly fullname="Quartz">
+
+    <!-- Types named by string -->
+    <type fullname="Quartz.Impl.SimpleTypeLoader*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2057</argument>
+        <property name="Justification">The default ITypeLoader exists to resolve a configured type name; that is its contract.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.JobType*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2057</argument>
+        <property name="Justification">A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Impl.AdoJobStore.StdAdoDelegate*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2057</argument>
+        <property name="Justification">A persisted job's type is the JOB_CLASS_NAME column, which is a string by the time it is read back.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2072</argument>
+        <property name="Justification">A persisted job's type reaches JobBuilder.OfType as a Type resolved from JOB_CLASS_NAME.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Impl.AdoJobStore.Common.BuiltInDbMetadataFactory*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2057</argument>
+        <property name="Justification">An ADO.NET provider's connection type is named by the driver description, so the provider assembly need not be referenced.</property>
+      </attribute>
+    </type>
+
+    <!-- Types constructed at runtime -->
+    <type fullname="Quartz.Configuration.QuartzPropertyBridge*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2067</argument>
+        <property name="Justification">Translating legacy quartz.* keys means constructing the component each key names.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2072</argument>
+        <property name="Justification">Translating legacy quartz.* keys means constructing the component each key names.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Configuration.SchedulerPluginFactory*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2067</argument>
+        <property name="Justification">A plugin registered by type is constructed through the container from that Type.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Configuration.PropertyListenerFactory*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2072</argument>
+        <property name="Justification">A listener registered by quartz.*.listener.* keys is constructed from the type the key names.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2075</argument>
+        <property name="Justification">A listener's Name is set through the property of that name, on a type known only at runtime.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Impl.JobActivatorCache*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2067</argument>
+        <property name="Justification">A job type reaches the activator as a Type; that is the whole point of the cache.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Configuration.JsonSchedulingHelper*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2057</argument>
+        <property name="Justification">The type loader named by quartz.scheduler.typeLoaderType is resolved from that name.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2072</argument>
+        <property name="Justification">Jobs declared in configuration name their type as a string.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Xml.XmlSchedulingDataProcessor*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2072</argument>
+        <property name="Justification">Jobs declared in job_scheduling_data XML name their type as a string.</property>
+      </attribute>
+    </type>
+
+    <!-- Properties bound by name -->
+    <type fullname="Quartz.Util.ObjectUtils*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2026</argument>
+        <property name="Justification">TypeDescriptor.GetConverter is how a configuration string becomes a property's value.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2057</argument>
+        <property name="Justification">A property typed as Type takes its value from a type name in configuration.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2067</argument>
+        <property name="Justification">The conversion target arrives as a Type read off the property being set.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2070</argument>
+        <property name="Justification">The conversion target arrives as a Type read off the property being set.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2072</argument>
+        <property name="Justification">The conversion target arrives as a Type read off the property being set.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2075</argument>
+        <property name="Justification">Setting a property named by a configuration key means looking it up on the target's runtime type.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2080</argument>
+        <property name="Justification">Setting a property named by a configuration key means looking it up on the target's runtime type.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Impl.PropertySettingJobFactory*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2075</argument>
+        <property name="Justification">Pushing a JobDataMap onto a job means finding properties by the map's keys.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Util.JobDataExpression*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2070</argument>
+        <property name="Justification">The check that the job factory will find the property is itself a property lookup by name.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Impl.AdoJobStore.Common.DbProvider*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2075</argument>
+        <property name="Justification">A provider's connection string and command properties are named by its DbMetadata, not referenced.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Impl.AdoJobStore.Common.DbMetadata*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2075</argument>
+        <property name="Justification">A provider's connection string and command properties are named by its DbMetadata, not referenced.</property>
+      </attribute>
+    </type>
+
+    <!-- Duck-typed exception inspection -->
+    <type fullname="Quartz.Impl.AdoJobStore.TransientErrorDetector*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2070</argument>
+        <property name="Justification">Retry classification reads provider error codes off exception types Quartz deliberately does not reference.</property>
+      </attribute>
+    </type>
+
+    <!-- Reflection-based serialization; issue #3341, step 4 -->
+    <type fullname="Quartz.Impl.SystemTextJsonObjectSerializer*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2026</argument>
+        <property name="Justification">Job data is serialized as whatever the application stored; issue #3341, step 4.</property>
+      </attribute>
+    </type>
+    <type fullname="Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2026</argument>
+        <property name="Justification">Job data is serialized as whatever the application stored; issue #3341, step 4.</property>
+      </attribute>
+    </type>
+
+    <!-- Configuration binding -->
+    <type fullname="Quartz.Configuration.QuartzTypedOptions*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2026</argument>
+        <property name="Justification">Binding the quartz configuration section reflects over the options types; the source-generated binder is the fix.</property>
+      </attribute>
+    </type>
+
+  </assembly>
+</linker>
