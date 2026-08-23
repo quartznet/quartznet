@@ -2,11 +2,72 @@
 
 Instructions for AI coding agents working in this repository.
 
-This is the single source of truth. `AGENTS.md` is read directly by most agents — GitHub Copilot,
-Codex, Cursor, Aider, Gemini CLI, Windsurf and others. Claude Code reads `CLAUDE.md`, which does
-nothing but import this file, and `.github/copilot-instructions.md` is a pointer for the same
-reason. **Edit this file; the other two should stay one-liners.**
+This is the single source of truth, and it is the whole of it — there are no per-area instruction
+files, so a tool that reads only the repository root still gets everything. `AGENTS.md` is read
+directly by Codex, Cursor, Amp, Windsurf, Devin and Copilot's cloud agent, CLI and VS Code
+integrations. The rest arrive through a file that exists only to route them here:
 
+| File | Exists for |
+|---|---|
+| `CLAUDE.md` | Claude Code, which does not read `AGENTS.md` (anthropics/claude-code#6235). It imports this file with `@AGENTS.md` |
+| `.github/copilot-instructions.md` | Copilot in Visual Studio and JetBrains, which read that path only and have no `AGENTS.md` support |
+| `.gemini/settings.json` | Gemini CLI, whose context file is `GEMINI.md` until `context.fileName` names another |
+| `.aider.conf.yml` | Aider, which loads no instruction file on its own; `read:` puts this one in every session |
+
+**Edit this file; the other four stay pointers.** A pointer that grows instructions of its own drifts
+from this file, and Copilot combines the instruction files it finds rather than picking one, so
+anything duplicated is applied twice. `AgentInstructionsTest` fails a pointer that stops naming
+`AGENTS.md`, and any instruction file over 32,768 bytes — Codex's `project_doc_max_bytes`, which is a
+running budget across the whole root-to-working-directory chain and the only documented cap that
+binds this repository.
+
+
+## Key Conventions
+
+- **File-scoped namespaces** — enforced as error (`csharp_style_namespace_declarations = file_scoped:error`).
+- **Explicit types over `var`** — prefer explicit types everywhere (`csharp_style_var_for_built_in_types = false`).
+- **Nullable enabled** globally; test projects may disable it.
+- **Warnings as errors** — `TreatWarningsAsErrors` is true; code style is enforced in build.
+- **`Quartz` builds with the trim analyzer on**, so an `IL2xxx` is an error. The known-reflective types are
+  recorded in `src/Quartz/TrimAnalysisBaseline.cs` (and mirrored for ILLink in `src/Quartz/ILLink.Suppressions.xml`,
+  which the worker example's trimmed publish applies). A warning in a type not listed there means new
+  reflection — fix it rather than adding a line; that file explains the order to try fixes in. Neither file
+  ships, so consumers still see every warning. Tracked on #3341.
+- **Allman brace style** — braces on new lines for methods, types, control blocks, properties, accessors, lambdas.
+- **No `DateTime.Now`/`DateTimeOffset.Now`** — banned via Roslyn analyzer (`BannedSymbols.txt`). Use `TimeProvider` instead.
+- **No implicit `DateTime` → `DateTimeOffset` cast** — also banned.
+- **All public APIs return `ValueTask`** rather than `Task` (e.g., `IJob.Execute`, `IScheduler` methods). This
+  holds for classes too. The single exception is `Quartz.Dashboard.Hubs.IQuartzDashboardHubClient`, whose shape
+  SignalR dictates: its typed-client proxy only implements `Task`-returning members, and it is emitted into a
+  dynamic assembly, so the interface and its DTOs cannot be internal either — a strong-named assembly can only
+  grant `InternalsVisibleTo` to a friend it names by public key. `QuartzDashboardHubClientProxyTest` is the guard.
+- **No `Async` suffix** on Quartz-authored members; the bare verb *is* the async one. Only names dictated by a BCL interface (`IHostedService`, `IAsyncDisposable`, `IHealthCheck`) carry it.
+- **Every async member ends with `CancellationToken cancellationToken = default`.** There are no exceptions left.
+- **Return concrete collection types, accept abstractions** — `List<T>` or `T[]` out, `IReadOnlyCollection<T>`/`IReadOnlyList<T>` in.
+- **No setter-only properties on interfaces.** Identity and configuration arrive by constructor or an explicit context parameter.
+- **Strong-named assemblies** — signed with `quartz.net.snk` (except examples).
+- **Central package management** — package versions in `Directory.Packages.props`.
+- **Single target** — everything targets `net10.0`.
+- **SDK**: .NET 10 SDK (see `global.json`), with `rollForward: latestMinor`.
+- **License headers** — source files include Apache 2.0 license region at the top.
+
+### Naming decisions that are settled
+
+Two spots look inconsistent on purpose. Both were examined and ratified in the 4.0 API-finalization
+pass; do not "finish" either one.
+
+- **The scheduler's noun is `JobDetail`; the store's noun is `Job`.** `IScheduler` hands users
+  `IJobDetail`, so it says `GetJobDetail`/`GetJobDetails`. `IJobStore` speaks in storage terms, so it
+  says `GetJob`/`GetJobs` (beside `GetTrigger`/`GetTriggers`). Singular/plural pairs are consistent
+  *within* each interface; the two interfaces deliberately differ, and aligning one with the other
+  would break the consistent pairs on whichever side got "fixed".
+- **`StdAdoDelegate` and the `*Delegate` dialect family keep their names.** "A class named Delegate
+  that isn't a delegate" is regrettable in .NET, but this vocabulary is Quartz's cross-ecosystem
+  identity: Java parity, twenty years of Stack Overflow answers, `quartz.jobStore.driverDelegateType`
+  spelled in countless configuration files, `database/README.md`, and the dialect docs all teach
+  against `IDriverDelegate`/`SqlServerDelegate`/`PostgreSQLDelegate`/…. The `Std` prefix was retired
+  everywhere else (the semaphore renames finished that); `StdAdoDelegate` is the sole deliberate
+  survivor, because renaming it would orphan the pedagogy without helping anyone.
 
 ## Build & Test
 
@@ -125,7 +186,8 @@ internals behind them.
 The container constructs the scheduler; there is no reflective instantiation from type-name strings, and
 there is no properties-based `StdSchedulerFactory` any more. Legacy flat `quartz.*` keys are translated
 to typed options and registrations by `QuartzPropertyBridge`, which is the only place that understands
-them; `LegacyPropertyKeys` holds the key strings and rejects a misspelled one.
+them; `LegacyPropertyKeys` holds the key strings and rejects a misspelled one. A new setting is therefore
+a typed option plus a bridge entry, never a string read somewhere else.
 
 ### Serialization
 
@@ -139,75 +201,8 @@ Pluggable serialization for job store persistence:
 - For OpenTelemetry, use [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz).
 - Logging uses `Microsoft.Extensions.Logging` via `Quartz.Diagnostics.LogProvider`.
 
-## Porting changes between 3.x and main
+## Documentation and generated artifacts
 
-`3.x` is the maintenance branch and `main` is 4.x. A change written against one usually needs
-relocating for the other. This maps where things moved; when a port does not compile, check here
-before assuming the code is missing.
-
-### Namespaces
-
-| 3.x | main |
-|-----|------|
-| `Quartz.Spi` | `Quartz.Extensibility` |
-| `Quartz.Simpl` | `Quartz.Impl` (merged into the one that already existed) |
-| `Quartz.Extensions.DependencyInjection` | `Quartz.Configuration` in the core package (the `AddQuartz` extensions stay in `Quartz`) |
-| `Quartz.Extensions.Hosting` | `src/Quartz/Hosting/` in the core package (types are in the `Quartz` namespace) |
-| `Quartz.Serialization.SystemTextJson` | core package (`SystemTextJsonObjectSerializer`) |
-
-Directory layout follows: `src/Quartz/SPI/` → `src/Quartz/Extensibility/`, `src/Quartz/Simpl/` →
-`src/Quartz/Impl/`. String-typed configuration naming the old namespaces still resolves through a
-fallback in `SimpleTypeLoader`, with a warning.
-
-### Contracts that changed shape
-
-| 3.x | main |
-|-----|------|
-| `IJob.Execute(context)` | `Execute(context, cancellationToken)` — same token as `context.CancellationToken` |
-| `IJobFactory.NewJob(...)` → `IJob` | `CreateJob(...)` → `ValueTask<JobScope>` |
-| `IJobFactory.ReturnJob(IJob)` | `ReturnJob(JobScope, CancellationToken)` |
-| `internal IJobWithAsyncReturnFactory` | gone — merged into `IJobFactory` |
-| `IJobWrapper` | gone — per-fire state rides in `JobScope.State` |
-| `PropertySettingJobFactory.InstantiateJob` (sync) | `CreateJobInstance` → `ValueTask<JobScope>` |
-| `ITrigger.GetNextFireTimeUtc()` | `ITrigger.NextFireTimeUtc` (method kept as `[Obsolete]` forwarder) |
-| `IOperableTrigger.SetNextFireTimeUtc(v)` | `NextFireTimeUtc = v` on `IMutableTrigger` (no forwarder) |
-| `IThreadPool.RunInThread` / `BlockForAvailableThreads` | `TryRun(Func<ValueTask>)` / `WaitForAvailableThreads`, both `ValueTask` |
-| `IThreadPool.InstanceId` / `InstanceName` | removed — nothing read them |
-| `IObjectSerializer.DeSerialize` | `Deserialize`; `Initialize()` gone (options built on first use) |
-| `ITypeLoadHelper` | `ITypeLoader`; its `Initialize()` is gone |
-| `IInstanceIdGenerator` → `ValueTask<string?>` | `ValueTask<string>` |
-| `IRemotableSchedulerProxyFactory` | `ISchedulerProxyFactory` |
-| `ISchedulerListener.SchedulerShuttingdown` | `SchedulerShuttingDown` |
-| `IListenerManager.GetSchedulerListeners()` → `IReadOnlyCollection<T>` | `ISchedulerListener[]` |
-| `IJobStore.EstimatedTimeToReleaseAndAcquireTrigger` (`long` ms) | `TimeSpan` |
-| two `IJobStore.AcquireNextTriggers` overloads | one, taking a `TriggerAcquisitionRequest` record |
-| `IScheduler`/`IJobStore` `GetJobKeys` / `GetTriggerKeys` | `QueryJobs` / `QueryTriggers` → `PagedResult<JobHeader\|TriggerHeader>` |
-| `Get{Job,Trigger}GroupNames`, `GetPausedTriggerGroups`, `Is{Job,Trigger}GroupPaused` | `Query{Job,Trigger}Groups` with `JobGroupQuery`/`TriggerGroupQuery.Paused` |
-| `GetCalendarNames` | `QueryCalendarNames(CalendarQuery)` |
-| `IJobStore.GetNumberOf{Jobs,Triggers,Calendars}`, `CalendarExists` | a query with `Take = 0, IncludeTotalCount = true`; `RetrieveCalendar` non-null |
-| the eight removed `IScheduler` listing members | back as extension methods on `SchedulerQueryExtensions` — old call shapes still compile, but a null matcher now throws |
-| (new) | `IScheduler`/`IJobStore.GetJobDetails(keys)` / `GetTriggers(keys)` — bulk fetch by key |
-| `IScheduler.GetCurrentlyExecutingJobs()` | gone — `QueryFireInstances(FireInstanceQuery)` → `PagedResult<FireInstance>`, cluster-wide with a persistent store. Live-context uses keep their own `IJobListener`; `QuartzScheduler`'s internal sync member stays, so Interrupt is never a store round trip |
-| `IJobStore.Initialize(ct)` | `Initialize(SchedulerIdentity, ct)` — a generated instance id does not exist at construction |
-| (new) | `IDriverDelegate.SelectFireInstances(conn, FireInstanceQuery, ct)`; `FiredTriggerQuery` stays deliberately unpaged |
-| `ExecutionSlots.TryTake(executionGroup)` | `TryTake(executionGroup, triggerGroup)` — `ExecutionLimits.UsesTriggerGroupWhenUnset` may derive from the latter |
-| `IDriverDelegate.Select{Calendars,JobGroups(conn,ct),PausedTriggerGroups,Num*}` | `Select{CalendarNames,JobHeaders,TriggerHeaders,JobGroups,TriggerGroups}` taking a query record |
-| three `SelectFiredTriggerRecords*` + four `DeleteFiredTriggers` overloads | one of each, taking `FiredTriggerQuery` |
-| two `IDriverDelegate.SelectTriggerToAcquire` overloads | `SelectTriggersToAcquire(conn, TriggerAcquisitionCriteria, ct)` |
-| `GetSelectNextMisfiredTriggersInStateToAcquireSql` + dialect overrides | gone; dialect paging is `ApplyPaging` / `AddPagingParameters` |
-| `JobRunShell`, `IJobRunShellFactory` (public) | `internal` |
-
-### Configuration
-
-3.x configures from flat `quartz.*` strings and reflective instantiation. On main the container
-builds the scheduler; flat keys still work but are translated by `QuartzPropertyBridge`, which is
-the only place that understands them. A 3.x change that adds a property key needs a typed option
-plus a bridge entry on main.
-
-### Practical notes
-
-- **Ported code that fails to build is usually a rename, not a missing feature.** Check the tables
-  above and `docs/documentation/quartz-4.x/migration-guide.md`, which explains the reasoning for each.
 - **`docs/documentation/quartz-3.x/` must keep the old names.** Only update `quartz-4.x/`.
 - **Heading fragments are checked with the site's own slugger, not GitHub's.** `npm run docs:check-links`
   parses the docs with the markdown-it instance VuePress renders them with, so the ids it validates
@@ -234,8 +229,8 @@ plus a bridge entry on main.
   `docs/documentation/quartz-4.x/migration-guide.md`. Never hand-edit them.
 - **`3.x` carries the same baselines, so the 4.0 API delta is a `git diff`.** Reach for it when
   writing the migration guide, reviewing API ergonomics, or checking whether a 3.x change has a
-  counterpart here — it is exhaustive and always current, unlike the tables above. `git diff` takes
-  `<rev>:<path>` blob arguments, so this is the same command in PowerShell and bash:
+  counterpart here — it is exhaustive and always current, which no prose summary of the delta can be.
+  `git diff` takes `<rev>:<path>` blob arguments, so this is the same command in PowerShell and bash:
 
   ```shell
   git fetch origin
@@ -248,70 +243,17 @@ plus a bridge entry on main.
   git diff origin/3.x origin/main -- src/Quartz.Tests.Unit/Verify src/Quartz.Tests.AspNetCore/Verify
   ```
 
-  Package boundaries moved, so match the files up first:
-
-  | 3.x baseline | main baseline |
-  |---|---|
-  | `PublicApiTest_Quartz` | `PublicApiTest_Quartz` — ours also absorbs DI, Hosting and SystemTextJson |
-  | `PublicApiTest_Quartz.Extensions.DependencyInjection` | folded into `Quartz` (`Quartz.Configuration`) |
-  | `PublicApiTest_Quartz.Extensions.Hosting` | folded into `Quartz` (`src/Quartz/Hosting/`) |
-  | `PublicApiTest_Quartz.Serialization.SystemTextJson` | folded into `Quartz` (`SystemTextJsonObjectSerializer`) |
-  | `PublicApiTest_Quartz.Serialization.Json` | `PublicApiTest_Quartz.Serialization.Newtonsoft` |
-  | `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.Plugins.TimeZoneConverter`, `Quartz.Extensions.Redis`, `Quartz.AspNetCore`, `Quartz.Dashboard` | same name on both sides |
-  | `PublicApiTest_Quartz.OpenTracing` | dropped here |
-  | (no 3.x baseline — its ancient `OpenTelemetry` dependency fails restore there) | dropped here; use `OpenTelemetry.Instrumentation.Quartz` |
-  | — | `PublicApiTest_Quartz.HttpClient` — new here |
-
-  Two differences are systematic and are **not** deltas worth reporting: `Task` → `ValueTask` on
-  nearly every member, and the namespace moves tabulated above. 3.x snapshots on `net10.0` only, so
-  its `net472`/`REMOTING` surface never appears in the diff.
+  Package boundaries moved between the two, so match the files up first — the migration guide's
+  appendix says which 3.x baseline became which. Two differences are systematic and are **not**
+  deltas worth reporting: `Task` → `ValueTask` on nearly every member, and the namespace moves.
 - **Release notes live in GitHub releases, not in the repository.** There is no changelog file on
   either branch; the tag's release is the record. Unreleased 4.x notes accumulate in the `v4.0.0`
   draft release.
 
-## Key Conventions
+## Porting changes between 3.x and main
 
-- **File-scoped namespaces** — enforced as error (`csharp_style_namespace_declarations = file_scoped:error`).
-- **Explicit types over `var`** — prefer explicit types everywhere (`csharp_style_var_for_built_in_types = false`).
-- **Nullable enabled** globally; test projects may disable it.
-- **Warnings as errors** — `TreatWarningsAsErrors` is true; code style is enforced in build.
-- **`Quartz` builds with the trim analyzer on**, so an `IL2xxx` is an error. The known-reflective types are
-  recorded in `src/Quartz/TrimAnalysisBaseline.cs` (and mirrored for ILLink in `src/Quartz/ILLink.Suppressions.xml`,
-  which the worker example's trimmed publish applies). A warning in a type not listed there means new
-  reflection — fix it rather than adding a line; that file explains the order to try fixes in. Neither file
-  ships, so consumers still see every warning. Tracked on #3341.
-- **Allman brace style** — braces on new lines for methods, types, control blocks, properties, accessors, lambdas.
-- **No `DateTime.Now`/`DateTimeOffset.Now`** — banned via Roslyn analyzer (`BannedSymbols.txt`). Use `TimeProvider` instead.
-- **No implicit `DateTime` → `DateTimeOffset` cast** — also banned.
-- **All public APIs return `ValueTask`** rather than `Task` (e.g., `IJob.Execute`, `IScheduler` methods). This
-  holds for classes too. The single exception is `Quartz.Dashboard.Hubs.IQuartzDashboardHubClient`, whose shape
-  SignalR dictates: its typed-client proxy only implements `Task`-returning members, and it is emitted into a
-  dynamic assembly, so the interface and its DTOs cannot be internal either — a strong-named assembly can only
-  grant `InternalsVisibleTo` to a friend it names by public key. `QuartzDashboardHubClientProxyTest` is the guard.
-- **No `Async` suffix** on Quartz-authored members; the bare verb *is* the async one. Only names dictated by a BCL interface (`IHostedService`, `IAsyncDisposable`, `IHealthCheck`) carry it.
-- **Every async member ends with `CancellationToken cancellationToken = default`.** There are no exceptions left.
-- **Return concrete collection types, accept abstractions** — `List<T>` or `T[]` out, `IReadOnlyCollection<T>`/`IReadOnlyList<T>` in.
-- **No setter-only properties on interfaces.** Identity and configuration arrive by constructor or an explicit context parameter.
-- **Strong-named assemblies** — signed with `quartz.net.snk` (except examples).
-- **Central package management** — package versions in `Directory.Packages.props`.
-- **Single target** — everything targets `net10.0`.
-- **SDK**: .NET 10 SDK (see `global.json`), with `rollForward: latestMinor`.
-- **License headers** — source files include Apache 2.0 license region at the top.
-
-### Naming decisions that are settled
-
-Two spots look inconsistent on purpose. Both were examined and ratified in the 4.0 API-finalization
-pass; do not "finish" either one.
-
-- **The scheduler's noun is `JobDetail`; the store's noun is `Job`.** `IScheduler` hands users
-  `IJobDetail`, so it says `GetJobDetail`/`GetJobDetails`. `IJobStore` speaks in storage terms, so it
-  says `GetJob`/`GetJobs` (beside `GetTrigger`/`GetTriggers`). Singular/plural pairs are consistent
-  *within* each interface; the two interfaces deliberately differ, and aligning one with the other
-  would break the consistent pairs on whichever side got "fixed".
-- **`StdAdoDelegate` and the `*Delegate` dialect family keep their names.** "A class named Delegate
-  that isn't a delegate" is regrettable in .NET, but this vocabulary is Quartz's cross-ecosystem
-  identity: Java parity, twenty years of Stack Overflow answers, `quartz.jobStore.driverDelegateType`
-  spelled in countless configuration files, `database/README.md`, and the dialect docs all teach
-  against `IDriverDelegate`/`SqlServerDelegate`/`PostgreSQLDelegate`/…. The `Std` prefix was retired
-  everywhere else (the semaphore renames finished that); `StdAdoDelegate` is the sole deliberate
-  survivor, because renaming it would orphan the pedagogy without helping anyone.
+`3.x` is the maintenance branch and `main` is 4.x, and a change written against one usually needs
+relocating for the other. **The map is `docs/documentation/quartz-4.x/migration-guide.md`** — every
+namespace move, every contract that changed shape, and an appendix indexed by the name you would have
+typed. Ported code that fails to build is usually a rename, not a missing feature, so look there
+before assuming the feature is missing.
