@@ -150,6 +150,22 @@ public class RAMJobStoreClusterLimitTest
             "the in-flight count and the acquisition filter have to key work the same way, or the derived group would be counted in one bucket and spent from another");
     }
 
+    [Test]
+    public async Task ATriggerTurnedAwayByTheCeilingIsStillThereForTheNextAttempt()
+    {
+        await GivenDueTrigger("held", Tenant);
+        await AcquireWith(limits: null, maxCount: 1);
+
+        await GivenDueTrigger("candidate", Tenant);
+
+        (await AcquireWith(ClusterLimit(1))).Should().BeEmpty("the group's one slot is spoken for");
+
+        // Nothing has changed about the candidate; only the ceiling turned it away. An attempt with no
+        // ceiling must still find it, which it can only do if the refused attempt put it back.
+        (await AcquireWith(limits: null, maxCount: 1)).Should().ContainSingle(
+            "a trigger refused by a limit is set aside for the batch and returned to the store afterwards, not consumed by the attempt that refused it");
+    }
+
     private static ExecutionLimits ClusterLimit(int maxConcurrent)
     {
         return ExecutionLimitsBuilder.Create()

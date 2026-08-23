@@ -712,15 +712,18 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
         DayOfWeek dayOfWeekOfFireTime = fireTimeStartDateCal.DayOfWeek;
 
         // b2. We need to advance to another day if isAfterTimePassEndTimeOfDay is true, or dayOfWeek is not set.
-        var daysOfWeek = new HashSet<DayOfWeek>(DaysOfWeek);
-        if (forceToAdvanceNextDay || !daysOfWeek.Contains(dayOfWeekOfFireTime))
+        // Read once into a local rather than copied. The set is only ever replaced whole — the property's
+        // setter copies what it is handed — so a local already holds one consistent set for the length of
+        // the walk, which is the only thing the copy was buying. This runs on the way to every fire time.
+        HashSet<DayOfWeek> days = DaySet;
+        if (forceToAdvanceNextDay || !days.Contains(dayOfWeekOfFireTime))
         {
             // Advance one day at a time until next available date.
             for (int i = 1; i <= 7; i++)
             {
                 fireTimeStartDateCal = fireTimeStartDateCal.AddDays(1);
                 dayOfWeekOfFireTime = fireTimeStartDateCal.DayOfWeek;
-                if (daysOfWeek.Contains(dayOfWeekOfFireTime))
+                if (days.Contains(dayOfWeekOfFireTime))
                 {
                     fireTime = fireTimeStartDateCal;
                     // apply timezone for this date & time; resolve from the wall-clock time, not the
@@ -826,14 +829,7 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
     /// </returns>
     public IReadOnlyCollection<DayOfWeek> DaysOfWeek
     {
-        get
-        {
-            if (daysOfWeek is null)
-            {
-                daysOfWeek = new HashSet<DayOfWeek>(DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek);
-            }
-            return daysOfWeek;
-        }
+        get => DaySet;
 
         set
         {
@@ -849,6 +845,16 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
             daysOfWeek = new HashSet<DayOfWeek>(value);
         }
     }
+
+    /// <summary>
+    /// <see cref="DaysOfWeek" /> as the set it is, defaulted on first read.
+    /// </summary>
+    /// <remarks>
+    /// The fire-time walk asks this set up to seven questions per fire time, and
+    /// <see cref="IReadOnlyCollection{T}" /> can answer none of them without a lookup of its own, which
+    /// is why the walk used to copy the set into one it could ask. It reads this instead.
+    /// </remarks>
+    private HashSet<DayOfWeek> DaySet => daysOfWeek ??= [.. DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek];
 
     /// <summary>
     /// The time of day to start firing at the given interval. Defaults to <c>00:00:00</c>.

@@ -1703,4 +1703,28 @@ public class DailyTimeIntervalTriggerImplTest
             times[i].Should().BeAfter(times[i - 1], $"fire time {i} must come after fire time {i - 1}");
         }
     }
+
+    [Test]
+    public void TheDayWalkReadsTheTriggersCurrentDaySet()
+    {
+        DailyTimeIntervalTriggerImpl trigger = new()
+        {
+            StartTimeUtc = TestDates.DateOf(0, 0, 0, 1, 1, 2011).ToUniversalTime(), // Saturday
+            StartTimeOfDay = new TimeOnly(8, 0, 0),
+            EndTimeOfDay = new TimeOnly(17, 0, 0),
+            DaysOfWeek = [DayOfWeek.Monday],
+            RepeatIntervalUnit = IntervalUnit.Minute,
+            RepeatInterval = 60,
+        };
+
+        trigger.ComputeFirstFireTimeUtc(null);
+        trigger.GetFireTimeAfter(TestDates.DateOf(0, 0, 0, 1, 1, 2011)).Should()
+            .Be(TestDates.DateOf(8, 0, 0, 3, 1, 2011), "Monday the 3rd is the first day the trigger runs on");
+
+        trigger.DaysOfWeek = [DayOfWeek.Sunday];
+
+        trigger.GetFireTimeAfter(TestDates.DateOf(0, 0, 0, 1, 1, 2011)).Should()
+            .Be(TestDates.DateOf(8, 0, 0, 2, 1, 2011),
+                "the walk that skips over days the trigger does not run on must ask the set the trigger holds now, not one it read earlier");
+    }
 }

@@ -2469,9 +2469,13 @@ public sealed class RAMJobStore : IJobStore
                 return [];
             }
 
-            var result = new List<IOperableTrigger>();
-            var acquiredJobKeysForNoConcurrentExec = new HashSet<JobKey>();
-            var excludedTriggers = new HashSet<TriggerWrapper>();
+            List<IOperableTrigger> result = [];
+
+            // Both sets stay null until something needs them. Only a job that disallows concurrent
+            // execution fills the first, and only a trigger that is turned away fills the second, so on
+            // the attempts that dominate a running scheduler neither is ever created.
+            HashSet<JobKey>? acquiredJobKeysForNoConcurrentExec = null;
+            HashSet<TriggerWrapper>? excludedTriggers = null;
             DateTimeOffset batchEnd = request.NoLaterThan;
 
             // execution limits will be modified during processing
@@ -2541,8 +2545,10 @@ public sealed class RAMJobStore : IJobStore
                 // of time triggers after we've completed the current batch) and skip the trigger.
                 if (job.ConcurrentExecutionDisallowed)
                 {
+                    acquiredJobKeysForNoConcurrentExec ??= [];
                     if (!acquiredJobKeysForNoConcurrentExec.Add(jobKey))
                     {
+                        excludedTriggers ??= [];
                         excludedTriggers.Add(tw);
                         continue; // go to next trigger in store.
                     }
@@ -2555,6 +2561,7 @@ public sealed class RAMJobStore : IJobStore
                     // an execution group the trigger does not carry.
                     if (!executionSlots.TryTake(tw.Trigger.ExecutionGroup, tw.TriggerKey.Group))
                     {
+                        excludedTriggers ??= [];
                         excludedTriggers.Add(tw);
                         continue;
                     }
@@ -2591,7 +2598,7 @@ public sealed class RAMJobStore : IJobStore
             }
 
             // If we did excluded triggers to prevent ACQUIRE state due to DisallowConcurrentExecution, we need to add them back to store.
-            if (excludedTriggers.Count > 0)
+            if (excludedTriggers is not null)
             {
                 foreach (var excludedTrigger in excludedTriggers)
                 {
