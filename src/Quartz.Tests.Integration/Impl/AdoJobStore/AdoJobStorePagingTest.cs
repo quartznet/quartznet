@@ -143,6 +143,7 @@ public class AdoJobStorePagingTest
             await AssertTriggerPaging(scheduler);
             await AssertTriggerStateFiltering(scheduler);
             await AssertBatchReadRoundTrip(scheduler);
+            await AssertJobGroupPauseState(scheduler);
         }
         finally
         {
@@ -460,6 +461,54 @@ public class AdoJobStorePagingTest
 
         (await scheduler.GetJobDetails([])).Should().BeEmpty();
         (await scheduler.GetTriggers([])).Should().BeEmpty();
+    }
+
+    /// <summary>
+    /// The job group listing's three shapes against a real database.
+    /// </summary>
+    /// <remarks>
+    /// The paused variants are the ones worth running per dialect: the unfiltered and unpaused
+    /// statements carry a correlated subquery over PAUSED_JOB_GRPS that binds the scheduler name once
+    /// and matches the outer SCHED_NAME column for the rest, which is exactly the shape a provider
+    /// with positional parameter binding gets wrong. The paused-only statement reads the other table
+    /// entirely, so nothing but a real round trip proves the two agree.
+    /// </remarks>
+    private static async Task AssertJobGroupPauseState(IScheduler scheduler)
+    {
+        PagedResult<JobGroup> before = await scheduler.QueryJobGroups(new JobGroupQuery { IncludeTotalCount = true });
+        before.Items.Select(x => x.Name).Should().BeEquivalentTo(Groups);
+        before.Items.Should().OnlyContain(x => !x.Paused, "nothing has been paused yet");
+        before.TotalCount.Should().Be(Groups.Length);
+
+        await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals(GroupUnderscore));
+
+        try
+        {
+            PagedResult<JobGroup> paused = await scheduler.QueryJobGroups(new JobGroupQuery { Paused = true, IncludeTotalCount = true });
+            paused.Items.Select(x => x.Name).Should().Equal([GroupUnderscore],
+                "the pause is recorded for the group that was named, and only that group");
+            paused.TotalCount.Should().Be(1, "the count matches the listing it counts");
+
+            PagedResult<JobGroup> unpaused = await scheduler.QueryJobGroups(new JobGroupQuery { Paused = false, IncludeTotalCount = true });
+            unpaused.Items.Select(x => x.Name).Should().BeEquivalentTo([GroupA, GroupC],
+                "the unpaused listing is the complement of the paused one");
+            unpaused.TotalCount.Should().Be(2);
+
+            PagedResult<JobGroup> named = await scheduler.QueryJobGroups(new JobGroupQuery { Name = GroupUnderscore, Take = 1 });
+            named.Items.Should().ContainSingle().Which.Paused.Should().BeTrue(
+                "the unfiltered listing reports each group's own state, and '_' in the name is a literal");
+
+            PagedResult<JobGroup> countOnly = await scheduler.QueryJobGroups(new JobGroupQuery { Paused = true, Take = 0, IncludeTotalCount = true });
+            countOnly.Items.Should().BeEmpty();
+            countOnly.TotalCount.Should().Be(1, "a count-only query answers the same total as the listing");
+        }
+        finally
+        {
+            await scheduler.ResumeJobs(GroupMatcher<JobKey>.GroupEquals(GroupUnderscore));
+        }
+
+        (await scheduler.QueryJobGroups(new JobGroupQuery { Paused = true })).Items.Should().BeEmpty(
+            "resuming the group takes its row back out");
     }
 
     [TearDown]
