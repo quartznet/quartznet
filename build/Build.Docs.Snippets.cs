@@ -31,6 +31,11 @@ using Serilog;
 /// takes the directory predicates as parameters, so they are spelled out below instead.
 /// </para>
 /// <para>
+/// The per-package <c>src/&lt;Package&gt;/README.md</c> files nuget.org shows are processed alongside the
+/// documentation. A sample on a package page is the first code a new user meets, so it is the last place
+/// that should be allowed to rot.
+/// </para>
+/// <para>
 /// Three things fail rather than warn: a marker naming a snippet that does not exist, a marker that came
 /// out empty (which is how a skipped directory would show up), and markdown that does not match what the
 /// samples currently say. The last one is why <see cref="VerifyDocsSnippets" /> exists — the upstream tool
@@ -43,6 +48,11 @@ public partial class Build
     AbsolutePath DocsDirectory => RootDirectory / "docs";
 
     AbsolutePath DocumentationSamplesDirectory => SourceDirectory / "Quartz.Documentation.Samples";
+
+    /// <summary>
+    /// The readmes nuget.org renders on the package pages. One per packable project, beside its csproj.
+    /// </summary>
+    IEnumerable<AbsolutePath> PackageReadmeFiles => SourceDirectory.GlobFiles("*/README.md");
 
     /// <summary>
     /// Markdown trees that are frozen at the names their release shipped with, or are not documentation.
@@ -84,6 +94,7 @@ public partial class Build
         var markdownFiles = DocsDirectory
             .GlobFiles("**/*.md")
             .Where(x => !IsExcludedMarkdown(x))
+            .Concat(PackageReadmeFiles)
             .ToList();
 
         var before = markdownFiles.ToDictionary(x => x.ToString(), x => File.ReadAllText(x), StringComparer.Ordinal);
@@ -92,7 +103,7 @@ public partial class Build
             RootDirectory,
             appendSnippets: AppendSnippet,
             directoryIncludes: ShouldTraverse,
-            markdownDirectoryIncludes: IsDocumentationDirectory,
+            markdownDirectoryIncludes: HoldsProcessedMarkdown,
             snippetDirectoryIncludes: IsSampleDirectory,
             convention: DocumentConvention.InPlaceOverwrite,
             log: x => Log.Debug("{Message}", x),
@@ -182,8 +193,18 @@ public partial class Build
     static bool ShouldTraverse(string path) =>
         !TraversalExclusions.Contains(Path.GetFileName(path), StringComparer.OrdinalIgnoreCase);
 
+    bool HoldsProcessedMarkdown(string path) =>
+        IsDocumentationDirectory(path) || IsPackageDirectory(path);
+
     bool IsDocumentationDirectory(string path) =>
         IsUnder(path, DocsDirectory) && !IsExcludedMarkdown(path);
+
+    /// <summary>
+    /// A project directory directly under <c>src</c>, which is where a package's own README.md sits.
+    /// Deeper directories are left out on purpose: nothing else under <c>src</c> is published markdown.
+    /// </summary>
+    bool IsPackageDirectory(string path) =>
+        NormalizePath(Path.GetDirectoryName(path) ?? "").Equals(NormalizePath(SourceDirectory), StringComparison.OrdinalIgnoreCase);
 
     bool IsSampleDirectory(string path) => IsUnder(path, DocumentationSamplesDirectory);
 

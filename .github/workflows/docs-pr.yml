@@ -11,6 +11,10 @@ on:
       # the compiled samples the documentation shows, and the target that injects them
       - 'src/Quartz.Documentation.Samples/**'
       - 'build/**'
+      # the package readmes carry the same snippet markers, so they go stale the same way. Only the
+      # pull request job: they are not site content, so a readme alone must not trigger a deploy that
+      # would then find nothing to commit.
+      - 'src/*/README.md'
 permissions:
   contents: read
 jobs:
