@@ -3507,7 +3507,9 @@ changes unless you call it. See
 [Execution Groups](/documentation/quartz-4.x/tutorial/execution-groups.html#letting-the-trigger-group-stand-in).
 
 One signature moved with it: `ExecutionSlots.TryTake` takes the trigger group as a second argument, so a
-job store of your own cannot silently opt out of the derivation by not passing it.
+job store of your own cannot silently opt out of the derivation by not passing it. Whether the second
+argument is used at all is `ExecutionLimits.UsesTriggerGroupWhenUnset`, which is what the builder method
+sets.
 
 ```diff
 - if (!slots.TryTake(candidate.ExecutionGroup))
@@ -4643,6 +4645,10 @@ your job. `IJobExecutionContext.JobInstance` and every listener now see the type
 `CreateJobInstance` shown above. The old hook was synchronous even after `NewJob` became asynchronous, so a factory
 that needed to do real work had to override `NewJob` outright and reimplement the property setting.
 
+There is one job factory interface again. 3.x carried a second, internal `IJobWithAsyncReturnFactory` beside
+`IJobFactory`, so that a factory returning its job asynchronously could be recognised without changing the
+released interface; the asynchronous shape is `IJobFactory`'s own now, and the internal one is gone.
+
 `SimpleJobFactory`'s `protected static Dispose(object?)` helper is `DisposeIfDisposable(object?, CancellationToken)`,
 which is what it has always done: it disposes the argument only when the argument is disposable.
 
@@ -4794,7 +4800,9 @@ directly. **The `quartz.threadPool.threadCount` configuration key is unaffected*
 
 `Quartz.Spi` is now `Quartz.Extensibility`, and `Quartz.Simpl` merged into the existing `Quartz.Impl`. Both old
 names were transliterations of `org.quartz.spi` and `org.quartz.simpl`. For source code this is a find-and-replace
-over `using` directives that the compiler will walk you through.
+over `using` directives that the compiler will walk you through. Quartz's own directory layout followed, so if you
+read the source or port a patch between the branches, `src/Quartz/SPI/` is `src/Quartz/Extensibility/` and
+`src/Quartz/Simpl/` is `src/Quartz/Impl/`.
 
 Configuration is the part that would not have failed loudly, because it names types by string:
 
@@ -7108,7 +7116,22 @@ explaining it a second time.
 It is derived mechanically, by diffing the public API baselines both branches keep under
 `src/Quartz.Tests.Unit/Verify/` and `src/Quartz.Tests.AspNetCore/Verify/`, so it names **every**
 public type 3.x had and 4.0 does not — all 94, across every package — rather than the ones that came
-to mind.
+to mind. If you want the raw delta for one package rather than this summary, `git diff` its baseline
+across the two branches; package boundaries moved, so match the files up with this first:
+
+| 3.x baseline | 4.x baseline |
+|---|---|
+| `PublicApiTest_Quartz` | `PublicApiTest_Quartz` — which also absorbs DI, Hosting and SystemTextJson |
+| `PublicApiTest_Quartz.Extensions.DependencyInjection` | folded into `Quartz` (`Quartz.Configuration`) |
+| `PublicApiTest_Quartz.Extensions.Hosting` | folded into `Quartz` (`src/Quartz/Hosting/`) |
+| `PublicApiTest_Quartz.Serialization.SystemTextJson` | folded into `Quartz` (`SystemTextJsonObjectSerializer`) |
+| `PublicApiTest_Quartz.Serialization.Json` | `PublicApiTest_Quartz.Serialization.Newtonsoft` |
+| `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.Plugins.TimeZoneConverter`, `Quartz.Extensions.Redis`, `Quartz.AspNetCore`, `Quartz.Dashboard` | same name on both sides |
+| `PublicApiTest_Quartz.OpenTracing` | dropped; there is no 4.x package |
+| (no 3.x baseline — its ancient `OpenTelemetry` dependency fails restore there) | dropped; use [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz) |
+| — | `PublicApiTest_Quartz.HttpClient` — new in 4.x |
+
+3.x snapshots `net10.0` only, so its `net472` and `REMOTING` surface never appears in that diff.
 
 Two whole-surface changes are deliberately left out, because repeating them per type would bury
 everything else: `Task` became [`ValueTask`](#tasks-changed-to-valuetask) on nearly every member, and
