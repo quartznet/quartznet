@@ -3130,6 +3130,20 @@ needs the same annotation:
       => q.ScheduleJob<TJob>(t => t.StartNow());
 ```
 
+`Quartz` is also marked `IsTrimmable` now, which changes what a trimmed publish tells you about it. On
+3.x the assembly is not marked, so ILLink collapses everything it finds in Quartz into one
+`IL2104: Assembly 'Quartz' produced trim warnings`. On 4.0 you get the individual warnings instead —
+around fifty of them, at the reflective call sites listed in `src/Quartz/TrimAnalysisBaseline.cs`.
+
+That is not a regression: the same reflection was there before and the same code could break under
+trimming; you can now see which parts. Quartz is **not** trim-safe yet, and none of those warnings is
+suppressed in the shipped assembly, deliberately — suppressing them would hide a real risk from you.
+Configuration by flat `quartz.*` keys, jobs named as strings (`job_scheduling_data` XML, a persisted
+`JOB_CLASS_NAME`), and `JobDataMap` values bound onto job properties are the paths that need reflection;
+an application that configures in code, references its job types statically and keeps job data to
+primitives exercises far less of it. Progress is tracked on
+[#3341](https://github.com/quartznet/quartznet/issues/3341).
+
 ## Executing is a trigger state
 
 There was no way to ask whether a trigger's job is running right now. 3.x's
