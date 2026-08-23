@@ -15,6 +15,18 @@
     <PackageReference Include="BenchmarkDotNet" />
   </ItemGroup>
 
+  <!--
+    ExecutionCeilingBenchmark measures statements against a real database, so it needs the two drivers
+    the issue asks for numbers on. The databases themselves are started outside the benchmark and named
+    by environment variables. BenchmarkDotNet runs a process per benchmark case, so a container owned by
+    the benchmark would be started and thrown away ninety-odd times in one sweep. Nothing else here
+    touches a database; every other benchmark runs against stubs.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
   </ItemGroup>

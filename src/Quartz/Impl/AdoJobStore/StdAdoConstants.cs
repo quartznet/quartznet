@@ -671,6 +671,13 @@ internal static class StdAdoConstants
     /// counting its rows until recovery deletes them under-serves the quota instead, and that is the
     /// direction a quota should err in.
     /// </para>
+    /// <para>
+    /// No index leads with EXECUTION_GROUP, and <c>ExecutionCeilingBenchmark</c> is why (#3364): up to
+    /// about a thousand rows in flight this statement costs a round trip and almost nothing else, so a
+    /// covering index buys nothing measurable, and it would be a write cost on a table every firing
+    /// inserts into and deletes from. Past that the scan does show, and the tuning note in
+    /// <c>execution-groups.md</c> carries the index for the deployments that get there.
+    /// </para>
     /// </remarks>
     public static readonly string SqlSelectExecutionGroupsInFlight =
         Invariant($"SELECT {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnTriggerGroup}, COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName GROUP BY {AdoConstants.ColumnExecutionGroup}, {AdoConstants.ColumnTriggerGroup}");
