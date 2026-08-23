@@ -269,6 +269,11 @@ plus a bridge entry on main.
 - **Explicit types over `var`** — prefer explicit types everywhere (`csharp_style_var_for_built_in_types = false`).
 - **Nullable enabled** globally; test projects may disable it.
 - **Warnings as errors** — `TreatWarningsAsErrors` is true; code style is enforced in build.
+- **`Quartz` builds with the trim analyzer on**, so an `IL2xxx` is an error. The known-reflective types are
+  recorded in `src/Quartz/TrimAnalysisBaseline.cs` (and mirrored for ILLink in `src/Quartz/ILLink.Suppressions.xml`,
+  which the worker example's trimmed publish applies). A warning in a type not listed there means new
+  reflection — fix it rather than adding a line; that file explains the order to try fixes in. Neither file
+  ships, so consumers still see every warning. Tracked on #3341.
 - **Allman brace style** — braces on new lines for methods, types, control blocks, properties, accessors, lambdas.
 - **No `DateTime.Now`/`DateTimeOffset.Now`** — banned via Roslyn analyzer (`BannedSymbols.txt`). Use `TimeProvider` instead.
 - **No implicit `DateTime` → `DateTimeOffset` cast** — also banned.
