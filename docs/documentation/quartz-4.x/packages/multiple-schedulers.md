@@ -175,6 +175,12 @@ The repository is scoped to the container, not the process. A scheduler built by
 [the migration guide](../migration-guide.md#no-process-global-scheduler-or-connection-state).
 :::
 
+To ask what the container has *registered* rather than what it has built, resolve `ISchedulerRegistry`
+and call `QuerySchedulers()`. It returns one `SchedulerRegistration` per registration — plus one for
+anything bound into the repository without a registration behind it — and reports a `null` `Status` for a
+scheduler that has not been created, without creating it. That is the call for an inventory; `LookupAll`
+stays the call for the live schedulers themselves.
+
 ## Mixing Default and Named Schedulers
 
 You can combine the traditional unnamed `AddQuartz()` with named schedulers:

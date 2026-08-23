@@ -82,6 +82,33 @@ Trying to give a named scheduler and the default scheduler the same name is caug
 calls, rather than as a duplicate-name `ArgumentException` from somewhere inside host start. Names are
 compared case-insensitively.
 
+### Listing them
+
+`ISchedulerFactory.GetAllSchedulers()` lists the schedulers something has already *created*. Under this
+model that is the wrong question: a tenant nobody has asked for yet is still a tenant, and building every
+one of them to find out what exists is exactly the cost you were avoiding.
+
+`ISchedulerRegistry` reads the registrations instead:
+
+```csharp
+ISchedulerRegistry registry = provider.GetRequiredService<ISchedulerRegistry>();
+
+foreach (SchedulerRegistration tenant in await registry.QuerySchedulers())
+{
+    Console.WriteLine($"{tenant.Name}: {tenant.Status?.ToString() ?? "registered, not created"}");
+}
+```
+
+`Status` is `null` exactly when nothing has been built under that name, and asking does not build it.
+`Origin` says where the scheduler came from: `Container` for one `AddQuartz` registered, `Runtime` for
+one that is in the repository without a registration behind it — a `QuartzSchedulerBuilder` scheduler
+bound by hand, or a remote scheduler from `AddQuartzHttpClient`. The default scheduler appears under its
+configured `InstanceName`.
+
+Under `AddQuartzHostedService()` every registration is created and started before the application runs,
+so once the host is up the distinction matters less than it looks. It matters when you resolve schedulers
+yourself, when a start failed, and whenever you want an inventory rather than a list of live objects.
+
 ### What is per scheduler
 
 Almost everything. Each named scheduler gets its own keyed registration of the job factory, the
@@ -112,6 +139,7 @@ A handful of things are container-wide, shared by every scheduler in the process
 |---|---|
 | `ITypeLoader` | type loading is a container-wide concern; `UseTypeLoader<T>()` **replaces** it for everyone |
 | `ISchedulerRepository` | one per container — that is what makes `GetAllSchedulers` and the dashboard see all of them |
+| `ISchedulerRegistry` | one per container — it answers for every registration in it, which is what makes it an inventory rather than a scheduler's own view |
 | `SystemTextJsonSerializerRegistry` | the HTTP API, the dashboard and the HTTP client serialize triggers without knowing which scheduler they came from |
 | `Meters` | built from the container's `IMeterFactory` |
 | `DataSourceOptions` | named after the **data source**, not the scheduler, so several schedulers can read through the same one |
@@ -339,9 +367,11 @@ authorizes on the `{schedulerName}` route segment.
 
 **Tenants cannot be onboarded at runtime *through the DI path*.** Schedulers are registered against
 `IServiceCollection`, which is closed once the container is built, and the hosted service enumerates
-them once at start. Nor can a scheduler be restarted after `Shutdown()`: the container owns its parts'
-lifetimes, and `GetScheduler()` throws rather than resurrecting a thread pool and a job store
-underneath a scheduler that can never run again. `Standby()` / `Start()` is the pause-and-resume pair.
+them once at start. (Enumerating what *is* registered no longer requires starting anything —
+[`ISchedulerRegistry`](#listing-them) — but adding to it does still require a new container.) Nor can a
+scheduler be restarted after `Shutdown()`: the container owns its parts' lifetimes, and `GetScheduler()`
+throws rather than resurrecting a thread pool and a job store underneath a scheduler that can never run
+again. `Standby()` / `Start()` is the pause-and-resume pair.
 
 That is a limit of the DI path, not of the library. `QuartzSchedulerBuilder` builds a scheduler from a
 container of its own, at any point in the process's life, and `ISchedulerRepository.Bind` makes the
