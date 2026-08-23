@@ -126,11 +126,21 @@ partial class Build : FalloutBuild, ICompile, IPack
         .SetVersionPrefix(VersionPrefix)
         .SetVersionSuffix(VersionSuffix);
 
-    Target PublishAot => _ => _
+    /// <summary>
+    /// Publishes the example applications, one of which is the repository's trim canary.
+    /// </summary>
+    /// <remarks>
+    /// Named <c>PublishAot</c> until issue #3341: nothing here has ever published native AOT, and
+    /// leaving the misnomer in place would have collided with the real thing when it arrives.
+    /// <c>Quartz.Examples.Worker</c> publishes fully trimmed over Quartz and nothing else, so an IL2xxx
+    /// warning it reports is Quartz's own and fails this leg. <c>Quartz.Examples.AspNetCore</c> is a
+    /// plain publish, because Razor Pages, MVC and Blazor Server are not trimmable and never will be —
+    /// its csproj says so at length.
+    /// </remarks>
+    Target PublishTrimmed => _ => _
         .After<ICompile>()
         .Executes(() =>
         {
-            // also check that publish with trimming doesn't produce errors
             var solution = ((IHasSolution) this).Solution;
             var configuration = ((ICompile) this).Configuration;
 
