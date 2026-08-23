@@ -179,6 +179,12 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     /// <summary>
     /// Builds the scheduler.
     /// </summary>
+    /// <remarks>
+    /// The factory that owns the container is dropped, so the container outlives every reference to it:
+    /// shutting this scheduler down is still <see cref="IScheduler.Shutdown"/>, but nothing will ever
+    /// dispose what built it. That is the right trade for a scheduler that lives as long as the process
+    /// and the wrong one for anything shorter-lived — use <see cref="Build"/> and keep the factory there.
+    /// </remarks>
     public ValueTask<IScheduler> BuildScheduler(CancellationToken cancellationToken = default)
     {
         return Build().GetScheduler(cancellationToken);
