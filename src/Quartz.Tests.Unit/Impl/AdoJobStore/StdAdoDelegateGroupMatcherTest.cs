@@ -339,6 +339,84 @@ public class StdAdoDelegateGroupMatcherTest
         parameters.Value("@triggerGroup").Should().Be("50!%%");
     }
 
+    /// <summary>
+    /// The completion path wants the job's triggers in one state, not all of them and then a state read
+    /// per trigger, so the filter belongs in the statement.
+    /// </summary>
+    [Test]
+    public async Task SelectTriggerKeysForJob_WithAState_FiltersOnIt()
+    {
+        await adoDelegate.SelectTriggerKeysForJob(conn, new JobKey("j1", "jg1"), StoredTriggerState.Waiting);
+
+        command.CommandText.Should().Be(
+            "SELECT TRIGGER_NAME, TRIGGER_GROUP FROM QRTZ_TRIGGERS "
+            + "WHERE SCHED_NAME = @schedulerName AND JOB_NAME = @jobName AND JOB_GROUP = @jobGroup "
+            + "AND TRIGGER_STATE = @state");
+        parameters.Value("@state").Should().Be(AdoConstants.StateWaiting);
+    }
+
+    [Test]
+    public async Task SelectTriggerKeysForJob_WithoutAState_AsksForAllOfThem()
+    {
+        await adoDelegate.SelectTriggerKeysForJob(conn, new JobKey("j1", "jg1"));
+
+        command.CommandText.Should().NotContain("TRIGGER_STATE");
+    }
+
+    /// <summary>
+    /// The type discriminator rides along with the state, because the fire path needs both and they are
+    /// on the same row.
+    /// </summary>
+    [Test]
+    public async Task SelectTriggerHeader_ReadsTheTypeDiscriminatorToo()
+    {
+        await adoDelegate.SelectTriggerHeader(conn, new TriggerKey("t1", "g1"));
+
+        command.CommandText.Should().Be(
+            "SELECT TRIGGER_STATE, NEXT_FIRE_TIME, JOB_NAME, JOB_GROUP, TRIGGER_TYPE FROM QRTZ_TRIGGERS "
+            + "WHERE SCHED_NAME = @schedulerName AND TRIGGER_NAME = @triggerName AND TRIGGER_GROUP = @triggerGroup");
+    }
+
+    [Test]
+    public async Task SelectTriggerHeader_ReadsEveryColumnOffTheOneRow()
+    {
+        DateTimeOffset nextFireTime = new(2026, 8, 23, 10, 0, 0, TimeSpan.Zero);
+        DbDataReader reader = A.Fake<DbDataReader>();
+        bool firstRead = true;
+        A.CallTo(() => reader.ReadAsync(A<CancellationToken>._)).ReturnsLazily(() =>
+        {
+            bool result = firstRead;
+            firstRead = false;
+            return result;
+        });
+        A.CallTo(() => reader[AdoConstants.ColumnTriggerState]).Returns(AdoConstants.StateAcquired);
+        A.CallTo(() => reader[AdoConstants.ColumnNextFireTime]).Returns(nextFireTime.UtcTicks);
+        A.CallTo(() => reader[AdoConstants.ColumnJobName]).Returns("j1");
+        A.CallTo(() => reader[AdoConstants.ColumnJobGroup]).Returns("jg1");
+        A.CallTo(() => reader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeCron);
+
+        A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+            .WithReturnType<Task<DbDataReader>>()
+            .Returns(Task.FromResult(reader));
+
+        StoredTriggerHeader header = await adoDelegate.SelectTriggerHeader(conn, new TriggerKey("t1", "g1"));
+
+        header.Should().NotBeNull();
+        header.State.Should().Be(StoredTriggerState.Acquired);
+        header.JobKey.Should().Be(new JobKey("j1", "jg1"));
+        header.NextFireTimeUtc.Should().Be(nextFireTime);
+        header.TriggerType.Should().Be(AdoConstants.TriggerTypeCron,
+            "the discriminator is what saves the fire path a second read of the same row");
+    }
+
+    [Test]
+    public async Task SelectTriggerHeader_ReportsNoRowAsNoHeader()
+    {
+        StoredTriggerHeader header = await adoDelegate.SelectTriggerHeader(conn, new TriggerKey("gone", "g1"));
+
+        header.Should().BeNull("a trigger that has no row has no state to speak of either");
+    }
+
     [Test]
     public async Task SelectTriggerStateWithExecuting_BuildsExpectedSql()
     {

@@ -106,6 +106,26 @@ public class UpdateMisfiredTriggersBatchTest
         del.PreparedCommands.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// One misfire is two statements as well — the trigger's narrow update and its schedule — and they
+    /// had no more reason to be two round trips than a whole batch does.
+    /// </summary>
+    [Test]
+    public async Task BatchesTheTwoStatementsOfASingleMisfireUpdate()
+    {
+        var connection = new StubBatchingConnection();
+        var conn = new ConnectionAndTransactionHolder(connection, null);
+        CountingDelegate del = CreateDelegate();
+
+        MisfiredTriggerUpdate update = CreateUpdates(1)[0];
+
+        await del.UpdateMisfiredTrigger(conn, update.Trigger, update.NewState, update.MisfireOriginalFireTime);
+
+        connection.Batches.Should().HaveCount(1);
+        connection.Batches[0].Commands.Should().HaveCount(2);
+        del.PreparedCommands.Should().BeEmpty();
+    }
+
     [Test]
     public async Task DoesNothingForAnEmptyBatch()
     {

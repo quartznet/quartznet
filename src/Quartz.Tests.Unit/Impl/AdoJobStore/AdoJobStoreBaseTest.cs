@@ -404,6 +404,58 @@ public class AdoJobStoreBaseTest
             "the trigger has moved on to its next fire by the time the write goes out, which is exactly why the scheduled time travels separately");
     }
 
+    /// <summary>
+    /// One batch cannot name the statement that failed, so the message names the fire instead — and it
+    /// still has to be a <see cref="JobPersistenceException" />, which is what the surrounding retry and
+    /// the per-trigger failure result are written against.
+    /// </summary>
+    [Test]
+    public async Task TriggerFired_WrapsAFailedWriteAsAPersistenceException()
+    {
+        ConnectionAndTransactionHolder conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IOperableTrigger trigger = CreateTestTrigger();
+        IJobDetail job = CreateConcurrentJob();
+
+        GivenAcquiredTrigger(conn, trigger);
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>(job));
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(conn, A<TriggerFiredUpdate>.Ignored, A<CancellationToken>.Ignored))
+            .ThrowsAsync(new InvalidOperationException("deadlock victim"));
+
+        Func<Task> act = async () => await jobStoreSupport.CallTriggerFired(conn, trigger);
+
+        await act.Should().ThrowAsync<JobPersistenceException>()
+            .WithMessage("*Couldn't record the fire of trigger 'g1.t1' for 'jg1.j1' job*deadlock victim*");
+    }
+
+    /// <summary>
+    /// A group that is paused only because everything is paused has no row of its own, so storing a
+    /// trigger into it has to materialize one — otherwise resuming that single group later would find
+    /// nothing to remove.
+    /// </summary>
+    [Test]
+    public async Task AddTrigger_MaterializesAWildcardPauseIntoTheTriggersOwnGroup()
+    {
+        ConnectionAndTransactionHolder conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IOperableTrigger trigger = CreateTestTrigger();
+        IJobDetail job = CreateConcurrentJob();
+
+        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, trigger.Key.Group, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(false));
+        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, AdoConstants.AllGroupsPaused, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(true));
+        A.CallTo(() => driverDelegate.TriggerExists(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(true));
+
+        await jobStoreSupport.CallAddTrigger(conn, trigger, job, replace: true);
+
+        A.CallTo(() => driverDelegate.InsertPausedTriggerGroup(conn, trigger.Key.Group, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        // A trigger stored into a paused group is stored paused.
+        A.CallTo(() => driverDelegate.UpdateTrigger(conn, trigger, StoredTriggerState.Paused, job, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
     [TestCase(StoredTriggerState.Paused)]
     [TestCase(StoredTriggerState.Blocked)]
     [TestCase(StoredTriggerState.PausedBlocked)]
