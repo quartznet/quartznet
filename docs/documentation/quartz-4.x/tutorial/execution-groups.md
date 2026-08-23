@@ -298,6 +298,46 @@ Pair a tightly limited group with `MisfireInstruction.IgnoreMisfirePolicy`, or r
 **Cost.** One extra aggregate per acquisition attempt — not per trigger — emitted only when at least one
 limit is cluster-scoped. A configuration with none pays nothing.
 
+What that costs was measured against PostgreSQL 15 and SQL Server 2022 with `QRTZ_FIRED_TRIGGERS` seeded
+from ten to ten thousand rows (`ExecutionCeilingBenchmark` in `src/Quartz.Benchmark`, which says how to
+run it). Figures below are means with BenchmarkDotNet's error, from containers on a developer machine —
+read the shape rather than the absolute microseconds, since a tuned deployment's round trip is faster
+than a container's. Two things came out of it:
+
+- **Below about a thousand rows in flight the aggregate is one round trip and almost no work.** With a
+  thousand rows and eight groups it took 672 µs (± 10) on PostgreSQL against 627 µs (± 7) for the
+  acquisition attempt's own candidate select, and 1,311 µs (± 34) on SQL Server against 2,992 µs (± 68).
+  The two databases differ because their candidate selects do; the aggregate costs much the same on
+  both, and much the same at a thousand rows as at ten — which is to say the round trip is the whole of
+  it. So the ceiling's price at `MaxBatchSize = 1` is *one extra round trip*, not one extra scan. At a
+  batch of five the same round trip is amortised over five triggers.
+- **Above that the scan starts to show.** At ten thousand rows and sixty-four groups the aggregate took
+  2,723 µs (± 116) on PostgreSQL and 7,821 µs (± 167) on SQL Server. `QRTZ_FIRED_TRIGGERS` holds one row
+  per reservation or running execution, so ten thousand is past what a realistic cluster's thread pools
+  can hold at once; it is where a cluster that has been losing nodes faster than `ClusterRecover` cleans
+  up after them ends up.
+
+::: tip An index for very large clusters, deliberately not in the standard schema
+A covering index on `(SCHED_NAME, EXECUTION_GROUP, TRIGGER_GROUP)` cuts the aggregate roughly in half at
+a thousand rows in flight on SQL Server (1,311 µs → 714 µs) and by half to three quarters at ten
+thousand on both (PostgreSQL 2,723 µs → 1,350 µs; SQL Server 7,821 µs → 1,870 µs). At a hundred rows and
+below the difference is inside the measurement error.
+
+It is **not** part of the standard schema, because `QRTZ_FIRED_TRIGGERS` is inserted into and deleted
+from on every single firing: the index is a write cost every deployment would pay to speed up a
+statement only the deployments that opt into a cluster-scoped ceiling ever issue, and only at
+concurrency levels most clusters never reach. Add it yourself if you run a cluster-scoped ceiling *and*
+routinely hold four figures of work in flight:
+
+```sql
+CREATE INDEX IDX_QRTZ_FT_EG_TG ON QRTZ_FIRED_TRIGGERS (SCHED_NAME, EXECUTION_GROUP, TRIGGER_GROUP);
+```
+
+If the extra round trip rather than the scan is what bothers you — which is what the numbers say for
+everything short of ten thousand rows — the answer is to fold the count into the candidate select rather
+than to index the table.
+:::
+
 **RAMJobStore.** `RAMJobStore` is never clustered, so its cluster is the one process: it counts its own
 reservations and running executions, and a cluster-scoped limit comes out as the same number a
 node-scoped one would. Both stores are held to the same assertions in `JobStoreContractTest`.
