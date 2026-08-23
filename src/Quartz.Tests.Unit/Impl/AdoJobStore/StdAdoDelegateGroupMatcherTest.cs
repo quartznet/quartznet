@@ -99,6 +99,54 @@ public class StdAdoDelegateGroupMatcherTest
         return result;
     }
 
+    /// <summary>
+    /// Builds a delegate that hands out a fresh command per statement, so a member that issues several
+    /// can be asserted on all of them rather than only on whichever wrote last.
+    /// </summary>
+    private static StdAdoDelegate CreateDelegateRecordingEveryCommand(List<StubCommand> issued, int scalar = 0)
+    {
+        IDbProvider dbProvider = A.Fake<IDbProvider>();
+        A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata
+        {
+            BindByName = true,
+            ParameterNamePrefix = "@"
+        });
+
+        A.CallTo(() => dbProvider.CreateCommand()).ReturnsLazily(() =>
+        {
+            StubCommand fresh = A.Fake<StubCommand>();
+
+            A.CallTo(fresh).Where(x => x.Method.Name == "get_DbParameterCollection")
+                .WithReturnType<DbParameterCollection>()
+                .Returns(new RecordingParameterCollection());
+
+            A.CallTo(fresh).Where(x => x.Method.Name == "CreateDbParameter")
+                .WithReturnType<DbParameter>()
+                .ReturnsLazily(() => new SqlParameter());
+
+            // A count statement reads its answer with Convert.ToInt32, which a bare fake's dummy
+            // object cannot satisfy.
+            A.CallTo(fresh).Where(x => x.Method.Name == "ExecuteScalarAsync")
+                .WithReturnType<Task<object>>()
+                .Returns(Task.FromResult<object>(scalar));
+
+            issued.Add(fresh);
+            return fresh;
+        });
+
+        StdAdoDelegate result = new();
+        result.Initialize(new DriverDelegateContext
+        {
+            TablePrefix = "QRTZ_",
+            SchedulerName = "TESTSCHED",
+            InstanceId = "INSTANCE",
+            TypeLoader = new SimpleTypeLoader(),
+            DbProvider = dbProvider
+        });
+
+        return result;
+    }
+
     [TearDown]
     public void TearDown()
     {
@@ -782,6 +830,151 @@ public class StdAdoDelegateGroupMatcherTest
 
         command.CommandText.Should().Contain("NOT EXISTS", "the unpaused listing is the complement of the paused one");
         command.CommandText.Should().Contain("PAUSED_JOB_GRPS");
+    }
+
+    [Test]
+    public async Task SelectJobGroups_ShouldReadThePausedFlagFromTheSecondColumn()
+    {
+        GivenOneRow("reports", isPaused: 1);
+
+        PagedResult<JobGroup> result = await adoDelegate.SelectJobGroups(conn, new JobGroupQuery());
+
+        result.Items.Should().ContainSingle().Which.Should().Be(new JobGroup("reports", Paused: true),
+            "the unfiltered listing projects the flag beside the name, and reads it back from that position");
+    }
+
+    [Test]
+    public async Task SelectJobGroups_PausedOnly_ShouldNotNeedTheFlagColumn()
+    {
+        GivenOneRow("reports", isPaused: null);
+
+        PagedResult<JobGroup> result = await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Paused = true });
+
+        result.Items.Should().ContainSingle().Which.Should().Be(new JobGroup("reports", Paused: true),
+            "every row of the paused-groups table is a paused group, so the statement selects no flag to read");
+    }
+
+    [Test]
+    public async Task SelectJobGroups_CountOnly_ShouldCountThePausedGroupsTable()
+    {
+        GivenScalar(3);
+
+        PagedResult<JobGroup> result = await adoDelegate.SelectJobGroups(conn, new JobGroupQuery
+        {
+            Paused = true,
+            Name = "reports",
+            Take = 0,
+            IncludeTotalCount = true
+        });
+
+        result.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(3);
+        command.CommandText.Should().StartWith("SELECT COUNT(*)");
+        command.CommandText.Should().Contain("PAUSED_JOB_GRPS");
+        command.CommandText.Should().Contain("JOB_GROUP = @groupName",
+            "a count that ignored the filter would not be the count of the page's result set");
+    }
+
+    [Test]
+    public async Task SelectJobGroups_WithTotalCount_ShouldCountTheSameSetItListed()
+    {
+        List<StubCommand> issued = [];
+        StdAdoDelegate recording = CreateDelegateRecordingEveryCommand(issued, scalar: 2);
+
+        PagedResult<JobGroup> result = await recording.SelectJobGroups(
+            conn, new JobGroupQuery { Paused = false, IncludeTotalCount = true });
+
+        result.TotalCount.Should().Be(2);
+        issued.Should().HaveCount(2, "one statement lists the page and a second counts the whole set");
+        issued[1].CommandText.Should().StartWith("SELECT COUNT(");
+        issued[1].CommandText.Should().Contain("NOT EXISTS",
+            "the count carries the same exclusion the listing did, or the two disagree");
+    }
+
+    [Test]
+    public async Task InsertPausedJobGroup_ShouldWriteTheGroupToThePausedJobGroupsTable()
+    {
+        await adoDelegate.InsertPausedJobGroup(conn, "reports");
+
+        command.CommandText.Should().Contain("INSERT INTO QRTZ_PAUSED_JOB_GRPS");
+        command.CommandText.Should().Contain("SCHED_NAME, JOB_GROUP");
+        parameters.Value("@schedulerName").Should().Be("TESTSCHED",
+            "the row is scoped to one scheduler, like every other row Quartz writes");
+        parameters.Value("@jobGroup").Should().Be("reports");
+    }
+
+    [Test]
+    public async Task IsJobGroupPaused_ShouldAskThePausedJobGroupsTableForTheOneGroup()
+    {
+        await adoDelegate.IsJobGroupPaused(conn, "reports");
+
+        command.CommandText.Should().Contain("FROM QRTZ_PAUSED_JOB_GRPS");
+        command.CommandText.Should().Contain("JOB_GROUP = @jobGroup",
+            "the check that guards the insert asks about one group rather than listing every paused one");
+        parameters.Value("@jobGroup").Should().Be("reports");
+    }
+
+    [Test]
+    public async Task ClearData_ShouldEmptyThePausedJobGroupsTableToo()
+    {
+        List<StubCommand> issued = [];
+        StdAdoDelegate recording = CreateDelegateRecordingEveryCommand(issued);
+
+        await recording.ClearData(conn);
+
+        List<string> statements = issued.ConvertAll(x => x.CommandText);
+        statements.Should().Contain(x => x.Contains("DELETE FROM QRTZ_PAUSED_JOB_GRPS"),
+            "a clear that left paused job groups behind would pause whatever was scheduled into them next");
+        statements.Should().Contain(x => x.Contains("DELETE FROM QRTZ_PAUSED_TRIGGER_GRPS"),
+            "and the trigger groups it always cleared are still cleared");
+    }
+
+    [Test]
+    public async Task ValidateSchema_ShouldRequireThePausedJobGroupsTable()
+    {
+        List<StubCommand> issued = [];
+        StdAdoDelegate recording = CreateDelegateRecordingEveryCommand(issued);
+
+        int tableCount = await recording.ValidateSchema(conn);
+
+        tableCount.Should().Be(AdoConstants.AllTableNames.Length);
+        issued.ConvertAll(x => x.CommandText).Should().Contain(x => x.Contains("FROM QRTZ_PAUSED_JOB_GRPS"),
+            "4.x has no schema probes, so a database missing the table has to fail at startup rather "
+            + "than silently forget every job group pause");
+    }
+
+    /// <summary>
+    /// Arranges the shared stub to answer one listing row.
+    /// </summary>
+    /// <param name="isPaused">
+    /// The paused flag the row carries, or null for the statements that select no flag column.
+    /// </param>
+    private void GivenOneRow(string groupName, int? isPaused)
+    {
+        DbDataReader reader = A.Fake<DbDataReader>();
+        bool read = false;
+        A.CallTo(() => reader.ReadAsync(A<CancellationToken>._)).ReturnsLazily(() =>
+        {
+            bool first = !read;
+            read = true;
+            return first;
+        });
+        A.CallTo(() => reader.GetString(0)).Returns(groupName);
+        if (isPaused is not null)
+        {
+            A.CallTo(() => reader.GetValue(1)).Returns(isPaused.Value);
+        }
+
+        A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+            .WithReturnType<Task<DbDataReader>>()
+            .Returns(Task.FromResult(reader));
+    }
+
+    private void GivenScalar(object value)
+    {
+        A.CallTo(command).Where(x => x.Method.Name == "ExecuteScalarAsync")
+            .WithReturnType<Task<object>>()
+            .Returns(Task.FromResult(value));
     }
 
     [Test]
