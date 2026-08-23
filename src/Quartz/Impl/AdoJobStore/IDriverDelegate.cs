@@ -999,27 +999,6 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates the fired-trigger row of a fire instance.
-    /// </summary>
-    /// <remarks>
-    /// The fire path no longer routes through this: it writes the fired-trigger row as one command of
-    /// <see cref="ApplyTriggerFired" />'s batch, so overriding this alone no longer changes what a fire
-    /// stores. The member remains for a store that drives the fire path itself.
-    /// </remarks>
-    /// <param name="conn">The database connection.</param>
-    /// <param name="trigger">Trigger to update.</param>
-    /// <param name="state">The new state.</param>
-    /// <param name="job">Job associated with the trigger.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The amount of triggers that matched the update.</returns>
-    ValueTask<int> UpdateFiredTrigger(
-        ConnectionAndTransactionHolder conn,
-        IOperableTrigger trigger,
-        StoredTriggerState state,
-        IJobDetail job,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar" />s.
     /// </summary>

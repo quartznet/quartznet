@@ -654,24 +654,6 @@ public class StdAdoDelegateGroupMatcherTest
             "the column was dead schema until the listing needed to read it back");
     }
 
-    [Test]
-    public async Task UpdateFiredTrigger_WritesTheExecutionGroup()
-    {
-        IOperableTrigger trigger = FireInstanceTrigger(executionGroup: null);
-        IJobDetail job = JobBuilder.Create<FireInstanceTestJob>().WithIdentity("job1", "jobGroup1").Build();
-
-        await adoDelegate.UpdateFiredTrigger(conn, trigger, StoredTriggerState.Executing, job);
-
-        command.CommandText.Should().Contain("EXECUTION_GROUP = @executionGroup");
-        parameters.Value("@executionGroup").Should().Be(DBNull.Value,
-            "a trigger with no execution group writes a null rather than leaving the column stale");
-    }
-
-    private sealed class FireInstanceTestJob : IJob
-    {
-        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
-    }
-
     private static IOperableTrigger FireInstanceTrigger(string executionGroup)
     {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()

@@ -370,8 +370,6 @@ public class AdoJobStoreBaseTest
         // paused-group probe is not consulted at all.
         A.CallTo(() => driverDelegate.IsTriggerGroupPaused(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
             .MustNotHaveHappened();
-        A.CallTo(() => driverDelegate.UpdateFiredTrigger(A<ConnectionAndTransactionHolder>.Ignored, A<IOperableTrigger>.Ignored, A<StoredTriggerState>.Ignored, A<IJobDetail>.Ignored, A<CancellationToken>.Ignored))
-            .MustNotHaveHappened();
         A.CallTo(() => driverDelegate.UpdateTrigger(A<ConnectionAndTransactionHolder>.Ignored, A<IOperableTrigger>.Ignored, A<StoredTriggerState>.Ignored, A<IJobDetail>.Ignored, A<CancellationToken>.Ignored))
             .MustNotHaveHappened();
     }
