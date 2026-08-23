@@ -25,6 +25,12 @@ namespace Quartz.Configuration;
 /// afterwards, which is what keeps existing <c>quartz.plugin.&lt;name&gt;.&lt;property&gt;</c>
 /// configuration working.
 /// </para>
+/// <para>
+/// Everything here is one scheduler's: the property bag is that scheduler's, the names are read from
+/// it, and a plugin type registered as a service is looked for under that scheduler's key. Two
+/// schedulers each configuring an XML plugin therefore get two instances reading their own files,
+/// which is what the properties format has always promised.
+/// </para>
 /// </remarks>
 internal static class SchedulerPluginFactory
 {
@@ -36,13 +42,14 @@ internal static class SchedulerPluginFactory
     /// <param name="provider">The container, used to resolve or construct each plugin.</param>
     /// <param name="registered">Plugins already registered as services.</param>
     /// <param name="properties">The flat properties that may name further plugins.</param>
-    /// <param name="schedulerName">The options name of the scheduler these plugins belong to.</param>
+    /// <param name="schedulerKey">The scheduler these plugins belong to.</param>
     public static List<(string Name, ISchedulerPlugin Plugin)> Create(
         IServiceProvider provider,
         IEnumerable<ISchedulerPlugin> registered,
         NameValueCollection properties,
-        string schedulerName)
+        SchedulerKey schedulerKey)
     {
+        var schedulerName = schedulerKey.OptionsName;
         var plugins = new List<(string Name, ISchedulerPlugin Plugin)>();
 
         // Names chosen where the plugin was added, so a plugin configured in code is known by the same
@@ -81,7 +88,7 @@ internal static class SchedulerPluginFactory
             }
 
             var type = ResolveType(properties, prefix, name, loader);
-            var plugin = Build(provider, type);
+            var plugin = Build(provider, schedulerKey.Key, type);
 
             ApplyProperties(plugin, type, prefix, properties);
             plugins.Add((name, plugin));
@@ -111,11 +118,35 @@ internal static class SchedulerPluginFactory
         return type!;
     }
 
-    private static ISchedulerPlugin Build(IServiceProvider provider, Type type)
+    /// <summary>
+    /// Produces the plugin instance a <c>quartz.plugin.&lt;name&gt;.type</c> entry names: this
+    /// scheduler's registration of that type when it has one, and otherwise a fresh instance built
+    /// through the container.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The probe is <em>keyed</em>, and only ever finds this scheduler's own registration. Asking the
+    /// container unkeyed would hand every scheduler naming the type one shared instance — the default
+    /// scheduler's, when there is one — instead of an instance configured from its own property bag.
+    /// A plugin is told which scheduler it extends by <see cref="ISchedulerPlugin.Initialize" />, so
+    /// two schedulers sharing one instance means the second initialization overwrites the first.
+    /// </para>
+    /// <para>
+    /// There is deliberately no fallback from the keyed probe to the unkeyed registration: that
+    /// fallback <em>is</em> the leak. A plugin instance meant to be shared is said with
+    /// <c>AddPlugin&lt;T&gt;(provider =&gt; …)</c> on each scheduler that should have it, which names
+    /// what is shared rather than leaving it to whichever scheduler was registered first.
+    /// </para>
+    /// </remarks>
+    private static ISchedulerPlugin Build(IServiceProvider provider, object? schedulerKey, Type type)
     {
         try
         {
-            return provider.GetService(type) as ISchedulerPlugin
+            var registered = schedulerKey is null
+                ? provider.GetService(type)
+                : provider.GetKeyedService(type, schedulerKey);
+
+            return registered as ISchedulerPlugin
                 ?? (ISchedulerPlugin) ActivatorUtilities.CreateInstance(provider, type);
         }
         catch (Exception e)

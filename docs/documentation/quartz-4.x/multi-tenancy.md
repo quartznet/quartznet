@@ -136,6 +136,30 @@ builder.Services.AddQuartz("acme", q => q.UseTimeProvider(acmeClock));
 A scheduler with no clock of its own inherits the container's, which is what lets an application-wide
 `TimeProvider` reach all of them without being told about each.
 
+### Plugins named by properties
+
+A `quartz.plugin.<name>.*` entry is read from the property bag of the scheduler it was configured on,
+so two tenants each configuring an XML plugin get two instances with their own files:
+
+```csharp
+builder.Services.AddQuartz("acme", new NameValueCollection
+{
+    ["quartz.plugin.xml.type"] = typeof(XMLSchedulingDataProcessorPlugin).AssemblyQualifiedName,
+    ["quartz.plugin.xml.fileNames"] = "acme-jobs.xml",
+});
+```
+
+Before the instance is built, the container is asked whether that type is registered as a service —
+and that question is asked **under this scheduler's key**. So a named scheduler gets the registration
+made for it, an unkeyed registration belongs to the default scheduler, and a scheduler with no
+registration of its own gets a fresh instance built from its own properties. There is deliberately no
+fallback from one scheduler's key to the unkeyed registration: a plugin is told which scheduler it
+extends when it is initialized, so handing one instance to two schedulers means the second
+initialization overwrites the first.
+
+To give a named scheduler a plugin instance you built yourself, register it under that scheduler —
+`q.AddPlugin<T>(provider => …)` — rather than unkeyed on `IServiceCollection`.
+
 ### What is not
 
 A handful of things are container-wide, shared by every scheduler in the process:

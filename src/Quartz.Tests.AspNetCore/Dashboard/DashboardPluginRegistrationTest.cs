@@ -24,7 +24,7 @@ public class DashboardPluginRegistrationTest
         using var provider = services.BuildServiceProvider();
 
         var plugins = SchedulerPluginFactory.Create(
-            provider, provider.GetServices<ISchedulerPlugin>(), [], "");
+            provider, provider.GetServices<ISchedulerPlugin>(), [], new SchedulerKey(null));
 
         plugins.Should().ContainSingle(x => x.Name == "quartzDashboardLiveEvents" && x.Plugin is DashboardLiveEventsPlugin);
         plugins.Should().ContainSingle(x => x.Name == "quartzDashboardHistory" && x.Plugin is DashboardHistoryPlugin);
