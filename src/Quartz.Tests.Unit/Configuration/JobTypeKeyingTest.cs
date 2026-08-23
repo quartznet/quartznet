@@ -37,7 +37,10 @@ public sealed class JobTypeKeyingTest
             Schedule(q, "acme", triggers: 1);
         });
 
-        await using ServiceProvider provider = services.BuildServiceProvider();
+        // Validated on build, because a registration made for one scheduler has to be checked at
+        // startup like any other - that is half of why AddJob registers the job type at all.
+        await using ServiceProvider provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
 
         Task complete = log.Expect(2);
         await RunSchedulers(provider, complete, "acme");
@@ -46,6 +49,58 @@ public sealed class JobTypeKeyingTest
             [("shared", "plain"), ("acme", "acme")],
             "the implementation registered for one scheduler is that scheduler's, and the other keeps "
             + "what the container holds unkeyed");
+    }
+
+    [Test]
+    public async Task TheDefaultSchedulerRegistersUnkeyedAndReadsItsOwnRegistration()
+    {
+        JobRunLog log = new();
+
+        ServiceCollection services = new();
+        services.AddSingleton(log);
+
+        services.AddQuartz(q =>
+        {
+            q.ConfigureScheduler(o => o.InstanceName = "shared");
+
+            // A key of "" is not the same as no key to a container, and the default scheduler's parts
+            // are the unkeyed registrations - so this has to register unkeyed to be found at all.
+            q.AddJobType<TenantJob>(provider => new AcmeJob(provider.GetRequiredService<JobRunLog>()));
+            Schedule(q, "shared", triggers: 1);
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        Task complete = log.Expect(1);
+        await RunSchedulers(provider, complete);
+
+        log.Runs.Select(x => x.Marker).Should().BeEquivalentTo(["acme"],
+            "the default scheduler skips the keyed lookup entirely, so its own registration has to be "
+            + "the unkeyed one");
+    }
+
+    [Test]
+    public async Task ANamedSchedulerCanBuildItsJobWithAFactoryOfItsOwn()
+    {
+        JobRunLog log = new();
+
+        ServiceCollection services = new();
+        services.AddSingleton(log);
+
+        services.AddQuartz("acme", q =>
+        {
+            // The factory is handed the provider the job is being built from, which is the per-fire
+            // scope - so a scoped dependency taken out of it belongs to that fire.
+            q.AddJobType<TenantJob>(provider => new AcmeJob(provider.GetRequiredService<JobRunLog>()));
+            Schedule(q, "acme", triggers: 1);
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        Task complete = log.Expect(1);
+        await RunSchedulers(provider, complete, "acme");
+
+        log.Runs.Select(x => x.Marker).Should().BeEquivalentTo(["acme"]);
     }
 
     [Test]
