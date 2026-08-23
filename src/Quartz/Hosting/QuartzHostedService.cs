@@ -230,14 +230,37 @@ public class QuartzHostedService : IHostedLifecycleService
     /// <summary>
     /// Shuts every scheduler down, reporting all the failures rather than the first one.
     /// </summary>
+    /// <remarks>
+    /// The shutdowns run concurrently, because the host's shutdown budget is one deadline for all of
+    /// them rather than one each: shutting down in turn made the host's stop time the sum of the waits
+    /// for running jobs, which is what overran <c>HostOptions.ShutdownTimeout</c> with more than
+    /// one scheduler registered. Each scheduler owns its own thread pool, job store and scheduler
+    /// thread, so there is nothing for them to serialize behind.
+    /// </remarks>
     private async ValueTask ShutdownSchedulers(CancellationToken cancellationToken)
     {
-        List<Exception>? exceptions = null;
-        foreach (var hosted in schedulers)
+        // Every shutdown is started before any of them is awaited, so that the waits for running jobs
+        // overlap. A scheduler that throws before it yields is captured rather than left to abandon the
+        // schedulers after it in the list.
+        List<Task> shutdowns = new List<Task>(schedulers.Count);
+        foreach (HostedScheduler hosted in schedulers)
         {
             try
             {
-                await hosted.Scheduler.Shutdown(hosted.Options.WaitForJobsToComplete, cancellationToken).ConfigureAwait(false);
+                shutdowns.Add(hosted.Scheduler.Shutdown(hosted.Options.WaitForJobsToComplete, cancellationToken).AsTask());
+            }
+            catch (Exception e)
+            {
+                shutdowns.Add(Task.FromException(e));
+            }
+        }
+
+        List<Exception>? exceptions = null;
+        foreach (Task shutdown in shutdowns)
+        {
+            try
+            {
+                await shutdown.ConfigureAwait(false);
             }
             catch (Exception e)
             {
