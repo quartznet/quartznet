@@ -5,9 +5,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>quick-start.md</PackageReadmeFile>
-    <!--
+    <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-    -->
   </PropertyGroup>
 
   <ItemGroup>

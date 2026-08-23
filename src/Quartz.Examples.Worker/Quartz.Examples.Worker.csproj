@@ -7,8 +7,6 @@
     <NoWarn>$(NoWarn);MA0004</NoWarn>
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>full</TrimMode>
-    <!-- we want to publish despite the warnings to see if app runs -->
-    <NoWarn>$(NoWarn);IL2080;IL2065;IL2075;IL2087;IL2057;IL2060;IL2070;IL2067;IL2072;IL2026</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,6 +17,21 @@
 
   <ItemGroup>
     <TrimmerRootAssembly Include="Quartz" />
+  </ItemGroup>
+
+  <!--
+    This is the repository's trim canary: a fully trimmed application over Quartz and nothing else, so
+    every IL2xxx it reports is Quartz's own. It used to NoWarn the whole IL2xxx family, which meant the
+    leg proved the examples publish rather than that Quartz survives trimming (issue #3341, step 1).
+
+    Nothing is suppressed by warning code any more. What is suppressed is the recorded set of types in
+    ILLink.Suppressions.xml, which fails the publish the moment a type outside it starts warning; that
+    file explains why it exists separately from the compile-time baseline beside it. The item is the
+    SDK's own hook for an ILLink link-attributes file (Microsoft.NET.ILLink.targets); if a future SDK
+    renames it the suppressions stop applying and this publish fails loudly rather than quietly.
+  -->
+  <ItemGroup>
+    <_ILLinkSuppressions Include="..\Quartz\ILLink.Suppressions.xml" />
   </ItemGroup>
 
   <ItemGroup>
