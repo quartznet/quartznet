@@ -257,8 +257,9 @@ is a scan plus a sort.
 Node affinity needs no data migration: 3.x and 4.x store pins identically.
 
 ::: tip
-Because section 4 has no 3.x counterpart, the `4.0` scripts are maintained on `main` and the
-`3.x` branch's copy of them may lag. Run the `main` copy linked above.
+The `4.0` scripts live on `main` and nowhere else — the `3.x` branch links to them rather than
+carrying a copy, because what this upgrade has to do is decided by 4.x's schema and a mirror
+would go stale the moment that moved. The links above are already the right ones.
 :::
 
 ## See also
