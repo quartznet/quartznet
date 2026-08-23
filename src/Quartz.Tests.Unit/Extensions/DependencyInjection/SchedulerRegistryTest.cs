@@ -161,6 +161,24 @@ public sealed class SchedulerRegistryTest
     }
 
     [Test]
+    public async Task AShutDownSchedulerLeavesItsRegistrationBehindWithNoStatus()
+    {
+        using ServiceProvider provider = Container(services => services.AddQuartz("acme", _ => { }));
+
+        IScheduler scheduler = await provider.GetRequiredKeyedService<ISchedulerFactory>("acme").GetScheduler();
+        await scheduler.Shutdown();
+
+        List<SchedulerRegistration> registrations = await provider.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();
+
+        SchedulerRegistration registration = registrations.Should().ContainSingle(
+            "shutting a scheduler down does not unregister it - the registration is what the container was told").Subject;
+        registration.Origin.Should().Be(SchedulerOrigin.Container);
+        registration.Status.Should().BeNull(
+            "the repository drops a shut-down scheduler as soon as a read notices it, and one cannot be rebuilt in "
+            + "the same container either way, so null covers both 'not yet' and 'not any more'");
+    }
+
+    [Test]
     public async Task RegisteringTheGraphDirectlyStillCountsAsADefaultScheduler()
     {
         using ServiceProvider provider = Container(services => services.AddQuartzScheduler());

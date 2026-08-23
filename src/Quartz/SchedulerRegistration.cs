@@ -32,9 +32,17 @@ namespace Quartz;
 /// </param>
 /// <param name="Origin">Where the scheduler came from.</param>
 /// <param name="Status">
-/// What state the scheduler is in, or <see langword="null" /> when no scheduler has been created under
-/// this name yet. Null is the answer this query exists to give: the registration is there, nothing has
-/// been built from it, and asking did not build it.
+/// What state the scheduler is in, or <see langword="null" /> when no scheduler exists under this name.
+/// Null is the answer this query exists to give: the registration is there, nothing has been built from
+/// it, and asking did not build it.
+/// <para>
+/// A scheduler that has been <em>shut down</em> also reads as null rather than as
+/// <see cref="SchedulerStatus.Shutdown" />, because
+/// <see cref="Extensibility.ISchedulerRepository" /> drops a shut-down scheduler as soon as a read
+/// notices it. So null means "no live scheduler under this name" — for a registration, either not yet or
+/// not any more. The two are not worth telling apart here: a shut-down scheduler cannot be created again
+/// within the same container, so neither is a name you can get a working scheduler out of.
+/// </para>
 /// </param>
 public sealed record SchedulerRegistration(string Name, SchedulerOrigin Origin, SchedulerStatus? Status)
 {
