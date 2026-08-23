@@ -982,7 +982,8 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var properties = Quartz.Configuration.QuartzConfigurationHelper.ToNameValueCollection(
             provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties);
 
-        var plugins = Quartz.Configuration.SchedulerPluginFactory.Create(provider, [], properties, "");
+        var plugins = Quartz.Configuration.SchedulerPluginFactory.Create(
+            provider, [], properties, new Quartz.Configuration.SchedulerKey(null));
 
         plugins.Select(x => ((RecordingPlugin) x.Plugin).SomeSetting)
             .Should().BeEquivalentTo(["dev", "tenantA"],
