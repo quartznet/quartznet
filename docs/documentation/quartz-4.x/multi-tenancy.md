@@ -505,20 +505,48 @@ container of its own, at any point in the process's life, and `ISchedulerReposit
 result visible to `GetAllSchedulers`, the dashboard and the HTTP API:
 
 ```csharp
-IScheduler tenant = await QuartzSchedulerBuilder.Create()
+StandaloneSchedulerFactory tenantFactory = QuartzSchedulerBuilder.Create()
     .ConfigureScheduler(o => o.InstanceName = tenantId)
     .UsePersistentStore(s => s.UseSqlServer(connectionStrings[tenantId]))
-    .BuildScheduler();
+    .Build();
 
+IScheduler tenant = await tenantFactory.GetScheduler();
 await tenant.Start();
+
+tenantFactories[tenantId] = tenantFactory;
 app.Services.GetRequiredService<ISchedulerRepository>().Bind(tenant);
 ```
+
+Keep the factory for as long as the tenant exists — `tenantFactories` above is a dictionary keyed by
+tenant id — because it owns the container and is the only handle that can shut the tenant down again.
+`BuildScheduler()` is the shorter spelling that drops it on the floor, which is fine for a scheduler
+that lives as long as the process and wrong for one that has to be offboarded.
 
 What you take on by doing this: the returned `StandaloneSchedulerFactory` owns the container, so *you*
 start the scheduler and dispose the factory — the hosted service will not; the scheduler's jobs resolve
 from its own container rather than the application's unless you give it an `IJobFactory` that bridges;
-and health checks registered at startup do not cover it. `Bind` throws on a duplicate name, and
-offboarding is `Remove` plus disposing the factory.
+and health checks registered at startup do not cover it. `Bind` throws on a duplicate name.
+
+Offboarding is disposing the factory, which shuts the tenant's scheduler down and then disposes its
+container. Unbind it too, so the application's repository stops listing it at once rather than at its
+next read:
+
+```csharp
+StandaloneSchedulerFactory tenantFactory = tenantFactories[tenantId];
+tenantFactories.Remove(tenantId);
+
+await tenantFactory.DisposeAsync();
+app.Services.GetRequiredService<ISchedulerRepository>().Remove(tenantId);
+```
+
+::: warning Fixed in 4.0.0-alpha.2
+Unbinding is not offboarding on its own: `Remove` makes a tenant invisible, and only the disposal stops
+it. That distinction used to be fatal — in 4.0.0-alpha.1 disposing the factory disposed only its
+container, so this recipe took the tenant out of `GetAllSchedulers`, off the dashboard and out of the
+HTTP API while it went on firing its triggers for the rest of the process's life, with nothing left able
+to reach it ([#3380](https://github.com/quartznet/quartznet/issues/3380)). Disposal shuts the scheduler
+down as of 4.0.0-alpha.2, which is what makes the two steps above safe in either order.
+:::
 
 Weigh that against the group-per-tenant model, where onboarding is a `ScheduleJob` call and none of
 the above applies.

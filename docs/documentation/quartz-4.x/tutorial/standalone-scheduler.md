@@ -71,9 +71,11 @@ registration mistake surfaces there rather than at the first job execution.
 ## The factory owns the container
 
 `StandaloneSchedulerFactory` is an `ISchedulerFactory` that also implements `IDisposable` and
-`IAsyncDisposable`. Disposing it disposes the service provider it was built with, which shuts the
-scheduler down and disposes everything the container created — the job store, the thread pool, your own
-registered services.
+`IAsyncDisposable`. Disposing it shuts the scheduler down and *then* disposes the service provider it
+was built with, along with everything that container created — the job store, the thread pool, your own
+registered services. That is the order the hosted service uses when an application stops, and it is that
+way round for a reason: a container disposed underneath a running scheduler leaves it firing triggers
+whose jobs it can no longer build.
 
 ```csharp
 await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
@@ -85,11 +87,29 @@ await scheduler.Start();
 
 // ... do work ...
 
-// leaving the scope shuts the scheduler down
+// leaving the scope shuts the scheduler down, then disposes the container
 ```
 
 Prefer `await using`. The synchronous `Dispose()` exists so the type fits `using` in code that cannot
-be async, but `DisposeAsync` is what lets the shutdown actually await.
+be async; it blocks on the same shutdown, which is all a synchronous door onto asynchronous work can do.
+
+The shutdown does not wait for running jobs to finish, which is the default that
+`QuartzHostedServiceOptions.WaitForJobsToComplete` and `IScheduler.Shutdown()` both carry. Say so
+yourself when you want to wait, and dispose afterwards — disposal then finds nothing left to shut down:
+
+```csharp
+await scheduler.Shutdown(waitForJobsToComplete: true);
+```
+
+Disposing twice does nothing the second time, and disposing a factory whose `GetScheduler()` was never
+called does nothing at all: a scheduler is never built merely to be torn down.
+
+::: warning Fixed in 4.0.0-alpha.2
+In 4.0.0-alpha.1 disposing the factory disposed only the container. The scheduler stayed running and
+kept firing, and where something had injected `IScheduler` the synchronous `Dispose()` threw
+`InvalidOperationException` instead of shutting anything down
+([#3380](https://github.com/quartznet/quartznet/issues/3380)).
+:::
 
 **Never disposing is a supported choice.** A console application whose scheduler runs until the process
 ends behaves exactly as it did with the process-lifetime scheduler of earlier versions. The dispose
