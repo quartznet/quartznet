@@ -309,18 +309,35 @@ public static class QuartzBuilderExtensions
     /// implementation is the whole point of the call.
     /// </para>
     /// <para>
-    /// The default lifetime is <see cref="ServiceLifetime.Scoped"/>, matching the lifetime the job
-    /// factory resolves with: a scope is opened per fire, the job is resolved from it, and the scope is
-    /// disposed once the job returns.
+    /// A job is built with <see cref="ServiceLifetime.Scoped"/> unless another lifetime is named, which
+    /// matches the lifetime the job factory resolves with: a scope is opened per fire, the job is
+    /// resolved from it, and the scope is disposed once the job returns.
+    /// </para>
+    /// <para>
+    /// The lifetime is an overload rather than an optional parameter deliberately. A default value that
+    /// is an enum from an assembly which only exists in a shared framework —
+    /// <see cref="ServiceLifetime"/> is one — is a metadata constant whose type Cecil has to resolve to
+    /// write it, and coverlet's resolver cannot: it fails to instrument the <em>whole</em> assembly and
+    /// reports Quartz as untested, silently. One optional parameter cost the core assembly its entire
+    /// coverage figure; overloads carry no constant.
     /// </para>
     /// </remarks>
     /// <typeparam name="TJob">The job type, as named on the job detail.</typeparam>
+    /// <param name="builder">The builder.</param>
+    public static IQuartzBuilder AddJobType<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TJob>(
+        this IQuartzBuilder builder) where TJob : class, IJob
+    {
+        return builder.AddJobType<TJob, TJob>(ServiceLifetime.Scoped);
+    }
+
+    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder)" />
     /// <param name="builder">The builder.</param>
     /// <param name="lifetime">How long one instance lives.</param>
     public static IQuartzBuilder AddJobType<
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TJob>(
         this IQuartzBuilder builder,
-        ServiceLifetime lifetime = ServiceLifetime.Scoped) where TJob : class, IJob
+        ServiceLifetime lifetime) where TJob : class, IJob
     {
         return builder.AddJobType<TJob, TJob>(lifetime);
     }
@@ -328,16 +345,28 @@ public static class QuartzBuilderExtensions
     /// <summary>
     /// Registers the implementation this scheduler builds a job type with.
     /// </summary>
-    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder, ServiceLifetime)" path="/remarks" />
+    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder)" path="/remarks" />
     /// <typeparam name="TJob">The job type, as named on the job detail.</typeparam>
     /// <typeparam name="TImplementation">The type actually constructed.</typeparam>
+    /// <param name="builder">The builder.</param>
+    public static IQuartzBuilder AddJobType<
+            TJob,
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TImplementation>(
+        this IQuartzBuilder builder)
+        where TJob : class, IJob
+        where TImplementation : class, TJob
+    {
+        return builder.AddJobType<TJob, TImplementation>(ServiceLifetime.Scoped);
+    }
+
+    /// <inheritdoc cref="AddJobType{TJob, TImplementation}(IQuartzBuilder)" />
     /// <param name="builder">The builder.</param>
     /// <param name="lifetime">How long one instance lives.</param>
     public static IQuartzBuilder AddJobType<
             TJob,
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TImplementation>(
         this IQuartzBuilder builder,
-        ServiceLifetime lifetime = ServiceLifetime.Scoped)
+        ServiceLifetime lifetime)
         where TJob : class, IJob
         where TImplementation : class, TJob
     {
@@ -350,7 +379,7 @@ public static class QuartzBuilderExtensions
     /// <summary>
     /// Registers how this scheduler constructs a job type, with a factory of your own.
     /// </summary>
-    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder, ServiceLifetime)" path="/remarks" />
+    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder)" path="/remarks" />
     /// <remarks>
     /// The factory is handed the provider the job is being built from, which is the per-fire scope — so
     /// a scoped dependency resolved out of it belongs to that fire.
@@ -358,11 +387,21 @@ public static class QuartzBuilderExtensions
     /// <typeparam name="TJob">The job type, as named on the job detail.</typeparam>
     /// <param name="builder">The builder.</param>
     /// <param name="implementationFactory">Builds the job.</param>
+    public static IQuartzBuilder AddJobType<TJob>(
+        this IQuartzBuilder builder,
+        Func<IServiceProvider, TJob> implementationFactory) where TJob : class, IJob
+    {
+        return builder.AddJobType(implementationFactory, ServiceLifetime.Scoped);
+    }
+
+    /// <inheritdoc cref="AddJobType{TJob}(IQuartzBuilder, Func{IServiceProvider, TJob})" />
+    /// <param name="builder">The builder.</param>
+    /// <param name="implementationFactory">Builds the job.</param>
     /// <param name="lifetime">How long one instance lives.</param>
     public static IQuartzBuilder AddJobType<TJob>(
         this IQuartzBuilder builder,
         Func<IServiceProvider, TJob> implementationFactory,
-        ServiceLifetime lifetime = ServiceLifetime.Scoped) where TJob : class, IJob
+        ServiceLifetime lifetime) where TJob : class, IJob
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(implementationFactory);
@@ -379,24 +418,41 @@ public static class QuartzBuilderExtensions
         IQuartzBuilder builder,
         Type serviceType,
         ServiceLifetime lifetime,
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? implementationType = null,
-        Func<IServiceProvider, object>? factory = null)
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type implementationType)
     {
-        // Options.DefaultName is the empty string, and IQuartzBuilder.SchedulerName is that for the
-        // default scheduler. A key of "" is not the same as no key to a container, so the two spellings
-        // cannot be collapsed.
-        object? key = string.IsNullOrEmpty(builder.SchedulerName) ? null : builder.SchedulerName;
+        string? key = SchedulerServiceKey(builder);
 
-        if (key is null)
-        {
-            return implementationType is not null
-                ? ServiceDescriptor.Describe(serviceType, implementationType, lifetime)
-                : ServiceDescriptor.Describe(serviceType, factory!, lifetime);
-        }
+        return key is null
+            ? ServiceDescriptor.Describe(serviceType, implementationType, lifetime)
+            : ServiceDescriptor.DescribeKeyed(serviceType, key, implementationType, lifetime);
+    }
 
-        return implementationType is not null
-            ? ServiceDescriptor.DescribeKeyed(serviceType, key, implementationType, lifetime)
-            : ServiceDescriptor.DescribeKeyed(serviceType, key, (provider, _) => factory!(provider), lifetime);
+    /// <inheritdoc cref="Describe(IQuartzBuilder, Type, ServiceLifetime, Type)" />
+    private static ServiceDescriptor Describe(
+        IQuartzBuilder builder,
+        Type serviceType,
+        ServiceLifetime lifetime,
+        Func<IServiceProvider, object> factory)
+    {
+        string? key = SchedulerServiceKey(builder);
+
+        return key is null
+            ? ServiceDescriptor.Describe(serviceType, factory, lifetime)
+            : ServiceDescriptor.DescribeKeyed(serviceType, key, (provider, _) => factory(provider), lifetime);
+    }
+
+    /// <summary>
+    /// The service key a scheduler's own registrations go under.
+    /// </summary>
+    /// <remarks>
+    /// <c>Options.DefaultName</c> is the empty string, and <see cref="IQuartzBuilder.SchedulerName"/> is
+    /// that for the default scheduler. A key of <c>""</c> is not the same as no key to a container, and
+    /// the default scheduler's parts are the unkeyed registrations, so the two spellings cannot be
+    /// collapsed.
+    /// </remarks>
+    private static string? SchedulerServiceKey(IQuartzBuilder builder)
+    {
+        return string.IsNullOrEmpty(builder.SchedulerName) ? null : builder.SchedulerName;
     }
 
     /// <summary>
