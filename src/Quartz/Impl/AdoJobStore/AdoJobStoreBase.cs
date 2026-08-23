@@ -3602,6 +3602,12 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <see cref="TriggerAcquisitionCriteria" />'s remarks state the contract a new filter has to
     /// keep: it is another optional property on that record, defaulting to "no additional filtering".
     /// </para>
+    /// <para>
+    /// The other half of the acquisition contract is on the far side: the list
+    /// <see cref="IJobStore.AcquireNextTriggers" /> returns stays the store's, because the scheduler
+    /// thread copies it before working with it. A store overriding acquisition does not have to build a
+    /// fresh list to be safe.
+    /// </para>
     /// </remarks>
     /// <param name="request">What the scheduler asked this store to acquire.</param>
     protected virtual TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
