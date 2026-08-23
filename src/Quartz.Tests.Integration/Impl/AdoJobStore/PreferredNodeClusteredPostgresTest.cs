@@ -148,8 +148,9 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
         // Reset recordings so any nodeA executions don't satisfy nodeB's assertions
         RecordingJob.Reset();
 
-        // Wait for nodeA's checkin to become stale
-        await Task.Delay(10_000);
+        // nodeA is gone but its SCHEDULER_STATE row lingers with a fresh timestamp. Age the row
+        // rather than sleeping past the threshold: the survivor reads that column, not a stopwatch.
+        await BackdateCheckin("nodeA", TimeSpan.FromMinutes(5));
 
         IScheduler nodeB = await CreateScheduler("nodeB");
         try
