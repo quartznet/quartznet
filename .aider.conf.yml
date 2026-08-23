@@ -1,0 +1,4 @@
+# Aider loads no instruction file on its own, so this points it at the one this repository has.
+# The instructions live in AGENTS.md; keep this a pointer, never a copy.
+read:
+  - AGENTS.md

@@ -2,6 +2,11 @@
 
 The instructions for this repository live in [`AGENTS.md`](../AGENTS.md) at the repository root.
 
-Copilot reads `AGENTS.md` directly, so this file exists only so that a tool looking for the older
-path still finds its way there. Do not copy instructions into it — Copilot *combines* instruction
-files rather than picking one, so duplicated guidance would be applied twice.
+This file exists for **Copilot in Visual Studio and JetBrains IDEs**, which read
+`.github/copilot-instructions.md` and have no `AGENTS.md` support at all — without it they would be
+given nothing. Copilot's cloud agent, its CLI and its VS Code integration read `AGENTS.md` directly
+and do not need this file.
+
+Do not copy instructions into it. Copilot *combines* the instruction files it finds rather than
+picking one, so anything duplicated here is applied twice on the surfaces that read both — and drifts
+from `AGENTS.md` on all of them.
