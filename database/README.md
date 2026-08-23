@@ -4,9 +4,10 @@ Quartz.NET does not create or migrate its schema automatically. Creating the tab
 schema changes is a manual, deliberate step.
 
 A migration **both branches can run** is kept byte-identical on `3.x` and `main`, so its path
-resolves whichever branch you land on. The `4.0` folder is the exception: it is the 3.x → 4.x
-upgrade, so it can carry changes that exist only on 4.x, and it is maintained on `main`. The
-**Branch** column below says which is which — for anything marked `main`, use the `main` copy.
+resolves whichever branch you land on. The `4.0` folder is the exception and **lives on `main`
+only**: it is the 3.x → 4.0 upgrade path, what it has to do is decided by 4.x's schema, so one
+maintained copy is the point — the `3.x` branch links here instead of carrying a mirror that
+would go stale the moment 4.x moved. The **Branch** column below says which versions are on both.
 `tables/` is the *current* schema and so differs by design: on `3.x` it creates the 3.x schema,
 on `main` the 4.x one.
 
@@ -59,7 +60,7 @@ in each SQLite file.
 | [`3.18`](migrations/3.18) | `EXECUTION_GROUP` on `QRTZ_TRIGGERS` and `QRTZ_FIRED_TRIGGERS` (#3004) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.19`](migrations/3.19) | `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` on `QRTZ_TRIGGERS` (#3013, #3144) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.20`](migrations/3.20) | Index set realigned so every index leads with `SCHED_NAME`; prefix-redundant indexes dropped (#3203) | Optional, performance only | all | both |
-| [`4.0`](migrations/4.0) | Everything above, plus the `QRTZ_PAUSED_JOB_GRPS` table (#3336) and the 4.x index shape | **Mandatory for 4.x** | all | `main` |
+| [`4.0`](migrations/4.0) | Everything above, plus the `QRTZ_PAUSED_JOB_GRPS` table (#3336) and the 4.x index shape | **Mandatory for 4.x** | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
@@ -73,6 +74,11 @@ startup — so even a 3.x database that took every optional migration going stil
 So a 3.x database will not work against 4.x until [`migrations/4.0`](migrations/4.0) has been
 applied. That script folds in everything from 3.17, 3.18, 3.19 and 3.20, and every statement is
 guarded — run it whether or not you applied the optional ones.
+
+**This is the only copy.** The `3.x` branch used to carry one and no longer does: what the
+3.x → 4.0 script has to do is decided by 4.x's schema, which moves here, so a second copy there
+could only be right by accident. Read the version of this folder that matches the 4.x you are
+upgrading to.
 
 ## Where these files moved
 
@@ -102,11 +108,12 @@ those files by hand, they will be overwritten.
    `4.0` script there too if it is a 3.x change.
 3. Run `dotnet fallout GenerateMigrations` and commit the result. CI runs `VerifyMigrations`, so
    a definition change without a regenerated script fails the build.
-4. If **both branches can run the change**, mirror `migrations/`, this README and
-   `build/Build.DatabaseMigrations*.cs` to the other branch in a companion PR — they must stay
+4. If **both branches can run the change**, mirror the new `migrations/` folder and the definition
+   behind it to `3.x` in a companion pull request — a migration both branches can run must stay
    byte-identical, or a documented path 404s on whichever branch lacks it (#3218). A change that
-   exists **only on 4.x** has no companion: it goes into `4.0` alone, on `main`, and the Branch
-   column above says so. `tables/` is version-specific and stays per-branch either way.
+   exists **only on 4.x** has no companion at all. Either way the `4.0` fold happens here: `3.x`
+   does not carry that folder. `tables/` and this README describe their own branch, so neither is
+   mirrored verbatim.
 5. Add a section to the schema-changes page in the documentation (docs live on `main` only).
 
 The `2.0` and `3.0` migrations are hand-written: they are SQL Server-only historical scripts

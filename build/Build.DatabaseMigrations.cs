@@ -29,9 +29,11 @@ using Serilog;
 /// </para>
 /// <para>
 /// A migration both branches can run is mirrored to <c>3.x</c> byte for byte, so a documented path
-/// resolves whichever branch a reader lands on (#3218). The <c>4.0</c> folder is the exception: it
-/// is the 3.x-to-4.x upgrade and can carry changes that exist only on 4.x, so it is maintained here
-/// on <c>main</c> and <c>database/README.md</c> says so.
+/// resolves whichever branch a reader lands on (#3218). The <c>4.0</c> folder is the exception: it is
+/// the 3.x-to-4.0 upgrade path, its content moves whenever 4.x's schema moves, so it is generated
+/// here and nowhere else. <c>3.x</c> carries no copy at all and its <c>database/README.md</c> links
+/// to this one — a mirror there would go stale silently, and a wrong upgrade script is worse than an
+/// absent one.
 /// </para>
 /// </remarks>
 partial class Build
