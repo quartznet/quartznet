@@ -74,6 +74,30 @@ public interface ITriggerPersistenceDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Describes what <see cref="UpdateExtendedTriggerProperties" /> would issue, instead of issuing it,
+    /// so that the caller can send it in the same round trip as the trigger's own row.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation describes nothing and reports <see langword="false" />, so a delegate
+    /// written before this existed — or one whose update is not expressible as plain parameterized
+    /// statements, a blob it has to serialize under its own control being the case that matters — keeps
+    /// being given a round trip of its own and behaves exactly as it did.
+    /// </remarks>
+    /// <param name="trigger">The trigger whose properties are being written.</param>
+    /// <param name="state">The state being written on the trigger's own row.</param>
+    /// <param name="jobDetail">The job the trigger fires.</param>
+    /// <param name="statements">The statements to append to.</param>
+    /// <returns>
+    /// <see langword="true" /> when the update was appended and must not also be issued through
+    /// <see cref="UpdateExtendedTriggerProperties" />.
+    /// </returns>
+    bool TryDescribeUpdateExtendedTriggerProperties(
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        ICollection<SqlStatement> statements) => false;
+
+    /// <summary>
     /// Deletes trigger's special properties.
     /// </summary>
     ValueTask<int> DeleteExtendedTriggerProperties(

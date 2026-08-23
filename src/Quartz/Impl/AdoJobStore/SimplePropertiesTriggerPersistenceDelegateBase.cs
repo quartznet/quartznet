@@ -207,25 +207,49 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {
-        SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
-
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(UpdateSimplePropsTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "string1", properties.String1);
-        DbAccessor.AddCommandParameter(cmd, "string2", properties.String2);
-        DbAccessor.AddCommandParameter(cmd, "string3", properties.String3);
-        DbAccessor.AddCommandParameter(cmd, "int1", properties.Int1);
-        DbAccessor.AddCommandParameter(cmd, "int2", properties.Int2);
-        DbAccessor.AddCommandParameter(cmd, "long1", properties.Long1);
-        DbAccessor.AddCommandParameter(cmd, "long2", properties.Long2);
-        DbAccessor.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
-        DbAccessor.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
-        DbAccessor.AddCommandParameter(cmd, "boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1));
-        DbAccessor.AddCommandParameter(cmd, "boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2));
-        DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        DbAccessor.AddCommandParameter(cmd, "timeZoneId", properties.TimeZoneId);
+        foreach (SqlStatementParameter parameter in BuildUpdateParameters(trigger))
+        {
+            DbAccessor.AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
+        }
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public bool TryDescribeUpdateExtendedTriggerProperties(
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        ICollection<SqlStatement> statements)
+    {
+        statements.Add(new SqlStatement(
+            AdoJobStoreUtil.ReplaceTablePrefixCached(UpdateSimplePropsTrigger, TablePrefix),
+            BuildUpdateParameters(trigger)));
+
+        return true;
+    }
+
+    private List<SqlStatementParameter> BuildUpdateParameters(IOperableTrigger trigger)
+    {
+        SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
+
+        return
+        [
+            new SqlStatementParameter("schedulerName", SchedulerName),
+            new SqlStatementParameter("string1", properties.String1),
+            new SqlStatementParameter("string2", properties.String2),
+            new SqlStatementParameter("string3", properties.String3),
+            new SqlStatementParameter("int1", properties.Int1),
+            new SqlStatementParameter("int2", properties.Int2),
+            new SqlStatementParameter("long1", properties.Long1),
+            new SqlStatementParameter("long2", properties.Long2),
+            new SqlStatementParameter("decimal1", properties.Decimal1),
+            new SqlStatementParameter("decimal2", properties.Decimal2),
+            new SqlStatementParameter("boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1)),
+            new SqlStatementParameter("boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2)),
+            new SqlStatementParameter("triggerName", trigger.Key.Name),
+            new SqlStatementParameter("triggerGroup", trigger.Key.Group),
+            new SqlStatementParameter("timeZoneId", properties.TimeZoneId)
+        ];
     }
 }

@@ -25,7 +25,7 @@ namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
 /// The parts of a stored trigger row a state transition decides on: the trigger's stored state, the job
-/// it fires and when it fires next.
+/// it fires, when it fires next, and which type table holds its schedule.
 /// </summary>
 /// <remarks>
 /// The storage-side counterpart of <see cref="TriggerHeader" />, which is what a listing reports. This one
@@ -37,8 +37,14 @@ namespace Quartz.Impl.AdoJobStore;
 /// <param name="JobKey">The key of the job the trigger fires.</param>
 /// <param name="State">The trigger's stored state.</param>
 /// <param name="NextFireTimeUtc">The next time the trigger will fire, if any.</param>
+/// <param name="TriggerType">
+/// The discriminator naming the type table the trigger's schedule lives in. Carried here because the
+/// write side needs it, and reading it off the row the state came from costs nothing where asking for
+/// it separately cost a round trip.
+/// </param>
 public sealed record StoredTriggerHeader(
     TriggerKey Key,
     JobKey JobKey,
     StoredTriggerState State,
-    DateTimeOffset? NextFireTimeUtc);
+    DateTimeOffset? NextFireTimeUtc,
+    string TriggerType);

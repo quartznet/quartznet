@@ -338,71 +338,145 @@ public partial class StdAdoDelegate
         // No need to continue if the trigger type is not found - there's nothing to update.
         if (existingType is null) return 0;
 
-        // save some clock cycles by unnecessarily writing job data blob ...
-        var updateJobData = trigger.JobDataMap.Dirty;
-        var jobData = updateJobData ? SerializeJobData(trigger.JobDataMap) : null;
+        var tDel = FindTriggerPersistenceDelegate(trigger);
+        string type = tDel?.GetHandledTriggerTypeDiscriminator() ?? AdoConstants.TriggerTypeBlob;
 
-        // Only write the preferred node columns when the pin was actually changed on this instance.
-        // A trigger on the fire path carries the value loaded at acquire time; writing it back
-        // would clobber a concurrent re-pin (ClusterRecover's failover reset, UpdateTriggerDetails).
-        bool writePreferredNode = (trigger as TriggerBase)?.PreferredNodeDirty == true;
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildUpdateTriggerSql(trigger, out bool updateJobData, out bool writePreferredNode)));
+        BindUpdateTrigger(cmd, trigger, state, type, updateJobData, writePreferredNode);
 
-        string sqlUpdate = (updateJobData, writePreferredNode) switch
+        var updateResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        await WriteTriggerTypeTable(conn, trigger, state, jobDetail, existingType, type, tDel, cancellationToken).ConfigureAwait(false);
+
+        return updateResult;
+    }
+
+    /// <summary>
+    /// Picks the flavour of the trigger UPDATE this write needs, and reports the two decisions that
+    /// picked it, because the parameter binding has to make exactly the same ones.
+    /// </summary>
+    /// <param name="trigger">The trigger being written.</param>
+    /// <param name="updateJobData">
+    /// Whether the job data map goes into the statement. Skipped when the map is not dirty, which saves
+    /// serializing and shipping a blob that has not changed.
+    /// </param>
+    /// <param name="writePreferredNode">
+    /// Whether the preferred node columns go into the statement. Only written when the pin was actually
+    /// changed on this instance: a trigger on the fire path carries the value loaded at acquire time, and
+    /// writing that back would clobber a concurrent re-pin (ClusterRecover's failover reset, an
+    /// <c>UpdateTriggerDetails</c> re-pin).
+    /// </param>
+    private static string BuildUpdateTriggerSql(IOperableTrigger trigger, out bool updateJobData, out bool writePreferredNode)
+    {
+        updateJobData = trigger.JobDataMap.Dirty;
+        writePreferredNode = (trigger as TriggerBase)?.PreferredNodeDirty == true;
+
+        return (updateJobData, writePreferredNode) switch
         {
             (true, true) => StdAdoConstants.SqlUpdateTriggerWithPreferredNode,
             (true, false) => StdAdoConstants.SqlUpdateTrigger,
             (false, true) => StdAdoConstants.SqlUpdateTriggerSkipDataWithPreferredNode,
             (false, false) => StdAdoConstants.SqlUpdateTriggerSkipData,
         };
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sqlUpdate));
+    }
 
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
-        AddCommandParameter(cmd, "triggerJobGroup", trigger.JobKey.Group);
-        AddCommandParameter(cmd, "triggerDescription", trigger.Description);
-        AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.NextFireTimeUtc));
-        AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.PreviousFireTimeUtc));
-
-        AddCommandParameter(cmd, "triggerState", state.ToStoredValue());
-
-        var tDel = FindTriggerPersistenceDelegate(trigger);
-
-        string type = AdoConstants.TriggerTypeBlob;
-        if (tDel is not null)
+    /// <summary>
+    /// Binds the trigger UPDATE onto a command. Parameters are added in SQL token order, for providers
+    /// with positional binding.
+    /// </summary>
+    private void BindUpdateTrigger(
+        DbCommand cmd,
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        string type,
+        bool updateJobData,
+        bool writePreferredNode)
+    {
+        foreach (SqlStatementParameter parameter in BuildUpdateTriggerParameters(trigger, state, type, updateJobData, writePreferredNode))
         {
-            type = tDel.GetHandledTriggerTypeDiscriminator();
+            AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
         }
+    }
 
-        AddCommandParameter(cmd, "triggerType", type);
+    /// <summary>
+    /// The trigger UPDATE as data, for the paths that send it inside a batch rather than on a command of
+    /// its own. Same statement and same binding as <see cref="UpdateTrigger" /> — deliberately so, since
+    /// two spellings of this statement would be two things to keep in step.
+    /// </summary>
+    private SqlStatement BuildUpdateTriggerStatement(IOperableTrigger trigger, StoredTriggerState state, string type)
+    {
+        string sql = BuildUpdateTriggerSql(trigger, out bool updateJobData, out bool writePreferredNode);
+        return new SqlStatement(
+            ReplaceTablePrefix(sql),
+            BuildUpdateTriggerParameters(trigger, state, type, updateJobData, writePreferredNode));
+    }
 
-        AddCommandParameter(cmd, "triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc));
-        AddCommandParameter(cmd, "triggerEndTime", GetDbDateTimeValue(trigger.EndTimeUtc));
-        AddCommandParameter(cmd, "triggerCalendarName", trigger.CalendarName);
-        AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstructionCode);
-        AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
+    private List<SqlStatementParameter> BuildUpdateTriggerParameters(
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        string type,
+        bool updateJobData,
+        bool writePreferredNode)
+    {
+        List<SqlStatementParameter> parameters =
+        [
+            new("schedulerName", schedulerName),
+            new("triggerJobName", trigger.JobKey.Name),
+            new("triggerJobGroup", trigger.JobKey.Group),
+            new("triggerDescription", trigger.Description),
+            new("triggerNextFireTime", GetDbDateTimeValue(trigger.NextFireTimeUtc)),
+            new("triggerPreviousFireTime", GetDbDateTimeValue(trigger.PreviousFireTimeUtc)),
+            new("triggerState", state.ToStoredValue()),
+            new("triggerType", type),
+            new("triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc)),
+            new("triggerEndTime", GetDbDateTimeValue(trigger.EndTimeUtc)),
+            new("triggerCalendarName", trigger.CalendarName),
+            new("triggerMisfireInstruction", trigger.MisfireInstructionCode),
+            new("triggerPriority", trigger.Priority)
+        ];
 
-        const string JobDataMapParameter = "triggerJobJobDataMap";
         if (updateJobData)
         {
-            AddCommandParameter(cmd, JobDataMapParameter, jobData, DbProvider.Metadata.DbBinaryType);
+            parameters.Add(new SqlStatementParameter("triggerJobJobDataMap", SerializeJobData(trigger.JobDataMap), DbProvider.Metadata.DbBinaryType));
         }
 
-        string? execGroup = trigger.ExecutionGroup;
-        AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
+        parameters.Add(new SqlStatementParameter("triggerExecutionGroup", (object?) trigger.ExecutionGroup ?? DBNull.Value));
 
-        // Parameters are added in SQL token order for providers with positional binding
         if (writePreferredNode)
         {
             PreferredNode preferredNode = trigger.PreferredNode;
-            AddCommandParameter(cmd, "triggerPreferredNode", (object?) preferredNode.StoredNode ?? DBNull.Value);
-            AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNode.StoredAutomatic));
+            parameters.Add(new SqlStatementParameter("triggerPreferredNode", (object?) preferredNode.StoredNode ?? DBNull.Value));
+            parameters.Add(new SqlStatementParameter("triggerPreferredNodeAuto", GetDbBooleanValue(preferredNode.StoredAutomatic)));
         }
 
-        AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+        parameters.Add(new SqlStatementParameter("triggerName", trigger.Key.Name));
+        parameters.Add(new SqlStatementParameter("triggerGroup", trigger.Key.Group));
 
-        var updateResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        return parameters;
+    }
 
+    /// <summary>
+    /// Writes the trigger's schedule into whichever type table now holds it, moving it between tables
+    /// when the trigger's type changed since it was stored.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="trigger">The trigger being written.</param>
+    /// <param name="state">The state written on the trigger's own row.</param>
+    /// <param name="jobDetail">The job the trigger fires.</param>
+    /// <param name="existingType">The discriminator the trigger's row held before this write.</param>
+    /// <param name="type">The discriminator it holds now.</param>
+    /// <param name="tDel">The delegate handling <paramref name="type" />, or null for a blob trigger.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask WriteTriggerTypeTable(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        string existingType,
+        string type,
+        ITriggerPersistenceDelegate? tDel,
+        CancellationToken cancellationToken)
+    {
         if (type == existingType)
         {
             if (tDel is null)
@@ -413,31 +487,29 @@ public partial class StdAdoDelegate
             {
                 await tDel.UpdateExtendedTriggerProperties(conn, trigger, state, jobDetail, cancellationToken).ConfigureAwait(false);
             }
+
+            return;
+        }
+
+        var existingDel = FindTriggerPersistenceDelegate(existingType);
+
+        if (existingDel is null)
+        {
+            await DeleteBlobTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
         }
         else
         {
-            var existingDel = FindTriggerPersistenceDelegate(existingType);
-
-            if (existingDel is null)
-            {
-                await DeleteBlobTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await existingDel.DeleteExtendedTriggerProperties(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (tDel is null)
-            {
-                await InsertBlobTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await tDel.InsertExtendedTriggerProperties(conn, trigger, state, jobDetail, cancellationToken).ConfigureAwait(false);
-            }
+            await existingDel.DeleteExtendedTriggerProperties(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
         }
 
-        return updateResult;
+        if (tDel is null)
+        {
+            await InsertBlobTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await tDel.InsertExtendedTriggerProperties(conn, trigger, state, jobDetail, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <inheritdoc />
@@ -603,6 +675,103 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "oldState", oldState.ToStoredValue());
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private void AddJobTriggerStateTransitions(
+        List<SqlStatement> into,
+        JobKey jobKey,
+        TriggerStateTransition[] transitions)
+    {
+        string sql = ReplaceTablePrefix(StdAdoConstants.SqlUpdateJobTriggerStatesFromOtherState);
+        for (int i = 0; i < transitions.Length; i++)
+        {
+            TriggerStateTransition transition = transitions[i];
+            into.Add(new SqlStatement(sql,
+            [
+                new SqlStatementParameter("schedulerName", schedulerName),
+                new SqlStatementParameter("state", transition.To.ToStoredValue()),
+                new SqlStatementParameter("jobName", jobKey.Name),
+                new SqlStatementParameter("jobGroup", jobKey.Group),
+                new SqlStatementParameter("oldState", transition.From.ToStoredValue())
+            ]));
+        }
+    }
+
+    /// <summary>
+    /// The transitions a fire applies to the other triggers of a job that disallows concurrent
+    /// execution: everything that could still be picked up is parked until the job is done with.
+    /// </summary>
+    private static readonly TriggerStateTransition[] blockJobTriggersTransitions =
+    [
+        new(StoredTriggerState.Waiting, StoredTriggerState.Blocked),
+        new(StoredTriggerState.Acquired, StoredTriggerState.Blocked),
+        new(StoredTriggerState.Paused, StoredTriggerState.PausedBlocked)
+    ];
+
+    /// <inheritdoc />
+    public virtual async ValueTask ApplyTriggerFired(
+        ConnectionAndTransactionHolder conn,
+        TriggerFiredUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+
+        IOperableTrigger trigger = update.Trigger;
+        List<SqlStatement> statements = [];
+
+        statements.Add(new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlUpdateFiredTrigger),
+        [
+            new SqlStatementParameter("schedulerName", schedulerName),
+            new SqlStatementParameter("instanceName", instanceId),
+            new SqlStatementParameter("firedTime", GetDbDateTimeValue(timeProvider.GetUtcNow())),
+            new SqlStatementParameter("scheduledTime", GetDbDateTimeValue(update.ScheduledFireTimeUtc)),
+            new SqlStatementParameter("entryState", StoredTriggerState.Executing.ToStoredValue()),
+            new SqlStatementParameter("jobName", trigger.JobKey.Name),
+            new SqlStatementParameter("jobGroup", trigger.JobKey.Group),
+            new SqlStatementParameter("isNonConcurrent", GetDbBooleanValue(update.JobDetail.ConcurrentExecutionDisallowed)),
+            new SqlStatementParameter("requestsRecover", GetDbBooleanValue(update.JobDetail.RequestsRecovery)),
+            new SqlStatementParameter("executionGroup", (object?) trigger.ExecutionGroup ?? DBNull.Value),
+            new SqlStatementParameter("entryId", trigger.FireInstanceId)
+        ]));
+
+        if (update.ClearMisfireOriginalFireTime)
+        {
+            statements.Add(new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlUpdateMisfireOrigFireTime),
+            [
+                new SqlStatementParameter("schedulerName", schedulerName),
+                new SqlStatementParameter("triggerName", trigger.Key.Name),
+                new SqlStatementParameter("triggerGroup", trigger.Key.Group),
+                new SqlStatementParameter("misfireOrigFireTime", null)
+            ]));
+        }
+
+        if (update.BlockJobTriggers)
+        {
+            // Before the trigger's own row is written, exactly as when these were separate round trips:
+            // the trigger is still ACQUIRED at this point, so it is one of the rows this moves to
+            // BLOCKED, and its own UPDATE then writes the state the store decided on over the top.
+            AddJobTriggerStateTransitions(statements, update.JobDetail.Key, blockJobTriggersTransitions);
+        }
+
+        ITriggerPersistenceDelegate? tDel = FindTriggerPersistenceDelegate(trigger);
+        string type = tDel?.GetHandledTriggerTypeDiscriminator() ?? AdoConstants.TriggerTypeBlob;
+
+        statements.Add(BuildUpdateTriggerStatement(trigger, update.NewState, type));
+
+        // A trigger that still has the type it was stored with — which is every trigger the fire path
+        // sees, since it was rebuilt from that very row — can have its schedule written in the same
+        // round trip, provided its persistence delegate can describe the statement rather than issue it.
+        bool typeUnchanged = type == update.StoredTriggerType;
+        bool describedTypeTable = typeUnchanged
+            && tDel is not null
+            && tDel.TryDescribeUpdateExtendedTriggerProperties(trigger, update.NewState, update.JobDetail, statements);
+
+        await ExecuteStatements(conn, statements, cancellationToken).ConfigureAwait(false);
+
+        if (!describedTypeTable)
+        {
+            await WriteTriggerTypeTable(conn, trigger, update.NewState, update.JobDetail, update.StoredTriggerType, type, tDel, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <inheritdoc />
@@ -1034,12 +1203,14 @@ public partial class StdAdoDelegate
         object nextFireTime = rs[AdoConstants.ColumnNextFireTime];
         string jobName = rs.GetString(AdoConstants.ColumnJobName)!;
         string jobGroup = rs.GetString(AdoConstants.ColumnJobGroup)!;
+        string triggerType = rs.GetString(AdoConstants.ColumnTriggerType)!;
 
         return new StoredTriggerHeader(
             triggerKey,
             new JobKey(jobName, jobGroup),
             state,
-            GetDateTimeFromDbValue(nextFireTime));
+            GetDateTimeFromDbValue(nextFireTime),
+            triggerType);
     }
 
     private async ValueTask<string?> SelectTriggerType(
@@ -1663,7 +1834,7 @@ public partial class StdAdoDelegate
         List<IOperableTrigger> blobTriggers = [];
         BuildMisfireUpdateStatements(new MisfiredTriggerUpdate(trigger, newState, misfireOriginalFireTime), statements, blobTriggers);
 
-        await ExecuteStatementsIndividually(conn, statements, 0, statements.Count, cancellationToken).ConfigureAwait(false);
+        await ExecuteStatements(conn, statements, cancellationToken).ConfigureAwait(false);
 
         foreach (var blobTrigger in blobTriggers)
         {
@@ -1977,14 +2148,6 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
-    /// A statement and its parameters, kept as data so that the same definition can be issued either as a
-    /// standalone command or as one command inside a <see cref="DbBatch" />.
-    /// </summary>
-    private readonly record struct SqlStatement(string Sql, List<SqlStatementParameter> Parameters);
-
-    private readonly record struct SqlStatementParameter(string Name, object? Value, Enum? DataType = null);
-
-    /// <summary>
     /// Builds the statements one misfire update needs. Single source of truth for
     /// <see cref="UpdateMisfiredTrigger" /> and <see cref="UpdateMisfiredTriggers" />.
     /// </summary>
@@ -2154,11 +2317,17 @@ public partial class StdAdoDelegate
 
             await batch.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception e) when (e is not OperationCanceledException)
+        catch (Exception e) when (e is not OperationCanceledException && !TransientErrorDetector.IsTransient(e))
         {
             // A batch fails as a unit, which would let one bad statement block the whole pass. Retry
             // statement by statement so the others still get through, and so the exception that
             // surfaces names the statement that actually failed.
+            //
+            // Not for a transient failure, though. The caller's retry is the answer to those, and it
+            // only recognises them from the exception it is handed: replaying against a connection that
+            // just dropped — or a transaction the server has already doomed, which is what Postgres does
+            // to every statement after the first error — surfaces some later, unrecognisable failure
+            // instead, and a retryable operation stops being retried.
             logger.LogWarning(e, "Batched statement execution failed, retrying {StatementCount} statement(s) individually", length);
             await ExecuteStatementsIndividually(conn, statements, offset, length, cancellationToken).ConfigureAwait(false);
         }

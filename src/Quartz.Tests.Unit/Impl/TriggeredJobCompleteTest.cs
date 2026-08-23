@@ -294,7 +294,8 @@ public sealed class TriggeredJobCompleteTest
                 trigger.Key,
                 job.Key,
                 StoredTriggerState.Waiting,
-                rescheduled ? DateTimeOffset.UtcNow.AddHours(1) : null)));
+                rescheduled ? DateTimeOffset.UtcNow.AddHours(1) : null,
+                AdoConstants.TriggerTypeSimple)));
 
         await store.TriggeredJobComplete(trigger, job, SchedulerInstruction.DeleteTrigger);
 

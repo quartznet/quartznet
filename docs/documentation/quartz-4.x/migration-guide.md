@@ -3593,6 +3593,55 @@ any of that batch's database updates are written, where previously the notificat
 interleaved per trigger. Everything still happens inside the same transaction and under the same lock, so
 what other nodes observe is unchanged.
 
+## Batched trigger fire
+
+Firing one trigger used to take between six and nine round trips inside the `TRIGGER_ACCESS` lock. Every
+one of those is time every other node in the cluster spends waiting for the lock. The fire path now reads
+the trigger's row once and writes everything in one batch.
+
+Nothing needs configuring. Batching is used where `DbConnection.CanCreateBatch` says the provider supports
+it, and the same statements go out one command at a time where it does not — a provider that cannot batch
+issues exactly the statements it always did, in the same order.
+
+This matters if you implement `IDriverDelegate` yourself, which has one more member:
+
+| Member | Purpose |
+|--------|---------|
+| `ApplyTriggerFired` | Every write one fire makes — the fired-trigger row, the misfire original fire time, the sibling states of a serial job, the trigger's row and its schedule — described by `TriggerFiredUpdate` and issued as one batch |
+
+`ITriggerPersistenceDelegate` gains `TryDescribeUpdateExtendedTriggerProperties`, which appends the
+statement `UpdateExtendedTriggerProperties` would have issued to a `List<SqlStatement>` rather than issuing
+it, so that a trigger's schedule travels in the same round trip as its row. It is a default interface
+member returning `false`, so a persistence delegate written before this keeps being given a round trip of
+its own and behaves exactly as it did. `SqlStatement` and `SqlStatementParameter` are public for this
+reason.
+
+Two contracts moved to make it possible:
+
+| Was | Is |
+|-----|-----|
+| `StoredTriggerHeader(Key, JobKey, State, NextFireTimeUtc)` | `StoredTriggerHeader(Key, JobKey, State, NextFireTimeUtc, TriggerType)` — the discriminator comes off the same row, and reading it there is what removes the separate `SELECT TRIGGER_TYPE` |
+| `SqlSelectTriggerHeader` projects four columns | It projects `TRIGGER_TYPE` as well |
+
+Behavioral notes:
+
+- The fired-trigger row is written from the scheduled fire time the store hands `ApplyTriggerFired`, not
+  from the trigger's own next fire time. It used to be read off the trigger, which meant the row had to be
+  written before `Triggered()` advanced it — an ordering constraint a batch cannot honour, and one that was
+  never written down anywhere.
+- A batch that fails is replayed statement by statement so the exception names the statement that failed —
+  unless the failure was transient, in which case it surfaces as itself. A replay against a connection that
+  has just dropped, or a transaction the server has already doomed, produces a different and unrecognisable
+  failure, and the store's retry only recognises a transient failure from the exception it is handed. This
+  applies to the batched misfire writes above as well.
+- The exception a failed fire raises now names the fire rather than the individual statement:
+  `Couldn't record the fire of trigger '…' for '…' job`, where it used to be one of `Couldn't update fired
+  trigger`, `Couldn't update states of blocked triggers` or `Couldn't store trigger '…'`.
+- `IDriverDelegate.UpdateFiredTrigger` is still there but the fire path no longer calls it, and neither
+  does the fire path call `TriggerExists` or `UpdateTrigger` any more. **A delegate that overrode any of
+  those to change what a fire stores has to move that override to `ApplyTriggerFired`** — the old members
+  still compile and still work, they are simply no longer on this path.
+
 ## Job store listings became queries
 
 Listing jobs or triggers meant reading every key and then spending one round trip per key on anything more
@@ -7105,6 +7154,9 @@ Parameters and behavior are unchanged:
 | `TriggerAcquireResult` carries a `TriggerKey` | It carried `TriggerName` and `TriggerGroup`, which every caller immediately paired back up |
 | `TriggerStatus` removed, `IDriverDelegate.SelectTriggerStatus` is `SelectTriggerHeader` | It returns `StoredTriggerHeader`, an immutable record whose state is a `StoredTriggerState` — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
 | `IDriverDelegate.ValidateSchema` added | Schema validation was a `StdAdoDelegate` method reached by type test, so a delegate of your own silently skipped it — see [`ValidateSchema` is part of `IDriverDelegate`](#validateschema-is-part-of-idriverdelegate) |
+| `IDriverDelegate.ApplyTriggerFired` added | One trigger fire is one round trip's worth of writes rather than five to eight; `TriggerFiredUpdate` describes it — see [Batched trigger fire](#batched-trigger-fire) |
+| `StoredTriggerHeader` carries `TriggerType` | A fifth positional parameter; it comes off the row the state came from, which is what removes the separate type lookup — see [Batched trigger fire](#batched-trigger-fire) |
+| `ITriggerPersistenceDelegate.TryDescribeUpdateExtendedTriggerProperties` added | A default interface member returning `false`, so an existing persistence delegate is unaffected; implementing it puts a trigger's schedule in the same round trip as its row — see [Batched trigger fire](#batched-trigger-fire) |
 | `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |
 | `GetSelectNextTriggerToAcquireWith*Sql` removed | The `…WithExecutionGroupSql`, `…WithPreferredNodeSql` and `…WithPreferredNodeOnlySql` hooks, on `StdAdoDelegate` and all six dialect delegates. One statement covers every case now, so a dialect delegate keeps only its `GetSelectNextTriggerToAcquireSql` override — see [The three extra acquisition SQL hooks went with them](#the-three-extra-acquisition-sql-hooks-went-with-them) |
 | `IDbConnectionManager` / `DbConnectionManager` removed | The container is the provider registry, keyed by scheduler name; register a provider with `UseConnectionProvider` — see [The connection manager is gone](#the-connection-manager-is-gone) |

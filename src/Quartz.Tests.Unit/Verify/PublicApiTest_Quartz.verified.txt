@@ -2217,6 +2217,7 @@ namespace Quartz.Impl.AdoJobStore
         public System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.TriggerPropertyBundle> LoadExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.Dictionary<Quartz.TriggerKey, Quartz.Impl.AdoJobStore.TriggerPropertyBundle>> LoadExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public Quartz.Impl.AdoJobStore.TriggerPropertyBundle ReadTriggerPropertyBundle(System.Data.Common.DbDataReader rs) { }
+        public bool TryDescribeUpdateExtendedTriggerProperties(Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Collections.Generic.ICollection<Quartz.Impl.AdoJobStore.SqlStatement> statements) { }
         public System.Threading.Tasks.ValueTask<int> UpdateExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class DailyTimeIntervalTriggerPersistenceDelegate : Quartz.Impl.AdoJobStore.SimplePropertiesTriggerPersistenceDelegateBase
@@ -2305,6 +2306,7 @@ namespace Quartz.Impl.AdoJobStore
     }
     public interface IDriverDelegate
     {
+        System.Threading.Tasks.ValueTask ApplyTriggerFired(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.TriggerFiredUpdate update, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> CalendarExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> CalendarIsReferenced(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ClearData(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default);
@@ -2404,6 +2406,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.TriggerPropertyBundle> LoadExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.Dictionary<Quartz.TriggerKey, Quartz.Impl.AdoJobStore.TriggerPropertyBundle>> LoadExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default);
         Quartz.Impl.AdoJobStore.TriggerPropertyBundle ReadTriggerPropertyBundle(System.Data.Common.DbDataReader rs);
+        bool TryDescribeUpdateExtendedTriggerProperties(Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Collections.Generic.ICollection<Quartz.Impl.AdoJobStore.SqlStatement> statements);
         System.Threading.Tasks.ValueTask<int> UpdateExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default);
     }
     public sealed class InvalidConfigurationException : Quartz.SchedulerException
@@ -2561,6 +2564,7 @@ namespace Quartz.Impl.AdoJobStore
         public System.Threading.Tasks.ValueTask<int> InsertExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.TriggerPropertyBundle> LoadExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public Quartz.Impl.AdoJobStore.TriggerPropertyBundle ReadTriggerPropertyBundle(System.Data.Common.DbDataReader rs) { }
+        public bool TryDescribeUpdateExtendedTriggerProperties(Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Collections.Generic.ICollection<Quartz.Impl.AdoJobStore.SqlStatement> statements) { }
         public System.Threading.Tasks.ValueTask<int> UpdateExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class SimplePropertiesTriggerProperties : System.IEquatable<Quartz.Impl.AdoJobStore.SimplePropertiesTriggerProperties>
@@ -2590,6 +2594,7 @@ namespace Quartz.Impl.AdoJobStore
         public System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.TriggerPropertyBundle> LoadExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.Dictionary<Quartz.TriggerKey, Quartz.Impl.AdoJobStore.TriggerPropertyBundle>> LoadExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public Quartz.Impl.AdoJobStore.TriggerPropertyBundle ReadTriggerPropertyBundle(System.Data.Common.DbDataReader rs) { }
+        public bool TryDescribeUpdateExtendedTriggerProperties(Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Collections.Generic.ICollection<Quartz.Impl.AdoJobStore.SqlStatement> statements) { }
         public System.Threading.Tasks.ValueTask<int> UpdateExtendedTriggerProperties(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public class SqlServerDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
@@ -2604,6 +2609,19 @@ namespace Quartz.Impl.AdoJobStore
         public SqlServerMemoryOptimizedUpdateRowSemaphore(Quartz.Impl.AdoJobStore.Common.IDbProvider provider) { }
         protected override int RetryCount { get; }
     }
+    public readonly struct SqlStatement : System.IEquatable<Quartz.Impl.AdoJobStore.SqlStatement>
+    {
+        public SqlStatement(string Sql, System.Collections.Generic.List<Quartz.Impl.AdoJobStore.SqlStatementParameter> Parameters) { }
+        public System.Collections.Generic.List<Quartz.Impl.AdoJobStore.SqlStatementParameter> Parameters { get; init; }
+        public string Sql { get; init; }
+    }
+    public readonly struct SqlStatementParameter : System.IEquatable<Quartz.Impl.AdoJobStore.SqlStatementParameter>
+    {
+        public SqlStatementParameter(string Name, object? Value, System.Enum? DataType = null) { }
+        public System.Enum? DataType { get; init; }
+        public string Name { get; init; }
+        public object? Value { get; init; }
+    }
     public class StdAdoDelegate : Quartz.Impl.AdoJobStore.IDbAccessor, Quartz.Impl.AdoJobStore.IDriverDelegate
     {
         public StdAdoDelegate() { }
@@ -2615,6 +2633,7 @@ namespace Quartz.Impl.AdoJobStore
         protected void AddPreferredNodeParameters(System.Data.Common.DbCommand cmd, System.DateTimeOffset liveNodeCutoff) { }
         public virtual void AddTriggerPersistenceDelegate(Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate persistenceDelegate) { }
         protected virtual string ApplyPaging(string sql, bool takeLimited) { }
+        public virtual System.Threading.Tasks.ValueTask ApplyTriggerFired(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.TriggerFiredUpdate update, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> CalendarExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> CalendarIsReferenced(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ClearData(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2736,11 +2755,12 @@ namespace Quartz.Impl.AdoJobStore
     }
     public sealed class StoredTriggerHeader : System.IEquatable<Quartz.Impl.AdoJobStore.StoredTriggerHeader>
     {
-        public StoredTriggerHeader(Quartz.TriggerKey Key, Quartz.JobKey JobKey, Quartz.Extensibility.StoredTriggerState State, System.DateTimeOffset? NextFireTimeUtc) { }
+        public StoredTriggerHeader(Quartz.TriggerKey Key, Quartz.JobKey JobKey, Quartz.Extensibility.StoredTriggerState State, System.DateTimeOffset? NextFireTimeUtc, string TriggerType) { }
         public Quartz.JobKey JobKey { get; init; }
         public Quartz.TriggerKey Key { get; init; }
         public System.DateTimeOffset? NextFireTimeUtc { get; init; }
         public Quartz.Extensibility.StoredTriggerState State { get; init; }
+        public string TriggerType { get; init; }
     }
     public static class StoredTriggerStates
     {
@@ -2771,6 +2791,17 @@ namespace Quartz.Impl.AdoJobStore
         public Quartz.Extensibility.StoredTriggerState State { get; }
         public static Quartz.Impl.AdoJobStore.TriggerExecutionState NotFound { get; }
     }
+    public sealed class TriggerFiredUpdate : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerFiredUpdate>
+    {
+        public TriggerFiredUpdate() { }
+        public required bool BlockJobTriggers { get; init; }
+        public required bool ClearMisfireOriginalFireTime { get; init; }
+        public required Quartz.IJobDetail JobDetail { get; init; }
+        public required Quartz.Extensibility.StoredTriggerState NewState { get; init; }
+        public required System.DateTimeOffset? ScheduledFireTimeUtc { get; init; }
+        public required string StoredTriggerType { get; init; }
+        public required Quartz.Extensibility.IOperableTrigger Trigger { get; init; }
+    }
     public sealed class TriggerPersistenceDelegateContext : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerPersistenceDelegateContext>
     {
         public TriggerPersistenceDelegateContext() { }
@@ -2784,6 +2815,12 @@ namespace Quartz.Impl.AdoJobStore
         public TriggerPropertyBundle(Quartz.IScheduleBuilder scheduleBuilder, System.Action<Quartz.Extensibility.IOperableTrigger>? applyState) { }
         public System.Action<Quartz.Extensibility.IOperableTrigger>? ApplyState { get; }
         public Quartz.IScheduleBuilder ScheduleBuilder { get; }
+    }
+    public readonly struct TriggerStateTransition : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerStateTransition>
+    {
+        public TriggerStateTransition(Quartz.Extensibility.StoredTriggerState From, Quartz.Extensibility.StoredTriggerState To) { }
+        public Quartz.Extensibility.StoredTriggerState From { get; init; }
+        public Quartz.Extensibility.StoredTriggerState To { get; init; }
     }
     public class UpdateRowSemaphore : Quartz.Impl.AdoJobStore.DbSemaphore
     {

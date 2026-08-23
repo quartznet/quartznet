@@ -144,16 +144,40 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {
-        ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
-
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
-        DbAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
-        DbAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+        foreach (SqlStatementParameter parameter in BuildUpdateParameters(trigger))
+        {
+            DbAccessor.AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
+        }
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public bool TryDescribeUpdateExtendedTriggerProperties(
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        ICollection<SqlStatement> statements)
+    {
+        statements.Add(new SqlStatement(
+            AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix),
+            BuildUpdateParameters(trigger)));
+
+        return true;
+    }
+
+    private List<SqlStatementParameter> BuildUpdateParameters(IOperableTrigger trigger)
+    {
+        ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
+
+        return
+        [
+            new SqlStatementParameter("schedulerName", SchedulerName),
+            new SqlStatementParameter("triggerRepeatCount", simpleTrigger.RepeatCount),
+            new SqlStatementParameter("triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval)),
+            new SqlStatementParameter("triggerTimesTriggered", simpleTrigger.TimesTriggered),
+            new SqlStatementParameter("triggerName", trigger.Key.Name),
+            new SqlStatementParameter("triggerGroup", trigger.Key.Group)
+        ];
     }
 }

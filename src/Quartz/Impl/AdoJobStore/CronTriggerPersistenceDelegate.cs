@@ -147,15 +147,39 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {
-        ICronTrigger cronTrigger = (ICronTrigger) trigger;
-
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlUpdateCronTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
-        DbAccessor.AddCommandParameter(cmd, "timeZoneId", cronTrigger.TimeZone.Id);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+        foreach (SqlStatementParameter parameter in BuildUpdateParameters(trigger))
+        {
+            DbAccessor.AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
+        }
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public bool TryDescribeUpdateExtendedTriggerProperties(
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail jobDetail,
+        ICollection<SqlStatement> statements)
+    {
+        statements.Add(new SqlStatement(
+            AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlUpdateCronTrigger, TablePrefix),
+            BuildUpdateParameters(trigger)));
+
+        return true;
+    }
+
+    private List<SqlStatementParameter> BuildUpdateParameters(IOperableTrigger trigger)
+    {
+        ICronTrigger cronTrigger = (ICronTrigger) trigger;
+
+        return
+        [
+            new SqlStatementParameter("schedulerName", SchedulerName),
+            new SqlStatementParameter("triggerCronExpression", cronTrigger.CronExpressionString),
+            new SqlStatementParameter("timeZoneId", cronTrigger.TimeZone.Id),
+            new SqlStatementParameter("triggerName", trigger.Key.Name),
+            new SqlStatementParameter("triggerGroup", trigger.Key.Group)
+        ];
     }
 }
