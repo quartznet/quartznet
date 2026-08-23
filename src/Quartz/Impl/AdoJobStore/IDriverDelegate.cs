@@ -142,6 +142,25 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get the keys of the triggers of the given job that are in the given state.
+    /// </summary>
+    /// <remarks>
+    /// The filtered form of the overload above, for the callers that want the state rather than the
+    /// trigger — completion bookkeeping asking which of a job's triggers it has just unblocked, where
+    /// loading each trigger and then asking the database for its state one at a time is a read per
+    /// trigger for an answer one read can give.
+    /// </remarks>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="jobKey">The key identifying the job.</param>
+    /// <param name="state">The state the triggers must be in.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<List<TriggerKey>> SelectTriggerKeysForJob(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        StoredTriggerState state,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Delete the job detail record for the given job.
     /// </summary>
     /// <param name="conn">The DB Connection</param>
@@ -416,6 +435,26 @@ public interface IDriverDelegate
         JobKey jobKey,
         StoredTriggerState newState,
         StoredTriggerState oldState,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Apply several conditional state changes to a job's triggers in as few round trips as the
+    /// provider allows.
+    /// </summary>
+    /// <remarks>
+    /// The transitions are applied in the order given, so a set of them that overlaps means what
+    /// issuing them one after another meant. Blocking and unblocking a job's triggers is always two or
+    /// three of these at once, which is two or three round trips inside the trigger-access lock when
+    /// they travel separately.
+    /// </remarks>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="jobKey">The key identifying the job.</param>
+    /// <param name="transitions">The state changes to apply, in order.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask UpdateTriggerStatesForJobFromOtherState(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        IReadOnlyList<TriggerStateTransition> transitions,
         CancellationToken cancellationToken = default);
 
     /// <summary>

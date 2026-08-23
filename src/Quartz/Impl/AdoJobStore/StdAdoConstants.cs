@@ -447,6 +447,9 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectTriggersForJob =
         Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnJobName} = @jobName AND {AdoConstants.ColumnJobGroup} = @jobGroup");
 
+    public static readonly string SqlSelectTriggersForJobInState =
+        Invariant($"{SqlSelectTriggersForJob} AND {AdoConstants.ColumnTriggerState} = @state");
+
     public static readonly string SqlSelectTriggersInGroupLike =
         Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
 

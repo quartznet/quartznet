@@ -3595,19 +3595,22 @@ what other nodes observe is unchanged.
 
 ## Batched trigger fire
 
-Firing one trigger used to take between six and nine round trips inside the `TRIGGER_ACCESS` lock. Every
-one of those is time every other node in the cluster spends waiting for the lock. The fire path now reads
-the trigger's row once and writes everything in one batch.
+Firing one trigger used to take between six and nine round trips inside the `TRIGGER_ACCESS` lock, and
+completing the job that fired took a read per trigger of that job on top. Every one of those is time every
+other node in the cluster spends waiting for the lock. The fire path now reads the trigger's row once and
+writes everything in one batch, and completion asks one question instead of one per trigger.
 
 Nothing needs configuring. Batching is used where `DbConnection.CanCreateBatch` says the provider supports
 it, and the same statements go out one command at a time where it does not — a provider that cannot batch
 issues exactly the statements it always did, in the same order.
 
-This matters if you implement `IDriverDelegate` yourself, which has one more member:
+This matters if you implement `IDriverDelegate` yourself, which has three more members:
 
 | Member | Purpose |
 |--------|---------|
 | `ApplyTriggerFired` | Every write one fire makes — the fired-trigger row, the misfire original fire time, the sibling states of a serial job, the trigger's row and its schedule — described by `TriggerFiredUpdate` and issued as one batch |
+| `UpdateTriggerStatesForJobFromOtherState(conn, jobKey, IReadOnlyList<TriggerStateTransition>, ct)` | Several conditional state changes for one job in one round trip, beside the single-transition overload that is still there |
+| `SelectTriggerKeysForJob(conn, jobKey, StoredTriggerState, ct)` | The keys of a job's triggers in one state, beside the unfiltered overload |
 
 `ITriggerPersistenceDelegate` gains `TryDescribeUpdateExtendedTriggerProperties`, which appends the
 statement `UpdateExtendedTriggerProperties` would have issued to a `List<SqlStatement>` rather than issuing
@@ -3641,6 +3644,10 @@ Behavioral notes:
   does the fire path call `TriggerExists` or `UpdateTrigger` any more. **A delegate that overrode any of
   those to change what a fire stores has to move that override to `ApplyTriggerFired`** — the old members
   still compile and still work, they are simply no longer on this path.
+- Completion no longer loads a job's triggers to ask the database for each one's state. It asks for the
+  keys in the state it cares about, loads those in one read, and applies their misfire policies as one
+  batched write, which is what misfire recovery already did. A trigger that runs out of fire times while
+  blocked is still stored `COMPLETE`, still finalized to the scheduler listeners, and still deleted.
 
 ## Job store listings became queries
 
@@ -7155,6 +7162,7 @@ Parameters and behavior are unchanged:
 | `TriggerStatus` removed, `IDriverDelegate.SelectTriggerStatus` is `SelectTriggerHeader` | It returns `StoredTriggerHeader`, an immutable record whose state is a `StoredTriggerState` — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
 | `IDriverDelegate.ValidateSchema` added | Schema validation was a `StdAdoDelegate` method reached by type test, so a delegate of your own silently skipped it — see [`ValidateSchema` is part of `IDriverDelegate`](#validateschema-is-part-of-idriverdelegate) |
 | `IDriverDelegate.ApplyTriggerFired` added | One trigger fire is one round trip's worth of writes rather than five to eight; `TriggerFiredUpdate` describes it — see [Batched trigger fire](#batched-trigger-fire) |
+| `IDriverDelegate` gains a transition-list `UpdateTriggerStatesForJobFromOtherState` and a state-filtered `SelectTriggerKeysForJob` | Overloads beside the existing ones, so the blocking and unblocking of a job's triggers is one round trip and completion stops reading a state per trigger — see [Batched trigger fire](#batched-trigger-fire) |
 | `StoredTriggerHeader` carries `TriggerType` | A fifth positional parameter; it comes off the row the state came from, which is what removes the separate type lookup — see [Batched trigger fire](#batched-trigger-fire) |
 | `ITriggerPersistenceDelegate.TryDescribeUpdateExtendedTriggerProperties` added | A default interface member returning `false`, so an existing persistence delegate is unaffected; implementing it puts a trigger's schedule in the same round trip as its row — see [Batched trigger fire](#batched-trigger-fire) |
 | `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |

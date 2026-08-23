@@ -318,19 +318,14 @@ public sealed class TriggeredJobCompleteTest
 
         await store.TriggeredJobComplete(trigger, job, testCase.Instruction);
 
+        // Both transitions travel in one call, which is one round trip inside the trigger-access lock
+        // rather than two.
         A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
                 A<ConnectionAndTransactionHolder>.Ignored,
                 job.Key,
-                StoredTriggerState.Waiting,
-                StoredTriggerState.Blocked,
-                A<CancellationToken>.Ignored))
-            .MustHaveHappenedOnceExactly();
-
-        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
-                A<ConnectionAndTransactionHolder>.Ignored,
-                job.Key,
-                StoredTriggerState.Paused,
-                StoredTriggerState.PausedBlocked,
+                A<IReadOnlyList<TriggerStateTransition>>.That.IsSameSequenceAs(
+                    new TriggerStateTransition(StoredTriggerState.Blocked, StoredTriggerState.Waiting),
+                    new TriggerStateTransition(StoredTriggerState.PausedBlocked, StoredTriggerState.Paused)),
                 A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
     }
@@ -350,8 +345,7 @@ public sealed class TriggeredJobCompleteTest
         A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
                 A<ConnectionAndTransactionHolder>.Ignored,
                 A<JobKey>.Ignored,
-                A<StoredTriggerState>.Ignored,
-                A<StoredTriggerState>.Ignored,
+                A<IReadOnlyList<TriggerStateTransition>>.Ignored,
                 A<CancellationToken>.Ignored))
             .MustNotHaveHappened();
     }
@@ -368,11 +362,12 @@ public sealed class TriggeredJobCompleteTest
 
         // The unblocking fan-out re-checks the job's triggers for misfires; none of these tests has a
         // trigger to find there.
-        A.CallTo(() => driverDelegate.SelectTriggersForJob(
+        A.CallTo(() => driverDelegate.SelectTriggerKeysForJob(
                 A<ConnectionAndTransactionHolder>.Ignored,
                 A<JobKey>.Ignored,
+                A<StoredTriggerState>.Ignored,
                 A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger>()));
+            .Returns(new ValueTask<List<TriggerKey>>(new List<TriggerKey>()));
 
         return driverDelegate;
     }
@@ -383,6 +378,118 @@ public sealed class TriggeredJobCompleteTest
     /// for the tests that drive the protected members directly, but not for one that goes in through
     /// the public <c>TriggeredJobComplete</c>.
     /// </summary>
+    /// <summary>
+    /// Unblocking a job's triggers used to cost a read of the job's triggers, a read of each trigger's
+    /// state, and a reload of every trigger that turned out to be waiting. It is now the keys in the one
+    /// state that matters, then one bulk load of those.
+    /// </summary>
+    [Test]
+    public async Task AdoStoreChecksTheUnblockedTriggersForMisfiresWithoutAReadPerTrigger()
+    {
+        CompletingAdoJobStore store = new();
+        IDriverDelegate driverDelegate = GivenADriverDelegate(store);
+
+        IJobDetail job = CreateJob<DisallowConcurrentCompletionTestJob>(durable: true);
+        IOperableTrigger trigger = CreateTrigger("fired", job, DateTimeOffset.UtcNow);
+        trigger.FireInstanceId = "fire-1";
+
+        List<IOperableTrigger> siblings =
+        [
+            CreateTrigger("s1", job, DateTimeOffset.UtcNow.AddHours(1)),
+            CreateTrigger("s2", job, DateTimeOffset.UtcNow.AddHours(2)),
+            CreateTrigger("s3", job, DateTimeOffset.UtcNow.AddHours(3)),
+        ];
+
+        A.CallTo(() => driverDelegate.SelectTriggerKeysForJob(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                job.Key,
+                StoredTriggerState.Waiting,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<TriggerKey>>(siblings.Select(x => x.Key).ToList()));
+
+        A.CallTo(() => driverDelegate.SelectTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyCollection<TriggerKey>>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<IOperableTrigger>>(siblings));
+
+        await store.TriggeredJobComplete(trigger, job, SchedulerInstruction.NoInstruction);
+
+        // Three triggers, still one read.
+        A.CallTo(() => driverDelegate.SelectTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyCollection<TriggerKey>>.That.IsSameSequenceAs(siblings.Select(x => x.Key)),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.SelectTriggerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<TriggerKey>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.SelectTrigger(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<TriggerKey>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        // None of these has passed its fire time, so nothing is written for them either.
+        A.CallTo(() => driverDelegate.UpdateMisfiredTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyList<MisfiredTriggerUpdate>>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task AdoStoreAppliesTheMisfirePolicyOfEveryUnblockedTriggerInOneWrite()
+    {
+        CompletingAdoJobStore store = new();
+        IDriverDelegate driverDelegate = GivenADriverDelegate(store);
+
+        IJobDetail job = CreateJob<DisallowConcurrentCompletionTestJob>(durable: true);
+        IOperableTrigger trigger = CreateTrigger("fired", job, DateTimeOffset.UtcNow);
+        trigger.FireInstanceId = "fire-1";
+
+        // Two triggers that sat blocked long enough to miss their turn while the job ran.
+        List<IOperableTrigger> missed =
+        [
+            CreateTrigger("m1", job, DateTimeOffset.UtcNow.AddHours(-2)),
+            CreateTrigger("m2", job, DateTimeOffset.UtcNow.AddHours(-3)),
+        ];
+
+        A.CallTo(() => driverDelegate.SelectTriggerKeysForJob(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                job.Key,
+                StoredTriggerState.Waiting,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<TriggerKey>>(missed.Select(x => x.Key).ToList()));
+
+        A.CallTo(() => driverDelegate.SelectTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyCollection<TriggerKey>>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<IOperableTrigger>>(missed));
+
+        await store.TriggeredJobComplete(trigger, job, SchedulerInstruction.NoInstruction);
+
+        // Both misfires belong in the same write.
+        A.CallTo(() => driverDelegate.UpdateMisfiredTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyList<MisfiredTriggerUpdate>>.That.Matches(x => x.Count == 2),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.UpdateMisfiredTrigger(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IOperableTrigger>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<DateTimeOffset?>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
     private sealed class CompletingAdoJobStore : AdoJobStoreBaseTest.TestAdoJobStoreBase
     {
         protected override ValueTask<T> ExecuteInLock<T>(

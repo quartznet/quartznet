@@ -38,14 +38,38 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<List<TriggerKey>> SelectTriggerKeysForJob(ConnectionAndTransactionHolder conn,
+    public virtual ValueTask<List<TriggerKey>> SelectTriggerKeysForJob(ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggersForJob));
+        return SelectTriggerKeysForJob(conn, jobKey, StdAdoConstants.SqlSelectTriggersForJob, state: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask<List<TriggerKey>> SelectTriggerKeysForJob(ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        StoredTriggerState state,
+        CancellationToken cancellationToken = default)
+    {
+        return SelectTriggerKeysForJob(conn, jobKey, StdAdoConstants.SqlSelectTriggersForJobInState, state, cancellationToken);
+    }
+
+    private async ValueTask<List<TriggerKey>> SelectTriggerKeysForJob(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        string sql,
+        StoredTriggerState? state,
+        CancellationToken cancellationToken)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "jobName", jobKey.Name);
         AddCommandParameter(cmd, "jobGroup", jobKey.Group);
+        if (state is not null)
+        {
+            AddCommandParameter(cmd, "state", state.Value.ToStoredValue());
+        }
+
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         List<TriggerKey> list = [];
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
