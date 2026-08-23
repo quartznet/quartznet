@@ -104,6 +104,34 @@ public sealed class JobTypeKeyingTest
     }
 
     [Test]
+    public async Task ASchedulerCanTakeBackAJobTypeTheContainerRegisteredDifferently()
+    {
+        JobRunLog log = new();
+
+        ServiceCollection services = new();
+        services.AddSingleton(log);
+
+        // An application-wide registration that substitutes a different implementation. Without a
+        // word from the scheduler this is what every scheduler in the container would build.
+        services.AddScoped<TenantJob, AcmeJob>();
+
+        services.AddQuartz("initech", q =>
+        {
+            q.AddJobType<TenantJob>();
+            Schedule(q, "initech", triggers: 1);
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        Task complete = log.Expect(1);
+        await RunSchedulers(provider, complete, "initech");
+
+        log.Runs.Select(x => x.Marker).Should().BeEquivalentTo(["plain"],
+            "naming the job type with no implementation says this scheduler builds the type itself, "
+            + "which is the only way to opt out of a container-wide substitution");
+    }
+
+    [Test]
     public async Task ASchedulerWithNoRegistrationOfItsOwnStillResolvesTheContainers()
     {
         JobRunLog log = new();
