@@ -1,5 +1,9 @@
-﻿using Microsoft.Extensions.Options;
+﻿using FakeItEasy;
 
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+
+using Quartz.Configuration;
 using Quartz.Extensibility;
 
 using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
@@ -486,6 +490,105 @@ public class QuartzHostedServiceTests
         Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.False);
 
         await startupCts.CancelAsync().ConfigureAwait(false);
+    }
+
+    [Test]
+    public async Task StopAsync_ShutsEverySchedulerDownAtOnceRatherThanInTurn()
+    {
+        var firstEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var registry = new SchedulerNameRegistry();
+        registry.Add("second");
+
+        var services = new ServiceCollection();
+        services.AddSingleton(registry);
+        services.AddSingleton(FactoryFor(SchedulerBlockedInShutdown(firstEntered, release.Task)));
+        services.AddKeyedSingleton(typeof(ISchedulerFactory), "second", (_, _) => FactoryFor(SchedulerBlockedInShutdown(secondEntered, release.Task)));
+
+        await using var provider = services.BuildServiceProvider();
+
+        var hostedService = new QuartzHostedService(
+            new MockApplicationLifetime(),
+            provider,
+            new StaticOptionsMonitor(new QuartzHostedServiceOptions
+            {
+                WaitForJobsToComplete = true,
+                AwaitApplicationStarted = false,
+            }));
+
+        await hostedService.StartAsync(CancellationToken.None);
+
+        var stop = hostedService.StopAsync(CancellationToken.None);
+
+        Func<Task> act = async () => await Task.WhenAll(firstEntered.Task, secondEntered.Task).WaitAsync(TimeSpan.FromSeconds(10));
+
+        await act.Should().NotThrowAsync(
+            "both schedulers have to be shutting down at the same time: waiting for one drain before starting the next makes the "
+            + "host's stop time the sum of the waits, which is what overruns HostOptions.ShutdownTimeout");
+
+        release.TrySetResult();
+
+        await stop.WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    [Test]
+    public async Task StopAsync_ShutsTheOtherSchedulersDownWhenOneOfThemFails()
+    {
+        var failing = A.Fake<IScheduler>();
+        A.CallTo(() => failing.Shutdown(A<bool>._, A<CancellationToken>._)).Throws(new InvalidOperationException("no"));
+
+        var healthy = A.Fake<IScheduler>();
+
+        var registry = new SchedulerNameRegistry();
+        registry.Add("healthy");
+
+        var services = new ServiceCollection();
+        services.AddSingleton(registry);
+        services.AddSingleton(FactoryFor(failing));
+        services.AddKeyedSingleton(typeof(ISchedulerFactory), "healthy", (_, _) => FactoryFor(healthy));
+
+        await using var provider = services.BuildServiceProvider();
+
+        var hostedService = new QuartzHostedService(
+            new MockApplicationLifetime(),
+            provider,
+            new StaticOptionsMonitor(new QuartzHostedServiceOptions { AwaitApplicationStarted = false }));
+
+        await hostedService.StartAsync(CancellationToken.None);
+
+        Func<Task> act = async () => await hostedService.StopAsync(CancellationToken.None);
+
+        (await act.Should().ThrowAsync<AggregateException>(
+                "a shutdown that failed is reported rather than swallowed, and all of them are reported rather than the first"))
+            .WithInnerException<InvalidOperationException>();
+
+        A.CallTo(() => healthy.Shutdown(A<bool>._, A<CancellationToken>._)).MustHaveHappened();
+    }
+
+    /// <summary>
+    /// A scheduler whose shutdown does not return until the test lets it, so that two of them overlapping
+    /// is observable.
+    /// </summary>
+    private static IScheduler SchedulerBlockedInShutdown(TaskCompletionSource entered, Task release)
+    {
+        var scheduler = A.Fake<IScheduler>();
+
+        A.CallTo(() => scheduler.Shutdown(A<bool>._, A<CancellationToken>._)).ReturnsLazily(() =>
+        {
+            entered.TrySetResult();
+            return new ValueTask(release);
+        });
+
+        return scheduler;
+    }
+
+    private static ISchedulerFactory FactoryFor(IScheduler scheduler)
+    {
+        var factory = A.Fake<ISchedulerFactory>();
+        A.CallTo(() => factory.GetScheduler(A<CancellationToken>._)).ReturnsLazily(() => new ValueTask<IScheduler>(scheduler));
+        return factory;
     }
 
     /// <summary>

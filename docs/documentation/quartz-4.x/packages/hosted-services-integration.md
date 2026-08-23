@@ -86,3 +86,19 @@ A string names a scheduler, here as everywhere else in Quartz — `builder.AddQu
 registers a scheduler called `reporting`, reading its settings from `Quartz:Schedulers:reporting` when
 the section describes several. `builder.AddQuartzSchedulers()` registers one per child of that
 sub-section.
+
+## Shutdown has a budget
+
+The host gives `StopAsync` a token that fires after `HostOptions.ShutdownTimeout` — thirty seconds by
+default — and that token bounds the wait for running jobs. When it fires the schedulers stop *waiting*:
+they still shut their job stores, plugins and listeners down, and their listeners are still told they
+stopped, so nothing is left half torn down. A warning naming the scheduler is logged when it happens.
+
+The jobs themselves are not cancelled by the deadline. Whether a shutting-down scheduler asks them to stop
+is `QuartzSchedulerOptions.ShutdownJobInterruption`, which defaults to never, and a job that has to end on
+request watches `IJobExecutionContext.CancellationToken`. So with `WaitForJobsToComplete = true` and jobs
+that outlive the budget, the host stops with those jobs still running and their job store updates
+unfinished — configure `HostOptions.ShutdownTimeout` upwards if that matters more than a prompt stop.
+
+Several registered schedulers are shut down at the same time rather than one after another, so the budget
+covers all of them together instead of being divided between them.
