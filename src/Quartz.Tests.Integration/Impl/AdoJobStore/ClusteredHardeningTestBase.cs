@@ -17,7 +17,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// </summary>
 public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
 {
-    protected const string Group = "clusterHardening";
+    private const string Group = "clusterHardening";
 
     /// <summary>
     /// The instance id of a node that never existed. Nothing ever starts under this name, so every row
@@ -83,6 +83,7 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
             await survivor.Start();
 
             await WaitForFirings(1, timeoutMs: 30_000, "the survivor to recover and fire the trigger the dead node was holding");
+            await SettleForRepeatFirings();
 
             FiringRecordingJob.Firings.Should().ContainSingle(
                     "the released trigger fires once; a fired-trigger row that survived recovery would keep the trigger stuck instead")
@@ -139,6 +140,7 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
             await survivor.Start();
 
             await WaitForFirings(1, timeoutMs: 30_000, "the survivor to schedule and run the recovery trigger");
+            await SettleForRepeatFirings();
 
             FiringRecord firing = FiringRecordingJob.Firings.Should().ContainSingle(
                 "the interrupted execution is recovered once, not once per check-in").Subject;
@@ -221,16 +223,16 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
             await WaitForCondition(
                 () => Task.FromResult(FiringRecordingJob.Firings.Count >= TriggerCount),
                 timeoutMs: 90_000,
-                () =>
+                async () =>
                 {
                     string[] missing = expected.Except(FiredTriggerNames()).ToArray();
                     return $"all {TriggerCount} one-shot triggers to fire; {missing.Length} never did "
-                           + $"([{string.Join(", ", missing)}]). State:\n{DumpDatabaseState().GetAwaiter().GetResult()}";
+                           + $"([{string.Join(", ", missing)}]). State:\n{await DumpDatabaseState()}";
                 });
 
             // Absence cannot be polled for, only waited out: a duplicate acquisition that lost the race by
             // a few hundred milliseconds arrives after the thirtieth firing, not before it.
-            await Task.Delay(3000);
+            await SettleForRepeatFirings();
 
             TestContext.Out.WriteLine("Firings per node: " + string.Join(", ", FiringRecordingJob.Firings
                 .GroupBy(x => x.InstanceId)
@@ -255,8 +257,15 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
         return WaitForCondition(
             () => Task.FromResult(FiringRecordingJob.Firings.Count >= count),
             timeoutMs,
-            () => $"{what}. State:\n{DumpDatabaseState().GetAwaiter().GetResult()}");
+            async () => $"{what}. State:\n{await DumpDatabaseState()}");
     }
+
+    /// <summary>
+    /// Gives a repeat firing time to arrive before the caller asserts there was none. Recovery is driven
+    /// by the check-in loop, so a recovery that failed to clean up after itself would run again on the
+    /// next check-in — three of those, at this fixture's one-second interval, pass inside this wait.
+    /// </summary>
+    private static Task SettleForRepeatFirings() => Task.Delay(3000);
 
     /// <summary>
     /// Writes the SCHEDULER_STATE row a node leaves behind, then ages it past the failure threshold. The

@@ -19,9 +19,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// </para>
 /// <para>
 /// <b>There is deliberately no <c>FakeTimeProvider</c> anywhere in this project.</b> A clustered node
-/// decides that a peer has died by comparing the peer's <c>LAST_CHECKIN_TIME</c> — a wall-clock epoch
-/// stamp sitting in <c>QRTZ_SCHEDULER_STATE</c> — against its own clock, and the same is true of every
-/// other node reading the same row. The database is the clock the cluster agrees on. Handing one node
+/// decides that a peer has died by comparing the peer's <c>LAST_CHECKIN_TIME</c> — an absolute instant
+/// sitting in <c>QRTZ_SCHEDULER_STATE</c> — against its own clock, and the same is true of every other
+/// node reading the same row. The database is the clock the cluster agrees on. Handing one node
 /// a fake clock would move that node's arithmetic while the rows, the peers, the connection timeouts
 /// and the server's own timing stayed on real time, so the test would exercise a cluster that does not
 /// exist. Where a test needs the past, it moves the database instead: see
@@ -107,19 +107,19 @@ public abstract class ClusteredJobStoreTestBase
         int timeoutMs,
         string message)
     {
-        return WaitForCondition(condition, timeoutMs, () => message);
+        return WaitForCondition(condition, timeoutMs, () => Task.FromResult(message));
     }
 
     /// <summary>
     /// Polls until the condition holds or the deadline passes, failing with the message the callback
-    /// produces. The message is deferred so that it can describe what the state actually was at the
-    /// moment of failure — evaluating it eagerly on every successful poll would be both wasteful and,
-    /// for a database dump, wrong.
+    /// produces. The message is deferred, and may itself query the database, so that it can describe
+    /// what the state actually was at the moment of failure — building it eagerly on every successful
+    /// poll would be both wasteful and, for a database dump, wrong.
     /// </summary>
     protected static async Task WaitForCondition(
         Func<Task<bool>> condition,
         int timeoutMs,
-        Func<string> message)
+        Func<Task<string>> message)
     {
         DateTimeOffset start = DateTimeOffset.UtcNow;
         DateTimeOffset deadline = start.AddMilliseconds(timeoutMs);
@@ -131,7 +131,7 @@ public abstract class ClusteredJobStoreTestBase
             }
             await Task.Delay(200);
         }
-        Assert.Fail($"Timed out after {(DateTimeOffset.UtcNow - start).TotalSeconds:F1} s (budget {timeoutMs} ms) waiting for condition: {message()}");
+        Assert.Fail($"Timed out after {(DateTimeOffset.UtcNow - start).TotalSeconds:F1} s (budget {timeoutMs} ms) waiting for condition: {await message()}");
     }
 
     /// <summary>
