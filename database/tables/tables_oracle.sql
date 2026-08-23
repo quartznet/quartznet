@@ -17,6 +17,7 @@ delete from qrtz_triggers;
 delete from qrtz_job_details;
 delete from qrtz_calendars;
 delete from qrtz_paused_trigger_grps;
+delete from qrtz_paused_job_grps;
 delete from qrtz_locks;
 delete from qrtz_scheduler_state;
 
@@ -29,6 +30,7 @@ drop table qrtz_simprop_triggers;
 drop table qrtz_triggers;
 drop table qrtz_job_details;
 drop table qrtz_paused_trigger_grps;
+drop table qrtz_paused_job_grps;
 drop table qrtz_locks;
 drop table qrtz_scheduler_state;
 
@@ -139,6 +141,12 @@ CREATE TABLE qrtz_paused_trigger_grps
     SCHED_NAME VARCHAR2(120) NOT NULL,
     TRIGGER_GROUP  VARCHAR2(200) NOT NULL, 
     CONSTRAINT QRTZ_PAUSED_TRIG_GRPS_PK PRIMARY KEY (SCHED_NAME,TRIGGER_GROUP)
+);
+CREATE TABLE qrtz_paused_job_grps
+  (
+    SCHED_NAME VARCHAR2(120) NOT NULL,
+    JOB_GROUP  VARCHAR2(200) NOT NULL,
+    CONSTRAINT QRTZ_PAUSED_JOB_GRPS_PK PRIMARY KEY (SCHED_NAME,JOB_GROUP)
 );
 CREATE TABLE qrtz_fired_triggers 
   (

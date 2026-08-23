@@ -52,8 +52,10 @@ Quartz.NET 3.x probes for `MISFIRE_ORIG_FIRE_TIME`, `EXECUTION_GROUP`, `PREFERRE
 `PREFERRED_NODE_AUTO` when the scheduler starts. If a column is missing it logs a warning and
 turns the corresponding feature off — which is why those migrations are optional on 3.x.
 
-**4.x removed those probes** and assumes all four columns exist. A 3.x database that never ran
-the optional migrations will not work against 4.x until [4.0](#version-4-0) has been applied.
+**4.x removed those probes** and assumes all four columns exist. It also adds a table 3.x never
+had, `QRTZ_PAUSED_JOB_GRPS`, and validates its whole schema at startup. So even a 3.x database
+that took every optional migration going will not work against 4.x until [4.0](#version-4-0) has
+been applied.
 
 ---
 
@@ -216,9 +218,9 @@ Neither can run inside a transaction block, so run those statements one at a tim
 - Scripts: [`migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) — all databases
 
 Applies everything from [3.17](#version-3-17), [3.18](#version-3-18), [3.19](#version-3-19) and
-[3.20](#version-3-20), plus the 4.x index shape, in one pass. Run it whether or not you applied
-the optional migrations — every statement is guarded, so it is safe on a partially-migrated
-database.
+[3.20](#version-3-20), plus the `QRTZ_PAUSED_JOB_GRPS` table and the 4.x index shape, in one
+pass. Run it whether or not you applied the optional migrations — every statement is guarded, so
+it is safe on a partially-migrated database.
 
 Sections, in order:
 
@@ -227,16 +229,32 @@ Sections, in order:
 | 1 | `MISFIRE_ORIG_FIRE_TIME` column | required |
 | 2 | `EXECUTION_GROUP` columns | required |
 | 3 | `PREFERRED_NODE` / `PREFERRED_NODE_AUTO` columns | required |
-| 4 | Index set aligned with the 4.x schema | optional |
+| 4 | `QRTZ_PAUSED_JOB_GRPS` table | required |
+| 5 | Index set aligned with the 4.x schema | optional |
 
-Run them in order — the drops in section 4 assume the creates above them have already succeeded.
+Run them in order — the drops in section 5 assume the creates above them have already succeeded.
+
+Sections 1–3 have 3.x counterparts and only fold them in. **Section 4 does not**: it is new in
+4.x, and it is why this migration is required even for a database that is fully migrated on 3.x.
+`QRTZ_PAUSED_JOB_GRPS` holds one row per paused job group, mirroring `QRTZ_PAUSED_TRIGGER_GRPS`
+([#3336](https://github.com/quartznet/quartznet/issues/3336)). 3.x pauses a job group without
+recording it anywhere, so `IsJobGroupPaused` answered `false` for every group and the pause was
+lost on restart; 4.x records the group names, which is what makes `JobGroup.Paused` truthful and
+`QueryJobGroups(new JobGroupQuery { Paused = true })` a real listing. A group can be paused while
+holding no jobs, so this is a table rather than a column on `QRTZ_JOB_DETAILS` — a group with no
+rows has nothing to hang a flag on.
 
 The 4.x listing queries page with `ORDER BY JOB_GROUP, JOB_NAME` and
-`ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the primary keys are name-before-group, so section 4
+`ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the primary keys are name-before-group, so section 5
 adds `IDX_QRTZ_J_G_N` and `IDX_QRTZ_T_G_N` to serve those ordered scans. Without them each page
 is a scan plus a sort.
 
 Node affinity needs no data migration: 3.x and 4.x store pins identically.
+
+::: tip
+Because section 4 has no 3.x counterpart, the `4.0` scripts are maintained on `main` and the
+`3.x` branch's copy of them may lag. Run the `main` copy linked above.
+:::
 
 ## See also
 

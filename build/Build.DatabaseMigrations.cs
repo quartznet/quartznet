@@ -23,7 +23,15 @@ using Serilog;
 /// </para>
 /// <para>
 /// The output is checked in, so <c>dotnet fallout GenerateMigrations</c> must leave the working
-/// tree clean unless a definition here changed. <c>VerifyMigrations</c> asserts exactly that.
+/// tree clean unless a definition here changed. <c>VerifyMigrations</c> asserts exactly that — it
+/// compares this branch's scripts with this branch's definitions and nothing else, so keeping a
+/// migration in step with the other branch is a review obligation rather than something CI checks.
+/// </para>
+/// <para>
+/// A migration both branches can run is mirrored to <c>3.x</c> byte for byte, so a documented path
+/// resolves whichever branch a reader lands on (#3218). The <c>4.0</c> folder is the exception: it
+/// is the 3.x-to-4.x upgrade and can carry changes that exist only on 4.x, so it is maintained here
+/// on <c>main</c> and <c>database/README.md</c> says so.
 /// </para>
 /// </remarks>
 partial class Build
@@ -31,6 +39,7 @@ partial class Build
     const string TableJobs = "QRTZ_JOB_DETAILS";
     const string TableTriggers = "QRTZ_TRIGGERS";
     const string TableFired = "QRTZ_FIRED_TRIGGERS";
+    const string TablePausedJobGroups = "QRTZ_PAUSED_JOB_GRPS";
 
     static readonly string[] Dialects = ["sqlServer", "postgres", "mysql_innodb", "oracle", "sqlite", "firebird"];
 
@@ -163,7 +172,54 @@ partial class Build
     };
 
     // ---------------------------------------------------------------------------------------
-    // Guarded DDL emitters. SQLite is the one dialect with no conditional DDL at all.
+    // Table definitions, likewise verbatim from the fresh-install scripts. SQL Server declares its
+    // primary key in a separate ALTER; naming the same constraint inline here reaches the same
+    // schema in one statement, which is what a guarded CREATE TABLE needs.
+    // ---------------------------------------------------------------------------------------
+
+    static readonly Dictionary<string, string[]> PausedJobGroupsTable = new()
+    {
+        ["sqlServer"] =
+        [
+            "[SCHED_NAME] nvarchar(120) NOT NULL",
+            "[JOB_GROUP] nvarchar(150) NOT NULL",
+            "CONSTRAINT [PK_QRTZ_PAUSED_JOB_GRPS] PRIMARY KEY CLUSTERED ([SCHED_NAME], [JOB_GROUP])",
+        ],
+        ["postgres"] =
+        [
+            "sched_name TEXT NOT NULL",
+            "job_group TEXT NOT NULL",
+            "PRIMARY KEY (sched_name, job_group)",
+        ],
+        ["mysql_innodb"] =
+        [
+            "SCHED_NAME VARCHAR(120) NOT NULL",
+            "JOB_GROUP VARCHAR(200) NOT NULL",
+            "PRIMARY KEY (SCHED_NAME,JOB_GROUP)",
+        ],
+        ["oracle"] =
+        [
+            "SCHED_NAME VARCHAR2(120) NOT NULL",
+            "JOB_GROUP VARCHAR2(200) NOT NULL",
+            "CONSTRAINT QRTZ_PAUSED_JOB_GRPS_PK PRIMARY KEY (SCHED_NAME,JOB_GROUP)",
+        ],
+        ["sqlite"] =
+        [
+            "SCHED_NAME NVARCHAR(120) NOT NULL",
+            "JOB_GROUP NVARCHAR(150) NOT NULL",
+            "PRIMARY KEY (SCHED_NAME,JOB_GROUP)",
+        ],
+        ["firebird"] =
+        [
+            "SCHED_NAME VARCHAR(120) NOT NULL",
+            "JOB_GROUP VARCHAR(150) NOT NULL",
+            "CONSTRAINT PK_QRTZ_PAUSED_JOB_GRPS PRIMARY KEY (SCHED_NAME, JOB_GROUP)",
+        ],
+    };
+
+    // ---------------------------------------------------------------------------------------
+    // Guarded DDL emitters. SQLite has no conditional DDL for ADD COLUMN; everything else it can
+    // guard, and every other dialect can guard everything.
     // ---------------------------------------------------------------------------------------
 
     static string AddColumn(string dialect, string table, string column, string definition)
@@ -212,6 +268,65 @@ partial class Build
                      + $"                 WHERE TRIM(RDB$RELATION_NAME) = '{table}'\n"
                      + $"                   AND TRIM(RDB$FIELD_NAME) = '{column}')) THEN\n"
                      + $"    EXECUTE STATEMENT 'ALTER TABLE {table} ADD {definition.Replace("'", "''")}';\n"
+                     + "END^\nSET TERM ; ^\nCOMMIT;";
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(dialect), dialect, "unknown dialect");
+        }
+    }
+
+    /// <summary>
+    /// A guarded <c>CREATE TABLE</c>. <paramref name="body" /> holds the dialect's own column and
+    /// constraint lines, verbatim from the shape <c>database/tables/tables_&lt;dialect&gt;.sql</c>
+    /// declares, so the migrated table is the table a fresh install creates.
+    /// </summary>
+    /// <remarks>
+    /// This one is guarded on every dialect, SQLite included: <c>CREATE TABLE IF NOT EXISTS</c> is the
+    /// conditional DDL SQLite does have, and only <c>ALTER TABLE ... ADD COLUMN</c> is missing there.
+    /// Oracle and Firebird have no such form at all, so they read the catalog and run the statement
+    /// through dynamic SQL, which is why their table body is flattened onto one line inside a string
+    /// literal.
+    /// </remarks>
+    static string CreateTable(string dialect, string table, IReadOnlyList<string> body)
+    {
+        string oneLine = string.Join(", ", body).Replace("'", "''");
+
+        switch (dialect)
+        {
+            case "sqlServer":
+                return $"IF OBJECT_ID(N'[dbo].[{table}]', N'U') IS NULL\n"
+                     + "BEGIN\n"
+                     + $"  CREATE TABLE [dbo].[{table}] (\n"
+                     + string.Join(",\n", body.Select(l => "    " + l)) + "\n"
+                     + "  );\n"
+                     + "END\nGO";
+
+            case "postgres":
+                return $"CREATE TABLE IF NOT EXISTS {table.ToLowerInvariant()} (\n"
+                     + string.Join(",\n", body.Select(l => "  " + l)) + "\n);";
+
+            case "mysql_innodb":
+                return $"CREATE TABLE IF NOT EXISTS {table} (\n"
+                     + string.Join(",\n", body.Select(l => "  " + l)) + "\n) ENGINE=InnoDB;";
+
+            case "sqlite":
+                return $"CREATE TABLE IF NOT EXISTS {table} (\n"
+                     + string.Join(",\n", body.Select(l => "  " + l)) + "\n);";
+
+            case "oracle":
+                return "DECLARE\n  table_exists NUMBER;\nBEGIN\n"
+                     + "  SELECT COUNT(*) INTO table_exists FROM user_tables\n"
+                     + $"  WHERE table_name = '{table}';\n"
+                     + "  IF table_exists = 0 THEN\n"
+                     + $"    EXECUTE IMMEDIATE 'CREATE TABLE {table} ({oneLine})';\n"
+                     + "  END IF;\nEND;\n/";
+
+            case "firebird":
+                // isql needs the terminator switched while the block body uses ';'.
+                return "SET TERM ^ ;\nEXECUTE BLOCK AS\nBEGIN\n"
+                     + "  IF (NOT EXISTS(SELECT 1 FROM RDB$RELATIONS\n"
+                     + $"                 WHERE TRIM(RDB$RELATION_NAME) = '{table}')) THEN\n"
+                     + $"    EXECUTE STATEMENT 'CREATE TABLE {table} ({oneLine})';\n"
                      + "END^\nSET TERM ; ^\nCOMMIT;";
 
             default:

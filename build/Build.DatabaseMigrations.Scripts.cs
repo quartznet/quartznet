@@ -388,10 +388,16 @@ partial class Build
             "  1. MISFIRE_ORIG_FIRE_TIME column                REQUIRED",
             "  2. EXECUTION_GROUP columns                      REQUIRED",
             "  3. PREFERRED_NODE / PREFERRED_NODE_AUTO         REQUIRED",
-            "  4. Index set aligned with the 4.x schema        optional",
+            "  4. QRTZ_PAUSED_JOB_GRPS table                   REQUIRED",
+            "  5. Index set aligned with the 4.x schema        optional",
             "",
-            "Run the sections in order: the drops in section 4 assume the creates above them have",
+            "Run the sections in order: the drops in section 5 assume the creates above them have",
             "already succeeded.",
+            "",
+            "Section 4 has no 3.x counterpart. 3.x pauses a job group without recording it anywhere,",
+            "so a paused job group could not be listed or asked about; 4.x keeps the group names in",
+            "QRTZ_PAUSED_JOB_GRPS, which is what makes JobGroup.Paused answer truthfully and what",
+            "carries the pause across a restart (#3336).",
         ];
 
         if (dialect == "mysql_innodb")
@@ -407,6 +413,10 @@ partial class Build
                 "and PREFERRED_NODE_AUTO at startup and degrades gracefully when they are absent.",
                 "4.x removed those probes and assumes all four exist, so a 3.x database that never",
                 "ran the optional migrations will fail against 4.x until this script has run.",
+                "",
+                "4.x also adds a table 3.x never had, QRTZ_PAUSED_JOB_GRPS, and validates its whole",
+                "schema at startup -- so this script is required even for a 3.x database that took",
+                "every optional migration going.",
             ],
             extra,
             sqliteNotIdempotent: true);
@@ -427,7 +437,13 @@ partial class Build
                 + AddColumn(dialect, TableTriggers, "PREFERRED_NODE", PreferredNode[dialect])
                 + "\n\n" + AddColumn(dialect, TableTriggers, "PREFERRED_NODE_AUTO", PreferredNodeAuto[dialect]),
 
-            "-- === 4. Index set ===\n"
+            "-- === 4. QRTZ_PAUSED_JOB_GRPS ===\n"
+                + "-- REQUIRED for 4.x, and new in it -- 3.x has no equivalent. One row per paused job\n"
+                + "-- group, mirroring QRTZ_PAUSED_TRIGGER_GRPS. Guarded on every dialect, SQLite\n"
+                + "-- included: CREATE TABLE IF NOT EXISTS is conditional DDL SQLite does have.\n\n"
+                + CreateTable(dialect, TablePausedJobGroups, PausedJobGroupsTable[dialect]),
+
+            "-- === 5. Index set ===\n"
                 + "-- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a\n"
                 + "-- non-trivial number of triggers; the drops only reclaim write cost and storage.\n\n"
                 + Converge(dialect, Target4X(dialect)),
