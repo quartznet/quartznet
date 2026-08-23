@@ -2945,6 +2945,13 @@ public abstract class AdoJobStoreBase : IJobStore
     /// Pause all of the <see cref="IJob" />s in the given
     /// group - by pausing all of their <see cref="ITrigger" />s.
     /// </summary>
+    /// <remarks>
+    /// Each matched group is recorded in PAUSED_JOB_GRPS, so the pause outlives the process, reaches
+    /// the other nodes of a cluster and can be listed. Recording it does not make it retroactive: the
+    /// triggers paused are the ones the jobs in the group have now, and a job added to the group
+    /// afterwards is not paused by this call. Pause by trigger group where the pause has to reach what
+    /// is scheduled next.
+    /// </remarks>
     /// <seealso cref="ResumeJobs(GroupMatcher{JobKey}, CancellationToken)" />
     public ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {

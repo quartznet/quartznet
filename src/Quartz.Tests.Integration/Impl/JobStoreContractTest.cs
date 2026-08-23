@@ -514,11 +514,13 @@ public abstract class JobStoreContractTest
         List<string> paused = await Store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("empty-group"));
 
         paused.Should().Equal(["empty-group"],
-            "pausing a group that holds nothing yet is how a caller pauses what is about to be added to it");
+            "an equality matcher names the group to pause, so it pauses whether or not that group "
+            + "holds anything yet");
 
         (await Store.QueryJobGroups(new JobGroupQuery { Paused = true })).Items
             .Select(x => x.Name).Should().Equal(["empty-group"],
-                "a paused group with no jobs is still a paused group");
+                "a paused group with no jobs is still a paused group, and a caller who cannot see it "
+                + "has no way to resume it");
 
         (await Store.QueryJobGroups(new JobGroupQuery())).Items.Should().BeEmpty(
             "the unfiltered listing enumerates the groups jobs are in, and this one has none");

@@ -243,9 +243,16 @@ thing the ADO store could not report — `IsJobGroupPaused` answered `false` for
 which is why the [4.0 schema migration](../../database/schema-changes.md#version-4-0) is mandatory even
 for a database that took every optional 3.x migration.
 
-A group can be paused while it holds nothing. `Paused = true` reports such a group; the unfiltered
-listing does not, because it enumerates the groups jobs and triggers are actually in. Pausing an empty
-group is how you pause what is about to be added to it.
+A group can be paused while it holds nothing, and `Paused = true` reports such a group. The unfiltered
+listing does not, because it enumerates the groups jobs and triggers are actually in — so a group with
+no members appears in the paused listing alone, which is the only place a caller can find it in order
+to resume it.
+
+::: tip
+Pausing an empty *trigger* group also pauses the triggers added to it afterwards. A paused *job* group
+does that only in the in-memory store; the ADO store pauses the triggers of the jobs in the group when
+the pause runs, and records the group, but does not impose the pause on jobs added later.
+:::
 
 Pausing and resuming by matcher tells you which groups it touched:
 
