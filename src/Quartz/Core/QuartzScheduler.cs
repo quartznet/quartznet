@@ -701,19 +701,29 @@ internal sealed class QuartzScheduler
         return result;
     }
 
-    public async ValueTask<bool> DeleteJobs(
+    public async ValueTask<List<JobKey>> DeleteJobs(
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(jobKeys);
         ValidateState();
 
-        bool result = await resources.JobStore.DeleteJobs(jobKeys, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(null);
-        foreach (JobKey key in jobKeys)
+        if (jobKeys.Count == 0)
         {
-            await NotifySchedulerListenersJobDeleted(key, cancellationToken).ConfigureAwait(false);
+            return [];
         }
-        return result;
+
+        List<JobKey> deleted = await resources.JobStore.DeleteJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+        if (deleted.Count > 0)
+        {
+            NotifySchedulerThread(null);
+            foreach (JobKey key in deleted)
+            {
+                await NotifySchedulerListenersJobDeleted(key, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return deleted;
     }
 
     public async ValueTask ScheduleJobs(
@@ -800,16 +810,29 @@ internal sealed class QuartzScheduler
         return ScheduleJobs(triggersAndJobs, options, cancellationToken);
     }
 
-    public async ValueTask<bool> UnscheduleJobs(
+    public async ValueTask<List<TriggerKey>> UnscheduleJobs(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
         ValidateState();
 
-        bool result = await resources.JobStore.DeleteTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(null);
-        await Task.WhenAll(triggerKeys.Select(x => NotifySchedulerListenersUnscheduled(x, cancellationToken).AsTask())).ConfigureAwait(false);
-        return result;
+        if (triggerKeys.Count == 0)
+        {
+            return [];
+        }
+
+        List<TriggerKey> unscheduled = await resources.JobStore.DeleteTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+        if (unscheduled.Count > 0)
+        {
+            NotifySchedulerThread(null);
+            foreach (TriggerKey key in unscheduled)
+            {
+                await NotifySchedulerListenersUnscheduled(key, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return unscheduled;
     }
 
     /// <summary>

@@ -156,7 +156,23 @@ public interface IJobStore
     /// </returns>
     ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
-    ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Remove (delete) the <see cref="IJob" />s with the given keys, and any
+    /// <see cref="ITrigger" />s that reference them.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation walks the set one key at a time. A store overrides it to do the
+    /// walk inside a single lock or connection scope; the answer must not change when it does.
+    /// </remarks>
+    /// <returns>
+    /// The keys this call removed, in the order they were given. A key that names no job is simply
+    /// absent — the plural of the single-key <see langword="bool" />, not a failure.
+    /// </returns>
+    /// <seealso cref="DeleteJob" />
+    ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        return ApplyToEach(jobKeys, DeleteJob, cancellationToken);
+    }
 
     /// <summary>
     /// Retrieve the <see cref="IJobDetail" /> for the given
@@ -199,7 +215,24 @@ public interface IJobStore
     /// </returns>
     ValueTask<bool> DeleteTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
-    ValueTask<bool> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Remove (delete) the <see cref="ITrigger" />s with the given keys.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation walks the set one key at a time. A store overrides it to do the
+    /// walk inside a single lock or connection scope; the answer must not change when it does.
+    /// </remarks>
+    /// <returns>
+    /// The keys this call removed, in the order they were given. A key that names no trigger is
+    /// simply absent — the plural of the single-key <see langword="bool" />, not a failure. A job
+    /// left orphaned and non-durable by the removal is deleted too, as in the single-key form, but
+    /// the answer names triggers only.
+    /// </returns>
+    /// <seealso cref="DeleteTrigger" />
+    ValueTask<List<TriggerKey>> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        return ApplyToEach(triggerKeys, DeleteTrigger, cancellationToken);
+    }
 
     /// <summary>
     /// Remove (delete) the <see cref="ITrigger" /> with the

@@ -121,31 +121,19 @@ was:
 | A read that found its target | `200` with the object |
 | A read whose target does not exist | `404` with RFC 7807 problem details |
 | A mutation that always acts | `200` with an **empty body** — `AddJob`, `TriggerJob`, `PauseAll`, `ScheduleJobs`, `AddCalendar`, `Start`, `Standby`, `Shutdown`, `Clear`, the execution-limit writes |
-| A mutation whose effect may be a no-op | `200` with one flag, **named for what it reports** — `{ "applied": … }` almost everywhere, `{ "allFound": … }` on the two forms below |
+| A mutation whose effect may be a no-op | `200` with one flag, **named for what it reports** — `{ "applied": … }` |
 | …the same, aimed at a group matcher or a key set | `200` with what it applied to — `{ "groups": [ … ] }`, `{ "jobs": [ … ] }`, `{ "triggers": [ … ] }` |
 | A mutation that computed something | `200` with that value — `{ "firstFireTimeUtc": … }` from schedule and reschedule |
 
 An unknown scheduler is `404` whatever the operation was.
 
 The flag is always one boolean, and it is **named for the fact it reports**: `applied` — the entity
-existed and the operation changed it — except where the underlying scheduler API can only answer
-whether *every* key was found, which is `allFound`:
-
-| Endpoint | Flag | Means |
-|---|---|---|
-| every other single-key mutation | `applied` | this key existed and the operation changed it |
-| `POST …/jobs/delete` | `allFound` | every key in the body was found |
-| `POST …/triggers/unschedule` | `allFound` | every key in the body was found |
-
-Those two report `allFound` rather than `applied` because a partial hit **still deletes the keys it
-found** — `IScheduler.DeleteJobs` and `UnscheduleJobs` return one `bool` for the whole set and cannot
-say which. Calling that `"applied": false` would be a false statement about what happened, and a
-caller who retried on it would never learn that most of the work had already succeeded. Answering
-with the applied keys, as the key-set pause and resume do, is the better end state and is tracked in
-[#3360](https://github.com/quartznet/quartznet/issues/3360).
+existed and the operation changed it. There is no second spelling; an operation that cannot answer
+that question about a single entity is a key-set form, and answers with the keys instead.
 
 ::: warning Changed in 4.x
-Five endpoints spelled the applied flag their own way in the 4.0 previews:
+Five endpoints spelled the applied flag their own way in the 4.0 previews, and the two key-set forms
+answered with a flag they could not honestly name:
 
 | Endpoint | 4.0 preview | 4.0 |
 |---|---|---|
@@ -153,8 +141,13 @@ Five endpoints spelled the applied flag their own way in the 4.0 previews:
 | `POST …/jobs/{group}/{name}/interrupt`, `POST …/jobs/interrupt/{fireInstanceId}` | `{ "interrupted": … }` | `{ "applied": … }` |
 | `POST …/triggers/{group}/{name}/unschedule` | `{ "triggerFound": … }` | `{ "applied": … }` |
 | `DELETE …/calendars/{name}` | `{ "calendarFound": … }` | `{ "applied": … }` |
-| `POST …/jobs/delete` | `{ "allJobsFound": … }` | `{ "allFound": … }` |
-| `POST …/triggers/unschedule` | `{ "allTriggersFound": … }` | `{ "allFound": … }` |
+| `POST …/jobs/delete` | `{ "allJobsFound": … }` | `{ "jobs": [ … ] }` |
+| `POST …/triggers/unschedule` | `{ "allTriggersFound": … }` | `{ "triggers": [ … ] }` |
+
+The last two changed shape, not just spelling: a partial hit **still deletes the keys it found**, and
+a single boolean could only say that not all of them were found — which a caller could not tell from
+nothing having happened. `jobs.length === request.jobs.length` is the old answer, computed from the
+new one.
 :::
 
 ### Errors are one shape per kind
@@ -292,8 +285,8 @@ the same way:
 { "applied": true }
 ```
 
-(`POST …/jobs/delete` and `POST …/triggers/unschedule` take a key set and answer `{ "allFound": … }`
-instead, [for the reason given above](#response-shape-conventions).)
+(`POST …/jobs/delete` and `POST …/triggers/unschedule` take a key set, so they answer with the keys
+they applied to, [like every other key-set form](#a-whole-set-of-keys-in-one-call).)
 
 `applied` is `false` when the key does not exist or the operation was a no-op (pausing an already
 paused trigger, resuming a trigger that was not paused, resetting a trigger that is not in the error
@@ -323,19 +316,26 @@ they applied to:
 | `POST …/jobs/keys/pause`, `…/jobs/keys/resume` | `{ "jobs": [ { "name": …, "group": … } ] }` | `{ "jobs": [ … ] }` |
 | `POST …/triggers/keys/pause`, `…/triggers/keys/resume` | `{ "triggers": [ { "name": …, "group": … } ] }` | `{ "triggers": [ … ] }` |
 | `POST …/triggers/keys/reset-from-error-state` | `{ "triggers": [ … ] }` | `{ "triggers": [ … ] }` |
+| `POST …/jobs/delete` | `{ "jobs": [ { "name": …, "group": … } ] }` | `{ "jobs": [ … ] }` |
+| `POST …/triggers/unschedule` | `{ "triggers": [ { "name": …, "group": … } ] }` | `{ "triggers": [ … ] }` |
 
 The answer is the plural of `{ "applied": … }`: a key the operation did not apply to — one that names
 nothing, one that was already paused, one that was not in the error state — is simply **absent** from
-the list, never an error. The order is the order the keys were given in.
+the list, never an error. The order is the order the keys were given in. `answer.length ===
+request.length` is the "every key was found" question, and when it is not, the list says which ones
+were.
 
-They live under `keys/` because the collection-level `pause` and `resume` already belong to the
-group-matcher forms, which select by query string rather than by body.
+The pause, resume and reset forms live under `keys/` because the collection-level `pause` and
+`resume` already belong to the group-matcher forms, which select by query string rather than by body.
+`delete` and `unschedule` have no group-matcher form to make room for, so they keep the plain path
+they have always had.
 
 The server does the whole set in one pass — one lock and one transaction for the ADO store — and
 signals the scheduling change once for the call. Listener events stay per key: one `TriggerPaused` /
-`JobPaused` / `TriggerResumed` / `JobResumed` for each key the operation applied to, and nothing at
-all for the rest. There is no key-set listener event, deliberately: `TriggersPaused(null)` means
-*every group*, and a monitoring listener would read it as a total outage.
+`JobPaused` / `TriggerResumed` / `JobResumed` / `JobDeleted` / `JobUnscheduled` for each key the
+operation applied to, and nothing at all for the rest. There is no key-set listener event,
+deliberately: `TriggersPaused(null)` means *every group*, and a monitoring listener would read it as
+a total outage.
 
 ## Configuration options
 

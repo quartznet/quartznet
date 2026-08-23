@@ -105,7 +105,7 @@ public class DelegatingJobStore : IJobStore
         return jobStore.DeleteJob(jobKey, cancellationToken);
     }
 
-    public virtual ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         return jobStore.DeleteJobs(jobKeys, cancellationToken);
     }
@@ -125,7 +125,7 @@ public class DelegatingJobStore : IJobStore
         return jobStore.DeleteTrigger(triggerKey, cancellationToken);
     }
 
-    public virtual ValueTask<bool> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<TriggerKey>> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
         return jobStore.DeleteTriggers(triggerKeys, cancellationToken);
     }

@@ -487,14 +487,29 @@ public class JobEndpointsTest : WebApiTest
     [Test]
     public async Task DeleteJobsShouldWork()
     {
-        A.CallTo(() => FakeScheduler.DeleteJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => FakeScheduler.DeleteJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .Returns(new List<JobKey> { jobKeyOne, jobKeyTwo });
 
         var result = await HttpScheduler.DeleteJobs([jobKeyOne, jobKeyTwo]);
-        result.Should().BeTrue();
+        result.Should().Equal([jobKeyOne, jobKeyTwo]);
 
         A.CallTo(() => FakeScheduler.DeleteJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
             .WhenArgumentsMatch((IReadOnlyCollection<JobKey> jobKeys, CancellationToken _) => jobKeys.Contains(jobKeyOne) && jobKeys.Contains(jobKeyTwo))
             .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task DeleteJobsShouldCarryThePartialHitBackToTheCaller()
+    {
+        // The whole point of the key list: three of five deleted used to answer false, which a caller
+        // could not tell from nothing having happened.
+        A.CallTo(() => FakeScheduler.DeleteJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .Returns(new List<JobKey> { jobKeyTwo });
+
+        var result = await HttpScheduler.DeleteJobs([jobKeyOne, jobKeyTwo]);
+
+        result.Should().Equal([jobKeyTwo],
+            "the key the server did not find is absent from the answer, and the one it deleted is named");
     }
 
     [Test]

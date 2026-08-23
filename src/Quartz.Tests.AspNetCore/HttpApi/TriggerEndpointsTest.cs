@@ -564,14 +564,28 @@ public class TriggerEndpointsTest : WebApiTest
     [Test]
     public async Task UnscheduleJobsShouldWork()
     {
-        A.CallTo(() => FakeScheduler.UnscheduleJobs(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => FakeScheduler.UnscheduleJobs(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey> { triggerKeyOne, triggerKeyTwo });
 
         var response = await HttpScheduler.UnscheduleJobs([triggerKeyOne, triggerKeyTwo]);
-        response.Should().BeTrue();
+        response.Should().Equal([triggerKeyOne, triggerKeyTwo]);
 
         A.CallTo(() => FakeScheduler.UnscheduleJobs(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
             .WhenArgumentsMatch((IReadOnlyCollection<TriggerKey> keys, CancellationToken _) => keys.Count == 2 && keys.Contains(triggerKeyOne) && keys.Contains(triggerKeyTwo))
             .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task UnscheduleJobsShouldCarryThePartialHitBackToTheCaller()
+    {
+        A.CallTo(() => FakeScheduler.UnscheduleJobs(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey> { triggerKeyOne });
+
+        var response = await HttpScheduler.UnscheduleJobs([triggerKeyOne, triggerKeyTwo]);
+
+        response.Should().Equal([triggerKeyOne],
+            "one of the two keys was found, and the answer says which — the old flag could only say "
+            + "that not all of them were");
     }
 
     [Test]

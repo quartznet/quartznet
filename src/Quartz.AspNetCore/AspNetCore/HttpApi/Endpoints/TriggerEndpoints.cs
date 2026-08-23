@@ -449,13 +449,15 @@ internal static class TriggerEndpoints
     }
 
     /// <summary>
-    /// Unschedules a set of triggers, answering whether every key given was found.
+    /// Unschedules a set of triggers, answering with the keys it removed.
     /// </summary>
     /// <remarks>
-    /// The one mutation body that is not <c>applied</c>: a partial hit unschedules the triggers it
-    /// found, so see <see cref="AllKeysFoundResponse" /> for why it may not claim to have applied.
+    /// A partial hit unschedules the triggers it found, so the answer is the keys rather than a flag:
+    /// a key that names no trigger is absent from the list, and
+    /// <c>triggers.length == request.triggers.length</c> is the "every key was found" question a
+    /// caller used to have to take on trust.
     /// </remarks>
-    [ProducesResponseType(typeof(AllKeysFoundResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AppliedTriggerKeysResponse), StatusCodes.Status200OK)]
     private static Task<IResult> UnscheduleJobs(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -467,8 +469,8 @@ internal static class TriggerEndpoints
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var triggerKeys = request.Triggers.Select(x => x.AsTriggerKey()).ToArray();
-            var allTriggersFound = await scheduler.UnscheduleJobs(triggerKeys, cancellationToken).ConfigureAwait(false);
-            return new AllKeysFoundResponse(allTriggersFound);
+            var unscheduled = await scheduler.UnscheduleJobs(triggerKeys, cancellationToken).ConfigureAwait(false);
+            return new AppliedTriggerKeysResponse([.. unscheduled.Select(KeyDto.Create)]);
         });
     }
 

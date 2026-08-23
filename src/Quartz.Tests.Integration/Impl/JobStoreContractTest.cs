@@ -226,13 +226,18 @@ public abstract class JobStoreContractTest
         // The defaults on IJobStore walk the set one key at a time, which is correct but costs a lock
         // or a round trip per key. Every shipped store does the walk in one pass instead, and the
         // answers are identical either way — so this is the only place the difference is visible.
+        // It is also what catches an override that has quietly stopped overriding: a member whose
+        // signature no longer matches the interface's still compiles, and the per-key default takes
+        // over without a word.
         string[] keySetMembers =
         [
             nameof(IJobStore.PauseTriggers),
             nameof(IJobStore.ResumeTriggers),
             nameof(IJobStore.PauseJobs),
             nameof(IJobStore.ResumeJobs),
-            nameof(IJobStore.ResetTriggersFromErrorState)
+            nameof(IJobStore.ResetTriggersFromErrorState),
+            nameof(IJobStore.DeleteJobs),
+            nameof(IJobStore.DeleteTriggers)
         ];
 
         System.Reflection.InterfaceMapping map = Store.GetType().GetInterfaceMap(typeof(IJobStore));
@@ -538,6 +543,73 @@ public abstract class JobStoreContractTest
         // otherwise never show a caller a way to resume.
         (await Store.QueryJobGroups(new JobGroupQuery { Paused = true })).Items.Should().BeEmpty(
             "resume-all resumed everything, job groups included");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Deleting a set of keys
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task DeletingASetOfJobsReportsOnlyTheKeysItRemoved()
+    {
+        await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
+        await ScheduleJobWithTrigger("second", JobGroupB, TriggerGroupB);
+        await ScheduleJobWithTrigger("survivor", JobGroupA, TriggerGroupA);
+
+        JobKey firstJob = new JobKey("first", JobGroupA);
+        JobKey secondJob = new JobKey("second", JobGroupB);
+        JobKey survivor = new JobKey("survivor", JobGroupA);
+
+        List<JobKey> deleted = await Store.DeleteJobs([firstJob, MissingJobKey, secondJob]);
+
+        deleted.Should().Equal([firstJob, secondJob],
+            "the answer names the jobs the call actually deleted, in the order they were given — the "
+            + "key that names no job is absent rather than turning the whole answer into a failure");
+
+        (await Store.Exists(firstJob)).Should().BeFalse();
+        (await Store.Exists(secondJob)).Should().BeFalse();
+        (await Store.Exists(survivor)).Should().BeTrue("a key that was not asked for is not touched");
+    }
+
+    [Test]
+    public async Task DeletingASetOfTriggersReportsOnlyTheKeysItRemoved()
+    {
+        IOperableTrigger first = await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
+        IOperableTrigger second = await ScheduleJobWithTrigger("second", JobGroupB, TriggerGroupB);
+        IOperableTrigger survivor = await ScheduleJobWithTrigger("survivor", JobGroupA, TriggerGroupA);
+
+        List<TriggerKey> deleted = await Store.DeleteTriggers([first.Key, MissingTriggerKey, second.Key]);
+
+        deleted.Should().Equal([first.Key, second.Key],
+            "the answer names the triggers the call actually removed, in the order they were given");
+
+        (await Store.Exists(first.Key)).Should().BeFalse();
+        (await Store.Exists(second.Key)).Should().BeFalse();
+        (await Store.Exists(survivor.Key)).Should().BeTrue();
+
+        (await Store.Exists(new JobKey("first", JobGroupA))).Should().BeFalse(
+            "removing the last trigger of a non-durable job takes the job with it, exactly as the "
+            + "single-key form does");
+    }
+
+    /// <summary>
+    /// A key given twice is deleted once and named once.
+    /// </summary>
+    /// <remarks>
+    /// The old <see cref="bool" /> hid this: a repeated key made the second pass answer "not found"
+    /// and dragged the whole call's answer to <see langword="false" />, which read as a failure. With
+    /// the applied keys it is simply one entry, and the two stores have to agree that it is one.
+    /// </remarks>
+    [Test]
+    public async Task ADuplicateKeyInTheSetIsDeletedOnceAndNamedOnce()
+    {
+        await ScheduleJobWithTrigger("twice", JobGroupA, TriggerGroupA);
+        JobKey job = new JobKey("twice", JobGroupA);
+
+        List<JobKey> deleted = await Store.DeleteJobs([job, job]);
+
+        deleted.Should().Equal([job], "the second pass over the same key found nothing left to delete");
+        (await Store.Exists(job)).Should().BeFalse();
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -979,9 +1051,7 @@ public abstract class JobStoreContractTest
     public static IEnumerable<MissingEntityCase> MissingEntityCases()
     {
         yield return new MissingEntityCase(nameof(IJobStore.DeleteJob), store => store.DeleteJob(MissingJobKey));
-        yield return new MissingEntityCase(nameof(IJobStore.DeleteJobs), store => store.DeleteJobs([MissingJobKey]));
         yield return new MissingEntityCase(nameof(IJobStore.DeleteTrigger), store => store.DeleteTrigger(MissingTriggerKey));
-        yield return new MissingEntityCase(nameof(IJobStore.DeleteTriggers), store => store.DeleteTriggers([MissingTriggerKey]));
         yield return new MissingEntityCase(nameof(IJobStore.ReplaceTrigger), store => store.ReplaceTrigger(
             MissingTriggerKey,
             CreateTrigger("replacement", TriggerGroupA, AnchorJobKey)));
@@ -1052,8 +1122,8 @@ public abstract class JobStoreContractTest
     {
         await SeedAnchor();
 
-        (await Store.DeleteJobs([])).Should().BeTrue("nothing was asked for, so nothing is missing");
-        (await Store.DeleteTriggers([])).Should().BeTrue();
+        (await Store.DeleteJobs([])).Should().BeEmpty("nothing was asked for, so nothing was deleted");
+        (await Store.DeleteTriggers([])).Should().BeEmpty();
 
         (await Store.Exists(AnchorJobKey)).Should().BeTrue("an empty batch deletes nothing");
     }

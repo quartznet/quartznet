@@ -252,7 +252,8 @@ public class WireFormatSnapshotTest : WebApiTest
     /// <summary>
     /// The status code an operation answers with is as much of a contract as the body, and the
     /// conventions are not the obvious ones: a mutation that found nothing to change still answers 200
-    /// with a flag in the body, and only a missing scheduler or a missing read target is a 404.
+    /// saying so in the body — a flag, or an empty list of applied keys — and only a missing scheduler
+    /// or a missing read target is a 404.
     /// </summary>
     [Test]
     public async Task StatusCodesFollowTheApiConventions()
@@ -275,8 +276,10 @@ public class WireFormatSnapshotTest : WebApiTest
             .Returns(new List<JobKey> { existingJob });
         A.CallTo(() => FakeScheduler.DeleteJob(existingJob, A<CancellationToken>._)).Returns(true);
         A.CallTo(() => FakeScheduler.DeleteJob(missingJob, A<CancellationToken>._)).Returns(false);
-        A.CallTo(() => FakeScheduler.DeleteJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).Returns(false);
-        A.CallTo(() => FakeScheduler.UnscheduleJobs(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => FakeScheduler.DeleteJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .Returns(new List<JobKey> { existingJob });
+        A.CallTo(() => FakeScheduler.UnscheduleJobs(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey> { existingTrigger });
         A.CallTo(() => FakeScheduler.DeleteCalendar("existing", A<CancellationToken>._)).Returns(true);
         A.CallTo(() => FakeScheduler.DeleteCalendar("missing", A<CancellationToken>._)).Returns(false);
         A.CallTo(() => FakeScheduler.UnscheduleJob(existingTrigger, A<CancellationToken>._)).Returns(true);
@@ -347,15 +350,15 @@ public class WireFormatSnapshotTest : WebApiTest
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/group/existing/interrupt", HttpStatusCode.OK, expectedBody: """{"applied":true}""");
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/group/missing/interrupt", HttpStatusCode.OK, expectedBody: """{"applied":false}""");
 
-            // the plural delete and unschedule are the exception, and the field is named for what
-            // they can actually report: a partial hit deleted the keys it found, so calling that
-            // "applied": false would be a false statement about what happened
+            // the plural delete and unschedule are key sets, so they answer the way every other key
+            // set does: with what they applied to. A partial hit deletes the keys it found and names
+            // exactly those, which no single flag could say.
             await Row(HttpMethod.Post, $"{SchedulerUrl}/jobs/delete", HttpStatusCode.OK,
                 """{"jobs":[{"name":"existing","group":"group"},{"name":"missing","group":"group"}]}""",
-                expectedBody: """{"allFound":false}""");
+                expectedBody: """{"jobs":[{"name":"existing","group":"group"}]}""");
             await Row(HttpMethod.Post, $"{SchedulerUrl}/triggers/unschedule", HttpStatusCode.OK,
                 """{"triggers":[{"name":"existing","group":"group"}]}""",
-                expectedBody: """{"allFound":true}""");
+                expectedBody: """{"triggers":[{"name":"existing","group":"group"}]}""");
 
             // a malformed request is a 400, never a 404 or a 500
             await Row(HttpMethod.Get, $"{SchedulerUrl}/jobs?skip=-1", HttpStatusCode.BadRequest);

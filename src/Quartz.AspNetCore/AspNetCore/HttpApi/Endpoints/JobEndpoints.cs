@@ -424,13 +424,14 @@ internal static class JobEndpoints
     }
 
     /// <summary>
-    /// Deletes a set of jobs, answering whether every key given was found.
+    /// Deletes a set of jobs, answering with the keys it deleted.
     /// </summary>
     /// <remarks>
-    /// The one mutation body that is not <c>applied</c>: a partial hit deletes the jobs it found, so
-    /// see <see cref="AllKeysFoundResponse" /> for why it may not claim to have applied.
+    /// A partial hit deletes the jobs it found, so the answer is the keys rather than a flag: a key
+    /// that names no job is absent from the list, and <c>jobs.length == request.jobs.length</c> is
+    /// the "every key was found" question a caller used to have to take on trust.
     /// </remarks>
-    [ProducesResponseType(typeof(AllKeysFoundResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AppliedJobKeysResponse), StatusCodes.Status200OK)]
     private static Task<IResult> DeleteJobs(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -442,8 +443,8 @@ internal static class JobEndpoints
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
-            var allJobsFound = await scheduler.DeleteJobs(jobKeys, cancellationToken).ConfigureAwait(false);
-            return new AllKeysFoundResponse(allJobsFound);
+            var deleted = await scheduler.DeleteJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+            return new AppliedJobKeysResponse([.. deleted.Select(KeyDto.Create)]);
         });
     }
 

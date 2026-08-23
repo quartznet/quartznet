@@ -30,7 +30,7 @@ using Quartz.Listeners;
 namespace Quartz.Tests.Unit.Core;
 
 /// <summary>
-/// What a key-set pause, resume or error-state reset tells the outside world.
+/// What a key-set pause, resume, error-state reset, delete or unschedule tells the outside world.
 /// </summary>
 /// <remarks>
 /// The answers themselves belong to the job store contract; what belongs here is the part only the
@@ -41,7 +41,7 @@ namespace Quartz.Tests.Unit.Core;
 /// covers the whole set. That is why the scheduler must reach the store once, and never loop.
 /// </remarks>
 [NonParallelizable]
-public class BulkPauseResumeTest
+public class BulkKeySetOperationsTest
 {
     private CountingJobStore store = null!;
     private RecordingSchedulerListener listener = null!;
@@ -143,6 +143,71 @@ public class BulkPauseResumeTest
     }
 
     [Test]
+    public async Task DeletingASetOfJobsAnswersWithTheKeysItDeletedAndRaisesOneEventEach()
+    {
+        // Durable, so that removing the job's trigger does not orphan it: the store announces a job it
+        // deletes on its own account, and this test is about what the scheduler announces.
+        await Schedule("first", durable: true);
+        await Schedule("second", durable: true);
+        JobKey firstJob = new JobKey("first", "jobs");
+        JobKey secondJob = new JobKey("second", "jobs");
+        JobKey missing = new JobKey("missing", "nowhere");
+
+        List<JobKey> deleted = await scheduler.DeleteJobs([firstJob, missing, secondJob]);
+
+        deleted.Should().Equal([firstJob, secondJob],
+            "two of the three keys named a job, and the answer says which two — the old bool could "
+            + "only say that not all three did, which a caller could not tell from nothing happening");
+
+        listener.DeletedJobs.Should().Equal([firstJob, secondJob],
+            "a key that named no job was never deleted, so nothing is announced for it");
+
+        store.BulkDeleteJobCalls.Should().Be(1, "one call into the store is what makes one scheduling signal possible");
+        store.SingleDeleteJobCalls.Should().Be(0, "a loop over the single-key member would signal per key");
+
+        (await scheduler.Exists(firstJob)).Should().BeFalse();
+        (await scheduler.Exists(secondJob)).Should().BeFalse();
+    }
+
+    [Test]
+    public async Task UnschedulingASetOfTriggersAnswersWithTheKeysItRemovedAndRaisesOneEventEach()
+    {
+        TriggerKey first = await Schedule("first");
+        TriggerKey second = await Schedule("second");
+        TriggerKey missing = new TriggerKey("missing", "nowhere");
+
+        List<TriggerKey> unscheduled = await scheduler.UnscheduleJobs([first, missing, second]);
+
+        unscheduled.Should().Equal([first, second]);
+        listener.UnscheduledTriggers.Should().Equal([first, second]);
+
+        store.BulkDeleteTriggerCalls.Should().Be(1);
+        store.SingleDeleteTriggerCalls.Should().Be(0);
+    }
+
+    /// <summary>
+    /// A key that named nothing used to be announced as deleted anyway.
+    /// </summary>
+    /// <remarks>
+    /// The old implementation raised one <c>JobDeleted</c> per key <em>given</em>, so a caller who
+    /// passed a mistyped key told every scheduler listener that a job by that name had been deleted.
+    /// The key-set pause family never did that, and neither does the single-key <c>DeleteJob</c>.
+    /// </remarks>
+    [Test]
+    public async Task AKeySetThatDeletedNothingAnnouncesNothing()
+    {
+        JobKey missing = new JobKey("missing", "nowhere");
+        TriggerKey missingTrigger = new TriggerKey("missing", "nowhere");
+
+        (await scheduler.DeleteJobs([missing])).Should().BeEmpty();
+        (await scheduler.UnscheduleJobs([missingTrigger])).Should().BeEmpty();
+
+        listener.DeletedJobs.Should().BeEmpty(
+            "a job that was never there was never deleted, and saying otherwise misinforms every listener");
+        listener.UnscheduledTriggers.Should().BeEmpty();
+    }
+
+    [Test]
     public async Task AKeySetThatMovedNothingRaisesNothing()
     {
         TriggerKey missing = new TriggerKey("missing", "nowhere");
@@ -161,12 +226,16 @@ public class BulkPauseResumeTest
         (await scheduler.PauseJobs([])).Should().BeEmpty();
         (await scheduler.ResumeJobs([])).Should().BeEmpty();
         (await scheduler.ResetTriggersFromErrorState([])).Should().BeEmpty();
+        (await scheduler.DeleteJobs([])).Should().BeEmpty();
+        (await scheduler.UnscheduleJobs([])).Should().BeEmpty();
 
         store.BulkPauseTriggerCalls.Should().Be(0, "nothing to do is answered without opening a connection");
         store.BulkResumeTriggerCalls.Should().Be(0);
         store.BulkPauseJobCalls.Should().Be(0);
         store.BulkResumeJobCalls.Should().Be(0);
         store.BulkResetCalls.Should().Be(0);
+        store.BulkDeleteJobCalls.Should().Be(0);
+        store.BulkDeleteTriggerCalls.Should().Be(0);
     }
 
     [Test]
@@ -174,11 +243,17 @@ public class BulkPauseResumeTest
     {
         Func<Task> pausingNothing = async () => await scheduler.PauseTriggers((IReadOnlyCollection<TriggerKey>) null!);
         await pausingNothing.Should().ThrowAsync<ArgumentNullException>();
+
+        Func<Task> deletingNothing = async () => await scheduler.DeleteJobs(null!);
+        await deletingNothing.Should().ThrowAsync<ArgumentNullException>();
+
+        Func<Task> unschedulingNothing = async () => await scheduler.UnscheduleJobs(null!);
+        await unschedulingNothing.Should().ThrowAsync<ArgumentNullException>();
     }
 
-    private async Task<TriggerKey> Schedule(string name)
+    private async Task<TriggerKey> Schedule(string name, bool durable = false)
     {
-        IJobDetail job = JobBuilder.Create<NoOpBulkJob>().WithIdentity(name, "jobs").Build();
+        IJobDetail job = JobBuilder.Create<NoOpBulkJob>().WithIdentity(name, "jobs").StoreDurably(durable).Build();
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity(name, "triggers")
             .ForJob(job)
@@ -206,11 +281,39 @@ public class BulkPauseResumeTest
 
         public int SinglePauseTriggerCalls { get; private set; }
         public int SingleResumeTriggerCalls { get; private set; }
+        public int SingleDeleteJobCalls { get; private set; }
+        public int SingleDeleteTriggerCalls { get; private set; }
         public int BulkPauseTriggerCalls { get; private set; }
         public int BulkResumeTriggerCalls { get; private set; }
         public int BulkPauseJobCalls { get; private set; }
         public int BulkResumeJobCalls { get; private set; }
         public int BulkResetCalls { get; private set; }
+        public int BulkDeleteJobCalls { get; private set; }
+        public int BulkDeleteTriggerCalls { get; private set; }
+
+        public override ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
+        {
+            SingleDeleteJobCalls++;
+            return base.DeleteJob(jobKey, cancellationToken);
+        }
+
+        public override ValueTask<bool> DeleteTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        {
+            SingleDeleteTriggerCalls++;
+            return base.DeleteTrigger(triggerKey, cancellationToken);
+        }
+
+        public override ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+        {
+            BulkDeleteJobCalls++;
+            return base.DeleteJobs(jobKeys, cancellationToken);
+        }
+
+        public override ValueTask<List<TriggerKey>> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+        {
+            BulkDeleteTriggerCalls++;
+            return base.DeleteTriggers(triggerKeys, cancellationToken);
+        }
 
         public override ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
@@ -261,6 +364,8 @@ public class BulkPauseResumeTest
         public List<TriggerKey> ResumedTriggers { get; } = [];
         public List<JobKey> PausedJobs { get; } = [];
         public List<JobKey> ResumedJobs { get; } = [];
+        public List<JobKey> DeletedJobs { get; } = [];
+        public List<TriggerKey> UnscheduledTriggers { get; } = [];
         public List<string?> PausedTriggerGroups { get; } = [];
         public List<string?> ResumedTriggerGroups { get; } = [];
         public List<string?> PausedJobGroups { get; } = [];
@@ -272,10 +377,24 @@ public class BulkPauseResumeTest
             ResumedTriggers.Clear();
             PausedJobs.Clear();
             ResumedJobs.Clear();
+            DeletedJobs.Clear();
+            UnscheduledTriggers.Clear();
             PausedTriggerGroups.Clear();
             ResumedTriggerGroups.Clear();
             PausedJobGroups.Clear();
             ResumedJobGroups.Clear();
+        }
+
+        public ValueTask JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default)
+        {
+            DeletedJobs.Add(jobKey);
+            return default;
+        }
+
+        public ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        {
+            UnscheduledTriggers.Add(triggerKey);
+            return default;
         }
 
         public ValueTask TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default)

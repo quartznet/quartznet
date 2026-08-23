@@ -265,18 +265,18 @@ public sealed class HttpScheduler : IScheduler
         return result.Applied;
     }
 
-    public async ValueTask<bool> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    public async ValueTask<List<TriggerKey>> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(triggerKeys);
 
-        var result = await httpClient.PostWithResponse<UnscheduleJobsRequest, AllKeysFoundResponse>(
+        var result = await httpClient.PostWithResponse<UnscheduleJobsRequest, AppliedTriggerKeysResponse>(
             $"{TriggerEndpointUrl()}/unschedule",
             new UnscheduleJobsRequest(triggerKeys.Select(KeyDto.Create).ToArray()),
             jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
-        return result.AllFound;
+        return [.. result.Triggers.Select(x => x.AsTriggerKey())];
     }
 
     public async ValueTask<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger, CancellationToken cancellationToken = default)
@@ -375,18 +375,18 @@ public sealed class HttpScheduler : IScheduler
         return result.Applied;
     }
 
-    public async ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    public async ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(jobKeys);
 
-        var result = await httpClient.PostWithResponse<DeleteJobsRequest, AllKeysFoundResponse>(
+        var result = await httpClient.PostWithResponse<DeleteJobsRequest, AppliedJobKeysResponse>(
             $"{JobEndpointUrl()}/delete",
             new DeleteJobsRequest(jobKeys.Select(KeyDto.Create).ToArray()),
             jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);
 
-        return result.AllFound;
+        return [.. result.Jobs.Select(x => x.AsJobKey())];
     }
 
     public ValueTask TriggerJob(JobKey jobKey, JobDataMap? data = null, CancellationToken cancellationToken = default)
