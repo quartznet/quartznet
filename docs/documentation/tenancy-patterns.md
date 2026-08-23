@@ -439,6 +439,7 @@ rather than an isolation one.
 | Per-scheduler job type registration | No — one unkeyed registration, first wins | Yes, `AddJobType<TJob, TImplementation>()` |
 | Per-scheduler plugin instance from `quartz.plugin.*` | Yes for an activated type, no for a registered one | Yes — the probe is keyed by scheduler |
 | Preparing the job's DI scope | Subclass and override `ConfigureScope` | `ConfigureJobScope(…)` delegate |
+| Reading the current firing without being handed it | No — your own `AsyncLocal` | Yes, `IJobExecutionContextAccessor` |
 | Per-scheduler health check | No — one check, on the default scheduler | Yes, `AddQuartzHealthChecks` per scheduler |
 | Metrics | No | Yes |
 | Runtime tenant onboarding without a container | Yes, `StdSchedulerFactory` / `DirectSchedulerFactory` | Yes, `QuartzSchedulerBuilder` |

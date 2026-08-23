@@ -202,6 +202,7 @@ A handful of things are container-wide, shared by every scheduler in the process
 | `ITypeLoader` | type loading is a container-wide concern; `UseTypeLoader<T>()` **replaces** it for everyone |
 | `ISchedulerRepository` | one per container — that is what makes `GetAllSchedulers` and the dashboard see all of them |
 | `ISchedulerRegistry` | one per container — it answers for every registration in it, which is what makes it an inventory rather than a scheduler's own view |
+| `IJobExecutionContextAccessor` | one per container, and the firing it reports is a property of the asynchronous flow rather than of a scheduler — a flow is inside at most one firing, whichever scheduler started it |
 | `SystemTextJsonSerializerRegistry` | the HTTP API, the dashboard and the HTTP client serialize triggers without knowing which scheduler they came from |
 | `Meters` | built from the container's `IMeterFactory` |
 | `DataSourceOptions` | named after the **data source**, not the scheduler, so several schedulers can read through the same one |
@@ -406,11 +407,53 @@ The `TriggerFiredBundle` gives you the whole firing to derive the tenant from �
 which is the tenant itself under the scheduler-per-tenant model.
 
 ::: tip
-There is no built-in scoped `IJobExecutionContext` or accessor: the context does not exist yet when the
-hook runs. The two patterns are the `AsyncLocal` above, and resolving a scoped holder object from
-`scope.ServiceProvider` and populating it. The second is easier to test and does not depend on execution
-context flow.
+The context does not exist yet when the hook runs — it takes the job instance, and the job has not been
+built. So the two patterns *for seeding construction* are the `AsyncLocal` above, and resolving a scoped
+holder object from `scope.ServiceProvider` and populating it. The second is easier to test and does not
+depend on execution context flow. For everything that reads the tenant when it is *used* rather than
+when it is constructed, `IJobExecutionContextAccessor` below is neither.
 :::
+
+### Reading the firing from anywhere in it
+
+A great deal of code that wants the tenant is not the job and cannot be handed the context: a scoped
+service, a logging enricher, a repository three calls below `Execute`. `IJobExecutionContextAccessor` is
+the firing that code is part of:
+
+```csharp
+public sealed class TenantConnectionFactory(IJobExecutionContextAccessor accessor)
+{
+    public string ConnectionString =>
+        connectionStrings[accessor.Current?.Trigger.Key.Group
+            ?? throw new InvalidOperationException("no job is running on this flow")];
+}
+```
+
+It is registered by `AddQuartz` as a singleton, and it exposes the whole `IJobExecutionContext` rather
+than a tenant-shaped projection of it — Quartz has no tenant concept, so a narrower type here would be
+inventing one, and it would have to grow a member every time somebody needed one more fact the context
+already carries.
+
+Four things about the window it is set for, all of them worth knowing before relying on it:
+
+- **It is set from the moment the context exists** — before the trigger and job listeners are notified —
+  **until the job has been returned to the job factory.** Outside that it is `null`: on the scheduling
+  thread, in application code that merely calls `ScheduleJob`, and in an `ISchedulerListener` reacting to
+  a scheduling call rather than to a firing. Treat `null` as a real answer rather than an impossible one.
+- **It is never another firing's.** The value travels with the `ExecutionContext`, so it belongs to the
+  logical flow and not to the thread; a pooled thread picking up unrelated work inherits nothing.
+- **It survives `await` and `Task.Run`, and stops at the end of the firing.** Work started inside the job
+  and left running past `Execute` — a detached `Task.Run`, a continuation nobody awaits — reads `null`
+  from the moment the execution ends, not the finished context. That is deliberate: by then the job's DI
+  scope has been disposed and the context's cancellation handle is going. `ExecutionContext.SuppressFlow`
+  hides it, as it hides every ambient value.
+- **There is no setter.** An ambient context anyone can assign is one that can be left pointing at a
+  firing that is over, which would be worse than having no accessor at all. Substitute the interface in
+  a test instead.
+
+It does **not** replace `ConfigureJobScope`: the context does not exist while the job is being
+constructed, so anything that needs the tenant *at construction time* — a `DbContext` given a
+tenant connection string in its constructor — still gets it from the hook.
 
 For anything more involved — resolving jobs from a tenant-owned container, say — implement `IJobFactory`
 and register it with `UseJobFactory<T>()`, or derive from `MicrosoftDependencyInjectionJobFactory` and

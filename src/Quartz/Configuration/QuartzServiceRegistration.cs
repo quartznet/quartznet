@@ -72,6 +72,11 @@ internal static class QuartzServiceRegistration
         // "Another scheduler shares this database" is only knowable here, one level above the store.
         services.TryAddSingleton<SharedDatabaseValidator>();
 
+        // The firing a component is serving, for components that are not handed the execution context.
+        // Container-wide because a firing is a property of the asynchronous flow rather than of one
+        // scheduler: a flow is inside at most one of them, whichever scheduler started it.
+        services.TryAddSingleton<IJobExecutionContextAccessor, JobExecutionContextAccessor>();
+
         // The container-wide set of trigger and calendar serializers, holding the built-in types. This is
         // what the parts of Quartz that are not tied to one scheduler read — the HTTP API, the dashboard
         // and the HTTP client all serialize triggers without knowing which scheduler they came from — so
