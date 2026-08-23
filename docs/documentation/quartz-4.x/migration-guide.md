@@ -1291,6 +1291,35 @@ replace, and the same delegate is `JobFactoryOptions.ConfigureScope`, which is p
 other component's options. Overriding the protected method still works and still takes the delegate's
 place if the override does not call base.
 
+### The firing can be read without being handed it
+
+New in 4.0: `IJobExecutionContextAccessor`, registered by `AddQuartz` as a singleton, is the firing the
+calling code is part of. It is for code that is not the job and cannot be handed an
+`IJobExecutionContext` — a scoped service, a logging enricher, a repository three calls below
+`Execute`. 3.x had no such thing, so an application that needed one wrote its own `AsyncLocal` and set
+it from a job factory:
+
+```diff
+- public static class Tenant { public static readonly AsyncLocal<string?> Current = new(); }
+- services.AddQuartz(q => q.ConfigureJobScope(
+-     (scope, bundle, scheduler) => Tenant.Current.Value = bundle.Trigger.Key.Group));
++ public sealed class TenantConnectionFactory(IJobExecutionContextAccessor accessor)
++ {
++     public string ConnectionString => connectionStrings[accessor.Current!.Trigger.Key.Group];
++ }
+```
+
+`Current` is set from the moment the execution context exists — before the trigger and job listeners are
+notified — until the job has been returned to the job factory, and is `null` at every other time,
+including on the scheduling thread. It travels with the `ExecutionContext`, so it survives `await` and
+is captured by `Task.Run`, and it can never be another firing's. Work a job leaves running past the end
+of its execution reads `null` rather than the finished context, since by then the job's scope has been
+disposed. There is no setter.
+
+It does **not** replace `ConfigureJobScope`. The execution context takes the job instance, so it does
+not exist while the job is being constructed: anything that needs the tenant *at construction time*
+still gets it from the hook.
+
 ## A component of your own is chosen the same way a shipped one is
 
 Three seams that had no code-first spelling at all, and one that only worked through a type-name string:

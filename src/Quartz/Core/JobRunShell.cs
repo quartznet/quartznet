@@ -137,6 +137,7 @@ internal sealed class JobRunShell
 
         // Everything past this point runs inside the try/finally, so that a job the factory has
         // already handed us is returned to it even if we never get as far as executing it.
+        IDisposable? ambient = null;
         try
         {
             try
@@ -148,6 +149,14 @@ internal sealed class JobRunShell
                 await NotifyInstantiationFailed(e).ConfigureAwait(false);
                 return;
             }
+
+            // The firing becomes ambient here, which is the earliest it can: the execution context
+            // takes the job instance, so it does not exist while the job is being built. Set in this
+            // method rather than in a called one, because an async method restores the caller's
+            // execution context when it returns and would take the value with it (#1528). Everything
+            // from the listener notifications below to the job factory being handed the job back
+            // therefore reads it, and nothing outside this firing can.
+            ambient = AmbientJobExecution.Enter(context);
 
             IOperableTrigger trigger = (IOperableTrigger) context!.Trigger;
             do
@@ -313,6 +322,10 @@ internal sealed class JobRunShell
             }
             finally
             {
+                // Cleared before the context is disposed, and cleared for every flow that captured it
+                // rather than only this one — so work a job left running reads nothing rather than a
+                // context whose scope has gone and whose cancellation handle is about to.
+                ambient?.Dispose();
                 context?.Dispose();
             }
         }

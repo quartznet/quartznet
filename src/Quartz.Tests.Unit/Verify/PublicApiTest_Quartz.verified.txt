@@ -505,6 +505,10 @@ namespace Quartz
         Quartz.IScheduler Scheduler { get; }
         Quartz.ITrigger Trigger { get; }
     }
+    public interface IJobExecutionContextAccessor
+    {
+        Quartz.IJobExecutionContext? Current { get; }
+    }
     public interface IJobListener
     {
         string Name { get; }
