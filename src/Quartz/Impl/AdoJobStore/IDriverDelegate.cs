@@ -419,6 +419,31 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Apply every row change one trigger fire makes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The fire path has read everything it decides on before it writes anything, so what is left is a
+    /// run of writes with no read between them: the fired-trigger row, the misfire original fire time
+    /// where one was recorded, the sibling triggers of a job that disallows concurrent execution, the
+    /// trigger's own row, and its schedule in whichever type table holds it. They go out as one
+    /// <see cref="System.Data.Common.DbBatch" /> where the provider supports batching, and one command
+    /// at a time where it does not.
+    /// </para>
+    /// <para>
+    /// All of it is one transaction either way, and a batch executes its commands in sequence, so the
+    /// order the writes were issued in is the order they still happen in.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="update">The changes the fire makes.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask ApplyTriggerFired(
+        ConnectionAndTransactionHolder conn,
+        TriggerFiredUpdate update,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Delete the BLOB trigger data for a trigger.
     /// </summary>
     /// <param name="conn">The DB Connection</param>
@@ -935,8 +960,13 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates status of a trigger.
+    /// Updates the fired-trigger row of a fire instance.
     /// </summary>
+    /// <remarks>
+    /// The fire path no longer routes through this: it writes the fired-trigger row as one command of
+    /// <see cref="ApplyTriggerFired" />'s batch, so overriding this alone no longer changes what a fire
+    /// stores. The member remains for a store that drives the fire path itself.
+    /// </remarks>
     /// <param name="conn">The database connection.</param>
     /// <param name="trigger">Trigger to update.</param>
     /// <param name="state">The new state.</param>
@@ -972,6 +1002,10 @@ public interface IDriverDelegate
     /// <summary>
     /// Clears the misfire original fire time for the given trigger.
     /// </summary>
+    /// <remarks>
+    /// The fire path clears it as one command of <see cref="ApplyTriggerFired" />'s batch rather than
+    /// through this, so overriding this alone no longer changes what a fire clears.
+    /// </remarks>
     ValueTask ClearMisfireOriginalFireTime(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,

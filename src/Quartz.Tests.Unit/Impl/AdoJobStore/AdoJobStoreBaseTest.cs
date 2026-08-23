@@ -281,8 +281,7 @@ public class AdoJobStoreBaseTest
         IOperableTrigger trigger = CreateTestTrigger();
         IJobDetail job = CreateDisallowConcurrentJob();
 
-        A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
+        GivenAcquiredTrigger(conn, trigger);
         A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
         A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, A<CancellationToken>.Ignored))
@@ -291,11 +290,9 @@ public class AdoJobStoreBaseTest
         TriggerFiredBundle result = await jobStoreSupport.CallTriggerFired(conn, trigger);
 
         result.Should().BeNull();
-        A.CallTo(() => driverDelegate.UpdateFiredTrigger(
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(
             A<ConnectionAndTransactionHolder>.Ignored,
-            A<IOperableTrigger>.Ignored,
-            A<StoredTriggerState>.Ignored,
-            A<IJobDetail>.Ignored,
+            A<TriggerFiredUpdate>.Ignored,
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
@@ -306,8 +303,7 @@ public class AdoJobStoreBaseTest
         IOperableTrigger trigger = CreateTestTrigger();
         IJobDetail job = CreateDisallowConcurrentJob();
 
-        A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
+        GivenAcquiredTrigger(conn, trigger);
         A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
         A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, A<CancellationToken>.Ignored))
@@ -315,7 +311,10 @@ public class AdoJobStoreBaseTest
 
         TriggerFiredBundle result = await jobStoreSupport.CallTriggerFired(conn, trigger);
 
-        A.CallTo(() => driverDelegate.UpdateFiredTrigger(conn, trigger, StoredTriggerState.Executing, job, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(
+                conn,
+                A<TriggerFiredUpdate>.That.Matches(x => ReferenceEquals(x.Trigger, trigger) && ReferenceEquals(x.JobDetail, job) && x.BlockJobTriggers),
+                A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -326,8 +325,7 @@ public class AdoJobStoreBaseTest
         IOperableTrigger trigger = CreateTestTrigger();
         IJobDetail job = CreateConcurrentJob();
 
-        A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
+        GivenAcquiredTrigger(conn, trigger);
         A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
@@ -337,6 +335,73 @@ public class AdoJobStoreBaseTest
             A<ConnectionAndTransactionHolder>.Ignored,
             A<JobKey>.Ignored,
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// Everything a plain fire reads, in the calls it takes to read it. The header carries the state, the
+    /// existence and the type discriminator, so the existence probe and the type lookup that used to
+    /// follow it are gone, and the write is one call rather than the store's general storing path.
+    /// </summary>
+    [Test]
+    public async Task TriggerFired_ReadsTheTriggerRowOnceAndWritesInOneCall()
+    {
+        ConnectionAndTransactionHolder conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IOperableTrigger trigger = CreateTestTrigger();
+        IJobDetail job = CreateConcurrentJob();
+
+        GivenAcquiredTrigger(conn, trigger);
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>(job));
+
+        await jobStoreSupport.CallTriggerFired(conn, trigger);
+
+        A.CallTo(() => driverDelegate.SelectTriggerHeader(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(conn, A<TriggerFiredUpdate>.Ignored, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.TriggerExists(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+        // A fire that forces the state it stores cannot have that state rewritten by a pause, so the
+        // paused-group probe is not consulted at all.
+        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.UpdateFiredTrigger(A<ConnectionAndTransactionHolder>.Ignored, A<IOperableTrigger>.Ignored, A<StoredTriggerState>.Ignored, A<IJobDetail>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.UpdateTrigger(A<ConnectionAndTransactionHolder>.Ignored, A<IOperableTrigger>.Ignored, A<StoredTriggerState>.Ignored, A<IJobDetail>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// The trigger's next fire time as it stood before the fire — not the one the fire advanced it to —
+    /// is what the fired-trigger row has to say the fire was scheduled for.
+    /// </summary>
+    [Test]
+    public async Task TriggerFired_CarriesTheScheduledFireTimeFromBeforeTheTriggerAdvanced()
+    {
+        ConnectionAndTransactionHolder conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IOperableTrigger trigger = CreateTestTrigger();
+        IJobDetail job = CreateConcurrentJob();
+        DateTimeOffset? scheduled = trigger.NextFireTimeUtc;
+
+        GivenAcquiredTrigger(conn, trigger);
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>(job));
+
+        await jobStoreSupport.CallTriggerFired(conn, trigger);
+
+        A.CallTo(() => driverDelegate.ApplyTriggerFired(
+                conn,
+                A<TriggerFiredUpdate>.That.Matches(x => x.ScheduledFireTimeUtc == scheduled && x.StoredTriggerType == AdoConstants.TriggerTypeSimple),
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        trigger.NextFireTimeUtc.Should().NotBe(scheduled,
+            "the trigger has moved on to its next fire by the time the write goes out, which is exactly why the scheduled time travels separately");
     }
 
     [TestCase(StoredTriggerState.Paused)]
@@ -482,6 +547,21 @@ public class AdoJobStoreBaseTest
             .MustHaveHappenedOnceExactly();
         A.CallTo(() => driverDelegate.UpdateTrigger(conn, waitingTrigger, StoredTriggerState.Waiting, job, A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// Arranges the one row read the fire path makes before it decides anything. It carries the state,
+    /// the trigger's existence and its type discriminator, which used to be three separate reads.
+    /// </summary>
+    private void GivenAcquiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
+    {
+        A.CallTo(() => driverDelegate.SelectTriggerHeader(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<StoredTriggerHeader>(StoredHeader(trigger, StoredTriggerState.Acquired)));
+    }
+
+    private static StoredTriggerHeader StoredHeader(IOperableTrigger trigger, StoredTriggerState state)
+    {
+        return new StoredTriggerHeader(trigger.Key, trigger.JobKey, state, trigger.NextFireTimeUtc, AdoConstants.TriggerTypeSimple);
     }
 
     private static IOperableTrigger CreateTestTrigger(string name = "t1", string fireInstanceId = "test-fire-id")
@@ -1052,7 +1132,7 @@ public class AdoJobStoreBaseTest
         // Throw raw TransientTestException (simulates a raw DB exception like SqlException).
         // TriggerFired wraps it as JobPersistenceException(inner: TransientTestException),
         // which IsTransient recognizes, enabling the retry in ExecuteInLocalTransactionLock.
-        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+        A.CallTo(() => del.SelectTriggerHeader(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
             .ReturnsLazily(call =>
             {
                 selectStateCallCount++;
@@ -1060,7 +1140,7 @@ public class AdoJobStoreBaseTest
                 {
                     throw new TransientTestException();
                 }
-                return new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired);
+                return new ValueTask<StoredTriggerHeader>(StoredHeader(trigger, StoredTriggerState.Acquired));
             });
         A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, trigger.JobKey, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
@@ -1083,7 +1163,7 @@ public class AdoJobStoreBaseTest
         IOperableTrigger trigger = CreateTestTrigger();
 
         // A non-transient exception (no TransientTestException in the chain)
-        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+        A.CallTo(() => del.SelectTriggerHeader(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
             .ThrowsAsync(new InvalidOperationException("permanent error"));
 
         List<TriggerFiredResult> results = await store.TriggersFired(new[] { trigger });
@@ -1092,7 +1172,7 @@ public class AdoJobStoreBaseTest
         results.Should().HaveCount(1);
         results[0].TriggerFiredBundle.Should().BeNull();
         results[0].Exception.Should().NotBeNull();
-        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+        A.CallTo(() => del.SelectTriggerHeader(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -1106,14 +1186,14 @@ public class AdoJobStoreBaseTest
         IOperableTrigger trigger = CreateTestTrigger();
 
         // Always throw transient — after retries are exhausted, the exception must propagate
-        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+        A.CallTo(() => del.SelectTriggerHeader(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
             .ThrowsAsync(new TransientTestException());
 
         Func<Task> act = async () => await store.TriggersFired(new[] { trigger });
 
         await act.Should().ThrowAsync<JobPersistenceException>();
         // Initial attempt + 1 retry = 2 total
-        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+        A.CallTo(() => del.SelectTriggerHeader(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
             .MustHaveHappened(2, Times.Exactly);
     }
 
@@ -1134,11 +1214,11 @@ public class AdoJobStoreBaseTest
         DateTimeOffset? originalPrevFireTime = triggerA.PreviousFireTimeUtc;
 
         // Trigger A always succeeds — but its work is rolled back when B fails
-        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, triggerA.Key, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
+        A.CallTo(() => del.SelectTriggerHeader(A<ConnectionAndTransactionHolder>.Ignored, triggerA.Key, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<StoredTriggerHeader>(StoredHeader(triggerA, StoredTriggerState.Acquired)));
 
         // Trigger B throws transient on first call, succeeds on retry
-        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, triggerB.Key, A<CancellationToken>.Ignored))
+        A.CallTo(() => del.SelectTriggerHeader(A<ConnectionAndTransactionHolder>.Ignored, triggerB.Key, A<CancellationToken>.Ignored))
             .ReturnsLazily(call =>
             {
                 triggerBCallCount++;
@@ -1146,7 +1226,7 @@ public class AdoJobStoreBaseTest
                 {
                     throw new TransientTestException();
                 }
-                return new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired);
+                return new ValueTask<StoredTriggerHeader>(StoredHeader(triggerB, StoredTriggerState.Acquired));
             });
 
         A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
@@ -1158,7 +1238,7 @@ public class AdoJobStoreBaseTest
         results.Should().HaveCount(2);
         results.Should().OnlyContain(r => r.TriggerFiredBundle != null && r.Exception == null);
         // Trigger A was called twice: first attempt (rolled back) + successful retry
-        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, triggerA.Key, A<CancellationToken>.Ignored))
+        A.CallTo(() => del.SelectTriggerHeader(A<ConnectionAndTransactionHolder>.Ignored, triggerA.Key, A<CancellationToken>.Ignored))
             .MustHaveHappened(2, Times.Exactly);
         triggerBCallCount.Should().Be(2);
 

@@ -1545,22 +1545,7 @@ public abstract class AdoJobStoreBase : IJobStore
         {
             if (!forceState)
             {
-                bool shouldBepaused = await Delegate.IsTriggerGroupPaused(conn, newTrigger.Key.Group, cancellationToken).ConfigureAwait(false);
-
-                if (!shouldBepaused)
-                {
-                    shouldBepaused = await Delegate.IsTriggerGroupPaused(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false);
-
-                    if (shouldBepaused)
-                    {
-                        await Delegate.InsertPausedTriggerGroup(conn, newTrigger.Key.Group, cancellationToken).ConfigureAwait(false);
-                    }
-                }
-
-                if (shouldBepaused && state is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
-                {
-                    state = StoredTriggerState.Paused;
-                }
+                state = await ApplyPausedTriggerGroupState(conn, newTrigger.Key.Group, state, cancellationToken).ConfigureAwait(false);
             }
 
             if (job is null)
@@ -1601,6 +1586,48 @@ public abstract class AdoJobStoreBase : IJobStore
             string message = $"Couldn't store trigger '{newTrigger.Key}' for '{newTrigger.JobKey}' job: {e.Message}";
             Throw.JobPersistenceException(message, e);
         }
+    }
+
+    /// <summary>
+    /// Folds the paused state of a trigger's group into the state about to be stored for it.
+    /// </summary>
+    /// <remarks>
+    /// A group that is paused only because everything is paused has no row of its own until something
+    /// stores a trigger into it, so the wildcard is materialized into an explicit row here — otherwise
+    /// resuming that one group later would have nothing to remove.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="triggerGroup">The group the trigger belongs to.</param>
+    /// <param name="state">The state the caller intends to store.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>
+    /// <see cref="StoredTriggerState.Paused" /> when the group is paused and the intended state is one
+    /// a pause supersedes, and the intended state otherwise.
+    /// </returns>
+    private async ValueTask<StoredTriggerState> ApplyPausedTriggerGroupState(
+        ConnectionAndTransactionHolder conn,
+        string triggerGroup,
+        StoredTriggerState state,
+        CancellationToken cancellationToken)
+    {
+        bool shouldBePaused = await Delegate.IsTriggerGroupPaused(conn, triggerGroup, cancellationToken).ConfigureAwait(false);
+
+        if (!shouldBePaused)
+        {
+            shouldBePaused = await Delegate.IsTriggerGroupPaused(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false);
+
+            if (shouldBePaused)
+            {
+                await Delegate.InsertPausedTriggerGroup(conn, triggerGroup, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        if (shouldBePaused && state is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
+        {
+            return StoredTriggerState.Paused;
+        }
+
+        return state;
     }
 
     /// <summary>
@@ -3880,13 +3907,19 @@ public abstract class AdoJobStoreBase : IJobStore
     {
         IJobDetail? job;
         ICalendar? calendar = null;
+        // Assigned in the try below, whose catch never returns; the initializer is what definite
+        // assignment needs to see, since it does not read [DoesNotReturn] the way nullable analysis does.
+        StoredTriggerHeader? header = null;
 
         // Make sure trigger wasn't deleted, paused, or completed...
         try
         {
-            // if trigger was deleted, state will be StateDeleted
-            StoredTriggerState state = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-            if (state != StoredTriggerState.Acquired)
+            // No row at all means the trigger was deleted, which is not a state it may fire from either.
+            // The header also carries the type discriminator, which is what the write below would
+            // otherwise have gone back for, and its very existence is the answer to "does this row
+            // exist" that the write used to ask separately.
+            header = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+            if (header is null || header.State != StoredTriggerState.Acquired)
             {
                 return null;
             }
@@ -3953,14 +3986,12 @@ public abstract class AdoJobStoreBase : IJobStore
             }
         }
 
-        try
-        {
-            await Delegate.UpdateFiredTrigger(conn, trigger, StoredTriggerState.Executing, job, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
-        }
+        // The time this fire was scheduled for, captured before Triggered() moves the trigger on to the
+        // one after it. The fired-trigger row records it, and it used to be read straight off the
+        // trigger — which is why that row had to be written before Triggered() ran. Every write this
+        // method makes now goes out together at the end, so what the writes need is taken here instead
+        // of being expressed as an ordering constraint a batch could not honour.
+        DateTimeOffset? scheduledFireTimeUtc = trigger.NextFireTimeUtc;
 
         // Auto-pin: when the preferred node is the "*" sentinel, claim the trigger by assigning this
         // node's instance id and flagging it as auto-claimed. When it is some OTHER node's id and
@@ -4000,13 +4031,10 @@ public abstract class AdoJobStoreBase : IJobStore
             }
         }
 
-        // Read saved original fire time from trigger (populated by SelectTrigger from DB column)
+        // Read saved original fire time from trigger (populated by SelectTrigger from DB column). The
+        // column is cleared as part of the write below, so that the recorded time does not survive the
+        // firing that reports it.
         DateTimeOffset? scheduledFireTime = (trigger as TriggerBase)?.MisfiredFromFireTimeUtc;
-        if (scheduledFireTime.HasValue)
-        {
-            // Clear so it doesn't persist beyond this firing
-            await Delegate.ClearMisfireOriginalFireTime(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-        }
 
         DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
 
@@ -4020,16 +4048,6 @@ public abstract class AdoJobStoreBase : IJobStore
         {
             state2 = StoredTriggerState.Blocked;
             force = false;
-            try
-            {
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StoredTriggerState.Blocked, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StoredTriggerState.Blocked, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StoredTriggerState.PausedBlocked, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                Throw.JobPersistenceException("Couldn't update states of blocked triggers: " + e.Message, e);
-            }
         }
 
         if (!trigger.NextFireTimeUtc.HasValue)
@@ -4038,7 +4056,33 @@ public abstract class AdoJobStoreBase : IJobStore
             force = true;
         }
 
-        await AddTrigger(conn, trigger, job, true, state2, force, false, cancellationToken).ConfigureAwait(false);
+        // What AddTrigger would still do for this trigger, and no more. The rest of it is answered
+        // already: the row exists and its type is known from the header read above, the job was read
+        // above, and CheckBlockedState is a no-op for every state this path can reach — it only speaks
+        // for WAITING and PAUSED, and a job that disallows concurrent execution is storing BLOCKED or
+        // COMPLETE by now.
+        if (!force)
+        {
+            state2 = await ApplyPausedTriggerGroupState(conn, trigger.Key.Group, state2, cancellationToken).ConfigureAwait(false);
+        }
+
+        try
+        {
+            await Delegate.ApplyTriggerFired(conn, new TriggerFiredUpdate
+            {
+                Trigger = trigger,
+                JobDetail = job,
+                NewState = state2,
+                StoredTriggerType = header.TriggerType,
+                ScheduledFireTimeUtc = scheduledFireTimeUtc,
+                ClearMisfireOriginalFireTime = scheduledFireTime.HasValue,
+                BlockJobTriggers = job.ConcurrentExecutionDisallowed,
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Throw.JobPersistenceException($"Couldn't record the fire of trigger '{trigger.Key}' for '{trigger.JobKey}' job: {e.Message}", e);
+        }
 
         job.JobDataMap.ClearDirtyFlag();
 
