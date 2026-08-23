@@ -87,6 +87,29 @@ jobs:
           # anything a reviewer can act on. The exclusion is the components only, not the package:
           # everything in src/Quartz.Dashboard that is ordinary C# is measured and expected to be
           # tested. It is a stopgap, to be narrowed or deleted if #3363 adopts bUnit.
+          #
+          # database/ is excused from copy-paste detection and from two PL/SQL rules, and from
+          # nothing else. Its bug and security rules still apply; these three are the ones that
+          # have nothing true to say about it.
+          #
+          #   Duplication. Six dialects saying the same thing is the design, not a defect: every
+          #   migration ships one directly-runnable file per database, three SQL Server variants
+          #   declare the same tables, and a migration has to declare exactly what the fresh-install
+          #   script declares -- MigrationScriptTest fails when the two drift apart. The detector
+          #   measures the schema's shape rather than anything a reviewer can act on, which is why
+          #   the vendored baselines above are already excused for the same reason.
+          #
+          #   plsql:S1523, "make sure this dynamic execution of code is safe". Every instance in the
+          #   repository is a generated existence guard under database/migrations: Oracle has no
+          #   CREATE TABLE IF NOT EXISTS and no ALTER TABLE ... IF NOT EXISTS, so the only way to
+          #   write a re-runnable migration there is to read the catalog and EXECUTE IMMEDIATE. The
+          #   statement is a literal constant emitted by build/Build.DatabaseMigrations.cs with
+          #   nothing interpolated into it, so there is no injection channel to review.
+          #
+          #   plsql:DeleteOrUpdateWithoutWhereCheck, "the WHERE clause may be missing". Every
+          #   instance is a whole-table statement that means it: the teardown preamble of
+          #   tables_oracle.sql, which drops each of those tables a few lines later, and the three
+          #   backfills in the 1.x -> 2.x upgrade that populate a column just added to every row.
           dotnet-sonarscanner begin \
             /k:"quartznet_quartznet" \
             /o:"quartznet" \
@@ -94,8 +117,13 @@ jobs:
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**" \
-            /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**" \
-            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Dashboard/Components/**/*.razor"
+            /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,database/**" \
+            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Dashboard/Components/**/*.razor" \
+            /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,wholeTableByDesign" \
+            /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
+            /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.resourceKey="database/migrations/**/*.sql" \
+            /d:sonar.issue.ignore.multicriteria.wholeTableByDesign.ruleKey="plsql:DeleteOrUpdateWithoutWhereCheck" \
+            /d:sonar.issue.ignore.multicriteria.wholeTableByDesign.resourceKey="database/**/*.sql"
       # Has to sit between begin and end: the scanner analyses through MSBuild, so only projects
       # actually built while it is active are measured.
       - name: 'Run: Compile, UnitTest'
