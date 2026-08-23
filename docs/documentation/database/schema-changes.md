@@ -244,6 +244,11 @@ lost on restart; 4.x records the group names, which is what makes `JobGroup.Paus
 holding no jobs, so this is a table rather than a column on `QRTZ_JOB_DETAILS` — a group with no
 rows has nothing to hang a flag on.
 
+If you already built a schema from an **earlier 4.0 preview**, run the script again: every statement
+is guarded, so the only thing it does the second time is create this table. On SQLite run section 4
+alone — the `ADD COLUMN` statements above it have no guard and fail on a database that already has
+those columns.
+
 The 4.x listing queries page with `ORDER BY JOB_GROUP, JOB_NAME` and
 `ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the primary keys are name-before-group, so section 5
 adds `IDX_QRTZ_J_G_N` and `IDX_QRTZ_T_G_N` to serve those ordered scans. Without them each page
