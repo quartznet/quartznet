@@ -64,6 +64,11 @@ internal static class QuartzServiceRegistration
         // than by how it was built.
         services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
 
+        // What the container was told to register, which the repository cannot know - it holds
+        // schedulers, and a registration nothing has resolved yet has none. Listing tenants must not
+        // start them, so the two are read together rather than by building everything registered.
+        services.TryAddSingleton<ISchedulerRegistry, ContainerSchedulerRegistry>();
+
         // The container-wide set of trigger and calendar serializers, holding the built-in types. This is
         // what the parts of Quartz that are not tied to one scheduler read — the HTTP API, the dashboard
         // and the HTTP client all serialize triggers without knowing which scheduler they came from — so
@@ -97,6 +102,15 @@ internal static class QuartzServiceRegistration
     public static IServiceCollection AddQuartzScheduler(this IServiceCollection services, string? schedulerName = null)
     {
         services.AddQuartzSharedServices();
+
+        // Recorded here rather than beside the named registrations because this is the one call every
+        // road to a default scheduler passes through - AddQuartz(), the standalone builder, and a caller
+        // registering the graph by hand. A named scheduler is added to the registry by AddQuartz(name),
+        // which is where a duplicate name is refused.
+        if (schedulerName is null)
+        {
+            SchedulerNameRegistry.For(services).AddDefault();
+        }
 
         // Every scheduler resolves these two, so a bad value in either is a mistake the host can report
         // at startup instead of leaving for whichever component reads it first. The store, clustering

@@ -18,6 +18,19 @@ internal sealed class SchedulerNameRegistry
     public IReadOnlyList<string> Names => names;
 
     /// <summary>
+    /// Whether a default scheduler is registered — <c>AddQuartz()</c> without a name, or
+    /// <c>AddQuartzScheduler()</c> directly, which is also how the standalone builder registers its one
+    /// scheduler.
+    /// </summary>
+    /// <remarks>
+    /// The default scheduler is not in <see cref="Names"/> and cannot be: it has no service key, and its
+    /// name is whatever its options end up saying rather than something the call site chose. So the flag
+    /// records that it exists, and its name is read from its options by whoever needs it — which is how
+    /// <see cref="ISchedulerRegistry"/> can list it beside the named ones.
+    /// </remarks>
+    public bool HasDefaultScheduler { get; private set; }
+
+    /// <summary>
     /// Returns the registry belonging to a service collection, registering one on first use.
     /// </summary>
     /// <remarks>
@@ -49,6 +62,19 @@ internal sealed class SchedulerNameRegistry
         }
 
         names.Add(name);
+    }
+
+    /// <summary>
+    /// Records that the default scheduler is registered.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not a duplicate check, unlike <see cref="Add"/>: registering the default scheduler is
+    /// additive — calling <c>AddQuartz()</c> twice contributes two sets of configuration to one scheduler
+    /// rather than registering a second — so saying so twice is not an error.
+    /// </remarks>
+    public void AddDefault()
+    {
+        HasDefaultScheduler = true;
     }
 
     /// <summary>

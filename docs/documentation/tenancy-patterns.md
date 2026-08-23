@@ -429,6 +429,7 @@ rather than an isolation one.
 | `SCHED_NAME` row separation | Yes | Yes |
 | Per-scheduler table prefix | Yes | Yes |
 | Startup schema validation | Yes, `PerformSchemaValidation` on by default | Yes, `PerformSchemaValidation` on by default |
+| Listing tenants without starting them | No — the repository lists live schedulers only | Yes, `ISchedulerRegistry.QuerySchedulers()` |
 | Execution groups and per-node limits | Yes | Yes |
 | Trigger group as the execution group | No — tag every trigger explicitly | Yes, `UseTriggerGroupWhenUnset()` |
 | Cluster-wide concurrency quota | No | Yes, `ExecutionLimitScope.Cluster` — approximate unless `AcquireTriggersWithinLock` |

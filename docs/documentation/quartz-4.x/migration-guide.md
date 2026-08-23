@@ -1416,6 +1416,49 @@ configures it under — some plugins derive persisted job and trigger keys from 
 deployment's identity rather than a label. Left unset, the plugin's type name is used, exactly as
 before.
 
+## Registered schedulers can be listed without being started
+
+`ISchedulerFactory.GetAllSchedulers()` — `GetAllSchedulers()` on 3.x too — lists the schedulers
+*something has already created*. It reads `ISchedulerRepository`, and a repository holds instances, so a
+scheduler nobody has asked for is not in it. Under a scheduler-per-tenant registration that meant there
+was no way to ask a container which tenants it knows about short of building every one of them, which is
+the opposite of what an operator wanted when they asked.
+
+`ISchedulerRegistry` answers from the registrations instead, and is registered by `AddQuartz`, so any
+container with Quartz in it has one:
+
+```csharp
+foreach (SchedulerRegistration registration in await registry.QuerySchedulers())
+{
+    Console.WriteLine($"{registration.Name}: {registration.Status?.ToString() ?? "not created"}");
+}
+```
+
+```csharp
+public sealed record SchedulerRegistration(string Name, SchedulerOrigin Origin, SchedulerStatus? Status)
+{
+    public bool IsCreated { get; }   // Status is not null
+}
+
+public enum SchedulerOrigin { Container, Runtime }
+```
+
+- **`Status` is `null` exactly when nothing has been built under that name.** Asking does not build it —
+  that is the whole point.
+- **`Origin.Container`** is a scheduler `AddQuartz()` or `AddQuartz(name, …)` registered.
+  **`Origin.Runtime`** is one that is in the repository without a registration behind it: a
+  `QuartzSchedulerBuilder` scheduler bound by hand, or a remote scheduler from `AddQuartzHttpClient`.
+  Nothing in the container owns a runtime scheduler's lifetime.
+- The default scheduler is listed under its configured `InstanceName`, which is the one name that is not
+  the name it was registered under — it has no service key at all.
+
+Nothing is removed: `GetAllSchedulers()` still means what it always meant, and it is still the call to
+make when you want the live schedulers themselves rather than an inventory.
+
+`ISchedulerRegistry` is deliberately the *narrow* half of the API [#3338](https://github.com/quartznet/quartznet/issues/3338)
+sketches for runtime tenant lifecycle. Adding and removing schedulers at runtime is a 4.1 concern; when it
+lands, its manager interface extends this one rather than replacing it.
+
 ## Several schedulers are registered explicitly
 
 `AddQuartz(IConfiguration)` used to look for a `Schedulers` sub-section and, if it found one, register

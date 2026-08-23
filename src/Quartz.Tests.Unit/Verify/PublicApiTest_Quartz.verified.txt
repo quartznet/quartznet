@@ -734,6 +734,10 @@ namespace Quartz
         System.Threading.Tasks.ValueTask TriggersPaused(string? triggerGroup, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask TriggersResumed(string? triggerGroup, System.Threading.CancellationToken cancellationToken = default);
     }
+    public interface ISchedulerRegistry
+    {
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.SchedulerRegistration>> QuerySchedulers(System.Threading.CancellationToken cancellationToken = default);
+    }
     public interface ISimpleTrigger : Quartz.ITrigger
     {
         Quartz.SimpleTriggerMisfireInstruction MisfireInstruction { get; }
@@ -1377,6 +1381,11 @@ namespace Quartz
         public required string ThreadPoolTypeName { get; init; }
         public required string Version { get; init; }
     }
+    public enum SchedulerOrigin
+    {
+        Container = 0,
+        Runtime = 1,
+    }
     public static class SchedulerQueryExtensions
     {
         public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> GetCalendarNames(this Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
@@ -1388,6 +1397,14 @@ namespace Quartz
         public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ITrigger>> GetTriggersOfJob(this Quartz.IScheduler scheduler, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.ValueTask<bool> IsJobGroupPaused(this Quartz.IScheduler scheduler, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(this Quartz.IScheduler scheduler, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class SchedulerRegistration : System.IEquatable<Quartz.SchedulerRegistration>
+    {
+        public SchedulerRegistration(string Name, Quartz.SchedulerOrigin Origin, Quartz.SchedulerStatus? Status) { }
+        public bool IsCreated { get; }
+        public string Name { get; init; }
+        public Quartz.SchedulerOrigin Origin { get; init; }
+        public Quartz.SchedulerStatus? Status { get; init; }
     }
     public enum SchedulerStatus
     {
