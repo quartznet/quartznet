@@ -30,7 +30,7 @@ public static class TestJobStores
     /// <summary>
     /// A database provider that never connects, for tests that only exercise the store's logic.
     /// </summary>
-    public static IDbProvider DbProvider() => new StubDbProvider();
+    public static IDbProvider DbProvider(string connectionString = "") => new StubDbProvider(connectionString);
 
     public static IDriverDelegate DriverDelegate() => new StdAdoDelegate();
 
@@ -98,17 +98,20 @@ public static class TestJobStores
         ITypeLoader? typeLoader = null,
         TimeProvider? timeProvider = null,
         string instanceName = "TestScheduler",
-        string instanceId = "TestInstance")
+        string instanceId = "TestInstance",
+        string dataSource = "test",
+        string tablePrefix = AdoConstants.DefaultTablePrefix,
+        IDbProvider? dbProvider = null)
     {
         return new LocalTransactionJobStore(
             signaler ?? new NoOpSchedulerSignaler(),
             typeLoader ?? new SimpleTypeLoader(),
             timeProvider ?? TimeProvider.System,
             SchedulerOptions(instanceName, instanceId),
-            StoreOptions(),
+            StoreOptions(dataSource, tablePrefix),
             ClusteringOptions(),
             Serializer(),
-            DbProvider(),
+            dbProvider ?? DbProvider(),
             DriverDelegate(),
             LockHandler());
     }
@@ -138,7 +141,12 @@ public static class TestJobStores
 /// </summary>
 public sealed class StubDbProvider : IDbProvider
 {
-    public string ConnectionString => "";
+    public StubDbProvider(string connectionString = "")
+    {
+        ConnectionString = connectionString;
+    }
+
+    public string ConnectionString { get; }
 
     public DbMetadata Metadata { get; } = new();
 

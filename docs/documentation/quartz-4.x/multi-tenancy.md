@@ -268,15 +268,34 @@ builder.Services.AddQuartz("acme", q => q.UsePersistentStore(s =>
 }));
 ```
 
-Three rules:
+Four rules:
 
 - **Different scheduler name is enough.** Prefixes are for keeping tenants in separate *tables*, which
   is a backup-and-restore or a permissions decision, not an isolation one.
 - **The prefix has to match the DDL.** Nothing derives one from the other; you run the DDL with the
   prefix substituted.
-- **A wrong prefix is caught at startup.** `PerformSchemaValidation` is on by default, and a missing or
-  mis-prefixed table is reported once, by name, with a message telling you to run the schema scripts —
-  rather than surfacing as the first failing operation an hour later.
+- **A prefix pointing at tables that do not exist is caught at startup.**
+  `PerformSchemaValidation` is on by default, and a missing or mis-prefixed table is reported once, by
+  name, with a message telling you to run the schema scripts — rather than surfacing as the first failing
+  operation an hour later.
+- **A prefix pointing at the *wrong* tables is reported too, as a warning.** Schema validation cannot
+  catch that one: the tables exist, they are simply somebody else's, and the scheduler starts, reports
+  healthy and never sees its own data. So creating a scheduler records its database and its table prefix,
+  and a scheduler that shares a database with one already created but disagrees about the prefix produces
+  a `Warning` naming both schedulers and both prefixes.
+
+::: tip Why that one is a warning and not an error
+Separate table sets in one database are legal, and the arrangement above is exactly how you ask for them.
+Nothing Quartz can see tells a deliberate `ACME_QRTZ_` apart from a mistyped `QRTZ2_`, and an error that
+fires on a legitimate arrangement is worse than the silence it replaces. If the two prefixes are meant to
+differ, the warning is expected and can be filtered out on the
+`Quartz.Configuration.SharedDatabaseValidator` category.
+
+It also only sees what one container can see. Two processes — or two containers in one process — sharing
+a database are invisible to each other, and so is a database reached through a provider that reports
+neither a connection string nor a `DbDataSource`. Being wrong in that direction is deliberate: a check
+that stays quiet when it cannot tell costs you nothing.
+:::
 
 ::: warning
 Two schedulers sharing a database with the **same** `SCHED_NAME` are, by construction, indistinguishable
