@@ -195,7 +195,9 @@ bool suspended = group.Items is [{ Paused: true }];
 
 Pause state is real and queryable for both trigger groups and job groups — the ADO store persists a
 paused job group in `QRTZ_PAUSED_JOB_GRPS`, so `QueryJobGroups(new JobGroupQuery { Name = tenantId,
-Take = 1 })` answers for a tenant partitioned by job group just as well.
+Take = 1 })` answers for a tenant partitioned by job group just as well. Still suspend by **trigger**
+group where the suspension has to reach work scheduled after it: a paused trigger group starts a later
+trigger paused on either store, where a paused job group does so only in the in-memory one.
 
 Listeners take matchers too, so a per-tenant listener is one registration:
 

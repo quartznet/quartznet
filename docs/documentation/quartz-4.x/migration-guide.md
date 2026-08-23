@@ -3685,7 +3685,13 @@ Console.WriteLine($"{failed.TotalCount} triggers need attention");
   migration** — see [Database Schema Migration](#database-schema-migration).
 * **A group can be paused while it holds no jobs**, and `Paused = true` reports it. The unfiltered listing
   does not: it enumerates the groups jobs are in, and an empty group is not one of them. Trigger groups have
-  always behaved this way; job groups now match.
+  always behaved this way; job groups now match. `PauseJobs(GroupMatcher<JobKey>.GroupEquals(g))` therefore
+  answers `[g]` on the ADO store where 3.x answered `[]` for a group with no jobs.
+* **What the recorded pause does *not* do on the ADO store** is impose itself on jobs added to the group
+  afterwards. Pausing a job group pauses the triggers of the jobs in it at that moment, and the row records
+  which groups are paused; `RAMJobStore` additionally starts a later trigger paused if its job's group is
+  paused, and the ADO store does not. Pause by *trigger* group where you need the pause to reach what is
+  added next — that behaves identically on both stores.
 * **Two indexes were added** to support the ordered scans — see [Database Schema Migration](#database-schema-migration).
 
 ### If you implement `IDriverDelegate`: the listing members
