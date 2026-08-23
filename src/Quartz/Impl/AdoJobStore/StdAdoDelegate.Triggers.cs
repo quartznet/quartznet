@@ -677,13 +677,30 @@ public partial class StdAdoDelegate
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
+    /// <inheritdoc />
+    public virtual ValueTask UpdateTriggerStatesForJobFromOtherState(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        IReadOnlyList<TriggerStateTransition> transitions,
+        CancellationToken cancellationToken = default)
+    {
+        if (transitions.Count == 0)
+        {
+            return default;
+        }
+
+        List<SqlStatement> statements = new(transitions.Count);
+        AddJobTriggerStateTransitions(statements, jobKey, transitions);
+        return ExecuteStatements(conn, statements, cancellationToken);
+    }
+
     private void AddJobTriggerStateTransitions(
         List<SqlStatement> into,
         JobKey jobKey,
-        TriggerStateTransition[] transitions)
+        IReadOnlyList<TriggerStateTransition> transitions)
     {
         string sql = ReplaceTablePrefix(StdAdoConstants.SqlUpdateJobTriggerStatesFromOtherState);
-        for (int i = 0; i < transitions.Length; i++)
+        for (int i = 0; i < transitions.Count; i++)
         {
             TriggerStateTransition transition = transitions[i];
             into.Add(new SqlStatement(sql,

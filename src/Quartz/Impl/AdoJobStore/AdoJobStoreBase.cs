@@ -4192,37 +4192,10 @@ public abstract class AdoJobStoreBase : IJobStore
 
             if (jobDetail.ConcurrentExecutionDisallowed)
             {
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, unblockJobTriggersTransitions, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
 
-                // Check for misfired triggers that were just unblocked
-                // Triggers that were blocked and have now transitioned to waiting may have misfired
-                // while they were blocked. We need to handle these misfires now.
-                // Note: We retrieve all triggers and check each one's state because there's no efficient
-                // way to query only triggers that just transitioned from BLOCKED to WAITING.
-                // However, jobs with DisallowConcurrentExecution typically have few triggers.
-                var triggersForJob = await GetTriggersForJob(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
-                foreach (var trig in triggersForJob)
-                {
-                    // Only check triggers in WAITING state (those that were just unblocked)
-                    StoredTriggerState state = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
-                    if (state == StoredTriggerState.Waiting)
-                    {
-                        var misfired = await UpdateMisfiredTrigger(conn, trig.Key, StoredTriggerState.Waiting, false, cancellationToken).ConfigureAwait(false);
-                        if (misfired)
-                        {
-                            // If the trigger was misfired and has no more fire times (e.g., fire-once triggers),
-                            // it was stored as COMPLETE. We need to remove it entirely so that GetTrigger
-                            // returns null and the trigger doesn't linger in the database.
-                            StoredTriggerState newState = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
-                            if (newState == StoredTriggerState.Complete)
-                            {
-                                await DeleteTrigger(conn, trig.Key, cancellationToken).ConfigureAwait(false);
-                            }
-                        }
-                    }
-                }
+                await RecoverUnblockedMisfires(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
             }
             if (jobDetail.PersistJobDataAfterExecution)
             {
@@ -4255,6 +4228,86 @@ public abstract class AdoJobStoreBase : IJobStore
         catch (Exception e)
         {
             Throw.JobPersistenceException("Couldn't delete fired trigger: " + e.Message, e);
+        }
+    }
+
+    /// <summary>
+    /// The transitions that free a job's triggers once it has finished executing — the mirror image of
+    /// the blocking its fire applied.
+    /// </summary>
+    private static readonly TriggerStateTransition[] unblockJobTriggersTransitions =
+    [
+        new(StoredTriggerState.Blocked, StoredTriggerState.Waiting),
+        new(StoredTriggerState.PausedBlocked, StoredTriggerState.Paused)
+    ];
+
+    /// <summary>
+    /// Applies the misfire policy of every trigger the completion above has just unblocked.
+    /// </summary>
+    /// <remarks>
+    /// A trigger that sat BLOCKED while its job ran may well have passed a fire time meanwhile, and
+    /// nothing else would notice: misfire recovery does not look at BLOCKED triggers, and by the time
+    /// this runs they are WAITING with a fire time in the past. There is no way to ask the database
+    /// which triggers just changed state, but asking for the job's triggers that are WAITING <em>now</em>
+    /// describes the same set — in one read, where the previous shape read the job's triggers, then each
+    /// trigger's state one statement at a time, then loaded again every trigger that turned out to be
+    /// waiting.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="jobKey">The job whose triggers were just unblocked.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    private async ValueTask RecoverUnblockedMisfires(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        List<TriggerKey> waiting = await Delegate.SelectTriggerKeysForJob(conn, jobKey, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
+        if (waiting.Count == 0)
+        {
+            return;
+        }
+
+        List<IOperableTrigger> triggers = await Delegate.SelectTriggers(conn, waiting, cancellationToken).ConfigureAwait(false);
+
+        DateTimeOffset misfireTime = timeProvider.GetUtcNow();
+        if (MisfireThreshold > TimeSpan.Zero)
+        {
+            misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
+        }
+
+        List<MisfiredTriggerUpdate>? updates = null;
+        List<IOperableTrigger>? finalized = null;
+
+        foreach (IOperableTrigger trig in triggers)
+        {
+            if (trig.NextFireTimeUtc.GetValueOrDefault() > misfireTime)
+            {
+                continue;
+            }
+
+            MisfiredTriggerUpdate update = await PrepareMisfiredTriggerUpdate(conn, trig, StoredTriggerState.Waiting, calendarCache: null, cancellationToken).ConfigureAwait(false);
+            (updates ??= []).Add(update);
+
+            if (update.NewState == StoredTriggerState.Complete)
+            {
+                (finalized ??= []).Add(trig);
+            }
+        }
+
+        if (updates is null)
+        {
+            return;
+        }
+
+        await Delegate.UpdateMisfiredTriggers(conn, updates, cancellationToken).ConfigureAwait(false);
+
+        foreach (IOperableTrigger trig in finalized ?? [])
+        {
+            await schedSignaler.NotifySchedulerListenersFinalized(trig, cancellationToken).ConfigureAwait(false);
+
+            // A trigger with nothing left to fire was just stored COMPLETE, and a COMPLETE row lingers
+            // where callers expect the trigger to be gone — GetTrigger would keep handing it back.
+            await DeleteTrigger(conn, trig.Key, cancellationToken).ConfigureAwait(false);
         }
     }
 
