@@ -217,7 +217,7 @@ internal sealed class StdScheduler : IScheduler
         return scheduler.AddJob(jobDetail, options, cancellationToken);
     }
 
-    public ValueTask<bool> DeleteJobs(
+    public ValueTask<List<JobKey>> DeleteJobs(
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
@@ -241,7 +241,7 @@ internal sealed class StdScheduler : IScheduler
         return scheduler.ScheduleJob(jobDetail, triggersForJob, options, cancellationToken);
     }
 
-    public ValueTask<bool> UnscheduleJobs(
+    public ValueTask<List<TriggerKey>> UnscheduleJobs(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {

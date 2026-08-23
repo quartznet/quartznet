@@ -329,13 +329,23 @@ public interface IScheduler : IAsyncDisposable
     /// <remarks>
     /// <para>If the related job does not have any other triggers, and the job is
     /// not durable, then the job will also be deleted.</para>
-    /// Note that while this bulk operation is likely more efficient than
+    /// <para>Note that while this bulk operation is likely more efficient than
     /// invoking <see cref="UnscheduleJob" /> several
     /// times, it may have the adverse affect of holding data locks for a
     /// single long duration of time (rather than lots of small durations
-    /// of time).
+    /// of time).</para>
+    /// <para>One <see cref="ISchedulerListener.JobUnscheduled" /> is raised per key the removal
+    /// applied to, and the scheduling change is signalled once for the whole call. A key that was
+    /// not found raises nothing, as the single-key form raises nothing when it answers
+    /// <see langword="false" />.</para>
     /// </remarks>
-    ValueTask<bool> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// The keys this call removed, in the order they were given. A key that names no trigger is
+    /// simply absent, never a throw — <c>result.Count == triggerKeys.Count</c> is the "every key was
+    /// found" answer, and the list itself says which ones when it is not.
+    /// </returns>
+    /// <seealso cref="UnscheduleJob" />
+    ValueTask<List<TriggerKey>> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="ITrigger" /> with the
@@ -437,12 +447,18 @@ public interface IScheduler : IAsyncDisposable
     /// times, it may have the adverse affect of holding data locks for a
     /// single long duration of time (rather than lots of small durations
     /// of time).</para>
+    /// <para>One <see cref="ISchedulerListener.JobDeleted" /> is raised per key the deletion applied
+    /// to, and the scheduling change is signalled once for the whole call. A key that was not found
+    /// raises nothing, as the single-key form raises nothing when it answers
+    /// <see langword="false" />.</para>
     /// </remarks>
     /// <returns>
-    /// true if all of the Jobs were found and deleted, false if
-    /// one or more were not deleted.
+    /// The keys this call deleted, in the order they were given. A key that names no job is simply
+    /// absent, never a throw — <c>result.Count == jobKeys.Count</c> is the "every key was found"
+    /// answer, and the list itself says which ones when it is not.
     /// </returns>
-    ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
+    /// <seealso cref="DeleteJob" />
+    ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Trigger the identified <see cref="IJobDetail" /> (Execute it now).

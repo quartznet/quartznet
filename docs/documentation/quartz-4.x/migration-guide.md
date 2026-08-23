@@ -5157,6 +5157,63 @@ Over HTTP the key-set forms are new endpoints, described in
 `…/triggers/keys/reset-from-error-state`. They live under `keys/` because the collection-level `pause`
 and `resume` already belong to the group-matcher forms.
 
+## The key-set delete and unschedule answer with the keys they removed
+
+`DeleteJobs` and `UnscheduleJobs` predate that convention and used to answer one `bool` meaning "every
+key given was found". That answer was lossy in the case a caller most needs to know about: delete
+three of five existing jobs and **three jobs are deleted** while the call answers `false`, which is
+indistinguishable from nothing having happened. A caller who retried on `false` never learned that
+most of the work had already succeeded. They now answer the way the rest of the key-set family does.
+
+| Member | 3.x / 4.0 preview returned | 4.0 returns |
+|---|---|---|
+| `IScheduler.DeleteJobs(IReadOnlyCollection<JobKey>)` | `ValueTask<bool>` — every key was found | `ValueTask<List<JobKey>>` of the keys it deleted |
+| `IScheduler.UnscheduleJobs(IReadOnlyCollection<TriggerKey>)` | `ValueTask<bool>` | `ValueTask<List<TriggerKey>>` of the keys it removed |
+| `IJobStore.DeleteJobs(IReadOnlyCollection<JobKey>)` | `ValueTask<bool>` | `ValueTask<List<JobKey>>` |
+| `IJobStore.DeleteTriggers(IReadOnlyCollection<TriggerKey>)` | `ValueTask<bool>` | `ValueTask<List<TriggerKey>>` |
+
+**To get the old answer back**, compare the counts:
+
+```csharp
+List<JobKey> deleted = await scheduler.DeleteJobs(jobKeys);
+bool allFound = deleted.Count == jobKeys.Count;   // what the bool used to say
+```
+
+That one line is why the change is a replacement rather than a second overload: the old answer is
+still available to anyone who wants it, while the question it could not answer — *which* keys — now
+has one.
+
+Three consequences worth knowing:
+
+* **A key that named nothing no longer raises a listener event.** The old implementation raised one
+  `ISchedulerListener.JobDeleted` / `JobUnscheduled` per key **given**, so a mistyped key told every
+  listener that a job by that name had been deleted. The events now follow the keys the call applied
+  to, which is what the single-key `DeleteJob` and the whole key-set pause family already did. The
+  scheduling change is still signalled once for the call, and not at all when nothing was removed.
+* **An empty key set never reaches the store**, and a `null` one is an `ArgumentNullException` rather
+  than a `NullReferenceException` — again matching the key-set pause family.
+* **Repeating a key in the set no longer poisons the answer.** The second pass finds nothing left to
+  delete; before, that dragged the whole call's `bool` to `false`.
+
+If you implement `IJobStore`, both members are now **default implementations** that walk the set one
+key at a time, so a store that only implements the single-key `DeleteJob` / `DeleteTrigger` is correct
+without writing them. That has one trap: a store that still declares
+`ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey>, CancellationToken)` **still compiles** — the
+method simply stops implementing the interface member, and the per-key default silently takes over.
+Change the return type. Both shipped stores override the pair to walk inside one lock and one
+transaction, and `JobStoreContractTest` fails a store that has left the default in place.
+
+The ADO store's walk stays per key on purpose. Deleting a job there is a cascade rather than a
+statement — its triggers and their sub-table rows, the fired-trigger rows that would otherwise
+resurrect it, then the job detail row — and a set-based `DELETE … WHERE … IN (…)` reports a row count
+rather than which keys it hit. Naming the deleted keys therefore costs no extra round trip: each
+iteration's result was already there and was being folded into a boolean and thrown away.
+
+Over HTTP, `POST …/jobs/delete` and `POST …/triggers/unschedule` answer `{"jobs": [ … ]}` and
+`{"triggers": [ … ]}` instead of `{"allFound": …}`, which makes them ordinary members of
+[the key-set family](packages/http-api.md#a-whole-set-of-keys-in-one-call) and removes the one
+exception to the flag-naming rule.
+
 ## One wire contract, and its enums have names
 
 The DTOs that define the HTTP API's JSON used to live in `Quartz.HttpClient`, and `Quartz.AspNetCore`
@@ -5213,18 +5270,16 @@ of predicting it.
 | `POST …/jobs/interrupt/{fireInstanceId}` | `{"interrupted": …}` | `{"applied": …}` |
 | `POST …/triggers/{group}/{name}/unschedule` | `{"triggerFound": …}` | `{"applied": …}` |
 | `DELETE …/calendars/{name}` | `{"calendarFound": …}` | `{"applied": …}` |
-| `POST …/jobs/delete` | `{"allJobsFound": …}` | `{"allFound": …}` |
-| `POST …/triggers/unschedule` | `{"allTriggersFound": …}` | `{"allFound": …}` |
+| `POST …/jobs/delete` | `{"allJobsFound": …}` | `{"jobs": [ … ]}` |
+| `POST …/triggers/unschedule` | `{"allTriggersFound": …}` | `{"triggers": [ … ]}` |
 
-`applied` means the entity existed and the operation changed it. The last two rows keep a name of
-their own because they report a different fact: `IScheduler.DeleteJobs` and `UnscheduleJobs` answer
-one `bool` for a whole key set, meaning "every key was found", and a partial hit **still deletes the
-keys it found**. Calling that `"applied": false` would be a false statement about what happened, and
-a caller who retried on it would never learn that most of the work had already succeeded. What is
-uniform is the *shape* — one boolean, on the operations that have something to report; the name still
-has to describe the value. Having those two answer with the applied keys, as the key-set pause and
-resume do, is the better end state and is tracked in
-[#3360](https://github.com/quartznet/quartznet/issues/3360).
+`applied` means the entity existed and the operation changed it, and there is no second spelling: an
+operation that cannot answer that question about a single entity is a key-set form, and answers with
+the keys instead. The last two rows are the ones that changed *shape* rather than name — they are key
+sets, and a single boolean could only say that not every key was found, which a caller could not tell
+from nothing having happened. See
+[the key-set delete and unschedule](#the-key-set-delete-and-unschedule-answer-with-the-keys-they-removed)
+for the scheduler API behind them.
 
 `HttpScheduler` reads the new spellings, so a client and server upgraded together need no code change;
 a hand-written client reading the old names does.

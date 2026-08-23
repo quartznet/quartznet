@@ -433,6 +433,7 @@ public class SmokeTestPerformer
                 await scheduler.GetTriggerGroupNames();
 
                 await TestExecutionGroups(scheduler);
+                await TestKeySetDeletes(scheduler);
                 await TestMatchers(scheduler);
                 await TestGetTriggerStateExecutingWhileJobRuns(scheduler);
             }
@@ -442,6 +443,62 @@ public class SmokeTestPerformer
             customTimeZoneResolverRegistration?.Dispose();
             await scheduler.Shutdown(false);
         }
+    }
+
+    /// <summary>
+    /// The key-set delete and unschedule answer with the keys they applied to, against whichever
+    /// dialect this run is driving.
+    /// </summary>
+    /// <remarks>
+    /// The ADO store walks the set inside one <c>TriggerAccess</c> lock and one transaction, deleting
+    /// per key because each delete is a cascade rather than a statement. That the walk still reports
+    /// per key — and reports the same keys the in-memory store would — is the whole of #3360, and it
+    /// is dialect-sensitive: the answer comes from each delete's affected-row count, which is the one
+    /// thing every provider spells its own way.
+    /// </remarks>
+    private async Task TestKeySetDeletes(IScheduler scheduler)
+    {
+        await scheduler.Clear();
+
+        JobKey firstJob = new JobKey("bulk-first", "bulk");
+        JobKey secondJob = new JobKey("bulk-second", "bulk");
+        JobKey survivingJob = new JobKey("bulk-survivor", "bulk");
+        JobKey missingJob = new JobKey("bulk-missing", "bulk");
+
+        foreach (JobKey key in new[] { firstJob, secondJob, survivingJob })
+        {
+            IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity(key).StoreDurably().Build();
+            await scheduler.AddJob(job, new AddJobOptions { Replace = true });
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(key.Name, "bulk")
+                .ForJob(job)
+                .WithSimpleSchedule(s => s.WithRepeatCount(0))
+                .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+                .Build();
+            await scheduler.ScheduleJob(trigger);
+        }
+
+        List<TriggerKey> unscheduled = await scheduler.UnscheduleJobs(
+            [new TriggerKey("bulk-first", "bulk"), new TriggerKey("bulk-missing", "bulk")]);
+
+        unscheduled.Should().Equal([new TriggerKey("bulk-first", "bulk")],
+            "the unschedule names the triggers it removed, and the key that names no trigger is absent");
+
+        List<JobKey> deleted = await scheduler.DeleteJobs([firstJob, missingJob, secondJob]);
+
+        deleted.Should().Equal([firstJob, secondJob],
+            "the delete names the jobs it removed, in the order they were given — a partial hit deletes "
+            + "what it found rather than reporting one failure for the whole set");
+
+        (await scheduler.Exists(firstJob)).Should().BeFalse();
+        (await scheduler.Exists(secondJob)).Should().BeFalse();
+        (await scheduler.Exists(survivingJob)).Should().BeTrue("a key that was not asked for is untouched");
+
+        (await scheduler.DeleteJobs([missingJob])).Should().BeEmpty(
+            "a set in which nothing was found is an empty answer, not a throw");
+
+        await scheduler.Clear();
     }
 
     private async Task TestExecutionGroups(IScheduler scheduler)

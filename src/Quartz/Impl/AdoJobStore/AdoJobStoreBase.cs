@@ -1673,7 +1673,19 @@ public abstract class AdoJobStoreBase : IJobStore
         }
     }
 
-    public ValueTask<bool> DeleteJobs(
+    /// <summary>
+    /// Delete the identified jobs, and the triggers that reference them, in one lock and one
+    /// transaction.
+    /// </summary>
+    /// <remarks>
+    /// The walk is per key, and deliberately so: deleting a job is not one statement but a cascade —
+    /// its triggers and their sub-table rows, the fired-trigger rows that would otherwise resurrect
+    /// it (#1696), and finally the job detail row. A set-based <c>DELETE … WHERE … IN (…)</c> would
+    /// report a row count rather than which keys it hit, which is precisely the answer this member
+    /// owes its caller. Naming the deleted keys therefore costs nothing beyond what the cascade
+    /// already spends: each iteration's result was previously folded into a boolean and thrown away.
+    /// </remarks>
+    public ValueTask<List<JobKey>> DeleteJobs(
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
@@ -1682,19 +1694,27 @@ public abstract class AdoJobStoreBase : IJobStore
             () => ExecuteInLock(
                 SchedulerLock.TriggerAccess, async conn =>
                 {
-                    bool allFound = true;
-
-                    // TODO: make this more efficient with a true bulk operation...
+                    List<JobKey> deleted = new List<JobKey>(jobKeys.Count);
                     foreach (JobKey jobKey in jobKeys)
                     {
-                        allFound = await DeleteJob(conn, jobKey, true, cancellationToken).ConfigureAwait(false) && allFound;
+                        if (await DeleteJob(conn, jobKey, true, cancellationToken).ConfigureAwait(false))
+                        {
+                            deleted.Add(jobKey);
+                        }
                     }
 
-                    return allFound;
+                    return deleted;
                 }, cancellationToken));
     }
 
-    public ValueTask<bool> DeleteTriggers(
+    /// <summary>
+    /// Delete the identified triggers in one lock and one transaction.
+    /// </summary>
+    /// <remarks>
+    /// Per key for the same reason <see cref="DeleteJobs" /> is: removing a trigger also removes its
+    /// sub-table row, its fired-trigger rows, and the job it orphans when that job is not durable.
+    /// </remarks>
+    public ValueTask<List<TriggerKey>> DeleteTriggers(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
@@ -1704,15 +1724,16 @@ public abstract class AdoJobStoreBase : IJobStore
                 SchedulerLock.TriggerAccess,
                 async conn =>
                 {
-                    bool allFound = true;
-
-                    // TODO: make this more efficient with a true bulk operation...
+                    List<TriggerKey> deleted = new List<TriggerKey>(triggerKeys.Count);
                     foreach (TriggerKey triggerKey in triggerKeys)
                     {
-                        allFound = await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) && allFound;
+                        if (await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
+                        {
+                            deleted.Add(triggerKey);
+                        }
                     }
 
-                    return allFound;
+                    return deleted;
                 }, cancellationToken));
     }
 

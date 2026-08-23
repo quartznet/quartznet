@@ -97,7 +97,7 @@ public class DelegatingScheduler : IScheduler
         return scheduler.UnscheduleJob(triggerKey, cancellationToken);
     }
 
-    public virtual ValueTask<bool> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<TriggerKey>> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
         return scheduler.UnscheduleJobs(triggerKeys, cancellationToken);
     }
@@ -132,7 +132,7 @@ public class DelegatingScheduler : IScheduler
         return scheduler.DeleteJob(jobKey, cancellationToken);
     }
 
-    public virtual ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         return scheduler.DeleteJobs(jobKeys, cancellationToken);
     }

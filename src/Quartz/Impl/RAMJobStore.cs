@@ -360,18 +360,21 @@ public sealed class RAMJobStore : IJobStore
         return found;
     }
 
-    public async ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    public async ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            bool allFound = true;
+            List<JobKey> deleted = new List<JobKey>(jobKeys.Count);
             foreach (JobKey key in jobKeys)
             {
-                allFound = await RemoveJobNoLock(key, cancellationToken).ConfigureAwait(false) && allFound;
+                if (await RemoveJobNoLock(key, cancellationToken).ConfigureAwait(false))
+                {
+                    deleted.Add(key);
+                }
             }
 
-            return allFound;
+            return deleted;
         }
         finally
         {
@@ -379,18 +382,21 @@ public sealed class RAMJobStore : IJobStore
         }
     }
 
-    public async ValueTask<bool> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    public async ValueTask<List<TriggerKey>> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            bool allFound = true;
+            List<TriggerKey> deleted = new List<TriggerKey>(triggerKeys.Count);
             foreach (TriggerKey key in triggerKeys)
             {
-                allFound = await RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false) && allFound;
+                if (await RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false))
+                {
+                    deleted.Add(key);
+                }
             }
 
-            return allFound;
+            return deleted;
         }
         finally
         {

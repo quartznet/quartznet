@@ -62,21 +62,6 @@ internal record GroupPausedResponse(bool Paused);
 internal record OperationAppliedResponse(bool Applied);
 
 /// <summary>
-/// The answer of a key-set delete or unschedule: <c>AllFound</c> is <see langword="true" /> when every
-/// key given was found.
-/// </summary>
-/// <remarks>
-/// Deliberately not <see cref="OperationAppliedResponse" />, whose shape it shares. A partial hit
-/// deletes the keys it found and reports <see langword="false" />, so calling that "applied" would be
-/// a false statement about what happened, and a caller who retried on it would never learn that most
-/// of the work had already succeeded. <c>IScheduler.DeleteJobs</c> and <c>UnscheduleJobs</c> return
-/// one <see cref="bool" /> for the whole set and cannot say more; until they answer with the keys they
-/// applied to, as the key-set pause and resume do, this field is named for what it can actually
-/// report.
-/// </remarks>
-internal record AllKeysFoundResponse(bool AllFound);
-
-/// <summary>
 /// Answer of a group-matcher pause/resume: the names of the groups the operation affected.
 /// </summary>
 internal record AffectedGroupsResponse(string[] Groups);
@@ -98,14 +83,15 @@ internal record TriggerKeySetRequest(KeyDto[] Triggers) : IValidatable
 }
 
 /// <summary>
-/// Answer of a key-set job mutation: the keys the operation applied to, the plural of
-/// <see cref="OperationAppliedResponse" />. A key that was not found is simply absent.
+/// Answer of a key-set job mutation — pause, resume or delete: the keys the operation applied to, the
+/// plural of <see cref="OperationAppliedResponse" />. A key that was not found is simply absent.
 /// </summary>
 internal record AppliedJobKeysResponse(KeyDto[] Jobs);
 
 /// <summary>
-/// Answer of a key-set trigger mutation: the keys the operation applied to, the plural of
-/// <see cref="OperationAppliedResponse" />. A key that did not move is simply absent.
+/// Answer of a key-set trigger mutation — pause, resume, error-state reset or unschedule: the keys the
+/// operation applied to, the plural of <see cref="OperationAppliedResponse" />. A key that did not
+/// move is simply absent.
 /// </summary>
 internal record AppliedTriggerKeysResponse(KeyDto[] Triggers);
 
