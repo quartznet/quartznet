@@ -23,6 +23,6 @@ namespace Quartz;
 /// A job group listing entry.
 /// </summary>
 /// <param name="Name">The group name.</param>
-/// <param name="Paused">Whether the group is paused. The ADO job store does not persist
-/// job group pause state and always reports false here.</param>
+/// <param name="Paused">Whether the group is paused. Both stores persist this, so it outlives a
+/// restart and reaches the other nodes of a cluster.</param>
 public sealed record JobGroup(string Name, bool Paused);

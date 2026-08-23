@@ -415,4 +415,45 @@ public partial class StdAdoDelegate
 
         return insertResult;
     }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<int> InsertPausedJobGroup(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertPausedJobGroup));
+        AddCommandParameter(cmd, "schedulerName", schedulerName);
+        AddCommandParameter(cmd, "jobGroup", groupName);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<int> DeletePausedJobGroup(
+        ConnectionAndTransactionHolder conn,
+        GroupMatcher<JobKey> matcher,
+        CancellationToken cancellationToken = default)
+    {
+        (string sql, string parameter) = MatchGroup(matcher, StdAdoConstants.SqlDeletePausedJobGroupEquals, StdAdoConstants.SqlDeletePausedJobGroupLike);
+
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
+        AddCommandParameter(cmd, "schedulerName", schedulerName);
+        AddCommandParameter(cmd, "jobGroup", parameter);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<bool> IsJobGroupPaused(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectPausedJobGroup));
+        AddCommandParameter(cmd, "schedulerName", schedulerName);
+        AddCommandParameter(cmd, "jobGroup", groupName);
+
+        return await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
+    }
 }

@@ -147,6 +147,18 @@ Quartz 4.x requires four columns on `QRTZ_TRIGGERS` (and one on `QRTZ_FIRED_TRIG
 missing. **4.x removed those probes** and assumes all of them exist, so this migration is
 mandatory even if you never used misfire reporting, execution groups or node affinity.
 
+4.x also adds a table 3.x never had:
+
+| Table | Holds |
+|---|---|
+| `QRTZ_PAUSED_JOB_GRPS` | One row per paused job group — `SCHED_NAME`, `JOB_GROUP` |
+
+It mirrors `QRTZ_PAUSED_TRIGGER_GRPS`, and it is what makes
+[`JobGroup.Paused` truthful on the ADO store](#job-store-listings-became-queries). A group can be
+paused while it holds no jobs, so there is no row on `QRTZ_JOB_DETAILS` to hang a flag on — the
+trigger side made the same call for the same reason. 4.x validates the whole schema at startup, so
+**this migration is mandatory even for a 3.x database that took every optional migration going**.
+
 ::: warning
 Always run migration scripts in a test environment against a copy of your production database first.
 :::
@@ -3665,8 +3677,15 @@ Console.WriteLine($"{failed.TotalCount} triggers need attention");
   `ArgumentNullException` instead of silently narrowing the listing to the `DEFAULT` group.
 * **The extension methods enumerate everything.** They preserve the old semantics — and the old cost. Use the
   query member with `Skip`/`Take` wherever the result can be large.
-* **Job group pause state is not persisted by the ADO job store**, so `JobGroup.Paused` is always false
-  there. This is what `IsJobGroupPaused` always did on that store; the query type just makes it visible.
+* **`JobGroup.Paused` is real on both stores now.** On 3.x the ADO store had nowhere to record a paused job
+  group, so `IsJobGroupPaused` answered `false` for every group and the pause was lost on restart. 4.x stores
+  the group names in `QRTZ_PAUSED_JOB_GRPS`, so a paused job group survives a restart, reaches the other nodes
+  of a cluster, and is listed by `QueryJobGroups(new JobGroupQuery { Paused = true })`. **That table is new,
+  which is what makes the 4.0 migration mandatory even for a database that took every optional 3.x
+  migration** — see [Database Schema Migration](#database-schema-migration).
+* **A group can be paused while it holds no jobs**, and `Paused = true` reports it. The unfiltered listing
+  does not: it enumerates the groups jobs are in, and an empty group is not one of them. Trigger groups have
+  always behaved this way; job groups now match.
 * **Two indexes were added** to support the ordered scans — see [Database Schema Migration](#database-schema-migration).
 
 ### If you implement `IDriverDelegate`: the listing members
@@ -3680,6 +3699,7 @@ New members to implement:
 | `SelectJobGroups(conn, JobGroupQuery, ct)`, `SelectTriggerGroups(conn, TriggerGroupQuery, ct)` | One page of groups, with pause state |
 | `SelectCalendarNames` | One page of calendar names |
 | `SelectJobDetails`, `SelectTriggers` | Bulk fetch by key set |
+| `InsertPausedJobGroup`, `DeletePausedJobGroup`, `IsJobGroupPaused` | Read and write `QRTZ_PAUSED_JOB_GRPS`, mirroring the three `…PausedTriggerGroup` members |
 
 Deleted, having had no caller: `SelectMisfiredTriggers`, both `HasMisfiredTriggersInState` overloads,
 `SelectMisfiredTriggersInGroupInState`, `IsExistingTriggerGroup`, `SelectJobExecutionCount`,

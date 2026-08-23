@@ -45,6 +45,7 @@ public static class AdoConstants
         TableFiredTriggers,
         TableCalendars,
         TablePausedTriggers,
+        TablePausedJobs,
         TableLocks,
         TableSchedulerState
     ];
@@ -58,6 +59,7 @@ public static class AdoConstants
     public const string TableFiredTriggers = "FIRED_TRIGGERS";
     public const string TableCalendars = "CALENDARS";
     public const string TablePausedTriggers = "PAUSED_TRIGGER_GRPS";
+    public const string TablePausedJobs = "PAUSED_JOB_GRPS";
     public const string TableLocks = "LOCKS";
     public const string TableSchedulerState = "SCHEDULER_STATE";
 

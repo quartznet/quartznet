@@ -438,18 +438,40 @@ public partial class StdAdoDelegate
         JobGroupQuery query,
         CancellationToken cancellationToken = default)
     {
-        // The ADO store does not persist job group pause state, so every group reads as not paused and
-        // a listing restricted to paused groups is necessarily empty.
+        string sql;
+        string countSql;
+        string orderBy;
+        string predicate;
         if (query.Paused == true)
         {
-            return new PagedResult<JobGroup>([], false, query.IncludeTotalCount ? 0 : null);
+            // Read from PAUSED_JOB_GRPS rather than JOB_DETAILS, so a group that is paused but holds
+            // no jobs is still reported — pausing an empty group is how a caller pauses what is about
+            // to be added to it.
+            sql = StdAdoConstants.SqlSelectPausedJobGroups;
+            countSql = StdAdoConstants.SqlCountPausedJobGroups;
+            orderBy = StdAdoConstants.SqlOrderByJobGroup;
+            predicate = query.Name is null ? "" : StdAdoConstants.SqlJobGroupNamePredicate;
+        }
+        else if (query.Paused == false)
+        {
+            sql = StdAdoConstants.SqlSelectUnpausedJobGroups;
+            countSql = StdAdoConstants.SqlCountUnpausedJobGroups;
+            orderBy = StdAdoConstants.SqlOrderByAliasedJobGroup;
+            predicate = query.Name is null ? "" : StdAdoConstants.SqlAliasedJobGroupNamePredicate;
+        }
+        else
+        {
+            sql = StdAdoConstants.SqlSelectJobGroupsWithPausedFlag;
+            countSql = StdAdoConstants.SqlCountJobGroups;
+            orderBy = StdAdoConstants.SqlOrderByAliasedJobGroup;
+            predicate = query.Name is null ? "" : StdAdoConstants.SqlAliasedJobGroupNamePredicate;
         }
 
-        string predicate = query.Name is null ? "" : StdAdoConstants.SqlJobGroupNamePredicate;
+        bool? paused = query.Paused;
 
         if (IsCountOnly(query))
         {
-            using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobGroups + predicate));
+            using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
             AddCommandParameter(countCmd, "schedulerName", schedulerName);
             BindGroupName(countCmd, query.Name);
 
@@ -459,19 +481,23 @@ public partial class StdAdoDelegate
         List<JobGroup> items;
         bool hasMore;
 
-        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectJobGroups + predicate + StdAdoConstants.SqlOrderByJobGroup, query))))
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(sql + predicate + orderBy, query))))
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             BindGroupName(cmd, query.Name);
             BindPaging(cmd, query);
 
-            (items, hasMore) = await ReadPage(cmd, query, static rs => new JobGroup(rs.GetString(0), Paused: false), cancellationToken).ConfigureAwait(false);
+            (items, hasMore) = await ReadPage(
+                cmd,
+                query,
+                rs => new JobGroup(rs.GetString(0), paused ?? (Convert.ToInt32(rs.GetValue(1), CultureInfo.InvariantCulture) != 0)),
+                cancellationToken).ConfigureAwait(false);
         }
 
         int? totalCount = null;
         if (query.IncludeTotalCount)
         {
-            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobGroups + predicate));
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             BindGroupName(cmd, query.Name);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);

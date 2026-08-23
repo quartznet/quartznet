@@ -42,11 +42,6 @@ public sealed class SQLiteJobStoreContractTest : JobStoreContractTest
 
     private string dbFileName;
 
-    /// <summary>
-    /// The ADO schema has no row for a paused job group, so every job group reads as unpaused.
-    /// </summary>
-    protected override bool ReportsJobGroupPauseState => false;
-
     protected override string StoreInstanceId => InstanceId;
 
     protected override async ValueTask<IJobStore> CreateStore()

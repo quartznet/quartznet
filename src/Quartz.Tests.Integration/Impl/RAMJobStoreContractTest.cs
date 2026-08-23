@@ -29,11 +29,6 @@ namespace Quartz.Tests.Integration.Impl;
 [TestFixture]
 public sealed class RAMJobStoreContractTest : JobStoreContractTest
 {
-    /// <summary>
-    /// The in-memory store keeps a set of paused job groups, so it can answer the question.
-    /// </summary>
-    protected override bool ReportsJobGroupPauseState => true;
-
     protected override string StoreInstanceId => InstanceId;
 
     private const string InstanceId = "ram-contract-instance";

@@ -88,6 +88,12 @@ internal static class StdAdoConstants
     public static readonly string SqlDeletePausedTriggerGroupLike =
         Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
 
+    public static readonly string SqlDeletePausedJobGroupEquals =
+        Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TablePausedJobs} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnJobGroup} = @jobGroup");
+
+    public static readonly string SqlDeletePausedJobGroupLike =
+        Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TablePausedJobs} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnJobGroup} LIKE @jobGroup{SqlLikeEscapeClause}");
+
     public static readonly string SqlDeleteSchedulerState =
         Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnInstanceName} = @instanceName");
 
@@ -105,6 +111,7 @@ internal static class StdAdoConstants
     public static readonly string SqlDeleteAllJobDetails = Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
     public static readonly string SqlDeleteAllCalendars = Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TableCalendars} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
     public static readonly string SqlDeleteAllPausedTriggerGrps = Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+    public static readonly string SqlDeleteAllPausedJobGrps = Invariant($"DELETE FROM {TablePrefixSubst}{AdoConstants.TablePausedJobs} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
 
     // INSERT
 
@@ -125,6 +132,9 @@ internal static class StdAdoConstants
 
     public static readonly string SqlInsertPausedTriggerGroup =
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TablePausedTriggers} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnTriggerGroup}) VALUES (@schedulerName, @triggerGroup)");
+
+    public static readonly string SqlInsertPausedJobGroup =
+        Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TablePausedJobs} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnJobGroup}) VALUES (@schedulerName, @jobGroup)");
 
     public static readonly string SqlInsertSchedulerState =
         Invariant($"INSERT INTO {TablePrefixSubst}{AdoConstants.TableSchedulerState} ({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnLastCheckinTime}, {AdoConstants.ColumnCheckinInterval}) VALUES(@schedulerName, @instanceName, @lastCheckinTime, @checkinInterval)");
@@ -281,6 +291,9 @@ internal static class StdAdoConstants
 
     public static readonly string SqlSelectPausedTriggerGroup =
         Invariant($"SELECT {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlSelectPausedJobGroup =
+        Invariant($"SELECT {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TablePausedJobs} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnJobGroup} = @jobGroup");
 
     public static readonly string SqlSelectReferencedCalendar =
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnCalendarName} = @calendarName");
@@ -507,15 +520,49 @@ internal static class StdAdoConstants
 
     public static readonly string SqlOrderByTriggerGroupAndName = Invariant($" ORDER BY {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnTriggerName}");
 
-    public static readonly string SqlSelectJobGroups =
-        Invariant($"SELECT DISTINCT {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+    // Correlates on j.SCHED_NAME instead of reusing @schedulerName, for the same reason
+    // PausedTriggerGroupExists does: a named parameter referenced twice produces more placeholders
+    // than bound parameters on providers that adapt named parameters positionally.
+    private static readonly string PausedJobGroupExists =
+        Invariant($"SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TablePausedJobs} pg WHERE pg.{AdoConstants.ColumnSchedulerName} = j.{AdoConstants.ColumnSchedulerName} AND pg.{AdoConstants.ColumnJobGroup} = j.{AdoConstants.ColumnJobGroup}");
 
+    public static readonly string SqlSelectJobGroupsWithPausedFlag =
+        Invariant($"SELECT DISTINCT j.{AdoConstants.ColumnJobGroup}, CASE WHEN EXISTS ({PausedJobGroupExists}) THEN 1 ELSE 0 END AS IS_PAUSED FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} j WHERE j.{AdoConstants.ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlCountJobGroups =
+        Invariant($"SELECT COUNT(DISTINCT j.{AdoConstants.ColumnJobGroup}) FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} j WHERE j.{AdoConstants.ColumnSchedulerName} = @schedulerName");
+
+    /// <summary>
+    /// The paused job group listing, read straight from PAUSED_JOB_GRPS so that a group paused while
+    /// it holds no jobs is still reported. Unlike the trigger listing it needs no exclusion for
+    /// <see cref="AdoConstants.AllGroupsPaused" />: pause-all is a trigger operation and never writes
+    /// a marker row here.
+    /// </summary>
+    public static readonly string SqlSelectPausedJobGroups =
+        Invariant($"SELECT {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TablePausedJobs} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlCountPausedJobGroups =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TablePausedJobs} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlSelectUnpausedJobGroups =
+        Invariant($"SELECT DISTINCT j.{AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} j WHERE j.{AdoConstants.ColumnSchedulerName} = @schedulerName AND NOT EXISTS ({PausedJobGroupExists})");
+
+    public static readonly string SqlCountUnpausedJobGroups =
+        Invariant($"SELECT COUNT(DISTINCT j.{AdoConstants.ColumnJobGroup}) FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} j WHERE j.{AdoConstants.ColumnSchedulerName} = @schedulerName AND NOT EXISTS ({PausedJobGroupExists})");
+
+    /// <summary>
+    /// Exact-name filter for the job group listing read straight from PAUSED_JOB_GRPS.
+    /// </summary>
     public static readonly string SqlJobGroupNamePredicate = Invariant($" AND {AdoConstants.ColumnJobGroup} = @groupName");
+
+    /// <summary>
+    /// Exact-name filter for the job group listings that read from JOB_DETAILS under the alias 'j'.
+    /// </summary>
+    public static readonly string SqlAliasedJobGroupNamePredicate = Invariant($" AND j.{AdoConstants.ColumnJobGroup} = @groupName");
 
     public static readonly string SqlOrderByJobGroup = Invariant($" ORDER BY {AdoConstants.ColumnJobGroup}");
 
-    public static readonly string SqlCountJobGroups =
-        Invariant($"SELECT COUNT(DISTINCT {AdoConstants.ColumnJobGroup}) FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+    public static readonly string SqlOrderByAliasedJobGroup = Invariant($" ORDER BY j.{AdoConstants.ColumnJobGroup}");
 
     // Correlates on t.SCHED_NAME instead of reusing @schedulerName: each named parameter must be
     // referenced exactly once in the statement, because providers with bindByName=false adapt named

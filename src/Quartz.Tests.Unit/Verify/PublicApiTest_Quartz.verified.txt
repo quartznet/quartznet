@@ -1996,6 +1996,7 @@ namespace Quartz.Impl.AdoJobStore
         public const string TableFiredTriggers = "FIRED_TRIGGERS";
         public const string TableJobDetails = "JOB_DETAILS";
         public const string TableLocks = "LOCKS";
+        public const string TablePausedJobs = "PAUSED_JOB_GRPS";
         public const string TablePausedTriggers = "PAUSED_TRIGGER_GRPS";
         public const string TableSchedulerState = "SCHEDULER_STATE";
         public const string TableSimpleTriggers = "SIMPLE_TRIGGERS";
@@ -2297,6 +2298,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<int> DeleteFiredTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string entryId, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteFiredTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.FiredTriggerQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteJobDetail(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> DeletePausedJobGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeletePausedTriggerGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceId, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
@@ -2305,10 +2307,12 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<int> InsertCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, Quartz.ICalendar calendar, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> InsertFiredTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail? jobDetail, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> InsertJobDetail(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.IJobDetail job, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> InsertPausedJobGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> InsertPausedTriggerGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> InsertSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceId, System.DateTimeOffset checkInTime, System.TimeSpan interval, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> InsertTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> IsJobCurrentlyExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> IsJobGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> JobExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> RepinTriggersFromDeadNode(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string oldPreferredNode, string newPreferredNode, System.Threading.CancellationToken cancellationToken = default);
@@ -2606,6 +2610,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<int> DeleteFiredTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string entryId, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteFiredTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.FiredTriggerQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteJobDetail(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<int> DeletePausedJobGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeletePausedTriggerGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceId, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2631,10 +2636,12 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<int> InsertCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, Quartz.ICalendar calendar, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> InsertFiredTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail? job, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> InsertJobDetail(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.IJobDetail job, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<int> InsertPausedJobGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> InsertPausedTriggerGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> InsertSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceId, System.DateTimeOffset checkInTime, System.TimeSpan interval, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> InsertTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> IsJobCurrentlyExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<bool> IsJobGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> JobExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
