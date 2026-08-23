@@ -135,9 +135,9 @@ Thirteen, listed authoritatively in `packTargetProjects` in `build/Build.cs`:
 
 Rules when touching any of this:
 
-- **`database/migrations/` and `database/README.md` must stay byte-identical on `3.x` and `main`.** A schema change lands on both branches in a companion PR pair, even when the feature itself is branch-specific — otherwise a documented path 404s on whichever branch lacks it, which is what #3218 reported. `database/tables/` is the *current* schema and differs by design.
+- **A migration both branches can run must stay byte-identical on `3.x` and `main`.** It lands on both in a companion PR pair, or a documented path 404s on whichever branch lacks it — which is what #3218 reported. **`database/migrations/4.0/` is not on this branch**: it is the 3.x → 4.0 upgrade path, it changes whenever 4.x's schema changes, so `main` is its single maintained home and `database/README.md` here links there rather than mirroring it — a mirrored copy goes stale silently, and a confidently wrong upgrade script is worse than a missing one. Each branch's `database/README.md` indexes what that branch carries. `database/tables/` is the *current* schema and differs by design.
 - Every migration ships a file for **every** supported dialect (`sqlServer`, `postgres`, `mysql_innodb`, `oracle`, `sqlite`, `firebird`), guarded so it is safe to re-run. SQLite `ADD COLUMN` is the one exception — it has no conditional DDL.
-- 4.x has no `Supports*Column` probes, so anything **optional on 3.x is required on 4.x**. Fold every 3.x column migration into `database/migrations/4.0/schema_30_to_40_upgrade_<dialect>.sql`.
+- 4.x has no `Supports*Column` probes, so anything **optional on 3.x is required on 4.x**. Every 3.x column migration still has to be folded into `database/migrations/4.0/schema_30_to_40_upgrade_<dialect>.sql` — that script is generated on `main`, so the fold belongs to the companion pull request there, not to a change here.
 - Adding a migration also needs a section on the schema-changes documentation page. The docs site lives on `main` only.
 
 ### Fluent builders

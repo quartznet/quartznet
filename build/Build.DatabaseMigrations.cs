@@ -22,6 +22,12 @@ using Serilog;
 /// migrations are SQL Server-only historical scripts that are maintained by hand.
 /// </para>
 /// <para>
+/// The 3.x to 4.0 upgrade script is not generated here. It changes whenever 4.x's schema changes,
+/// so it is maintained on the <c>main</c> branch alone and this branch links to it; a mirrored copy
+/// here would go stale without anything noticing. A 3.x column migration added here still has to be
+/// folded into that script, which means a companion pull request on <c>main</c>.
+/// </para>
+/// <para>
 /// The output is checked in, so <c>dotnet fallout GenerateMigrations</c> must leave the working
 /// tree clean unless a definition here changed. <c>VerifyMigrations</c> asserts exactly that.
 /// </para>
@@ -45,7 +51,7 @@ partial class Build
     };
 
     /// <summary>Version folders this target owns. Anything else under migrations/ is hand-written.</summary>
-    static readonly string[] GeneratedVersions = ["2.2", "2.6", "3.17", "3.18", "3.19", "3.20", "4.0"];
+    static readonly string[] GeneratedVersions = ["2.2", "2.6", "3.17", "3.18", "3.19", "3.20"];
 
     AbsolutePath MigrationsDirectory => RootDirectory / "database" / "migrations";
 
