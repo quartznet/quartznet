@@ -2972,16 +2972,15 @@ public abstract class AdoJobStoreBase : IJobStore
                     groupNames.Add(jobKey.Group);
                 }
 
-                // Account for an exact group match on a group that holds no jobs yet: pausing one is
-                // how a caller records a pause for what is about to be added to it, and the trigger
-                // group pause has always worked that way.
+                // An equality matcher names one group, so it pauses that group whether or not any job
+                // is in it yet. Anything else is a pattern, and only the groups it matched are
+                // recorded: a pattern is not a group, and a listing must never hand a caller back a
+                // name no job can belong to.
                 if (StringOperator.Equality.Equals(matcher.CompareWithOperator))
                 {
                     groupNames.Add(matcher.CompareToValue);
                 }
 
-                // The pause is recorded per matched group, never as the matcher's own text: a pattern
-                // is not a group, and a listing must never hand a caller a name no job can belong to.
                 await RecordPausedJobGroups(conn, groupNames, cancellationToken).ConfigureAwait(false);
 
                 return new List<string>(groupNames);
