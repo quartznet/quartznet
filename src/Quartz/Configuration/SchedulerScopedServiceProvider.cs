@@ -77,7 +77,14 @@ internal sealed class SchedulerScopedServiceProvider
     /// </remarks>
     private static readonly Dictionary<Type, Func<IServiceProvider, string, object>> namedOptions = DeclareQuartzOptions();
 
-    private static Dictionary<Type, Func<IServiceProvider, string, object>> DeclareQuartzOptions()
+    /// <summary>
+    /// The two lookup tables above, so that <c>SchedulerScopedServiceProviderBenchmark</c> measures the
+    /// real ones rather than a copy that can drift from them.
+    /// </summary>
+    internal static IReadOnlyCollection<Type> SchedulerScopedServiceTypes => schedulerScoped;
+
+    /// <inheritdoc cref="SchedulerScopedServiceTypes" />
+    internal static Dictionary<Type, Func<IServiceProvider, string, object>> DeclareQuartzOptions()
     {
         Dictionary<Type, Func<IServiceProvider, string, object>> map = [];
         SchedulerNamedOptions<QuartzSchedulerOptions>.Declare(map);

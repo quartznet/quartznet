@@ -34,7 +34,10 @@ public class CronExpressionBenchmark
         "0 15 10 ? * 6#3 *",
         "0 15 10 ? * 6L",
         // year-constrained (exercises the year field, intentionally kept on the set path)
-        "0 15 10 * * ? 2005-2025"
+        "0 15 10 * * ? 2005-2025",
+        // hash tokens, the only expressions that read the field-bound H range tables during Parse
+        "H H H * * ?",
+        "H(0-30) H/4 H 1,15 * ?"
     ];
 
     private CronExpression expression = null!;
