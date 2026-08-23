@@ -1148,11 +1148,18 @@ namespace Quartz
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>> configure)
             where T : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddJobType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  TJob>(this Quartz.IQuartzBuilder builder, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 1)
+        public static Quartz.IQuartzBuilder AddJobType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  TJob>(this Quartz.IQuartzBuilder builder)
             where TJob :  class, Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddJobType<TJob>(this Quartz.IQuartzBuilder builder, System.Func<System.IServiceProvider, TJob> implementationFactory, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 1)
+        public static Quartz.IQuartzBuilder AddJobType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  TJob>(this Quartz.IQuartzBuilder builder, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime)
             where TJob :  class, Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddJobType<TJob, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  TImplementation>(this Quartz.IQuartzBuilder builder, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = 1)
+        public static Quartz.IQuartzBuilder AddJobType<TJob>(this Quartz.IQuartzBuilder builder, System.Func<System.IServiceProvider, TJob> implementationFactory)
+            where TJob :  class, Quartz.IJob { }
+        public static Quartz.IQuartzBuilder AddJobType<TJob>(this Quartz.IQuartzBuilder builder, System.Func<System.IServiceProvider, TJob> implementationFactory, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime)
+            where TJob :  class, Quartz.IJob { }
+        public static Quartz.IQuartzBuilder AddJobType<TJob, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  TImplementation>(this Quartz.IQuartzBuilder builder)
+            where TJob :  class, Quartz.IJob
+            where TImplementation :  class, TJob { }
+        public static Quartz.IQuartzBuilder AddJobType<TJob, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  TImplementation>(this Quartz.IQuartzBuilder builder, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime)
             where TJob :  class, Quartz.IJob
             where TImplementation :  class, TJob { }
         public static Quartz.IQuartzBuilder AddTrigger<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  TJob>(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ITriggerConfigurator<TJob>> configure)

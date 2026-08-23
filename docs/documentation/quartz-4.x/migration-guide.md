@@ -1253,6 +1253,12 @@ factory looks there first and falls back to the container's unkeyed registration
 was given nothing of its own resolves exactly as before, and the default scheduler resolves in one
 lookup as it always has. Nothing about a single-scheduler application changes.
 
+The lifetime defaults to `ServiceLifetime.Scoped` — the lifetime the job factory is built around —
+and is named through an overload rather than an optional parameter. That is not a style choice: a
+default value that is an enum from an assembly which only ships in a shared framework is a metadata
+constant whose type coverlet's Cecil resolver cannot resolve, and it silently drops the *entire*
+containing assembly from the coverage report.
+
 ## The job scope is prepared without writing a job factory
 
 `ConfigureScope` — the hook that prepares the dependency injection scope a job is built in, and the place
