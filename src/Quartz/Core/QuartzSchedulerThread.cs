@@ -265,6 +265,12 @@ internal sealed class QuartzSchedulerThread
         int acquiresFailed = 0;
         Context.CallerId.Value = Guid.NewGuid();
 
+        // Everything this loop logs names the scheduler it belongs to. An ILogger category is a type
+        // name, so without this two tenants' acquisition failures, misfire reports and shutdown notices
+        // are the same line written twice with no way to tell which scheduler wrote which. Opened for the
+        // lifetime of the loop, which is the lifetime of the scheduler's own thread.
+        using IDisposable? schedulerScope = logger.BeginScope(qsRsrcs.LogScope);
+
         while (!halted)
         {
             cancellationTokenSource.Token.ThrowIfCancellationRequested();

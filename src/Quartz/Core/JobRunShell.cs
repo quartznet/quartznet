@@ -96,6 +96,17 @@ internal sealed class JobRunShell
     {
         Context.CallerId.Value = Guid.NewGuid();
 
+        // No scheduler logging scope is opened here, though this is where one would have to go for a
+        // job's own log lines to name the scheduler that fired it. It was written, measured and taken
+        // back out: ILogger.BeginScope pushes onto an AsyncLocal, and an AsyncLocal write copies the
+        // execution context, so one scope per firing cost 240 bytes and about 130ns of the roughly 960ns
+        // a no-op firing takes — 14%, for a firing that does no work at all. The scheduler thread opens
+        // the scope once for the lifetime of its loop instead, and the thread pools Quartz ships dispatch
+        // through a Task that captures the execution context, so a job inherits it from there at no
+        // per-firing cost. What that does not cover is an application that has never called
+        // LogProvider.SetLogProvider — the loop logs to NullLogger, whose scope is a no-op — or an
+        // IThreadPool of somebody else's that does not flow the context.
+
         // Create the job here (moved from Initialize) so that AsyncLocal values
         // set during IJobFactory.CreateJob flow correctly to IJob.Execute (#1528)
         IJobDetail jobDetail = firedTriggerBundle.JobDetail;
