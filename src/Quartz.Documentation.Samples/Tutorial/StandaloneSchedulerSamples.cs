@@ -93,17 +93,15 @@ public static class StandaloneSchedulerSamples
     {
         #region sample_standalone_jobs_triggers_and_calendars
 
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create().UseInMemoryStore();
-
-        builder
+        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
+            .UseInMemoryStore()
             .AddJob<ReportJob>(j => j.WithIdentity("nightly", "reports").StoreDurably())
             .AddTrigger<ReportJob>(t => t
                 .ForJob("nightly", "reports")
                 .WithIdentity("nightly-trigger", "reports")
                 .WithCronSchedule("0 30 2 * * ?"))
-            .AddCalendar<HolidayCalendar>("holidays", configure: c => c.AddExcludedDay(new DateOnly(2026, 12, 25)));
-
-        await using StandaloneSchedulerFactory factory = builder.Build();
+            .AddCalendar<HolidayCalendar>("holidays", configure: c => c.AddExcludedDay(new DateOnly(2026, 12, 25)))
+            .Build();
 
         #endregion
     }

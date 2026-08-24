@@ -32,10 +32,11 @@ gives you. Every configuration verb is therefore the same verb:
 `AddSchedulerListener<T>`, `AddJobListener<T>`, `AddTriggerListener<T>` — plus the extension methods
 `AddJob<T>`, `AddTrigger<TJob>`, `ScheduleJob<T>` and `AddCalendar`.
 
-Learn the configuration API once and it works in both places. Only three members are the builder's own:
+Learn the configuration API once and it works in both places. Only five members are the builder's own:
 `Build()`, `BuildScheduler()`, `UseConfiguration(IConfiguration)` and the two `UseProperties` overloads.
 
-Every configuration member returns `QuartzSchedulerBuilder`, so the whole thing is one expression:
+Every configuration member returns `QuartzSchedulerBuilder`, and so does every builder extension, so
+the whole thing is one expression whatever is in the chain:
 
 <!-- snippet: sample_standalone_one_expression -->
 ```csharp
@@ -47,9 +48,11 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
 <!-- endSnippet -->
 
 ::: warning Changed in 4.x
-In the 4.0 previews the configuration members returned `IQuartzBuilder`, so a chain had to be broken up
-and the builder held in a variable to reach `Build()`. The returns are covariant now and
-`Create()…Build()` is one statement.
+In the 4.0 previews a chain had to be broken up and the builder held in a variable to reach `Build()`:
+the configuration members returned `IQuartzBuilder`, and so did the extension methods that add jobs,
+triggers and calendars. The configuration members are covariant now, and every extension is mirrored on
+the builder as an instance method that returns it, so `Create()…Build()` is one statement no matter
+which of them the chain is made of.
 :::
 
 ## Build, or BuildScheduler
@@ -138,28 +141,21 @@ new factory instead. `Standby()` / `Start()` is the pause-and-resume pair.
 
 ## Jobs, triggers and calendars
 
-The `IQuartzBuilder` extension methods work here unchanged:
+The `IQuartzBuilder` extension methods work here unchanged, and chain with the rest:
 
 <!-- snippet: sample_standalone_jobs_triggers_and_calendars -->
 ```csharp
-QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create().UseInMemoryStore();
-
-builder
+await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
+    .UseInMemoryStore()
     .AddJob<ReportJob>(j => j.WithIdentity("nightly", "reports").StoreDurably())
     .AddTrigger<ReportJob>(t => t
         .ForJob("nightly", "reports")
         .WithIdentity("nightly-trigger", "reports")
         .WithCronSchedule("0 30 2 * * ?"))
-    .AddCalendar<HolidayCalendar>("holidays", configure: c => c.AddExcludedDay(new DateOnly(2026, 12, 25)));
-
-await using StandaloneSchedulerFactory factory = builder.Build();
+    .AddCalendar<HolidayCalendar>("holidays", configure: c => c.AddExcludedDay(new DateOnly(2026, 12, 25)))
+    .Build();
 ```
 <!-- endSnippet -->
-
-`AddJob`, `AddTrigger`, `ScheduleJob` and `AddCalendar` are extension methods over `IQuartzBuilder`, and
-they return `IQuartzBuilder` rather than the builder's own type — so `Build()` comes off the variable
-rather than off the end of that chain. The interface's own members are covariant, so a chain made only
-of those still ends in `Build()`.
 
 Jobs declared this way are registered with the container, so they can take constructor dependencies:
 
