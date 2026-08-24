@@ -33,7 +33,8 @@ This guide covers common issues users encounter with Quartz.NET and how to diagn
 1. Enable debug logging for `Quartz` namespace to see trigger acquisition activity.
 2. Check `QRTZ_FIRED_TRIGGERS` table for jobs that never completed.
 3. Check `QRTZ_TRIGGERS` table for triggers stuck in unexpected states (see next section).
-4. Verify the scheduler is still started: `scheduler.IsStarted` should be `true`.
+4. Verify the scheduler is still firing: `scheduler.Status` should be `SchedulerStatus.Running` in 4.x,
+   `scheduler.IsStarted` should be `true` and `scheduler.InStandbyMode` `false` on 3.x.
 
 ## Triggers Stuck in ACQUIRED State
 

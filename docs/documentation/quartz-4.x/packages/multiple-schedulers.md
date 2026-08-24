@@ -127,8 +127,8 @@ the unkeyed registrations belong to the default scheduler.
 ::: warning
 What is injected is a handle that builds the scheduler on first use, because building one is
 asynchronous and a container constructs synchronously. Every asynchronous member awaits it being built,
-so they are always safe. The synchronous ones — `IsStarted`, `InStandbyMode`, `IsShutdown`,
-`SchedulerInstanceId`, `Context` and `ListenerManager` — can only answer once the scheduler exists, and
+so they are always safe. The synchronous ones — `Status`, `SchedulerInstanceId`, `Context` and
+`ListenerManager` — can only answer once the scheduler exists, and
 throw `InvalidOperationException` if reading one would have to build it. Under
 `AddQuartzHostedService()` that cannot happen once the host has started: the hosted service builds every
 scheduler in the container while the host starts, before anything of yours runs. (It *starts* them
