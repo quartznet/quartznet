@@ -13,6 +13,7 @@ or a job and trigger built on the spot.
 When the set of jobs is known at startup, register them where the scheduler is configured and trigger them
 later by key:
 
+<!-- snippet: sample_one_off_job_durable_registration -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -21,6 +22,7 @@ builder.Services.AddQuartz(q =>
         .StoreDurably());
 });
 ```
+<!-- endSnippet -->
 
 `StoreDurably()` is what makes the job stay in the store with no trigger attached. Without it a job is deleted
 as soon as it has no triggers left, and a job registered with no trigger at all would not survive to be
@@ -28,18 +30,21 @@ triggered.
 
 Then, from anywhere that has the scheduler:
 
+<!-- snippet: sample_one_off_job_trigger_now -->
 ```csharp
 public async ValueTask RunNow(IScheduler scheduler, CancellationToken cancellationToken)
 {
     await scheduler.TriggerJob(new JobKey("name", "group"), cancellationToken: cancellationToken);
 }
 ```
+<!-- endSnippet -->
 
 `TriggerJob` fires the job once, immediately. It creates no trigger and leaves nothing behind.
 
 To give that one firing some data of its own, pass a `JobDataMap`. It is merged over the job's own data for
 this firing only, exactly as a trigger's data would be:
 
+<!-- snippet: sample_one_off_job_trigger_now_with_data -->
 ```csharp
 public async ValueTask RunNow(IScheduler scheduler, string customer, CancellationToken cancellationToken)
 {
@@ -47,9 +52,11 @@ public async ValueTask RunNow(IScheduler scheduler, string customer, Cancellatio
     await scheduler.TriggerJob(new JobKey("name", "group"), data, cancellationToken);
 }
 ```
+<!-- endSnippet -->
 
 The same thing at run time, for a job that was not registered at startup, is `AddJob`:
 
+<!-- snippet: sample_one_off_job_add_job -->
 ```csharp
 IJobDetail job = JobBuilder.Create<AnExampleJob>()
     .WithIdentity("name", "group")
@@ -58,6 +65,7 @@ IJobDetail job = JobBuilder.Create<AnExampleJob>()
 
 await scheduler.AddJob(job, new AddJobOptions { Replace = true }, cancellationToken);
 ```
+<!-- endSnippet -->
 
 `Replace` says that re-registering a job under a name that is already taken is intended;
 without it the second call throws `ObjectAlreadyExistsException`. `StoreNonDurableWhileAwaitingScheduling` is
@@ -68,6 +76,7 @@ a trigger is coming. Once one arrives the job is ordinary again — deleted as s
 
 When both the job and its schedule are decided at run time, build the pair and schedule them together:
 
+<!-- snippet: sample_one_off_job_schedule_once -->
 ```csharp
 public async ValueTask ScheduleOnce(IScheduler scheduler, CancellationToken cancellationToken)
 {
@@ -83,6 +92,7 @@ public async ValueTask ScheduleOnce(IScheduler scheduler, CancellationToken canc
     await scheduler.ScheduleJob(job, trigger, cancellationToken);
 }
 ```
+<!-- endSnippet -->
 
 No `StoreDurably()` here, and none wanted: the job arrives with its trigger, and both are gone once the trigger
 has fired and has nothing left to do.
@@ -92,6 +102,7 @@ the scheduler gets to it". Adding `.WithSimpleSchedule()` with no configuration 
 a simple schedule with no interval and no repeat count *is* a single firing — so write it only when you are
 about to configure something on it:
 
+<!-- snippet: sample_one_off_job_misfire_instruction -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("name", "group")
@@ -100,6 +111,7 @@ ITrigger trigger = TriggerBuilder.Create()
         .WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow))
     .Build();
 ```
+<!-- endSnippet -->
 
 ::: tip Misfire behaviour
 A one-shot trigger left on the default `SmartPolicy` resolves to `FireNow`, so a firing missed because the

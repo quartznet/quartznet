@@ -11,6 +11,7 @@ are the same.
 
 Our example job reads both:
 
+<!-- snippet: sample_multiple_triggers_job -->
 ```csharp
 public sealed class CustomerProcessJob : IJob
 {
@@ -35,11 +36,13 @@ public sealed class CustomerProcessJob : IJob
     }
 }
 ```
+<!-- endSnippet -->
 
 ## One job, two triggers
 
 Register the job once and give it two triggers, each with its own data:
 
+<!-- snippet: sample_multiple_triggers_configuration -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -62,6 +65,7 @@ builder.Services.AddQuartz(q =>
         .WithCronSchedule("0 0 2 ? * *"));
 });
 ```
+<!-- endSnippet -->
 
 The hourly firing logs `CustomerId=1 batch-size=50`; the nightly one logs `CustomerId=2 batch-size=500`.
 
@@ -71,6 +75,7 @@ want.
 
 The same two triggers built at run time, for a job whose customers are not known at startup:
 
+<!-- snippet: sample_multiple_triggers_at_run_time -->
 ```csharp
 public async ValueTask ScheduleFor(
     IScheduler scheduler,
@@ -98,6 +103,7 @@ public async ValueTask ScheduleFor(
     }
 }
 ```
+<!-- endSnippet -->
 
 `ScheduleJob(trigger)` — the overload that takes no job detail — schedules a trigger against a job that is
 already stored, which is why the job was added durably first.
@@ -107,10 +113,12 @@ already stored, which is why the job was added durably first.
 `TriggerJob` fires a stored job immediately, with a data map that is merged the same way a trigger's would be.
 It creates no trigger, so this is the way to run a job on demand rather than the way to schedule it:
 
+<!-- snippet: sample_multiple_triggers_ad_hoc -->
 ```csharp
 JobDataMap data = new() { { "CustomerId", "3" }, { "batch-size", 10 } };
 await scheduler.TriggerJob(CustomerProcessJob.Key, data, cancellationToken);
 ```
+<!-- endSnippet -->
 
 ::: warning `GetString` is the strict one
 The numeric accessors are forgiving: `GetInt` parses `"50"` as happily as it returns `50`. `GetString` is not —

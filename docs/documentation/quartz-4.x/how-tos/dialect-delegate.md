@@ -19,12 +19,14 @@ roughly a hundred and ten.
 
 `StdAdoDelegate` is `public` and unsealed, with a public parameterless constructor:
 
+<!-- snippet: sample_dialect_delegate_subclass -->
 ```csharp
 public sealed class MyDatabaseDelegate : StdAdoDelegate
 {
     // override only what differs
 }
 ```
+<!-- endSnippet -->
 
 Eight members are the dialect contract. Everything else on `StdAdoDelegate` is an implementation step
 that happens to be `protected virtual` so the class can be composed — treat them as private.
@@ -46,6 +48,7 @@ The default `GetSelectNextTriggerToAcquireSql` ignores `maxCount` entirely — *
 support limits, this is db specific"* — so a dialect that can limit rows should say so. Four shapes
 appear among the shipped dialects:
 
+<!-- snippet: sample_dialect_delegate_row_limiting -->
 ```csharp
 // append (PostgreSQL, Firebird)
 protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
@@ -55,6 +58,7 @@ protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
 // wrap the whole statement (Oracle: SELECT * FROM ( … ) WHERE rownum <= n)
 // append with an index hint (MySQL: FORCE INDEX (…) … LIMIT n)
 ```
+<!-- endSnippet -->
 
 ### Paging
 
@@ -68,6 +72,7 @@ MySQL and SQLite have no such clause, so they override both members — and they
 `AddPagingParameters` too, because their clause names the parameters in the other order and providers
 that bind positionally take them in the order the statement mentions them:
 
+<!-- snippet: sample_dialect_delegate_paging -->
 ```csharp
 protected override string ApplyPaging(string sql, bool takeLimited)
     => takeLimited
@@ -84,6 +89,7 @@ protected override void AddPagingParameters(DbCommand cmd, int skip, int take, b
     AddCommandParameter(cmd, "pageSkip", skip);
 }
 ```
+<!-- endSnippet -->
 
 `takeLimited` is `false` when the caller asked for an unbounded page (`Take = int.MaxValue`), which is
 the case a database with no offset-only form has to spell some other way — MySQL uses a `LIMIT` of the
@@ -97,11 +103,13 @@ is exact without a second query.
 
 Oracle has no boolean column type, so its delegate maps both directions:
 
+<!-- snippet: sample_dialect_delegate_booleans -->
 ```csharp
 public override object GetDbBooleanValue(bool booleanValue) => booleanValue ? "1" : "0";
 
 public override bool GetBooleanFromDbValue(object columnValue) => Convert.ToInt32(columnValue) == 1;
 ```
+<!-- endSnippet -->
 
 `GetDbBooleanValue` is what every `IS_DURABLE`, `REQUESTS_RECOVERY` and similar column is bound
 through, so the two must agree exactly.
@@ -164,6 +172,7 @@ delegate.
 
 ## Registering it
 
+<!-- snippet: sample_dialect_delegate_registration -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -174,6 +183,7 @@ builder.Services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 ::: warning Order matters
 Registration is **first-wins** (`TryAdd`). `UseSqlServer`, `UsePostgres` and the rest each call

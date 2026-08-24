@@ -10,6 +10,9 @@ something else — Redis, ZooKeeper, a cloud lease, anything that can grant one 
 
 ## The contract
 
+<!-- Quartz's own declaration of the interface, so it is written out here rather than compiled
+     from the samples project: a second `ISemaphore` in that project would shadow the real one. -->
+
 ```csharp
 public interface ISemaphore
 {
@@ -63,6 +66,8 @@ lock the outer one is still relying on.
 When the lock *is* a database row, `DbSemaphore` does the plumbing — ownership tracking, re-entry,
 prefix substitution — and leaves one method:
 
+<!-- A signature listing rather than code, so it is written out here rather than compiled. -->
+
 ```csharp
 protected abstract ValueTask ExecuteSql(
     Guid requestorId,
@@ -78,6 +83,8 @@ records ownership after it returns. Both statements arrive already prefix-expand
 there for the missing-row case.
 
 Two protected helpers are what you issue it through:
+
+<!-- A signature listing rather than code, so it is written out here rather than compiled. -->
 
 ```csharp
 protected DbCommand PrepareCommand(ConnectionAndTransactionHolder conn, string commandText);
@@ -106,6 +113,7 @@ time, so their retry behaviour is testable.
 When the lock does not live in the database, implement the interface and answer `false` to
 `RequiresConnection`:
 
+<!-- snippet: sample_lock_handler_semaphore -->
 ```csharp
 public sealed class LeaseSemaphore : ISemaphore
 {
@@ -122,6 +130,7 @@ public sealed class LeaseSemaphore : ISemaphore
         CancellationToken cancellationToken = default)
     {
         // ... acquire, honouring the re-entry rule ...
+        return true;
     }
 
     public ValueTask ReleaseLock(
@@ -130,9 +139,11 @@ public sealed class LeaseSemaphore : ISemaphore
         CancellationToken cancellationToken = default)
     {
         // ...
+        return default;
     }
 }
 ```
+<!-- endSnippet -->
 
 `RequiresConnection = false` is not cosmetic: it tells the store it can delay opening a database
 connection until *after* the lock has been taken, which is the whole efficiency argument for an
@@ -167,6 +178,7 @@ stopped without releasing the row cannot make progress until the statement gives
 
 ## Registering it
 
+<!-- snippet: sample_lock_handler_registration -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -178,12 +190,14 @@ builder.Services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 There is a factory overload, `UseLockHandler(Func<IServiceProvider, ISemaphore>)`, for a handler that
 needs values rather than services — it registers under the scheduler's own key, which registering
 against `Services` directly would not. `Quartz.Extensions.Redis` uses exactly that public overload;
 nothing about it is privileged:
 
+<!-- snippet: sample_lock_handler_redis -->
 ```csharp
 s.UseRedisLockHandler(o =>
 {
@@ -192,6 +206,7 @@ s.UseRedisLockHandler(o =>
     o.LockTimeToLive = TimeSpan.FromSeconds(30);
 });
 ```
+<!-- endSnippet -->
 
 The legacy key is `quartz.jobStore.lockHandler.type`. Its `.tablePrefix` and `.schedName` sub-keys —
 3.x's spelling, from the `ITablePrefixAware` properties they wrote — are rejected as obsolete, because

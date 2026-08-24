@@ -1,15 +1,9 @@
----
+using Microsoft.Extensions.Logging;
 
-title: Job Template
----
+namespace Quartz.Documentation.Samples.HowTos;
 
-# Job Template
+#region sample_job_template
 
-This page pulls the recommendations scattered through the documentation into one job class that can be copied
-and cut down.
-
-<!-- snippet: sample_job_template -->
-```csharp
 // one job definition at a time: a second firing waits for the one in progress
 [DisallowConcurrentExecution]
 public sealed class SampleJob : IJob
@@ -63,21 +57,5 @@ public sealed class SampleJob : IJob
         }
     }
 }
-```
-<!-- endSnippet -->
 
-A few notes on the choices in it:
-
-* **`[DisallowConcurrentExecution]`** applies per job definition, not per class, so two different job details of
-  the same class still run side by side. Leave it off for a job that is safe to overlap; a job that writes to
-  the same rows every run usually is not.
-* **`JobExecutionException`** is the exception to throw out of `Execute`. Its directives are init-only
-  properties: `RefireImmediately` re-runs the same firing, and `UnscheduleFiringTrigger` /
-  `UnscheduleAllTriggers` stop this trigger, or every trigger of the job, from firing again. Any other
-  exception is caught, logged, reported to scheduler listeners as a `JobExecutionProcessException` and wrapped
-  in a `JobExecutionException` with none of those flags set — so the failure is visible, but the schedule
-  simply carries on.
-* **The cancellation token** is the same one as `context.CancellationToken`. Forwarding it is what makes a
-  shutdown that waits for jobs, or an `Interrupt` call, actually reach the work.
-* **`context.Result`** is stored on the execution context and passed to job listeners after the job returns.
-  It is not persisted.
+#endregion
