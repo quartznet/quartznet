@@ -17,13 +17,10 @@
  */
 #endregion
 
-using System.Diagnostics.CodeAnalysis;
-
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
-using Quartz.Configuration;
 using Quartz.Dashboard.Plugins;
 using Quartz.Dashboard.Services;
 using Quartz.Serialization.SystemTextJson;
@@ -86,28 +83,21 @@ public static class QuartzDashboardServiceCollectionExtensions
         // The dashboard's own plugins, registered rather than named by a quartz.plugin.*.type key. A type
         // name in a property bag is how a plugin is configured from a file; a package that knows its own
         // plugin types has no reason to spell them as strings and have them loaded back by reflection.
-        var quartz = new QuartzBuilder(services, schedulerKey: null);
-        AddDashboardPlugin<DashboardLiveEventsPlugin>(quartz, "quartzDashboardLiveEvents");
-        AddDashboardPlugin<DashboardHistoryPlugin>(quartz, "quartzDashboardHistory");
+        //
+        // Added to every scheduler in the container rather than to the default one. The dashboard renders
+        // whatever schedulers the container holds, so a plugin that only reached the unkeyed registration
+        // left a scheduler registered with AddQuartz(name, …) rendering pages whose live view and history
+        // were always empty, with nothing to say why. Each scheduler gets its own instance, initialized
+        // with its own name, which is what the plugins broadcast and record under. The names are the short
+        // ones these plugins have always been configured with: a plugin is told its name when it is
+        // initialized, and one told a different name would key its history rows differently.
+        services.ConfigureAllQuartzSchedulers(static quartz =>
+        {
+            quartz.AddPlugin<DashboardLiveEventsPlugin>("quartzDashboardLiveEvents");
+            quartz.AddPlugin<DashboardHistoryPlugin>("quartzDashboardHistory");
+        });
 
         return services;
-    }
-
-    /// <summary>
-    /// Adds one of the dashboard's plugins under the short name it has always been configured with.
-    /// </summary>
-    /// <remarks>
-    /// The name is registered separately from the plugin because a plugin is told its name when it is
-    /// initialized, and plugins that derive persisted job keys from that name would otherwise write a
-    /// different set of rows than the same plugin named by a <c>quartz.plugin.&lt;name&gt;.*</c> key.
-    /// </remarks>
-    private static void AddDashboardPlugin<
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        QuartzBuilder quartz,
-        string name) where T : class, ISchedulerPlugin
-    {
-        quartz.Services.AddSingleton(new SchedulerPluginName(quartz.SchedulerName, typeof(T), name));
-        quartz.AddPlugin<T>();
     }
 
     private static readonly char[] InvalidDashboardPathChars = ['{', '}', '?', '#'];
