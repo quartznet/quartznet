@@ -16,8 +16,8 @@ namespace Quartz;
 public static class QuartzAspNetCoreConfigurationExtensions
 {
     /// <summary>
-    /// Registers a health check for the default Quartz scheduler that reports unhealthy when the
-    /// scheduler is not running or cannot reach its store.
+    /// Registers a health check for the default Quartz scheduler: healthy while it is running and can
+    /// reach its store, degraded while it is in standby, and unhealthy otherwise.
     /// </summary>
     /// <remarks>
     /// Shorthand for <c>services.AddHealthChecks().AddQuartz(configure)</c>, for an application that has
