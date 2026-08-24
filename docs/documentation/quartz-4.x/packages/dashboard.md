@@ -2,7 +2,7 @@
 title: Dashboard
 ---
 
-[Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) is a Blazor-based dashboard for Quartz.NET that runs inside your ASP.NET Core app and uses Quartz HTTP API endpoints.
+[Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) is a Blazor-based dashboard for Quartz.NET that runs inside your ASP.NET Core app and renders the schedulers registered in that same application.
 
 ::: warning
 Quartz Dashboard is currently a work in progress.
@@ -11,8 +11,7 @@ The dashboard API surface may change between releases.
 
 ## Installation
 
-The dashboard is served over the [HTTP API](http-api.md), which ships in `Quartz.AspNetCore`. The dashboard
-package brings it along, so one reference is enough:
+The dashboard package builds on `Quartz.AspNetCore` and brings it along, so one reference is enough:
 
 ```shell
 dotnet add package Quartz.Dashboard
@@ -55,6 +54,28 @@ app.MapQuartzDashboard();
 <!-- endSnippet -->
 
 By default, dashboard UI is available at `/quartz`.
+
+The [HTTP API](http-api.md) is enabled above because it is useful alongside the dashboard, not because
+the dashboard needs it: the pages read the schedulers in this process directly.
+
+## Options
+
+`AddQuartzDashboard(options => …)` takes three settings, and none of them points the dashboard at a
+scheduler — **the dashboard renders the schedulers registered in its own application**, reading them
+through the `IQuartzApiClient` in the container rather than over a network.
+
+| Option | Default | What it does |
+|---|---|---|
+| `DashboardPath` | `/quartz` | The base path the UI is served from — see [Hosting under a custom path](#hosting-under-a-custom-path) |
+| `AuthorizationPolicy` | none | The policy applied to the dashboard pages, hub, circuit and assets — see [Policy and role-based authorization](#policy-and-role-based-authorization) |
+| `ReadOnly` | `false` | Hides every mutating action: no pause, resume, trigger-now, reschedule, unschedule or delete |
+
+::: tip Pointing a dashboard at another process
+There is no option for it. `AddQuartzDashboard` registers its client with `TryAdd`, so an application
+can register its own `IQuartzApiClient` and have the pages read whatever it likes; a supported remote
+dashboard — with the authentication forwarding, execution limits and history story such a thing needs —
+is designed in [#3387](https://github.com/quartznet/quartznet/issues/3387).
+:::
 
 ## The schedulers the dashboard covers
 

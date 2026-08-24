@@ -302,9 +302,7 @@ namespace Quartz
     public sealed class QuartzDashboardOptions
     {
         public QuartzDashboardOptions() { }
-        public string ApiPath { get; set; }
         public string? AuthorizationPolicy { get; set; }
-        public System.Uri? BaseUrl { get; set; }
         public string DashboardPath { get; set; }
         public bool ReadOnly { get; set; }
     }
