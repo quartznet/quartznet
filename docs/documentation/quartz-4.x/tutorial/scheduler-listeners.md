@@ -26,29 +26,83 @@ public interface ISchedulerListener
 {
     string Name => GetType().Name;
 
-    ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default);
+    ValueTask JobScheduled(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default);
 
-    ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    ValueTask JobUnscheduled(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
-    ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default);
+    ValueTask TriggerFinalized(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default);
 
-    ValueTask TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default);
+    ValueTask TriggersPaused(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default);
 
-    ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default);
+    ValueTask TriggersResumed(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default);
 
-    ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default);
+    ValueTask JobsPaused(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default);
 
-    ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default);
+    ValueTask JobsResumed(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default);
 
-    ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default);
+    ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default);
 
-    ValueTask SchedulerShutdown(CancellationToken cancellationToken = default);
+    ValueTask SchedulerShutdown(IScheduler scheduler, CancellationToken cancellationToken = default);
 
     // ...and the rest; every member has a do-nothing default implementation, so implement only what you care about
 }
 ```
 
 A null group in `JobsPaused`, `JobsResumed`, `TriggersPaused` or `TriggersResumed` means every group.
+
+## Every callback names its scheduler
+
+A listener reaches the scheduler it serves through its execution context, or as its first argument when there
+is no execution. Nothing here runs inside a firing, so every member takes the scheduler — which is what lets
+one listener instance serve several schedulers in one host and still say which of them it is hearing from:
+
+```csharp
+public sealed class AuditSchedulerListener : ISchedulerListener
+{
+    public ValueTask TriggerPaused(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("{SchedulerName} paused {TriggerKey}", scheduler.SchedulerName, triggerKey);
+        return default;
+    }
+}
+```
+
+It is the scheduler itself rather than its name, so a listener that wants to act on what it heard can: pause
+the trigger, read `Status`, ask for the job. `SchedulerName` and `SchedulerInstanceId` are on it when identity
+is all you need.
+
+## Reporting an error
+
+`SchedulerError` is raised when something goes seriously wrong — a job that could not be built, a job store
+that keeps failing, a job that threw. It receives a `SchedulerErrorContext`, which says what went wrong and,
+where the scheduler knew it, what it went wrong for:
+
+```csharp
+public sealed record SchedulerErrorContext
+{
+    public required string Message { get; init; }
+    public required SchedulerException Exception { get; init; }
+    public TriggerKey? TriggerKey { get; init; }
+    public JobKey? JobKey { get; init; }
+    public string? FireInstanceId { get; init; }
+}
+```
+
+The three keys are null when there is nothing to name — a scan that never reached a trigger, a store retrying
+a connection. Every failure inside a firing fills in all three:
+
+```csharp
+public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default)
+{
+    if (errorContext.TriggerKey is { } triggerKey)
+    {
+        return scheduler.PauseTrigger(triggerKey, cancellationToken);
+    }
+
+    logger.LogError(errorContext.Exception, "{Message}", errorContext.Message);
+    return default;
+}
+```
 
 SchedulerListeners are registered with the scheduler's `ListenerManager`.
 SchedulerListeners can be virtually any object that implements the `ISchedulerListener` interface.
