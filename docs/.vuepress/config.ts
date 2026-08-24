@@ -3,6 +3,7 @@ import { webpackBundler } from '@vuepress/bundler-webpack'
 
 import { defaultTheme } from '@vuepress/theme-default'
 import { defineUserConfig } from '@vuepress/cli'
+import type { Page } from 'vuepress/core'
 import { docsearchPlugin } from '@vuepress/plugin-docsearch'
 import { registerComponentsPlugin } from '@vuepress/plugin-register-components'
 import { googleAnalyticsPlugin } from '@vuepress/plugin-google-analytics'
@@ -13,11 +14,39 @@ import { getDirname } from "@vuepress/utils";
 
 const __dirname = getDirname(import.meta.url)
 
+/**
+ * Copies what the blog listings need out of a post and into its route meta.
+ *
+ * A client component can read `useRoutes()` synchronously — route meta is compiled into the routes
+ * module, so it is there during server rendering too — while a page's frontmatter is only reachable
+ * through that page's own async chunk. So the date, title and flags the listings sort and filter on
+ * are put here at build time, and `BlogIndex` / `BlogExcerpt` need nothing else.
+ */
+const extendsPostRouteMeta = (page: Page): void => {
+    const relative = page.filePathRelative?.replace(/\\/g, '/')
+    if (!relative?.startsWith('_posts/')) {
+        return
+    }
+
+    page.routeMeta = {
+        ...page.routeMeta,
+        post: {
+            date: page.date,
+            title: page.title,
+            description: page.frontmatter.description ?? '',
+            hidden: page.frontmatter.hidden === true,
+            promote: page.frontmatter.promote !== false,
+        }
+    }
+}
+
 export default defineUserConfig({
     base: '/',
 
     title: 'Quartz.NET',
     description: 'Open-source scheduling framework for .NET.',
+
+    extendsPage: extendsPostRouteMeta,
 
     bundler: process.env.DOCS_BUNDLER === 'webpack' ? webpackBundler() : viteBundler(),
 
