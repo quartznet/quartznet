@@ -383,6 +383,48 @@ come back.
 describes the detail rather than preserving it: what it builds is Quartz's `IJobDetail`. Use `WithJobData` to
 vary the data of a detail of your own, and `Clone()` to copy one.
 
+## Trimming
+
+The `Quartz` package is marked trimmable, so an application published with `PublishTrimmed` can cut
+away what it does not use. A job type is only kept if something the trimmer can see points at it, and
+that is the one thing an application has to get right.
+
+**Name job types as types.** `JobBuilder.Create<TJob>()`, `OfType<TJob>()`, `AddJob<TJob>()` and
+`AddJobType<TJob>()` all declare what Quartz reflects over on a job — its public constructors, its
+public properties and the interfaces it implements — so the trimmer keeps exactly those:
+
+```csharp
+builder.AddJob<SendEmailJob>(j => j.WithIdentity("send-email"));
+```
+
+**An API that takes a type name says so.** The ones that accept a name instead of a type carry
+`[RequiresUnreferencedCode]`, so publishing trimmed reports them:
+
+```csharp
+// IL2026: a type named only by a string is not guaranteed to survive trimming
+IJobDetail detail = JobBuilder.Create().OfType("Acme.Jobs.SendEmailJob, Acme.Jobs").Build();
+```
+
+That is `JobBuilder<TJob>.OfType(string)`, the `JobType(string)` constructor and the explicit cast from
+`string`. Prefer the typed spelling; where you cannot, tell the trimmer to keep the type anyway with a
+[trimmer root descriptor](https://learn.microsoft.com/dotnet/core/deploying/trimming/trimming-options#root-descriptors).
+
+**Three places name job types by string whatever you do**, and each needs the job type registered or
+rooted:
+
+- an ADO.NET job store, because a stored job's type is the `JOB_CLASS_NAME` column;
+- `job_scheduling_data` XML, whose loader is `[RequiresUnreferencedCode]` for that reason;
+- the flat `quartz.*` configuration keys, which name plugins, listeners and job stores by string, and
+  set their properties by name.
+
+Registering every job type with `AddJob<TJob>()` or `AddJobType<TJob>()` covers the first of those:
+those calls are what the trimmer follows, and the store then finds the type it needs.
+
+::: tip
+Native AOT is not supported yet — that work is tracked on
+[issue #3341](https://github.com/quartznet/quartznet/issues/3341).
+:::
+
 ## JobExecutionException
 
 Finally, we need to inform you of a few details of the `IJob.Execute(..)` method. The only type of exception
