@@ -239,14 +239,6 @@ public class Startup
             q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals(jobKey.Group));
             q.AddTriggerListener<SampleTriggerListener>();
 
-            // Add Quartz.NET HTTP API
-            q.AddQuartzHttpApi(options =>
-            {
-                // "/quartz-api" is also default value
-                options.ApiPath = "/quartz-api";
-                options.IncludeStackTraceInProblemDetails = true;
-            });
-
             q.UsePersistentStore<CustomJobStore>(options =>
             {
                 options.UseSystemTextJsonSerializer();
@@ -286,6 +278,14 @@ public class Startup
                 });
             });
             */
+        });
+
+        // Add Quartz.NET HTTP API, which serves every scheduler in the container rather than one of them
+        services.AddQuartzHttpApi(options =>
+        {
+            // "/quartz-api" is also default value
+            options.ApiPath = "/quartz-api";
+            options.IncludeStackTraceInProblemDetails = true;
         });
 
         // adding a job to the scheduler does not register its type, so we do that ourselves

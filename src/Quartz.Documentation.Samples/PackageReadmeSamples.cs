@@ -66,7 +66,8 @@ public static class PackageReadmeSamples
 
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-            builder.AddQuartz(q => q.AddQuartzHttpApi());
+            builder.AddQuartz();
+            builder.Services.AddQuartzHttpApi();
             builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
             builder.Services.AddHealthChecks().AddQuartz();
 
@@ -87,7 +88,8 @@ public static class PackageReadmeSamples
 
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-            builder.AddQuartz(q => q.AddQuartzHttpApi());
+            builder.AddQuartz();
+            builder.Services.AddQuartzHttpApi();
             builder.Services.AddQuartzDashboard();
             builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 

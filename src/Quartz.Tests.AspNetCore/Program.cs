@@ -10,10 +10,8 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder();
 
-        builder.Services.AddQuartz(configurator =>
-        {
-            configurator.AddQuartzHttpApi(options => options.ApiPath = "/");
-        });
+        builder.Services.AddQuartz();
+        builder.Services.AddQuartzHttpApi(options => options.ApiPath = "/");
 
         var app = builder.Build();
 

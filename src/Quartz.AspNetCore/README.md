@@ -23,7 +23,8 @@ dotnet add package Quartz.AspNetCore
 ```csharp
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.AddQuartz(q => q.AddQuartzHttpApi());
+builder.AddQuartz();
+builder.Services.AddQuartzHttpApi();
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 builder.Services.AddHealthChecks().AddQuartz();
 

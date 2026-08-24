@@ -153,30 +153,11 @@ public static class QuartzAspNetCoreConfigurationExtensions
     /// Serves the schedulers in this container over HTTP, so a remote client can drive them.
     /// </summary>
     /// <remarks>
-    /// Called on one scheduler's builder, but the API it configures serves every scheduler in the
-    /// container — a request names the scheduler it is for. Call
-    /// <c>MapQuartzHttpApi()</c> on the application to map the endpoints.
-    /// </remarks>
-    /// <param name="builder">The builder.</param>
-    /// <param name="configure">Configures the API, including the path it is served under.</param>
-    public static IQuartzBuilder AddQuartzHttpApi(
-        this IQuartzBuilder builder,
-        Action<QuartzHttpApiOptions>? configure = null)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        builder.Services.AddQuartzHttpApi(configure);
-        return builder;
-    }
-
-    /// <summary>
-    /// Serves the schedulers in this container over HTTP, so a remote client can drive them.
-    /// </summary>
-    /// <remarks>
     /// The API is container-wide rather than a scheduler's — a request names the scheduler it is for — so
-    /// this is where it belongs, and the <see cref="IQuartzBuilder"/> overload is the same call written
-    /// where a scheduler is being configured. Call <c>MapQuartzHttpApi()</c> on the application to map the
-    /// endpoints.
+    /// this is where it belongs, and there is deliberately no <see cref="IQuartzBuilder"/> form: written
+    /// inside <c>AddQuartz(name, …)</c> it would look like that scheduler's API while configuring
+    /// everybody's, and two of them with different <see cref="QuartzHttpApiOptions.ApiPath"/>s would be
+    /// last-writer-wins. Call <c>MapQuartzHttpApi()</c> on the application to map the endpoints.
     /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">Configures the API, including the path it is served under.</param>
@@ -261,7 +242,7 @@ public static class QuartzAspNetCoreConfigurationExtensions
         var handler = builder.ServiceProvider.GetService<ExceptionHandler>();
         if (handler is null)
         {
-            throw new InvalidOperationException("HTTP API not configured. Call AddQuartzHttpApi() in AddQuartz(...)");
+            throw new InvalidOperationException("HTTP API not configured. Call services.AddQuartzHttpApi() first.");
         }
 
         var options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzHttpApiOptions>>().Value;

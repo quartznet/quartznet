@@ -68,7 +68,8 @@ public class HttpApiRoutePatternTest
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
-        builder.Services.AddQuartz(quartz => quartz.AddQuartzHttpApi(configure));
+        builder.Services.AddQuartz();
+        builder.Services.AddQuartzHttpApi(configure);
         return builder.Build();
     }
 

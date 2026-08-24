@@ -1509,7 +1509,7 @@ The builder's nine listener overloads took `params IMatcher<T>[]`; they take
 an array is still a `IReadOnlyCollection<T>` — and a caller that holds a `List<IMatcher<JobKey>>` no
 longer has to call `ToArray()` on the way in.
 
-## `AddQuartzHttpApi` has an `IServiceCollection` overload
+## `AddQuartzHttpApi` is registered on the service collection
 
 The HTTP API serves every scheduler in the container through one set of endpoints, so it was never a
 scheduler's own setting; it just had nowhere else to be written:
@@ -1519,10 +1519,10 @@ scheduler's own setting; it just had nowhere else to be written:
 + services.AddQuartzHttpApi();
 ```
 
-The `IQuartzBuilder` overload still exists and is the same call written where a scheduler is being
-configured. `QuartzHttpApiOptions` stays singular for the same reason: `ApiPath` is a property of the
-process, and calling `AddQuartzHttpApi(configure)` from two `AddQuartz` callbacks configures the same
-options twice, last callback winning.
+The `IQuartzBuilder` form is gone rather than kept as a synonym: written inside `AddQuartz(name, …)` it
+read as that scheduler's API while configuring everybody's, and two of them with different `ApiPath`s
+were last-writer-wins with nothing to say so. `QuartzHttpApiOptions` stays singular for the same reason —
+`ApiPath` is a property of the process.
 
 ## The route is named where the endpoints are mapped
 
@@ -1910,12 +1910,12 @@ updated; the `Starting`/`Started`/`Stopping`/`Stopped` overrides are unchanged. 
 
 | Before | After |
 |---|---|
-| `IQuartzBuilder.AddHttpApi(…)` | `AddQuartzHttpApi(…)` |
+| `IQuartzBuilder.AddHttpApi(…)` | `IServiceCollection.AddQuartzHttpApi(…)` |
 | `IEndpointRouteBuilder.MapQuartzApi()` | `MapQuartzHttpApi()` |
 
 ```diff
 - services.AddQuartz(q => q.AddHttpApi());
-+ services.AddQuartz(q => q.AddQuartzHttpApi());
++ services.AddQuartzHttpApi();
 
 - app.MapQuartzApi().RequireAuthorization();
 + app.MapQuartzHttpApi().RequireAuthorization();
@@ -7477,7 +7477,7 @@ Parameters and behavior are unchanged:
 | `IQuartzBuilder` gained `UseJobStore<T>` / `<T, TOptions>` / factory | The seam for a job store of your own, built by the container with its scheduler's collaborators — see [A component of your own is chosen the same way a shipped one is](#a-component-of-your-own-is-chosen-the-same-way-a-shipped-one-is) |
 | `IQuartzBuilder` gained `UseInstanceIdGenerator<T>` / `<T, TOptions>` / instance | Replaces `quartz.scheduler.instanceIdGenerator.type`, and sets `GenerateInstanceId` because choosing a generator means the id is generated |
 | The builder's listener overloads take `params IReadOnlyCollection<IMatcher<T>>` | Aligned with `IListenerManager`; existing call sites are unaffected |
-| `AddQuartzHttpApi` has an `IServiceCollection` overload | The API is container-wide, not one scheduler's — `services.AddQuartzHttpApi()` |
+| `AddQuartzHttpApi` is on `IServiceCollection`, and only there | The API is container-wide, not one scheduler's — `services.AddQuartzHttpApi()`. The `IQuartzBuilder` form an earlier 4.0 preview kept is gone |
 | Clustering settings moved to `ClusteringOptions` | `AdoJobStoreOptions.Clustered` and the two `ClusterCheckin*` settings are gone; `IJobStore.Clustered` reports the state rather than setting it — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
 | `AdoJobStoreBase`'s constructor takes `IOptions<ClusteringOptions>` | Between `storeOptions` and `objectSerializer`; a job store deriving from it has to pass one on |
 | `UseSQLite` is `UseSystemDataSqlite`, `UseMicrosoftSQLite` is `UseSqlite` | **The short name changed meaning** — see [The SQLite extension methods swapped names](#the-sqlite-extension-methods-swapped-names) |
@@ -7571,7 +7571,7 @@ Parameters and behavior are unchanged:
 | `AddQuartzSchedulers(IConfiguration, …)` added | `AddQuartz(configuration)` no longer fans out over a `Schedulers` section; it throws and points here |
 | `QuartzHostedService` takes an `IServiceProvider` and an `IOptionsMonitor` | It resolves every scheduler in the container when the host starts — see [The hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler) |
 | `AddQuartzHostedService(string schedulerName, …)` added | `QuartzHostedServiceOptions` are named options; the unnamed call still configures every scheduler |
-| `IQuartzBuilder.AddHttpApi` / `MapQuartzApi` renamed | `AddQuartzHttpApi` / `MapQuartzHttpApi`; `AddQuartzHealthChecks` gained an `IQuartzBuilder` overload |
+| `IQuartzBuilder.AddHttpApi` / `MapQuartzApi` renamed | `services.AddQuartzHttpApi()` / `MapQuartzHttpApi`, the first of them on the service collection rather than a scheduler's builder; `AddQuartzHealthChecks` gained an `IQuartzBuilder` overload, which it keeps because a health check really is one scheduler's |
 | The health check is added on `IHealthChecksBuilder` | `AddHealthChecks().AddQuartz()` / `.AddQuartz("reporting")`, so it composes with an application's other checks. `AddQuartzHealthChecks()` is shorthand for the first — see [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once) |
 | `QuartzHealthCheckOptions` goes through the options pipeline | It was constructed and read inside the registration call, so `services.Configure<QuartzHealthCheckOptions>(...)` did nothing. `Name` is nullable and defaults to the scheduler's check name |
 | `QuartzHealthCheckOptions.Tags` is a get-only `List<string>` | It was a settable `IReadOnlyCollection<string>`. Add to it — `options.Tags.AddRange(["ready", "live"])` — rather than assigning; one `configure` callback can no longer discard the tags another added — see [A shipped component is configured through its options type, and only there](#a-shipped-component-is-configured-through-its-options-type-and-only-there) |

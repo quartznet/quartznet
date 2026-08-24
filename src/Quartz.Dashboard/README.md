@@ -21,7 +21,8 @@ dotnet add package Quartz.Dashboard
 ```csharp
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-builder.AddQuartz(q => q.AddQuartzHttpApi());
+builder.AddQuartz();
+builder.Services.AddQuartzHttpApi();
 builder.Services.AddQuartzDashboard();
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
