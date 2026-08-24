@@ -56,6 +56,23 @@ app.MapQuartzDashboard();
 
 By default, dashboard UI is available at `/quartz`.
 
+## The schedulers the dashboard covers
+
+`AddQuartzDashboard()` installs the dashboard's own two plugins — the live event feed and the execution
+history the History page reads — into **every** scheduler in the container, and the order of the calls
+does not matter. A scheduler registered with `AddQuartz("acme", …)` therefore has a populated Live Logs
+view and History page just like the default one; each scheduler gets its own instance of each plugin,
+initialized with its own name, and history entries are attributed to the scheduler that produced them.
+
+It does this with `ConfigureAllQuartzSchedulers`, so nothing extra is written at the call site.
+
+::: warning Changed in 4.0.0-alpha.2
+The dashboard's plugins used to be registered without a service key, which meant only a scheduler
+registered by `AddQuartz()` — the unnamed, default one — ever ran them. A named scheduler appeared in the
+scheduler selector and its jobs and triggers rendered, but its Live Logs view and its History page were
+silently always empty. There was nothing to configure to get them; this is a fix rather than a new option.
+:::
+
 ## Hosting under a custom path
 
 When the dashboard hosts its own Blazor root, it can be served from a custom base path. Name it where the endpoints are mapped, the way the rest of ASP.NET Core reads (`MapHealthChecks("/health")`):
