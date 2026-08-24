@@ -2,31 +2,24 @@
 
 <template>
 <div>
-    <div v-for="post in posts">
+    <div v-for="post in posts" :key="post.path">
         <h2>
-            <router-link :to="post.path">{{ post.dateString + ' ' + post.frontmatter.title }}</router-link>
+            <RouteLink :to="post.path">{{ post.date + ' ' + post.title }}</RouteLink>
         </h2>
 
-        <p>{{ post.frontmatter.description }}</p>
+        <p v-if="post.description">{{ post.description }}</p>
 
-        <p><router-link :to="post.path">Read more</router-link></p>
+        <p><RouteLink :to="post.path">Read more</RouteLink></p>
     </div>
 </div>
 </template>
 
-<script>
-export default {
-    computed: {
-        posts() {
-            return [];
-            return this.$site.pages
-                .filter(x => x.id === 'post' && x.frontmatter.hidden !== true)
-                .sort((a, b) => b.path.localeCompare(a.path))
-                .map(x => {
-                    x.dateString = x.path.substring(1, 11);
-                    return x;
-                });
-        }
-    }
-}
+<script setup>
+import { computed } from 'vue'
+import { useRoutes } from 'vuepress/client'
+import { visiblePosts } from '../posts.js'
+
+const routes = useRoutes()
+
+const posts = computed(() => visiblePosts(routes.value))
 </script>
