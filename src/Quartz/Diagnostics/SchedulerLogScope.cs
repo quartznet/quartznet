@@ -29,7 +29,7 @@ namespace Quartz.Diagnostics;
 /// An <see cref="Microsoft.Extensions.Logging.ILogger" /> category is a type name, so two schedulers in
 /// one process write log lines that are identical in everything a log query can filter on — except where
 /// a message template happens to carry the scheduler's name, which most of them do not. A scope carries
-/// it on every line instead, including the lines a job writes with a logger of its own.
+/// it on every line instead.
 /// </para>
 /// <para>
 /// The attribute names are the ones the spans and the measurements use, from
@@ -38,8 +38,9 @@ namespace Quartz.Diagnostics;
 /// <para>
 /// It is an <see cref="IReadOnlyList{T}" /> of key-value pairs — the shape ASP.NET Core's request scope
 /// has, and the one every structured logging provider reads without allocating an enumerator — and it is
-/// immutable, so one instance per scheduler is built once and pushed by everything that opens the scope.
-/// That is what keeps opening it around a firing down to the <c>BeginScope</c> call itself.
+/// immutable, so one instance per scheduler is built once and pushed by whoever opens the scope. The
+/// scheduler thread opens it once for the lifetime of its loop; a job's own log lines carry it when the
+/// dispatch to the thread pool captured the execution context that the loop's scope is held in.
 /// </para>
 /// </remarks>
 internal sealed class SchedulerLogScope : IReadOnlyList<KeyValuePair<string, object?>>

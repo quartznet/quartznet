@@ -452,7 +452,8 @@ public static partial class QuartzServiceCollectionExtensions
         configure?.Invoke(new QuartzBuilder(services, schedulerName));
 
         // Phase 4, for everyone: what ConfigureAllQuartzSchedulers said about every scheduler in the
-        // container, applied after this scheduler's own callback so that a scheduler's own word wins.
+        // container. After this scheduler's own callback, which is where a scheduler registered before
+        // that call gets it too, so the order the two calls were written in does not decide anything.
         registry.ApplyConfigureAll(services, schedulerName);
 
         // Phase 5: registration is first-wins, so the implementations named by keys go in after it.

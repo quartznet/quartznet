@@ -103,14 +103,13 @@ internal sealed class QuartzSchedulerResources
     /// The logging scope that names this scheduler, built once and shared by everything that opens it.
     /// </summary>
     /// <remarks>
-    /// Cached rather than built per use, so opening the scope around a trigger firing costs the
-    /// <c>BeginScope</c> call and nothing else. The cache is dropped when the name or the instance id is
-    /// set, which happens while the scheduler is being created and not afterwards: a generated instance
-    /// id is assigned once the generator has run, and a scope built before that would name the scheduler
-    /// by the placeholder it is about to stop having.
+    /// Cached rather than built per use, so every opener pushes the same object and none of them pays to
+    /// build it. The cache is dropped when the name or the instance id is set, which happens while the
+    /// scheduler is being created and not afterwards: a generated instance id is assigned once the
+    /// generator has run, and a scope built before that would name the scheduler by the placeholder it
+    /// is about to stop having.
     /// </remarks>
     public SchedulerLogScope LogScope => logScope ??= new SchedulerLogScope(name, instanceId);
-
 
     /// <summary>
     /// Get or set the <see cref="ThreadPool" /> for the <see cref="QuartzScheduler" />

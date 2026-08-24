@@ -66,7 +66,7 @@ initialized with its own name, and history entries are attributed to the schedul
 
 It does this with `ConfigureAllQuartzSchedulers`, so nothing extra is written at the call site.
 
-::: warning Changed in 4.0.0-alpha.2
+::: warning Fixed in 4.0.0-alpha.2
 The dashboard's plugins used to be registered without a service key, which meant only a scheduler
 registered by `AddQuartz()` — the unnamed, default one — ever ran them. A named scheduler appeared in the
 scheduler selector and its jobs and triggers rendered, but its Live Logs view and its History page were
