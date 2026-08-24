@@ -383,6 +383,61 @@ public class KeyTest
     }
 
     /// <summary>
+    /// <see cref="Comparer{T}.Default" /> only finds a typed comparison when the key type itself
+    /// implements <see cref="IComparable{T}" /> — the inherited <c>IComparable&lt;Key&lt;JobKey&gt;&gt;</c>
+    /// does not count — and falls back to a comparer that throws when it does not. Every sort that
+    /// goes through the default comparer is therefore pinned here.
+    /// </summary>
+    [Test]
+    public void JobKeysSortThroughTheDefaultComparer()
+    {
+        JobKey first = new JobKey("c", JobKey.DefaultGroup);
+        JobKey second = new JobKey("a", "G");
+        JobKey third = new JobKey("b", "G");
+        List<JobKey> unsorted = [third, first, second];
+
+        List<JobKey> sorted = [.. unsorted];
+        sorted.Sort();
+
+        sorted.Should().Equal([first, second, third], "the default group sorts before every other, then group and name ordinally");
+        unsorted.OrderBy(key => key).Should().Equal(sorted, "OrderBy reaches the same default comparer");
+        new SortedSet<JobKey>(unsorted).Should().Equal(sorted, "a sorted set reaches it too");
+        new SortedDictionary<JobKey, int>(unsorted.ToDictionary(key => key, _ => 0)).Keys.Should().Equal(sorted, "and so does a sorted dictionary");
+    }
+
+    /// <inheritdoc cref="JobKeysSortThroughTheDefaultComparer" />
+    [Test]
+    public void TriggerKeysSortThroughTheDefaultComparer()
+    {
+        TriggerKey first = new TriggerKey("c", TriggerKey.DefaultGroup);
+        TriggerKey second = new TriggerKey("a", "G");
+        TriggerKey third = new TriggerKey("b", "G");
+        List<TriggerKey> unsorted = [third, first, second];
+
+        List<TriggerKey> sorted = [.. unsorted];
+        sorted.Sort();
+
+        sorted.Should().Equal([first, second, third], "the default group sorts before every other, then group and name ordinally");
+        unsorted.OrderBy(key => key).Should().Equal(sorted, "OrderBy reaches the same default comparer");
+        new SortedSet<TriggerKey>(unsorted).Should().Equal(sorted, "a sorted set reaches it too");
+        new SortedDictionary<TriggerKey, int>(unsorted.ToDictionary(key => key, _ => 0)).Keys.Should().Equal(sorted, "and so does a sorted dictionary");
+    }
+
+    [Test]
+    public void NonGenericCompareToRanksNullFirstAndRejectsAForeignType()
+    {
+        IComparable key = new JobKey("a");
+
+        key.CompareTo(null).Should().Be(1, "a key is greater than nothing, which is what every IComparable says");
+
+        Action foreignType = () => key.CompareTo(new TriggerKey("a"));
+        foreignType.Should().Throw<ArgumentException>("comparing a job key with a trigger key is a mistake the compiler cannot catch");
+
+        Action foreignValue = () => key.CompareTo("DEFAULT.a");
+        foreignValue.Should().Throw<ArgumentException>("the string form of a key is not a key");
+    }
+
+    /// <summary>
     /// Creates a unique reference of the specified <see cref="string"/>.
     /// </summary>
     /// <returns>

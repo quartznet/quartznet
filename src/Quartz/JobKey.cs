@@ -56,7 +56,7 @@ namespace Quartz;
 /// <seealso cref="IJob"/>
 /// <seealso cref="Key{T}.DefaultGroup" />
 [Serializable]
-public sealed class JobKey : Key<JobKey>, IEquatable<JobKey>, IParsable<JobKey>
+public sealed class JobKey : Key<JobKey>, IComparable<JobKey>, IEquatable<JobKey>, IParsable<JobKey>
 {
     public JobKey(string name) : base(name)
     {
@@ -75,6 +75,18 @@ public sealed class JobKey : Key<JobKey>, IEquatable<JobKey>, IParsable<JobKey>
     public override bool Equals(object? obj)
     {
         return Equals(obj as JobKey);
+    }
+
+    /// <inheritdoc cref="Key{T}.CompareTo(Key{T})" />
+    /// <remarks>
+    /// Declared here as well as on the base so that <see cref="Comparer{T}.Default" /> finds a
+    /// comparison of <em>this</em> type: the inherited one is over <c>Key&lt;JobKey&gt;</c>, which the
+    /// default comparer does not recognise, and without this <c>List&lt;JobKey&gt;.Sort()</c>,
+    /// <c>OrderBy(k =&gt; k)</c> and <see cref="SortedSet{T}" /> throw at runtime while compiling fine.
+    /// </remarks>
+    public int CompareTo(JobKey? other)
+    {
+        return base.CompareTo(other);
     }
 
     /// <inheritdoc />

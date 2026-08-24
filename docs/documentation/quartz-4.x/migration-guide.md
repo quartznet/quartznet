@@ -5981,6 +5981,13 @@ Payloads written by earlier versions still read: both serializers build a key th
 
 `JobType`, the type of `IJobDetail.JobType`, moved from `Quartz.Impl` to `Quartz` for the same reason.
 
+Keys can also be sorted now. `JobKey` and `TriggerKey` implement `IComparable<JobKey>` /
+`IComparable<TriggerKey>` and `Key<T>` implements the non-generic `IComparable`, so
+`Comparer<JobKey>.Default` finds a real comparison. On 3.x only `IComparable<Key<T>>` was there, which
+the default comparer does not recognise, and `keys.Sort()`, `keys.OrderBy(k => k)`,
+`SortedSet<JobKey>` and `SortedDictionary<JobKey, _>` all compiled and then threw at runtime. The
+ordering itself is unchanged: the default group first, then group and name ordinally.
+
 ## Listing queries can filter by name
 
 | Query | New property |
@@ -7750,7 +7757,7 @@ removals on types that are still public and still open, which no section above n
 
 | 3.x member | What happened | What to use instead |
 |---|---|---|
-| `AbstractTrigger.CompareTo(ITrigger)` | Removed; neither `TriggerBase` nor `ITrigger` itself implements `IComparable<ITrigger>` any more | It compared keys — `trigger.Key.CompareTo(other.Key)`. `List<ITrigger>.Sort()` and friends still compile and now throw — see [The trigger family interfaces are read models](#the-trigger-family-interfaces-are-read-models) |
+| `AbstractTrigger.CompareTo(ITrigger)` | Removed; neither `TriggerBase` nor `ITrigger` itself implements `IComparable<ITrigger>` any more | It compared keys — `trigger.Key.CompareTo(other.Key)`, or `triggers.OrderBy(t => t.Key)`, both of which sort properly now that the key types implement `IComparable<JobKey>` / `IComparable<TriggerKey>`. `List<ITrigger>.Sort()` and friends still compile and now throw — see [The trigger family interfaces are read models](#the-trigger-family-interfaces-are-read-models) |
 | `AbstractTrigger.FullJobName` | Removed | `JobKey.ToString()`, alongside the rest in [TriggerBase Property Removals](#triggerbase-property-removals) |
 | `CronExpression`'s `protected` constants, fields and parse hooks, and `OnDeserialization` | Gone with the type, which is `sealed` now and no longer implements `IDeserializationCallback` | No replacement; the parsed sets were never a contract — see [The parser is not a subclassing seam](#the-parser-is-not-a-subclassing-seam) |
 | `CronExpression.MaxYear` | Removed (a `public static readonly int`) | No replacement. It was `DateTime.Now.Year + 100`, computed once per process — see [`CronExpression` is immutable](#cronexpression-is-immutable) |

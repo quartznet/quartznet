@@ -939,10 +939,11 @@ namespace Quartz
         public Quartz.ITrigger Trigger { get; }
     }
     [System.Serializable]
-    public sealed class JobKey : Quartz.Key<Quartz.JobKey>, System.IEquatable<Quartz.JobKey>, System.IParsable<Quartz.JobKey>
+    public sealed class JobKey : Quartz.Key<Quartz.JobKey>, System.IComparable<Quartz.JobKey>, System.IEquatable<Quartz.JobKey>, System.IParsable<Quartz.JobKey>
     {
         public JobKey(string name) { }
         public JobKey(string name, string group) { }
+        public int CompareTo(Quartz.JobKey? other) { }
         public bool Equals(Quartz.JobKey? other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
@@ -996,7 +997,7 @@ namespace Quartz
         public bool IsMatch(TKey key) { }
     }
     [System.Serializable]
-    public class Key<T> : System.IComparable<Quartz.Key<T>>, System.IEquatable<Quartz.Key<T>>
+    public class Key<T> : System.IComparable, System.IComparable<Quartz.Key<T>>, System.IEquatable<Quartz.Key<T>>
     {
         public const string DefaultGroup = "DEFAULT";
         public Key(string name) { }
@@ -1669,10 +1670,11 @@ namespace Quartz
         public string TriggerType { get; init; }
     }
     [System.Serializable]
-    public sealed class TriggerKey : Quartz.Key<Quartz.TriggerKey>, System.IEquatable<Quartz.TriggerKey>, System.IParsable<Quartz.TriggerKey>
+    public sealed class TriggerKey : Quartz.Key<Quartz.TriggerKey>, System.IComparable<Quartz.TriggerKey>, System.IEquatable<Quartz.TriggerKey>, System.IParsable<Quartz.TriggerKey>
     {
         public TriggerKey(string name) { }
         public TriggerKey(string name, string group) { }
+        public int CompareTo(Quartz.TriggerKey? other) { }
         public bool Equals(Quartz.TriggerKey? other) { }
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
