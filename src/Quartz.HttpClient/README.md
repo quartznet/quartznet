@@ -34,8 +34,9 @@ Two things must line up: the base address plus the API path have to reach the en
 the client is registered with has to be the remote scheduler's own `SchedulerName` — a mismatch is a
 `404`, not a connection error. The base address must end in `/`.
 
-Listeners are not remotable; they run where jobs run. And the property members of `IScheduler`
-(`Status`, `SchedulerInstanceId`, `Context`, …) each block the calling thread for a round trip, so use
+`Context` and `ListenerManager` throw `NotSupportedException`: both are live in-process objects of the
+scheduler, and listeners run where the jobs run. The remaining property members of `IScheduler`
+(`Status`, `SchedulerInstanceId`) each block the calling thread for a round trip, so use
 `GetMetadata()` on a request path.
 
 ## Documentation

@@ -643,6 +643,19 @@ public class TriggerEndpointsTest : WebApiTest
         applied.Should().BeFalse("a no-op must not report as applied");
     }
 
+    /// <summary>
+    /// There is no endpoint behind <see cref="IScheduler.UpdateTriggerDetails" />, so the client says
+    /// so in the same words it uses for the members a remote scheduler cannot have at all.
+    /// </summary>
+    [Test]
+    public async Task UpdateTriggerDetailsIsNotSupportedRemotely()
+    {
+        Func<Task> update = async () => await HttpScheduler.UpdateTriggerDetails(triggerKeyOne, new TriggerDetailsUpdate());
+
+        (await update.Should().ThrowAsync<NotSupportedException>("the HTTP API has no endpoint for it"))
+            .WithMessage("*HttpScheduler.UpdateTriggerDetails*");
+    }
+
     private static TriggerHeader HeaderFor(TriggerKey triggerKey) => new(
         triggerKey,
         JobKey: new JobKey("job_of_" + triggerKey.Name, triggerKey.Group),
