@@ -72,6 +72,7 @@ public static class QuartzDashboardServiceCollectionExtensions
             provider.GetRequiredService<IDashboardHistoryStore>()));
         services.TryAddScoped<SchedulerState>();
         services.TryAddScoped<ToastService>();
+        services.TryAddSingleton<IDashboardLiveConnectionFactory, SignalRDashboardLiveConnectionFactory>();
         services.TryAddSingleton<IDashboardHistoryStore, DashboardHistoryStore>();
         services.TryAddSingleton<DashboardActionLogService>();
 

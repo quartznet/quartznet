@@ -9,16 +9,17 @@
 @inject SchedulerState Scheduler
 @inject IOptions<QuartzDashboardOptions> Options
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@inject IDashboardLiveConnectionFactory LiveConnections
 
 <div class="qz-page">
     <h1>Live Logs</h1>
 
     <div class="qz-toolbar">
-        @if (_hubConnection?.State == HubConnectionState.Connected)
+        @if (_connection?.State == HubConnectionState.Connected)
         {
             <span class="qz-badge qz-badge-success">● Connected</span>
         }
-        else if (_hubConnection?.State == HubConnectionState.Connecting || _hubConnection?.State == HubConnectionState.Reconnecting)
+        else if (_connection?.State == HubConnectionState.Connecting || _connection?.State == HubConnectionState.Reconnecting)
         {
             <span class="qz-badge qz-badge-warning">● Connecting…</span>
         }
@@ -101,7 +102,7 @@
     private readonly List<LiveEventItem> _events = [];
     private readonly List<LiveEventItem> _filteredEvents = [];
     private readonly HashSet<string> _selectedEventTypes = new(EventTypes, StringComparer.OrdinalIgnoreCase);
-    private HubConnection? _hubConnection;
+    private IDashboardLiveConnection? _connection;
     private string? _error;
     private string? _joinedScheduler;
     private bool _isConnecting;
@@ -147,43 +148,31 @@
 
         try
         {
-            if (_hubConnection is not null)
+            if (_connection is not null)
             {
-                await _hubConnection.DisposeAsync();
+                await _connection.DisposeAsync();
             }
 
             Uri hubUri = BuildHubUri();
             string? cookieHeader = HttpContextAccessor.HttpContext?.Request.Headers.Cookie.ToString();
 
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl(hubUri, connectionOptions =>
+            _connection = LiveConnections.Create(
+                hubUri,
+                cookieHeader,
+                stateChanged: () =>
                 {
-                    if (!string.IsNullOrWhiteSpace(cookieHeader))
-                    {
-                        connectionOptions.Headers["Cookie"] = cookieHeader;
-                    }
-                })
-                .WithAutomaticReconnect()
-                .Build();
+                    _ = InvokeAsync(StateHasChanged);
+                    return Task.CompletedTask;
+                },
+                reconnected: async () =>
+                {
+                    await JoinSchedulerAsync(Scheduler.ActiveSchedulerName);
+                    await InvokeAsync(StateHasChanged);
+                });
 
-            RegisterEventHandlers(_hubConnection);
-            _hubConnection.Reconnecting += _ex =>
-            {
-                _ = InvokeAsync(StateHasChanged);
-                return Task.CompletedTask;
-            };
-            _hubConnection.Closed += _ex =>
-            {
-                _ = InvokeAsync(StateHasChanged);
-                return Task.CompletedTask;
-            };
-            _hubConnection.Reconnected += async _ =>
-            {
-                await JoinSchedulerAsync(Scheduler.ActiveSchedulerName);
-                await InvokeAsync(StateHasChanged);
-            };
+            RegisterEventHandlers(_connection);
 
-            await _hubConnection.StartAsync();
+            await _connection.Start();
             await JoinSchedulerAsync(Scheduler.ActiveSchedulerName);
             ApplyEventTypeFilter();
             await InvokeAsync(StateHasChanged);
@@ -233,7 +222,7 @@
         {
             while (await _connectionMonitorTimer.WaitForNextTickAsync(cancellationToken))
             {
-                if (_hubConnection is null || _hubConnection.State == HubConnectionState.Disconnected)
+                if (_connection is null || _connection.State == HubConnectionState.Disconnected)
                 {
                     await ConnectAsync();
                 }
@@ -247,37 +236,37 @@
         }
     }
 
-    private void RegisterEventHandlers(HubConnection connection)
+    private void RegisterEventHandlers(IDashboardLiveConnection connection)
     {
-        connection.On<object>("JobExecuting", payload => AddEventAsync("JobExecuting", "success", payload));
-        connection.On<object>("JobExecuted", payload => AddEventAsync("JobExecuted", "success", payload));
-        connection.On<object>("TriggerFired", payload => AddEventAsync("TriggerFired", "info", payload));
-        connection.On<object>("TriggerCompleted", payload => AddEventAsync("TriggerCompleted", "success", payload));
-        connection.On<object>("TriggerMisfired", payload => AddEventAsync("TriggerMisfired", "error", payload));
-        connection.On<object>("TriggerPaused", payload => AddEventAsync("TriggerPaused", "info", payload));
-        connection.On<object>("TriggerResumed", payload => AddEventAsync("TriggerResumed", "success", payload));
-        connection.On<object>("JobPaused", payload => AddEventAsync("JobPaused", "info", payload));
-        connection.On<object>("JobResumed", payload => AddEventAsync("JobResumed", "success", payload));
-        connection.On<object>("SchedulerStateChanged", payload => AddEventAsync("SchedulerStateChanged", "info", payload));
-        connection.On<object>("SchedulerError", payload => AddEventAsync("SchedulerError", "error", payload));
+        connection.On("JobExecuting", payload => AddEventAsync("JobExecuting", "success", payload));
+        connection.On("JobExecuted", payload => AddEventAsync("JobExecuted", "success", payload));
+        connection.On("TriggerFired", payload => AddEventAsync("TriggerFired", "info", payload));
+        connection.On("TriggerCompleted", payload => AddEventAsync("TriggerCompleted", "success", payload));
+        connection.On("TriggerMisfired", payload => AddEventAsync("TriggerMisfired", "error", payload));
+        connection.On("TriggerPaused", payload => AddEventAsync("TriggerPaused", "info", payload));
+        connection.On("TriggerResumed", payload => AddEventAsync("TriggerResumed", "success", payload));
+        connection.On("JobPaused", payload => AddEventAsync("JobPaused", "info", payload));
+        connection.On("JobResumed", payload => AddEventAsync("JobResumed", "success", payload));
+        connection.On("SchedulerStateChanged", payload => AddEventAsync("SchedulerStateChanged", "info", payload));
+        connection.On("SchedulerError", payload => AddEventAsync("SchedulerError", "error", payload));
     }
 
     private async Task JoinSchedulerAsync(string? schedulerName)
     {
-        if (_hubConnection is null || _hubConnection.State != HubConnectionState.Connected)
+        if (_connection is null || _connection.State != HubConnectionState.Connected)
         {
             return;
         }
 
         if (!string.IsNullOrWhiteSpace(_joinedScheduler))
         {
-            await _hubConnection.InvokeAsync("LeaveScheduler", _joinedScheduler);
+            await _connection.Invoke("LeaveScheduler", _joinedScheduler);
             _joinedScheduler = null;
         }
 
         if (!string.IsNullOrWhiteSpace(schedulerName))
         {
-            await _hubConnection.InvokeAsync("JoinScheduler", schedulerName);
+            await _connection.Invoke("JoinScheduler", schedulerName);
             _joinedScheduler = schedulerName;
         }
     }
@@ -374,9 +363,9 @@
         _connectionMonitorCancellation?.Dispose();
         _connectionMonitorTimer?.Dispose();
 
-        if (_hubConnection is not null)
+        if (_connection is not null)
         {
-            await _hubConnection.DisposeAsync();
+            await _connection.DisposeAsync();
         }
     }
 
