@@ -2952,7 +2952,11 @@ described below.
 The accessor set also grew: `GetDateOnly`/`TryGetDateOnly`, `GetTimeOnly`/`TryGetTimeOnly`,
 `GetEnum<TEnum>`/`TryGetEnum<TEnum>` (an enum written through `PutAsString` stores its name, and
 the reader also accepts the underlying number a JSON round trip can produce), and a generic
-`TryGet<T>` that is a pure type test over the stored object — no string parsing.
+`TryGet<T>` that is a pure type test over the stored object — no string parsing. `Get<T>` is
+the same test said as a question with one answer — it throws a `KeyNotFoundException` naming the key
+when there is no entry, and an `InvalidCastException` naming the key, the stored type and the
+requested one when there is one of the wrong type — and `GetValueOrDefault<T>(key, defaultValue)` is
+the same test with a fallback.
 
 ### `PutAsString` writes round-trip formats now
 
