@@ -17,6 +17,9 @@
  */
 #endregion
 
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
 
@@ -110,6 +113,17 @@ internal sealed class QuartzSchedulerResources
     /// is about to stop having.
     /// </remarks>
     public SchedulerLogScope LogScope => logScope ??= new SchedulerLogScope(name, instanceId);
+
+    /// <summary>
+    /// The factory the scheduler's own parts create their loggers from.
+    /// </summary>
+    /// <remarks>
+    /// The container path replaces this with the factory the application configured, which is what makes
+    /// the scheduling loop, the signaler and the error listener log in an application that never touched
+    /// <see cref="LogProvider" />. A scheduler assembled by hand — in a test, in a benchmark — keeps the
+    /// null factory, so constructing one still logs nowhere until it is given somewhere to log.
+    /// </remarks>
+    public ILoggerFactory LoggerFactory { get; set; } = NullLoggerFactory.Instance;
 
     /// <summary>
     /// Get or set the <see cref="ThreadPool" /> for the <see cref="QuartzScheduler" />

@@ -24,7 +24,6 @@
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using Quartz.Diagnostics;
 using Quartz.Impl.Triggers;
 using Quartz.Impl;
 using Quartz.Extensibility;
@@ -124,7 +123,7 @@ internal sealed class QuartzScheduler
     /// never construct one: two facades over one scheduler would compare unequal, and a listener that
     /// remembers the scheduler it was told about would remember a different object each time.
     /// </remarks>
-    public IScheduler Scheduler { get; } = null!;
+    public IScheduler Scheduler { get; }
 
     /// <summary>
     /// Returns the name of the <see cref="QuartzScheduler" />.
@@ -266,17 +265,21 @@ internal sealed class QuartzScheduler
         this.resources = resources;
         this.timeProvider = timeProvider;
 
-        logger = LogProvider.CreateLogger<QuartzScheduler>();
+        // Everything below is handed a logger from the same factory, which the container fills in when
+        // it builds the resources. Nothing here reads the ambient LogProvider any more: an application
+        // that configured logging and never heard of that static still sees the scheduler's own lines.
+        ILoggerFactory loggerFactory = resources.LoggerFactory;
+        logger = loggerFactory.CreateLogger<QuartzScheduler>();
 
         // The thread is created here but not started: constructing a scheduler must not have the side
         // effect of starting a thread, since the container constructs it. Start does that instead.
         schedThread = new QuartzSchedulerThread(this, resources);
 
         jobMgr = new ExecutingJobsManager();
-        var errLogger = new ErrorLogger();
+        var errLogger = new ErrorLogger(loggerFactory.CreateLogger<ErrorLogger>());
         AddInternalSchedulerListener(errLogger);
 
-        SchedulerSignaler = new SchedulerSignalerImpl(this, schedThread);
+        SchedulerSignaler = new SchedulerSignalerImpl(this, schedThread, loggerFactory.CreateLogger<SchedulerSignalerImpl>());
         Scheduler = new StdScheduler(this);
 
         logger.LogInformation("Quartz Scheduler created");

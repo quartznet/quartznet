@@ -19,7 +19,6 @@
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Diagnostics;
 using Quartz.Extensibility;
 
 namespace Quartz.Core;
@@ -32,14 +31,18 @@ namespace Quartz.Core;
 /// <author>Marko Lahma (.NET)</author>
 internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
 {
-    private readonly ILogger<SchedulerSignalerImpl> logger = LogProvider.CreateLogger<SchedulerSignalerImpl>();
+    private readonly ILogger<SchedulerSignalerImpl> logger;
     private readonly QuartzScheduler scheduler;
     private readonly QuartzSchedulerThread schedThread;
 
-    public SchedulerSignalerImpl(QuartzScheduler scheduler, QuartzSchedulerThread schedThread)
+    public SchedulerSignalerImpl(
+        QuartzScheduler scheduler,
+        QuartzSchedulerThread schedThread,
+        ILogger<SchedulerSignalerImpl> logger)
     {
         this.scheduler = scheduler;
         this.schedThread = schedThread;
+        this.logger = logger;
 
         logger.LogInformation("Initialized Scheduler Signaller of type: {Type}", GetType());
     }
