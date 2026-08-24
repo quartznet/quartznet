@@ -281,10 +281,12 @@ triggers *without* taking the cluster's `TRIGGER_ACCESS` lock (`AcquireTriggersW
 > cluster-wide for *every* group rather than only the limited ones.
 
 One trigger per node is the whole of the overshoot, because the lock-free path only exists at an
-effective batch of one: the store takes `TRIGGER_ACCESS` whenever it is asked for more than one trigger,
-and a round asks for `min(available threads, MaxBatchSize)`. Raising `MaxBatchSize` therefore does not
-widen the overshoot — it removes it, by taking the lock on every round that has threads to spare, which
-is the same trade `AcquireTriggersWithinLock` makes deliberately.
+*effective* batch of one: the store takes `TRIGGER_ACCESS` whenever it is asked for more than one
+trigger, and a round asks for `min(available threads, MaxBatchSize)`. Raising `MaxBatchSize` therefore
+does not widen the overshoot — it removes it for every round with more than one thread free, by taking
+that lock, which is the same trade `AcquireTriggersWithinLock` makes deliberately. A node down to its
+last free thread still acquires lock-free whatever `MaxBatchSize` says, which is why the bound is
+stated per node rather than per batch.
 
 That is a real improvement on `limit × nodes`, and it is what a tenant quota actually needs: "8,
 occasionally 9 for a moment" is fine, "8 became 24" is not. If you need exactness more than you need
@@ -331,10 +333,10 @@ than a container's. Two things came out of it:
   acquisition attempt's own candidate select, and 1,311 µs (± 34) on SQL Server against 2,992 µs (± 68).
   The two databases differ because their candidate selects do; the aggregate costs much the same on
   both, and much the same at a thousand rows as at ten — which is to say the round trip is the whole of
-  it. So the ceiling's price at `MaxBatchSize = 1` — the default, and the only setting at which the
-  ceiling is approximate at all — is *one extra round trip*, not one extra scan. Raising `MaxBatchSize`
-  amortises that round trip over the whole batch, and makes the ceiling exact into the bargain, since a
-  batched acquisition takes the cluster lock; what it costs instead is that lock's traffic.
+  it. So the ceiling's price at `MaxBatchSize = 1` — the default — is *one extra round trip*, not one
+  extra scan. Raising `MaxBatchSize` amortises that round trip over the whole batch, and takes the
+  cluster lock while doing it, so what it buys in throughput it pays for in lock traffic — and gets
+  an exact ceiling on those rounds as change.
 - **Above that the scan starts to show.** At ten thousand rows and sixty-four groups the aggregate took
   2,723 µs (± 116) on PostgreSQL and 7,821 µs (± 167) on SQL Server. `QRTZ_FIRED_TRIGGERS` holds one row
   per reservation or running execution, so ten thousand is past what a realistic cluster's thread pools
