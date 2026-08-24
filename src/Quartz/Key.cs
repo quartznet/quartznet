@@ -32,7 +32,7 @@ namespace Quartz;
 // rule guards against does not arise: Equals demands exact runtime-type equality, so no derived
 // key ever compares equal across types, and the sealed leaves define consistent typed overloads.
 #pragma warning disable S4035
-public class Key<T> : IComparable<Key<T>>, IEquatable<Key<T>>
+public class Key<T> : IComparable<Key<T>>, IComparable, IEquatable<Key<T>>
 #pragma warning restore S4035
 {
     /// <summary>
@@ -165,6 +165,10 @@ public class Key<T> : IComparable<Key<T>>, IEquatable<Key<T>>
         return true;
     }
 
+    /// <summary>
+    /// Orders keys by group and then name, ordinally, with <see cref="DefaultGroup" /> sorting before
+    /// every other group.
+    /// </summary>
     public int CompareTo(Key<T>? other)
     {
         if (other is null)
@@ -193,6 +197,26 @@ public class Key<T> : IComparable<Key<T>>, IEquatable<Key<T>>
         }
 
         return ReferenceEquals(name, other.name) ? 0 : StringComparer.Ordinal.Compare(name, other.name);
+    }
+
+    /// <summary>
+    /// The non-generic comparison, so that a key reaches the sorting machinery that asks for
+    /// <see cref="IComparable" /> rather than <see cref="IComparable{T}" />.
+    /// </summary>
+    /// <exception cref="ArgumentException"><paramref name="obj" /> is not a key of this kind.</exception>
+    int IComparable.CompareTo(object? obj)
+    {
+        if (obj is null)
+        {
+            return 1;
+        }
+
+        if (obj is not Key<T> other)
+        {
+            return Throw.ArgumentException<int>($"Object must be of type {typeof(Key<T>)}.", nameof(obj));
+        }
+
+        return CompareTo(other);
     }
 
     public static bool operator ==(Key<T>? left, Key<T>? right)

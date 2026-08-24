@@ -38,7 +38,7 @@ namespace Quartz;
 /// <seealso cref="ITrigger" />
 /// <seealso cref="Key{T}.DefaultGroup" />
 [Serializable]
-public sealed class TriggerKey : Key<TriggerKey>, IEquatable<TriggerKey>, IParsable<TriggerKey>
+public sealed class TriggerKey : Key<TriggerKey>, IComparable<TriggerKey>, IEquatable<TriggerKey>, IParsable<TriggerKey>
 {
     public TriggerKey(string name) : base(name)
     {
@@ -57,6 +57,18 @@ public sealed class TriggerKey : Key<TriggerKey>, IEquatable<TriggerKey>, IParsa
     public override bool Equals(object? obj)
     {
         return Equals(obj as TriggerKey);
+    }
+
+    /// <inheritdoc cref="Key{T}.CompareTo(Key{T})" />
+    /// <remarks>
+    /// Declared here as well as on the base so that <see cref="Comparer{T}.Default" /> finds a
+    /// comparison of <em>this</em> type: the inherited one is over <c>Key&lt;TriggerKey&gt;</c>, which
+    /// the default comparer does not recognise, and without this <c>List&lt;TriggerKey&gt;.Sort()</c>,
+    /// <c>OrderBy(k =&gt; k)</c> and <see cref="SortedSet{T}" /> throw at runtime while compiling fine.
+    /// </remarks>
+    public int CompareTo(TriggerKey? other)
+    {
+        return base.CompareTo(other);
     }
 
     /// <inheritdoc />
