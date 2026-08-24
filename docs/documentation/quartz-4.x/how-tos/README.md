@@ -14,6 +14,7 @@ Short, task-shaped recipes. Each page answers one question; the
 * [Rescheduling Jobs](rescheduling-jobs.md) — change a live schedule, retry a firing, recover a failed trigger
 * [Multiple Triggers](multiple-triggers.md) — drive one job from several triggers, and give each its own data
 * [Job Template](job-template.md) — the recommended skeleton for a job class
+* [Running Quartz under Aspire](aspire.md) — telemetry, health and the database, wired to an AppHost
 
 Extending Quartz — the four seams the `Quartz.Impl.AdoJobStore` types exist for:
 

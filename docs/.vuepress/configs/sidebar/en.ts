@@ -142,6 +142,7 @@ export const sidebarEn: SidebarConfig = [
               "/documentation/quartz-4.x/how-tos/rescheduling-jobs",
               "/documentation/quartz-4.x/how-tos/multiple-triggers",
               "/documentation/quartz-4.x/how-tos/job-template",
+              "/documentation/quartz-4.x/how-tos/aspire",
               "/documentation/quartz-4.x/how-tos/custom-job-store",
               "/documentation/quartz-4.x/how-tos/dialect-delegate",
               "/documentation/quartz-4.x/how-tos/trigger-persistence-delegate",
