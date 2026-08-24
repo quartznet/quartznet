@@ -103,9 +103,8 @@ internal sealed class JobRunShell
         // a no-op firing takes — 14%, for a firing that does no work at all. The scheduler thread opens
         // the scope once for the lifetime of its loop instead, and the thread pools Quartz ships dispatch
         // through a Task that captures the execution context, so a job inherits it from there at no
-        // per-firing cost. What that does not cover is an application that has never called
-        // LogProvider.SetLogProvider — the loop logs to NullLogger, whose scope is a no-op — or an
-        // IThreadPool of somebody else's that does not flow the context.
+        // per-firing cost. What that does not cover is an IThreadPool of somebody else's that does not
+        // flow the context.
 
         // Create the job here (moved from Initialize) so that AsyncLocal values
         // set during IJobFactory.CreateJob flow correctly to IJob.Execute (#1528)

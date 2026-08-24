@@ -22,9 +22,10 @@ namespace Quartz.Tests.Unit.Diagnostics;
 /// <c>BeginScope</c> per firing costs an <see cref="AsyncLocal{T}" /> write, which copies the execution
 /// context, and measured at 240 bytes and 14% of a no-op firing. A job inherits the loop's scope through
 /// the execution context the thread pool's dispatch captures, which costs nothing per firing — and
-/// reaches the job only when the loop's own logging goes somewhere, which means when the application has
-/// called <see cref="LogProvider.SetLogProvider" />. That is pinned below, so the day the loop is handed
-/// an injected logger instead, this is what says the reach came with it.
+/// reaches the job only when the loop's own logging goes somewhere. The loop takes its logger from the
+/// scheduler's resources, which the container fills in, so that is an application that configured
+/// logging and nothing more: no test here calls <see cref="LogProvider.SetLogProvider" />, and the day
+/// the loop goes back to reading a static these stop passing.
 /// </remarks>
 public sealed class SchedulerLogScopeTest
 {
@@ -47,25 +48,18 @@ public sealed class SchedulerLogScopeTest
 
         await using ServiceProvider provider = services.BuildServiceProvider();
 
-        // The scheduler thread logs through the ambient factory, so this is what makes its scope real
-        // rather than NullLogger's no-op — and the scope is what the dispatch then carries to the job.
-        LogProvider.SetLogProvider(provider.GetRequiredService<ILoggerFactory>());
+        // Nothing sets the ambient factory. The scheduler thread is injected the container's, which is
+        // what makes its scope real rather than NullLogger's no-op — and the scope is what the dispatch
+        // then carries to the job.
+        IScheduler scheduler = await provider.GetRequiredKeyedService<ISchedulerFactory>("acme").GetScheduler();
+        await scheduler.Start();
         try
         {
-            IScheduler scheduler = await provider.GetRequiredKeyedService<ISchedulerFactory>("acme").GetScheduler();
-            await scheduler.Start();
-            try
-            {
-                await fired.Task.WaitAsync(observationDeadline);
-            }
-            finally
-            {
-                await scheduler.Shutdown(waitForJobsToComplete: true);
-            }
+            await fired.Task.WaitAsync(observationDeadline);
         }
         finally
         {
-            LogProvider.SetLogProvider(NullLoggerFactory.Instance);
+            await scheduler.Shutdown(waitForJobsToComplete: true);
         }
 
         CapturedEntry entry = recorder.Entries
@@ -87,11 +81,6 @@ public sealed class SchedulerLogScopeTest
         using ILoggerFactory factory = new LoggerFactory();
         factory.AddProvider(recorder);
 
-        // The scheduler thread logs through the ambient factory rather than an injected logger, so this
-        // is what makes its lines observable at all — the same reason an application that wants to see
-        // them calls it.
-        LogProvider.SetLogProvider(factory);
-
         FaultInjectingJobStore store = new();
         await store.Initialize(TestJobStores.Identity());
 
@@ -104,6 +93,10 @@ public sealed class SchedulerLogScopeTest
             JobStore = store,
             ThreadPool = new DefaultThreadPool { MaxConcurrency = 1 },
             JobRunShellFactory = new StdJobRunShellFactory(NullLogger<JobRunShell>.Instance),
+
+            // What the container hands the resources. The loop takes its logger from here rather than
+            // from the ambient factory, which is what makes its lines observable without a static call.
+            LoggerFactory = factory,
         };
 
         await resources.ThreadPool.Initialize();
@@ -136,7 +129,6 @@ public sealed class SchedulerLogScopeTest
             await thread.Halt(wait: true);
             await thread.Shutdown();
             await store.Shutdown();
-            LogProvider.SetLogProvider(NullLoggerFactory.Instance);
         }
     }
 

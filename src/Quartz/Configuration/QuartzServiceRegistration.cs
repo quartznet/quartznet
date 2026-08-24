@@ -4,6 +4,7 @@ using System.Diagnostics.Metrics;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Core;
@@ -198,6 +199,7 @@ internal static class QuartzServiceRegistration
                 BatchTimeWindow = options.BatchTriggerAcquisitionFireAheadTimeWindow,
                 ShutdownJobInterruption = options.ShutdownJobInterruption,
                 TimeProvider = provider.GetSchedulerTimeProvider(key),
+                LoggerFactory = provider.GetSchedulerLoggerFactory(),
                 Meters = provider.GetRequiredService<Meters>(),
                 ThreadPool = provider.GetScheduler<IThreadPool>(key),
                 JobStore = provider.GetScheduler<IJobStore>(key),
@@ -298,6 +300,21 @@ internal static class QuartzServiceRegistration
     internal static IEnumerable<T> GetSchedulerServices<T>(this IServiceProvider provider, object? key)
     {
         return key is null ? provider.GetServices<T>() : provider.GetKeyedServices<T>(key);
+    }
+
+    /// <summary>
+    /// Resolves the factory a scheduler's own parts create their loggers from.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="AddQuartzSharedServices" /> calls <c>AddLogging()</c>, so this is the application's
+    /// factory in every container Quartz assembles. The fallback is for a container put together by
+    /// hand that has none: logging through <see cref="LogProvider" /> is what those components did
+    /// before they were injected a factory at all, so it is what they keep doing rather than falling
+    /// silent.
+    /// </remarks>
+    internal static ILoggerFactory GetSchedulerLoggerFactory(this IServiceProvider provider)
+    {
+        return provider.GetService<ILoggerFactory>() ?? LogProviderLoggerFactory.Instance;
     }
 
     /// <summary>

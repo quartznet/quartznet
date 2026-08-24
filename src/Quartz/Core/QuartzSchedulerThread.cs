@@ -24,7 +24,6 @@ using System.Data.Common;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Diagnostics;
 using Quartz.Extensibility;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -128,7 +127,10 @@ internal sealed class QuartzSchedulerThread
     /// <param name="qsRsrcs">The resources.</param>
     internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs)
     {
-        this.logger = LogProvider.CreateLogger<QuartzSchedulerThread>();
+        // From the resources rather than from the ambient factory: the loop is built by the container
+        // along with everything else, and its acquisition failures are the log lines an application most
+        // needs without having had to opt into them.
+        this.logger = qsRsrcs.LoggerFactory.CreateLogger<QuartzSchedulerThread>();
         this.qs = qs;
         this.qsRsrcs = qsRsrcs;
         idleWaitVariableness = (int) (qsRsrcs.IdleWaitTime.TotalMilliseconds * 0.2);

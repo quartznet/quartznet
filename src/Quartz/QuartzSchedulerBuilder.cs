@@ -3,9 +3,12 @@ using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
+using Quartz.Diagnostics;
 using Quartz.Extensibility;
 
 namespace Quartz;
@@ -164,6 +167,8 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     {
         ApplyProperties();
 
+        BridgeLoggingToLogProvider();
+
         // Defaults last, so anything configured above replaces rather than loses to them.
         services.AddQuartzScheduler();
 
@@ -255,6 +260,35 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         }
 
         QuartzPropertyBridge.ApplyRegistrations(services, configured);
+    }
+
+    /// <summary>
+    /// Points this container's logging at <see cref="LogProvider" /> when the caller configured none of
+    /// its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Everything Quartz builds is injected an <see cref="ILogger" /> from the container. That is what a
+    /// host is for, and a host's container has the application's logging providers in it. This container
+    /// is one the builder created, and a standalone application says where its logging goes by calling
+    /// <see cref="LogProvider.SetLogProvider" /> — so without this, every injected logger here would be
+    /// a real logger writing to a factory with nothing behind it.
+    /// </para>
+    /// <para>
+    /// Skipped as soon as a logging provider has been registered on <see cref="Services" />, because
+    /// then the caller has said where logging goes and the container's own factory is the answer.
+    /// </para>
+    /// </remarks>
+    private void BridgeLoggingToLogProvider()
+    {
+        if (services.Any(static descriptor => descriptor.ServiceType == typeof(ILoggerProvider)))
+        {
+            return;
+        }
+
+        // Replace rather than TryAdd: a caller who called AddLogging() without adding a provider has
+        // already registered the factory this stands in for.
+        services.Replace(ServiceDescriptor.Singleton<ILoggerFactory>(LogProviderLoggerFactory.Instance));
     }
 
     /// <inheritdoc cref="IQuartzBuilder.ConfigureScheduler" />
