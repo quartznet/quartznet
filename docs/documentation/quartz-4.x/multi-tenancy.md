@@ -189,7 +189,8 @@ A listener and a plugin are both "registered per scheduler", and they treat a pl
 
 The asymmetry is the difference between a listener, which is told which scheduler it is hearing from on
 every callback, and a plugin, which is *bound* to one when it is initialized. So several schedulers
-cannot share a plugin instance; each needs its own.
+cannot share a plugin instance; each needs its own, and
+[`ConfigureAllQuartzSchedulers`](#giving-every-scheduler-the-same-thing) is how to ask for that once.
 :::
 
 Options are **named options** whose name is the scheduler's name, and the container rewrites
@@ -273,6 +274,41 @@ initialization overwrites the first.
 
 To give a named scheduler a plugin instance you built yourself, register it under that scheduler —
 `q.AddPlugin<T>(provider => …)` — rather than unkeyed on `IServiceCollection`.
+
+### Giving every scheduler the same thing
+
+Writing the same three lines inside every `AddQuartz(tenant, …)` is what a `foreach` over the tenants
+saves you, right up until the tenants come from configuration and the loop is not yours to write.
+`ConfigureAllQuartzSchedulers` applies one configuration callback to every scheduler in the container:
+
+<!-- TODO(tenancy-configure-all): a compiled sample once the API lands; see the pull request that adds it. -->
+```csharp
+builder.Services.AddQuartz("acme", q => q.UsePersistentStore(s => s.UseSqlServer(acme)));
+builder.Services.AddQuartzSchedulers(builder.Configuration.GetSection("Quartz"));
+
+// Every scheduler above, and every scheduler registered after this line
+builder.Services.ConfigureAllQuartzSchedulers(q =>
+{
+    q.AddPlugin<TenantAuditPlugin>();
+    q.AddJobListener<AuditListener>();
+});
+```
+
+Four things it promises:
+
+- **Order does not matter.** Schedulers already registered get the callback immediately; schedulers
+  registered later get it after their own configure callback has run, so a scheduler's own
+  configuration is what a shared callback refines rather than the other way round.
+- **Every scheduler gets its own instance of whatever the callback adds.** A plugin added this way to
+  three schedulers is three plugin instances, each initialized with the name of the scheduler it
+  extends — which is exactly what a plugin registered unkeyed cannot be.
+- **It reaches `AddQuartz()`, `AddQuartz(name, …)` and `AddQuartzSchedulers(…)` alike**, because all
+  three register a builder.
+- **Remote schedulers are skipped.** A scheduler from `AddQuartzHttpClient` lives in another process;
+  there is no builder here to configure, and nothing this callback adds could reach it.
+
+It is the options pattern's `ConfigureAll` for schedulers, and it is how `AddQuartzDashboard` gives
+every scheduler the dashboard's own plugins rather than only the default one.
 
 ### What is not
 

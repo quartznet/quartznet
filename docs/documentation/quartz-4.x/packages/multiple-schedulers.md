@@ -287,6 +287,16 @@ builder.Services.AddQuartzHostedService("DurableScheduler", options =>
 ```
 <!-- endSnippet -->
 
+## Configuring every scheduler at once
+
+`AddQuartzHostedService(configure)` is not the only call that means "all of them".
+`ConfigureAllQuartzSchedulers(configure)` applies a builder callback to every scheduler registered
+through `AddQuartz`, `AddQuartz(name, …)` or `AddQuartzSchedulers` — whether it was registered before
+the call or after it — and each scheduler gets its own instance of whatever the callback adds, so a
+plugin added this way to three schedulers is three plugin instances. Remote schedulers from
+`AddQuartzHttpClient` have no builder and are skipped. See
+[Multi-Tenancy](../multi-tenancy.md#giving-every-scheduler-the-same-thing).
+
 ## Limitations
 
 - **Scheduler names must be unique** — each call to `AddQuartz(name, ...)` must use a distinct name,
