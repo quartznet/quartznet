@@ -74,6 +74,6 @@
   </ItemGroup>
   <ItemGroup>
     <GlobalPackageReference Include="GitHubActionsTestLogger" Version="3.0.5" />
-    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.170" />
+    <GlobalPackageReference Include="Meziantou.Analyzer" Version="3.0.177" />
   </ItemGroup>
 </Project>
