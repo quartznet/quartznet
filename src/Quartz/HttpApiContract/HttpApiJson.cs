@@ -19,8 +19,10 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 using Quartz.Serialization.SystemTextJson;
 
@@ -34,7 +36,8 @@ internal static class HttpApiJson
 {
     /// <summary>
     /// Teaches <paramref name="options" /> the wire contract: Quartz's trigger, calendar, key and
-    /// job-data-map converters, plus the contract's enums as their names.
+    /// job-data-map converters, the contract's enums as their names, and the generated metadata for the
+    /// contract's own shapes.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -49,6 +52,14 @@ internal static class HttpApiJson
     /// application: a host's own endpoints must keep rendering their own enums the way they always did.
     /// The typed form is also the trimming- and AOT-safe one.
     /// </para>
+    /// <para>
+    /// <see cref="HttpApiJsonContext" /> goes in front of whatever resolver the options already had, so
+    /// a contract type is answered from generated metadata and everything else — the host's own bodies
+    /// on the server, the values inside a <see cref="JobDataMap" /> everywhere — still reaches the
+    /// resolver behind it. Converters registered above win over both: generated metadata for a type the
+    /// options carry a converter for is metadata that defers to that converter, which is what keeps an
+    /// <see cref="ITrigger" /> going through <c>TriggerConverter</c> either way.
+    /// </para>
     /// </remarks>
     public static JsonSerializerOptions ConfigureWireFormat(
         this JsonSerializerOptions options,
@@ -59,6 +70,58 @@ internal static class HttpApiJson
         options.Converters.Add(new JsonStringEnumConverter<SchedulerStatus>());
         options.Converters.Add(new JsonStringEnumConverter<FireInstanceState>());
         options.Converters.Add(new JsonStringEnumConverter<ExecutionLimitScope>());
+
+        // Asking twice must leave the chain as asking once does: on the server these options belong to
+        // the whole container, and every AddQuartzHttpApi call wants the same contract in front of it.
+        IList<IJsonTypeInfoResolver> resolvers = options.TypeInfoResolverChain;
+        if (!resolvers.Contains(HttpApiJsonContext.Default))
+        {
+            if (resolvers.Count == 0)
+            {
+                // Options carrying no resolver of their own fall back to reflection lazily, but only for
+                // as long as the chain stays empty - and putting the contract in it ends that. So the
+                // fallback has to be named here, or the values inside a JobDataMap, whose types the
+                // contract cannot know, would stop resolving at all.
+                DefaultJsonTypeInfoResolver? reflection = ReflectionResolver();
+                if (reflection is not null)
+                {
+                    resolvers.Add(reflection);
+                }
+            }
+
+            resolvers.Insert(0, HttpApiJsonContext.Default);
+        }
+
         return options;
+    }
+
+    /// <summary>
+    /// The reflection-based resolver the wire's open half needs, or <see langword="null" /> where
+    /// reflection-based serialization is switched off.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The chain has to end in reflection because the contract does: a <see cref="JobDataMap" /> holds
+    /// whatever the application put in it, and no generated metadata can describe that. The same guard
+    /// <c>Microsoft.AspNetCore.Http.Json.JsonOptions</c> builds its own default resolver behind is what
+    /// makes naming <see cref="DefaultJsonTypeInfoResolver" /> here safe: a trimmed publish sets
+    /// <c>System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault</c> to false — the SDK does it by
+    /// default, as the trim canary's runtimeconfig shows — so the trimmer substitutes the property,
+    /// drops this branch and never sees the resolver. What such an application is left with is the
+    /// generated contract, which is more than it had: options carrying no resolver at all threw on the
+    /// first body either way.
+    /// </para>
+    /// <para>
+    /// The suppression therefore hides nothing an application is not told. The reflection it silences is
+    /// already reported against
+    /// <c>Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions</c>, which every caller of this
+    /// method reaches through <c>JobDataMapConverter</c>, and which is deliberately not suppressed for
+    /// consumers.
+    /// </para>
+    /// </remarks>
+    [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Guarded by IsReflectionEnabledByDefault, which a trimmed publish substitutes away along with this branch. See the remarks.")]
+    private static DefaultJsonTypeInfoResolver? ReflectionResolver()
+    {
+        return JsonSerializer.IsReflectionEnabledByDefault ? new DefaultJsonTypeInfoResolver() : null;
     }
 }
