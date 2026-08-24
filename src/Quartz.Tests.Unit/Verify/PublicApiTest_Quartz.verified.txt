@@ -1079,6 +1079,8 @@ namespace Quartz
         public ObjectAlreadyExistsException(Quartz.IJobDetail offendingJob) { }
         public ObjectAlreadyExistsException(Quartz.ITrigger offendingTrigger) { }
         public ObjectAlreadyExistsException(string message) { }
+        public Quartz.JobKey? JobKey { get; }
+        public Quartz.TriggerKey? TriggerKey { get; }
     }
     public sealed class OrMatcher<TKey> : Quartz.IMatcher<TKey>
         where TKey : Quartz.Key<TKey>
