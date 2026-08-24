@@ -572,8 +572,9 @@ on whether the *container* knows the job type.
   `TryAddScoped`, so the job is resolved as an ordinary scoped service and its constructor dependencies
   are resolved **unkeyed**. A job on scheduler `acme` that injects `ISchedulerFactory`, `IJobStore`,
   `IThreadPool` or `IOptions<QuartzSchedulerOptions>` therefore gets the *default* scheduler's — and in
-  a container holding only named schedulers there is no unkeyed registration to get, so it fails
-  container validation instead.
+  a container holding only named schedulers there is no unkeyed registration to get, so the job cannot
+  be constructed at all: reported when the container is validated, or at the first fire in a container
+  that does not validate.
 - **A job type the container does not hold is activated by the job factory**, through the
   scheduler-scoped provider, and its dependencies resolve to *its own* scheduler's parts. This is the
   case for a job named only by an XML or JSON schedule, and for one whose registration
