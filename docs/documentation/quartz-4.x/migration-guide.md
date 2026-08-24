@@ -906,15 +906,23 @@ interface implementation. So the chain keeps its concrete type and reaches `Buil
 works; a `var` local now holds the concrete type, which is strictly more useful.
 
 The `IQuartzBuilder` **extension** methods — `AddJob`, `AddTrigger`, `ScheduleJob`, `AddCalendar`,
-`UseSimpleTypeLoader` — still return `IQuartzBuilder`, because an extension method cannot be covariant
-in its receiver. Put them at the end of a chain, or in a statement of their own:
+`AddJobType`, `ConfigureJobScope`, `UseSimpleTypeLoader` — are mirrored on `QuartzSchedulerBuilder` as
+instance methods returning `QuartzSchedulerBuilder`, so they chain too:
 
 ```csharp
-var builder = QuartzSchedulerBuilder.Create().UseDefaultThreadPool(maxConcurrency: 20);
-builder.AddJob<ReportJob>(j => j.WithIdentity("report"));
-
-var scheduler = await builder.BuildScheduler();
+var scheduler = await QuartzSchedulerBuilder.Create()
+    .UseDefaultThreadPool(maxConcurrency: 20)
+    .UseInMemoryStore()
+    .AddJob<ReportJob>(j => j.WithIdentity("report").StoreDurably())
+    .AddTrigger(t => t.ForJob("report").WithCronSchedule("0 0 2 * * ?"))
+    .BuildScheduler();
 ```
+
+An extension method cannot be covariant in its receiver, and making it generic in the receiver is not
+open to us either: `AddJob<MyJob>(…)` names one type argument, and C# has no partial type-argument
+inference, so neither `AddJob<TBuilder, TJob>` nor an `extension<TBuilder>` block can be called that
+way. The mirrors are how the chain keeps its type; an extension of your own over `IQuartzBuilder`
+behaves as before, and goes in a statement of its own.
 
 ### `Build()` returns something you can dispose
 
