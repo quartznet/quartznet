@@ -98,6 +98,49 @@ public sealed class SQLiteJobStoreContractTest : JobStoreContractTest
         return default;
     }
 
+    [Test]
+    public async Task AcquisitionExcludesRequestedJobTypes()
+    {
+        IJobDetail includedJob = JobBuilder.Create<JobStoreContractTest.ContractTestJob>()
+            .WithIdentity("included", "jobs")
+            .Build();
+        IJobDetail excludedJob = JobBuilder.Create<ExcludedContractTestJob>()
+            .WithIdentity("excluded", "jobs")
+            .Build();
+
+        IOperableTrigger includedTrigger = CreateDueTrigger("included", includedJob.Key);
+        IOperableTrigger excludedTrigger = CreateDueTrigger("excluded", excludedJob.Key);
+        await Store.ScheduleJob(includedJob, includedTrigger);
+        await Store.ScheduleJob(excludedJob, excludedTrigger);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = TimeProvider.System.GetUtcNow().AddMinutes(1),
+            MaxCount = 5,
+            TimeWindow = TimeSpan.FromMinutes(1),
+            ExcludedJobTypeNames = [excludedJob.JobType.FullName]
+        });
+
+        acquired.Select(x => x.Key).Should().Equal([includedTrigger.Key]);
+    }
+
+    private static IOperableTrigger CreateDueTrigger(string name, JobKey jobKey)
+    {
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(name, "triggers")
+            .ForJob(jobKey)
+            .StartAt(TimeProvider.System.GetUtcNow().AddSeconds(5))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        return trigger;
+    }
+
+    public sealed class ExcludedContractTestJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
     private static string LoadSqliteTableScript()
     {
         string path = File.Exists("../../../../database/tables/tables_sqlite.sql")

@@ -59,9 +59,9 @@ public class MySQLDelegate : StdAdoDelegate
     /// Gets the select next trigger to acquire SQL clause.
     /// MySQL version with LIMIT support and a FORCE INDEX hint pointing at IDX_*_T_NFT_ST.
     /// </summary>
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
     {
-        return StdAdoConstants.SqlSelectNextTriggerToAcquire
+        return base.GetSelectNextTriggerToAcquireSql(maxCount, excludedJobTypeBucket)
             .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)")
             + " LIMIT " + maxCount;
     }

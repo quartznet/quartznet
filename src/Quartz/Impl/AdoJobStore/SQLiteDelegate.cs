@@ -55,9 +55,9 @@ public class SQLiteDelegate : StdAdoDelegate
     /// SQLite version with LIMIT support.
     /// </summary>
     /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
     {
-        return StdAdoConstants.SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
+        return base.GetSelectNextTriggerToAcquireSql(maxCount, excludedJobTypeBucket) + " LIMIT " + maxCount;
     }
 
     protected override string GetSelectMisfiredTriggersToRecoverSql(int count)

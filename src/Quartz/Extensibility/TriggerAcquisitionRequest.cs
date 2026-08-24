@@ -36,6 +36,9 @@ namespace Quartz.Extensibility;
 /// <seealso cref="IJobStore.AcquireNextTriggers" />
 public sealed record TriggerAcquisitionRequest
 {
+    // Oracle limits an IN list to 1000 expressions.
+    internal const int MaxExcludedJobTypeNames = 1000;
+
     /// <summary>
     /// Highest value of <see cref="ITrigger.NextFireTimeUtc" /> of the triggers to acquire. A
     /// store must not return a trigger that would fire later than this.
@@ -90,4 +93,37 @@ public sealed record TriggerAcquisitionRequest
     /// </para>
     /// </remarks>
     public ExecutionLimits? ExecutionLimits { get; init; }
+
+    /// <summary>
+    /// Job type names to exclude, spelled as
+    /// <see cref="Quartz.Impl.AdoJobStore.TriggerAcquireResult.JobTypeName" /> stores them.
+    /// <see langword="null" /> means no exclusion. Comparison is exact according to the database
+    /// column's collation; case sensitivity follows that collation and is not guaranteed to be
+    /// ordinal. This is the store-level counterpart threaded into
+    /// <see cref="Quartz.Impl.AdoJobStore.TriggerAcquisitionCriteria.ExcludedJobTypeNames" />.
+    /// </summary>
+    public IReadOnlyCollection<string>? ExcludedJobTypeNames
+    {
+        get;
+        init
+        {
+            if (value is not null)
+            {
+                foreach (string name in value)
+                {
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        throw new ArgumentException("ExcludedJobTypeNames must not contain null, empty, or whitespace entries.", nameof(value));
+                    }
+                }
+
+                if (value.Count > MaxExcludedJobTypeNames)
+                {
+                    throw new ArgumentException($"ExcludedJobTypeNames must not exceed {MaxExcludedJobTypeNames} entries.", nameof(value));
+                }
+            }
+
+            field = value;
+        }
+    }
 }

@@ -19,6 +19,11 @@
 
 #endregion
 
+using System.Globalization;
+using System.Text;
+
+using Quartz.Extensibility;
+
 using static System.FormattableString;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -285,6 +290,96 @@ internal static class StdAdoConstants
                 {PreferredNodeWhereClause}
               ORDER BY
                 {AdoConstants.ColumnNextFireTime} ASC, {AdoConstants.ColumnPriority} DESC");
+
+    /// <summary>
+    /// Exclusion counts are rounded up and padded to one of these sizes, limiting the acquisition
+    /// query shapes seen by the database plan cache.
+    /// </summary>
+    private static readonly int[] excludedJobTypeBuckets = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, TriggerAcquisitionRequest.MaxExcludedJobTypeNames];
+
+    // Unsynchronized on purpose: two threads racing here just build the same string twice and one
+    // reference assignment wins, which costs nothing and cannot produce a wrong value.
+    private static readonly string?[] sqlSelectNextTriggerToAcquireByExcludedJobTypeBucket = new string?[excludedJobTypeBuckets.Length];
+
+    /// <summary>
+    /// Rounds an exclusion count up to the next query bucket. Zero means no exclusion.
+    /// </summary>
+    internal static int RoundUpExcludedJobTypeCount(int count)
+    {
+        if (count <= 0)
+        {
+            return 0;
+        }
+
+        foreach (int bucket in excludedJobTypeBuckets)
+        {
+            if (count <= bucket)
+            {
+                return bucket;
+            }
+        }
+
+        Throw.ArgumentOutOfRangeException(nameof(count), $"Excluded job type count must not exceed {TriggerAcquisitionRequest.MaxExcludedJobTypeNames}");
+        return default;
+    }
+
+    /// <summary>
+    /// Builds the trigger-acquisition query for an already-rounded job-type exclusion bucket.
+    /// </summary>
+    internal static string BuildSqlSelectNextTriggerToAcquire(int excludedJobTypeBucket)
+    {
+        if (excludedJobTypeBucket == 0)
+        {
+            return SqlSelectNextTriggerToAcquire;
+        }
+
+        int bucketIndex = Array.IndexOf(excludedJobTypeBuckets, excludedJobTypeBucket);
+        if (bucketIndex < 0)
+        {
+            Throw.ArgumentOutOfRangeException(nameof(excludedJobTypeBucket), "Excluded job type count must be rounded to a query bucket first");
+        }
+
+        string? cached = sqlSelectNextTriggerToAcquireByExcludedJobTypeBucket[bucketIndex];
+        if (cached is not null)
+        {
+            return cached;
+        }
+
+        StringBuilder exclusionClause = new StringBuilder("AND jd.").Append(AdoConstants.ColumnJobClass).Append(" NOT IN (");
+        for (int i = 0; i < excludedJobTypeBucket; i++)
+        {
+            if (i > 0)
+            {
+                exclusionClause.Append(", ");
+            }
+
+            exclusionClause.Append('@').Append(ExcludedJobTypeParameter(i));
+        }
+
+        exclusionClause.Append(')');
+
+        // Same shape as SqlSelectNextTriggerToAcquire above, plus the exclusion clause - kept as a
+        // second copy rather than spliced at runtime, so this stays as easy to read (and to keep in
+        // sync by eye) as the query it is built from.
+        string predicateSql = Invariant($@"SELECT
+                t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, t.{AdoConstants.ColumnExecutionGroup}
+              FROM
+                {TablePrefixSubst}{AdoConstants.TableTriggers} t
+              JOIN
+                {TablePrefixSubst}{AdoConstants.TableJobDetails} jd ON (jd.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND  jd.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND jd.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName})
+              WHERE
+                t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerState} = @state AND {AdoConstants.ColumnNextFireTime} <= @noLaterThan AND ({AdoConstants.ColumnMisfireInstruction} = -1 OR ({AdoConstants.ColumnMisfireInstruction} <> -1 AND {AdoConstants.ColumnNextFireTime} >= @noEarlierThan))
+                {PreferredNodeWhereClause}
+                {exclusionClause}
+              ORDER BY
+                {AdoConstants.ColumnNextFireTime} ASC, {AdoConstants.ColumnPriority} DESC");
+
+        sqlSelectNextTriggerToAcquireByExcludedJobTypeBucket[bucketIndex] = predicateSql;
+        return predicateSql;
+    }
+
+    internal static string ExcludedJobTypeParameter(int index) =>
+        "excludedJobType" + index.ToString("D4", CultureInfo.InvariantCulture);
 
     public static readonly string SqlSelectNumTriggersForJob =
         Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnJobName} = @jobName AND {AdoConstants.ColumnJobGroup} = @jobGroup");

@@ -91,8 +91,9 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// Both statements carry their limit in the text — a <c>SELECT TOP n</c> spliced into the projection
     /// on SQL Server, a <c>rownum</c> wrapper on Oracle, a trailing <c>LIMIT n</c> elsewhere — so the
     /// dialect rebuilds around a kilobyte of SQL for every acquisition, and the table-prefix cache then
-    /// hashes all of it to hand back a string it already had. Both are pure functions of the limit, so
-    /// the finished statement is remembered against it instead.
+    /// hashes all of it to hand back a string it already had. Each is a pure function of its limit;
+    /// acquisition also depends on the job-type exclusion bucket, so the finished statements are
+    /// remembered against those inputs.
     /// </para>
     /// <para>
     /// The limits take few distinct values: acquisition asks for the smaller of the free thread count
@@ -100,7 +101,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// settle within a handful of entries.
     /// </para>
     /// </remarks>
-    private readonly ConcurrentDictionary<int, string> acquisitionSqlByMaxCount = new();
+    private readonly ConcurrentDictionary<(int MaxCount, int ExcludedJobTypeBucket), string> acquisitionSqlByMaxCount = new();
 
     private readonly ConcurrentDictionary<int, string> misfireRecoverySqlByCount = new();
 

@@ -65,6 +65,12 @@ public sealed record TriggerAcquisitionCriteria
     public ExecutionLimits? ExecutionLimits { get; init; }
 
     /// <summary>
+    /// Job type names to exclude from acquisition, copied from
+    /// <see cref="Quartz.Extensibility.TriggerAcquisitionRequest.ExcludedJobTypeNames" />.
+    /// </summary>
+    public IReadOnlyCollection<string>? ExcludedJobTypeNames { get; init; }
+
+    /// <summary>
     /// What the whole cluster already holds in flight per (execution group, trigger group) pair, which
     /// is what a <see cref="ExecutionLimitScope.Cluster" /> limit is counted against.
     /// </summary>

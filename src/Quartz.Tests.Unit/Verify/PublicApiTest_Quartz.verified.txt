@@ -1980,6 +1980,7 @@ namespace Quartz.Extensibility
     public sealed class TriggerAcquisitionRequest : System.IEquatable<Quartz.Extensibility.TriggerAcquisitionRequest>
     {
         public TriggerAcquisitionRequest() { }
+        public System.Collections.Generic.IReadOnlyCollection<string>? ExcludedJobTypeNames { get; init; }
         public Quartz.ExecutionLimits? ExecutionLimits { get; init; }
         public int MaxCount { get; init; }
         public required System.DateTimeOffset NoLaterThan { get; init; }
@@ -2335,7 +2336,7 @@ namespace Quartz.Impl.AdoJobStore
     {
         public FirebirdDelegate() { }
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount) { }
+        protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket) { }
     }
     public sealed class FiredTriggerQuery : System.IEquatable<Quartz.Impl.AdoJobStore.FiredTriggerQuery>
     {
@@ -2511,7 +2512,7 @@ namespace Quartz.Impl.AdoJobStore
         protected override string ApplyPaging(string sql, bool takeLimited) { }
         protected override string GetCountMisfiredTriggersInStateSql() { }
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount) { }
+        protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket) { }
     }
     public sealed class NoSuchDelegateException : Quartz.JobPersistenceException
     {
@@ -2524,13 +2525,13 @@ namespace Quartz.Impl.AdoJobStore
         public override bool GetBooleanFromDbValue(object columnValue) { }
         public override object GetDbBooleanValue(bool booleanValue) { }
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount) { }
+        protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket) { }
     }
     public class PostgreSQLDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
         public PostgreSQLDelegate() { }
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount) { }
+        protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket) { }
     }
     public class PostgreSqlSelectForUpdateSemaphore : Quartz.Impl.AdoJobStore.SelectForUpdateSemaphore
     {
@@ -2565,7 +2566,7 @@ namespace Quartz.Impl.AdoJobStore
         protected override void AddPagingParameters(System.Data.Common.DbCommand cmd, int skip, int take, bool takeLimited) { }
         protected override string ApplyPaging(string sql, bool takeLimited) { }
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount) { }
+        protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket) { }
     }
     public enum SchedulerLock
     {
@@ -2669,7 +2670,7 @@ namespace Quartz.Impl.AdoJobStore
         public SqlServerDelegate() { }
         public override void AddCommandParameter(System.Data.Common.DbCommand cmd, string paramName, object? paramValue, System.Enum? dataType = null, int? size = default) { }
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount) { }
+        protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket) { }
     }
     public sealed class SqlServerMemoryOptimizedUpdateRowSemaphore : Quartz.Impl.AdoJobStore.UpdateRowSemaphore
     {
@@ -2733,7 +2734,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual System.Threading.Tasks.ValueTask<T?> GetObjectFromBlob<T>(System.Data.Common.DbDataReader rs, int colIndex, System.Threading.CancellationToken cancellationToken = default)
             where T :  class { }
         protected virtual string GetSelectMisfiredTriggersToRecoverSql(int count) { }
-        protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount) { }
+        protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket) { }
         public System.TimeSpan? GetTimeSpanFromDbValue(object columnValue) { }
         public virtual void Initialize(Quartz.Impl.AdoJobStore.DriverDelegateContext context) { }
         public virtual System.Threading.Tasks.ValueTask<int> InsertBlobTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2846,6 +2847,7 @@ namespace Quartz.Impl.AdoJobStore
     {
         public TriggerAcquisitionCriteria() { }
         public System.Collections.Generic.IReadOnlyCollection<Quartz.ExecutionGroupInFlight>? ClusterInFlight { get; init; }
+        public System.Collections.Generic.IReadOnlyCollection<string>? ExcludedJobTypeNames { get; init; }
         public Quartz.ExecutionLimits? ExecutionLimits { get; init; }
         public required System.DateTimeOffset LiveNodeCutoff { get; init; }
         public required int MaxCount { get; init; }
