@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Quartz.Core;
 
 /// <summary>
@@ -22,6 +24,8 @@ internal sealed class ListenerManagerImpl : IListenerManager
         {
             Throw.ArgumentNullException(nameof(jobListener));
         }
+
+        VerifyShape(jobListener, typeof(IJobListener));
 
         if (string.IsNullOrEmpty(jobListener.Name))
         {
@@ -251,6 +255,8 @@ internal sealed class ListenerManagerImpl : IListenerManager
         {
             Throw.ArgumentNullException(nameof(triggerListener));
         }
+
+        VerifyShape(triggerListener, typeof(ITriggerListener));
 
         if (string.IsNullOrEmpty(triggerListener.Name))
         {
@@ -483,6 +489,8 @@ internal sealed class ListenerManagerImpl : IListenerManager
             Throw.ArgumentNullException(nameof(schedulerListener));
         }
 
+        VerifyShape(schedulerListener, typeof(ISchedulerListener));
+
         if (string.IsNullOrEmpty(schedulerListener.Name))
         {
             Throw.ArgumentException($"{nameof(schedulerListener.Name)} cannot be null or empty.", nameof(schedulerListener));
@@ -556,6 +564,25 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
             return schedulerListener;
         }
+    }
+
+    /// <summary>
+    /// Refuses a listener whose public methods say it implements a notification it does not.
+    /// </summary>
+    /// <remarks>
+    /// This is the last gate every listener passes through, whatever registered it: the builder, a plain
+    /// service registration, a <c>quartz.*Listener.*</c> key, a plugin, or an application calling
+    /// <see cref="IListenerManager" /> itself. A listener the builder registered by type or by instance
+    /// was already refused at registration, which is the better moment to hear about it;
+    /// <see cref="ListenerShape" /> remembers the types it has passed, so arriving here twice costs a
+    /// dictionary lookup.
+    /// </remarks>
+    [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = "The methods read are the public methods of a listener the application constructed and handed over, so the type is rooted. Trimming can only take away a member nothing calls, which is exactly the stale member being looked for: the check can then find nothing, never the wrong thing. The registration paths that do know the type statically annotate it and keep those members.")]
+    private static void VerifyShape(
+        object listener,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.NonPublicMethods)] Type listenerInterface)
+    {
+        ListenerShape.Verify(listener.GetType(), listenerInterface);
     }
 
     private void RemoveJobListenerMatchers(string listenerName)
