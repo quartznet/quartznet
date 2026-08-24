@@ -57,27 +57,13 @@ public sealed record SchedulerMetadata
     public bool IsProxy { get; init; }
 
     /// <summary>
-    /// Whether the scheduler has been started.
+    /// Where the <see cref="IScheduler" /> is in its lifecycle.
     /// </summary>
     /// <remarks>
-    /// Note: <see cref="Started" /> may be <see langword="true" /> even if
-    /// <see cref="InStandbyMode" /> is <see langword="true" />.
+    /// The same value as <see cref="IScheduler.Status" />, derived the same way whether the scheduler is
+    /// in this process or another one.
     /// </remarks>
-    public bool Started { get; init; }
-
-    /// <summary>
-    /// Whether the <see cref="IScheduler" /> is in standby mode.
-    /// </summary>
-    /// <remarks>
-    /// Note: <see cref="Started" /> may be <see langword="true" /> even if
-    /// <see cref="InStandbyMode" /> is <see langword="true" />.
-    /// </remarks>
-    public bool InStandbyMode { get; init; }
-
-    /// <summary>
-    /// Whether the <see cref="IScheduler" /> has been shut down.
-    /// </summary>
-    public bool Shutdown { get; init; }
+    public required SchedulerStatus Status { get; init; }
 
     /// <summary>
     /// The <see cref="DateTimeOffset" /> at which the scheduler started running, or

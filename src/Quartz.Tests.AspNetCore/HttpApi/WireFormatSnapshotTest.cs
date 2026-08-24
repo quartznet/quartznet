@@ -119,9 +119,7 @@ public class WireFormatSnapshotTest : WebApiTest
     public async Task SchedulerBody()
     {
         A.CallTo(() => FakeScheduler.GetMetadata(A<CancellationToken>._)).Returns(TestData.Wire.Metadata);
-        A.CallTo(() => FakeScheduler.IsStarted).Returns(TestData.Wire.Metadata.Started);
-        A.CallTo(() => FakeScheduler.InStandbyMode).Returns(TestData.Wire.Metadata.InStandbyMode);
-        A.CallTo(() => FakeScheduler.IsShutdown).Returns(TestData.Wire.Metadata.Shutdown);
+        A.CallTo(() => FakeScheduler.Status).Returns(TestData.Wire.Metadata.Status);
 
         string body = await Get(SchedulerUrl);
         await VerifyBody(body);

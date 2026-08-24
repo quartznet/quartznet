@@ -51,11 +51,11 @@ public sealed class SchedulerDisposalTest
 
             await using (scheduler)
             {
-                scheduler.IsShutdown.Should().BeFalse();
+                scheduler.Status.Should().Be(SchedulerStatus.Running);
                 captured = scheduler;
             }
 
-            captured.IsShutdown.Should().BeTrue(
+            captured.Status.Should().Be(SchedulerStatus.Shutdown,
                 "a local scheduler owns the execution it drives, so disposing it stops it");
         }
     }
@@ -72,7 +72,7 @@ public sealed class SchedulerDisposalTest
         Func<Task> again = async () => await scheduler.DisposeAsync();
 
         await again.Should().NotThrowAsync("disposal is idempotent, which is what await using needs it to be");
-        scheduler.IsShutdown.Should().BeTrue();
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown);
     }
 
     [Test]

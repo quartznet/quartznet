@@ -85,7 +85,7 @@ internal static class MigratedSchemaWorkload
             await scheduler.Shutdown(waitForJobsToComplete: true);
         }
 
-        scheduler.IsShutdown.Should().BeTrue("the scheduler has to come down cleanly on the migrated schema");
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown, "the scheduler has to come down cleanly on the migrated schema");
 
         await AssertPrefixIsolation(connection, tablePrefix, schedulerName, triggers.Count);
     }

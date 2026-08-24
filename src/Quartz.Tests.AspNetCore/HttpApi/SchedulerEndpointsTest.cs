@@ -77,15 +77,11 @@ public class SchedulerEndpointsTest : WebApiTest
     public async Task GetSchedulerDetailsShouldWork()
     {
         A.CallTo(() => FakeScheduler.GetMetadata(A<CancellationToken>._)).Returns(TestData.Metadata);
-        A.CallTo(() => FakeScheduler.IsStarted).Returns(TestData.Metadata.Started);
-        A.CallTo(() => FakeScheduler.InStandbyMode).Returns(TestData.Metadata.InStandbyMode);
-        A.CallTo(() => FakeScheduler.IsShutdown).Returns(TestData.Metadata.Shutdown);
+        A.CallTo(() => FakeScheduler.Status).Returns(TestData.Metadata.Status);
 
         HttpScheduler.SchedulerName.Should().Be(TestData.SchedulerName);
         HttpScheduler.SchedulerInstanceId.Should().Be(TestData.SchedulerInstanceId);
-        HttpScheduler.InStandbyMode.Should().BeFalse();
-        HttpScheduler.IsShutdown.Should().BeFalse();
-        HttpScheduler.IsStarted.Should().BeTrue();
+        HttpScheduler.Status.Should().Be(SchedulerStatus.Running);
 
         var metadata = await HttpScheduler.GetMetadata();
         metadata.Should().BeEquivalentTo(TestData.Metadata, x => x.Excluding(y => y.IsProxy).Excluding(x => x.SchedulerTypeName));

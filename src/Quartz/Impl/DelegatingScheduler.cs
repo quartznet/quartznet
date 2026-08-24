@@ -20,8 +20,7 @@ public class DelegatingScheduler : IScheduler
     public virtual string SchedulerName => scheduler.SchedulerName;
     public virtual string SchedulerInstanceId => scheduler.SchedulerInstanceId;
     public virtual SchedulerContext Context => scheduler.Context;
-    public virtual bool InStandbyMode => scheduler.InStandbyMode;
-    public virtual bool IsShutdown => scheduler.IsShutdown;
+    public virtual SchedulerStatus Status => scheduler.Status;
 
     public virtual ValueTask<SchedulerMetadata> GetMetadata(CancellationToken cancellationToken = default)
     {
@@ -44,8 +43,6 @@ public class DelegatingScheduler : IScheduler
     {
         return scheduler.StartDelayed(delay, cancellationToken);
     }
-
-    public virtual bool IsStarted => scheduler.IsStarted;
 
     public virtual ValueTask Standby(CancellationToken cancellationToken = default)
     {

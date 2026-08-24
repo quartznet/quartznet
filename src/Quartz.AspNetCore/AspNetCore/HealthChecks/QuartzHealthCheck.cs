@@ -29,7 +29,7 @@ internal sealed class QuartzHealthCheck : IHealthCheck
     async Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)
     {
         var scheduler = await schedulerFactory.GetScheduler(cancellationToken).ConfigureAwait(false);
-        if (!scheduler.IsStarted)
+        if (scheduler.Status == SchedulerStatus.Created)
         {
             return HealthCheckResult.Unhealthy("Quartz scheduler is not running");
         }

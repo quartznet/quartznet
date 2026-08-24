@@ -80,7 +80,7 @@ public class ShutdownDuringTriggerAcquisitionTest
         finally
         {
             // Ensure cleanup even if test fails
-            if (!scheduler.IsShutdown)
+            if (scheduler.Status != SchedulerStatus.Shutdown)
             {
                 await scheduler.Shutdown(true);
             }
@@ -158,7 +158,7 @@ public class ShutdownDuringTriggerAcquisitionTest
         }
         finally
         {
-            if (!scheduler.IsShutdown)
+            if (scheduler.Status != SchedulerStatus.Shutdown)
             {
                 await scheduler.Shutdown(true);
             }

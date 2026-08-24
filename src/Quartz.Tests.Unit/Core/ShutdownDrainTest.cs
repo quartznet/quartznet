@@ -116,7 +116,7 @@ public class ShutdownDrainTest
         await act.Should().NotThrowAsync(
             "an expired deadline has to end the wait and let the rest of the shutdown run, not throw out of it");
 
-        scheduler.IsShutdown.Should().BeTrue("the shutdown ran to the end even though the wait was abandoned");
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown, "the shutdown ran to the end even though the wait was abandoned");
         listener.ShutDown.Should().BeTrue(
             "a shutdown is claimed atomically and cannot be retried, so a deadline that stopped it part-way would leave "
             + "the scheduler neither running nor shut down, with nothing ever told it had stopped");

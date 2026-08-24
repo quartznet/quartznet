@@ -43,7 +43,7 @@ public sealed class ShutDownSchedulerIsNotRestartedTest
         IScheduler dead = A.Fake<IScheduler>();
         A.CallTo(() => dead.SchedulerName).Returns("StillBoundScheduler");
         A.CallTo(() => dead.SchedulerInstanceId).Returns("NON_CLUSTERED");
-        A.CallTo(() => dead.IsShutdown).Returns(true);
+        A.CallTo(() => dead.Status).Returns(SchedulerStatus.Shutdown);
 
         ISchedulerRepository repository = A.Fake<ISchedulerRepository>();
         A.CallTo(() => repository.Lookup("StillBoundScheduler", A<string>._)).Returns(dead);
@@ -79,10 +79,11 @@ public sealed class ShutDownSchedulerIsNotRestartedTest
         {
             await scheduler.Start();
             await scheduler.Standby();
-            scheduler.InStandbyMode.Should().BeTrue();
+            scheduler.Status.Should().Be(SchedulerStatus.Standby);
 
             await scheduler.Start();
-            scheduler.IsStarted.Should().BeTrue("Standby() is reversible, which is what makes refusing a restart tolerable");
+            scheduler.Status.Should().Be(SchedulerStatus.Running,
+                "Standby() is reversible, which is what makes refusing a restart tolerable");
 
             (await factory.GetScheduler()).Should().BeSameAs(scheduler,
                 "a live scheduler is still handed back rather than rebuilt");

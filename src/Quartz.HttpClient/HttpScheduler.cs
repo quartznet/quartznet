@@ -76,9 +76,15 @@ public sealed class HttpScheduler : IScheduler
     public string SchedulerName { get; }
 
     public string SchedulerInstanceId => GetSchedulerDetailsSync().SchedulerInstanceId;
-    public bool IsStarted => GetSchedulerDetailsSync().Status == SchedulerStatus.Running;
-    public bool InStandbyMode => GetSchedulerDetailsSync().Status == SchedulerStatus.Standby;
-    public bool IsShutdown => GetSchedulerDetailsSync().Status == SchedulerStatus.Shutdown;
+
+    /// <summary>
+    /// The remote scheduler's lifecycle state, read over the network.
+    /// </summary>
+    /// <remarks>
+    /// One round trip, where the three booleans this replaces were three - each asking the same endpoint
+    /// the same question and reading a different field of the answer.
+    /// </remarks>
+    public SchedulerStatus Status => GetSchedulerDetailsSync().Status;
 
     public SchedulerContext Context
     {
@@ -109,9 +115,7 @@ public sealed class HttpScheduler : IScheduler
             SchedulerInstanceId = schedulerDto.SchedulerInstanceId,
             SchedulerTypeName = GetType().AssemblyQualifiedNameWithoutVersion(),
             IsProxy = true,
-            Started = schedulerDto.Status == SchedulerStatus.Running,
-            InStandbyMode = schedulerDto.Status == SchedulerStatus.Standby,
-            Shutdown = schedulerDto.Status == SchedulerStatus.Shutdown,
+            Status = schedulerDto.Status,
             RunningSince = schedulerDto.Statistics.RunningSince,
             JobsExecuted = schedulerDto.Statistics.JobsExecuted,
             // the remote node's own count, which is what the member means everywhere

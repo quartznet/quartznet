@@ -75,6 +75,6 @@ public class SchedulerConstructionTest
         // Halt and Shutdown used to dereference state that only Start created.
         await scheduler.Shutdown(waitForJobsToComplete: false);
 
-        scheduler.IsShutdown.Should().BeTrue();
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown);
     }
 }

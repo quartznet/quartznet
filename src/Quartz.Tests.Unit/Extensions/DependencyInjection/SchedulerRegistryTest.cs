@@ -51,8 +51,9 @@ public sealed class SchedulerRegistryTest
         List<SchedulerRegistration> registrations = await provider.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();
 
         registrations.Should().ContainSingle(x => x.Name == "acme")
-            .Which.Status.Should().Be(SchedulerStatus.Standby,
-                "a scheduler that exists and has not been started is alive and firing nothing, which is what standby means");
+            .Which.Status.Should().Be(SchedulerStatus.Created,
+                "a scheduler that has been built and never started reports the state it is actually in, rather "
+                + "than the standby a started scheduler is stood down into");
         registrations.Should().ContainSingle(x => x.Name == "initech")
             .Which.Status.Should().BeNull("the second tenant is still only a registration");
     }
@@ -200,7 +201,7 @@ public sealed class SchedulerRegistryTest
 
         IScheduler unreachable = A.Fake<IScheduler>();
         A.CallTo(() => unreachable.SchedulerName).Returns("far-away");
-        A.CallTo(() => unreachable.IsShutdown).Throws(new HttpRequestException("the remote scheduler is not answering"));
+        A.CallTo(() => unreachable.Status).Throws(new HttpRequestException("the remote scheduler is not answering"));
 
         provider.GetRequiredService<ISchedulerRepository>().Bind(unreachable, "remote");
 

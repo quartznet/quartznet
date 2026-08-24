@@ -236,7 +236,7 @@ public sealed class SchedulerRepositoryTest
         repository.LookupAll().Should().ContainSingle().Which.Should().BeSameAs(scheduler);
         repository.LookupByName("MyCluster").Should().ContainSingle().Which.Should().BeSameAs(scheduler);
 
-        A.CallTo(() => scheduler.IsShutdown).Returns(true);
+        A.CallTo(() => scheduler.Status).Returns(SchedulerStatus.Shutdown);
 
         repository.LookupAll().Should().BeEmpty(
             "a scheduler bound here by hand never unbinds itself, so a read is what has to notice it died");
@@ -249,7 +249,7 @@ public sealed class SchedulerRepositoryTest
     {
         IScheduler dead = CreateFakeScheduler("MyCluster", "node-1");
         repository.Bind(dead);
-        A.CallTo(() => dead.IsShutdown).Returns(true);
+        A.CallTo(() => dead.Status).Returns(SchedulerStatus.Shutdown);
 
         repository.LookupAll().Should().BeEmpty();
 
@@ -267,7 +267,7 @@ public sealed class SchedulerRepositoryTest
     {
         IScheduler dead = CreateFakeScheduler("MyCluster", "node-1");
         repository.Bind(dead);
-        A.CallTo(() => dead.IsShutdown).Returns(true);
+        A.CallTo(() => dead.Status).Returns(SchedulerStatus.Shutdown);
 
         // No read between the shutdown and the re-bind: Bind itself has to notice the corpse,
         // because shutting a scheduler down and binding its successor is exactly the sequence
@@ -289,7 +289,7 @@ public sealed class SchedulerRepositoryTest
         repository.Bind(dead);
         repository.Bind(alive);
 
-        A.CallTo(() => dead.IsShutdown).Returns(true);
+        A.CallTo(() => dead.Status).Returns(SchedulerStatus.Shutdown);
 
         repository.LookupAll().Should().ContainSingle().Which.Should().BeSameAs(alive);
         repository.Lookup("MyCluster", "node-1").Should().BeNull();
@@ -301,12 +301,12 @@ public sealed class SchedulerRepositoryTest
     public void ASchedulerThatCannotAnswerIsKept()
     {
         IScheduler unreachable = CreateFakeScheduler("Remote", "node-1");
-        A.CallTo(() => unreachable.IsShutdown).Throws(new HttpRequestException("no route to host"));
+        A.CallTo(() => unreachable.Status).Throws(new HttpRequestException("no route to host"));
 
         repository.Bind(unreachable);
 
         repository.LookupAll().Should().ContainSingle().Which.Should().BeSameAs(unreachable,
-            "a remote scheduler answers IsShutdown over the network, and unreachable is not shut down");
+            "a remote scheduler answers Status over the network, and unreachable is not shut down");
         repository.Lookup("Remote").Should().BeSameAs(unreachable);
     }
 

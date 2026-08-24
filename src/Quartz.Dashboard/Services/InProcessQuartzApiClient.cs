@@ -52,7 +52,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<SchedulerHeaderDto> result = [];
         foreach (IScheduler scheduler in schedulers)
         {
-            result.Add(new SchedulerHeaderDto(scheduler.SchedulerName, scheduler.SchedulerInstanceId, scheduler.GetStatus()));
+            result.Add(new SchedulerHeaderDto(scheduler.SchedulerName, scheduler.SchedulerInstanceId, scheduler.Status));
         }
 
         return ValueTask.FromResult(result);
@@ -61,7 +61,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        SchedulerDetailDto result = new(scheduler.SchedulerInstanceId, scheduler.SchedulerName, scheduler.GetStatus());
+        SchedulerDetailDto result = new(scheduler.SchedulerInstanceId, scheduler.SchedulerName, scheduler.Status);
         return ValueTask.FromResult(result);
     }
 

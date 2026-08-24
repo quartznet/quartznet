@@ -17,13 +17,13 @@ namespace Quartz.Impl;
 /// </para>
 /// <para>
 /// The asynchronous members are always safe, because they can await the scheduler being built. The
-/// synchronous ones — <see cref="SchedulerInstanceId"/>, <see cref="IsStarted"/>,
-/// <see cref="InStandbyMode"/>, <see cref="IsShutdown"/>, <see cref="Context"/> and
+/// synchronous ones — <see cref="SchedulerInstanceId"/>, <see cref="Status"/>, <see cref="Context"/> and
 /// <see cref="ListenerManager"/> — can only answer once the scheduler exists, and throw
 /// <see cref="InvalidOperationException"/> when reading one would have to build it. Under the hosted
-/// service that never happens: it builds and starts every scheduler in the container before the
-/// application runs. <see cref="SchedulerName"/> is answered without resolving anything, because a
-/// registration always knows the name it was made under.
+/// service that never happens: it builds every scheduler in the container while the host starts, which
+/// is all these members need — starting them is a separate step, and by default waits until the
+/// application has started. <see cref="SchedulerName"/> is answered without resolving anything, because
+/// a registration always knows the name it was made under.
 /// </para>
 /// </remarks>
 internal sealed class DeferredScheduler : IScheduler
@@ -103,11 +103,7 @@ internal sealed class DeferredScheduler : IScheduler
 
     public SchedulerContext Context => Resolved.Context;
 
-    public bool InStandbyMode => Resolved.InStandbyMode;
-
-    public bool IsShutdown => Resolved.IsShutdown;
-
-    public bool IsStarted => Resolved.IsStarted;
+    public SchedulerStatus Status => Resolved.Status;
 
     public IListenerManager ListenerManager => Resolved.ListenerManager;
 

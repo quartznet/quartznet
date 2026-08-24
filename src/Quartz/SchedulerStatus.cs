@@ -22,35 +22,61 @@
 namespace Quartz;
 
 /// <summary>
-/// Where a scheduler is in its lifecycle, as one value rather than the three booleans
-/// <see cref="IScheduler.IsStarted" />, <see cref="IScheduler.InStandbyMode" /> and
-/// <see cref="IScheduler.IsShutdown" /> that a reader would otherwise have to combine — and combine in
-/// the right order, since a shut-down scheduler is not "started" but also not merely stopped.
+/// Where a scheduler is in its lifecycle. This is <see cref="IScheduler.Status" />, and it is the whole
+/// of a scheduler's lifecycle state: one value to read and one value to match on, rather than several
+/// booleans a reader would have to combine in the right order.
 /// </summary>
 /// <remarks>
-/// Both the numeric values and the member names are a wire contract: the HTTP API returns this enum as
-/// its name, and still accepts the numeric form. Members are never renamed, renumbered or reordered;
-/// new ones are appended.
+/// <para>
+/// The members are declared in lifecycle order, and a scheduler moves through them one way:
+/// <see cref="Created" /> to <see cref="Running" />, back and forth between <see cref="Running" /> and
+/// <see cref="Standby" />, then <see cref="ShuttingDown" /> and finally <see cref="Shutdown" />. Only
+/// the middle pair is reversible; <see cref="Shutdown" /> is terminal.
+/// </para>
+/// <para>
+/// The member names are a wire contract: the HTTP API returns this enum as its name, and still accepts
+/// the numeric form. Names are never changed, and new members are appended.
+/// </para>
 /// </remarks>
 public enum SchedulerStatus
 {
     /// <summary>
-    /// The scheduler has been created but never started, or its state could not be determined.
+    /// The scheduler's state could not be determined - a remote scheduler that did not answer, for
+    /// instance. It is not a state a scheduler is ever in, only one a reader can be left with.
     /// </summary>
     Unknown = 0,
 
     /// <summary>
+    /// The scheduler has been built but never started, so it fires nothing yet.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="Standby" />, which a scheduler reaches by being started and then stood
+    /// down: both fire nothing, but only one of them has ever run, and only one has a
+    /// <see cref="SchedulerMetadata.RunningSince" />. Standing a never-started scheduler down leaves it
+    /// here, since it already fires nothing and "never started" is the more precise answer.
+    /// </remarks>
+    Created = 1,
+
+    /// <summary>
     /// The scheduler has been started and is firing triggers.
     /// </summary>
-    Running = 1,
+    Running = 2,
 
     /// <summary>
     /// The scheduler is in standby: it is alive, but fires nothing until it is started again.
     /// </summary>
-    Standby = 2,
+    Standby = 3,
 
     /// <summary>
-    /// The scheduler has been shut down and cannot be restarted.
+    /// <see cref="IScheduler.Shutdown(bool, CancellationToken)" /> has been called and is running. The
+    /// scheduler no longer fires triggers and no longer accepts work, and it can neither be restarted
+    /// nor stood down - the only state left is <see cref="Shutdown" />.
     /// </summary>
-    Shutdown = 3
+    ShuttingDown = 4,
+
+    /// <summary>
+    /// The scheduler has been shut down and cannot be restarted. Its plugins, job store and thread pool
+    /// are down with it.
+    /// </summary>
+    Shutdown = 5
 }

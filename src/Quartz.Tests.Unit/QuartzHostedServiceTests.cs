@@ -61,11 +61,9 @@ public class QuartzHostedServiceTests
         public string SchedulerName { get; }
         public string SchedulerInstanceId { get; }
         public SchedulerContext Context { get; }
-        public bool InStandbyMode { get; }
-        public bool IsShutdown { get; private set; }
+        public SchedulerStatus Status { get; private set; } = SchedulerStatus.Created;
         public IJobFactory JobFactory { set => throw new NotImplementedException(); }
         public IListenerManager ListenerManager { get; }
-        public bool IsStarted { get; private set; }
 
         public ValueTask DisposeAsync() => default;
 
@@ -306,8 +304,7 @@ public class QuartzHostedServiceTests
 
         public ValueTask Shutdown(bool waitForJobsToComplete = false, CancellationToken cancellationToken = default)
         {
-            this.IsShutdown = true;
-            this.IsStarted = false;
+            this.Status = SchedulerStatus.Shutdown;
             return default;
         }
 
@@ -318,7 +315,7 @@ public class QuartzHostedServiceTests
 
         public ValueTask Start(CancellationToken cancellationToken = default)
         {
-            this.IsStarted = true;
+            this.Status = SchedulerStatus.Running;
             return default;
         }
 
@@ -401,7 +398,8 @@ public class QuartzHostedServiceTests
         await quartzHostedService.StartAsync(startupCts.Token);
 
         Assert.That(schedulerFactory.LastCreatedScheduler, Is.Not.Null);
-        Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.EqualTo(shouldSchedulerBeStartedImmediately));
+        schedulerFactory.LastCreatedScheduler.Status.Should().Be(
+            shouldSchedulerBeStartedImmediately ? SchedulerStatus.Running : SchedulerStatus.Created);
 
         appliationLifetime.SetStarted();
 
@@ -411,17 +409,14 @@ public class QuartzHostedServiceTests
                 .ContinueWith(_ => { }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default); // Wait for the hosted service to respond to the ApplicationStarted token
         }
 
-        Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.EqualTo(!withStartDelay));
+        schedulerFactory.LastCreatedScheduler.Status.Should().Be(
+            withStartDelay ? SchedulerStatus.Created : SchedulerStatus.Running);
 
         await startupCts.CancelAsync().ConfigureAwait(false);
 
         await quartzHostedService.StopAsync(CancellationToken.None);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.False);
-            Assert.That(schedulerFactory.LastCreatedScheduler.IsShutdown, Is.True);
-        });
+        schedulerFactory.LastCreatedScheduler.Status.Should().Be(SchedulerStatus.Shutdown);
     }
 
     [Test]
@@ -448,7 +443,8 @@ public class QuartzHostedServiceTests
 
         await startupTask;
 
-        Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.EqualTo(shouldSchedulerBeStarted));
+        schedulerFactory.LastCreatedScheduler.Status.Should().Be(
+            shouldSchedulerBeStarted ? SchedulerStatus.Running : SchedulerStatus.Created);
     }
 
     [Test]
@@ -482,12 +478,9 @@ public class QuartzHostedServiceTests
         }
 
         // Confirm that not only have we stopped, but that we have not started AFTER being stopped
-        if (shouldSchedulerBeStarted)
-        {
-            Assert.That(schedulerFactory.LastCreatedScheduler.IsShutdown, Is.True);
-        }
-
-        Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.False);
+        schedulerFactory.LastCreatedScheduler.Status.Should().Be(
+            SchedulerStatus.Shutdown,
+            "a delayed start that arrives after the host has stopped must not put the scheduler back to Running");
 
         await startupCts.CancelAsync().ConfigureAwait(false);
     }
