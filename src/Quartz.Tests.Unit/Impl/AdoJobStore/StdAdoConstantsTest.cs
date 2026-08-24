@@ -59,6 +59,33 @@ public class StdAdoConstantsTest
         sql.Should().Contain("ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC");
     }
 
+    [Test]
+    public void BuildSqlSelectNextTriggerToAcquire_WithNoExclusions_ShouldKeepExistingSqlExactly()
+    {
+        string sql = StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket: 0);
+
+        sql.Should().Be(StdAdoConstants.SqlSelectNextTriggerToAcquire);
+    }
+
+    [Test]
+    public void BuildSqlSelectNextTriggerToAcquire_ShouldUseFixedWidthExclusionParameters()
+    {
+        string sql = StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket: 16);
+
+        sql.Should().Contain("AND jd.JOB_CLASS_NAME NOT IN (@excludedJobType0000, @excludedJobType0001");
+        sql.Should().Contain("@excludedJobType0009, @excludedJobType0010");
+        sql.Should().Contain("@excludedJobType0015)");
+        sql.Should().NotContain("@excludedJobType0016");
+    }
+
+    [Test]
+    public void RoundUpExcludedJobTypeCount_ShouldRoundPastBucketBoundary()
+    {
+        int bucket = StdAdoConstants.RoundUpExcludedJobTypeCount(129);
+
+        bucket.Should().Be(256);
+    }
+
     /// <summary>
     /// Returns the selected column expressions, in order, of a single-SELECT statement.
     /// </summary>

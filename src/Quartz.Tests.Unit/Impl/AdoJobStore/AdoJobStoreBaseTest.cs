@@ -1533,6 +1533,37 @@ public class AdoJobStoreBaseTest
 
     #region Acquisition criteria
 
+    [TestCase("")]
+    [TestCase(" ")]
+    [TestCase(null)]
+    public void TriggerAcquisitionRequest_ShouldRejectInvalidExcludedJobTypeNames(string name)
+    {
+        Action act = () => _ = new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow,
+            ExcludedJobTypeNames = [name]
+        };
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage("ExcludedJobTypeNames must not contain null, empty, or whitespace entries.*");
+    }
+
+    [Test]
+    public void TriggerAcquisitionRequest_ShouldRejectTooManyExcludedJobTypeNames()
+    {
+        string[] names = Enumerable.Range(0, TriggerAcquisitionRequest.MaxExcludedJobTypeNames + 1)
+            .Select(index => "Job" + index)
+            .ToArray();
+        Action act = () => _ = new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow,
+            ExcludedJobTypeNames = names
+        };
+
+        act.Should().Throw<ArgumentException>()
+            .WithMessage($"ExcludedJobTypeNames must not exceed {TriggerAcquisitionRequest.MaxExcludedJobTypeNames} entries.*");
+    }
+
     /// <summary>
     /// Arranges the acquisition read to find nothing, so the acquisition loop exits on its first pass,
     /// and hands back the criteria the delegate was called with — one entry per attempt.
@@ -1565,6 +1596,7 @@ public class AdoJobStoreBaseTest
             TimeWindow = TimeSpan.FromSeconds(30),
             MaxCount = 5,
             ExecutionLimits = limits,
+            ExcludedJobTypeNames = ["Excluded.Job"],
         };
 
         await jobStoreSupport.AcquireNextTriggers(request);
@@ -1577,6 +1609,8 @@ public class AdoJobStoreBaseTest
         criteria.MaxCount.Should().Be(request.MaxCount, "the request caps the batch size");
         criteria.ExecutionLimits.Should().BeSameAs(limits,
             "the caller's snapshot is handed through untouched, so a delegate counting slots down works on a copy");
+        criteria.ExcludedJobTypeNames.Should().BeSameAs(request.ExcludedJobTypeNames,
+            "the request's exclusions are handed to the delegate unchanged");
         criteria.LiveNodeCutoff.Should().Be(clock.GetUtcNow() - jobStoreSupport.ClusterCheckinMisfireThreshold,
             "the cutoff is exactly now less the check-in misfire threshold, so a node that checked in more recently than that keeps its pinned triggers");
     }

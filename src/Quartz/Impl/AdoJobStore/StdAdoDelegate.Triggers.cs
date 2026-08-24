@@ -1327,10 +1327,12 @@ public partial class StdAdoDelegate
         return await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
     }
 
-    protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount)
+    protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
     {
         // by default we don't support limits, this is db specific
-        return StdAdoConstants.SqlSelectNextTriggerToAcquire;
+        return excludedJobTypeBucket == 0
+            ? StdAdoConstants.SqlSelectNextTriggerToAcquire
+            : StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket);
     }
 
     /// <summary>
@@ -1404,10 +1406,14 @@ public partial class StdAdoDelegate
     {
         // we want at least one trigger back
         int maxCount = criteria.MaxCount < 1 ? 1 : criteria.MaxCount;
+        List<string>? excludedJobTypeNames = criteria.ExcludedJobTypeNames is { Count: > 0 } names
+            ? [.. names]
+            : null;
+        int excludedJobTypeBucket = StdAdoConstants.RoundUpExcludedJobTypeCount(excludedJobTypeNames?.Count ?? 0);
 
         string sql = acquisitionSqlByMaxCount.GetOrAdd(
-            maxCount,
-            static (limit, self) => self.ReplaceTablePrefix(self.GetSelectNextTriggerToAcquireSql(limit)),
+            (maxCount, excludedJobTypeBucket),
+            static (key, self) => self.ReplaceTablePrefix(self.GetSelectNextTriggerToAcquireSql(key.MaxCount, key.ExcludedJobTypeBucket)),
             this);
 
         using var cmd = PrepareCommand(conn, sql);
@@ -1418,6 +1424,17 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "noLaterThan", GetDbDateTimeValue(criteria.NoLaterThan));
         AddCommandParameter(cmd, "noEarlierThan", GetDbDateTimeValue(criteria.NoEarlierThan));
         AddPreferredNodeParameters(cmd, criteria.LiveNodeCutoff);
+
+        if (excludedJobTypeNames is not null)
+        {
+            for (int i = 0; i < excludedJobTypeBucket; i++)
+            {
+                // Pad to the bucket size by repeating the last name. A duplicate NOT IN term cannot
+                // change which rows match.
+                string jobTypeName = excludedJobTypeNames[Math.Min(i, excludedJobTypeNames.Count - 1)];
+                AddCommandParameter(cmd, StdAdoConstants.ExcludedJobTypeParameter(i), jobTypeName);
+            }
+        }
 
         // Work on a copy: the slots are decremented as rows are taken, and the caller may reuse the
         // criteria across retries. Cluster-scoped limits arrive already lowered by what the cluster

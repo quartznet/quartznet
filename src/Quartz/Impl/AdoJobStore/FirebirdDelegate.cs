@@ -10,9 +10,9 @@ public class FirebirdDelegate : StdAdoDelegate
     /// FireBird version with ROWS support.
     /// </summary>
     /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
     {
-        return StdAdoConstants.SqlSelectNextTriggerToAcquire + " ROWS " + maxCount;
+        return base.GetSelectNextTriggerToAcquireSql(maxCount, excludedJobTypeBucket) + " ROWS " + maxCount;
     }
 
     protected override string GetSelectMisfiredTriggersToRecoverSql(int count)

@@ -90,6 +90,80 @@ public class StdAdoDelegateTest
     private sealed class NonSerializableTestClass;
 
     [Test]
+    public async Task SelectTriggersToAcquire_ShouldBindExcludedJobTypesInSqlOrder()
+    {
+        IDbProvider dbProvider = A.Fake<IDbProvider>();
+        DbConnection connection = A.Fake<DbConnection>();
+        DbTransaction transaction = A.Fake<DbTransaction>();
+        DbCommand command = A.Fake<StubCommand>();
+        DbDataReader dataReader = A.Fake<DbDataReader>();
+        DbParameterCollection parameterCollection = A.Fake<DbParameterCollection>();
+        List<DbParameter> boundParameters = [];
+
+        A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata
+        {
+            BindByName = true,
+            ParameterNamePrefix = "@"
+        });
+        A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
+        A.CallTo(command).Where(x => x.Method.Name == "get_DbParameterCollection")
+            .WithReturnType<DbParameterCollection>()
+            .Returns(parameterCollection);
+        A.CallTo(command).Where(x => x.Method.Name == "CreateDbParameter")
+            .WithReturnType<DbParameter>()
+            .ReturnsLazily(() => new SqlParameter());
+        A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+            .WithReturnType<Task<DbDataReader>>()
+            .Returns(Task.FromResult(dataReader));
+        A.CallTo(() => dataReader.ReadAsync(CancellationToken.None)).Returns(false);
+        A.CallTo(() => parameterCollection.Add(A<object>._)).ReturnsLazily((object value) =>
+        {
+            boundParameters.Add((DbParameter) value);
+            return boundParameters.Count - 1;
+        });
+
+        StdAdoDelegate adoDelegate = new();
+        adoDelegate.Initialize(new DriverDelegateContext
+        {
+            TablePrefix = "QRTZ_",
+            InstanceId = "TESTSCHED",
+            SchedulerName = "INSTANCE",
+            TypeLoader = new SimpleTypeLoader(),
+            UseProperties = false,
+            DbProvider = dbProvider,
+            ObjectSerializer = serializer
+        });
+
+        ConnectionAndTransactionHolder conn = new(connection, transaction);
+        await adoDelegate.SelectTriggersToAcquire(conn, new TriggerAcquisitionCriteria
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            NoEarlierThan = DateTimeOffset.UtcNow.AddMinutes(-1),
+            MaxCount = 5,
+            LiveNodeCutoff = DateTimeOffset.UtcNow.AddMinutes(-2),
+            ExcludedJobTypeNames = ["First.Job", "Second.Job", "Third.Job"]
+        });
+
+        boundParameters.Select(x => x.ParameterName).Should().Equal(
+            "@schedulerName",
+            "@state",
+            "@noLaterThan",
+            "@noEarlierThan",
+            "@instanceId",
+            "@autoPinSentinel",
+            "@liveNodeCutoff",
+            "@excludedJobType0000",
+            "@excludedJobType0001",
+            "@excludedJobType0002",
+            "@excludedJobType0003");
+        boundParameters.Skip(7).Select(x => x.Value).Should().Equal(
+            "First.Job",
+            "Second.Job",
+            "Third.Job",
+            "Third.Job");
+    }
+
+    [Test]
     public async Task TestSelectBlobTriggerWithNoBlobContent()
     {
         var dbProvider = A.Fake<IDbProvider>();

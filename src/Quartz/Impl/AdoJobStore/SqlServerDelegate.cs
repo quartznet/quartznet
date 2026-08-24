@@ -34,9 +34,9 @@ public class SqlServerDelegate : StdAdoDelegate
     /// SQL Server specific version with TOP functionality
     /// </summary>
     /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
     {
-        string sqlSelectNextTriggerToAcquire = StdAdoConstants.SqlSelectNextTriggerToAcquire;
+        string sqlSelectNextTriggerToAcquire = base.GetSelectNextTriggerToAcquireSql(maxCount, excludedJobTypeBucket);
 
         // add limit clause to correct place
         sqlSelectNextTriggerToAcquire = "SELECT TOP " + maxCount + " " + sqlSelectNextTriggerToAcquire.Substring(6);

@@ -3654,6 +3654,7 @@ public abstract class AdoJobStoreBase : IJobStore
             NoEarlierThan = MisfireTime,
             MaxCount = request.MaxCount,
             ExecutionLimits = request.ExecutionLimits,
+            ExcludedJobTypeNames = request.ExcludedJobTypeNames,
             LiveNodeCutoff = liveNodeCutoff,
         };
     }
@@ -3678,6 +3679,11 @@ public abstract class AdoJobStoreBase : IJobStore
             {
                 // Built inside the loop, so each retry asks again and sees the time it retried at.
                 TriggerAcquisitionCriteria criteria = CreateAcquisitionCriteria(request);
+                // This delegate fallback deliberately compares ordinally; SQL filtering follows the
+                // job-class column's collation and is not guaranteed to agree.
+                HashSet<string>? excludedJobTypeNames = criteria.ExcludedJobTypeNames is { Count: > 0 } names
+                    ? new HashSet<string>(names, StringComparer.Ordinal)
+                    : null;
 
                 // A cluster-scoped limit is counted against the fired-triggers table, so the count is
                 // read here rather than derived from anything this node remembers. One aggregate per
@@ -3736,6 +3742,11 @@ public abstract class AdoJobStoreBase : IJobStore
                             Logger.LogError(ex, "Unable to set trigger state to ERROR.");
                         }
                         continue;
+                    }
+
+                    if (excludedJobTypeNames is not null && excludedJobTypeNames.Contains(result.JobTypeName))
+                    {
+                        continue; // next trigger — this delegate did not filter it out itself
                     }
 
                     // The same question JobDetailImpl answers, answered the same way: the attribute is

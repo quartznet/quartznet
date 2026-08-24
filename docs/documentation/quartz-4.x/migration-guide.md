@@ -4898,10 +4898,11 @@ which always projects `EXECUTION_GROUP` and always carries the preferred-node fi
 which is the one that was already there:
 
 ```csharp
-protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount)
+protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
 ```
 
-It is unchanged, and it is still the only thing the dialects differed in: `FirebirdDelegate` appends
+Its `excludedJobTypeBucket` parameter is new — pass it to `base` and the job-type exclusions ride
+along — and it is still the only thing the dialects differed in: `FirebirdDelegate` appends
 `ROWS n`, `SqlServerDelegate` splices in `SELECT TOP n`, `OracleDelegate` wraps the statement in a
 `rownum` filter, and the rest append `LIMIT n`. **A dialect delegate of your own should keep its
 `GetSelectNextTriggerToAcquireSql` override and delete the other three.**
@@ -5417,8 +5418,13 @@ above.
 `TriggerAcquisitionRequest` lives in `Quartz.Extensibility`. Acquisition keeps growing dimensions — the
 batching window, per-execution-group limits, node affinity — and each one used to be another parameter on the
 hot path of every store. As a record, the next one is an added optional property a store can ignore. It is the
-store-level counterpart of the delegate-level `TriggerAcquisitionCriteria`, which is unchanged. `TimeWindow`
+store-level counterpart of the delegate-level `TriggerAcquisitionCriteria`. `TimeWindow`
 rejects a negative value at construction, where `AdoJobStoreBase` used to throw from inside acquisition.
+
+Both records also expose optional `ExcludedJobTypeNames` collections. `AdoJobStoreBase` copies the request
+property into its delegate criteria, and the standard ADO.NET delegates apply it in the acquisition SQL.
+Names use the stored `TriggerAcquireResult.JobTypeName` spelling. Comparison follows the database job-class
+column's collation, including its case-sensitivity rules.
 
 ## Options records replace boolean parameters
 
@@ -7606,6 +7612,7 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.SelectJobForTrigger`'s `loadJobType` is required | It defaulted in front of the cancellation token; pass `loadJobType: true` for the old default |
 | `IDriverDelegate.UpdateTriggerPreferredNodeConditional` takes a `PreferredNodeTransition` | Four loose compare-and-swap parameters became one record naming `Expected` and `New` |
 | `TriggerAcquisitionCriteria.LiveNodeCutoff` is a `required DateTimeOffset` | It was an optional `long` of `UtcTicks` beside two required `DateTimeOffset` siblings, and omitting it silently meant "every node is dead". The tick conversion happens in `AddPreferredNodeParameters`, whose parameter is a `DateTimeOffset` too |
+| `TriggerAcquisitionRequest.ExcludedJobTypeNames` and `TriggerAcquisitionCriteria.ExcludedJobTypeNames` added | Optional exact job-type-name exclusions for acquisition. The ADO.NET store applies them in SQL; comparison follows the `JOB_CLASS_NAME` column's collation |
 | `StdAdoDelegate.AddPagingParameters(cmd, int skip, int take, bool)` | `skip`/`take` were `long` while `PagedQuery.Skip`/`.Take` are `int`; the dialect override contract now matches the query object it serves |
 | `StdAdoDelegate.ReadBytesFromBlob` takes a `DbDataReader` and is asynchronous | It took a `System.Data.IDataReader` — the last legacy `System.Data.I*` interface anywhere in the public surface — which forced a synchronous, thread-blocking read that ignored the cancellation token it was handed. It is `async ValueTask<byte[]?>` over `IsDBNullAsync` / `GetFieldValueAsync<byte[]>`. **The behaviour contract is unchanged**: a `NULL` column still yields `null`, and an empty blob still yields an empty array, which the only caller (`GetObjectFromBlob`) has always treated the same as `null` by testing `Length > 0`. An override changes its parameter type; every reader the store passes was already a `DbDataReader` |
 | `StdAdoDelegate`'s date/time and time-span conversions are non-virtual | UTC ticks and whole milliseconds are the schema contract the liveness SQL assumes; only the boolean pair remains a dialect seam. A delegate that changes the storage format implements `IDriverDelegate` itself — see [If you implement `IDriverDelegate`: the listing members](#if-you-implement-idriverdelegate-the-listing-members) |
@@ -7654,6 +7661,7 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.UpdateFiredTrigger` removed | `ApplyTriggerFired` writes the fired-trigger row as one command of its batch, and nothing else called it; an override of it would have stopped taking effect silently — see [Batched trigger fire](#batched-trigger-fire) |
 | `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |
 | `GetSelectNextTriggerToAcquireWith*Sql` removed | The `…WithExecutionGroupSql`, `…WithPreferredNodeSql` and `…WithPreferredNodeOnlySql` hooks, on `StdAdoDelegate` and all six dialect delegates. One statement covers every case now, so a dialect delegate keeps only its `GetSelectNextTriggerToAcquireSql` override — see [The three extra acquisition SQL hooks went with them](#the-three-extra-acquisition-sql-hooks-went-with-them) |
+| `StdAdoDelegate.GetSelectNextTriggerToAcquireSql(int maxCount)` | `GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)`; a custom dialect override must pass the bucket through when it adds its row limit |
 | `IDbConnectionManager` / `DbConnectionManager` removed | The container is the provider registry, keyed by scheduler name; register a provider with `UseConnectionProvider` — see [The connection manager is gone](#the-connection-manager-is-gone) |
 | `AdoJobStoreOptions.TxIsolationLevelSerializable` is `TransactionIsolationLevel` | An `IsolationLevel?` rather than a `bool`, so `Snapshot` and the rest are expressible. The legacy key still translates — see [The isolation level is an isolation level](#the-isolation-level-is-an-isolation-level) |
 | `AdoJobStoreOptions.CommandTimeout` added | Bounds every statement the store issues, the lock handler's included; it reaches them through `DriverDelegateContext.CommandTimeout` and `SemaphoreContext.CommandTimeout`. Unset keeps each provider's own default, so nothing changes for a store that does not set it. 3.x had no way to say this at all — there was no `quartz.*` key for it, so nothing needs translating |
