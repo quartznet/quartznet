@@ -183,7 +183,8 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 - Pause, resume, trigger-now, and unschedule/delete actions (when not in read-only mode)
 - Trigger detail cron reschedule and job detail trigger-with-overrides actions
 - Calendar create/replace (cron calendar), details, and delete actions
-- Multi-scheduler selection
+- Multi-scheduler selection, over the schedulers the container has *built* — the dashboard lists
+  `ISchedulerRepository`, so a registered scheduler nothing has created yet does not appear
 - Read-only mode support via dashboard options
 
 ## Integrating with an existing Blazor Server app

@@ -130,8 +130,10 @@ asynchronous and a container constructs synchronously. Every asynchronous member
 so they are always safe. The synchronous ones — `IsStarted`, `InStandbyMode`, `IsShutdown`,
 `SchedulerInstanceId`, `Context` and `ListenerManager` — can only answer once the scheduler exists, and
 throw `InvalidOperationException` if reading one would have to build it. Under
-`AddQuartzHostedService()` that cannot happen: every scheduler in the container is built and started
-before the application runs. `SchedulerName` never builds anything.
+`AddQuartzHostedService()` that cannot happen once the host has started: the hosted service builds every
+scheduler in the container while the host starts, before anything of yours runs. (It *starts* them
+afterwards, once `ApplicationStarted` fires, unless `AwaitApplicationStarted` is turned off — but built
+is all these members need.) `SchedulerName` never builds anything.
 :::
 
 ### Finding a scheduler at runtime
@@ -287,5 +289,12 @@ builder.Services.AddQuartzHostedService("DurableScheduler", options =>
 
 ## Limitations
 
-- **Job types are shared** — job classes are resolved from the shared DI container. The same job type can be used across multiple schedulers.
-- **Scheduler names must be unique** — each call to `AddQuartz(name, ...)` must use a distinct name.
+- **Scheduler names must be unique** — each call to `AddQuartz(name, ...)` must use a distinct name,
+  compared ignoring case.
+
+Job types are *not* a limitation any more. `AddJob<T>` still registers the type unkeyed, so the same job
+class can be used across schedulers and usually should be — but `AddJobType<TJob, TImplementation>()`,
+`AddJobType<TJob>(lifetime)` and `AddJobType<TJob>(factory)` register under one scheduler's key, and the
+job factory looks that key up before falling back to the container's registration. Two schedulers in one
+container can therefore build the same job type differently. See
+[Multi-Tenancy](../multi-tenancy.md#job-types).
