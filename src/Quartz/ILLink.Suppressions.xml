@@ -157,19 +157,19 @@
       </attribute>
     </type>
 
-    <!-- Reflection-based serialization; issue #3341, step 4 -->
+    <!-- Reflection-based serialization -->
     <type fullname="Quartz.Impl.SystemTextJsonObjectSerializer*">
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
         <argument>IL2026</argument>
-        <property name="Justification">Job data is serialized as whatever the application stored; issue #3341, step 4.</property>
+        <property name="Justification">Job data is serialized as whatever the application stored, which no generated contract can name.</property>
       </attribute>
     </type>
     <type fullname="Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions*">
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
         <argument>IL2026</argument>
-        <property name="Justification">Job data is serialized as whatever the application stored; issue #3341, step 4.</property>
+        <property name="Justification">Job data is serialized as whatever the application stored, which no generated contract can name.</property>
       </attribute>
     </type>
 

@@ -32,6 +32,11 @@ using System.Diagnostics.CodeAnalysis;
 // that accept a type *name* instead say [RequiresUnreferencedCode] out loud. What is left below is what
 // that redesign could not reach, and each group says which wall it ran into.
 //
+// Step 4 closed the HTTP wire contract without adding a line here: HttpApiJsonContext states every body
+// the API exchanges, and HttpApiJson.ConfigureWireFormat asks it before it asks reflection. That change
+// removed no entry either, because the contract's reflection was never Quartz's own warning to record -
+// it lived in System.Text.Json's lazy fallback, which nothing reports.
+//
 // Adding an entry is the wrong first move. Reach for it only after establishing that the reflection is
 // genuinely unavoidable, and then say in the group comment why. The preferred fixes, in order:
 //
@@ -104,11 +109,12 @@ using System.Diagnostics.CodeAnalysis;
 
 // --- Reflection-based serialization ---------------------------------------------------------------------
 // A JobDataMap holds whatever the application put in it, so the payload's types are not known until it
-// is serialized. Issue #3341, step 4 replaces the closed set of wire DTOs with a source-generated
-// JsonSerializerContext; the open part of the registry stays reflective on purpose.
+// is serialized. Everything around it is closed now - the wire contract by HttpApiJsonContext, the
+// trigger and calendar shapes by their serializers - and these two are the open middle that is left:
+// the values themselves, which no generated contract can name because the application chose them.
 
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Impl.SystemTextJsonObjectSerializer", Justification = "Job data is serialized as whatever the application stored; issue #3341, step 4.")]
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions", Justification = "Job data is serialized as whatever the application stored; issue #3341, step 4.")]
+[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Impl.SystemTextJsonObjectSerializer", Justification = "Job data is serialized as whatever the application stored, which no generated contract can name.")]
+[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions", Justification = "Job data is serialized as whatever the application stored, which no generated contract can name.")]
 
 // --- Configuration binding ------------------------------------------------------------------------------
 // IServiceCollection.Configure<TOptions>(name, section) is RequiresUnreferencedCode: the binder reflects

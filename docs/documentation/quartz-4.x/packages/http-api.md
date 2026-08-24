@@ -380,6 +380,21 @@ The wire format is the one documented on this page, so any HTTP client speaks it
 convenience of not writing that yourself. [HTTP Client](http-client.md) covers registration,
 authentication, serializer matching and what does not travel.
 
+## The wire contract is source-generated
+
+The bodies on this page are a closed set, and Quartz states them as a source-generated
+`JsonSerializerContext`: a scheduler, a job detail, a page of triggers, a problem-details error and every
+request that goes the other way are described at compile time rather than discovered by reflecting over
+the type. The server and `Quartz.HttpClient` share the one context, so both ends of a call are generated,
+and adding a body to the API means adding it there too.
+
+Three things on the wire are deliberately left open. An `ITrigger` and an `ICalendar` are read and
+written by converters that consult the scheduler's serializer registry — which is what lets a custom
+trigger or calendar type travel at all — and the values inside a `JobDataMap` are whatever the
+application put there, so nothing generated can name them ahead of time. The generated contract is asked
+first and reflection second, so a body never reflects on its way to those converters, and the reflection
+that remains is over the payload rather than over the contract.
+
 ## Production hardening
 
 - Require authentication/authorization on `MapQuartzHttpApi()`
