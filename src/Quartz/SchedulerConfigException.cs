@@ -29,14 +29,14 @@ namespace Quartz;
 public sealed class SchedulerConfigException : SchedulerException
 {
     /// <summary>
-    /// Create a <see cref="JobPersistenceException" /> with the given message.
+    /// Create a <see cref="SchedulerConfigException" /> with the given message.
     /// </summary>
     public SchedulerConfigException(string message) : base(message)
     {
     }
 
     /// <summary>
-    /// Create a <see cref="JobPersistenceException" /> with the given message
+    /// Create a <see cref="SchedulerConfigException" /> with the given message
     /// and cause.
     /// </summary>
     public SchedulerConfigException(string message, Exception? innerException) : base(message, innerException)

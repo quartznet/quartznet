@@ -20,6 +20,7 @@
 #endregion
 
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Security;
@@ -270,7 +271,7 @@ public sealed class JobDataMap : IDictionary<string, object?>, IReadOnlyDictiona
     /// <see langword="true"/> if the <see cref="JobDataMap"/> contains an element with the specified key;
     /// otherwise, <see langword="false"/>.
     /// </returns>
-    public bool TryGetValue(string key, out object? value)
+    public bool TryGetValue(string key, [MaybeNullWhen(false)] out object? value)
     {
         return map.TryGetValue(key, out value);
     }

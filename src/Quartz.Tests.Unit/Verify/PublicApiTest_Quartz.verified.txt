@@ -114,7 +114,7 @@ namespace Quartz
         public static Quartz.CronExpression Parse(string cronExpression) { }
         public static string ResolveHash(string cronExpression, int hashSeed) { }
         public static string ResolveHash(string cronExpression, string hashKey) { }
-        public static bool TryParse(string? cronExpression, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
+        public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? cronExpression, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
         public static void ValidateExpression(string cronExpression) { }
         public static void ValidateExpression(string cronExpression, string hashKey) { }
     }
@@ -882,7 +882,7 @@ namespace Quartz
         public void PutAsString<T>(string key, T value)
             where T : System.IFormattable { }
         public bool Remove(string key) { }
-        public bool TryGetValue(string key, out object? value) { }
+        public bool TryGetValue(string key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out object? value) { }
     }
     public static class JobDetailExtensions
     {
@@ -1363,7 +1363,7 @@ namespace Quartz
         public void CopyTo(System.Collections.Generic.KeyValuePair<string, object?>[] array, int arrayIndex) { }
         public System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<string, object?>> GetEnumerator() { }
         public bool Remove(string key) { }
-        public bool TryGetValue(string key, out object? value) { }
+        public bool TryGetValue(string key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out object? value) { }
     }
     public static class SchedulerEnlistmentExtensions
     {
