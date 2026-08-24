@@ -57,6 +57,7 @@ Each JSON path segment becomes a dot-separated segment in the flat property key,
 
 ### Usage with DI
 
+<!-- snippet: sample_configuration_json_with_di -->
 ```csharp
 services.AddQuartz(Configuration.GetSection("Quartz"), q =>
 {
@@ -64,6 +65,7 @@ services.AddQuartz(Configuration.GetSection("Quartz"), q =>
     q.AddJob<MyJob>(j => j.WithIdentity("codeJob").StoreDurably());
 });
 ```
+<!-- endSnippet -->
 
 ### Usage without DI
 
@@ -71,11 +73,13 @@ services.AddQuartz(Configuration.GetSection("Quartz"), q =>
 `IConfiguration` and it binds the typed options and translates the flat keys itself, exactly as
 `AddQuartz` does.
 
+<!-- snippet: sample_configuration_json_without_di -->
 ```csharp
 ISchedulerFactory factory = QuartzSchedulerBuilder.Create()
     .UseConfiguration(Configuration.GetSection("Quartz"))
     .Build();
 ```
+<!-- endSnippet -->
 
 A `NameValueCollection` you built yourself — from a properties file, from environment variables —
 still goes in through `UseProperties(properties)`.
@@ -266,11 +270,13 @@ When the `Quartz` section contains a `Schedulers` sub-section, each child is aut
 }
 ```
 
+<!-- snippet: sample_configuration_json_named_schedulers -->
 ```csharp
 // Registers "Primary" and "Secondary" named schedulers automatically
 services.AddQuartz(Configuration.GetSection("Quartz"));
 services.AddQuartzHostedService();
 ```
+<!-- endSnippet -->
 
 Each named scheduler section supports the same hierarchical properties, `Schedule` sub-section with `Jobs`/`Triggers`, and code-based overrides.
 
@@ -278,11 +284,13 @@ You can also register a single named scheduler explicitly. The named overload ac
 scheduler's own section or the root `Quartz` section — when given the root section it resolves the
 matching `Schedulers:{name}` sub-section automatically:
 
+<!-- snippet: sample_configuration_json_one_named_scheduler -->
 ```csharp
 // Both lines are equivalent
 services.AddQuartz("Primary", Configuration.GetSection("Quartz"));
 services.AddQuartz("Primary", Configuration.GetSection("Quartz:Schedulers:Primary"));
 ```
+<!-- endSnippet -->
 
 ::: warning
 Defining both a `Schedulers` sub-section and direct scheduler configuration (e.g., `Scheduler`, `ThreadPool` at the top level) is an error. Use one or the other. A top-level `Schedule`/`Scheduling` section cannot be combined with `Schedulers` either — move it under the appropriate `Schedulers:{name}` entry.
