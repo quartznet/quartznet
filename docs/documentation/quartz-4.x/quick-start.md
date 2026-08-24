@@ -170,8 +170,9 @@ Run it now and nothing happens: ten seconds pass and the program ends. Let us ad
 ## Adding logging
 
 Quartz logs through `Microsoft.Extensions.Logging`. Under a host it uses whatever the application already
-configured, and there is nothing to do. A console application with no host tells Quartz where to log by
-handing `LogProvider` a logger factory:
+configured, and there is nothing to do. A console application like this one has no container of its own
+to configure, so it tells Quartz where to log by handing `LogProvider` a logger factory — before building
+the scheduler, since that is when the loggers are created:
 
 ```csharp
 using Microsoft.Extensions.Logging;

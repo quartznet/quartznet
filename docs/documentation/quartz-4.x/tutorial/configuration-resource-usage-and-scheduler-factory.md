@@ -75,8 +75,12 @@ Quartz logs through `Microsoft.Extensions.Logging`. Under a host, or anywhere el
 a container, it uses whatever logging the application has configured and there is nothing to set up. Quartz
 does not log much: some information while starting, and then only serious problems while jobs run.
 
-Only code that reaches Quartz from outside a container — a static helper, a test that constructs pieces by
-hand — has to say where logging goes, and that is one call:
+That covers the scheduler and everything it is built from: the scheduling loop, the job store and the
+cluster manager and misfire handler it owns, the thread pool, the job factory. What it does not cover is
+what no container builds — a listener or a trigger you constructed yourself, the static helpers, the jobs
+in `Quartz.Jobs` — and a scheduler built by `QuartzSchedulerBuilder`, whose container has no logging
+providers of its own unless you register some on its `Services`. Those say where logging goes with one
+call:
 
 <!-- snippet: sample_configuration_log_provider -->
 ```csharp

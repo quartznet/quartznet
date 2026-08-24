@@ -8,12 +8,21 @@ namespace Quartz.Diagnostics;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This is ambient, mutable, process-wide state, and it stays that way on purpose. Nearly everything the
+/// This is ambient, mutable, process-wide state, and it stays that way on purpose. Everything the
 /// scheduler is made of is built by a container and is injected an <see cref="ILogger" /> the ordinary
-/// way. What is left over cannot be: static helpers such as <see cref="Quartz.TimeZones" />,
-/// types a caller constructs directly — triggers, calendars, plugins, the jobs in <c>Quartz.Jobs</c> —
-/// and anything that runs while the container is still being built. A type cannot be handed a logger by
-/// a container that does not exist yet, so those sites read this instead of going unlogged.
+/// way — the scheduler and its loop, the job store and everything it owns, the thread pool, the job
+/// factory, the type loader, the instance id generator — so a hosted application gets all of that
+/// without touching this slot at all.
+/// </para>
+/// <para>
+/// What is left over cannot be injected anything, and this is the whole of it: the broadcast listeners
+/// and <see cref="Quartz.Listeners.JobChainingJobListener" />, which a caller constructs and hands over
+/// already built; <see cref="Quartz.Impl.Triggers.CronTriggerImpl" />, which is a trigger and may have
+/// been deserialized out of a job store; the static helpers <see cref="Quartz.TimeZones" />,
+/// <see cref="Quartz.MisfireInstructionNames" />, <c>FileUtil</c> and <c>QuartzEnvironment</c>; and the
+/// types in the satellite packages a caller constructs directly, such as the jobs in
+/// <c>Quartz.Jobs</c>. A type cannot be handed a logger by a container it never meets, so those sites
+/// read this instead of going unlogged.
 /// </para>
 /// <para>
 /// It is deliberately <em>not</em> seeded from the container either, which would otherwise be the obvious
@@ -38,8 +47,22 @@ public static class LogProvider
     /// those sites log to <see cref="NullLogger" />.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// An application on <c>AddQuartz</c> does not need this: the scheduler and everything it is built
+    /// from log through the container's <see cref="ILoggerFactory" />. What this reaches is the list of
+    /// leftovers above — a listener you constructed, a trigger, a static helper, a job from
+    /// <c>Quartz.Jobs</c>.
+    /// </para>
+    /// <para>
+    /// A standalone <see cref="QuartzSchedulerBuilder" /> is the exception, and calling this is how it
+    /// is meant to be configured: the container it builds for itself has no logging providers of its
+    /// own, so it forwards to this. Registering a provider on its <c>Services</c> instead takes that
+    /// over.
+    /// </para>
+    /// <para>
     /// Pass a factory that lives at least as long as the schedulers in the process. Handing over a
     /// factory owned by a host and then disposing that host leaves this pointing at a disposed object.
+    /// </para>
     /// </remarks>
     /// <param name="loggerFactory">The logger factory.</param>
     public static void SetLogProvider(ILoggerFactory loggerFactory)

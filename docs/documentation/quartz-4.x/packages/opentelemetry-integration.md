@@ -102,7 +102,8 @@ page.
 ## Logging
 
 Quartz logs through `Microsoft.Extensions.Logging` and uses whatever the application has configured; there is
-nothing to wire up. Code that reaches Quartz from outside a container can point it at a logger factory with
+nothing to wire up. The types no container builds — a listener or trigger you constructed, the static
+helpers, the jobs in `Quartz.Jobs` — are pointed at a logger factory with
 `Quartz.Diagnostics.LogProvider.SetLogProvider(loggerFactory)`.
 
 For a history of every job and trigger event as log entries, rather than as traces, the

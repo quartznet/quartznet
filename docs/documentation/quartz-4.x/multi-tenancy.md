@@ -338,8 +338,15 @@ A handful of things are container-wide, shared by every scheduler in the process
 | `DataSourceOptions` | named after the **data source**, not the scheduler, so several schedulers can read through the same one |
 | `QuartzHttpApiOptions` | one per process — see [honest limits](#honest-limits) |
 
-And one that is not a container service at all: **`LogProvider`** is process-wide static state.
-`SetLogProvider(loggerFactory)` sets it for everything in the process, deliberately.
+Logging is one per container rather than one per scheduler: every scheduler's parts are injected the
+container's `ILoggerFactory`, and a line says which tenant wrote it through the logging scope the
+scheduling loop opens — `quartz.scheduler.name` and `quartz.scheduler.id`, the same attribute names the
+traces and the measurements use. Filter or enrich on those rather than looking for a logger per tenant.
+
+And one thing that is not a container service at all: **`LogProvider`** is process-wide static state.
+`SetLogProvider(loggerFactory)` sets it for everything in the process, deliberately. It no longer has
+anything to do with whether a scheduler logs; what it reaches is the types no container builds — a
+listener or trigger you constructed, the static helpers, the jobs in `Quartz.Jobs`.
 
 The serializer registry is the one row in that table with a way out. A named scheduler resolves its
 registry by key and falls back to the container's, so `services.AddKeyedSingleton(schedulerName, registry)`
