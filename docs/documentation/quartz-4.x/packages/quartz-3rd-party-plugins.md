@@ -41,3 +41,12 @@ JobStore implementation for Quartz.NET scheduler using MongoDb.
 ### [Autofac.Extras.Quartz](https://github.com/alphacloud/Autofac.Extras.Quartz)
 
 Autofac integration package for Quartz.Net.
+
+## Schedules
+
+### [NaturalCron.Quartz](https://github.com/hugoj0s3/NaturalCron)
+
+Human-readable schedule expressions for Quartz.NET. `WithNaturalCronSchedule(...)` takes the place of
+`WithCronSchedule(...)` on a `TriggerBuilder` and accepts a sentence — "Every day between monday and
+friday at 6:00pm" — or the same schedule built with a fluent builder. Cron expressions keep working
+alongside it. The package is maintained outside this repository.
