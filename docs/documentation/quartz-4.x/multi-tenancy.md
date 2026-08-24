@@ -333,7 +333,7 @@ A handful of things are container-wide, shared by every scheduler in the process
 | `ISchedulerRepository` | one per container — that is what makes `GetAllSchedulers` and the dashboard see all of them |
 | `ISchedulerRegistry` | one per container — it answers for every registration in it, which is what makes it an inventory rather than a scheduler's own view |
 | `IJobExecutionContextAccessor` | one per container, and the firing it reports is a property of the asynchronous flow rather than of a scheduler — a flow is inside at most one firing, whichever scheduler started it |
-| `SystemTextJsonSerializerRegistry` | one per container by default — the HTTP API, the dashboard and the HTTP client serialize triggers without knowing which scheduler they came from. A named scheduler *can* be given its own, see below |
+| `SystemTextJsonSerializerRegistry` | one per container by default — the HTTP API and the HTTP client serialize triggers without knowing which scheduler they came from. A named scheduler *can* be given its own, see below |
 | `Meters` | built from the container's `IMeterFactory` |
 | `DataSourceOptions` | named after the **data source**, not the scheduler, so several schedulers can read through the same one |
 | `QuartzHttpApiOptions` | one per process — see [honest limits](#honest-limits) |

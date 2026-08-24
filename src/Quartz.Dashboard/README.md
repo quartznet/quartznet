@@ -1,15 +1,14 @@
 # Quartz.Dashboard
 
 [Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) is a Blazor dashboard for
-Quartz.NET that runs inside your ASP.NET Core application and drives the scheduler through the Quartz
-[HTTP API](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/http-api.html).
+Quartz.NET that runs inside your ASP.NET Core application and drives the schedulers registered in that
+same application.
 
 **The dashboard is a work in progress and its API surface may change between releases.**
 
 ## Installation
 
-The API it reads ships in `Quartz.AspNetCore`, which this package brings along, so one reference is
-enough:
+It builds on `Quartz.AspNetCore`, which this package brings along, so one reference is enough:
 
 ```shell
 dotnet add package Quartz.Dashboard

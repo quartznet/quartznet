@@ -25,7 +25,6 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Plugins;
 using Quartz.Dashboard.Services;
-using Quartz.Serialization.SystemTextJson;
 using Quartz.Extensibility;
 
 namespace Quartz;
@@ -45,15 +44,7 @@ public static class QuartzDashboardServiceCollectionExtensions
                 "DashboardPath must start with '/'")
             .Validate(
                 options => IsRoutableDashboardPath(options.DashboardPath),
-                "DashboardPath must be a simple URL path: it cannot contain '{', '}', '?', '#', '.' or '..' segments, or empty segments ('//')")
-            .Validate(
-                options => !string.IsNullOrWhiteSpace(options.ApiPath) && options.ApiPath.StartsWith('/'),
-                "ApiPath must start with '/'")
-            .Validate(
-                // This is the address the dashboard calls its own API back on, so a relative one cannot
-                // be a base address. Rejecting it here beats a UriFormatException from the first request.
-                options => options.BaseUrl is null || options.BaseUrl.IsAbsoluteUri,
-                "BaseUrl must be an absolute URL, for example https://myapp.example.com/");
+                "DashboardPath must be a simple URL path: it cannot contain '{', '}', '?', '#', '.' or '..' segments, or empty segments ('//')");
 
         if (configure is not null)
         {
@@ -71,14 +62,10 @@ public static class QuartzDashboardServiceCollectionExtensions
             .AddJsonProtocol(options =>
                 options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter<SchedulerStatus>()));
         services.AddHttpContextAccessor();
-        services.AddHttpClient("QuartzDashboard");
 
-        // The dashboard renders every scheduler in the container, so it cannot read any single scheduler's
-        // serializers; register a custom trigger or calendar serializer here to have the dashboard
-        // understand it.
-        services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
-
-        services.TryAddSingleton<DashboardSerializerOptions>();
+        // The dashboard reads the schedulers in its own process: every page goes through the in-process
+        // client, which hands the pages triggers, calendars and job data maps as themselves. TryAdd, so an
+        // application that registers its own IQuartzApiClient first is the one that answers.
         services.TryAddScoped<IQuartzApiClient>(static provider => new InProcessQuartzApiClient(
             provider.GetRequiredService<ISchedulerRepository>(),
             provider.GetRequiredService<IOptions<QuartzDashboardOptions>>(),

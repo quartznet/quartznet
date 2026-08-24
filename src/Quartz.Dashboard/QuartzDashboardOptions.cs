@@ -19,6 +19,13 @@
 
 namespace Quartz;
 
+/// <summary>
+/// How the dashboard is served and what it is allowed to do.
+/// </summary>
+/// <remarks>
+/// There is nothing here that points the dashboard at a scheduler: it renders the schedulers in its own
+/// process, through the <c>IQuartzApiClient</c> registered in the container.
+/// </remarks>
 public sealed class QuartzDashboardOptions
 {
     internal const string DefaultDashboardPath = "/quartz";
@@ -39,30 +46,11 @@ public sealed class QuartzDashboardOptions
 
     public bool ReadOnly { get; set; }
 
-    public string ApiPath { get; set; } = "/quartz-api";
-
-    /// <summary>
-    /// The base URL used by the HTTP API client to construct request URIs.
-    /// When set, this is used instead of deriving the base URL from the incoming HTTP request.
-    /// This should be set to the root URL of the host application (e.g., "https://myapp.example.com/").
-    /// </summary>
-    /// <remarks>
-    /// A <see cref="Uri"/> rather than a string, because that is what it becomes and the conversion can
-    /// fail: a malformed string used to be accepted at configuration time and throw
-    /// <see cref="UriFormatException"/> from inside the dashboard the first time it called its own API.
-    /// The configuration binder parses the string in <c>appsettings.json</c> into one, so a bad value is
-    /// now reported where it is configured. A relative URI is rejected for the same reason it was never
-    /// useful: this is the address the dashboard calls itself back on.
-    /// </remarks>
-    public Uri? BaseUrl { get; set; }
-
     /// <summary>
     /// <see cref="DashboardPath"/> normalized to a rooted path without a trailing slash,
     /// falling back to <see cref="DefaultDashboardPath"/> when unset or empty.
     /// </summary>
     internal string TrimmedDashboardPath => DashboardPathCache.Trimmed;
-
-    internal string TrimmedApiPath => ApiPath.TrimEnd('/');
 
     /// <summary>
     /// Whether <see cref="DashboardPath"/> differs from the compile-time default "/quartz".

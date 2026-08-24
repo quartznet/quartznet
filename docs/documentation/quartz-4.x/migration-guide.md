@@ -326,12 +326,11 @@ The option, the configuration key `quartz.jobStore.acceptEnlistedTransactions` a
 verb: it genuinely does more than one assignment, setting `Enabled` on `ClusteringOptions` and
 `UseDbLocks` on `AdoJobStoreOptions`.
 
-### Three names that said the wrong thing
+### Two names that said the wrong thing
 
 | Was | Is | Why |
 |---|---|---|
 | `AdoJobStoreOptions.UseProperties` | `AdoJobStoreOptions.StoreJobDataAsStrings` | `UseProperties` reads as a verb and collided with `QuartzSchedulerBuilder.UseProperties` and `AddQuartz(properties)`, which are about flat `quartz.*` configuration keys and have nothing to do with how job data is persisted |
-| `QuartzDashboardOptions.BaseUrl` is a `string?` | it is a `Uri?` | it is parsed into one on first use, and a malformed string used to be accepted at configuration time and throw from inside the dashboard the first time it called its own API |
 | `Matchers.Group<TKey>(@operator, …)` / `Matchers.Name<TKey>(@operator, …)` | the parameter is `matchOperator` | `operator` is a C# keyword, so naming the argument meant writing `@operator:` at the call site |
 
 ```diff
@@ -342,9 +341,6 @@ verb: it genuinely does more than one assignment, setting `Enabled` on `Clusteri
 +     store.Configure(options => options.StoreJobDataAsStrings = true);
   });
 
-- services.AddQuartzDashboard(options => options.BaseUrl = "https://myapp.example.com/");
-+ services.AddQuartzDashboard(options => options.BaseUrl = new Uri("https://myapp.example.com/"));
-
 - Matchers.Group<JobKey>(@operator: StringOperator.StartsWith, compareTo: "reports");
 + Matchers.Group<JobKey>(matchOperator: StringOperator.StartsWith, compareTo: "reports");
 ```
@@ -353,10 +349,6 @@ The flat key is unchanged: `quartz.jobStore.useProperties` still sets `StoreJobD
 `appsettings.json` the section entry follows the option, so `JobStore:UseProperties` becomes
 `JobStore:StoreJobDataAsStrings` — the old spelling still works, because every section is also flattened
 onto its `quartz.*` key and read there.
-
-`BaseUrl` in `appsettings.json` is unchanged: the configuration binder parses the string into a `Uri`.
-A relative one is now rejected at startup — it never worked, this being the address the dashboard calls
-its own API back on.
 
 ### The hosted service's extension point is its four hooks
 
@@ -5827,14 +5819,10 @@ other end of the scale: the map holds arbitrary user values, which is exactly wh
 and typing it as one keeps an `int` an `int` where a JSON round trip made it whatever the reader
 guessed.
 
-Two consequences worth knowing:
-
-* **The in-process client no longer serializes anything.** It used to write the trigger to JSON and
-  read it back for no reason but the contract's type, and it fell back to reflecting over the trigger
-  for kinds the registry did not know — which produced a payload that could not be posted back. A
-  custom trigger type now reaches the detail page as itself.
-* **The HTTP-backed client cannot read a kind no serializer is registered for**, and says so instead
-  of rendering an anonymous bag of properties. Register the serializer, as the API itself requires.
+One consequence worth knowing: **the client no longer serializes anything.** It used to write the
+trigger to JSON and read it back for no reason but the contract's type, and it fell back to reflecting
+over the trigger for kinds the registry did not know — which produced a payload that could not be posted
+back. A custom trigger type now reaches the detail page as itself.
 
 `TriggerHeaderDto` was half a positional record and half property-initialised, which read as an
 accident because it was one. It is positional throughout:
@@ -5844,9 +5832,24 @@ accident because it was one. It is positional throughout:
 + new TriggerHeaderDto(group, name, triggerType, scheduleSummary, state, executionGroup)
 ```
 
-A trigger's kind is also named the same way by both clients now — `Cron`, `Simple`, … The HTTP-backed
-one echoed the wire's discriminator, so the same trigger was `CronTrigger` there and `Cron` in
-process.
+### The dashboard reads the schedulers in its own process
+
+`Quartz.Dashboard.Services.QuartzApiClient` — the `IQuartzApiClient` implementation that called a Quartz
+HTTP API over the network — is gone, and `QuartzDashboardOptions.BaseUrl` and
+`QuartzDashboardOptions.ApiPath` are gone with it. Nothing ever resolved it: `AddQuartzDashboard`
+registers the in-process client, which reads `ISchedulerRepository` directly, and it did so in every
+4.0 preview. Two implementations of one interface where only one ever ran had already disagreed twice
+about the same fact — `"Started"` against `"Running"` for a running scheduler, `CronTrigger` against
+`Cron` for a trigger's kind — because nothing exercised the one that never ran.
+
+`AddQuartzDashboard` still registers `IQuartzApiClient` with `TryAdd`, so an application that registers
+its own implementation first is the one the pages read. A dashboard rendering a scheduler in another
+process is a product with its own questions — authentication forwarding, execution limits, a history
+endpoint no Quartz HTTP API serves — and it is designed in
+[#3387](https://github.com/quartznet/quartznet/issues/3387) rather than left half-built here.
+
+`QuartzHttpApiOptions.ApiPath`, which is where the HTTP API itself is served, is unaffected: it is a
+different option on a different type, and `AddQuartzHttpApi` still reads it.
 
 ## `CheckExists` is `Exists`
 
@@ -7507,9 +7510,10 @@ Parameters and behavior are unchanged:
 | Group matchers translate to SQL correctly | `SelectTriggerGroups`, `DeletePausedTriggerGroup` and both `UpdateTriggerGroupStateFromOtherState(s)` members always built a `LIKE`, even for an equality matcher; they take the `=` path now, which is exact and index-friendly. `LIKE` patterns escape `%`, `_` and the escape character in the matcher's own text with an explicit `ESCAPE` clause, so a group literally named `50%` matches itself. The escape character is `!` rather than a backslash, because MySQL applies C-style escaping inside string literals and `ESCAPE '\'` is a syntax error there |
 | `StdAdoConstants` group and fired-trigger statements were split | `SqlDeletePausedTriggerGroup`, `SqlSelectTriggerGroupsFiltered`, `SqlUpdateTriggerGroupStateFromState` and `SqlUpdateTriggerGroupStateFromStates` are `…Equals` / `…Like` pairs, and the FIRED_TRIGGERS statements are one `SqlSelectFiredTriggers` / `SqlDeleteFiredTriggers` base plus `SqlFiredTrigger*Predicate` fragments. The type is internal |
 | `IDashboardAuthorizationFilter` and `QuartzDashboardOptions.AuthorizationFilter` removed | Nothing ever invoked the filter, so setting it bought a false sense of security. Use `AuthorizationPolicy`, which is enforced |
-| `IDashboardHistoryStore` is asynchronous | `ValueTask Add`, `ValueTask<PagedResult<DashboardHistoryEntry>> GetPage(DashboardHistoryQuery)`, so a store can talk to a database. `SearchFilter.DebounceMilliseconds` is a `TimeSpan Debounce`, and `QuartzApiClient` / `InProcessQuartzApiClient` are internal — resolve `IQuartzApiClient` |
+| `IDashboardHistoryStore` is asynchronous | `ValueTask Add`, `ValueTask<PagedResult<DashboardHistoryEntry>> GetPage(DashboardHistoryQuery)`, so a store can talk to a database. `SearchFilter.DebounceMilliseconds` is a `TimeSpan Debounce`, and `InProcessQuartzApiClient` is internal — resolve `IQuartzApiClient` |
 | `IQuartzApiClient` speaks Quartz's vocabulary | See [The dashboard's client speaks one currency](#the-dashboard-s-client-speaks-one-currency) |
-| Serializers outside a scheduler read a container-wide registry | Because the serializer maps are per-serializer, the HTTP API, the dashboard and `Quartz.HttpClient` read a `SystemTextJsonSerializerRegistry` registered in the container. Register it as a singleton to make a custom serializer visible to them |
+| The dashboard's HTTP-backed API client is gone | `QuartzApiClient` was never registered; the dashboard renders the schedulers in its own process, and `QuartzDashboardOptions.BaseUrl` and `.ApiPath` went with it — see [The dashboard reads the schedulers in its own process](#the-dashboard-reads-the-schedulers-in-its-own-process) |
+| Serializers outside a scheduler read a container-wide registry | Because the serializer maps are per-serializer, the HTTP API and `Quartz.HttpClient` read a `SystemTextJsonSerializerRegistry` registered in the container. Register it as a singleton to make a custom serializer visible to them. The dashboard no longer registers one of its own: it passes triggers and calendars through as themselves |
 | `IDriverDelegate` trigger states are `StoredTriggerState` | Eighteen members took the state as a `string`; the database still stores the same values — see [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate) |
 | The `…FromOtherStates` members take a state collection | Two or three fixed old-state parameters became one `IReadOnlyCollection<StoredTriggerState>` |
 | `FiredTriggerQuery.InstanceName` is `InstanceId` | With the `instanceName` parameters of the scheduler-state members; the `INSTANCE_NAME` column is unchanged |
@@ -7803,6 +7807,7 @@ removals on types that are still public and still open, which no section above n
 | `JobStoreSupport.GetTriggerNames(conn, matcher, ct)` | Removed (`protected`) | The listing members became queries — see [Job store listings became queries](#job-store-listings-became-queries) |
 | `LogProvider.IsDisabled` | Removed | No replacement; filter through the `ILoggerFactory` — see [Logging](#logging) |
 | `LogProvider.SetCurrentLogProvider(ILogProvider)` | Removed with LibLog | `LogProvider.SetLogProvider(ILoggerFactory)` — see [Logging](#logging) |
+| `QuartzDashboardOptions.ApiPath` | Removed | No replacement; it addressed the HTTP API the dashboard's remote client called, and that client is gone — see [The dashboard reads the schedulers in its own process](#the-dashboard-reads-the-schedulers-in-its-own-process). `QuartzHttpApiOptions.ApiPath`, which is where the API is served, is a different option and unchanged |
 | `SchedulerMetadata.Started`, `.InStandbyMode`, `.Shutdown` | Removed | `Status`, a `required SchedulerStatus` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
 | `SimplePropertiesTriggerPersistenceDelegateSupport.SchedNameLiteral`, and the same member on `DbSemaphore` | Removed; both were `[Obsolete]` in 3.x | No replacement; the scheduler name is a SQL parameter, not literal text |
 | `StdAdoDelegate.GetStorableJobTypeName(Type)` | Removed (`protected`) | `new JobType(type).FullName`, which is the spelling the `JOB_CLASS_NAME` column holds |
