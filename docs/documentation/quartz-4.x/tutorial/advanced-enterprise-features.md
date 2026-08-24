@@ -14,6 +14,7 @@ Clustering needs a persistent store; `RAMJobStore` has nothing to share. `LocalT
 
 ## Enabling it
 
+<!-- snippet: sample_advanced_clustering -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -34,6 +35,7 @@ builder.Services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 Three rules follow from what those settings mean:
 
@@ -53,6 +55,7 @@ Three rules follow from what those settings mean:
 
 ## Tuning the check-in
 
+<!-- snippet: sample_advanced_checkin_interval -->
 ```csharp
 store.UseClustering(cluster =>
 {
@@ -60,6 +63,7 @@ store.UseClustering(cluster =>
     cluster.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
 });
 ```
+<!-- endSnippet -->
 
 | Option | Default | What it does |
 |---|---|---|
@@ -109,6 +113,7 @@ times are spread out.
 
 So: move the pair together, or leave them alone.
 
+<!-- snippet: sample_advanced_batch_acquisition -->
 ```csharp
 q.ConfigureScheduler(options =>
 {
@@ -116,6 +121,7 @@ q.ConfigureScheduler(options =>
     options.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.FromSeconds(1);
 });
 ```
+<!-- endSnippet -->
 
 That is worth doing when many triggers fire at once — a few hundred at the top of the hour — because
 one acquisition and one `TRIGGERS_FIRED` round trip replace one of each per trigger. It is not worth

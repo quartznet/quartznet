@@ -29,6 +29,7 @@ An application with no host — a console application, or a test — builds a sc
 `QuartzSchedulerBuilder`. It takes the same configuration API as `AddQuartz`, creating a container of
 its own and building from it, so what works in one works in the other:
 
+<!-- snippet: sample_configuration_building_a_scheduler -->
 ```csharp
 IScheduler scheduler = await QuartzSchedulerBuilder.Create()
     .ConfigureScheduler(options => options.InstanceName = "reporting")
@@ -36,6 +37,7 @@ IScheduler scheduler = await QuartzSchedulerBuilder.Create()
     .UseInMemoryStore()
     .BuildScheduler();
 ```
+<!-- endSnippet -->
 
 Every configuration method returns the builder itself, so the whole thing is one expression. Nothing
 starts on its own: without a hosted service, starting the scheduler is your call, and so is shutting it
@@ -51,11 +53,13 @@ A scheduler can also be configured from a set of flat `quartz.*` properties (`Na
 instead of in code. The properties are generally stored in and loaded from a file, but can also be
 created by your program and handed to the builder:
 
+<!-- snippet: sample_configuration_from_properties -->
 ```csharp
 await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
     .UseProperties(properties)
     .Build();
 ```
+<!-- endSnippet -->
 
 The keys are translated into the same options and registrations the code-based API produces, so a
 scheduler configured this way is the same scheduler, and the two can be mixed — what is written in code
@@ -74,12 +78,14 @@ does not log much: some information while starting, and then only serious proble
 Only code that reaches Quartz from outside a container — a static helper, a test that constructs pieces by
 hand — has to say where logging goes, and that is one call:
 
+<!-- snippet: sample_configuration_log_provider -->
 ```csharp
 // obtain your logger factory, for example from IServiceProvider
-ILoggerFactory loggerFactory = ...;
+ILoggerFactory loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
 
 LogProvider.SetLogProvider(loggerFactory);
 ```
+<!-- endSnippet -->
 
 `LogProvider` is in `Quartz.Diagnostics`, and also hands out loggers — `LogProvider.CreateLogger<T>()` — for
 the same situation.

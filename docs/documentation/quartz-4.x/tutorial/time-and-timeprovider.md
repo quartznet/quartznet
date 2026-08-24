@@ -27,18 +27,22 @@ on a fake clock.
 
 One call, on either builder:
 
+<!-- snippet: sample_time_provider_registration -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
     q.UseTimeProvider(myTimeProvider);
 });
 ```
+<!-- endSnippet -->
 
+<!-- snippet: sample_time_provider_standalone -->
 ```csharp
 IScheduler scheduler = await QuartzSchedulerBuilder.Create()
     .UseTimeProvider(myTimeProvider)
     .BuildScheduler();
 ```
+<!-- endSnippet -->
 
 ### Precedence
 
@@ -82,6 +86,8 @@ component belongs to.
 
 Exactly one builder takes a clock:
 
+<!-- A listing of signatures rather than code, so it is written out here rather than compiled. -->
+
 ```csharp
 TriggerBuilder.Create(TimeProvider? timeProvider = null);
 TriggerBuilder.Create<TJob>(TimeProvider? timeProvider = null);
@@ -94,6 +100,7 @@ that does this — is computed against the same clock.
 
 The five schedule builders take **no** clock:
 
+<!-- snippet: sample_time_provider_schedule_builders -->
 ```csharp
 CronScheduleBuilder.Create(cronExpression);
 SimpleScheduleBuilder.Create();
@@ -101,16 +108,19 @@ CalendarIntervalScheduleBuilder.Create();
 DailyTimeIntervalScheduleBuilder.Create();
 RecurrenceScheduleBuilder.Create(recurrenceRule);
 ```
+<!-- endSnippet -->
 
 They describe a *shape* — every day at 09:00, every 15 minutes, the third Tuesday — and a shape needs
 no clock. When one of them does need "now", it gets it from the trigger builder.
 
 `DateBuilder` has two statics, both taking an optional clock:
 
+<!-- snippet: sample_time_provider_date_builder -->
 ```csharp
 DateTimeOffset when = DateBuilder.Create(timeProvider).InYear(2027).InMonthOnDay(3, 15).AtHourOfDay(9).Build();
 DateTimeOffset local = DateBuilder.CreateInTimeZone(tz, timeProvider).AtHourMinuteAndSecond(9, 30, 0).Build();
 ```
+<!-- endSnippet -->
 
 ::: warning Changed in 4.x
 `DateBuilder.NewDate` / `NewDateInTimeZone` are now `Create` / `CreateInTimeZone`, and
@@ -127,6 +137,7 @@ The DI configuration path threads the container's clock through for you. Both
 `TriggerBuilder.Create<TJob>(serviceProvider.GetService<TimeProvider>())`, so a trigger configured
 there starts on the scheduler's clock:
 
+<!-- snippet: sample_time_provider_configured_trigger -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -137,9 +148,11 @@ builder.Services.AddQuartz(q =>
         .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromHours(1)).RepeatForever()));
 });
 ```
+<!-- endSnippet -->
 
 A trigger you build yourself does not:
 
+<!-- snippet: sample_time_provider_wall_clock_trigger -->
 ```csharp
 // StartTimeUtc is the WALL CLOCK, whatever the scheduler's TimeProvider says
 ITrigger trigger = TriggerBuilder.Create()
@@ -147,10 +160,12 @@ ITrigger trigger = TriggerBuilder.Create()
     .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
     .Build();
 ```
+<!-- endSnippet -->
 
 This is the single most common surprise in a fake-clock test: the scheduler is on 2024-01-01, the
 trigger says it starts *now*, and now is whenever the test ran. Pass the clock:
 
+<!-- snippet: sample_time_provider_trigger_builder_clock -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create(fakeClock)
     .WithIdentity("hourly")
@@ -158,6 +173,7 @@ ITrigger trigger = TriggerBuilder.Create(fakeClock)
     .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
     .Build();
 ```
+<!-- endSnippet -->
 
 An explicit `StartAt` sidesteps the question entirely, which is why it is worth being explicit in tests
 even when you would not bother in production code.
@@ -175,11 +191,13 @@ one.
 `TimeProvider` answers *what instant is it*. `TimeZoneInfo` answers *what does that instant look like
 where the schedule lives*. They are independent, and a fake clock does not fake a time zone.
 
+<!-- snippet: sample_time_provider_time_zone -->
 ```csharp
 TriggerBuilder.Create()
     .WithCronSchedule("0 0 9 * * ?", x => x.InTimeZone(TimeZones.FindById("Europe/Helsinki")))
     .Build();
 ```
+<!-- endSnippet -->
 
 `TimeZones` has three members:
 
@@ -211,6 +229,9 @@ Daylight saving is where the two axes meet, and each trigger family answers it d
 ## Testing with a fake clock
 
 `Microsoft.Extensions.TimeProvider.Testing` gives you `FakeTimeProvider`:
+
+<!-- Not a compiled sample: `FakeTimeProvider` comes from `Microsoft.Extensions.TimeProvider.Testing`,
+     which this repository does not reference outside its test projects. -->
 
 ```csharp
 FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero));

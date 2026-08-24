@@ -45,6 +45,7 @@ protocol's own markers (`*`, `_`, `null`) are the only names `PreferredNode.For`
 
 Use `TriggerBuilder.WithPreferredNode()`:
 
+<!-- snippet: sample_node_affinity_pin -->
 ```csharp
 // Pin to a specific node
 ITrigger trigger = TriggerBuilder.Create()
@@ -54,7 +55,9 @@ ITrigger trigger = TriggerBuilder.Create()
     .WithCronSchedule("0 0/5 * * * ?")
     .Build();
 ```
+<!-- endSnippet -->
 
+<!-- snippet: sample_node_affinity_auto_pin -->
 ```csharp
 // Auto-pin: the first node to fire it claims it
 ITrigger trigger = TriggerBuilder.Create()
@@ -64,16 +67,19 @@ ITrigger trigger = TriggerBuilder.Create()
     .WithCronSchedule("0 0/5 * * * ?")
     .Build();
 ```
+<!-- endSnippet -->
 
 Read it back from any `ITrigger`:
 
+<!-- snippet: sample_node_affinity_reading_the_pin -->
 ```csharp
-ITrigger t = await scheduler.GetTrigger(new TriggerKey("myTrigger"));
-PreferredNode pin = t.PreferredNode;
+ITrigger? t = await scheduler.GetTrigger(new TriggerKey("myTrigger"));
+PreferredNode pin = t!.PreferredNode;   // GetTrigger returns null when there is no such trigger
 string? node = pin.Node;         // "production-node-1"; null when unpinned or an unclaimed auto-pin
 bool auto = pin.IsAutomatic;     // false for a pin you named
 bool unpinned = pin.IsNone;
 ```
+<!-- endSnippet -->
 
 ::: warning
 The value must match the instance id **exactly**. Pin comparisons happen in SQL using the database's
@@ -95,14 +101,17 @@ This is ideal when you don't know node names at configuration time but still wan
 
 Rebuilding an auto-pinned trigger preserves the auto-claim:
 
+<!-- snippet: sample_node_affinity_rebuild -->
 ```csharp
 // The rebuilt trigger is still auto-pinned, so it will still fail over if that node dies
 ITrigger rebuilt = trigger.GetTriggerBuilder().WithDescription("updated").Build();
 ```
+<!-- endSnippet -->
 
 The pin carries its own auto-claim flag, so a pin moved from one trigger to another arrives as the pin it
 was. What you write is what you get back:
 
+<!-- snippet: sample_node_affinity_rebuild_with_new_pin -->
 ```csharp
 // a pin you named; IsAutomatic is false
 ITrigger named = trigger.GetTriggerBuilder()
@@ -114,6 +123,7 @@ ITrigger unpinned = trigger.GetTriggerBuilder()
     .WithPreferredNode(PreferredNode.None)
     .Build();
 ```
+<!-- endSnippet -->
 
 `ITrigger.PreferredNode` is read-only, like the rest of a trigger: rebuild the trigger to change it, and hand
 the result to `IScheduler.RescheduleJob` — or, for this one property on its own,
@@ -138,19 +148,23 @@ When the preferred node stops checking in:
 
 You can re-pin without rescheduling:
 
+<!-- snippet: sample_node_affinity_move_pin -->
 ```csharp
 await scheduler.UpdateTriggerDetails(
     new TriggerKey("myTrigger"),
     new TriggerDetailsUpdate().WithPreferredNode(PreferredNode.For("node-2")));
 ```
+<!-- endSnippet -->
 
 Pass `PreferredNode.None` to clear the preference entirely:
 
+<!-- snippet: sample_node_affinity_clear_pin -->
 ```csharp
 await scheduler.UpdateTriggerDetails(
     new TriggerKey("myTrigger"),
     new TriggerDetailsUpdate().WithPreferredNode(PreferredNode.None));
 ```
+<!-- endSnippet -->
 
 ## Requirements and limitations
 

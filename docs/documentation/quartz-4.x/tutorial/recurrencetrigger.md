@@ -47,6 +47,7 @@ occurrence counting.
 
 **Every 2nd Monday of the month at 9:00 AM:**
 
+<!-- snippet: sample_recurrencetrigger_second_monday -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("monthlyTrigger", "group1")
@@ -54,9 +55,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .StartAt(DateBuilder.Create().InYear(2025).InMonthOnDay(1, 1).AtHourMinuteAndSecond(9, 0, 0).Build())
     .Build();
 ```
+<!-- endSnippet -->
 
 **Every other week on Monday, Wednesday, and Friday:**
 
+<!-- snippet: sample_recurrencetrigger_every_other_week -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("weeklyTrigger", "group1")
@@ -64,9 +67,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .StartNow()
     .Build();
 ```
+<!-- endSnippet -->
 
 **Last weekday of March each year:**
 
+<!-- snippet: sample_recurrencetrigger_last_weekday_of_march -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("yearlyTrigger", "group1")
@@ -74,9 +79,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .StartNow()
     .Build();
 ```
+<!-- endSnippet -->
 
 **Every day, but only on weekdays (skip weekends):**
 
+<!-- snippet: sample_recurrencetrigger_every_weekday -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("weekdayTrigger", "group1")
@@ -84,9 +91,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .StartNow()
     .Build();
 ```
+<!-- endSnippet -->
 
 **Last day of every month:**
 
+<!-- snippet: sample_recurrencetrigger_last_day_of_month -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("lastDayTrigger", "group1")
@@ -94,9 +103,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .StartNow()
     .Build();
 ```
+<!-- endSnippet -->
 
 **Every 3 months on the 1st and 15th, limited to 10 occurrences:**
 
+<!-- snippet: sample_recurrencetrigger_quarterly -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("quarterlyTrigger", "group1")
@@ -104,12 +115,14 @@ ITrigger trigger = TriggerBuilder.Create()
     .StartNow()
     .Build();
 ```
+<!-- endSnippet -->
 
 ## Time Zone Support
 
 By default, recurrence calculations use the system's local time zone. You can specify a different time zone
 using the builder's `InTimeZone` method:
 
+<!-- snippet: sample_recurrencetrigger_in_time_zone -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger1", "group1")
@@ -118,11 +131,13 @@ ITrigger trigger = TriggerBuilder.Create()
     .StartNow()
     .Build();
 ```
+<!-- endSnippet -->
 
 ## DI / Hosted Service Configuration
 
 When using `AddQuartz()` for dependency injection, configure a recurrence trigger with `WithRecurrenceSchedule`:
 
+<!-- snippet: sample_recurrencetrigger_under_di -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -134,6 +149,7 @@ services.AddQuartz(q =>
         .StartNow());
 });
 ```
+<!-- endSnippet -->
 
 ## RecurrenceTrigger Misfire Instructions
 
@@ -146,6 +162,7 @@ plus the generic one every family has. They live on the `RecurrenceTriggerMisfir
 
 If the `SmartPolicy` instruction is used (the default), RecurrenceTrigger will use `FireAndProceed`.
 
+<!-- snippet: sample_recurrencetrigger_misfire_instruction -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger1", "group1")
@@ -153,6 +170,7 @@ ITrigger trigger = TriggerBuilder.Create()
         .WithMisfireInstruction(RecurrenceTriggerMisfireInstruction.DoNothing))
     .Build();
 ```
+<!-- endSnippet -->
 
 ## When to Use RecurrenceTrigger vs Other Triggers
 

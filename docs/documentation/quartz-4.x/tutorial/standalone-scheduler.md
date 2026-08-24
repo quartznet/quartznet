@@ -9,6 +9,7 @@ its own lifecycle management — all of them want a scheduler and none of them h
 `QuartzSchedulerBuilder` is for those. It creates a container of its own, configures the scheduler with
 the *same* API `AddQuartz` uses, and hands back something you can dispose.
 
+<!-- snippet: sample_standalone_scheduler -->
 ```csharp
 IScheduler scheduler = await QuartzSchedulerBuilder.Create()
     .ConfigureScheduler(o => o.InstanceName = "reporting")
@@ -18,6 +19,7 @@ IScheduler scheduler = await QuartzSchedulerBuilder.Create()
 
 await scheduler.Start();
 ```
+<!-- endSnippet -->
 
 ## One configuration API, two entry points
 
@@ -35,12 +37,14 @@ Learn the configuration API once and it works in both places. Only three members
 
 Every configuration member returns `QuartzSchedulerBuilder`, so the whole thing is one expression:
 
+<!-- snippet: sample_standalone_one_expression -->
 ```csharp
 await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
     .UseInMemoryStore()
     .UseDefaultThreadPool(10)
     .Build();
 ```
+<!-- endSnippet -->
 
 ::: warning Changed in 4.x
 In the 4.0 previews the configuration members returned `IQuartzBuilder`, so a chain had to be broken up
@@ -52,14 +56,20 @@ and the builder held in a variable to reach `Build()`. The returns are covariant
 
 Two endings, for two different needs:
 
+<!-- snippet: sample_standalone_build_scheduler_ending -->
 ```csharp
 // I want the scheduler
 IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseInMemoryStore().BuildScheduler();
+```
+<!-- endSnippet -->
 
+<!-- snippet: sample_standalone_build_ending -->
+```csharp
 // I want to own the lifetime
 await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseInMemoryStore().Build();
 IScheduler scheduler = await factory.GetScheduler();
 ```
+<!-- endSnippet -->
 
 `BuildScheduler()` is `Build().GetScheduler()`, and it drops the factory on the floor — which is fine
 for a process whose scheduler lives as long as the process, and wrong for anything that has to clean
@@ -77,6 +87,7 @@ registered services. That is the order the hosted service uses when an applicati
 way round for a reason: a container disposed underneath a running scheduler leaves it firing triggers
 whose jobs it can no longer build.
 
+<!-- snippet: sample_standalone_factory_owns_the_container -->
 ```csharp
 await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
     .UseInMemoryStore()
@@ -89,6 +100,7 @@ await scheduler.Start();
 
 // leaving the scope shuts the scheduler down, then disposes the container
 ```
+<!-- endSnippet -->
 
 Prefer `await using`. The synchronous `Dispose()` exists so the type fits `using` in code that cannot
 be async; it blocks on the same shutdown, which is all a synchronous door onto asynchronous work can do.
@@ -97,9 +109,11 @@ The shutdown does not wait for running jobs to finish, which is the default that
 `QuartzHostedServiceOptions.WaitForJobsToComplete` and `IScheduler.Shutdown()` both carry. Say so
 yourself when you want to wait, and dispose afterwards — disposal then finds nothing left to shut down:
 
+<!-- snippet: sample_standalone_wait_for_jobs -->
 ```csharp
 await scheduler.Shutdown(waitForJobsToComplete: true);
 ```
+<!-- endSnippet -->
 
 Disposing twice does nothing the second time, and disposing a factory whose `GetScheduler()` was never
 called does nothing at all: a scheduler is never built merely to be torn down.
@@ -126,26 +140,37 @@ new factory instead. `Standby()` / `Start()` is the pause-and-resume pair.
 
 The `IQuartzBuilder` extension methods work here unchanged:
 
+<!-- snippet: sample_standalone_jobs_triggers_and_calendars -->
 ```csharp
-await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-    .UseInMemoryStore()
+QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create().UseInMemoryStore();
+
+builder
     .AddJob<ReportJob>(j => j.WithIdentity("nightly", "reports").StoreDurably())
     .AddTrigger<ReportJob>(t => t
         .ForJob("nightly", "reports")
         .WithIdentity("nightly-trigger", "reports")
         .WithCronSchedule("0 30 2 * * ?"))
-    .AddCalendar<HolidayCalendar>("holidays", configure: c => c.AddExcludedDay(new DateOnly(2026, 12, 25)))
-    .Build();
+    .AddCalendar<HolidayCalendar>("holidays", configure: c => c.AddExcludedDay(new DateOnly(2026, 12, 25)));
+
+await using StandaloneSchedulerFactory factory = builder.Build();
 ```
+<!-- endSnippet -->
+
+`AddJob`, `AddTrigger`, `ScheduleJob` and `AddCalendar` are extension methods over `IQuartzBuilder`, and
+they return `IQuartzBuilder` rather than the builder's own type — so `Build()` comes off the variable
+rather than off the end of that chain. The interface's own members are covariant, so a chain made only
+of those still ends in `Build()`.
 
 Jobs declared this way are registered with the container, so they can take constructor dependencies:
 
+<!-- snippet: sample_standalone_registering_services -->
 ```csharp
 QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
 builder.Services.AddSingleton<IReportRenderer, PdfReportRenderer>();
 builder.Services.AddHttpClient();
 builder.UseInMemoryStore().AddJob<ReportJob>(j => j.WithIdentity("nightly"));
 ```
+<!-- endSnippet -->
 
 `Services` is a real `IServiceCollection`. Anything you would register in an application container you
 can register here.
@@ -157,6 +182,7 @@ exactly the way a host does — hierarchical `Scheduler` and `ThreadPool` sectio
 options, a `Schedule` section becomes jobs and triggers, and flat `quartz.*` keys still mean what they
 always meant:
 
+<!-- snippet: sample_standalone_configuration -->
 ```csharp
 IConfiguration configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
@@ -167,10 +193,12 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
     .UseConfiguration(configuration.GetSection("Quartz"))
     .Build();
 ```
+<!-- endSnippet -->
 
 `UseProperties` is the flat-key path, for a properties file or an environment-derived bag — the shape
 `StdSchedulerFactory` took:
 
+<!-- snippet: sample_standalone_properties -->
 ```csharp
 NameValueCollection properties = new()
 {
@@ -180,6 +208,7 @@ NameValueCollection properties = new()
 
 QuartzSchedulerBuilder.Create().UseProperties(properties);
 ```
+<!-- endSnippet -->
 
 There is also an overload taking `IEnumerable<KeyValuePair<string, string?>>`, which is the shape a
 `Dictionary<string, string?>` and `QuartzOptions.Properties` already have.
@@ -197,6 +226,7 @@ bag.
 
 Nothing about persistence needs a host:
 
+<!-- snippet: sample_standalone_persistent_and_clustered -->
 ```csharp
 await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
     .ConfigureScheduler(o =>
@@ -212,6 +242,7 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
     })
     .Build();
 ```
+<!-- endSnippet -->
 
 The dialect methods — `UseSqlServer`, `UsePostgres`, `UseMySql`, `UseMySqlConnector`, `UseSqlite`,
 `UseSystemDataSqlite`, `UseOracle`, `UseFirebird`, `UseGenericDatabase` — each take either a connection
@@ -234,6 +265,7 @@ That is what makes parallel tests safe, and it is occasionally not what you want
 points genuinely must share one repository, register a shared instance before building — Quartz's own
 registration is `TryAdd`, so yours wins:
 
+<!-- snippet: sample_standalone_shared_repository -->
 ```csharp
 ISchedulerRepository shared = new SchedulerRepository();
 
@@ -243,6 +275,7 @@ first.Services.AddSingleton(shared);
 QuartzSchedulerBuilder second = QuartzSchedulerBuilder.Create();
 second.Services.AddSingleton(shared);
 ```
+<!-- endSnippet -->
 
 ## What the container-first path adds
 

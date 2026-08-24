@@ -21,6 +21,7 @@ of the core package — in 3.x they were the separate `Quartz.Extensions.Depende
 
 A job is a class that implements `IJob`:
 
+<!-- snippet: sample_using_quartz_job -->
 ```csharp
 public sealed class HelloJob : IJob
 {
@@ -38,6 +39,7 @@ public sealed class HelloJob : IJob
     }
 }
 ```
+<!-- endSnippet -->
 
 The job is constructed from the container for every fire, so it can take whatever the rest of your
 application takes — a logger, a `DbContext`, a typed `HttpClient`. The `cancellationToken` is the same
@@ -46,10 +48,8 @@ token as `context.CancellationToken`; pass it on to everything you await, so a s
 
 ## Configure the host
 
+<!-- snippet: sample_using_quartz_host -->
 ```csharp
-using Microsoft.Extensions.Hosting;
-using Quartz;
-
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 builder.AddQuartz(q =>
@@ -70,6 +70,7 @@ IHost host = builder.Build();
 // blocks until the host is stopped, and then until the last running job completes
 await host.RunAsync();
 ```
+<!-- endSnippet -->
 
 `AddQuartz` registers the scheduler and everything it is made of. `AddQuartzHostedService` starts it when
 the host starts and shuts it down when the host stops; `WaitForJobsToComplete` makes shutdown wait for
@@ -85,6 +86,7 @@ Both hang off `IHostApplicationBuilder`, so the same two lines work in a web app
 taken from the trigger's. When a job has several triggers, or when the job is registered somewhere other
 than where its schedule is, name them separately:
 
+<!-- snippet: sample_using_quartz_several_triggers -->
 ```csharp
 builder.AddQuartz(q =>
 {
@@ -105,6 +107,7 @@ builder.AddQuartz(q =>
         .WithCronSchedule("0 0 9-17 ? * MON-FRI"));
 });
 ```
+<!-- endSnippet -->
 
 The type argument on `AddTrigger<TJob>` is the job the trigger fires. It is what lets the trigger's data
 be named as properties of that job — see
@@ -130,6 +133,7 @@ of the application.
 Not every schedule is known at startup, though. `IScheduler` is an ordinary service, so inject it and
 schedule whenever you like:
 
+<!-- snippet: sample_using_quartz_scheduling_at_run_time -->
 ```csharp
 public sealed class ReportRequests
 {
@@ -156,6 +160,7 @@ public sealed class ReportRequests
     }
 }
 ```
+<!-- endSnippet -->
 
 An application with several schedulers registers each under a name, and injects one by that name with
 `[FromKeyedServices("reporting")] IScheduler scheduler` — see

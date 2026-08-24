@@ -71,6 +71,7 @@ To compose the cron expression string itself programmatically, see
 
 **Build a trigger that will fire every other minute, between 8am and 5pm, every day:**
 
+<!-- snippet: sample_crontriggers_every_other_minute -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
@@ -78,9 +79,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .ForJob("myJob", "group1")
     .Build();
 ```
+<!-- endSnippet -->
 
 **Build a trigger that will fire daily at 10:42 am:**
 
+<!-- snippet: sample_crontriggers_daily_question_mark_in_day_of_week -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
@@ -88,9 +91,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .ForJob(myJobKey)
     .Build();
 ```
+<!-- endSnippet -->
 
 or -
 
+<!-- snippet: sample_crontriggers_daily_question_mark_in_day_of_month -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
@@ -98,9 +103,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .ForJob("myJob", "group1")
     .Build();
 ```
+<!-- endSnippet -->
 
 **Build a trigger that will fire on Wednesdays at 10:42 am, in a TimeZone other than the system's default:**
 
+<!-- snippet: sample_crontriggers_in_time_zone -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
@@ -109,9 +116,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .ForJob(myJobKey)
     .Build();
 ```
+<!-- endSnippet -->
 
 or, with the schedule built first so that several triggers can share it -
 
+<!-- snippet: sample_crontriggers_schedule_built_separately -->
 ```csharp
 CronScheduleBuilder schedule = CronScheduleBuilder
     .Create("0 42 10 ? * WED")
@@ -123,6 +132,7 @@ ITrigger trigger = TriggerBuilder.Create()
     .ForJob(myJobKey)
     .Build();
 ```
+<!-- endSnippet -->
 
 `TimeZones.FindById` is `TimeZoneInfo.FindSystemTimeZoneById` plus whatever resolvers are registered — which is
 what makes a Windows id resolve on Linux once the
@@ -130,6 +140,7 @@ what makes a Windows id resolve on Linux once the
 
 **Build a trigger that fires once per day at a hash-derived time between midnight and 7:59 AM, spreading load across triggers:**
 
+<!-- snippet: sample_crontriggers_hashed_fire_time -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("nightly-cleanup", "maintenance")
@@ -137,6 +148,7 @@ ITrigger trigger = TriggerBuilder.Create()
     .ForJob("cleanupJob", "maintenance")
     .Build();
 ```
+<!-- endSnippet -->
 
 ## CronTrigger Misfire Instructions
 
@@ -156,6 +168,7 @@ scheduler can, until the schedule has caught up. `CronTriggerImpl.UpdateAfterMis
 
 When building CronTriggers, you specify the misfire instruction as part of the cron schedule (via `WithCronSchedule` extension method):
 
+<!-- snippet: sample_crontriggers_misfire_instruction -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
@@ -164,3 +177,4 @@ ITrigger trigger = TriggerBuilder.Create()
     .ForJob("myJob", "group1")
     .Build();
 ```
+<!-- endSnippet -->
