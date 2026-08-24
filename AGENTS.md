@@ -53,8 +53,8 @@ binds this repository.
 
 ### Naming decisions that are settled
 
-Two spots look inconsistent on purpose. Both were examined and ratified in the 4.0 API-finalization
-pass; do not "finish" either one.
+These spots look inconsistent on purpose. Each was examined and ratified in the 4.0 API-finalization
+pass; do not "finish" any of them.
 
 - **The scheduler's noun is `JobDetail`; the store's noun is `Job`.** `IScheduler` hands users
   `IJobDetail`, so it says `GetJobDetail`/`GetJobDetails`. `IJobStore` speaks in storage terms, so it
@@ -68,6 +68,27 @@ pass; do not "finish" either one.
   against `IDriverDelegate`/`SqlServerDelegate`/`PostgreSQLDelegate`/…. The `Std` prefix was retired
   everywhere else (the semaphore renames finished that); `StdAdoDelegate` is the sole deliberate
   survivor, because renaming it would orphan the pedagogy without helping anyone.
+- **`RAMJobStore` keeps its name**, for the reason `StdAdoDelegate` does: it is a configuration-key
+  identity. `quartz.jobStore.type` names the type, and twenty years of configuration files, tutorials
+  and Stack Overflow answers spell it. Its options type is `InMemoryJobStoreOptions` and the builder
+  method is `UseInMemoryStore`, because *those* are new names with no history to keep faith with — the
+  mismatch between them and the type is deliberate, not an unfinished rename.
+- **The `*Utc` suffix on `DateTimeOffset` members stays.** `StartTimeUtc`, `EndTimeUtc`,
+  `NextFireTimeUtc` and the rest carry an offset and so cannot be anything but unambiguous, which makes
+  the suffix redundant on its face. It is Java parity, it is what every Quartz tutorial teaches, and it
+  is twelve members against roughly 1,400 call sites in this repository alone. The names say which
+  reading of the clock the value is, and nobody is confused by them.
+- **`Use*` is the verb for an extension that registers a plugin** — `UseJobAutoInterrupt`,
+  `UseShutdownHook`, `UseTimeZoneConverter` — because a plugin is middleware over a scheduler's
+  lifecycle and that is how middleware reads. `AddPlugin<T>` is the generic form, for a plugin with no
+  extension of its own. `Add*` stays for things a scheduler *contains*: jobs, triggers, calendars,
+  listeners.
+- **`services.AddHealthChecks().AddQuartz()` keeps that name.** Read on its own it says nothing about
+  health, but it is the `AspNetCore.HealthChecks.*` idiom — every check in that ecosystem is
+  `AddHealthChecks().AddX()` — and the receiver is what supplies the noun.
+- **The `AddQuartz(NameValueCollection, …)` overloads stay beside their dictionary twins.** They look
+  like a duplicate pair; they are the 3.x on-ramp, because a `NameValueCollection` is what an
+  application migrating from `StdSchedulerFactory` already holds.
 
 ## Build & Test
 
