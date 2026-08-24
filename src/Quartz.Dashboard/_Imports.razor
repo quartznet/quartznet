@@ -1,0 +1,15 @@
+@* Blazor's event handlers and two-way binding are directive attributes contributed by tag helpers in
+   Microsoft.AspNetCore.Components.Web, and a tag helper only applies where its namespace is in scope.
+   Without this file the Razor compiler does not recognize @onclick, @bind, @oninput, @onchange or
+   @onkeydown and emits each one as a literal HTML attribute, silently -- nothing in the build says so.
+
+   Nineteen components here carry such an attribute. Before this file existed, eighteen of them had
+   every one of theirs dead: 69 handlers and 6 @onclick:stopPropagation / :preventDefault modifiers.
+   DashboardLayout was the exception, having imported this namespace itself, so its theme and time zone
+   pickers were the only controls in the dashboard that worked. ConfirmDialog was among the eighteen,
+   so every action that asks first -- delete a job, unschedule a trigger, shut a scheduler down -- was
+   unreachable even where the button that opens the dialog was live. *@
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop

@@ -226,6 +226,23 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
   `ISchedulerRepository`, so a registered scheduler nothing has created yet does not appear
 - Read-only mode support via dashboard options
 
+::: warning Fixed in 4.0.0-alpha.2
+The dashboard's controls did not work. Blazor's event handlers and two-way binding are directive
+attributes contributed by tag helpers in `Microsoft.AspNetCore.Components.Web`, and a tag helper only
+applies where its namespace is in scope; the package carried no `_Imports.razor`, so the Razor
+compiler emitted `@onclick`, `@bind`, `@oninput`, `@onchange` and `@onkeydown` as literal HTML
+attributes -- silently, with nothing in the build to say so.
+
+Nineteen components carry such an attribute and eighteen of them had every one dead: 69 handlers and
+6 `@onclick:stopPropagation` / `:preventDefault` modifiers. The one exception was the layout, which
+imported that namespace itself, so the theme and time zone pickers were the only working controls.
+The confirmation dialog was among the eighteen, so every action that asks first -- delete a job,
+unschedule a trigger, shut a scheduler down -- could not be completed even where the button that
+opens the dialog was live.
+
+There was nothing to configure to get these working; this is a fix rather than a new option.
+:::
+
 ## Integrating with an existing Blazor Server app
 
 If your host application already uses Blazor Server (i.e., it calls `MapRazorComponents<App>().AddInteractiveServerRenderMode()`), you must use the `MapQuartzDashboard` overload that accepts the existing `RazorComponentsEndpointConventionBuilder`. This avoids registering a second `/_blazor` SignalR endpoint, which would cause routing conflicts.
