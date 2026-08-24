@@ -36,11 +36,20 @@ namespace Quartz;
 /// Registers schedulers that live in another process and are driven over Quartz's HTTP API.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A remote scheduler is registered the same way a local one is: keyed by its name, so
 /// <c>GetRequiredKeyedService&lt;IScheduler&gt;("reporting")</c> and
 /// <c>[FromKeyedServices("reporting")] IScheduler</c> reach it, and unkeyed as well while it is the only
 /// scheduler in the container. Before 4.0 a second remote scheduler needed a marker interface of its own,
 /// implemented by a type emitted at runtime; the service key says the same thing without the reflection.
+/// </para>
+/// <para>
+/// That unkeyed registration is a <c>TryAdd</c>, so in a container that also holds a local scheduler the
+/// local one owns <c>GetRequiredService&lt;IScheduler&gt;()</c> and the remote one is reached by name. To
+/// get that, call <c>AddQuartz()</c> <em>before</em> this — the other order is refused rather than left
+/// to be discovered, since a container in which "the scheduler" turned out to be somebody else's process
+/// is not something anything downstream can notice.
+/// </para>
 /// </remarks>
 public static class QuartzHttpClientServiceCollectionExtensions
 {
@@ -137,7 +146,11 @@ public static class QuartzHttpClientServiceCollectionExtensions
 
         // Keyed by name like any other scheduler, and unkeyed as well so that a container holding one
         // remote scheduler and nothing else answers GetRequiredService<IScheduler>() with it. TryAdd,
-        // because a second remote scheduler must not quietly take over what "the scheduler" means.
+        // because a second remote scheduler must not quietly take over what "the scheduler" means — nor
+        // must this one take it over from a local scheduler AddQuartz() has already registered. Doing
+        // this the other way round, before AddQuartz(), is refused there: whichever ran first would win
+        // the slot, and a program that thought it held its own scheduler would be scheduling jobs in
+        // another process.
         services.TryAddSingleton<IScheduler>(
             serviceProvider => serviceProvider.GetRequiredKeyedService<IScheduler>(options.SchedulerName));
 

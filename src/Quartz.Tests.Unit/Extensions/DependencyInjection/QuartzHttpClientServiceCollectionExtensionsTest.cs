@@ -176,6 +176,48 @@ public class QuartzHttpClientServiceCollectionExtensionsTest
     }
 
     [Test]
+    public async Task ALocalDefaultSchedulerRegisteredFirstShouldKeepTheUnkeyedSlot()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.AddQuartzHttpClient("Remote", _ => testClient);
+
+        await using var serviceProvider = services.BuildServiceProvider();
+
+        serviceProvider.GetRequiredService<IScheduler>().SchedulerName.Should().Be("QuartzScheduler",
+            "the unkeyed registration is a TryAdd, so the local default scheduler keeps what "
+            + "GetRequiredService<IScheduler>() means");
+        serviceProvider.GetRequiredKeyedService<IScheduler>("Remote").Should().BeOfType<HttpScheduler>(
+            "the remote scheduler is reachable under its own name either way");
+    }
+
+    [Test]
+    public void ADefaultSchedulerCannotBeAddedAfterARemoteOneHasTakenTheUnkeyedSlot()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartzHttpClient("Remote", _ => testClient);
+
+        var act = () => services.AddQuartz();
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*AddQuartzHttpClient*")
+            .WithMessage("*GetRequiredKeyedService<IScheduler>*",
+                "registration is first-wins, so this order used to make 'the scheduler' the remote one "
+                + "with no error at all — a program scheduling a job would have sent it to another process");
+    }
+
+    [Test]
+    public void ANamedSchedulerCanStillBeAddedBesideARemoteOne()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartzHttpClient("Remote", _ => testClient);
+
+        var act = () => services.AddQuartz("Local");
+
+        act.Should().NotThrow("a named scheduler is keyed by its name and never wanted the unkeyed slot");
+    }
+
+    [Test]
     public async Task EachContainerShouldGetItsOwnSchedulerRepository()
     {
         var firstServices = new ServiceCollection();

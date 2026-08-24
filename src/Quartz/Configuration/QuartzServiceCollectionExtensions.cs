@@ -118,6 +118,15 @@ public static partial class QuartzServiceCollectionExtensions
     /// serializer is never beaten to the registration by the fallback it was meant to replace.
     /// </description></item>
     /// </list>
+    /// <para>
+    /// The scheduler this registers is the container's unkeyed <see cref="IScheduler"/>, which is what
+    /// <c>GetRequiredService&lt;IScheduler&gt;()</c> answers with. Registering it when something else
+    /// already owns that slot throws an <see cref="InvalidOperationException"/> rather than quietly
+    /// leaving "the scheduler" meaning the other one; <c>AddQuartzHttpClient</c> is the one in the box
+    /// that takes it. The other order is fine and needs no thought: <c>AddQuartz()</c> followed by
+    /// <c>AddQuartzHttpClient(…)</c> leaves the local default scheduler unkeyed and the remote one
+    /// reachable as <c>GetRequiredKeyedService&lt;IScheduler&gt;(schedulerName)</c>.
+    /// </para>
     /// </remarks>
     public static IServiceCollection AddQuartz(
         this IServiceCollection services,
@@ -416,6 +425,13 @@ public static partial class QuartzServiceCollectionExtensions
         SchedulerNameRegistry registry = SchedulerNameRegistry.For(services);
         var optionsName = schedulerName ?? Options.DefaultName;
 
+        // Before anything is registered, so a container that cannot hold this scheduler is not left half
+        // configured by the attempt.
+        if (schedulerName is null && !registry.HasDefaultScheduler)
+        {
+            ThrowIfTheUnkeyedSchedulerIsTaken(services);
+        }
+
         // Phase 1.
         services.Configure<QuartzOptions>(optionsName, options =>
         {
@@ -451,5 +467,37 @@ public static partial class QuartzServiceCollectionExtensions
         }
 
         return services;
+    }
+
+    /// <summary>
+    /// Refuses to register the default scheduler when something else already owns the unkeyed
+    /// <see cref="IScheduler"/>.
+    /// </summary>
+    /// <remarks>
+    /// Registration is first-wins, so whichever of the two ran first would answer
+    /// <c>GetRequiredService&lt;IScheduler&gt;()</c> and the other would be unreachable without a key.
+    /// <c>AddQuartzHttpClient</c> registers the unkeyed slot as well as its own name, so
+    /// <c>AddQuartzHttpClient(…)</c> followed by <c>AddQuartz()</c> silently made "the scheduler" the
+    /// remote one — a program that then scheduled a job sent it over the wire to somebody else's process.
+    /// Said here rather than left to be discovered, because nothing downstream can tell the two apart.
+    /// The opposite order needs no report: the local default owns the unkeyed slot, the remote scheduler
+    /// is still reachable under its name, and that is what both methods document.
+    /// </remarks>
+    private static void ThrowIfTheUnkeyedSchedulerIsTaken(IServiceCollection services)
+    {
+        foreach (ServiceDescriptor descriptor in services)
+        {
+            if (descriptor.ServiceType == typeof(IScheduler) && !descriptor.IsKeyedService)
+            {
+                throw new InvalidOperationException(
+                    "An IScheduler is already registered in this container without a service key, so "
+                    + "AddQuartz() has nowhere to put the default scheduler: registration is first-wins, "
+                    + "and GetRequiredService<IScheduler>() would answer with the registration that is "
+                    + "already there. AddQuartzHttpClient(...) makes one — call it after AddQuartz() "
+                    + "instead of before, and its remote scheduler stays reachable either way as "
+                    + "GetRequiredKeyedService<IScheduler>(schedulerName). Register this scheduler with "
+                    + "AddQuartz(name, ...) if it should have a name of its own.");
+            }
+        }
     }
 }

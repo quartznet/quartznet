@@ -38,6 +38,16 @@ public static class HttpClientSamples
         #endregion
     }
 
+    public static void BesideALocalScheduler(WebApplicationBuilder builder)
+    {
+        #region sample_httpclient_beside_local
+
+        builder.Services.AddQuartz();                                   // owns GetRequiredService<IScheduler>()
+        builder.Services.AddQuartzHttpClient("MyScheduler", "quartz");  // reachable by name
+
+        #endregion
+    }
+
     /// <summary>
     /// Two containers so the page can show one controller name twice, which is how it contrasts the
     /// single-scheduler and keyed shapes.

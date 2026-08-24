@@ -1654,6 +1654,14 @@ second remote scheduler needed a marker interface only because the container had
 The marker interfaces themselves can be deleted, and the first remote scheduler registered is still the
 unkeyed `IScheduler` for a container that holds only one.
 
+In a container that also holds a local scheduler, **`AddQuartz()` goes first**:
+
+| Order | What happens |
+|---|---|
+| `AddQuartz()` then `AddQuartzHttpClient(…)` | The local default scheduler owns `GetRequiredService<IScheduler>()`; the remote one is reached by name. This is the arrangement to write. |
+| `AddQuartzHttpClient(…)` then `AddQuartz()` | `AddQuartz()` throws `InvalidOperationException` at registration, naming `AddQuartzHttpClient`. Registration is first-wins, so this used to make "the scheduler" the remote one with no error at all — a program that thought it held its own scheduler was scheduling jobs in somebody else's process. |
+| `AddQuartzHttpClient(…)` then `AddQuartz("Local", …)` | Fine either way round. A named scheduler is keyed by its name and never wanted the unkeyed slot. |
+
 ### A client is named or built, never handed over
 
 `HttpClientOptions.HttpClient` and the `AddQuartzHttpClient(schedulerName, HttpClient, …)` overload are
