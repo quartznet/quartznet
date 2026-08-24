@@ -29,11 +29,27 @@ namespace Quartz;
 /// <author>Marko Lahma (.NET)</author>
 public sealed class ObjectAlreadyExistsException : JobPersistenceException
 {
+    /// <summary>
+    /// The job whose identity was already taken, when the exception was raised for one; otherwise
+    /// <see langword="null" />. It saves a caller parsing the key back out of <see cref="Exception.Message" />.
+    /// </summary>
+    public JobKey? JobKey { get; }
+
+    /// <summary>
+    /// The trigger whose identity was already taken, when the exception was raised for one; otherwise
+    /// <see langword="null" />. It saves a caller parsing the key back out of <see cref="Exception.Message" />.
+    /// </summary>
+    public TriggerKey? TriggerKey { get; }
+
     /// <summary> <para>
     /// Create a <see cref="ObjectAlreadyExistsException" /> with the given
     /// message.
     /// </para>
     /// </summary>
+    /// <remarks>
+    /// Both <see cref="JobKey" /> and <see cref="TriggerKey" /> are <see langword="null" />: nothing
+    /// here says which object clashed.
+    /// </remarks>
     public ObjectAlreadyExistsException(string message) : base(message)
     {
     }
@@ -51,6 +67,7 @@ public sealed class ObjectAlreadyExistsException : JobPersistenceException
     public ObjectAlreadyExistsException(IJobDetail offendingJob)
         : base($"Unable to store Job: '{offendingJob.Key}', because one already exists with this identification.")
     {
+        JobKey = offendingJob.Key;
     }
 
     /// <summary> <para>
@@ -66,5 +83,6 @@ public sealed class ObjectAlreadyExistsException : JobPersistenceException
     public ObjectAlreadyExistsException(ITrigger offendingTrigger)
         : base($"Unable to store Trigger: '{offendingTrigger.Key}', because one already exists with this identification.")
     {
+        TriggerKey = offendingTrigger.Key;
     }
 }
