@@ -44,8 +44,11 @@ jobs:
   analyze:
     name: analyze
     # A pull request from a fork cannot read SONAR_TOKEN, so the scanner would have nothing to
-    # authenticate with. Those pull requests keep every other check.
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    # authenticate with. Neither can one Dependabot opened: those runs draw on Dependabot's own
+    # secret store, which is separate from the repository's and holds no SONAR_TOKEN — and a
+    # dependency bump changes no code Sonar has anything to say about. Both kinds of pull request
+    # keep every other check.
+    if: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && github.actor != 'dependabot[bot]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
