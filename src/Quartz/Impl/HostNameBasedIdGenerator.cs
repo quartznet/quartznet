@@ -38,9 +38,14 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
 
     private readonly ILogger<HostNameBasedIdGenerator> logger;
 
-    protected HostNameBasedIdGenerator()
+    /// <param name="logger">
+    /// Where a host name that had to be shortened, or a lookup that failed, is reported. A generator the
+    /// container builds is handed the application's logger; one constructed by hand —
+    /// <c>UseInstanceIdGenerator(instance)</c> — reads <see cref="LogProvider" />, as before.
+    /// </param>
+    protected HostNameBasedIdGenerator(ILogger<HostNameBasedIdGenerator>? logger = null)
     {
-        logger = LogProvider.CreateLogger<HostNameBasedIdGenerator>();
+        this.logger = logger ?? LogProvider.CreateLogger<HostNameBasedIdGenerator>();
     }
 
     /// <summary>

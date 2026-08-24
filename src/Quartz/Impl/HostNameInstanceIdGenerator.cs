@@ -17,6 +17,8 @@
  */
 #endregion
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Extensibility;
 
 namespace Quartz.Impl;
@@ -36,6 +38,11 @@ namespace Quartz.Impl;
 /// <seealso cref="SimpleInstanceIdGenerator" />
 internal sealed class HostNameInstanceIdGenerator : HostNameBasedIdGenerator
 {
+    /// <inheritdoc cref="HostNameBasedIdGenerator(ILogger{HostNameBasedIdGenerator})" />
+    public HostNameInstanceIdGenerator(ILogger<HostNameBasedIdGenerator>? logger = null) : base(logger)
+    {
+    }
+
     /// <summary>
     /// Generate the instance id for a <see cref="IScheduler"/>
     /// </summary>

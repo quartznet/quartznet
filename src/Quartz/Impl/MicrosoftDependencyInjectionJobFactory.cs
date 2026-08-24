@@ -1,6 +1,7 @@
 using System.Runtime.ExceptionServices;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
@@ -29,9 +30,15 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
     /// Optional so that a derived factory constructing this one by hand does not have to supply it; the
     /// container always does.
     /// </param>
+    /// <param name="loggerFactory">
+    /// Where the base factories create their loggers, so that "producing instance of job" and a
+    /// property that did not match reach the application's logging. Optional for the same reason
+    /// <paramref name="options" /> is; the container always supplies it.
+    /// </param>
     public MicrosoftDependencyInjectionJobFactory(
         IServiceProvider serviceProvider,
-        IOptions<JobFactoryOptions>? options = null)
+        IOptions<JobFactoryOptions>? options = null,
+        ILoggerFactory? loggerFactory = null) : base(loggerFactory)
     {
         this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         this.options = options?.Value ?? new JobFactoryOptions();

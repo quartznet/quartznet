@@ -7,6 +7,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Quartz.Configuration;
 using Quartz.Core;
 using Quartz.Diagnostics;
+using Quartz.Extensibility;
+using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Diagnostics;
 
@@ -107,6 +109,86 @@ public sealed class InjectedLoggingTest
             + "must not have its lines duplicated into the ambient factory as well");
     }
 
+    [Test]
+    [NonParallelizable]
+    public async Task EveryPartOfARunningSchedulerLogsThroughTheContainer()
+    {
+        RecordingLoggerProvider recorder = new();
+        SignallingJob.Fired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        ServiceCollection services = new();
+        services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Trace).AddProvider(recorder));
+        services.AddQuartz(quartz =>
+        {
+            // The job factory chain rather than the container-resolving one, because that is the arm
+            // whose logging is worth seeing: it says which job it is about to build.
+            quartz.UseJobFactory<PropertySettingJobFactory>();
+            quartz.ScheduleJob<SignallingJob>(
+                trigger => trigger.WithIdentity("now").StartNow(),
+                job => job.WithIdentity("signalling"));
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        await scheduler.Start();
+        try
+        {
+            await SignallingJob.Fired.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+
+        recorder.Categories.Should().Contain(
+            ["Quartz.Core.QuartzScheduler", "Quartz.Core.QuartzSchedulerThread", "Quartz.Core.SchedulerSignalerImpl", "Quartz.Impl.TaskSchedulingThreadPool", "Quartz.Impl.SimpleJobFactory"],
+            "the scheduler, its loop, its signaler, its thread pool and its job factory are all built "
+            + "by the container, so all five log to what the container was configured with");
+    }
+
+    /// <remarks>
+    /// <see cref="ActivatorUtilities" /> picks the longest constructor it can satisfy, so a component
+    /// whose only constructor took nothing has to grow one that takes a logger before the container can
+    /// give it one — and a component that grew the wrong shape stops being constructible at all rather
+    /// than quietly logging nowhere.
+    /// </remarks>
+    [Test]
+    public void TheComponentsAContainerBuildsAllHaveAConstructorItCanCall()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz(quartz =>
+        {
+            quartz.UseThreadPool<ZeroSizeThreadPool>();
+            quartz.UseInstanceIdGenerator<HostNameInstanceIdGenerator>();
+            quartz.UseTypeLoader<SimpleTypeLoader>();
+        });
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IThreadPool>().Should().BeOfType<ZeroSizeThreadPool>();
+        provider.GetRequiredService<IInstanceIdGenerator>().Should().BeOfType<HostNameInstanceIdGenerator>();
+        provider.GetRequiredService<ITypeLoader>().Should().BeOfType<SimpleTypeLoader>();
+        provider.GetRequiredService<IJobFactory>().Should().BeOfType<MicrosoftDependencyInjectionJobFactory>(
+            "the job factory derives from PropertySettingJobFactory, so it has to keep passing the "
+            + "logger factory down two levels of base constructor");
+    }
+
+    /// <summary>
+    /// Signals through a static because <see cref="PropertySettingJobFactory" /> builds a job from its
+    /// parameterless constructor and has nowhere to inject one from.
+    /// </summary>
+    public sealed class SignallingJob : IJob
+    {
+        internal static TaskCompletionSource Fired = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            Fired.TrySetResult();
+            return default;
+        }
+    }
+
     /// <summary>
     /// Records the rendered message of every line, whatever the category.
     /// </summary>
@@ -114,6 +196,7 @@ public sealed class InjectedLoggingTest
     {
         private readonly Lock gate = new();
         private readonly List<string> messages = [];
+        private readonly HashSet<string> categories = new(StringComparer.Ordinal);
 
         public IReadOnlyList<string> Messages
         {
@@ -126,21 +209,37 @@ public sealed class InjectedLoggingTest
             }
         }
 
-        public ILogger CreateLogger(string categoryName) => new RecordingLogger(this);
+        /// <summary>
+        /// Which categories wrote anything, which is how "this type logs through the container" is
+        /// observable without pinning the words a type happens to log.
+        /// </summary>
+        public IReadOnlyCollection<string> Categories
+        {
+            get
+            {
+                lock (gate)
+                {
+                    return [.. categories];
+                }
+            }
+        }
+
+        public ILogger CreateLogger(string categoryName) => new RecordingLogger(this, categoryName);
 
         public void Dispose()
         {
         }
 
-        private void Record(string message)
+        private void Record(string category, string message)
         {
             lock (gate)
             {
                 messages.Add(message);
+                categories.Add(category);
             }
         }
 
-        private sealed class RecordingLogger(RecordingLoggerProvider provider) : ILogger
+        private sealed class RecordingLogger(RecordingLoggerProvider provider, string category) : ILogger
         {
             public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
@@ -153,7 +252,7 @@ public sealed class InjectedLoggingTest
                 Exception? exception,
                 Func<TState, Exception?, string> formatter)
             {
-                provider.Record(formatter(state, exception));
+                provider.Record(category, formatter(state, exception));
             }
         }
     }
