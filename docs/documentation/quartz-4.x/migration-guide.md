@@ -2233,16 +2233,11 @@ LogProvider.SetLogProvider(loggerFactory);
 
 See the Quartz.Examples project for examples on setting up [Serilog](https://serilog.net/) and Microsoft.Logging with Quartz.
 
-Under a host, the `ILoggerFactory` the host already builds is the one Quartz uses — hand it to `LogProvider`
-once the host is built:
-
-```csharp
-var host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices((hostContext, services) => services.AddQuartz(q => { /* ... */ }))
-    .Build();
-
-LogProvider.SetLogProvider(host.Services.GetRequiredService<ILoggerFactory>());
-```
+The example above is the standalone shape. **Under a host there is nothing to do**: `AddQuartz`
+registers the scheduler's parts in your container, and they are injected the host's `ILoggerFactory`
+like every other service. A `LogProvider.SetLogProvider` call is not needed to see the scheduler, its
+loop, its job store, its cluster manager or its thread pool — only for the handful of types nothing can
+inject, which the next section lists.
 
 Further information on configuring Microsoft.Logging can be found [at Microsoft docs](https://docs.microsoft.com/en-us/dotnet/core/extensions/logging).
 
@@ -2251,20 +2246,38 @@ Further information on configuring Microsoft.Logging can be found [at Microsoft 
 `LogProvider.SetLogProvider(ILoggerFactory)` is the one piece of mutable process-wide state left in
 Quartz, and it is deliberate rather than overlooked.
 
-Almost everything the scheduler is made of is built by a container and is injected an `ILogger` the
-ordinary way. What is left over cannot be: static classes such as `TimeZones`, types a caller
-constructs directly — triggers, calendars, plugins, the jobs in `Quartz.Jobs` — and anything that
-runs while the container is still being built. A type cannot be handed a logger by a container that
-does not exist yet, so those sites read the ambient factory instead of going unlogged.
+Everything the scheduler is made of is built by a container and is injected an `ILogger` the ordinary
+way: `QuartzScheduler` and its scheduling loop, the signaler and the error listener, the ADO.NET job
+store together with its cluster manager, its misfire handler, its units of work, its driver delegate
+and its lock handler, and the components `Use*<T>()` chooses — the thread pool, the job factory, the
+type loader, the instance id generator. **Under `AddQuartz`, none of that needs this slot set.**
 
-Nor is it seeded from the container, which would be the obvious convenience. The slot outlives any
+What is left over cannot be injected anything, and this is the whole of it:
+
+| Type | Why it cannot be injected |
+|---|---|
+| `BroadcastJobListener`, `BroadcastTriggerListener`, `BroadcastSchedulerListener`, `JobChainingJobListener` | Constructed by the caller and handed over already built |
+| `CronTriggerImpl` | A trigger, which may have been deserialized out of a job store rather than constructed at all |
+| `TimeZones`, `MisfireInstructionNames`, `FileUtil`, `QuartzEnvironment` | Static helpers, reached from parsing and deserialization with no scheduler in scope |
+| The jobs in `Quartz.Jobs`, and anything else a caller constructs directly | Same reason as the listeners |
+
+A type cannot be handed a logger by a container it never meets, so those sites read the ambient factory
+instead of going unlogged. Setting it is how you see *them* — not how you see the scheduler.
+
+A standalone `QuartzSchedulerBuilder` is the one place where setting it still configures everything.
+The builder creates a container of its own, which has no logging providers in it unless you register
+some on `builder.Services`, so that container's `ILoggerFactory` forwards to this slot. Either way of
+saying it works; registering a provider takes precedence.
+
+Nor is the slot seeded from the container, which would be the obvious convenience. It outlives any
 one container: a process that builds a host, disposes it and builds another — every integration test
 suite, and every application that reloads configuration — would be left holding a disposed
 `ILoggerFactory`, and the next logger created anywhere in Quartz would throw
 `ObjectDisposedException` from somewhere unrelated to logging. Whoever sets the factory owns its
 lifetime, and only the application can make that call. The same applies to a hand-written
 `LogProvider.SetLogProvider(host.Services.GetRequiredService<ILoggerFactory>())`: it is correct as
-long as the host outlives the schedulers.
+long as the host outlives the schedulers, and under a host it is now only worth writing for the types
+in the table above.
 
 `TimeZones.AddResolver` is ambient for the same reason. `FindById` is reached from
 parsing a `CronExpression` and from deserializing a trigger out of a job store blob, neither of
