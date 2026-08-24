@@ -91,7 +91,7 @@ public static class TriggerBuilder
     /// </remarks>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new TriggerBuilder</returns>
-    public static TriggerBuilder<TJob> Create<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] TJob>(TimeProvider? timeProvider = null) where TJob : IJob
+    public static TriggerBuilder<TJob> Create<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(TimeProvider? timeProvider = null) where TJob : IJob
     {
         return new TriggerBuilder<TJob>(timeProvider ?? TimeProvider.System);
     }
@@ -106,7 +106,7 @@ public static class TriggerBuilder
 /// to name; <c>TriggerBuilder.Create&lt;TJob&gt;()</c> gives one that does.
 /// </remarks>
 /// <seealso cref="TriggerBuilder" />
-public sealed class TriggerBuilder<TJob> : ITriggerConfigurator<TJob> where TJob : IJob
+public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob> : ITriggerConfigurator<TJob> where TJob : IJob
 {
     private readonly TimeProvider timeProvider;
     private TriggerKey? key;

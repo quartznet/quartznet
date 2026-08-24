@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 
@@ -249,6 +250,16 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// <param name="job">Job instance to set property value to.</param>
     /// <param name="name">Property name to set.</param>
     /// <param name="value">Value to set.</param>
+    /// <remarks>
+    /// The property is found on the instance's own type rather than on the job detail's declared one,
+    /// because a factory is allowed to hand back something else — <c>AddJobType&lt;TJob, TImpl&gt;</c>
+    /// registers exactly that — and the data belongs to whatever was built. Both of those types are
+    /// annotated where they enter Quartz, so their public properties survive trimming; the analyzer
+    /// cannot see the link because the instance arrives here as an <see cref="object" />. A job factory
+    /// written from scratch that returns a type nothing else references is the one case this does not
+    /// cover, and such a factory has to root its own jobs.
+    /// </remarks>
+    [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "The job instance is of the job detail's declared type or of a registered implementation of it, and both are annotated where they enter Quartz. See the remarks.")]
     protected virtual void SetObjectProperty(object job, string name, object? value)
     {
         string propName = name;

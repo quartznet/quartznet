@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -37,7 +38,7 @@ internal static class JobDataExpression
     /// <summary>
     /// Returns the property the expression reads, after checking that job data can actually be bound to it.
     /// </summary>
-    internal static PropertyInfo GetProperty<TJob, TValue>(Expression<Func<TJob, TValue>> jobProperty)
+    internal static PropertyInfo GetProperty<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] TJob, TValue>(Expression<Func<TJob, TValue>> jobProperty)
     {
         if (jobProperty is null)
         {
@@ -102,7 +103,7 @@ internal static class JobDataExpression
     /// job runs rather than silently binding the wrong thing.
     /// </para>
     /// </remarks>
-    private static void VerifyTheJobFactoryFindsIt(Type jobType, PropertyInfo property, string paramName)
+    private static void VerifyTheJobFactoryFindsIt([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] Type jobType, PropertyInfo property, string paramName)
     {
         // Exactly what PropertySettingJobFactory.SetObjectProperty does to a key before looking it up.
         var name = property.Name;

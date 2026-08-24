@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
-  The ILLink half of the trim baseline recorded in issue #3341. It lists exactly the same types as
-  TrimAnalysisBaseline.cs beside it, for exactly the same reasons — read that file first; the reasoning
-  lives there and is not repeated here.
+  The ILLink half of the trim baseline recorded in issue #3341. It lists the same types as
+  TrimAnalysisBaseline.cs beside it, for the same reasons — read that file first; the reasoning lives
+  there and is not repeated here.
+
+  It is not entry-for-entry identical, and one difference is deliberate: ILLink sees through calls the
+  Roslyn analyzer does not, so JsonSchedulingHelper needs an IL2057 here that the C# baseline has no
+  warning to silence. Removing an entry that looks unused because the analyzer is quiet about it fails
+  the publish; verify against a clean `dotnet fallout PublishTrimmed`, not against the compile.
 
   Two files are needed because the two tools cannot be told the same way. SuppressMessageAttribute is
   [Conditional("CODE_ANALYSIS")], so the C# baseline never reaches metadata and ILLink cannot see it;
@@ -29,7 +34,7 @@
 <linker>
   <assembly fullname="Quartz">
 
-    <!-- Types named by string -->
+    <!-- Types and properties named by string -->
     <type fullname="Quartz.Impl.SimpleTypeLoader*">
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
@@ -63,8 +68,13 @@
         <property name="Justification">An ADO.NET provider's connection type is named by the driver description, so the provider assembly need not be referenced.</property>
       </attribute>
     </type>
-
-    <!-- Types constructed at runtime -->
+    <type fullname="Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2026</argument>
+        <property name="Justification">A driver described by quartz.dbprovider.* keys has those keys applied to its DbMetadata by name.</property>
+      </attribute>
+    </type>
     <type fullname="Quartz.Configuration.QuartzPropertyBridge*">
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
@@ -76,12 +86,22 @@
         <argument>IL2072</argument>
         <property name="Justification">Translating legacy quartz.* keys means constructing the component each key names.</property>
       </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2026</argument>
+        <property name="Justification">A component with no typed options of its own takes the leftover quartz.* keys as properties set by name.</property>
+      </attribute>
     </type>
     <type fullname="Quartz.Configuration.SchedulerPluginFactory*">
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
         <argument>IL2067</argument>
         <property name="Justification">A plugin registered by type is constructed through the container from that Type.</property>
+      </attribute>
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2026</argument>
+        <property name="Justification">A plugin's quartz.plugin.&lt;name&gt;.* keys are applied to it as properties set by name.</property>
       </attribute>
     </type>
     <type fullname="Quartz.Configuration.PropertyListenerFactory*">
@@ -95,12 +115,10 @@
         <argument>IL2075</argument>
         <property name="Justification">A listener's Name is set through the property of that name, on a type known only at runtime.</property>
       </attribute>
-    </type>
-    <type fullname="Quartz.Impl.JobActivatorCache*">
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
-        <argument>IL2067</argument>
-        <property name="Justification">A job type reaches the activator as a Type; that is the whole point of the cache.</property>
+        <argument>IL2026</argument>
+        <property name="Justification">A listener's quartz.*.listener.&lt;name&gt;.* keys are applied to it as properties set by name.</property>
       </attribute>
     </type>
     <type fullname="Quartz.Configuration.JsonSchedulingHelper*">
@@ -115,78 +133,18 @@
         <property name="Justification">Jobs declared in configuration name their type as a string.</property>
       </attribute>
     </type>
-    <type fullname="Quartz.Xml.XmlSchedulingDataProcessor*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2072</argument>
-        <property name="Justification">Jobs declared in job_scheduling_data XML name their type as a string.</property>
-      </attribute>
-    </type>
 
-    <!-- Properties bound by name -->
+    <!-- Values converted onto a property the compiler cannot see -->
     <type fullname="Quartz.Util.ObjectUtils*">
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
         <argument>IL2026</argument>
-        <property name="Justification">TypeDescriptor.GetConverter is how a configuration string becomes a property's value.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2057</argument>
-        <property name="Justification">A property typed as Type takes its value from a type name in configuration.</property>
+        <property name="Justification">TypeDescriptor.GetConverter is how a value becomes a property's value, and the property's type is not annotatable.</property>
       </attribute>
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
         <argument>IL2067</argument>
-        <property name="Justification">The conversion target arrives as a Type read off the property being set.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2070</argument>
-        <property name="Justification">The conversion target arrives as a Type read off the property being set.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2072</argument>
-        <property name="Justification">The conversion target arrives as a Type read off the property being set.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2075</argument>
-        <property name="Justification">Setting a property named by a configuration key means looking it up on the target's runtime type.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2080</argument>
-        <property name="Justification">Setting a property named by a configuration key means looking it up on the target's runtime type.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Impl.PropertySettingJobFactory*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2075</argument>
-        <property name="Justification">Pushing a JobDataMap onto a job means finding properties by the map's keys.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Util.JobDataExpression*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2070</argument>
-        <property name="Justification">The check that the job factory will find the property is itself a property lookup by name.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Impl.AdoJobStore.Common.DbProvider*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2075</argument>
-        <property name="Justification">A provider's connection string and command properties are named by its DbMetadata, not referenced.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Impl.AdoJobStore.Common.DbMetadata*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2075</argument>
-        <property name="Justification">A provider's connection string and command properties are named by its DbMetadata, not referenced.</property>
+        <property name="Justification">The default for a missing value is Activator.CreateInstance of the target type, which is only ever reached for a value type.</property>
       </attribute>
     </type>
 

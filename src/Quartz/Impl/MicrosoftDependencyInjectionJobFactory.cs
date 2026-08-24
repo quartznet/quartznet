@@ -164,7 +164,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
     /// </remarks>
     private (IJob Job, bool FromContainer) ResolveJob(TriggerFiredBundle bundle, IServiceProvider serviceProvider)
     {
-        var jobType = bundle.JobDetail.JobType.Type;
+        var jobType = bundle.JobDetail.JobType.ResolvedType;
 
         var job = schedulerKey is null ? null : (IJob?) serviceProvider.GetKeyedService(jobType, schedulerKey);
         job ??= (IJob?) serviceProvider.GetService(jobType);

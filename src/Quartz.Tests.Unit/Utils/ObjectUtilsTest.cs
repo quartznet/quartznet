@@ -134,6 +134,34 @@ public class ObjectUtilsTest
         });
     }
 
+    /// <summary>
+    /// The interfaces are walked flat rather than recursively, which is only right because
+    /// <see cref="Type.GetInterfaces" /> already reports the ones an interface itself inherits. This is
+    /// what says so.
+    /// </summary>
+    [Test]
+    public void IsAnyInterfaceAttributePresentShouldSeeAnAttributeOnAnInheritedInterface()
+    {
+        ObjectUtils.IsAnyInterfaceAttributePresent(typeof(DerivedContractJob), typeof(DisallowConcurrentExecutionAttribute))
+            .Should().BeTrue("the attribute is on an interface the job's own interface inherits, two hops away");
+
+        ObjectUtils.IsAnyInterfaceAttributePresent(typeof(DerivedContractJob), typeof(PersistJobDataAfterExecutionAttribute))
+            .Should().BeFalse("nothing in the hierarchy carries that one");
+
+        ObjectUtils.IsAttributePresent(typeof(DerivedContractJob), typeof(DisallowConcurrentExecutionAttribute))
+            .Should().BeFalse("the non-walking check is the one the two ADO paths used to disagree over, and it still does not look at interfaces");
+    }
+
+    [DisallowConcurrentExecution]
+    private interface INonConcurrentContract : IJob;
+
+    private interface IDerivedContract : INonConcurrentContract;
+
+    private sealed class DerivedContractJob : IDerivedContract
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
     [Test]
     public void ShouldBeAbleToSetValuesToExplicitlyImplementedInterfaceMembers()
     {

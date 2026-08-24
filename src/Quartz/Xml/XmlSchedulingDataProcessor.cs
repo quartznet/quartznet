@@ -15,6 +15,7 @@
  *
  */
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Xml;
 using System.Xml.Schema;
@@ -133,6 +134,7 @@ internal class XmlSchedulingDataProcessor
     /// "quartz_jobs.xml" in the current working directory).
     /// </summary>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
     public virtual ValueTask ProcessFile(CancellationToken cancellationToken = default)
     {
         return ProcessFile(QuartzXmlFileName, cancellationToken);
@@ -143,6 +145,7 @@ internal class XmlSchedulingDataProcessor
     /// </summary>
     /// <param name="fileName">meta data file name.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
     public virtual ValueTask ProcessFile(
         string fileName,
         CancellationToken cancellationToken = default)
@@ -157,6 +160,7 @@ internal class XmlSchedulingDataProcessor
     /// <param name="fileName">Name of the file.</param>
     /// <param name="systemId">The system id.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
     public virtual async ValueTask ProcessFile(
         string fileName,
         string systemId,
@@ -181,6 +185,7 @@ internal class XmlSchedulingDataProcessor
     /// <param name="stream">The stream.</param>
     /// <param name="systemId">The system id.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
     public virtual async ValueTask ProcessStream(
         Stream stream,
         string? systemId,
@@ -208,6 +213,7 @@ internal class XmlSchedulingDataProcessor
         loadedTriggers.Clear();
     }
 
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
     protected virtual void ProcessInternal(string xml)
     {
         PrepareForProcessing();
@@ -561,6 +567,7 @@ internal class XmlSchedulingDataProcessor
     /// Process the xml file in the default location, and schedule all of the jobs defined within it.
     /// </summary>
     /// <remarks>Note that we will set overwriteExistingJobs after the default xml is parsed.</remarks>
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
     public async ValueTask ProcessFileAndScheduleJobs(
         IScheduler scheduler,
         bool overwriteExistingJobs,
@@ -578,6 +585,7 @@ internal class XmlSchedulingDataProcessor
     /// Process the xml file in the default location, and schedule all of the
     /// jobs defined within it.
     /// </summary>
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
     public virtual ValueTask ProcessFileAndScheduleJobs(
         IScheduler scheduler,
         CancellationToken cancellationToken = default)
@@ -592,6 +600,7 @@ internal class XmlSchedulingDataProcessor
     /// <param name="fileName">meta data file name.</param>
     /// <param name="scheduler">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
     public virtual ValueTask ProcessFileAndScheduleJobs(
         string fileName,
         IScheduler scheduler,
@@ -608,6 +617,7 @@ internal class XmlSchedulingDataProcessor
     /// <param name="systemId">The system id.</param>
     /// <param name="scheduler">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
     public virtual async ValueTask ProcessFileAndScheduleJobs(
         string fileName,
         string systemId,
@@ -626,6 +636,7 @@ internal class XmlSchedulingDataProcessor
     /// <param name="stream">stream to read XML data from.</param>
     /// <param name="scheduler">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
     public virtual async ValueTask ProcessStreamAndScheduleJobs(
         Stream stream,
         IScheduler scheduler,

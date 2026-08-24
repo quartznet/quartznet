@@ -84,7 +84,7 @@ public static class JobBuilder
     /// their keys.
     /// </remarks>
     /// <returns>a new JobBuilder</returns>
-    public static JobBuilder<T> Create<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] T>() where T : IJob
+    public static JobBuilder<T> Create<[DynamicallyAccessedMembers(JobTypeMembers.Required)] T>() where T : IJob
     {
         var b = new JobBuilder<T>();
         b.OfType<T>();
@@ -101,7 +101,7 @@ public static class JobBuilder
 /// name; <c>JobBuilder.Create&lt;TJob&gt;()</c> gives one that does.
 /// </remarks>
 /// <seealso cref="JobBuilder" />
-public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
+public sealed class JobBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob> : IJobConfigurator<TJob> where TJob : IJob
 {
     private JobKey? _key;
     private string? _description;
@@ -285,6 +285,7 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
     /// </summary>
     /// <param name="typeName">the Type name</param>
     /// <returns>the updated JobBuilder</returns>
+    [RequiresUnreferencedCode(JobType.NamedTypeIsNotGuaranteedToSurviveTrimming)]
     public JobBuilder<TJob> OfType(string typeName)
     {
         _jobType = new JobType(typeName);
@@ -314,7 +315,7 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
     /// </summary>
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobType" />
-    public JobBuilder<TJob> OfType<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] T>() where T : TJob
+    public JobBuilder<TJob> OfType<[DynamicallyAccessedMembers(JobTypeMembers.Required)] T>() where T : TJob
     {
         return OfType(typeof(T));
     }
@@ -325,7 +326,7 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
     /// </summary>
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobType" />
-    public JobBuilder<TJob> OfType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] Type type)
+    public JobBuilder<TJob> OfType([DynamicallyAccessedMembers(JobTypeMembers.Required)] Type type)
     {
         // The type is known here, so the mismatch is reported at the call that caused it rather than at
         // the build - which, configured through the container, happens somewhere else entirely.

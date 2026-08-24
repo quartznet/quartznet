@@ -81,7 +81,7 @@ public static class QuartzBuilderExtensions
     /// generated one, which a persistent store cannot recognise again on the next start.
     /// </param>
     public static IQuartzBuilder AddJob<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)]
     T>(
         this IQuartzBuilder builder,
         Action<IJobConfigurator<T>> configure) where T : IJob
@@ -92,7 +92,7 @@ public static class QuartzBuilderExtensions
 
     /// <inheritdoc cref="AddJob{T}(IQuartzBuilder, Action{IJobConfigurator{T}})" />
     public static IQuartzBuilder AddJob<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)]
     T>(
         this IQuartzBuilder builder,
         Action<IServiceProvider, IJobConfigurator<T>> configure) where T : IJob
@@ -121,7 +121,7 @@ public static class QuartzBuilderExtensions
     /// </param>
     public static IQuartzBuilder AddJob(
         this IQuartzBuilder builder,
-           [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
+           [DynamicallyAccessedMembers(JobTypeMembers.Required)]
         Type jobType,
         Action<IJobConfigurator<IJob>> configure)
     {
@@ -132,7 +132,7 @@ public static class QuartzBuilderExtensions
     /// <inheritdoc cref="AddJob(IQuartzBuilder, Type, Action{IJobConfigurator{IJob}})" />
     public static IQuartzBuilder AddJob(
         this IQuartzBuilder builder,
-           [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
+           [DynamicallyAccessedMembers(JobTypeMembers.Required)]
         Type jobType,
         Action<IServiceProvider, IJobConfigurator<IJob>> configure)
     {
@@ -166,7 +166,7 @@ public static class QuartzBuilderExtensions
     /// <typeparam name="TJob">The type of job the trigger fires.</typeparam>
     /// <param name="builder">The builder.</param>
     /// <param name="configure">Configures the trigger.</param>
-    public static IQuartzBuilder AddTrigger<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] TJob>(
+    public static IQuartzBuilder AddTrigger<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
         this IQuartzBuilder builder,
         Action<ITriggerConfigurator<TJob>> configure) where TJob : IJob
     {
@@ -175,7 +175,7 @@ public static class QuartzBuilderExtensions
     }
 
     /// <inheritdoc cref="AddTrigger{TJob}(IQuartzBuilder, Action{ITriggerConfigurator{TJob}})" />
-    public static IQuartzBuilder AddTrigger<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] TJob>(
+    public static IQuartzBuilder AddTrigger<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
         this IQuartzBuilder builder,
         Action<IServiceProvider, ITriggerConfigurator<TJob>> configure) where TJob : IJob
     {
@@ -215,7 +215,7 @@ public static class QuartzBuilderExtensions
     /// <param name="trigger">Configures the trigger.</param>
     /// <param name="job">Configures the job, which most schedules do not need to.</param>
     public static IQuartzBuilder ScheduleJob<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)]
     T>(
         this IQuartzBuilder builder,
         Action<ITriggerConfigurator<T>> trigger,
@@ -227,7 +227,7 @@ public static class QuartzBuilderExtensions
 
     /// <inheritdoc cref="ScheduleJob{T}(IQuartzBuilder, Action{ITriggerConfigurator{T}}, Action{IJobConfigurator{T}})" />
     public static IQuartzBuilder ScheduleJob<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)]
     T>(
         this IQuartzBuilder builder,
         Action<IServiceProvider, ITriggerConfigurator<T>> trigger,
@@ -281,7 +281,7 @@ public static class QuartzBuilderExtensions
         return builder;
     }
 
-    private static IJobDetail ConfigureAndBuildJobDetail<TJob>(
+    private static IJobDetail ConfigureAndBuildJobDetail<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
         IServiceProvider serviceProvider,
         JobBuilder<TJob> builder,
         Action<IServiceProvider, IJobConfigurator<TJob>> configure) where TJob : IJob
@@ -325,7 +325,7 @@ public static class QuartzBuilderExtensions
     /// <typeparam name="TJob">The job type, as named on the job detail.</typeparam>
     /// <param name="builder">The builder.</param>
     public static IQuartzBuilder AddJobType<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TJob>(
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
         this IQuartzBuilder builder) where TJob : class, IJob
     {
         return builder.AddJobType<TJob, TJob>(ServiceLifetime.Scoped);
@@ -335,7 +335,7 @@ public static class QuartzBuilderExtensions
     /// <param name="builder">The builder.</param>
     /// <param name="lifetime">How long one instance lives.</param>
     public static IQuartzBuilder AddJobType<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TJob>(
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
         this IQuartzBuilder builder,
         ServiceLifetime lifetime) where TJob : class, IJob
     {
@@ -351,7 +351,7 @@ public static class QuartzBuilderExtensions
     /// <param name="builder">The builder.</param>
     public static IQuartzBuilder AddJobType<
             TJob,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TImplementation>(
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)] TImplementation>(
         this IQuartzBuilder builder)
         where TJob : class, IJob
         where TImplementation : class, TJob
@@ -364,7 +364,7 @@ public static class QuartzBuilderExtensions
     /// <param name="lifetime">How long one instance lives.</param>
     public static IQuartzBuilder AddJobType<
             TJob,
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TImplementation>(
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)] TImplementation>(
         this IQuartzBuilder builder,
         ServiceLifetime lifetime)
         where TJob : class, IJob

@@ -457,7 +457,7 @@ namespace Quartz
     {
         System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default);
     }
-    public interface IJobConfigurator<TJob>
+    public interface IJobConfigurator<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>
         where TJob : Quartz.IJob
     {
         Quartz.IJobConfigurator<TJob> DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true);
@@ -775,7 +775,7 @@ namespace Quartz
     {
         Quartz.ITriggerConfigurator WithSchedule(Quartz.IScheduleBuilder scheduleBuilder);
     }
-    public interface ITriggerConfigurator<TJob> : Quartz.ITriggerConfigurator
+    public interface ITriggerConfigurator<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob> : Quartz.ITriggerConfigurator
         where TJob : Quartz.IJob
     {
         Quartz.ITriggerConfigurator<TJob> EndAt(System.DateTimeOffset? endTimeUtc);
@@ -825,19 +825,22 @@ namespace Quartz
     public static class JobBuilder
     {
         public static Quartz.JobBuilder<Quartz.IJob> Create() { }
-        public static Quartz.JobBuilder<T> Create<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>()
+        public static Quartz.JobBuilder<T> Create<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  T>()
             where T : Quartz.IJob { }
     }
-    public sealed class JobBuilder<TJob> : Quartz.IJobConfigurator<TJob>
+    public sealed class JobBuilder<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob> : Quartz.IJobConfigurator<TJob>
         where TJob : Quartz.IJob
     {
         public Quartz.JobKey? Key { get; }
         public Quartz.IJobDetail Build() { }
         public Quartz.JobBuilder<TJob> DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true) { }
         public Quartz.JobBuilder<TJob> OfType(Quartz.JobType jobType) { }
-        public Quartz.JobBuilder<TJob> OfType([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type type) { }
+        public Quartz.JobBuilder<TJob> OfType([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)] System.Type type) { }
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T" +
+            ">(); a type named only by a string in configuration or in the database is not gu" +
+            "aranteed to survive trimming.")]
         public Quartz.JobBuilder<TJob> OfType(string typeName) { }
-        public Quartz.JobBuilder<TJob> OfType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>()
+        public Quartz.JobBuilder<TJob> OfType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  T>()
             where T : TJob { }
         public Quartz.JobBuilder<TJob> PersistJobDataAfterExecution(bool persistJobDataAfterExecution = true) { }
         public Quartz.JobBuilder<TJob> RequestRecovery(bool shouldRecover = true) { }
@@ -961,7 +964,10 @@ namespace Quartz
     }
     public sealed class JobType : System.IEquatable<Quartz.JobType>
     {
-        public JobType(System.Type type) { }
+        public JobType([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)] System.Type type) { }
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T" +
+            ">(); a type named only by a string in configuration or in the database is not gu" +
+            "aranteed to survive trimming.")]
         public JobType(string fullName) { }
         public string FullName { get; }
         public System.Type Type { get; }
@@ -969,9 +975,12 @@ namespace Quartz
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public override string ToString() { }
-        public bool TryResolve([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out System.Type? resolved) { }
+        public bool TryResolve([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)] [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out System.Type? resolved) { }
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T" +
+            ">(); a type named only by a string in configuration or in the database is not gu" +
+            "aranteed to survive trimming.")]
         public static Quartz.JobType op_Explicit(string fullName) { }
-        public static Quartz.JobType op_Implicit(System.Type type) { }
+        public static Quartz.JobType op_Implicit([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)] System.Type type) { }
         public static bool operator !=(Quartz.JobType? left, Quartz.JobType? right) { }
         public static bool operator ==(Quartz.JobType? left, Quartz.JobType? right) { }
     }
@@ -1142,34 +1151,34 @@ namespace Quartz
             where T : Quartz.ICalendar, new () { }
         public static Quartz.IQuartzBuilder AddCalendar<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(this Quartz.IQuartzBuilder builder, string name, Quartz.AddCalendarOptions options = default, System.Action<T>? configure = null)
             where T : Quartz.ICalendar, new () { }
-        public static Quartz.IQuartzBuilder AddJob(this Quartz.IQuartzBuilder builder, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type jobType, System.Action<Quartz.IJobConfigurator<Quartz.IJob>> configure) { }
-        public static Quartz.IQuartzBuilder AddJob(this Quartz.IQuartzBuilder builder, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type jobType, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<Quartz.IJob>> configure) { }
-        public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder builder, System.Action<Quartz.IJobConfigurator<T>> configure)
+        public static Quartz.IQuartzBuilder AddJob(this Quartz.IQuartzBuilder builder, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)] System.Type jobType, System.Action<Quartz.IJobConfigurator<Quartz.IJob>> configure) { }
+        public static Quartz.IQuartzBuilder AddJob(this Quartz.IQuartzBuilder builder, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)] System.Type jobType, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<Quartz.IJob>> configure) { }
+        public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  T>(this Quartz.IQuartzBuilder builder, System.Action<Quartz.IJobConfigurator<T>> configure)
             where T : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>> configure)
+        public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>> configure)
             where T : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddJobType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  TJob>(this Quartz.IQuartzBuilder builder)
+        public static Quartz.IQuartzBuilder AddJobType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>(this Quartz.IQuartzBuilder builder)
             where TJob :  class, Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddJobType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  TJob>(this Quartz.IQuartzBuilder builder, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime)
+        public static Quartz.IQuartzBuilder AddJobType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>(this Quartz.IQuartzBuilder builder, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime)
             where TJob :  class, Quartz.IJob { }
         public static Quartz.IQuartzBuilder AddJobType<TJob>(this Quartz.IQuartzBuilder builder, System.Func<System.IServiceProvider, TJob> implementationFactory)
             where TJob :  class, Quartz.IJob { }
         public static Quartz.IQuartzBuilder AddJobType<TJob>(this Quartz.IQuartzBuilder builder, System.Func<System.IServiceProvider, TJob> implementationFactory, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime)
             where TJob :  class, Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddJobType<TJob, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  TImplementation>(this Quartz.IQuartzBuilder builder)
+        public static Quartz.IQuartzBuilder AddJobType<TJob, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TImplementation>(this Quartz.IQuartzBuilder builder)
             where TJob :  class, Quartz.IJob
             where TImplementation :  class, TJob { }
-        public static Quartz.IQuartzBuilder AddJobType<TJob, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  TImplementation>(this Quartz.IQuartzBuilder builder, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime)
+        public static Quartz.IQuartzBuilder AddJobType<TJob, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TImplementation>(this Quartz.IQuartzBuilder builder, Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime)
             where TJob :  class, Quartz.IJob
             where TImplementation :  class, TJob { }
-        public static Quartz.IQuartzBuilder AddTrigger<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  TJob>(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ITriggerConfigurator<TJob>> configure)
+        public static Quartz.IQuartzBuilder AddTrigger<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ITriggerConfigurator<TJob>> configure)
             where TJob : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddTrigger<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  TJob>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<TJob>> configure)
+        public static Quartz.IQuartzBuilder AddTrigger<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<TJob>> configure)
             where TJob : Quartz.IJob { }
         public static Quartz.IQuartzBuilder ConfigureJobScope(this Quartz.IQuartzBuilder builder, System.Action<Microsoft.Extensions.DependencyInjection.IServiceScope, Quartz.Extensibility.TriggerFiredBundle, Quartz.IScheduler> configure) { }
-        public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ITriggerConfigurator<T>> trigger, System.Action<Quartz.IJobConfigurator<T>>? job = null)
+        public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  T>(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ITriggerConfigurator<T>> trigger, System.Action<Quartz.IJobConfigurator<T>>? job = null)
             where T : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<T>> trigger, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>>? job = null)
+        public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<T>> trigger, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>>? job = null)
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder UseSimpleTypeLoader(this Quartz.IQuartzBuilder builder) { }
     }
@@ -1549,10 +1558,10 @@ namespace Quartz
     public static class TriggerBuilder
     {
         public static Quartz.TriggerBuilder<Quartz.IJob> Create(System.TimeProvider? timeProvider = null) { }
-        public static Quartz.TriggerBuilder<TJob> Create<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  TJob>(System.TimeProvider? timeProvider = null)
+        public static Quartz.TriggerBuilder<TJob> Create<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>(System.TimeProvider? timeProvider = null)
             where TJob : Quartz.IJob { }
     }
-    public sealed class TriggerBuilder<TJob> : Quartz.ITriggerConfigurator, Quartz.ITriggerConfigurator<TJob>
+    public sealed class TriggerBuilder<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob> : Quartz.ITriggerConfigurator, Quartz.ITriggerConfigurator<TJob>
         where TJob : Quartz.IJob
     {
         public Quartz.ITrigger Build() { }
@@ -2845,13 +2854,16 @@ namespace Quartz.Impl.AdoJobStore.Common
         public DbMetadata() { }
         public string? AssemblyName { get; init; }
         public bool BindByName { get; init; }
+        [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]
         public System.Type? CommandType { get; init; }
+        [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]
         public System.Type? ConnectionType { get; init; }
         public string? DbBinaryTypeName { get; init; }
         public System.Type? ExceptionType { get; init; }
         public System.Type? ParameterDbType { get; init; }
         public string ParameterDbTypePropertyName { get; init; }
         public string? ParameterNamePrefix { get; init; }
+        [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]
         public System.Type? ParameterType { get; init; }
         public string? ProductName { get; init; }
         public bool UseParameterNamePrefixInParameterCollection { get; init; }
@@ -3199,6 +3211,8 @@ namespace Quartz.Impl
         public override System.Threading.Tasks.ValueTask<Quartz.Extensibility.JobScope> CreateJob(Quartz.Extensibility.TriggerFiredBundle bundle, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<Quartz.Extensibility.JobScope> CreateJobInstance(Quartz.Extensibility.TriggerFiredBundle bundle, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual void SetObjectProperties(object obj, Quartz.JobDataMap data) { }
+        [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075", Justification="The job instance is of the job detail\'s declared type or of a registered implemen" +
+            "tation of it, and both are annotated where they enter Quartz. See the remarks.")]
         protected virtual void SetObjectProperty(object job, string name, object? value) { }
     }
     public sealed class RAMJobStore : Quartz.Extensibility.IJobStore
