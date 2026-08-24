@@ -206,6 +206,25 @@ scheduler.ListenerManager.AddJobListener(chain);
 The links live in memory with the listener, so they are re-registered on every start, and the
 second job is fired rather than scheduled — there is no trigger to see in the store.
 
+In 4.x one job can be chained to several follow-ups, which is a fan-out rather than a chain: call
+`AddJobChainLink` again with the same first job, or name them all at once with `AddJobChainLinks`.
+Each follow-up is triggered as a firing of its own, so they run concurrently — as many at a time as
+the thread pool has threads — rather than one after another:
+
+<!-- snippet: sample_faq_job_chaining_fan_out -->
+```csharp
+JobChainingJobListener chain = new("chain");
+chain.AddJobChainLinks(new JobKey("transform"), [new JobKey("load-warehouse"), new JobKey("load-cache")]);
+chain.AddJobChainLink(new JobKey("transform"), new JobKey("notify"));
+
+scheduler.ListenerManager.AddJobListener(chain);
+```
+<!-- endSnippet -->
+
+A follow-up that has to wait for one of its siblings is a link from *that* sibling, not a second link
+from the same job. Chaining the same follow-up to one job twice is rejected, since it would fire that
+job twice for a single completion. On 3.x, a second link from the same first job throws instead.
+
 For anything more than that, there is no "direct" way to chain triggers with Quartz, but there are
 several ways to accomplish it without much effort. Below is an outline of a couple of approaches:
 

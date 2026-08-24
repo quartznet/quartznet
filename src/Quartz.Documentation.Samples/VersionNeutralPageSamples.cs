@@ -91,6 +91,19 @@ public static class VersionNeutralPageSamples
 
         #endregion
     }
+
+    public static void ChainingJobsToSeveralFollowUps(IScheduler scheduler)
+    {
+        #region sample_faq_job_chaining_fan_out
+
+        JobChainingJobListener chain = new("chain");
+        chain.AddJobChainLinks(new JobKey("transform"), [new JobKey("load-warehouse"), new JobKey("load-cache")]);
+        chain.AddJobChainLink(new JobKey("transform"), new JobKey("notify"));
+
+        scheduler.ListenerManager.AddJobListener(chain);
+
+        #endregion
+    }
 }
 
 /// <summary>Stands in for a job of your own in the <c>ScheduleJobs</c> sample.</summary>
