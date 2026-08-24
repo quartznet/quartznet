@@ -84,6 +84,13 @@ Every member of both interfaces has a default implementation — the notificatio
 the type's name — so implement only the events you're interested in, and only declare `Name` when you register
 several instances of one type with the same scheduler.
 
+::: warning
+The price of those defaults is that a method whose *signature* does not match the interface's is not a
+compile error. It simply stops implementing anything, and the default runs in its place — the method is
+never called. Quartz refuses a listener in that shape when it is registered, naming the method and the
+signature it should have, rather than attaching one that will be silent.
+:::
+
 Listeners are registered with the scheduler's `ListenerManager` along with a Matcher that describes which Jobs/Triggers the listener wants to receive events for.
 
 ::: tip
