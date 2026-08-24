@@ -108,10 +108,11 @@ internal sealed class SchedulerNameRegistry
     /// Applies every recorded container-wide delegate to one scheduler.
     /// </summary>
     /// <remarks>
-    /// Called from <c>AddQuartz</c> after the caller's own configuration callback, so a scheduler that
-    /// says something for itself is not overruled by what the container says for everyone — options are
-    /// last-wins and registration is first-wins, and this order gives the scheduler's own word the
-    /// stronger side of both.
+    /// Called from <c>AddQuartz</c> after the caller's own configuration callback, which is the same
+    /// place in the order that a scheduler registered earlier gets it — <c>ConfigureAllQuartzSchedulers</c>
+    /// applies it to those where it is called, and that is after their callbacks too. Container-wide
+    /// configuration therefore lands in one position regardless of the order the calls were written in,
+    /// which is the whole point of it.
     /// </remarks>
     public void ApplyConfigureAll(IServiceCollection services, string? schedulerName)
     {
