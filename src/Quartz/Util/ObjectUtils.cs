@@ -22,6 +22,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 
@@ -37,6 +38,14 @@ internal static class ObjectUtils
     /// <summary>
     /// Convert the value to the required <see cref="System.Type"/> (if necessary from a string).
     /// </summary>
+    /// <remarks>
+    /// The two answers that need no <see cref="TypeConverter" /> are given here — a value that is
+    /// already what the target takes, and the target's own default for a missing one — and only the
+    /// conversion itself sits behind <see cref="ConvertUsingTypeConverter" />, which is
+    /// <see cref="RequiresUnreferencedCodeAttribute" /> because <see cref="TypeDescriptor" /> finds a
+    /// converter by reflecting over the target type. Most of what a <see cref="JobDataMap" /> carries
+    /// is answered by the first of the two and never reaches it.
+    /// </remarks>
     /// <param name="newValue">The proposed change value.</param>
     /// <param name="requiredType">
     /// The <see cref="System.Type"/> we must convert to.
@@ -44,53 +53,25 @@ internal static class ObjectUtils
     /// <returns>The new value, possibly the result of type conversion.</returns>
     public static object? ConvertValueIfNecessary(Type requiredType, object? newValue)
     {
-        if (newValue is not null)
+        if (newValue is null)
         {
-            // if it is assignable, return the value right away
-            if (requiredType.IsInstanceOfType(newValue))
-            {
-                return newValue;
-            }
-
-            // try to convert using type converter
-            TypeConverter typeConverter = TypeDescriptor.GetConverter(requiredType);
-            if (typeConverter.CanConvertFrom(newValue.GetType()))
-            {
-                return typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
-            }
-
-            typeConverter = TypeDescriptor.GetConverter(newValue.GetType());
-            if (typeConverter.CanConvertTo(requiredType))
-            {
-                return typeConverter.ConvertTo(null, CultureInfo.InvariantCulture, newValue, requiredType);
-            }
-
-            if (requiredType == typeof(Type))
-            {
-                return Type.GetType(newValue.ToString()!, throwOnError: true);
-            }
-
-            if (newValue.GetType().IsEnum)
-            {
-                // If we couldn't convert the type, but it's an enum type, try convert it as an int
-                return ConvertValueIfNecessary(requiredType, Convert.ChangeType(newValue, Convert.GetTypeCode(newValue), null));
-            }
-
-            if (requiredType.IsEnum)
-            {
-                // if JSON serializer creates numbers from enums, be prepared for that
-                try
-                {
-                    return Enum.ToObject(requiredType, newValue);
-                }
-                catch
-                {
-                }
-            }
-
-            Throw.NotSupportedException($"{newValue} is no a supported value for a target of type {requiredType}");
+            return DefaultValue(requiredType);
         }
 
+        // if it is assignable, return the value right away
+        if (requiredType.IsInstanceOfType(newValue))
+        {
+            return newValue;
+        }
+
+        return ConvertUsingTypeConverter(requiredType, newValue);
+    }
+
+    /// <summary>
+    /// The value a target of this type holds when there is nothing to put in it.
+    /// </summary>
+    private static object? DefaultValue(Type requiredType)
+    {
         if (requiredType.IsValueType)
         {
             return Activator.CreateInstance(requiredType);
@@ -101,15 +82,67 @@ internal static class ObjectUtils
     }
 
     /// <summary>
+    /// Converts through <see cref="TypeDescriptor" />, in the order this has always tried things.
+    /// </summary>
+    /// <remarks>
+    /// Nothing in here can be annotated instead. A converter is found by reflecting over the target
+    /// type, which arrives as <see cref="PropertyInfo.PropertyType" /> or as a setter's parameter type —
+    /// neither of which the framework annotates, or could. Splitting it out at least keeps the
+    /// requirement off the values that never need converting.
+    /// </remarks>
+    [RequiresUnreferencedCode("A value whose type does not match the target's is converted through TypeDescriptor, which finds the converter by reflecting over the target type; neither that type nor its converter is guaranteed to survive trimming.")]
+    private static object? ConvertUsingTypeConverter(Type requiredType, object newValue)
+    {
+        // try to convert using type converter
+        TypeConverter typeConverter = TypeDescriptor.GetConverter(requiredType);
+        if (typeConverter.CanConvertFrom(newValue.GetType()))
+        {
+            return typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
+        }
+
+        typeConverter = TypeDescriptor.GetConverter(newValue.GetType());
+        if (typeConverter.CanConvertTo(requiredType))
+        {
+            return typeConverter.ConvertTo(null, CultureInfo.InvariantCulture, newValue, requiredType);
+        }
+
+        if (requiredType == typeof(Type))
+        {
+            return Type.GetType(newValue.ToString()!, throwOnError: true);
+        }
+
+        if (newValue.GetType().IsEnum)
+        {
+            // If we couldn't convert the type, but it's an enum type, try convert it as an int
+            return ConvertValueIfNecessary(requiredType, Convert.ChangeType(newValue, Convert.GetTypeCode(newValue), null));
+        }
+
+        if (requiredType.IsEnum)
+        {
+            // if JSON serializer creates numbers from enums, be prepared for that
+            try
+            {
+                return Enum.ToObject(requiredType, newValue);
+            }
+            catch
+            {
+            }
+        }
+
+        Throw.NotSupportedException($"{newValue} is no a supported value for a target of type {requiredType}");
+        return null;
+    }
+
+    /// <summary>
     /// Instantiates an instance of the type specified.
     /// </summary>
-    public static T InstantiateType<T>(Type? type)
+    public static T InstantiateType<T>([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? type)
     {
         ConstructorInfo ci = GetDefaultConstructor(type);
         return (T) ci.Invoke([]);
     }
 
-    public static ConstructorInfo GetDefaultConstructor(Type? type)
+    public static ConstructorInfo GetDefaultConstructor([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type? type)
     {
         if (type is null)
         {
@@ -128,6 +161,7 @@ internal static class ObjectUtils
     /// <summary>
     /// Sets the object properties using reflection.
     /// </summary>
+    [RequiresUnreferencedCode("Component properties are set by name on a type Quartz is handed at run time; a component named by a quartz.* configuration key, and the properties that key sets, are not guaranteed to survive trimming.")]
     public static void SetObjectProperties(object obj, string[] propertyNames, object[] propertyValues)
     {
         for (int i = 0; i < propertyNames.Length; i++)
@@ -149,6 +183,7 @@ internal static class ObjectUtils
     /// </summary>
     /// <param name="obj">The object to set values to.</param>
     /// <param name="props">The properties to set to object.</param>
+    [RequiresUnreferencedCode("Component properties are set by name on a type Quartz is handed at run time; a component named by a quartz.* configuration key, and the properties that key sets, are not guaranteed to survive trimming.")]
     public static void SetObjectProperties(object obj, NameValueCollection props)
     {
         // remove the type
@@ -182,6 +217,7 @@ internal static class ObjectUtils
     private const BindingFlags Bindings =
         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
+    [RequiresUnreferencedCode("Component properties are set by name on a type Quartz is handed at run time; a component named by a quartz.* configuration key, and the properties that key sets, are not guaranteed to survive trimming.")]
     public static void SetPropertyValue(object target, string propertyName, object? value)
     {
         var pi = propertyResolutionCache.GetOrAdd((target.GetType(), propertyName), static tuple =>
@@ -263,12 +299,31 @@ internal static class ObjectUtils
         }
     }
 
+    /// <summary>
+    /// Whether the type, or anything it inherits from, carries the attribute.
+    /// </summary>
+    /// <remarks>
+    /// No annotation is needed on <paramref name="typeToExamine" />: an attribute is part of the
+    /// metadata of a type that survives trimming at all, so the trimmer has nothing to preserve on its
+    /// account.
+    /// </remarks>
     public static bool IsAttributePresent(Type typeToExamine, Type attributeType)
     {
         return typeToExamine.GetCustomAttributes(attributeType, inherit: true).Length > 0;
     }
 
-    public static bool IsAnyInterfaceAttributePresent(Type typeToExamine, Type attributeType)
+    /// <summary>
+    /// Whether the type, anything it inherits from, or any interface it implements carries the attribute.
+    /// </summary>
+    /// <remarks>
+    /// The interfaces are walked flat rather than recursively, because <see cref="Type.GetInterfaces" />
+    /// already reports the ones an interface itself inherits — the recursion asked the same question
+    /// twice, and asking it once is what lets the requirement stop at
+    /// <see cref="DynamicallyAccessedMemberTypes.Interfaces" /> instead of travelling.
+    /// </remarks>
+    public static bool IsAnyInterfaceAttributePresent(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type typeToExamine,
+        Type attributeType)
     {
         if (IsAttributePresent(typeToExamine, attributeType))
         {
@@ -277,7 +332,7 @@ internal static class ObjectUtils
 
         foreach (var type in typeToExamine.GetInterfaces())
         {
-            if (IsAnyInterfaceAttributePresent(type, attributeType))
+            if (IsAttributePresent(type, attributeType))
             {
                 return true;
             }

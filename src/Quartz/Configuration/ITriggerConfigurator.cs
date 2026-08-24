@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 
 namespace Quartz;
@@ -36,7 +37,7 @@ public interface ITriggerConfigurator
 /// job's own properties.
 /// </summary>
 /// <typeparam name="TJob">the type of job the trigger fires.</typeparam>
-public interface ITriggerConfigurator<TJob> : ITriggerConfigurator where TJob : IJob
+public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob> : ITriggerConfigurator where TJob : IJob
 {
     /// <summary>
     /// Use a <see cref="TriggerKey" /> with the given name and default group to

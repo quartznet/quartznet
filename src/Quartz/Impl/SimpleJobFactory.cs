@@ -75,7 +75,7 @@ public class SimpleJobFactory : IJobFactory
     protected IJob InstantiateJobCore(TriggerFiredBundle bundle)
     {
         IJobDetail jobDetail = bundle.JobDetail;
-        Type jobType = jobDetail.JobType.Type;
+        Type jobType = jobDetail.JobType.ResolvedType;
         try
         {
             if (logger.IsEnabled(LogLevel.Debug))

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -7,15 +8,24 @@ namespace Quartz.Impl;
 internal sealed class JobActivatorCache
 {
     private readonly ConcurrentDictionary<Type, ObjectFactory> activatorCache = new();
-    private readonly Func<Type, ObjectFactory> createFactory = type => ActivatorUtilities.CreateFactory(type, Type.EmptyTypes);
 
-    public IJob CreateInstance(IServiceProvider serviceProvider, Type jobType)
+    public IJob CreateInstance(
+        IServiceProvider serviceProvider,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type jobType)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
 
         ArgumentNullException.ThrowIfNull(jobType);
 
-        var factory = activatorCache.GetOrAdd(jobType, createFactory);
+        // Looked up before it is built rather than through a GetOrAdd factory, because a lambda's
+        // parameter carries no annotation and the job type would reach ActivatorUtilities with nothing
+        // said about its constructors. The caching is the same: a race builds two factories, stores one.
+        if (activatorCache.TryGetValue(jobType, out var factory))
+        {
+            return (IJob) factory(serviceProvider, null);
+        }
+
+        factory = activatorCache.GetOrAdd(jobType, ActivatorUtilities.CreateFactory(jobType, Type.EmptyTypes));
         return (IJob) factory(serviceProvider, null);
     }
 }

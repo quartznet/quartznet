@@ -21,21 +21,29 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-// The recorded set of trim-analysis warnings Quartz produced when EnableTrimAnalyzer was first turned
-// on (https://github.com/quartznet/quartznet/issues/3341). It is a baseline, not an all-clear: none of
-// these call sites is trim-safe, and every one of them is work still to do. What the baseline buys is
+// The trim-analysis warnings Quartz still produces (https://github.com/quartznet/quartznet/issues/3341).
+// It is a baseline, not an all-clear: none of these call sites is trim-safe. What the baseline buys is
 // that a *new* one fails the build, because TreatWarningsAsErrors makes IL2xxx an error and nothing
 // suppresses a warning that is not listed here.
+//
+// Step 3 of that issue took the fire path out of this file. A job type that reached Quartz as a type -
+// JobBuilder.Create<T>(), OfType<T>(), AddJob<T>() - now carries [DynamicallyAccessedMembers] all the
+// way to the attribute checks, the job factories and the ADO store's acquisition loop, and the APIs
+// that accept a type *name* instead say [RequiresUnreferencedCode] out loud. What is left below is what
+// that redesign could not reach, and each group says which wall it ran into.
 //
 // Adding an entry is the wrong first move. Reach for it only after establishing that the reflection is
 // genuinely unavoidable, and then say in the group comment why. The preferred fixes, in order:
 //
 //   1. Resolve the type statically — a generic parameter or a typed option instead of a type name.
 //   2. Annotate with [DynamicallyAccessedMembers], so the requirement travels to the caller that does
-//      know the type. Check where it propagates to first, and whether it can travel at all: on the fire
-//      path it cannot, because JobType.Type erases the annotation — a job named by a string has no
-//      annotatable type. That is why ObjectUtils is left alone here (issue #3341, step 3).
+//      know the type. Check where it propagates to first: it has to reach a caller that can satisfy it.
 //   3. Mark the API [RequiresUnreferencedCode], for opt-in surface a trimmed app can avoid entirely.
+//      Check where *that* propagates to as well. It cannot cross a member that implements an interface
+//      Quartz does not own both sides of (IJobStore, IDriverDelegate, ISchedulerFactory all forbid it,
+//      because IL2046 wants the attribute to match on both sides and RAMJobStore must stay clean), and
+//      it must stop before AddQuartz — which every application calls, including the trim canary, and
+//      which is trimmable when it is configured in code.
 //
 // Scope is deliberately the type rather than the member. ILLink reports these against compiler-
 // generated closure types whose names change whenever a lambda is added to or removed from the file, so
@@ -47,49 +55,46 @@ using System.Diagnostics.CodeAnalysis;
 // SuppressMessageAttribute is [Conditional("CODE_ANALYSIS")] and never reaches metadata, so this file
 // silences the analyzer during Quartz's own compile and nothing else. Consumers publishing a trimmed
 // application still see every warning below, which is honest: their app really is affected. The
-// unconditional form would hide it from them too, and that would be a lie until step 3 lands.
+// unconditional form would hide it from them too. Where Quartz *has* reasoned an application's way out
+// of a warning, it says so in an [UnconditionalSuppressMessage] at the call site instead — there are two,
+// on JobType.FoundByName and PropertySettingJobFactory.SetObjectProperty, and each carries the argument.
 
-// --- Types named by string --------------------------------------------------------------------------
+// --- Types and properties named by string -----------------------------------------------------------
 // Configuration and persistence both store types as text: the flat quartz.* keys, the JOB_CLASS_NAME
-// column, job_scheduling_data XML, and JobType's name-constructed form. A type resolved from a string
-// cannot be proven reachable, so the trimmer cannot keep it.
+// column, and JobType's name-constructed form. A type resolved from a string cannot be proven
+// reachable, so the trimmer cannot keep it — nor the properties a key then sets on it.
+//
+// The APIs an application calls to name a job type by string say [RequiresUnreferencedCode] instead,
+// so a trimmed application is told; the job_scheduling_data XML loader left this file that way. What
+// remains is Quartz reading its own configuration and its own tables, on paths that reach AddQuartz or
+// an interface Quartz does not own both sides of, and so cannot carry the attribute themselves.
 
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.SimpleTypeLoader", Justification = "The default ITypeLoader exists to resolve a configured type name; that is its contract.")]
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.JobType", Justification = "A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver.")]
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.StdAdoDelegate", Justification = "A persisted job's type is the JOB_CLASS_NAME column, which is a string by the time it is read back.")]
+[assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.StdAdoDelegate", Justification = "A persisted job's type reaches JobBuilder.OfType as a Type resolved from JOB_CLASS_NAME.")]
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.BuiltInDbMetadataFactory", Justification = "An ADO.NET provider's connection type is named by the driver description, so the provider assembly need not be referenced.")]
-
-// --- Types constructed at runtime -------------------------------------------------------------------
-// Once a type arrives as a Type rather than a generic argument, Activator/ActivatorUtilities cannot
-// promise its constructor survives, and JobBuilder.OfType wants its members annotated.
-
+[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory", Justification = "A driver described by quartz.dbprovider.* keys has those keys applied to its DbMetadata by name.")]
 [assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "Translating legacy quartz.* keys means constructing the component each key names.")]
 [assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "Translating legacy quartz.* keys means constructing the component each key names.")]
+[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "A component with no typed options of its own takes the leftover quartz.* keys as properties set by name.")]
 [assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Configuration.SchedulerPluginFactory", Justification = "A plugin registered by type is constructed through the container from that Type.")]
+[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.SchedulerPluginFactory", Justification = "A plugin's quartz.plugin.<name>.* keys are applied to it as properties set by name.")]
 [assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Configuration.PropertyListenerFactory", Justification = "A listener registered by quartz.*.listener.* keys is constructed from the type the key names.")]
-[assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Impl.JobActivatorCache", Justification = "A job type reaches the activator as a Type; that is the whole point of the cache.")]
-[assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Configuration.JsonSchedulingHelper", Justification = "Jobs declared in configuration name their type as a string.")]
-[assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Xml.XmlSchedulingDataProcessor", Justification = "Jobs declared in job_scheduling_data XML name their type as a string.")]
-[assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.StdAdoDelegate", Justification = "A persisted job's type reaches JobBuilder.OfType as a Type resolved from JOB_CLASS_NAME.")]
-
-// --- Properties bound by name -----------------------------------------------------------------------
-// The flat quartz.* keys and JobDataMap both set properties on a target the compiler cannot see the
-// type of. ObjectUtils is the shared implementation and the structural blocker for the whole track:
-// annotating it would reach IJobDetail and out into every consumer's code, so it stays as it is until
-// issue #3341, step 3 redesigns it.
-
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "TypeDescriptor.GetConverter is how a configuration string becomes a property's value.")]
-[assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "A property typed as Type takes its value from a type name in configuration.")]
-[assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "The conversion target arrives as a Type read off the property being set.")]
-[assembly: SuppressMessage("Trimming", "IL2070", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "The conversion target arrives as a Type read off the property being set.")]
-[assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "The conversion target arrives as a Type read off the property being set.")]
-[assembly: SuppressMessage("Trimming", "IL2075", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "Setting a property named by a configuration key means looking it up on the target's runtime type.")]
-[assembly: SuppressMessage("Trimming", "IL2080", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "Setting a property named by a configuration key means looking it up on the target's runtime type.")]
-[assembly: SuppressMessage("Trimming", "IL2075", Scope = "type", Target = "T:Quartz.Impl.PropertySettingJobFactory", Justification = "Pushing a JobDataMap onto a job means finding properties by the map's keys.")]
 [assembly: SuppressMessage("Trimming", "IL2075", Scope = "type", Target = "T:Quartz.Configuration.PropertyListenerFactory", Justification = "A listener's Name is set through the property of that name, on a type known only at runtime.")]
-[assembly: SuppressMessage("Trimming", "IL2070", Scope = "type", Target = "T:Quartz.Util.JobDataExpression", Justification = "The check that the job factory will find the property is itself a property lookup by name.")]
-[assembly: SuppressMessage("Trimming", "IL2075", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.DbProvider", Justification = "A provider's connection string and command properties are named by its DbMetadata, not referenced.")]
-[assembly: SuppressMessage("Trimming", "IL2075", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.DbMetadata.DerivedMetadata", Justification = "A provider's connection string and command properties are named by its DbMetadata, not referenced.")]
+[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.PropertyListenerFactory", Justification = "A listener's quartz.*.listener.<name>.* keys are applied to it as properties set by name.")]
+[assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Configuration.JsonSchedulingHelper", Justification = "Jobs declared in configuration name their type as a string.")]
+
+// --- Values converted onto a property the compiler cannot see -----------------------------------------
+// Not a string contract, and the one wall step 3 could not move. ConvertValueIfNecessary answers the two
+// questions that need no converter itself, and hands the rest to a RequiresUnreferencedCode helper: a
+// converter is found by reflecting over the target type, and the target arrives as
+// PropertyInfo.PropertyType or as a setter's parameter type. The framework annotates neither, and could
+// not — so there is no [DynamicallyAccessedMembers] chain to build, and the callers that would have to
+// carry [RequiresUnreferencedCode] instead are the default job factory and everything that runs a job.
+
+[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "TypeDescriptor.GetConverter is how a value becomes a property's value, and the property's type is not annotatable.")]
+[assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "The default for a missing value is Activator.CreateInstance of the target type, which is only ever reached for a value type.")]
 
 // --- Duck-typed exception inspection ------------------------------------------------------------------
 // Whether a database error is worth retrying lives in provider-specific properties (SqlException.Number,

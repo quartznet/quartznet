@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
+
 // ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract - Can be null when received from Web API
 // ReSharper disable NullCoalescingConditionIsAlwaysNotNullAccordingToAPIContract
 
@@ -64,6 +66,7 @@ internal record JobDetailDto(
         }
     }
 
+    [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in an HTTP API request is not guaranteed to survive trimming.")]
     public (IJobDetail? JobDetail, string? ErrorReason) AsIJobDetail()
     {
         if (JobType is null || !IsWellFormedTypeName(JobType))

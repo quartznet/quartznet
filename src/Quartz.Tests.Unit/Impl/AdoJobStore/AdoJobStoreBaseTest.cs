@@ -1703,6 +1703,123 @@ public class AdoJobStoreBaseTest
 
     #endregion
 
+    #region Concurrency at acquisition
+
+    /// <summary>
+    /// Arranges an acquisition pass that finds <paramref name="triggers" /> ready to fire, all of them
+    /// belonging to jobs of <paramref name="jobType" />, and lets every one of them win its state update.
+    /// </summary>
+    private void GivenTriggersToAcquire(Type jobType, params IOperableTrigger[] triggers)
+    {
+        A.CallTo(() => driverDelegate.SelectTriggersToAcquire(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<TriggerAcquisitionCriteria>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<TriggerAcquireResult>>(
+                triggers.Select(x => new TriggerAcquireResult(x.Key, jobType.AssemblyQualifiedName, null)).ToList()));
+
+        foreach (IOperableTrigger trigger in triggers)
+        {
+            IOperableTrigger captured = trigger;
+            A.CallTo(() => driverDelegate.SelectTrigger(
+                    A<ConnectionAndTransactionHolder>.Ignored,
+                    A<TriggerKey>.That.IsEqualTo(captured.Key),
+                    A<CancellationToken>.Ignored))
+                .Returns(new ValueTask<IOperableTrigger>(captured));
+        }
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherStateWithNextFireTime(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<TriggerKey>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<DateTimeOffset>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<int>(1));
+    }
+
+    /// <summary>
+    /// A trigger the acquisition loop will take: it has a next fire time, which a builder-built trigger
+    /// only gets once its first fire time has been computed, and the loop skips one that has none.
+    /// </summary>
+    private static IOperableTrigger CreateReadyTrigger(string name, DateTimeOffset fireTime)
+    {
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(name, "g1")
+            .ForJob("j1", "jg1")
+            .StartAt(fireTime)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .Build();
+        trigger.FireInstanceId = name + "-fire";
+        trigger.NextFireTimeUtc = fireTime;
+        return trigger;
+    }
+
+    private async Task<List<IOperableTrigger>> AcquireTwoTriggersForOneJob(Type jobType)
+    {
+        // One fire time for both, so the batch window the first acquisition sets cannot exclude the
+        // second and turn a concurrency decision into an arithmetic one.
+        DateTimeOffset fireTime = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5);
+        GivenTriggersToAcquire(jobType, CreateReadyTrigger("t1", fireTime), CreateReadyTrigger("t2", fireTime));
+
+        return await jobStoreSupport.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow + TimeSpan.FromHours(1),
+            MaxCount = 5,
+        });
+    }
+
+    /// <summary>
+    /// The acquisition loop decided this with the non-walking attribute check while
+    /// <see cref="IJobDetail.ConcurrentExecutionDisallowed" /> walked interfaces, so a job that inherited
+    /// the attribute from an interface was serialized when it fired and not when it was acquired. Both
+    /// now ask <c>JobTypeInformation</c>, so the answer is the same one in both places.
+    /// </summary>
+    [Test]
+    public async Task AcquireNextTriggers_ShouldTakeOneTriggerForAJobThatInheritsDisallowConcurrentFromAnInterface()
+    {
+        List<IOperableTrigger> acquired = await AcquireTwoTriggersForOneJob(typeof(InterfaceNonConcurrentJob));
+
+        acquired.Should().ContainSingle(
+            "the job is non-concurrent, so a batch may hold only one of its triggers - and it is non-concurrent because an interface it implements says so");
+    }
+
+    [Test]
+    public async Task AcquireNextTriggers_ShouldTakeOneTriggerForAJobThatCarriesDisallowConcurrentItself()
+    {
+        List<IOperableTrigger> acquired = await AcquireTwoTriggersForOneJob(typeof(DisallowConcurrentTestJob));
+
+        acquired.Should().ContainSingle("the attribute on the job type itself has always been honored here");
+    }
+
+    [Test]
+    public async Task AcquireNextTriggers_ShouldTakeEveryTriggerForAConcurrentJob()
+    {
+        List<IOperableTrigger> acquired = await AcquireTwoTriggersForOneJob(typeof(ConcurrentTestJob));
+
+        acquired.Should().HaveCount(2, "nothing limits how many triggers of a concurrent job one batch may hold");
+
+        A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<JobKey>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// A job that carries <see cref="DisallowConcurrentExecutionAttribute" /> on an interface it
+    /// implements rather than on itself, which is the case the two checks used to disagree about.
+    /// </summary>
+    [DisallowConcurrentExecution]
+    private interface INonConcurrentContract : IJob;
+
+    private sealed class InterfaceNonConcurrentJob : INonConcurrentContract
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    #endregion
+
     #region Cluster check-in and recovery
 
     /// <summary>

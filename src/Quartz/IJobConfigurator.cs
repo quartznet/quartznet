@@ -1,8 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 
 namespace Quartz;
 
-public interface IJobConfigurator<TJob> where TJob : IJob
+public interface IJobConfigurator<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob> where TJob : IJob
 {
     /// <summary>
     /// Use a <see cref="JobKey" /> with the given name and default group to

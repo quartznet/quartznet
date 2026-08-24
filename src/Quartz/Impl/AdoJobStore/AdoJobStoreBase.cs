@@ -3691,7 +3691,7 @@ public abstract class AdoJobStoreBase : IJobStore
                     Type jobType;
                     try
                     {
-                        jobType = typeLoader.LoadType(result.JobTypeName)!;
+                        jobType = JobType.Resolve(result.JobTypeName, typeLoader)!;
                     }
                     catch (Exception e)
                     {
@@ -3712,7 +3712,10 @@ public abstract class AdoJobStoreBase : IJobStore
                         continue;
                     }
 
-                    if (ObjectUtils.IsAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute)))
+                    // The same question JobDetailImpl answers, answered the same way: the attribute is
+                    // inherited from an interface as readily as from a base class, and this loop used to
+                    // consult the non-walking check and so let an interface-inherited one fire twice.
+                    if (JobTypeInformation.GetOrCreate(jobType).ConcurrentExecutionDisallowed)
                     {
                         if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
                         {

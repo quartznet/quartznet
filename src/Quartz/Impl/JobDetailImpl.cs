@@ -20,6 +20,7 @@
 #endregion
 
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 using Quartz.Util;
 
@@ -49,12 +50,20 @@ internal sealed class JobTypeInformation
     /// <returns>
     /// An <see cref="JobTypeInformation"/> object that describe specified type
     /// </returns>
-    public static JobTypeInformation GetOrCreate(Type jobType)
+    public static JobTypeInformation GetOrCreate([DynamicallyAccessedMembers(JobTypeMembers.Required)] Type jobType)
     {
-        return jobTypeCache.GetOrAdd(jobType, jt => Create(jt));
+        // Looked up before it is built, rather than through a GetOrAdd factory: a lambda's parameter
+        // carries no annotation, so the type would arrive at Create with nothing said about it. The
+        // memoization is the same - a race builds the information twice and stores it once.
+        if (jobTypeCache.TryGetValue(jobType, out var cached))
+        {
+            return cached;
+        }
+
+        return jobTypeCache.GetOrAdd(jobType, Create(jobType));
     }
 
-    private static JobTypeInformation Create(Type jobType)
+    private static JobTypeInformation Create([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type jobType)
     {
         var concurrentExecutionDisallowed = ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute));
         var persistJobDataAfterExecution = ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute));
@@ -109,7 +118,7 @@ internal sealed class JobDetailImpl : IJobDetail
     /// <exception cref="ArgumentException">
     /// If name is null or empty, or the group is an empty string.
     /// </exception>
-    public JobDetailImpl(string name, Type jobType) : this(name, JobKey.DefaultGroup, jobType)
+    public JobDetailImpl(string name, [DynamicallyAccessedMembers(JobTypeMembers.Required)] Type jobType) : this(name, JobKey.DefaultGroup, jobType)
     {
     }
 
@@ -121,7 +130,7 @@ internal sealed class JobDetailImpl : IJobDetail
     /// <exception cref="ArgumentException">
     /// If name is null or empty, or the group is an empty string.
     /// </exception>
-    public JobDetailImpl(string name, string group, Type jobType)
+    public JobDetailImpl(string name, string group, [DynamicallyAccessedMembers(JobTypeMembers.Required)] Type jobType)
     {
         Name = name;
         Group = group;
@@ -140,7 +149,7 @@ internal sealed class JobDetailImpl : IJobDetail
     /// <exception cref="ArgumentException">
     /// ArgumentException if name is null or empty, or the group is an empty string.
     /// </exception>
-    public JobDetailImpl(string name, string group, Type jobType, bool isDurable, bool requestsRecovery)
+    public JobDetailImpl(string name, string group, [DynamicallyAccessedMembers(JobTypeMembers.Required)] Type jobType, bool isDurable, bool requestsRecovery)
     {
         Name = name;
         Group = group;
@@ -342,7 +351,7 @@ internal sealed class JobDetailImpl : IJobDetail
         {
             if (!persistJobDataAfterExecution.HasValue)
             {
-                persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(JobType.Type).PersistJobDataAfterExecution;
+                persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(JobType.ResolvedType).PersistJobDataAfterExecution;
             }
 
             return persistJobDataAfterExecution.GetValueOrDefault();
@@ -362,7 +371,7 @@ internal sealed class JobDetailImpl : IJobDetail
         {
             if (!disallowConcurrentExecution.HasValue)
             {
-                disallowConcurrentExecution = JobTypeInformation.GetOrCreate(JobType.Type).ConcurrentExecutionDisallowed;
+                disallowConcurrentExecution = JobTypeInformation.GetOrCreate(JobType.ResolvedType).ConcurrentExecutionDisallowed;
             }
 
             return disallowConcurrentExecution.GetValueOrDefault();

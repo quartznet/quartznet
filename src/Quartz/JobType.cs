@@ -18,6 +18,13 @@ namespace Quartz;
 public sealed class JobType : IEquatable<JobType>
 {
     /// <summary>
+    /// What every API that turns a type <i>name</i> into a job says, in the same words. Named as a
+    /// constant so the sentence cannot drift between the constructor, the cast and the builder.
+    /// </summary>
+    internal const string NamedTypeIsNotGuaranteedToSurviveTrimming =
+        "Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in configuration or in the database is not guaranteed to survive trimming.";
+
+    /// <summary>
     /// How a name becomes a type when the caller had nothing better to offer: the runtime's own lookup.
     /// </summary>
     private static readonly Func<string, Type?> defaultResolver = static name => Type.GetType(name);
@@ -32,6 +39,7 @@ public sealed class JobType : IEquatable<JobType>
     /// <summary>
     /// The type this was constructed from, when it was constructed from one at all.
     /// </summary>
+    [DynamicallyAccessedMembers(JobTypeMembers.Required)]
     private readonly Type? declaredType;
 
     /// <summary>
@@ -40,6 +48,7 @@ public sealed class JobType : IEquatable<JobType>
     /// </summary>
     /// <param name="fullName">Type full name</param>
     /// <exception cref="ArgumentNullException"><paramref name="fullName"/> is <see langword="null" /></exception>
+    [RequiresUnreferencedCode(NamedTypeIsNotGuaranteedToSurviveTrimming)]
     public JobType(string fullName) : this(fullName, defaultResolver)
     {
     }
@@ -83,7 +92,7 @@ public sealed class JobType : IEquatable<JobType>
     /// <param name="type">The Job Type</param>
     /// <exception cref="ArgumentException"><paramref name="type"/> is not assignable from  <see cref="IJob"/></exception>
     /// <exception cref="ArgumentNullException"><paramref name="type"/> is <see langword="null" /></exception>
-    public JobType(Type type)
+    public JobType([DynamicallyAccessedMembers(JobTypeMembers.Required)] Type type)
     {
         if (type is null)
         {
@@ -109,6 +118,62 @@ public sealed class JobType : IEquatable<JobType>
     public Type Type => type.Value;
 
     /// <summary>
+    /// The type this was constructed from, or <see langword="null" /> when it was constructed from a
+    /// name. Annotated truthfully: the only way to set it is the constructor that takes a
+    /// <see cref="System.Type" />, and that constructor asks its caller for the same members.
+    /// </summary>
+    [DynamicallyAccessedMembers(JobTypeMembers.Required)]
+    internal Type? DeclaredType => declaredType;
+
+    /// <summary>
+    /// The job's type, carrying the annotation the reflection Quartz does on it requires.
+    /// </summary>
+    /// <remarks>
+    /// A <see cref="JobType" /> built from a <see cref="System.Type" /> took that type from a caller who
+    /// declared these members, so the annotation is earned. One built from a name goes through
+    /// <see cref="FoundByName" />, which is where the difference between the two is admitted.
+    /// </remarks>
+    [DynamicallyAccessedMembers(JobTypeMembers.Required)]
+    internal Type ResolvedType => DeclaredType ?? FoundByName(type.Value)!;
+
+    /// <summary>
+    /// Hands a type that was found by name on as one Quartz may reflect over.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the fork the whole of issue #3341, step 3 turns on: the single place in Quartz where a
+    /// type nobody declared statically is given the annotation the fire path asks for. Everything
+    /// downstream — the attribute checks, both job factories, the ADO store's acquisition loop — reads
+    /// an annotated type and needs no suppression of its own.
+    /// </para>
+    /// <para>
+    /// The suppression costs an application that never names a job by string nothing, because every way
+    /// of producing a name-constructed <see cref="JobType" /> that Quartz offers a caller is itself
+    /// <see cref="RequiresUnreferencedCodeAttribute" />: <see cref="JobType(string)" />, the explicit
+    /// cast from <see cref="string" />, and <c>JobBuilder&lt;TJob&gt;.OfType(string)</c>. The rest are
+    /// Quartz's own persistence and configuration readers, whose string contracts are recorded in
+    /// <c>TrimAnalysisBaseline.cs</c>: an application that keeps jobs in a database or names them in
+    /// <c>quartz.*</c> keys is naming types by string and has to root them itself.
+    /// </para>
+    /// </remarks>
+    [UnconditionalSuppressMessage("Trimming", "IL2068", Justification = "A name-constructed JobType has no annotation to carry; every API that produces one is itself RequiresUnreferencedCode. See the remarks.")]
+    [return: DynamicallyAccessedMembers(JobTypeMembers.Required)]
+    private static Type? FoundByName(Type? resolved) => resolved;
+
+    /// <summary>
+    /// Resolves a stored job type name through a scheduler's type loader, for a caller that wants the
+    /// type and not a <see cref="JobType" />.
+    /// </summary>
+    /// <remarks>
+    /// The ADO store's acquisition loop asks this per trigger, purely to find out whether the job
+    /// carries <see cref="DisallowConcurrentExecutionAttribute" />, and would otherwise build a
+    /// <see cref="JobType" /> it immediately throws away. It goes through <see cref="FoundByName" />,
+    /// so it is the same fork and not a second one.
+    /// </remarks>
+    [return: DynamicallyAccessedMembers(JobTypeMembers.Required)]
+    internal static Type? Resolve(string fullName, Extensibility.ITypeLoader typeLoader) => FoundByName(typeLoader.LoadType(fullName));
+
+    /// <summary>
     /// Resolves the type for a caller that can carry on without it, without throwing and without settling
     /// <see cref="Type" />.
     /// </summary>
@@ -125,24 +190,24 @@ public sealed class JobType : IEquatable<JobType>
     /// permanently unresolvable. A speculative caller must not be able to poison the real one.
     /// </para>
     /// </remarks>
-    public bool TryResolve([NotNullWhen(true)] out Type? resolved)
+    public bool TryResolve([NotNullWhen(true)][DynamicallyAccessedMembers(JobTypeMembers.Required)] out Type? resolved)
     {
-        if (declaredType is not null)
+        if (DeclaredType is { } declared)
         {
-            resolved = declaredType;
+            resolved = declared;
             return true;
         }
 
         if (type.IsValueCreated)
         {
-            resolved = type.Value;
+            resolved = ResolvedType;
             return true;
         }
 
         try
         {
             // Suppressing not-found does not suppress an assembly that is found but cannot be loaded.
-            resolved = resolver(FullName);
+            resolved = FoundByName(resolver(FullName));
         }
         catch (Exception e) when (e is ArgumentException or FileLoadException or BadImageFormatException or TypeLoadException or TargetInvocationException)
         {
@@ -168,7 +233,7 @@ public sealed class JobType : IEquatable<JobType>
     /// </summary>
     /// <exception cref="ArgumentException"><paramref name="type"/> does not implement <see cref="IJob"/>.</exception>
     /// <exception cref="ArgumentNullException"><paramref name="type"/> is <see langword="null" />.</exception>
-    public static implicit operator JobType(Type type) => new(type);
+    public static implicit operator JobType([DynamicallyAccessedMembers(JobTypeMembers.Required)] Type type) => new(type);
 
     /// <summary>
     /// Explicit on purpose: a name is accepted unvalidated, and resolving it is deferred to the
@@ -176,6 +241,7 @@ public sealed class JobType : IEquatable<JobType>
     /// of faith visible at the call site.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="fullName"/> is <see langword="null" />.</exception>
+    [RequiresUnreferencedCode(NamedTypeIsNotGuaranteedToSurviveTrimming)]
     public static explicit operator JobType(string fullName) => new(fullName);
 
     public bool Equals(JobType? other)

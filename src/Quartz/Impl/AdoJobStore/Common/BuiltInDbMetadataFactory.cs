@@ -20,6 +20,7 @@
 #endregion
 
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Quartz.Impl.AdoJobStore.Common;
 
@@ -45,6 +46,13 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// </remarks>
 internal sealed class BuiltInDbMetadataFactory : DbMetadataFactory
 {
+    /// <summary>
+    /// What <see cref="DbProvider" /> does with a driver type: construct a connection or a command, and
+    /// read the properties a <see cref="DbMetadata" /> names on them.
+    /// </summary>
+    private const DynamicallyAccessedMemberTypes DriverTypeMembers =
+        DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties;
+
     /// <summary>
     /// Provider names in the order the old resource listed them, which is the order they are reported
     /// back to somebody who named one that does not exist.
@@ -236,5 +244,6 @@ internal sealed class BuiltInDbMetadataFactory : DbMetadataFactory
     /// filled is what the reflective binder did, and it is the right answer: a driver assembly the
     /// application did not bring along is a configuration mistake, not a description that half works.
     /// </summary>
+    [return: DynamicallyAccessedMembers(DriverTypeMembers)]
     private static Type LoadType(string typeName) => Type.GetType(typeName, throwOnError: true)!;
 }

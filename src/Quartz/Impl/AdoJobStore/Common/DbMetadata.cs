@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -61,18 +62,32 @@ public sealed record DbMetadata
     /// Gets the type of the connection.
     /// </summary>
     /// <value>The type of the connection.</value>
+    /// <remarks>
+    /// <see cref="DbProvider" /> constructs one of these per connection it opens, so the type has to
+    /// keep its public constructors through trimming.
+    /// </remarks>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)]
     public Type? ConnectionType { get; init; }
 
     /// <summary>
     /// Gets the type of the command.
     /// </summary>
     /// <value>The type of the command.</value>
+    /// <remarks>
+    /// <see cref="DbProvider" /> constructs one of these per command it runs and, for a driver that
+    /// binds parameters by name, sets <c>BindByName</c> on it.
+    /// </remarks>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties)]
     public Type? CommandType { get; init; }
 
     /// <summary>
     /// Gets the type of the parameter.
     /// </summary>
     /// <value>The type of the parameter.</value>
+    /// <remarks>
+    /// The property <see cref="ParameterDbTypePropertyName" /> names is looked up on this type.
+    /// </remarks>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)]
     public Type? ParameterType { get; init; }
 
     /// <summary>
