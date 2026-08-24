@@ -150,7 +150,7 @@ public class Startup
                 .UsingJobData(j2 => j2.InjectedBool, true)
             );
 
-            q.AddTrigger<IJob>(t => t
+            q.AddTrigger(t => t
                 .WithIdentity("Simple Trigger")
                 .ForJob(jobKey)
                 .StartNow()
@@ -159,7 +159,7 @@ public class Startup
                 .UsingJobData("ExampleKey", "ExampleValue")
             );
 
-            q.AddTrigger<IJob>(t => t
+            q.AddTrigger(t => t
                 .WithIdentity("Cron Trigger")
                 .ForJob(jobKey)
                 .StartAt(DateTimeOffset.UtcNow.AddSeconds(3))
@@ -199,7 +199,7 @@ public class Startup
                 configure: x => x.AddExcludedDay(new DateOnly(2020, 5, 15))
             );
 
-            q.AddTrigger<IJob>(t => t
+            q.AddTrigger(t => t
                 .WithIdentity("Daily Trigger")
                 .ForJob(jobKey)
                 .StartAt(DateTimeOffset.UtcNow.AddSeconds(5))
@@ -215,7 +215,7 @@ public class Startup
             {
                 var customJobKey = new JobKey("options-custom-job", "custom");
                 q.AddJob<ExampleJob>(j => j.WithIdentity(customJobKey));
-                q.AddTrigger<IJob>((serviceProvider, trigger) => trigger
+                q.AddTrigger((serviceProvider, trigger) => trigger
                     .WithIdentity("options-custom-trigger", "custom")
                     .ForJob(customJobKey)
                     .WithCronSchedule(serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule)

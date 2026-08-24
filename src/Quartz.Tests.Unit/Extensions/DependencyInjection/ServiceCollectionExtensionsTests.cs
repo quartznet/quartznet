@@ -486,6 +486,37 @@ public class ServiceCollectionExtensionsTests
         serviceProvider.ScheduledTriggers().Should().HaveCount(2);
     }
 
+    /// <summary>
+    /// A trigger for a job added elsewhere names it by key, so it has nothing to do with a job type;
+    /// naming one is only what lets the trigger's job data name that job's properties.
+    /// </summary>
+    [Test]
+    public void AddTrigger_WithoutAJobType_RegistersTheTrigger()
+    {
+        var services = new ServiceCollection();
+
+        services.AddQuartz(quartz =>
+        {
+            quartz.AddJob<DummyJob>(job => job.WithIdentity("job1", "group1"));
+
+            quartz.AddTrigger(t => t
+                .WithIdentity("trigger1", "group1")
+                .ForJob(new JobKey("job1", "group1"))
+                .WithSimpleSchedule(s => s.WithRepeatCount(0)));
+
+            quartz.AddTrigger((serviceProvider, t) => t
+                .WithIdentity("trigger2", "group1")
+                .ForJob(new JobKey("job1", "group1"))
+                .WithSimpleSchedule(s => s.WithRepeatCount(0)));
+        });
+
+        using var serviceProvider = services.BuildServiceProvider();
+
+        serviceProvider.ScheduledTriggers().Select(x => x.Key.Name).Should().BeEquivalentTo(
+            ["trigger1", "trigger2"],
+            "both shapes register a trigger, and neither is ambiguous with AddTrigger<TJob>");
+    }
+
     [Test]
     public void ConfiguredDbDataSource_ShouldBeUsed()
     {

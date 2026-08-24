@@ -53,7 +53,7 @@ builder.AddQuartz(q =>
         .WithDescription("my awesome job")
     );
 
-    q.AddTrigger<IJob>(t => t
+    q.AddTrigger(t => t
         .WithIdentity("Simple Trigger")
         .ForJob(jobKey)
         .StartNow()

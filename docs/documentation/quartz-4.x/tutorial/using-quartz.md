@@ -111,8 +111,8 @@ builder.AddQuartz(q =>
 
 The type argument on `AddTrigger<TJob>` is the job the trigger fires. It is what lets the trigger's data
 be named as properties of that job — see
-[More About Jobs & JobDetails](more-about-jobs.md#naming-the-property-instead-of-the-key). Use
-`AddTrigger<IJob>` when the trigger only names its job by key and you do not need that.
+[More About Jobs & JobDetails](more-about-jobs.md#naming-the-property-instead-of-the-key). Use the
+bare `AddTrigger` when the trigger only names its job by key and you do not need that.
 
 `"0 0 2 * * ?"` is a cron expression: second, minute, hour, day-of-month, month, day-of-week, so that one
 is "every day at 02:00". The fields and their special characters are in the
