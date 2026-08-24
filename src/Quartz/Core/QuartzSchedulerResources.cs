@@ -17,6 +17,7 @@
  */
 #endregion
 
+using Quartz.Diagnostics;
 using Quartz.Extensibility;
 
 namespace Quartz.Core;
@@ -42,6 +43,7 @@ internal sealed class QuartzSchedulerResources
     private int _maxBatchSize;
     private TimeSpan _idleWaitTime;
     private TimeSpan _batchTimeWindow;
+    private SchedulerLogScope? logScope;
 
     public QuartzSchedulerResources()
     {
@@ -72,6 +74,7 @@ internal sealed class QuartzSchedulerResources
             }
 
             name = value;
+            logScope = null;
         }
     }
 
@@ -92,8 +95,21 @@ internal sealed class QuartzSchedulerResources
             }
 
             instanceId = value;
+            logScope = null;
         }
     }
+
+    /// <summary>
+    /// The logging scope that names this scheduler, built once and shared by everything that opens it.
+    /// </summary>
+    /// <remarks>
+    /// Cached rather than built per use, so opening the scope around a trigger firing costs the
+    /// <c>BeginScope</c> call and nothing else. The cache is dropped when the name or the instance id is
+    /// set, which happens while the scheduler is being created and not afterwards: a generated instance
+    /// id is assigned once the generator has run, and a scope built before that would name the scheduler
+    /// by the placeholder it is about to stop having.
+    /// </remarks>
+    public SchedulerLogScope LogScope => logScope ??= new SchedulerLogScope(name, instanceId);
 
 
     /// <summary>
