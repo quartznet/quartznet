@@ -281,7 +281,7 @@ Writing the same three lines inside every `AddQuartz(tenant, …)` is what a `fo
 saves you, right up until the tenants come from configuration and the loop is not yours to write.
 `ConfigureAllQuartzSchedulers` applies one configuration callback to every scheduler in the container:
 
-<!-- TODO(tenancy-configure-all): a compiled sample once the API lands; see the pull request that adds it. -->
+<!-- snippet: sample_tenancy_configure_all -->
 ```csharp
 builder.Services.AddQuartz("acme", q => q.UsePersistentStore(s => s.UseSqlServer(acme)));
 builder.Services.AddQuartzSchedulers(builder.Configuration.GetSection("Quartz"));
@@ -293,22 +293,35 @@ builder.Services.ConfigureAllQuartzSchedulers(q =>
     q.AddJobListener<AuditListener>();
 });
 ```
+<!-- endSnippet -->
 
 Four things it promises:
 
-- **Order does not matter.** Schedulers already registered get the callback immediately; schedulers
-  registered later get it after their own configure callback has run, so a scheduler's own
-  configuration is what a shared callback refines rather than the other way round.
-- **Every scheduler gets its own instance of whatever the callback adds.** A plugin added this way to
-  three schedulers is three plugin instances, each initialized with the name of the scheduler it
+- **Order does not matter.** It runs after each scheduler's own configuration callback either way: a
+  scheduler registered before this call is configured here, one registered after it is configured by its
+  own `AddQuartz`, and both get it *after* their own callback. So a scheduler's own configuration is
+  what a shared callback refines whichever order the two calls were written in — which is the point,
+  since a package that adds something to every scheduler cannot know when the application registers its
+  schedulers.
+- **The usual precedence follows from that.** Registration is first-wins, so a job store or thread pool
+  a tenant chose for itself is not replaced by one chosen here; options are last-wins, so a value set
+  here overrides the same option set on one tenant, exactly as `ConfigureAll<TOptions>` overrides an
+  earlier named `Configure`.
+- **Every scheduler gets its own instance of whatever the callback adds.** The delegate is handed a
+  builder *per scheduler*, so what it registers lands under that scheduler's key: a plugin added this
+  way to three schedulers is three plugin instances, each initialized with the name of the scheduler it
   extends — which is exactly what a plugin registered unkeyed cannot be.
 - **It reaches `AddQuartz()`, `AddQuartz(name, …)` and `AddQuartzSchedulers(…)` alike**, because all
-  three register a builder.
-- **Remote schedulers are skipped.** A scheduler from `AddQuartzHttpClient` lives in another process;
-  there is no builder here to configure, and nothing this callback adds could reach it.
+  three register a builder. Remote schedulers from `AddQuartzHttpClient` are skipped: they live in
+  another process, so there is no builder here to configure and nothing this callback adds could reach
+  them. Calling it when no scheduler is registered at all is not an error — the delegate applies to
+  nothing.
 
 It is the options pattern's `ConfigureAll` for schedulers, and it is how `AddQuartzDashboard` gives
-every scheduler the dashboard's own plugins rather than only the default one.
+every scheduler the dashboard's own plugins rather than only the default one — which is what stops a
+named scheduler's live view and history pages from being permanently empty. The [migration
+guide](migration-guide.md#every-scheduler-in-the-container-can-be-configured-at-once) states the same
+rules for a reader arriving from 3.x.
 
 ### What is not
 

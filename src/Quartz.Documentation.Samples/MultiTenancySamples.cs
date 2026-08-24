@@ -130,6 +130,23 @@ public static class MultiTenancySamples
         #endregion
     }
 
+    public static void ConfigureEveryScheduler(IHostApplicationBuilder builder, string acme)
+    {
+        #region sample_tenancy_configure_all
+
+        builder.Services.AddQuartz("acme", q => q.UsePersistentStore(s => s.UseSqlServer(acme)));
+        builder.Services.AddQuartzSchedulers(builder.Configuration.GetSection("Quartz"));
+
+        // Every scheduler above, and every scheduler registered after this line
+        builder.Services.ConfigureAllQuartzSchedulers(q =>
+        {
+            q.AddPlugin<TenantAuditPlugin>();
+            q.AddJobListener<AuditListener>();
+        });
+
+        #endregion
+    }
+
     public static void PerTenantHealthCheck(IHostApplicationBuilder builder)
     {
         #region sample_tenancy_health_checks
@@ -324,3 +341,13 @@ public sealed class ExportJob(IExportSink sink) : IJob
 
 /// <inheritdoc cref="NightlyReportJob" />
 public sealed class AuditListener : IJobListener;
+
+/// <inheritdoc cref="NightlyReportJob" />
+public sealed class TenantAuditPlugin : ISchedulerPlugin
+{
+    public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default) => default;
+
+    public ValueTask Start(CancellationToken cancellationToken = default) => default;
+
+    public ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
+}
