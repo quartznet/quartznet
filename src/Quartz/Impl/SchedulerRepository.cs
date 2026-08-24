@@ -240,7 +240,7 @@ public sealed class SchedulerRepository : ISchedulerRepository
     {
         try
         {
-            return scheduler.IsShutdown;
+            return scheduler.Status == SchedulerStatus.Shutdown;
         }
         catch
         {

@@ -18,12 +18,10 @@ namespace Quartz
     {
         public HttpScheduler(string schedulerName, System.Net.Http.HttpClient httpClient, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null, Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry? serializerRegistry = null) { }
         public Quartz.SchedulerContext Context { get; }
-        public bool InStandbyMode { get; }
-        public bool IsShutdown { get; }
-        public bool IsStarted { get; }
         public Quartz.IListenerManager ListenerManager { get; }
         public string SchedulerInstanceId { get; }
         public string SchedulerName { get; }
+        public Quartz.SchedulerStatus Status { get; }
         public System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, Quartz.AddJobOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default) { }

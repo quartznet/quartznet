@@ -134,16 +134,16 @@ public interface IScheduler : IAsyncDisposable
     SchedulerContext Context { get; }
 
     /// <summary>
-    /// Reports whether the <see cref="IScheduler" /> is in stand-by mode.
+    /// Where the <see cref="IScheduler" /> is in its lifecycle.
     /// </summary>
-    /// <seealso cref="Standby" />
+    /// <remarks>
+    /// The value is an 'instantaneous' snapshot: by the time it is read, the scheduler may already have
+    /// moved on. A scheduler in another process answers this over the network.
+    /// </remarks>
     /// <seealso cref="Start" />
-    bool InStandbyMode { get; }
-
-    /// <summary>
-    /// Reports whether the <see cref="IScheduler" /> has been Shutdown.
-    /// </summary>
-    bool IsShutdown { get; }
+    /// <seealso cref="Standby" />
+    /// <seealso cref="Shutdown(bool, CancellationToken)" />
+    SchedulerStatus Status { get; }
 
     /// <summary>
     /// Get a <see cref="SchedulerMetadata" /> object describing the settings
@@ -193,15 +193,26 @@ public interface IScheduler : IAsyncDisposable
     IListenerManager ListenerManager { get; }
 
     /// <summary>
-    /// Starts the <see cref="IScheduler" />'s threads that fire <see cref="ITrigger" />s.
-    /// When a scheduler is first created it is in "stand-by" mode, and will not
-    /// fire triggers.  The scheduler can also be put into stand-by mode by
-    /// calling the <see cref="Standby" /> method.
+    /// Starts the <see cref="IScheduler" />'s threads that fire <see cref="ITrigger" />s, taking it to
+    /// <see cref="SchedulerStatus.Running" />. A newly built scheduler is
+    /// <see cref="SchedulerStatus.Created" /> and fires nothing until this is called; so is one that
+    /// <see cref="Standby" /> has stood down.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The misfire/recovery process will be started, if it is the initial call
     /// to this method on this scheduler instance.
+    /// </para>
+    /// <para>
+    /// Starting a scheduler that is already <see cref="SchedulerStatus.Running" /> does nothing at all:
+    /// no listener is told the scheduler started, and the job store is not told it resumed, because
+    /// neither happened.
+    /// </para>
     /// </remarks>
+    /// <exception cref="SchedulerException">
+    /// The scheduler has been shut down, or is shutting down. That is terminal, so there is nothing to
+    /// start.
+    /// </exception>
     /// <seealso cref="StartDelayed(TimeSpan, CancellationToken)"/>
     /// <seealso cref="Standby"/>
     /// <seealso cref="Shutdown"/>
@@ -219,20 +230,6 @@ public interface IScheduler : IAsyncDisposable
     ValueTask StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Whether the scheduler has been started.
-    /// </summary>
-    /// <remarks>
-    /// Note: This only reflects whether <see cref="Start" /> has ever
-    /// been called on this Scheduler, so it will return <see langword="true" /> even
-    /// if the <see cref="IScheduler" /> is currently in standby mode or has been
-    /// since shutdown.
-    /// </remarks>
-    /// <seealso cref="Start" />
-    /// <seealso cref="IsShutdown" />
-    /// <seealso cref="InStandbyMode" />
-    bool IsStarted { get; }
-
-    /// <summary>
     /// Temporarily halts the <see cref="IScheduler" />'s firing of <see cref="ITrigger" />s.
     /// </summary>
     /// <remarks>
@@ -244,9 +241,20 @@ public interface IScheduler : IAsyncDisposable
     /// normal process).
     /// </para>
     /// <para>
-    /// The scheduler is not destroyed, and can be re-started at any time.
+    /// The scheduler is not destroyed, and can be re-started at any time. A scheduler that is running
+    /// becomes <see cref="SchedulerStatus.Standby" />.
+    /// </para>
+    /// <para>
+    /// Standing down a scheduler that is not running does nothing at all: no listener is told it went
+    /// into standby, and the job store is not told it paused, because neither happened. A scheduler
+    /// that has never been started is already firing nothing and stays
+    /// <see cref="SchedulerStatus.Created" />, which is the more precise answer than standby; one
+    /// already in standby is in the state being asked for.
     /// </para>
     /// </remarks>
+    /// <exception cref="SchedulerException">
+    /// The scheduler has been shut down, or is shutting down. Neither is a state to be stood down from.
+    /// </exception>
     /// <seealso cref="Start"/>
     /// <seealso cref="PauseAll"/>
     ValueTask Standby(CancellationToken cancellationToken = default);
@@ -256,7 +264,15 @@ public interface IScheduler : IAsyncDisposable
     /// and cleans up all resources associated with the Scheduler.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The scheduler cannot be re-started.
+    /// </para>
+    /// <para>
+    /// The scheduler is <see cref="SchedulerStatus.ShuttingDown" /> for the duration and
+    /// <see cref="SchedulerStatus.Shutdown" /> once its plugins and job store are down. It does not
+    /// pass through <see cref="SchedulerStatus.Standby" /> on the way, and no listener is told it stood
+    /// down: a scheduler being torn down is not one waiting to be started again.
+    /// </para>
     /// </remarks>
     /// <param name="waitForJobsToComplete">
     /// if <see langword="true" /> the scheduler will not allow this method

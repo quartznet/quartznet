@@ -643,12 +643,10 @@ namespace Quartz
     public interface IScheduler : System.IAsyncDisposable
     {
         Quartz.SchedulerContext Context { get; }
-        bool InStandbyMode { get; }
-        bool IsShutdown { get; }
-        bool IsStarted { get; }
         Quartz.IListenerManager ListenerManager { get; }
         string SchedulerInstanceId { get; }
         string SchedulerName { get; }
+        Quartz.SchedulerStatus Status { get; }
         System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, Quartz.AddJobOptions options = default, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default);
@@ -1383,7 +1381,6 @@ namespace Quartz
     public sealed class SchedulerMetadata : System.IEquatable<Quartz.SchedulerMetadata>
     {
         public SchedulerMetadata() { }
-        public bool InStandbyMode { get; init; }
         public bool IsProxy { get; init; }
         public bool JobStoreClustered { get; init; }
         public bool JobStorePersistent { get; init; }
@@ -1394,8 +1391,7 @@ namespace Quartz
         public required string SchedulerInstanceId { get; init; }
         public required string SchedulerName { get; init; }
         public required string SchedulerTypeName { get; init; }
-        public bool Shutdown { get; init; }
-        public bool Started { get; init; }
+        public required Quartz.SchedulerStatus Status { get; init; }
         public int ThreadPoolSize { get; init; }
         public required string ThreadPoolTypeName { get; init; }
         public required string Version { get; init; }
@@ -1428,9 +1424,11 @@ namespace Quartz
     public enum SchedulerStatus
     {
         Unknown = 0,
-        Running = 1,
-        Standby = 2,
-        Shutdown = 3,
+        Created = 1,
+        Running = 2,
+        Standby = 3,
+        ShuttingDown = 4,
+        Shutdown = 5,
     }
     public sealed class SchedulingDataValidationException : System.Exception
     {
@@ -3084,13 +3082,11 @@ namespace Quartz.Impl
     {
         public DelegatingScheduler(Quartz.IScheduler scheduler) { }
         public virtual Quartz.SchedulerContext Context { get; }
-        public virtual bool InStandbyMode { get; }
         protected Quartz.IScheduler InnerScheduler { get; }
-        public virtual bool IsShutdown { get; }
-        public virtual bool IsStarted { get; }
         public virtual Quartz.IListenerManager ListenerManager { get; }
         public virtual string SchedulerInstanceId { get; }
         public virtual string SchedulerName { get; }
+        public virtual Quartz.SchedulerStatus Status { get; }
         public virtual System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, Quartz.AddJobOptions options = default, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default) { }

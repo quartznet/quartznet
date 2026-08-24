@@ -37,7 +37,7 @@ public class QuartzSchedulerBuilderTest
         try
         {
             scheduler.SchedulerName.Should().Be("standalone-builds");
-            scheduler.IsStarted.Should().BeFalse();
+            scheduler.Status.Should().Be(SchedulerStatus.Created);
 
             await scheduler.Start();
 

@@ -35,7 +35,7 @@ the client is registered with has to be the remote scheduler's own `SchedulerNam
 `404`, not a connection error. The base address must end in `/`.
 
 Listeners are not remotable; they run where jobs run. And the property members of `IScheduler`
-(`IsStarted`, `InStandbyMode`, `Context`, …) each block the calling thread for a round trip, so use
+(`Status`, `SchedulerInstanceId`, `Context`, …) each block the calling thread for a round trip, so use
 `GetMetadata()` on a request path.
 
 ## Documentation

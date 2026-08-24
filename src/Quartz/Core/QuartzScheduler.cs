@@ -62,8 +62,13 @@ internal sealed class QuartzScheduler
     private IJobFactory jobFactory = new PropertySettingJobFactory();
     private readonly ExecutingJobsManager jobMgr;
     private readonly List<object> holdToPreventGc = new List<object>(5);
-    private volatile bool closed;
-    private volatile bool shuttingDown;
+
+    /// <summary>
+    /// Where the scheduler is in its lifecycle - the whole of it, in one field, so that no two readers
+    /// can combine flags into different answers.
+    /// </summary>
+    private volatile SchedulerStatus status = SchedulerStatus.Created;
+
     private int shutdownInitiated;
     private DateTimeOffset? initialStart;
     private volatile ExecutionLimits? executionLimits;
@@ -133,9 +138,9 @@ internal sealed class QuartzScheduler
     public bool SignalOnSchedulingChange { get; set; } = true;
 
     /// <summary>
-    /// Reports whether the <see cref="IScheduler" /> is paused.
+    /// Where the scheduler is in its lifecycle.
     /// </summary>
-    public bool InStandbyMode => schedThread.Paused;
+    public SchedulerStatus Status => status;
 
     /// <summary>
     /// Gets the job store class.
@@ -154,15 +159,6 @@ internal sealed class QuartzScheduler
     /// </summary>
     /// <value>The size of the thread pool.</value>
     public int ThreadPoolSize => resources.ThreadPool.PoolSize;
-
-    /// <summary>
-    /// Reports whether the <see cref="IScheduler" /> has been Shutdown.
-    /// </summary>
-    public bool IsShutdown => closed;
-
-    public bool IsShuttingDown => shuttingDown;
-
-    public bool IsStarted => !shuttingDown && !closed && !InStandbyMode && initialStart is not null;
 
     /// <summary>
     /// Return a list of <see cref="IJobExecutionContext" /> objects that
@@ -302,9 +298,18 @@ internal sealed class QuartzScheduler
     /// </summary>
     public async ValueTask Start(CancellationToken cancellationToken = default)
     {
-        if (shuttingDown || closed)
+        SchedulerStatus current = status;
+        if (current is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown)
         {
             Throw.SchedulerException("The Scheduler cannot be restarted after Shutdown() has been called.");
+        }
+
+        if (current == SchedulerStatus.Running)
+        {
+            // Nothing to start, so nothing to announce. Re-emitting Starting/Started and telling the job
+            // store the scheduler resumed would report transitions that did not happen, and a listener
+            // counting starts would count this one.
+            return;
         }
 
         await NotifySchedulerListenersStarting(cancellationToken).ConfigureAwait(false);
@@ -337,6 +342,8 @@ internal sealed class QuartzScheduler
         schedThread.Start();
         schedThread.TogglePause(pause: false);
 
+        status = SchedulerStatus.Running;
+
         logger.LogInformation("Scheduler {SchedulerIdentifier} started.", resources.GetUniqueIdentifier());
 
         await NotifySchedulerListenersStarted(cancellationToken).ConfigureAwait(false);
@@ -346,7 +353,7 @@ internal sealed class QuartzScheduler
         TimeSpan delay,
         CancellationToken cancellationToken = default)
     {
-        if (shuttingDown || closed)
+        if (status is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown)
         {
             Throw.SchedulerException(
                 "The Scheduler cannot be restarted after Shutdown() has been called.");
@@ -378,10 +385,37 @@ internal sealed class QuartzScheduler
     /// </summary>
     public async ValueTask Standby(CancellationToken cancellationToken = default)
     {
+        ValidateState();
+
+        if (status != SchedulerStatus.Running)
+        {
+            // Nothing to stand down, so nothing to announce. A scheduler that has never started is born
+            // with its thread paused and a job store that was never told it was running, and one already
+            // in standby is in the state being asked for - telling the listeners either way would report
+            // a transition that did not happen. A never-started scheduler also stays Created rather than
+            // becoming Standby: "built but never run" is the more precise of the two answers.
+            return;
+        }
+
+        await StopFiring(cancellationToken).ConfigureAwait(false);
+
+        status = SchedulerStatus.Standby;
+
+        await NotifySchedulerListenersInStandbyMode(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Stops the scheduler firing triggers, without saying why.
+    /// </summary>
+    /// <remarks>
+    /// Shared by <see cref="Standby" /> and <see cref="Shutdown" />, which differ in what they tell the
+    /// world afterwards: standby announces itself and is reversible, a shutdown neither.
+    /// </remarks>
+    private async ValueTask StopFiring(CancellationToken cancellationToken)
+    {
         await resources.JobStore.SchedulerPaused(cancellationToken).ConfigureAwait(false);
         schedThread.TogglePause(pause: true);
         logger.LogInformation("Scheduler {SchedulerIdentifier} paused.", resources.GetUniqueIdentifier());
-        await NotifySchedulerListenersInStandbyMode(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -436,21 +470,25 @@ internal sealed class QuartzScheduler
     {
         // Atomic claim: two concurrent callers (say a hosted service's StopAsync and user code)
         // must not both run the shutdown sequence — the steps below are not idempotent.
-        if (closed || Interlocked.Exchange(ref shutdownInitiated, 1) == 1)
+        if (status == SchedulerStatus.Shutdown || Interlocked.Exchange(ref shutdownInitiated, 1) == 1)
         {
             return;
         }
 
-        shuttingDown = true;
+        status = SchedulerStatus.ShuttingDown;
 
         try
         {
             logger.LogInformation("Scheduler {SchedulerIdentifier} shutting down.", resources.GetUniqueIdentifier());
 
+            // Firing stops here, but the scheduler does not pass through standby on its way down and no
+            // listener is told that it did: a scheduler being torn down is not one waiting to be started
+            // again, and saying so was inherited from Java rather than true.
+            //
             // Not the caller's token, for the same reason as the teardown below: the shutdown is claimed
             // atomically and cannot be retried, so a step that gave up here would leave the scheduler
             // neither running nor shut down. The token bounds the wait for running jobs and nothing else.
-            await Standby(CancellationToken.None).ConfigureAwait(false);
+            await StopFiring(CancellationToken.None).ConfigureAwait(false);
 
             await schedThread.Halt(waitForJobsToComplete).ConfigureAwait(false);
 
@@ -504,8 +542,6 @@ internal sealed class QuartzScheduler
             // the thread is dead before continuing to shutdown the job store.
             await schedThread.Shutdown().ConfigureAwait(false);
 
-            closed = true;
-
             // Same reasoning as the pool shutdown above: in hosted shutdown the caller's token is
             // the graceful-deadline token, which by design may already have fired while waiting for
             // jobs. A plugin, job store or listener that honoured it would abort the remaining
@@ -514,11 +550,21 @@ internal sealed class QuartzScheduler
 
             await resources.JobStore.Shutdown(CancellationToken.None).ConfigureAwait(false);
 
-            await NotifySchedulerListenersShutdown(CancellationToken.None).ConfigureAwait(false);
+            // Here rather than only in the finally below, so that "shut down" is a fact rather than an
+            // intention: everything the scheduler owns is down by the time anything can read it, and the
+            // listener about to hear the news reads the same answer as everyone else.
+            status = SchedulerStatus.Shutdown;
 
+            await NotifySchedulerListenersShutdown(CancellationToken.None).ConfigureAwait(false);
         }
         finally
         {
+            // Whatever happened above, the scheduler is down: the claim is one-shot, so a plugin or job
+            // store that threw during teardown would otherwise leave it ShuttingDown for the rest of the
+            // process - refusing work, and never reaching the state that says why. The happy path assigns
+            // this earlier, so the SchedulerShutdown listener still reads Shutdown.
+            status = SchedulerStatus.Shutdown;
+
             resources.SchedulerRepository.Remove(resources.Name, resources.InstanceId);
             holdToPreventGc.Clear();
         }
@@ -527,11 +573,16 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Validates the state.
+    /// Refuses work once the scheduler is on its way down.
     /// </summary>
+    /// <remarks>
+    /// <see cref="SchedulerStatus.ShuttingDown" /> counts as shut down here: the shutdown has been
+    /// claimed and cannot be abandoned, so accepting work would be accepting it into a scheduler whose
+    /// job store is about to close under it.
+    /// </remarks>
     public void ValidateState()
     {
-        if (IsShutdown)
+        if (status is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown)
         {
             Throw.SchedulerException("The Scheduler has been Shutdown.");
         }

@@ -27,6 +27,6 @@ internal record SchedulerHeaderDto(string Name, string SchedulerInstanceId, Sche
     {
         ArgumentNullException.ThrowIfNull(scheduler);
 
-        return new SchedulerHeaderDto(scheduler.SchedulerName, scheduler.SchedulerInstanceId, scheduler.GetStatus());
+        return new SchedulerHeaderDto(scheduler.SchedulerName, scheduler.SchedulerInstanceId, scheduler.Status);
     }
 }

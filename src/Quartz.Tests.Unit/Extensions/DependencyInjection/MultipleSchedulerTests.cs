@@ -355,8 +355,8 @@ public sealed class MultipleSchedulerTests
         await hostedService.StartAsync(CancellationToken.None);
         try
         {
-            (await provider.GetRequiredService<ISchedulerFactory>().GetScheduler()).IsStarted.Should().BeTrue();
-            (await provider.GetRequiredKeyedService<ISchedulerFactory>("Named1").GetScheduler()).IsStarted.Should().BeTrue();
+            (await provider.GetRequiredService<ISchedulerFactory>().GetScheduler()).Status.Should().Be(SchedulerStatus.Running);
+            (await provider.GetRequiredKeyedService<ISchedulerFactory>("Named1").GetScheduler()).Status.Should().Be(SchedulerStatus.Running);
         }
         finally
         {
@@ -413,8 +413,8 @@ public sealed class MultipleSchedulerTests
             var started = await provider.GetRequiredKeyedService<ISchedulerFactory>("Started").GetScheduler();
             var delayed = await provider.GetRequiredKeyedService<ISchedulerFactory>("Delayed").GetScheduler();
 
-            started.IsStarted.Should().BeTrue();
-            delayed.IsStarted.Should().BeFalse("its own options asked for a ten minute start delay");
+            started.Status.Should().Be(SchedulerStatus.Running);
+            delayed.Status.Should().Be(SchedulerStatus.Created, "its own options asked for a ten minute start delay");
         }
         finally
         {

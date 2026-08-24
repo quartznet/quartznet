@@ -29,7 +29,7 @@ public sealed class SchedulerResolutionTest
         await scheduler.Start();
 
         var built = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
-        built.IsStarted.Should().BeTrue("the injected handle drives the scheduler the factory produces");
+        built.Status.Should().Be(SchedulerStatus.Running, "the injected handle drives the scheduler the factory produces");
 
         await scheduler.Shutdown();
     }
@@ -94,8 +94,7 @@ public sealed class SchedulerResolutionTest
 
         var scheduler = provider.GetRequiredService<IScheduler>();
 
-        scheduler.IsStarted.Should().BeFalse();
-        scheduler.IsShutdown.Should().BeFalse();
+        scheduler.Status.Should().Be(SchedulerStatus.Created);
         scheduler.SchedulerInstanceId.Should().Be("NON_CLUSTERED");
         scheduler.ListenerManager.Should().NotBeNull();
     }
@@ -120,16 +119,16 @@ public sealed class SchedulerResolutionTest
 
         var scheduler = new DeferredScheduler(factory, OptionsFor(new QuartzSchedulerOptions()), new SchedulerKey("reporting"));
 
-        var read = () => scheduler.IsStarted;
+        var read = () => scheduler.Status;
         read.Should().Throw<InvalidOperationException>()
             .WithMessage("*reporting*has not been started*",
                 "a property cannot wait for a scheduler that is still being built");
 
         var built = A.Fake<IScheduler>();
-        A.CallTo(() => built.IsStarted).Returns(true);
+        A.CallTo(() => built.Status).Returns(SchedulerStatus.Running);
         creation.SetResult(built);
 
-        scheduler.IsStarted.Should().BeTrue("the same handle answers once the scheduler exists");
+        scheduler.Status.Should().Be(SchedulerStatus.Running, "the same handle answers once the scheduler exists");
 
         // The build was started once and kept, rather than started afresh by every reader.
         A.CallTo(() => factory.GetScheduler(A<CancellationToken>._)).MustHaveHappenedOnceExactly();

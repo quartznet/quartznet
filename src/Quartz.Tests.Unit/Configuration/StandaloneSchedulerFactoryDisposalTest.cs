@@ -68,7 +68,7 @@ public class StandaloneSchedulerFactoryDisposalTest
 
         await factory.DisposeAsync();
 
-        scheduler.IsShutdown.Should().BeTrue("the factory owns the scheduler's lifetime, so disposing it has to end that lifetime");
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown, "the factory owns the scheduler's lifetime, so disposing it has to end that lifetime");
         await AssertNoLongerFiring(runId);
     }
 
@@ -81,7 +81,7 @@ public class StandaloneSchedulerFactoryDisposalTest
 
         factory.Dispose();
 
-        scheduler.IsShutdown.Should().BeTrue("a caller that wrote 'using' rather than 'await using' still disposed the factory");
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown, "a caller that wrote 'using' rather than 'await using' still disposed the factory");
         await AssertNoLongerFiring(runId);
     }
 
@@ -94,7 +94,7 @@ public class StandaloneSchedulerFactoryDisposalTest
 
         await factory.DisposeAsync();
 
-        scheduler.IsShutdown.Should().BeTrue("the scheduler the container handed to a listener is the same one the factory built");
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown, "the scheduler the container handed to a listener is the same one the factory built");
         await AssertNoLongerFiring(runId);
     }
 
@@ -108,7 +108,7 @@ public class StandaloneSchedulerFactoryDisposalTest
         Action act = factory.Dispose;
 
         act.Should().NotThrow("a container holding the IAsyncDisposable-only scheduler handle used to make synchronous disposal throw");
-        scheduler.IsShutdown.Should().BeTrue();
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown);
         await AssertNoLongerFiring(runId);
     }
 
@@ -127,7 +127,7 @@ public class StandaloneSchedulerFactoryDisposalTest
         Action synchronously = factory.Dispose;
         synchronously.Should().NotThrow();
 
-        scheduler.IsShutdown.Should().BeTrue();
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown);
     }
 
     [Test]
@@ -142,7 +142,7 @@ public class StandaloneSchedulerFactoryDisposalTest
         Func<Task> act = async () => await factory.DisposeAsync();
 
         await act.Should().NotThrowAsync("a caller that wants to wait for its jobs shuts down itself, and then disposes");
-        scheduler.IsShutdown.Should().BeTrue();
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown);
     }
 
     [Test]

@@ -112,7 +112,7 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
     /// <see cref="SchedulerStatus.Unknown" />.
     /// </summary>
     /// <remarks>
-    /// A local scheduler reads three fields. A remote one answers over the network and may simply be
+    /// A local scheduler reads a field. A remote one answers over the network and may simply be
     /// unreachable — and a listing of tenants is exactly the call that must not fail because one of them
     /// is. <see cref="SchedulerStatus.Unknown" /> already means "state could not be determined", so it is
     /// reported rather than the registration being dropped or the exception escaping.
@@ -121,7 +121,7 @@ internal sealed class ContainerSchedulerRegistry : ISchedulerRegistry
     {
         try
         {
-            return scheduler.GetStatus();
+            return scheduler.Status;
         }
         catch
         {

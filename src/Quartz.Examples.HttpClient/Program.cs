@@ -71,7 +71,7 @@ while (true)
 
     try
     {
-        Console.WriteLine("Scheduler.IsStarted: " + httpScheduler.IsStarted);
+        Console.WriteLine("Scheduler.Status: " + httpScheduler.Status);
     }
     catch (Exception e)
     {

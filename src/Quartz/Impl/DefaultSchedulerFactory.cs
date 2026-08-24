@@ -93,7 +93,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             var existing = schedulerRepository.Lookup(options.InstanceName);
             if (existing is not null)
             {
-                ThrowIfShutdown(existing.IsShutdown, options.InstanceName);
+                ThrowIfShutdown(existing.Status is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown, options.InstanceName);
                 return existing;
             }
 
@@ -118,7 +118,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         // initialized, because the initialization below would otherwise resurrect the thread pool and the
         // job store underneath a scheduler that can never run again.
         var quartzScheduler = serviceProvider.GetScheduler<QuartzScheduler>(Key);
-        ThrowIfShutdown(quartzScheduler.IsShutdown, quartzScheduler.SchedulerName);
+        ThrowIfShutdown(quartzScheduler.Status is SchedulerStatus.ShuttingDown or SchedulerStatus.Shutdown, quartzScheduler.SchedulerName);
 
         var plugins = SchedulerPluginFactory.Create(
             serviceProvider,
@@ -212,10 +212,17 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
     /// Refuses to hand out a scheduler that has been shut down.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// 3.x built a fresh scheduler here, which it could: it constructed every part itself. The container
     /// owns those lifetimes now, and a scheduler's parts are keyed singletons, so "create it again" would
     /// re-initialize the very thread pool and job store the shutdown just tore down and hand back the same
     /// closed instance wearing a working scheduler's face. Saying so is the only honest answer.
+    /// </para>
+    /// <para>
+    /// A scheduler that is only <see cref="SchedulerStatus.ShuttingDown" /> counts as shut down here: the
+    /// shutdown is claimed and cannot be abandoned, so it refuses every call already, and handing it back
+    /// hands back the same dead scheduler a moment earlier.
+    /// </para>
     /// </remarks>
     private static void ThrowIfShutdown(bool isShutdown, string schedulerName)
     {

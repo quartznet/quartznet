@@ -73,9 +73,7 @@ internal sealed class StdScheduler : IScheduler
             SchedulerInstanceId = SchedulerInstanceId,
             SchedulerTypeName = GetType().AssemblyQualifiedNameWithoutVersion(),
             IsProxy = false,
-            Started = IsStarted,
-            InStandbyMode = InStandbyMode,
-            Shutdown = IsShutdown,
+            Status = Status,
             RunningSince = scheduler.RunningSince,
             JobsExecuted = scheduler.NumberOfJobsExecuted,
             LocalExecutingJobs = scheduler.NumberOfJobsExecutingHere,
@@ -94,29 +92,9 @@ internal sealed class StdScheduler : IScheduler
     public SchedulerContext Context => scheduler.SchedulerContext;
 
     /// <summary>
-    /// Whether the scheduler has been started.
-    /// </summary>
-    /// <value></value>
-    /// <remarks>
-    /// Note: This only reflects whether <see cref="Start"/> has ever
-    /// been called on this Scheduler, so it will return <see langword="true" /> even
-    /// if the <see cref="IScheduler" /> is currently in standby mode or has been
-    /// since shutdown.
-    /// </remarks>
-    /// <seealso cref="Start"/>
-    /// <seealso cref="IsShutdown"/>
-    /// <seealso cref="InStandbyMode"/>
-    public bool IsStarted => scheduler.RunningSince.HasValue;
-
-    /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public bool InStandbyMode => scheduler.InStandbyMode;
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
-    public bool IsShutdown => scheduler.IsShutdown;
+    public SchedulerStatus Status => scheduler.Status;
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
