@@ -64,25 +64,27 @@ public class DailyTimeIntervalScheduleBuilderTest
     [Test]
     public async Task TestScheduleInMiddleOfDailyInterval()
     {
-        DateTimeOffset currTime = DateTimeOffset.UtcNow;
-
-        // this test won't work out well in the early hours, where 'backing up' would give previous day,
-        // or where daylight savings transitions could occur and confuse the assertions...
-        if (currTime.Hour < 3)
-        {
-            return;
-        }
+        // A fixed afternoon rather than whatever hour the suite happens to run in, and UTC rather
+        // than the machine's zone. Fire times are whole seconds counted off from 02:15, so a start
+        // time read from the wall clock can land on one of them - 22:50 does, counting five minutes
+        // at a time from 02:15 - and the trigger then starts on the slot it is already standing on
+        // rather than after it, which is what failed here at 22:50 UTC. The early-hours bail-out
+        // this test used to open with was the same dependence on the wall clock at the other end of
+        // the day, and goes with it: nothing here reads a clock any more.
+        FakeTimeProvider clock = new FakeTimeProvider(new DateTimeOffset(2026, 8, 22, 14, 32, 17, TimeSpan.Zero));
+        DateTimeOffset currTime = clock.GetUtcNow();
 
         NameValueCollection properties = new NameValueCollection
         {
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).UseTimeProvider(clock).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         IJobDetail job = JobBuilder.Create<NoOpJob>().Build();
-        ITrigger trigger = TriggerBuilder.Create().WithIdentity("test")
+        ITrigger trigger = TriggerBuilder.Create(clock).WithIdentity("test")
             .WithDailyTimeIntervalSchedule(x => x
+                .InTimeZone(TimeZoneInfo.Utc)
                 .StartingDailyAt(new TimeOnly(2, 15))
                 .WithInterval(5, IntervalUnit.Minute))
             .StartAt(currTime)
@@ -91,17 +93,18 @@ public class DailyTimeIntervalScheduleBuilderTest
         await scheduler.ScheduleJob(job, trigger);
 
         trigger = await scheduler.GetTrigger(trigger.Key);
-        var nextFireTime = trigger.NextFireTimeUtc;
 
-        Assert.That(nextFireTime, Is.Not.Null);
-        Assert.That(nextFireTime, Is.GreaterThan(currTime));
+        trigger.NextFireTimeUtc.Should().Be(new DateTimeOffset(2026, 8, 22, 14, 35, 0, TimeSpan.Zero),
+            "starting in the middle of the day picks the schedule up at its next slot after 14:32:17, "
+            + "rather than backing up to where the day's firings began");
 
-        DateTimeOffset startTime = TestDates.TodayAt(2, 15, 0);
+        DateTimeOffset startTime = new DateTimeOffset(2026, 8, 22, 2, 15, 0, TimeSpan.Zero);
 
         job = JobBuilder.Create<NoOpJob>().Build();
 
-        trigger = TriggerBuilder.Create().WithIdentity("test2")
+        trigger = TriggerBuilder.Create(clock).WithIdentity("test2")
             .WithDailyTimeIntervalSchedule(x => x
+                .InTimeZone(TimeZoneInfo.Utc)
                 .StartingDailyAt(new TimeOnly(2, 15))
                 .WithInterval(5, IntervalUnit.Minute))
             .StartAt(startTime)
@@ -109,10 +112,9 @@ public class DailyTimeIntervalScheduleBuilderTest
         await scheduler.ScheduleJob(job, trigger);
 
         trigger = await scheduler.GetTrigger(trigger.Key);
-        nextFireTime = trigger.NextFireTimeUtc;
 
-        Assert.That(nextFireTime, Is.Not.Null);
-        Assert.That(nextFireTime, Is.EqualTo(startTime));
+        trigger.NextFireTimeUtc.Should().Be(startTime,
+            "a trigger that starts exactly where the daily window opens fires there, not an interval later");
 
         await scheduler.Shutdown();
     }
