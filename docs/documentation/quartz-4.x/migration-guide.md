@@ -1365,6 +1365,54 @@ default value that is an enum from an assembly which only ships in a shared fram
 constant whose type coverlet's Cecil resolver cannot resolve, and it silently drops the *entire*
 containing assembly from the coverage report.
 
+## Naming a job type by string says so under trimming
+
+`Quartz` is marked trimmable in 4.0, and the job-type APIs say what they need. Nothing here is a
+source or binary break — the attributes are annotations — but an application published with
+`PublishTrimmed` now gets told things 3.x never mentioned.
+
+**The typed spelling carries the requirement.** `JobBuilder.Create<T>()`, `JobBuilder<TJob>.OfType<T>()`
+and `OfType(Type)`, `AddJob<T>()`, `AddJob(Type, …)`, `AddJobType<T>()`, `AddJobType<TJob, TImpl>()`,
+`AddTrigger<TJob>()`, `ScheduleJob<T>()`, `TriggerBuilder.Create<TJob>()`, `new JobType(Type)` and the
+implicit `Type` → `JobType` conversion all declare
+`[DynamicallyAccessedMembers(PublicConstructors | PublicProperties | Interfaces)]` on the job type —
+what a job factory constructs, what a `JobDataMap` binds onto, and where
+`[DisallowConcurrentExecution]` may be inherited from. The generic `JobBuilder<TJob>`,
+`TriggerBuilder<TJob>`, `IJobConfigurator<TJob>` and `ITriggerConfigurator<TJob>` declare the same on
+their type parameter. `PublicMethods`, which some of these declared in earlier 4.0 previews, is gone:
+a kept property keeps its accessors, and `IJob.Execute` is reached through the interface.
+
+If you pass a `Type` variable rather than a `typeof` or a generic argument, the compiler now asks the
+same of *your* code, which is the annotation doing its job:
+
+```diff
+- static IJobDetail Build(Type jobType) => JobBuilder.Create().OfType(jobType).Build();
++ static IJobDetail Build(
++     [DynamicallyAccessedMembers(
++         DynamicallyAccessedMemberTypes.PublicConstructors
++         | DynamicallyAccessedMemberTypes.PublicProperties
++         | DynamicallyAccessedMemberTypes.Interfaces)] Type jobType)
++     => JobBuilder.Create().OfType(jobType).Build();
+```
+
+**The name-taking spelling is `[RequiresUnreferencedCode]`.** `JobBuilder<TJob>.OfType(string)`, the
+`JobType(string)` constructor and the explicit `string` → `JobType` cast report `IL2026` in a trimmed
+build, because a type resolved from a string cannot be proven reachable. So does the
+`job_scheduling_data` XML loader. Prefer the typed spelling, or root the type yourself with a
+[trimmer root descriptor](https://learn.microsoft.com/dotnet/core/deploying/trimming/trimming-options#root-descriptors).
+See [Trimming](tutorial/more-about-jobs.md#trimming) in the tutorial for what a trimmed application has
+to do.
+
+`DbMetadata.ConnectionType`, `.CommandType` and `.ParameterType` carry annotations too, saying what
+`DbProvider` does with each: constructs connections and commands, and reads the properties the metadata
+names. A `UseGenericDatabase` callback that sets them from `typeof(...)` already satisfies that.
+
+**One behaviour change came with it.** An ADO.NET store's trigger acquisition decided
+`[DisallowConcurrentExecution]` with a check that did not look at interfaces, while
+`IJobDetail.ConcurrentExecutionDisallowed` did. A job that inherited the attribute from an interface
+was therefore serialized when it fired but not when it was acquired, so a batch could hold two of its
+triggers and the second was released again. Both now ask the same question.
+
 ## The job scope is prepared without writing a job factory
 
 `ConfigureScope` — the hook that prepares the dependency injection scope a job is built in, and the place
