@@ -83,13 +83,13 @@ jobs:
           # from is a coverage figure this workflow is not configured to produce. Its own control is
           # `npm run docs:check-links-test`.
           #
-          # The dashboard's Razor components are excused for the same reason and no more: this
-          # repository has no component-test harness — no bUnit, no Playwright, and
-          # Quartz.Tests.AspNetCore covers the HTTP API rather than the Blazor UI — so their markup
-          # cannot be covered by construction, and measuring it reports 0% forever rather than
-          # anything a reviewer can act on. The exclusion is the components only, not the package:
-          # everything in src/Quartz.Dashboard that is ordinary C# is measured and expected to be
-          # tested. It is a stopgap, to be narrowed or deleted if #3363 adopts bUnit.
+          # The dashboard's Razor components used to be excused here too, because nothing could
+          # render one. #3363 added the bUnit harness — src/Quartz.Tests.AspNetCore/Dashboard/
+          # Components — and every component the dashboard routes to is now rendered by a test, so
+          # coverlet reports the generated component classes through their #line directives back to
+          # the .razor file and the exclusion is gone. Nothing about the dashboard is excused from
+          # coverage any more; if a component test cannot be written, that is a seam to add rather
+          # than a line to put back here.
           #
           # database/ is excused from copy-paste detection and from two PL/SQL rules, and from
           # nothing else. Its bug and security rules still apply; these three are the ones that
@@ -121,7 +121,7 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**" \
             /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,database/**" \
-            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Dashboard/Components/**/*.razor" \
+            /d:sonar.coverage.exclusions="docs/.vuepress/**" \
             /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.resourceKey="database/migrations/**/*.sql" \

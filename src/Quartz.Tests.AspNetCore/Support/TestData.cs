@@ -1,5 +1,8 @@
+using System.Globalization;
+
 using FakeItEasy;
 
+using Quartz.Dashboard.Services;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Extensibility;
@@ -259,6 +262,98 @@ public static class TestData
             },
             job: new DummyJob()
         );
+    }
+
+    /// <summary>
+    /// Test data in the vocabulary <see cref="IQuartzApiClient" /> speaks, which is what the dashboard's
+    /// components read.
+    /// </summary>
+    /// <remarks>
+    /// Everything here is a constant: a component test asserts on rendered text, so a duration or a fire
+    /// time computed from the wall clock would be a different string tomorrow.
+    /// </remarks>
+    public static class Dashboard
+    {
+        public static readonly DateTimeOffset FiredAt = new(2024, 5, 6, 7, 8, 9, TimeSpan.Zero);
+
+        public static SchedulerHeaderDto SchedulerHeader(
+            string schedulerName = SchedulerName,
+            SchedulerStatus status = SchedulerStatus.Running)
+        {
+            return new SchedulerHeaderDto(schedulerName, SchedulerInstanceId, status);
+        }
+
+        public static SchedulerDetailDto SchedulerDetail(
+            SchedulerStatus status = SchedulerStatus.Running,
+            string schedulerName = SchedulerName)
+        {
+            return new SchedulerDetailDto(SchedulerInstanceId, schedulerName, status);
+        }
+
+        /// <summary>
+        /// <paramref name="count" /> jobs in <paramref name="group" />, named <c>job-1</c> upwards.
+        /// </summary>
+        public static List<JobKeyDto> JobKeys(string group, int count, int firstIndex = 1)
+        {
+            List<JobKeyDto> keys = [];
+            for (int index = firstIndex; index < firstIndex + count; index++)
+            {
+                keys.Add(new JobKeyDto(group, "job-" + index.ToString(CultureInfo.InvariantCulture)));
+            }
+
+            return keys;
+        }
+
+        /// <summary>
+        /// <paramref name="count" /> triggers in <paramref name="group" />, named <c>trigger-1</c> upwards.
+        /// </summary>
+        public static List<TriggerHeaderDto> TriggerHeaders(
+            string group,
+            int count,
+            TriggerState state = TriggerState.Normal,
+            int firstIndex = 1)
+        {
+            List<TriggerHeaderDto> headers = [];
+            for (int index = firstIndex; index < firstIndex + count; index++)
+            {
+                headers.Add(new TriggerHeaderDto(
+                    group,
+                    "trigger-" + index.ToString(CultureInfo.InvariantCulture),
+                    "Cron",
+                    "0/5 * * * * ?",
+                    state,
+                    ExecutionGroup: null));
+            }
+
+            return headers;
+        }
+
+        public static DashboardHistoryEntry HistoryEntry(
+            TimeSpan duration,
+            bool succeeded = true,
+            string jobName = "DummyJob",
+            string? exceptionMessage = null)
+        {
+            return new DashboardHistoryEntry(
+                SchedulerName,
+                JobGroup: "DummyGroup",
+                JobName: jobName,
+                TriggerGroup: "CronTriggerGroup",
+                TriggerName: "CronTriggerKey",
+                FiredAtUtc: FiredAt,
+                Duration: duration,
+                Succeeded: succeeded,
+                ExceptionMessage: exceptionMessage);
+        }
+
+        /// <summary>
+        /// A page carrying a total count, which is what the dashboard's listings ask for.
+        /// </summary>
+        public static PagedResult<T> Page<T>(IReadOnlyList<T> items, int? totalCount = null)
+        {
+            int total = totalCount ?? items.Count;
+            return new PagedResult<T>(items, HasMore: items.Count < total, TotalCount: total);
+        }
     }
 
     /// <summary>
