@@ -61,7 +61,17 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
         catch (SchedulerException se)
         {
             logger.LogError(se, "Error notifying listeners of trigger misfire.");
-            await scheduler.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se, cancellationToken).ConfigureAwait(false);
+
+            // The trigger travels with the failure: a listener that throws on one trigger's misfire
+            // should not leave the report saying only that some misfire notification failed.
+            SchedulerErrorContext error = new()
+            {
+                Message = "Error notifying listeners of trigger misfire.",
+                Exception = se,
+                TriggerKey = trigger.Key,
+                JobKey = trigger.JobKey,
+            };
+            await scheduler.NotifySchedulerListenersError(error, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -111,10 +121,9 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
     }
 
     public ValueTask NotifySchedulerListenersError(
-        string message,
-        SchedulerException exception,
+        SchedulerErrorContext error,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.NotifySchedulerListenersError(message, exception, cancellationToken);
+        return scheduler.NotifySchedulerListenersError(error, cancellationToken);
     }
 }

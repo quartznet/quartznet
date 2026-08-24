@@ -115,6 +115,18 @@ internal sealed class QuartzScheduler
     public ISchedulerSignaler SchedulerSignaler { get; } = null!;
 
     /// <summary>
+    /// The <see cref="IScheduler" /> facade this scheduler is seen through — the one handed to every
+    /// listener callback and to every <see cref="IJobExecutionContext" />.
+    /// </summary>
+    /// <remarks>
+    /// Built once here rather than by whoever assembles the scheduler, so that there is exactly one
+    /// facade per scheduler and it exists from the moment the scheduler does. A notification must
+    /// never construct one: two facades over one scheduler would compare unequal, and a listener that
+    /// remembers the scheduler it was told about would remember a different object each time.
+    /// </remarks>
+    public IScheduler Scheduler { get; } = null!;
+
+    /// <summary>
     /// Returns the name of the <see cref="QuartzScheduler" />.
     /// </summary>
     public string SchedulerName => resources.Name;
@@ -265,6 +277,7 @@ internal sealed class QuartzScheduler
         AddInternalSchedulerListener(errLogger);
 
         SchedulerSignaler = new SchedulerSignalerImpl(this, schedThread);
+        Scheduler = new StdScheduler(this);
 
         logger.LogInformation("Quartz Scheduler created");
     }
@@ -1917,9 +1930,10 @@ internal sealed class QuartzScheduler
         var listeners = ListenerManager.GetTriggerListeners();
 
         return listeners.Count == 0 ? default
-            : NotifyAwaited(ListenerManager, listeners, trigger, cancellationToken);
+            : NotifyAwaited(Scheduler, ListenerManager, listeners, trigger, cancellationToken);
 
         static async ValueTask NotifyAwaited(
+            IScheduler scheduler,
             IListenerManager listenerManager,
             IReadOnlyList<ITriggerListener> listeners,
             ITrigger trigger,
@@ -1934,7 +1948,7 @@ internal sealed class QuartzScheduler
 
                 try
                 {
-                    await tl.TriggerMisfired(trigger, cancellationToken).ConfigureAwait(false);
+                    await tl.TriggerMisfired(scheduler, trigger, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -2105,12 +2119,10 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// Notifies the scheduler listeners about scheduler error.
     /// </summary>
-    /// <param name="message">A description of what went wrong.</param>
-    /// <param name="exception">The error itself.</param>
+    /// <param name="error">What went wrong, and what it went wrong for.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask NotifySchedulerListenersError(
-        string message,
-        SchedulerException exception,
+        SchedulerErrorContext error,
         CancellationToken cancellationToken = default)
     {
         // build a list of all scheduler listeners that are to be notified...
@@ -2121,12 +2133,12 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await sl.SchedulerError(message, exception, cancellationToken).ConfigureAwait(false);
+                await sl.SchedulerError(Scheduler, error, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 logger.LogError(e, "Error while notifying SchedulerListener of error");
-                logger.LogError(exception, "  Original error (for notification) was: {Message}", message);
+                logger.LogError(error.Exception, "  Original error (for notification) was: {Message}", error.Message);
             }
         }
     }
@@ -2140,7 +2152,7 @@ internal sealed class QuartzScheduler
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.JobScheduled(trigger, cancellationToken), $"scheduled job. Trigger={trigger.Key}");
+        return NotifySchedulerListeners(l => l.JobScheduled(Scheduler, trigger, cancellationToken), $"scheduled job. Trigger={trigger.Key}");
     }
 
     /// <summary>
@@ -2160,11 +2172,11 @@ internal sealed class QuartzScheduler
             {
                 if (triggerKey is null)
                 {
-                    await sl.SchedulingDataCleared(cancellationToken).ConfigureAwait(false);
+                    await sl.SchedulingDataCleared(Scheduler, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    await sl.JobUnscheduled(triggerKey, cancellationToken).ConfigureAwait(false);
+                    await sl.JobUnscheduled(Scheduler, triggerKey, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -2185,7 +2197,7 @@ internal sealed class QuartzScheduler
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.TriggerFinalized(trigger, cancellationToken), $"finalized trigger. Trigger={trigger.Key}");
+        return NotifySchedulerListeners(l => l.TriggerFinalized(Scheduler, trigger, cancellationToken), $"finalized trigger. Trigger={trigger.Key}");
     }
 
     /// <summary>
@@ -2205,7 +2217,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await sl.TriggersPaused(@group, cancellationToken).ConfigureAwait(false);
+                await sl.TriggersPaused(Scheduler, @group, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2227,7 +2239,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await sl.TriggerInError(triggerKey, cancellationToken).ConfigureAwait(false);
+                await sl.TriggerInError(Scheduler, triggerKey, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2249,7 +2261,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await sl.TriggersInError(jobKey, cancellationToken).ConfigureAwait(false);
+                await sl.TriggersInError(Scheduler, jobKey, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2273,7 +2285,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await sl.TriggerPaused(triggerKey, cancellationToken).ConfigureAwait(false);
+                await sl.TriggerPaused(Scheduler, triggerKey, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2291,7 +2303,7 @@ internal sealed class QuartzScheduler
         string? group,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.TriggersResumed(group, cancellationToken), $"resumed group: {group}");
+        return NotifySchedulerListeners(l => l.TriggersResumed(Scheduler, group, cancellationToken), $"resumed group: {group}");
     }
 
     /// <summary>
@@ -2309,7 +2321,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await sl.TriggerResumed(triggerKey, cancellationToken).ConfigureAwait(false);
+                await sl.TriggerResumed(Scheduler, triggerKey, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2332,7 +2344,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await sl.JobPaused(jobKey, cancellationToken).ConfigureAwait(false);
+                await sl.JobPaused(Scheduler, jobKey, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2356,7 +2368,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await sl.JobsPaused(@group, cancellationToken).ConfigureAwait(false);
+                await sl.JobsPaused(Scheduler, @group, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2380,7 +2392,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await sl.JobResumed(jobKey, cancellationToken).ConfigureAwait(false);
+                await sl.JobResumed(Scheduler, jobKey, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2404,7 +2416,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await sl.JobsResumed(@group, cancellationToken).ConfigureAwait(false);
+                await sl.JobsResumed(Scheduler, @group, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -2416,19 +2428,19 @@ internal sealed class QuartzScheduler
     public ValueTask NotifySchedulerListenersInStandbyMode(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerInStandbyMode(cancellationToken), "inStandByMode");
+        return NotifySchedulerListeners(l => l.SchedulerInStandbyMode(Scheduler, cancellationToken), "inStandByMode");
     }
 
     public ValueTask NotifySchedulerListenersStarted(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerStarted(cancellationToken), "startup");
+        return NotifySchedulerListeners(l => l.SchedulerStarted(Scheduler, cancellationToken), "startup");
     }
 
     public ValueTask NotifySchedulerListenersStarting(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerStarting(cancellationToken), "scheduler starting");
+        return NotifySchedulerListeners(l => l.SchedulerStarting(Scheduler, cancellationToken), "scheduler starting");
     }
 
     /// <summary>
@@ -2437,27 +2449,27 @@ internal sealed class QuartzScheduler
     public ValueTask NotifySchedulerListenersShutdown(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerShutdown(cancellationToken), "shutdown");
+        return NotifySchedulerListeners(l => l.SchedulerShutdown(Scheduler, cancellationToken), "shutdown");
     }
 
     public ValueTask NotifySchedulerListenersShuttingDown(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerShuttingDown(cancellationToken), "shutting down");
+        return NotifySchedulerListeners(l => l.SchedulerShuttingDown(Scheduler, cancellationToken), "shutting down");
     }
 
     public ValueTask NotifySchedulerListenersJobAdded(
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.JobAdded(jobDetail, cancellationToken), "job addition");
+        return NotifySchedulerListeners(l => l.JobAdded(Scheduler, jobDetail, cancellationToken), "job addition");
     }
 
     public ValueTask NotifySchedulerListenersJobDeleted(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.JobDeleted(jobKey, cancellationToken), "job deletion");
+        return NotifySchedulerListeners(l => l.JobDeleted(Scheduler, jobKey, cancellationToken), "job deletion");
     }
 
     private async ValueTask NotifySchedulerListeners(
@@ -2504,7 +2516,7 @@ internal sealed class QuartzScheduler
 
         if (interrupted)
         {
-            await NotifySchedulerListeners(l => l.JobInterrupted(jobKey, cancellationToken), "job interruption").ConfigureAwait(false);
+            await NotifySchedulerListeners(l => l.JobInterrupted(Scheduler, jobKey, cancellationToken), "job interruption").ConfigureAwait(false);
         }
 
         return interrupted;
@@ -2537,7 +2549,7 @@ internal sealed class QuartzScheduler
 
         interruptableContext.Interrupt();
         var jobKey = interruptableContext.JobDetail.Key;
-        await NotifySchedulerListeners(l => l.JobInterrupted(jobKey, cancellationToken), "job interruption").ConfigureAwait(false);
+        await NotifySchedulerListeners(l => l.JobInterrupted(Scheduler, jobKey, cancellationToken), "job interruption").ConfigureAwait(false);
         return true;
     }
 

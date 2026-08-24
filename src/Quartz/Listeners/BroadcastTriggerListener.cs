@@ -125,9 +125,9 @@ public sealed class BroadcastTriggerListener : ITriggerListener
         return false;
     }
 
-    public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
+    public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
     {
-        return IterateListenersInGuard(l => l.TriggerMisfired(trigger, cancellationToken), nameof(TriggerMisfired));
+        return IterateListenersInGuard(l => l.TriggerMisfired(scheduler, trigger, cancellationToken), nameof(TriggerMisfired));
     }
 
     public ValueTask TriggerComplete(

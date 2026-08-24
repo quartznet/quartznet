@@ -260,7 +260,7 @@ public class ListenerRegistrationTest
 
         public ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default) => new(false);
 
-        public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default) => default;
+        public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
 
         public ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default) => default;
     }

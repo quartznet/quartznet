@@ -63,8 +63,8 @@ internal sealed class LazySchedulerSignaler : ISchedulerSignaler
         return signaler.Value.SignalSchedulingChange(candidateNewNextFireTimeUtc, cancellationToken);
     }
 
-    public ValueTask NotifySchedulerListenersError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
+    public ValueTask NotifySchedulerListenersError(SchedulerErrorContext error, CancellationToken cancellationToken = default)
     {
-        return signaler.Value.NotifySchedulerListenersError(message, exception, cancellationToken);
+        return signaler.Value.NotifySchedulerListenersError(error, cancellationToken);
     }
 }

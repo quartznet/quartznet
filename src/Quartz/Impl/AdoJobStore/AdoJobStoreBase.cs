@@ -5152,7 +5152,14 @@ public abstract class AdoJobStoreBase : IJobStore
             {
                 if (retry % RetryableActionErrorLogThreshold == 0)
                 {
-                    await schedSignaler.NotifySchedulerListenersError("An error occurred during retry", jpe, cancellationToken).ConfigureAwait(false);
+                    // No keys: the callback being retried is an arbitrary unit of store work, and the
+                    // failure is the connection rather than anything the work was about.
+                    SchedulerErrorContext error = new()
+                    {
+                        Message = "An error occurred during retry",
+                        Exception = jpe,
+                    };
+                    await schedSignaler.NotifySchedulerListenersError(error, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception e)

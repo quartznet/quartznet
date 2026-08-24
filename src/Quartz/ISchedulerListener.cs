@@ -28,8 +28,14 @@ namespace Quartz;
 /// <see cref="IScheduler" /> events.
 /// </summary>
 /// <remarks>
+/// Every callback is told which scheduler is calling it: a listener reaches the scheduler it serves
+/// through its execution context, or as its first argument when there is no execution. No member here
+/// is handed an execution context, so every one of them takes the scheduler. One listener instance can
+/// therefore serve several schedulers in one host and still say which of them paused a trigger or failed.
+/// <para>
 /// Every member has a default implementation, so an implementation only has to write the
 /// notifications it cares about. <see cref="Name" /> defaults to the implementing type's name.
+/// </para>
 /// </remarks>
 /// <seealso cref="IScheduler" />
 /// <seealso cref="IJobListener" />
@@ -53,25 +59,37 @@ public interface ISchedulerListener
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
     /// is scheduled.
     /// </summary>
-    ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="trigger">The trigger the job was scheduled with.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask JobScheduled(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
     /// is unscheduled.
     /// </summary>
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="triggerKey">The trigger that was removed.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <seealso cref="SchedulingDataCleared"/>
-    ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+    ValueTask JobUnscheduled(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
     /// has reached the condition in which it will never fire again.
     /// </summary>
-    ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="trigger">The trigger that will never fire again.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask TriggerFinalized(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> a <see cref="ITrigger"/>s has been paused.
     /// </summary>
-    ValueTask TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="triggerKey">The trigger that was paused.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask TriggerPaused(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> a group of
@@ -80,15 +98,19 @@ public interface ISchedulerListener
     /// <remarks>
     /// A null <paramref name="triggerGroup" /> means every group.
     /// </remarks>
+    /// <param name="scheduler">The scheduler raising the notification.</param>
     /// <param name="triggerGroup">The trigger group, or null for all groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default) => default;
+    ValueTask TriggersPaused(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
     /// has been un-paused.
     /// </summary>
-    ValueTask TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="triggerKey">The trigger that was resumed.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask TriggerResumed(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> when a
@@ -97,33 +119,46 @@ public interface ISchedulerListener
     /// <remarks>
     /// A null <paramref name="triggerGroup" /> means every group.
     /// </remarks>
+    /// <param name="scheduler">The scheduler raising the notification.</param>
     /// <param name="triggerGroup">The trigger group, or null for all groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default) => default;
+    ValueTask TriggersResumed(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
     /// has been added.
     /// </summary>
-    ValueTask JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="jobDetail">The job that was added.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask JobAdded(IScheduler scheduler, IJobDetail jobDetail, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
     /// has been deleted.
     /// </summary>
-    ValueTask JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="jobKey">The job that was deleted.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask JobDeleted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
     /// has been  paused.
     /// </summary>
-    ValueTask JobPaused(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="jobKey">The job that was paused.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask JobPaused(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
     /// has been interrupted.
     /// </summary>
-    ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="jobKey">The job that was interrupted.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> when a
@@ -135,15 +170,19 @@ public interface ISchedulerListener
     /// group rather than once with no group, but a job store or a caller raising the event itself
     /// may report all groups that way.
     /// </remarks>
+    /// <param name="scheduler">The scheduler raising the notification.</param>
     /// <param name="jobGroup">The job group, or null for all groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default) => default;
+    ValueTask JobsPaused(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
     /// has been  un-paused.
     /// </summary>
-    ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="jobKey">The job that was resumed.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask JobResumed(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a group of <see cref="IJobDetail" />s has
@@ -153,9 +192,10 @@ public interface ISchedulerListener
     /// A null <paramref name="jobGroup" /> means every group, matching
     /// <see cref="TriggersResumed" />.
     /// </remarks>
+    /// <param name="scheduler">The scheduler raising the notification.</param>
     /// <param name="jobGroup">The job group, or null for all groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default) => default;
+    ValueTask JobsResumed(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a serious error has
@@ -163,9 +203,17 @@ public interface ISchedulerListener
     /// or the inability to instantiate a <see cref="IJob" /> instance when its
     /// <see cref="ITrigger" /> has fired.
     /// </summary>
+    /// <remarks>
+    /// <see cref="SchedulerErrorContext" /> carries the trigger, job and firing the error was raised
+    /// for wherever the scheduler knew them, so a listener can pause the offending trigger rather than
+    /// read the keys out of the message text.
+    /// </remarks>
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="errorContext">What went wrong, and what it went wrong for.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask SchedulerError(
-        string message,
-        SchedulerException exception,
+        IScheduler scheduler,
+        SchedulerErrorContext errorContext,
         CancellationToken cancellationToken = default) => default;
 
     /// <summary>
@@ -182,7 +230,10 @@ public interface ISchedulerListener
     /// The default implementation does nothing.
     /// </para>
     /// </remarks>
-    ValueTask TriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="triggerKey">The trigger that was parked in the error state.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask TriggerInError(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when every <see cref="ITrigger" /> of a job has moved
@@ -197,40 +248,55 @@ public interface ISchedulerListener
     /// The default implementation does nothing.
     /// </para>
     /// </remarks>
-    ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="jobKey">The job whose triggers were parked in the error state.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask TriggersInError(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> to inform the listener
     /// that it has move to standby mode.
     /// </summary>
-    ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask SchedulerInStandbyMode(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> to inform the listener
     /// that it has started.
     /// </summary>
-    ValueTask SchedulerStarted(CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask SchedulerStarted(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> to inform the listener that it is starting.
     /// </summary>
-    ValueTask SchedulerStarting(CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask SchedulerStarting(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> to inform the listener
     /// that it has Shutdown.
     /// </summary>
-    ValueTask SchedulerShutdown(CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask SchedulerShutdown(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> to inform the listener
     /// that it has begun the shutdown sequence.
     /// </summary>
-    ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask SchedulerShuttingDown(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> to inform the listener
     /// that all jobs, triggers and calendars were deleted.
     /// </summary>
-    ValueTask SchedulingDataCleared(CancellationToken cancellationToken = default) => default;
+    /// <param name="scheduler">The scheduler raising the notification.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask SchedulingDataCleared(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 }

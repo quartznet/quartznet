@@ -11,9 +11,9 @@ public class SampleSchedulerListener : ISchedulerListener
         this.logger = logger;
     }
 
-    public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerStarted(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Observed scheduler start");
+        logger.LogInformation("Observed start of scheduler {SchedulerName}", scheduler.SchedulerName);
         return default;
     }
 }

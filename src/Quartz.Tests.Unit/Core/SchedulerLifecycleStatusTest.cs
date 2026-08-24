@@ -280,15 +280,15 @@ public class SchedulerLifecycleStatusTest
             }
         }
 
-        public ValueTask SchedulerStarting(CancellationToken cancellationToken = default) => Record(nameof(SchedulerStarting));
+        public ValueTask SchedulerStarting(IScheduler scheduler, CancellationToken cancellationToken = default) => Record(nameof(SchedulerStarting));
 
-        public ValueTask SchedulerStarted(CancellationToken cancellationToken = default) => Record(nameof(SchedulerStarted));
+        public ValueTask SchedulerStarted(IScheduler scheduler, CancellationToken cancellationToken = default) => Record(nameof(SchedulerStarted));
 
-        public ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default) => Record(nameof(SchedulerInStandbyMode));
+        public ValueTask SchedulerInStandbyMode(IScheduler scheduler, CancellationToken cancellationToken = default) => Record(nameof(SchedulerInStandbyMode));
 
-        public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default) => Record(nameof(SchedulerShuttingDown));
+        public ValueTask SchedulerShuttingDown(IScheduler scheduler, CancellationToken cancellationToken = default) => Record(nameof(SchedulerShuttingDown));
 
-        public ValueTask SchedulerShutdown(CancellationToken cancellationToken = default) => Record(nameof(SchedulerShutdown));
+        public ValueTask SchedulerShutdown(IScheduler scheduler, CancellationToken cancellationToken = default) => Record(nameof(SchedulerShutdown));
 
         private ValueTask Record(string what)
         {

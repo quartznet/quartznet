@@ -212,11 +212,19 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
 
             logger.LogError(e, "Could not schedule jobs and triggers from JSON file {FileName}", jobFile.FileName);
 
+            // No keys: the file names many jobs and triggers, and the failure is the file rather than
+            // any one of them.
+            SchedulerErrorContext errorContext = new()
+            {
+                Message = message,
+                Exception = schedulerException,
+            };
+
             foreach (var listener in Scheduler.ListenerManager.GetSchedulerListeners())
             {
                 try
                 {
-                    await listener.SchedulerError(message, schedulerException, cancellationToken).ConfigureAwait(false);
+                    await listener.SchedulerError(Scheduler, errorContext, cancellationToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
                 catch (Exception ex)

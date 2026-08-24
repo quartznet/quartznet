@@ -356,8 +356,14 @@ internal sealed class QuartzSchedulerThread
                     {
                         if (acquiresFailed == 0)
                         {
-                            var msg = "An error occurred while scanning for the next trigger to fire.";
-                            await qs.NotifySchedulerListenersError(msg, jpe, CancellationToken.None).ConfigureAwait(false);
+                            // No keys: the scan never got as far as a trigger, so there is nothing this
+                            // failure is about beyond the store it came from.
+                            SchedulerErrorContext error = new()
+                            {
+                                Message = "An error occurred while scanning for the next trigger to fire.",
+                                Exception = jpe,
+                            };
+                            await qs.NotifySchedulerListenersError(error, CancellationToken.None).ConfigureAwait(false);
                         }
 
                         if (acquiresFailed < int.MaxValue)
@@ -457,7 +463,18 @@ internal sealed class QuartzSchedulerThread
                         catch (SchedulerException se)
                         {
                             var msg = "An error occurred while firing triggers '" + string.Join(", ", triggers.Select(t => t.Key)) + "'";
-                            await qs.NotifySchedulerListenersError(msg, se, CancellationToken.None).ConfigureAwait(false);
+
+                            // The whole batch failed, so the trigger key is only reported when the batch
+                            // held one trigger. Naming one of several would say the failure was about
+                            // that trigger, which it is not — the message enumerates them all instead.
+                            SchedulerErrorContext error = new()
+                            {
+                                Message = msg,
+                                Exception = se,
+                                TriggerKey = triggers.Count == 1 ? triggers[0].Key : null,
+                                JobKey = triggers.Count == 1 ? triggers[0].JobKey : null,
+                            };
+                            await qs.NotifySchedulerListenersError(error, CancellationToken.None).ConfigureAwait(false);
                             // QTZ-179 : a problem occurred interacting with the triggers from the db
                             // we release them and loop again
                             foreach (IOperableTrigger t in triggers)

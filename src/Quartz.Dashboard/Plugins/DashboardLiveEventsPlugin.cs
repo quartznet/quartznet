@@ -30,7 +30,6 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 {
     private IScheduler? scheduler;
     private IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>? hubContext;
-    private string schedulerName = string.Empty;
 
     public string Name { get; private set; } = "QuartzDashboardLiveEvents";
 
@@ -38,7 +37,6 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     {
         Name = pluginName;
         this.scheduler = scheduler;
-        schedulerName = scheduler.SchedulerName;
 
         scheduler.ListenerManager.AddJobListener(this, Matchers.AllJobs());
         scheduler.ListenerManager.AddTriggerListener(this, Matchers.AllTriggers());
@@ -103,14 +101,14 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return ValueTask.FromResult(false);
     }
 
-    public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
+    public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
     {
         TriggerEventDto payload = new(
             TriggerKey: new TriggerKeyDto(trigger.Key.Group, trigger.Key.Name),
             JobKey: trigger.JobKey is null ? null : new JobKeyDto(trigger.JobKey.Group, trigger.JobKey.Name),
             FireTimeUtc: null);
 
-        return BroadcastToScheduler(schedulerName, client => client.TriggerMisfired(payload));
+        return BroadcastToScheduler(scheduler.SchedulerName, client => client.TriggerMisfired(payload));
     }
 
     public ValueTask TriggerComplete(
@@ -127,64 +125,70 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(context.Scheduler.SchedulerName, client => client.TriggerCompleted(payload));
     }
 
-    public ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobScheduled(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobUnscheduled(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default) => default;
+    public ValueTask TriggerFinalized(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask TriggerPaused(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         TriggerKeyDto payload = new(triggerKey.Group, triggerKey.Name);
-        return BroadcastToScheduler(schedulerName, client => client.TriggerPaused(payload));
+        return BroadcastToScheduler(scheduler.SchedulerName, client => client.TriggerPaused(payload));
     }
 
-    public ValueTask TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default) => default;
+    public ValueTask TriggersPaused(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask TriggerResumed(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         TriggerKeyDto payload = new(triggerKey.Group, triggerKey.Name);
-        return BroadcastToScheduler(schedulerName, client => client.TriggerResumed(payload));
+        return BroadcastToScheduler(scheduler.SchedulerName, client => client.TriggerResumed(payload));
     }
 
-    public ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default) => default;
+    public ValueTask TriggersResumed(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobAdded(IScheduler scheduler, IJobDetail jobDetail, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobDeleted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask JobPaused(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask JobPaused(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
     {
         JobKeyDto payload = new(jobKey.Group, jobKey.Name);
-        return BroadcastToScheduler(schedulerName, client => client.JobPaused(payload));
+        return BroadcastToScheduler(scheduler.SchedulerName, client => client.JobPaused(payload));
     }
 
-    public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobsPaused(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask JobResumed(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
     {
         JobKeyDto payload = new(jobKey.Group, jobKey.Name);
-        return BroadcastToScheduler(schedulerName, client => client.JobResumed(payload));
+        return BroadcastToScheduler(scheduler.SchedulerName, client => client.JobResumed(payload));
     }
 
-    public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobsResumed(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
+    public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default)
     {
-        SchedulerErrorDto payload = new(schedulerName, message, exception.Message);
-        return BroadcastToScheduler(schedulerName, client => client.SchedulerError(payload));
+        SchedulerErrorDto payload = new(
+            SchedulerName: scheduler.SchedulerName,
+            Message: errorContext.Message,
+            Cause: errorContext.Exception.Message,
+            TriggerKey: errorContext.TriggerKey is null ? null : new TriggerKeyDto(errorContext.TriggerKey.Group, errorContext.TriggerKey.Name),
+            JobKey: errorContext.JobKey is null ? null : new JobKeyDto(errorContext.JobKey.Group, errorContext.JobKey.Name));
+
+        return BroadcastToScheduler(scheduler.SchedulerName, client => client.SchedulerError(payload));
     }
 
-    public ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerInStandbyMode(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
-        return BroadcastState(SchedulerStatus.Standby);
+        return BroadcastState(scheduler, SchedulerStatus.Standby);
     }
 
-    public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerStarted(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
-        return BroadcastState(SchedulerStatus.Running);
+        return BroadcastState(scheduler, SchedulerStatus.Running);
     }
 
     /// <summary>
@@ -195,28 +199,28 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     /// "starting" first only gave a browser a value that is not a <see cref="SchedulerStatus" /> to
     /// render in the meantime.
     /// </remarks>
-    public ValueTask SchedulerStarting(CancellationToken cancellationToken = default) => default;
+    public ValueTask SchedulerStarting(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask SchedulerShutdown(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerShutdown(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
-        return BroadcastState(SchedulerStatus.Shutdown);
+        return BroadcastState(scheduler, SchedulerStatus.Shutdown);
     }
 
-    public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerShuttingDown(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
-        return BroadcastState(SchedulerStatus.ShuttingDown);
+        return BroadcastState(scheduler, SchedulerStatus.ShuttingDown);
     }
 
     /// <summary>
     /// Pushes the state the scheduler is now in, which is what a listener event means.
     /// </summary>
-    private ValueTask BroadcastState(SchedulerStatus status)
+    private ValueTask BroadcastState(IScheduler scheduler, SchedulerStatus status)
     {
-        SchedulerStateDto payload = new(schedulerName, status);
-        return BroadcastToScheduler(schedulerName, client => client.SchedulerStateChanged(payload));
+        SchedulerStateDto payload = new(scheduler.SchedulerName, status);
+        return BroadcastToScheduler(scheduler.SchedulerName, client => client.SchedulerStateChanged(payload));
     }
 
-    public ValueTask SchedulingDataCleared(CancellationToken cancellationToken = default) => default;
+    public ValueTask SchedulingDataCleared(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
 
     private async ValueTask BroadcastToScheduler(string schedulerName, Func<IQuartzDashboardHubClient, Task> send)
     {

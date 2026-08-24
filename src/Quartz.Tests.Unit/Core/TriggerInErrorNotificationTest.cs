@@ -118,7 +118,7 @@ public class TriggerInErrorNotificationTest
 
         public ValueTask SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc, CancellationToken cancellationToken = default) => default;
 
-        public ValueTask NotifySchedulerListenersError(string message, SchedulerException exception, CancellationToken cancellationToken = default) => default;
+        public ValueTask NotifySchedulerListenersError(SchedulerErrorContext errorContext, CancellationToken cancellationToken = default) => default;
 
         public ValueTask NotifySchedulerListenersTriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
@@ -167,13 +167,13 @@ public class TriggerInErrorNotificationTest
 
         public Task<TriggerKey> SingleTrigger => singleTrigger.Task;
 
-        public ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggersInError(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             jobTriggers.TrySetResult(jobKey);
             return default;
         }
 
-        public ValueTask TriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggerInError(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             singleTrigger.TrySetResult(triggerKey);
             return default;

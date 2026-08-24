@@ -22,12 +22,12 @@ public class DashboardSchedulerStateEventsTest
     [Test]
     public async Task EachListenerEventPushesTheStateTheSchedulerIsNowIn()
     {
-        (DashboardLiveEventsPlugin plugin, List<SchedulerStateDto> pushed) = await Plugin();
+        (DashboardLiveEventsPlugin plugin, List<SchedulerStateDto> pushed, IScheduler scheduler) = await Plugin();
 
-        await plugin.SchedulerStarted();
-        await plugin.SchedulerInStandbyMode();
-        await plugin.SchedulerShuttingDown();
-        await plugin.SchedulerShutdown();
+        await plugin.SchedulerStarted(scheduler);
+        await plugin.SchedulerInStandbyMode(scheduler);
+        await plugin.SchedulerShuttingDown(scheduler);
+        await plugin.SchedulerShutdown(scheduler);
 
         pushed.Select(state => state.Status).Should().Equal(
             [
@@ -44,16 +44,16 @@ public class DashboardSchedulerStateEventsTest
     [Test]
     public async Task ASchedulerThatIsStartingPushesNothing()
     {
-        (DashboardLiveEventsPlugin plugin, List<SchedulerStateDto> pushed) = await Plugin();
+        (DashboardLiveEventsPlugin plugin, List<SchedulerStateDto> pushed, IScheduler scheduler) = await Plugin();
 
-        await plugin.SchedulerStarting();
+        await plugin.SchedulerStarting(scheduler);
 
         pushed.Should().BeEmpty(
             "starting is an event rather than a state, and the state it leads to arrives a moment later as "
             + "SchedulerStarted - pushing 'Starting' only gave a browser a value that is not a status to render");
     }
 
-    private static async Task<(DashboardLiveEventsPlugin Plugin, List<SchedulerStateDto> Pushed)> Plugin()
+    private static async Task<(DashboardLiveEventsPlugin Plugin, List<SchedulerStateDto> Pushed, IScheduler Scheduler)> Plugin()
     {
         List<SchedulerStateDto> pushed = [];
 
@@ -83,7 +83,7 @@ public class DashboardSchedulerStateEventsTest
         DashboardLiveEventsPlugin plugin = new();
         await plugin.Initialize("live", scheduler);
 
-        return (plugin, pushed);
+        return (plugin, pushed, scheduler);
     }
 
     private sealed class CapturingHubContext : IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>

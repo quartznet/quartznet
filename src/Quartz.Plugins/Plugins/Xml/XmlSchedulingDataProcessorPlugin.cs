@@ -277,11 +277,19 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
     {
         var listeners = Scheduler.ListenerManager.GetSchedulerListeners();
 
+        // No keys: the file names many jobs and triggers, and the failure is the file rather than any
+        // one of them.
+        SchedulerErrorContext errorContext = new()
+        {
+            Message = message,
+            Exception = schedulerException,
+        };
+
         foreach (var listener in listeners)
         {
             try
             {
-                await listener.SchedulerError(message, schedulerException, cancellationToken).ConfigureAwait(false);
+                await listener.SchedulerError(Scheduler, errorContext, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

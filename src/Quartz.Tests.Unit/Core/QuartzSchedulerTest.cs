@@ -141,8 +141,10 @@ public class QuartzSchedulerTest
 
         // assert
         // expect unschedule and schedule
-        A.CallTo(() => listener.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup), A<CancellationToken>._)).MustHaveHappened();
-        A.CallTo(() => listener.JobScheduled(jobTrigger, A<CancellationToken>._)).MustHaveHappened();
+        // The scheduler argument is the very instance the caller holds, so it is matched by reference
+        // rather than by any property of it.
+        A.CallTo(() => listener.JobUnscheduled(scheduler, new TriggerKey(TriggerName, TriggerGroup), A<CancellationToken>._)).MustHaveHappened();
+        A.CallTo(() => listener.JobScheduled(scheduler, jobTrigger, A<CancellationToken>._)).MustHaveHappened();
     }
 
     [Test]

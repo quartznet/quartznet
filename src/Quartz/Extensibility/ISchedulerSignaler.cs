@@ -85,8 +85,14 @@ public interface ISchedulerSignaler
     /// <summary>
     /// Informs scheduler listeners about an exception that has occurred.
     /// </summary>
+    /// <remarks>
+    /// The context is how a job store reports which trigger, job or firing the failure was for; a store
+    /// that knows none of them fills in <see cref="SchedulerErrorContext.Message" /> and
+    /// <see cref="SchedulerErrorContext.Exception" /> alone.
+    /// </remarks>
+    /// <param name="errorContext">What went wrong, and what it went wrong for.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask NotifySchedulerListenersError(
-        string message,
-        SchedulerException exception,
+        SchedulerErrorContext errorContext,
         CancellationToken cancellationToken = default);
 }

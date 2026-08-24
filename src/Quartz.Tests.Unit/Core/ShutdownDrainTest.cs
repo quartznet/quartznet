@@ -194,7 +194,7 @@ public class ShutdownDrainTest
     {
         public bool ShutDown { get; private set; }
 
-        public ValueTask SchedulerShutdown(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerShutdown(IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             ShutDown = true;
             return default;
