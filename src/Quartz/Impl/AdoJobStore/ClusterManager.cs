@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 
-using Quartz.Diagnostics;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -24,11 +23,16 @@ internal sealed class ClusterManager
 
     private int numFails;
 
-    internal ClusterManager(AdoJobStoreBase jobStoreSupport)
+    /// <remarks>
+    /// The logger is handed over rather than created here, because it is the store's - and therefore the
+    /// container's. Cluster recovery and check-in failures are among the log lines an application most
+    /// wants and least expects to have to opt into.
+    /// </remarks>
+    internal ClusterManager(AdoJobStoreBase jobStoreSupport, ILogger<ClusterManager> logger)
     {
         this.jobStoreSupport = jobStoreSupport;
+        this.logger = logger;
         cancellationTokenSource = new CancellationTokenSource();
-        logger = LogProvider.CreateLogger<ClusterManager>();
     }
 
     public async Task Initialize()

@@ -4,6 +4,7 @@ using Quartz.Tests;
 using Quartz.Extensibility;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 #region License
 
 /*
@@ -41,7 +42,7 @@ public class ClusterManagerTest
     {
         // Arrange
         var jobStoreSupport = new TestAdoJobStoreBase();
-        var clusterManager = new ClusterManager(jobStoreSupport);
+        var clusterManager = new ClusterManager(jobStoreSupport, NullLogger<ClusterManager>.Instance);
 
         // Act - Initialize the manager and immediately shut it down
         // This simulates the race condition where shutdown happens before the task scheduler
@@ -62,7 +63,7 @@ public class ClusterManagerTest
     {
         // Arrange
         var jobStoreSupport = new TestAdoJobStoreBase();
-        var clusterManager = new ClusterManager(jobStoreSupport);
+        var clusterManager = new ClusterManager(jobStoreSupport, NullLogger<ClusterManager>.Instance);
 
         // Act - Initialize and give the task time to start
         await clusterManager.Initialize();

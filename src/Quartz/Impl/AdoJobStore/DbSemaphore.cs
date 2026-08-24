@@ -82,8 +82,13 @@ public abstract class DbSemaphore : ISemaphore
     /// <summary>
     /// Gets the log.
     /// </summary>
+    /// <remarks>
+    /// Replaced by <see cref="Initialize" /> with one from the job store's factory. The category stays
+    /// this type's rather than the subclass's, so a filter written against it matches whichever row-lock
+    /// dialect a scheduler ends up with.
+    /// </remarks>
     /// <value>The log.</value>
-    internal ILogger<DbSemaphore> logger { get; }
+    internal ILogger<DbSemaphore> logger { get; private set; }
 
     /// <summary>
     /// Learns which scheduler this semaphore locks for and folds the store's table prefix into
@@ -99,7 +104,8 @@ public abstract class DbSemaphore : ISemaphore
         schedulerName = context.SchedulerName;
         tablePrefix = context.TablePrefix;
         TimeProvider = context.TimeProvider;
-        adoUtil = new AdoUtil(dbProvider, context.CommandTimeout);
+        logger = context.LoggerFactory.CreateLogger<DbSemaphore>();
+        adoUtil = new AdoUtil(dbProvider, context.CommandTimeout, context.LoggerFactory.CreateLogger<AdoUtil>());
         SetExpandedSql();
     }
 

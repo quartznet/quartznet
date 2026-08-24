@@ -1,4 +1,6 @@
 using Quartz.Tests;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 #region License
 
 /*
@@ -37,7 +39,7 @@ public class MisfireHandlerTest
     {
         // Arrange
         var jobStoreSupport = new TestAdoJobStoreBase();
-        var misfireHandler = new MisfireHandler(jobStoreSupport);
+        var misfireHandler = new MisfireHandler(jobStoreSupport, NullLogger<MisfireHandler>.Instance);
 
         // Act - Initialize the handler and immediately shut it down
         // This simulates the race condition where shutdown happens before the task scheduler
@@ -58,7 +60,7 @@ public class MisfireHandlerTest
     {
         // Arrange
         var jobStoreSupport = new TestAdoJobStoreBase();
-        var misfireHandler = new MisfireHandler(jobStoreSupport);
+        var misfireHandler = new MisfireHandler(jobStoreSupport, NullLogger<MisfireHandler>.Instance);
 
         // Act - Initialize and give the task time to start
         misfireHandler.Initialize();

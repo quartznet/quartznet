@@ -55,8 +55,9 @@ public class LocalTransactionJobStore : AdoJobStoreBase
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
         ISemaphore? lockHandler = null,
-        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null)
-        : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates)
+        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null,
+        ILoggerFactory? loggerFactory = null)
+        : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates, loggerFactory)
     {
     }
 

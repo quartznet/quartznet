@@ -59,8 +59,9 @@ public class ExternalTransactionJobStore : AdoJobStoreBase
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
         ISemaphore? lockHandler = null,
-        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null)
-        : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates)
+        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null,
+        ILoggerFactory? loggerFactory = null)
+        : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates, loggerFactory)
     {
         openConnection = storeOptions.Value.OpenConnection;
     }
@@ -138,7 +139,7 @@ public class ExternalTransactionJobStore : AdoJobStoreBase
             return default;
         }
 
-        return new ConnectionAndTransactionHolder(conn, null);
+        return new ConnectionAndTransactionHolder(conn, transaction: null, ownsResources: true, borrowedFrom: null, logger: ConnectionLogger);
     }
 
     /// <summary>

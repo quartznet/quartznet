@@ -39,11 +39,16 @@ internal sealed class SimpleSemaphore : ISemaphore
     private readonly ResourceLock triggerLock = new();
     private readonly ResourceLock stateLock = new();
 
-    private readonly ILogger<SimpleSemaphore> logger;
+    private ILogger<SimpleSemaphore> logger = LogProvider.CreateLogger<SimpleSemaphore>();
 
-    public SimpleSemaphore()
+    /// <summary>
+    /// Takes the logger from the job store's factory, so lock contention is visible to an application
+    /// that never set <see cref="LogProvider" />. Until the store calls this — a handler constructed and
+    /// used directly — the ambient factory is still what answers.
+    /// </summary>
+    public void Initialize(SemaphoreContext context)
     {
-        logger = LogProvider.CreateLogger<SimpleSemaphore>();
+        logger = context.LoggerFactory.CreateLogger<SimpleSemaphore>();
     }
 
     /// <summary>

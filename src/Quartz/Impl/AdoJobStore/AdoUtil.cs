@@ -103,9 +103,14 @@ internal sealed class AdoUtil : IAdoUtil
     /// whole seconds, so the value is rounded <em>up</em>: rounding down would turn anything under a
     /// second into zero, which every provider reads as "no timeout at all".
     /// </param>
-    public AdoUtil(IDbProvider dbProvider, TimeSpan? commandTimeout = null)
+    /// <param name="logger">
+    /// Where prepared statements are traced. The driver delegate and the lock handler pass the one
+    /// built from the job store's factory; left out, the ambient <see cref="LogProvider" /> answers, as
+    /// it did for every caller before there was anything to hand over.
+    /// </param>
+    public AdoUtil(IDbProvider dbProvider, TimeSpan? commandTimeout = null, ILogger<AdoUtil>? logger = null)
     {
-        this.logger = LogProvider.CreateLogger<AdoUtil>();
+        this.logger = logger ?? LogProvider.CreateLogger<AdoUtil>();
         this.dbProvider = dbProvider;
         commandTimeoutSeconds = commandTimeout is { } timeout
             ? (int) Math.Ceiling(timeout.TotalSeconds)

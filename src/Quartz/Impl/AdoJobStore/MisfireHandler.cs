@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 
-using Quartz.Diagnostics;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -22,10 +21,14 @@ internal sealed class MisfireHandler
     // This prevents hanging if the scheduler was disposed before it could schedule the task.
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(1);
 
-    internal MisfireHandler(AdoJobStoreBase jobStoreSupport)
+    /// <remarks>
+    /// The logger is handed over rather than created here, for the same reason
+    /// <see cref="ClusterManager" />'s is: it belongs to the store, and through it to the container.
+    /// </remarks>
+    internal MisfireHandler(AdoJobStoreBase jobStoreSupport, ILogger<MisfireHandler> logger)
     {
         this.jobStoreSupport = jobStoreSupport;
-        logger = LogProvider.CreateLogger<MisfireHandler>();
+        this.logger = logger;
 
         string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_MisfireHandler";
         taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !jobStoreSupport.UseBackgroundThreads);

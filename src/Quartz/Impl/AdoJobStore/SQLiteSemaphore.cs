@@ -58,11 +58,16 @@ internal sealed class SQLiteSemaphore : ISemaphore
     private Guid? currentOwner;
     private int lockCount;
 
-    private readonly ILogger<SQLiteSemaphore> logger;
+    private ILogger<SQLiteSemaphore> logger = LogProvider.CreateLogger<SQLiteSemaphore>();
 
-    public SQLiteSemaphore()
+    /// <summary>
+    /// Takes the logger from the job store's factory, so the global gate's contention is visible to an
+    /// application that never set <see cref="LogProvider" />. Until the store calls this — a handler
+    /// constructed and used directly — the ambient factory is still what answers.
+    /// </summary>
+    public void Initialize(SemaphoreContext context)
     {
-        logger = LogProvider.CreateLogger<SQLiteSemaphore>();
+        logger = context.LoggerFactory.CreateLogger<SQLiteSemaphore>();
     }
 
     /// <summary>

@@ -112,14 +112,16 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// </summary>
     public virtual void Initialize(DriverDelegateContext context)
     {
-        logger = LogProvider.CreateLogger<StdAdoDelegate>();
+        // The category stays this type's rather than the dialect subclass's, so a log filter written
+        // against it keeps matching whichever database the scheduler turns out to be talking to.
+        logger = context.LoggerFactory.CreateLogger<StdAdoDelegate>();
         tablePrefix = context.TablePrefix;
         schedulerName = context.SchedulerName;
         instanceId = context.InstanceId;
         DbProvider = context.DbProvider;
         typeLoader = context.TypeLoader;
         useProperties = context.UseProperties;
-        adoUtil = new AdoUtil(context.DbProvider, context.CommandTimeout);
+        adoUtil = new AdoUtil(context.DbProvider, context.CommandTimeout, context.LoggerFactory.CreateLogger<AdoUtil>());
         objectSerializer = context.ObjectSerializer!;
         timeProvider = context.TimeProvider;
 
