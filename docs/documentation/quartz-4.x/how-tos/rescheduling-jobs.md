@@ -19,6 +19,7 @@ resets the next fire time.
 `RescheduleJob` is delete-and-store in one call. The old trigger goes, the new one is stored, and the
 new one must name the same job:
 
+<!-- snippet: sample_rescheduling_replace_trigger -->
 ```csharp
 ITrigger replacement = TriggerBuilder.Create()
     .WithIdentity("nightly", "reports")
@@ -31,6 +32,7 @@ DateTimeOffset? firstFire = await scheduler.RescheduleJob(
     replacement,
     cancellationToken);
 ```
+<!-- endSnippet -->
 
 The new trigger does **not** have to keep the old name — passing a different `WithIdentity` renames it
 — but it does have to carry a job key, because the old trigger is gone before the new one is stored
@@ -40,6 +42,7 @@ The return value is the new trigger's first fire time, or **`null` if the old tr
 A null return means nothing was stored: the call is not "create if missing". If you are recovering
 from a state where the trigger may or may not exist, check the result:
 
+<!-- snippet: sample_rescheduling_missing_trigger -->
 ```csharp
 DateTimeOffset? next = await scheduler.RescheduleJob(key, replacement, cancellationToken);
 if (next is null)
@@ -48,6 +51,7 @@ if (next is null)
     await scheduler.ScheduleJob(replacement, cancellationToken);
 }
 ```
+<!-- endSnippet -->
 
 Because the trigger is replaced, everything derived from the old one is recomputed. `PreviousFireTimeUtc`
 starts empty, a `SimpleTrigger`'s repeat count starts over, and a paused trigger comes back in whatever
@@ -59,6 +63,7 @@ state the new trigger's group implies. Use it when the *schedule* changed.
 are preserved — a paused trigger stays paused, a trigger due in ten minutes is still due in ten
 minutes.
 
+<!-- snippet: sample_rescheduling_update_details -->
 ```csharp
 bool applied = await scheduler.UpdateTriggerDetails(
     new TriggerKey("nightly", "reports"),
@@ -67,6 +72,7 @@ bool applied = await scheduler.UpdateTriggerDetails(
         .WithDescription("moved up ahead of the invoice run"),
     cancellationToken);
 ```
+<!-- endSnippet -->
 
 `TriggerDetailsUpdate` is a **patch**, not a snapshot: each `With…` call marks one property as
 "change this", and everything you do not call is left alone. That is what makes `null` meaningful —
@@ -97,6 +103,7 @@ The same numeric code means a different policy in each trigger family: `1` is `F
 trigger and `FireOnceNow` on a cron trigger. The typed overloads carry the family with the value, and
 the store rejects an update whose family is not the stored trigger's:
 
+<!-- snippet: sample_rescheduling_typed_misfire_instruction -->
 ```csharp
 // fine — the key resolves to a cron trigger
 await scheduler.UpdateTriggerDetails(cronKey, new TriggerDetailsUpdate()
@@ -106,6 +113,7 @@ await scheduler.UpdateTriggerDetails(cronKey, new TriggerDetailsUpdate()
 await scheduler.UpdateTriggerDetails(cronKey, new TriggerDetailsUpdate()
     .WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow));
 ```
+<!-- endSnippet -->
 
 `WithMisfireInstructionCode(int)` exists for callers holding a bare number — a value read off the
 wire, out of configuration, or from `ITrigger.MisfireInstructionCode`. It skips the family check,
@@ -133,6 +141,7 @@ The tempting middle path — read the trigger, `GetJobBuilder`-style rebuild it,
 
 A job that failed for a transient reason can ask to be run again immediately:
 
+<!-- snippet: sample_rescheduling_refire -->
 ```csharp
 public sealed class ImportJob(IImportService importer) : IJob
 {
@@ -149,6 +158,7 @@ public sealed class ImportJob(IImportService importer) : IJob
     }
 }
 ```
+<!-- endSnippet -->
 
 `RefireImmediately` re-executes the same firing straight away, on the same thread-pool slot, and
 `context.RefireCount` counts how many times that has happened — guard on it, or a permanently failing
@@ -159,12 +169,14 @@ The same exception carries two unschedule flags for the failures that are not wo
 - `UnscheduleFiringTrigger = true` removes the trigger that fired
 - `UnscheduleAllTriggers = true` removes every trigger of the job
 
+<!-- snippet: sample_rescheduling_unschedule_all_triggers -->
 ```csharp
 throw new JobExecutionException($"account {id} no longer exists")
 {
     UnscheduleAllTriggers = true,
 };
 ```
+<!-- endSnippet -->
 
 ::: warning Changed in 4.x
 `JobExecutionException` has four constructors — `()`, `(Exception)`, `(string)` and
@@ -181,6 +193,7 @@ ten, three jobs backing off for a minute each have taken a third of the schedule
 
 When the retry can wait, store a one-off trigger and return normally:
 
+<!-- snippet: sample_rescheduling_retry_trigger -->
 ```csharp
 public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
 {
@@ -200,6 +213,7 @@ public async ValueTask Execute(IJobExecutionContext context, CancellationToken c
     }
 }
 ```
+<!-- endSnippet -->
 
 The trigger name matters. Reuse one fixed retry name and the second retry collides with the first —
 `ObjectAlreadyExistsException`, from inside a job, which is a confusing place to debug it. The fire
@@ -214,6 +228,7 @@ A trigger whose job threw in a way the scheduler could not recover from lands in
 `TriggerState.Error` and stops firing. Finding them is a query — and it pages, so a recovery script
 must loop rather than assume one call sees everything:
 
+<!-- snippet: sample_rescheduling_reset_error_state -->
 ```csharp
 TriggerQuery broken = new() { State = TriggerState.Error, Take = 250 };
 
@@ -235,6 +250,7 @@ while (true)
     }
 }
 ```
+<!-- endSnippet -->
 
 `ResetTriggerFromErrorState(key)` returns `true` when the trigger existed *and* was in the error state,
 `false` for a key that names nothing or a trigger that was not in error — the same missing-key rule

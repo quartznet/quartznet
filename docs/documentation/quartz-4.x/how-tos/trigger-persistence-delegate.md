@@ -17,6 +17,7 @@ works, and it is a blob: unqueryable, and coupled to your type's shape forever.
 two booleans, a third string and a time zone id. If your schedule fits in those, derive from
 `SimplePropertiesTriggerPersistenceDelegateBase` and write four members:
 
+<!-- snippet: sample_trigger_persistence_delegate -->
 ```csharp
 public sealed class BusinessDayTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateBase
 {
@@ -51,6 +52,7 @@ public sealed class BusinessDayTriggerPersistenceDelegate : SimplePropertiesTrig
     }
 }
 ```
+<!-- endSnippet -->
 
 Everything else — the four SQL statements, parameter binding, the reader — is done for you. Note what
 is *not* virtual: `Initialize(TriggerPersistenceDelegateContext)` is a plain `public void` on the base
@@ -91,9 +93,11 @@ six.
 A trigger is rebuilt through `TriggerBuilder`, which carries a schedule but not runtime counters. That
 is what the second constructor parameter is for:
 
+<!-- snippet: sample_trigger_persistence_delegate_apply_state -->
 ```csharp
 new TriggerPropertyBundle(scheduleBuilder, t => ((MyTriggerImpl) t).TimesTriggered = timesTriggered);
 ```
+<!-- endSnippet -->
 
 Pass `null` — or use the one-argument constructor — when your delegate carries no state beyond the
 schedule; the cron delegate does exactly that. The store applies the fire state, then your applier,
@@ -127,6 +131,7 @@ You will also need DDL for the table, in every dialect you support, and a migrat
 
 ## Registering it
 
+<!-- snippet: sample_trigger_persistence_delegate_registration -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -137,6 +142,7 @@ builder.Services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 There is a factory overload too, `UseTriggerPersistenceDelegate(Func<IServiceProvider, ITriggerPersistenceDelegate>)`,
 for a delegate whose constructor takes values rather than services. Either way the delegate is
@@ -180,6 +186,9 @@ what makes the store fall back to a BLOB if you never write one.
 
 **4. A serializer**, for the BLOB path and for job-data round-tripping:
 
+<!-- The three remaining members are elided, so this one is written out here rather than
+     compiled; a class with them left out does not compile. -->
+
 ```csharp
 public sealed class BusinessDayTriggerSerializer : TriggerSerializer<BusinessDayTriggerImpl>
 {
@@ -188,10 +197,12 @@ public sealed class BusinessDayTriggerSerializer : TriggerSerializer<BusinessDay
 }
 ```
 
+<!-- snippet: sample_trigger_persistence_delegate_serializer_registration -->
 ```csharp
 s.UseSystemTextJsonSerializer(registry =>
     registry.AddTriggerSerializer<BusinessDayTriggerImpl>(new BusinessDayTriggerSerializer()));
 ```
+<!-- endSnippet -->
 
 The built-in serializers are public and unsealed on purpose: a trigger deriving from a built-in one
 pairs with a serializer deriving from the built-in one, overriding `SerializeFields` /

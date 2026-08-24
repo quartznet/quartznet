@@ -21,6 +21,7 @@ answers.
 
 `DelegatingJobStore` forwards every operation to another store, and every member is `virtual`:
 
+<!-- snippet: sample_custom_job_store_decorator -->
 ```csharp
 public sealed class MetricsJobStore(IJobStore inner, IMeterFactory meters) : DelegatingJobStore(inner)
 {
@@ -44,12 +45,15 @@ public sealed class MetricsJobStore(IJobStore inner, IMeterFactory meters) : Del
     }
 }
 ```
+<!-- endSnippet -->
 
+<!-- snippet: sample_custom_job_store_registering_a_decorator -->
 ```csharp
 q.UseJobStore(sp => new MetricsJobStore(
     ActivatorUtilities.CreateInstance<RAMJobStore>(sp),
     sp.GetRequiredService<IMeterFactory>()));
 ```
+<!-- endSnippet -->
 
 `protected IJobStore InnerJobStore` reaches the real store through however many layers are in the way.
 
@@ -66,6 +70,9 @@ derive from this.
 
 Four overloads, all singleton and all keyed by scheduler name for a named scheduler:
 
+<!-- A listing of the four overloads rather than code, so it is written out here rather than
+     compiled. -->
+
 ```csharp
 q.UseJobStore<MyStore>();                          // container-constructed
 q.UseJobStore<MyStore, MyStoreOptions>(o => …);    // plus its own options type
@@ -76,6 +83,9 @@ q.UseJobStore(sp => new MyStore(…));               // a factory, e.g. for a de
 The generic forms construct the store with `ActivatorUtilities` through a *scheduler-scoped* view of
 the container, so a store written against the scheduler's own collaborators behaves the same under a
 named scheduler as under the default one. Take what you need:
+
+<!-- An illustration of the constructor rather than a whole store, so it is written out here
+     rather than compiled: the class as shown does not implement `IJobStore`. -->
 
 ```csharp
 public sealed class DocumentJobStore(
@@ -99,6 +109,8 @@ the application is trimmed.
 :::
 
 ## Initialize and identity
+
+<!-- A signature listing rather than code, so it is written out here rather than compiled. -->
 
 ```csharp
 ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default);
@@ -142,9 +154,11 @@ Every store keeps its triggers in one vocabulary — `StoredTriggerState`, nine 
 to the `TriggerState` callers see through one function, so two stores cannot report different states
 for the same situation:
 
+<!-- snippet: sample_custom_job_store_trigger_state_resolver -->
 ```csharp
 TriggerState reported = TriggerStateResolver.Resolve(stored, isExecuting);
 ```
+<!-- endSnippet -->
 
 The precedence is **`None > Error > Paused > Executing > Blocked > Complete > Normal`**. Paused and
 error outrank executing because they are the facts an operator has to act on, and both remain true
@@ -192,6 +206,8 @@ If your storage is relational but the *transaction* model differs — you manage
 or lock differently — derive from `AdoJobStoreBase` rather than writing a store. It has exactly two
 abstract members:
 
+<!-- A signature listing rather than code, so it is written out here rather than compiled. -->
+
 ```csharp
 protected abstract ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken ct = default);
 
@@ -206,6 +222,8 @@ protected abstract ValueTask<T> ExecuteInLock<T>(
 
 Four members are `protected virtual`, and one of them is a real extension point:
 
+<!-- A signature listing rather than code, so it is written out here rather than compiled. -->
+
 ```csharp
 protected virtual TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request);
 ```
@@ -214,6 +232,7 @@ It maps the store-level request onto the criteria the driver delegate reads. Sta
 return a `with` copy — the criteria are a record, so `with` leaves everything the base decided in
 place:
 
+<!-- snippet: sample_custom_job_store_acquisition_criteria -->
 ```csharp
 protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
 {
@@ -221,6 +240,7 @@ protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerA
     return criteria with { MaxCount = Math.Min(criteria.MaxCount, this.nodeBudget) };
 }
 ```
+<!-- endSnippet -->
 
 ::: warning The MaxCount rule
 An override may **lower** `MaxCount` but must never raise it above the request's. The choice between
