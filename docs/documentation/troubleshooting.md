@@ -167,6 +167,7 @@ WHERE JOB_CLASS_NAME = 'OldNamespace.OldClassName, OldAssembly';
 
 ### Datasource Configuration Example
 
+<!-- snippet: sample_troubleshooting_pool_size -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -179,6 +180,7 @@ services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 ## Scheduler in Web Environments
 
@@ -192,6 +194,7 @@ By default, IIS recycles and stops application pools due to inactivity. This wil
 
 **Use the Hosted Service integration** (recommended) — Register Quartz as a hosted service so it ties into the ASP.NET Core application lifecycle:
 
+<!-- snippet: sample_troubleshooting_wait_for_jobs -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -199,6 +202,7 @@ services.AddQuartz(q =>
 });
 services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 ```
+<!-- endSnippet -->
 
 **Run as a separate process** — For critical scheduling, consider running the scheduler in a Windows Service or Linux systemd service rather than inside a web application.
 
@@ -206,12 +210,14 @@ services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 When the application shuts down, give jobs time to complete:
 
+<!-- snippet: sample_troubleshooting_wait_for_jobs_block -->
 ```csharp
 services.AddQuartzHostedService(options =>
 {
     options.WaitForJobsToComplete = true;
 });
 ```
+<!-- endSnippet -->
 
 Jobs should check `IJobExecutionContext.CancellationToken` to respond to shutdown requests promptly.
 

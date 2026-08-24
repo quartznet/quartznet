@@ -24,6 +24,9 @@ We recommend that code within the `IJob.Execute(..)` method should retrieve
 values from the `MergedJobDataMap` on the `JobExecutionContext`, rather than directly
 from the JobDetail or Trigger.
 
+<!-- Quartz 3.x code — `Task Execute(IJobExecutionContext)` — so it is written out here rather
+     than compiled from the samples project, which is 4.x. -->
+
 ```csharp
 public class SomeJob : IJob 
 {
@@ -54,6 +57,9 @@ parameter as well as on the context:
 To simplify `JobKey` access we recommend defining a static field that allows
 easy access to the job's key.
 
+<!-- Quartz 3.x code — `Task Execute(IJobExecutionContext)` — so it is written out here rather
+     than compiled from the samples project, which is 4.x. -->
+
 ```csharp
 public class SomeJob : IJob 
 {
@@ -65,14 +71,20 @@ public class SomeJob : IJob
 
 then later you can trigger the job directly with
 
+<!-- Quartz 3.x code — `Task Execute(IJobExecutionContext)` — so it is written out here rather
+     than compiled from the samples project, which is 4.x. -->
+
 ```csharp
 public async Task DoSomething(IScheduler schedule, CancellationToken ct)
 {
-    await schedule.TriggerJob(SomeJob.Key, ct)
+    await schedule.TriggerJob(SomeJob.Key, ct);
 }
 ```
 
 or schedule it with a trigger
+
+<!-- Quartz 3.x code — `Task Execute(IJobExecutionContext)` — so it is written out here rather
+     than compiled from the samples project, which is 4.x. -->
 
 ```csharp
 public async Task DoSomething(IScheduler schedule, CancellationToken ct)
@@ -83,7 +95,7 @@ public async Task DoSomething(IScheduler schedule, CancellationToken ct)
                 .StartNow()
                 .Build();
 
-    await schedule.ScheduleJob(trigger, ct)
+    await schedule.ScheduleJob(trigger, ct);
 }
 ```
 
@@ -99,6 +111,7 @@ N firings. On Quartz 3.x the same helpers live on `TriggerUtils`.
 
 When it is necessary to use multiple jobs with a large number of them in a scheduler (e.g. when calling the same job with different JobData) it is rational to call the `ScheduleJobs` method instead of triggering jobs in a loop or calling them manually one by one:
 
+<!-- snippet: sample_best_practices_schedule_jobs -->
 ```csharp
 Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> jobsDictionary = new();
 foreach (var data in allData)
@@ -113,8 +126,9 @@ foreach (var data in allData)
     triggerSet.Add(trigger);
     jobsDictionary.Add(job, triggerSet);
 }
-await scheduler.ScheduleJobs(jobsDictionary, replace: true);
+await scheduler.ScheduleJobs(jobsDictionary, new ScheduleJobOptions { Replace = true });
 ```
+<!-- endSnippet -->
 
 ### Choose the Right Trigger Type
 
