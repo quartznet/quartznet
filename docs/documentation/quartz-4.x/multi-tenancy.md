@@ -576,9 +576,9 @@ on whether the *container* knows the job type.
   be constructed at all: reported when the container is validated, or at the first fire in a container
   that does not validate.
 - **A job type the container does not hold is activated by the job factory**, through the
-  scheduler-scoped provider, and its dependencies resolve to *its own* scheduler's parts. This is the
-  case for a job named only by an XML or JSON schedule, and for one whose registration
-  `AddJob<T>` skipped.
+  scheduler-scoped provider, and its dependencies resolve to *its own* scheduler's parts. That is any
+  job the container was never told about: one scheduled at runtime with `ScheduleJob(jobDetail, …)`,
+  and one named only by an XML or JSON schedule, which nothing describes to the container.
 
 That the two differ is the point worth carrying away, because nothing about the job says which path it
 is on. **Do not inject a scheduler's own parts into a job.** A job that needs the scheduler running it
