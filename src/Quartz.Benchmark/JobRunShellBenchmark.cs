@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
@@ -14,6 +15,12 @@ public class JobRunShellBenchmark
     private readonly TriggerFiredBundle _bundleMayFireAgain;
     private readonly JobRunShell _jobRunShell;
 
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly QuartzScheduler _loggingQuartzScheduler;
+    private readonly StdScheduler _loggingScheduler;
+    private readonly TriggerFiredBundle _loggingBundle;
+    private readonly JobRunShell _loggingJobRunShell;
+
     public JobRunShellBenchmark()
     {
         _basicQuartzScheduler = CreateQuartzScheduler("basic", "basic", 5);
@@ -24,18 +31,58 @@ public class JobRunShellBenchmark
 
         _jobRunShell = new JobRunShell(_basicScheduler, _bundleMayFireAgain, NullLogger<JobRunShell>.Instance);
         _jobRunShell.Initialize(_basicQuartzScheduler).GetAwaiter().GetResult();
+
+        // The same firing under a logger factory that holds a scope-supporting provider. NullLogger
+        // answers BeginScope with a cached singleton and allocates nothing, so it would hide the cost of
+        // a scope the shell opens; a real factory pushes onto its scope provider like an application's.
+        // The provider's loggers are disabled, so what is measured is the scope rather than formatting.
+        _loggerFactory = LoggerFactory.Create(static builder => builder.AddProvider(new ScopedNullLoggerProvider()));
+
+        _loggingQuartzScheduler = CreateQuartzScheduler("logging", "logging", 5);
+        _loggingScheduler = new StdScheduler(_loggingQuartzScheduler);
+
+        _loggingBundle = CreateTriggerFiredBundle();
+        _loggingBundle.Trigger.ComputeFirstFireTimeUtc(null);
+
+        _loggingJobRunShell = new JobRunShell(_loggingScheduler, _loggingBundle, _loggerFactory.CreateLogger<JobRunShell>());
+        _loggingJobRunShell.Initialize(_loggingQuartzScheduler).GetAwaiter().GetResult();
     }
 
     [GlobalCleanup]
     public void GlobalCleanup()
     {
         _basicQuartzScheduler.Shutdown(true).GetAwaiter().GetResult();
+        _loggingQuartzScheduler.Shutdown(true).GetAwaiter().GetResult();
+        _loggerFactory.Dispose();
     }
 
     [Benchmark]
     public ValueTask Success_NoTriggerListenersAndSingleJobListener_MayFireAgain()
     {
         return _jobRunShell.Run();
+    }
+
+    [Benchmark]
+    public ValueTask Success_NoTriggerListenersAndSingleJobListener_MayFireAgain_WithScopedLogger()
+    {
+        return _loggingJobRunShell.Run();
+    }
+
+    /// <summary>
+    /// A provider whose loggers log nothing but which supports external scopes, so
+    /// <see cref="ILogger.BeginScope{TState}" /> costs what it costs in an application.
+    /// </summary>
+    private sealed class ScopedNullLoggerProvider : ILoggerProvider, ISupportExternalScope
+    {
+        public void SetScopeProvider(IExternalScopeProvider scopeProvider)
+        {
+        }
+
+        public ILogger CreateLogger(string categoryName) => NullLogger.Instance;
+
+        public void Dispose()
+        {
+        }
     }
 
     private static QuartzScheduler CreateQuartzScheduler(string name, string instanceId, int threadCount)
