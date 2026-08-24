@@ -22,7 +22,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 using Quartz.HttpApiContract;
 using Quartz.Impl.AdoJobStore;
@@ -138,11 +137,11 @@ internal static class HttpClientExtensions
             return true;
         }
 
-        ProblemDetails? problemDetails = null;
+        ProblemDetailsDto? problemDetails = null;
 
         try
         {
-            problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(serializerOptions, cancellationToken).ConfigureAwait(false);
+            problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetailsDto>(serializerOptions, cancellationToken).ConfigureAwait(false);
         }
         catch
         {
@@ -207,27 +206,5 @@ internal static class HttpClientExtensions
     {
         var result = await content.ReadFromJsonAsync<T>(serializerOptions, cancellationToken).ConfigureAwait(false);
         return result ?? throw new HttpClientException("Could not deserialize response");
-    }
-
-    // Copy & paste from: https://github.com/dotnet/aspnetcore/blob/main/src/Http/Http.Abstractions/src/ProblemDetails/ProblemDetails.cs
-    private sealed class ProblemDetails
-    {
-        [JsonPropertyName("type")]
-        public string? Type { get; set; }
-
-        [JsonPropertyName("title")]
-        public string? Title { get; set; }
-
-        [JsonPropertyName("status")]
-        public int? Status { get; set; }
-
-        [JsonPropertyName("detail")]
-        public string? Detail { get; set; }
-
-        [JsonPropertyName("instance")]
-        public string? Instance { get; set; }
-
-        [JsonExtensionData]
-        public IDictionary<string, JsonElement>? Extensions { get; set; }
     }
 }
