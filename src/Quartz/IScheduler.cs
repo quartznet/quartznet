@@ -87,6 +87,20 @@ namespace Quartz;
 ///         The setup/configuration of a <see cref="IScheduler"/> instance is very
 ///         customizable. Please consult the documentation distributed with Quartz.
 ///     </para>
+/// 	<para>
+///         Disposing an instance releases what that instance owns, and the rule is ownership rather
+///         than convention. A <b>local</b> scheduler owns the execution it drives, so disposing it is
+///         <see cref="Shutdown(bool, CancellationToken)"/> with <c>waitForJobsToComplete: false</c> —
+///         the scheduler cannot be restarted afterwards, and disposing one that is already shut down
+///         does nothing. Call <c>Shutdown(waitForJobsToComplete: true)</c> yourself first when running
+///         jobs should be allowed to finish; <c>await using</c> is the shape for "stop this when the
+///         block ends", not for a graceful drain.
+///     </para>
+/// 	<para>
+///         A <b>proxy</b> for a scheduler in another process — <c>HttpScheduler</c> — owns only the
+///         connection to it. Disposing one releases that and never shuts the remote scheduler down: a
+///         client leaving is not an instruction to stop scheduling for everybody else.
+///     </para>
 /// </remarks>
 /// <seealso cref="IJob"/>
 /// <seealso cref="IJobDetail"/>
@@ -97,27 +111,6 @@ namespace Quartz;
 /// <author>Marko Lahma (.NET)</author>
 public interface IScheduler : IAsyncDisposable
 {
-    /// <summary>
-    /// Releases what this instance owns.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// What that means depends on what the instance is, and the rule is ownership rather than
-    /// convention. A <b>local</b> scheduler owns the execution it drives, so disposing it is
-    /// <see cref="Shutdown(bool, CancellationToken)"/> with <c>waitForJobsToComplete: false</c> — the
-    /// scheduler cannot be restarted afterwards, and disposing one that is already shut down does
-    /// nothing. Call <c>Shutdown(waitForJobsToComplete: true)</c> yourself first when running jobs
-    /// should be allowed to finish; <c>await using</c> is the shape for "stop this when the block ends",
-    /// not for a graceful drain.
-    /// </para>
-    /// <para>
-    /// A <b>proxy</b> for a scheduler in another process — <c>HttpScheduler</c> — owns only the
-    /// connection to it. Disposing one releases that and never shuts the remote scheduler down: a
-    /// client leaving is not an instruction to stop scheduling for everybody else.
-    /// </para>
-    /// </remarks>
-    new ValueTask DisposeAsync();
-
     /// <summary>
     /// Returns the name of the <see cref="IScheduler" />.
     /// </summary>

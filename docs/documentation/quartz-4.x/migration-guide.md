@@ -983,6 +983,12 @@ the non-waiting shutdown — `await using` means "stop this when the block ends"
 Call `Shutdown(waitForJobsToComplete: true)` yourself when running jobs should be allowed to finish;
 disposing afterwards is then a no-op.
 
+`IScheduler` only *inherits* `IAsyncDisposable`; it does not redeclare `DisposeAsync`. An earlier 4.0
+preview did, with `new ValueTask DisposeAsync()`, which forced every implementation of the interface to
+carry a member the base interface had already asked for. An `IScheduler` of your own implements
+`IAsyncDisposable.DisposeAsync` and nothing else changes — the method that satisfied the redeclared
+one satisfies this too.
+
 ### A container holding a scheduler is disposed asynchronously
 
 This is the one change that can surface as a runtime error. `ServiceProvider.Dispose()` throws when a
