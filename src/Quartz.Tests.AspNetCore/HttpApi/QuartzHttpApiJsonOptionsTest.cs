@@ -13,7 +13,8 @@ public class QuartzHttpApiJsonOptionsTest
     public void RegistrationTeachesTheContainerJsonOptionsAboutQuartzTypes()
     {
         ServiceCollection services = new();
-        services.AddQuartz("first", quartz => quartz.AddQuartzHttpApi());
+        services.AddQuartz("first");
+        services.AddQuartzHttpApi();
 
         QuartzConverterCount(services).Should().BeGreaterThan(0,
             "the API cannot read a trigger or a calendar off the wire without Quartz's own converters");
@@ -23,11 +24,14 @@ public class QuartzHttpApiJsonOptionsTest
     public void SecondRegistrationDoesNotAddTheSameConvertersAgain()
     {
         ServiceCollection one = new();
-        one.AddQuartz("first", quartz => quartz.AddQuartzHttpApi());
+        one.AddQuartz("first");
+        one.AddQuartzHttpApi();
 
         ServiceCollection two = new();
-        two.AddQuartz("first", quartz => quartz.AddQuartzHttpApi());
-        two.AddQuartz("second", quartz => quartz.AddQuartzHttpApi());
+        two.AddQuartz("first");
+        two.AddQuartz("second");
+        two.AddQuartzHttpApi();
+        two.AddQuartzHttpApi();
 
         QuartzConverterCount(two).Should().Be(QuartzConverterCount(one),
             "the JSON options belong to the container rather than to one scheduler, so serving a second scheduler over HTTP must not stack the same converters onto them twice");

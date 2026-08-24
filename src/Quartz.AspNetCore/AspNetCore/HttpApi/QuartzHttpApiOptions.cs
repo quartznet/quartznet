@@ -29,9 +29,9 @@ namespace Quartz;
 /// <remarks>
 /// There is one set of these per process, not one per scheduler. The API serves every scheduler in the
 /// container through one set of endpoints — a request names the scheduler it is for — so what is
-/// configured here describes the endpoints rather than any scheduler. Calling
-/// <c>AddQuartzHttpApi(configure)</c> from inside two <c>AddQuartz</c> callbacks therefore configures the
-/// same options twice, and the last callback registered wins for any setting both of them touch.
+/// configured here describes the endpoints rather than any scheduler. That is why there is no
+/// <c>IQuartzBuilder</c> registration: calling <c>services.AddQuartzHttpApi(configure)</c> twice configures
+/// the same options twice, and the last callback registered wins for any setting both of them touch.
 /// </remarks>
 public sealed class QuartzHttpApiOptions
 {

@@ -31,9 +31,9 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 <!-- endSnippet -->
 
 The API serves every scheduler in the container through one set of endpoints — a request names the
-scheduler it is for — so it is added to the container rather than to a scheduler. The same call can be
-written inside an `AddQuartz` callback, `q.AddQuartzHttpApi(...)`, which is convenient when there is one
-scheduler and one place that configures it.
+scheduler it is for — so it is added to the container rather than to a scheduler. There is deliberately
+no `IQuartzBuilder` form: written inside `AddQuartz(name, …)` it would look like that scheduler's API
+while configuring everybody's.
 
 Map endpoints:
 
@@ -345,9 +345,9 @@ a total outage.
 - `IncludeStackTraceInProblemDetails` (default: `false`) - includes stack traces in RFC 7807 error payloads
 
 There is one set of these per process, not one per scheduler: `ApiPath` describes the endpoints, and
-every scheduler is reached under it. Calling `AddQuartzHttpApi(configure)` from inside two `AddQuartz`
-callbacks therefore configures the same options twice, and the callback registered last wins for any
-setting both of them touch.
+every scheduler is reached under it. Calling `services.AddQuartzHttpApi(configure)` twice therefore
+configures the same options twice, and the callback registered last wins for any setting both of them
+touch.
 
 ## Calling it from .NET
 

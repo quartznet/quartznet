@@ -14,12 +14,11 @@ public static class DashboardSamples
 
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-        builder.AddQuartz(q =>
+        builder.AddQuartz();
+
+        builder.Services.AddQuartzHttpApi(options =>
         {
-            q.AddQuartzHttpApi(options =>
-            {
-                options.ApiPath = "/quartz-api";
-            });
+            options.ApiPath = "/quartz-api";
         });
 
         builder.Services.AddQuartzDashboard();
