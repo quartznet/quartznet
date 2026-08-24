@@ -2,6 +2,8 @@ using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.Core;
+
 namespace Quartz.Configuration;
 
 /// <summary>
@@ -20,7 +22,9 @@ namespace Quartz.Configuration;
 /// own, the same way its job store and thread pool are.
 /// </para>
 /// </remarks>
-internal abstract class ListenerRegistration<TListener> where TListener : class
+internal abstract class ListenerRegistration<
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.NonPublicMethods)] TListener>
+    where TListener : class
 {
     private readonly Func<IServiceProvider, TListener>? listenerFactory;
     private readonly TListener? listenerInstance;
@@ -31,6 +35,12 @@ internal abstract class ListenerRegistration<TListener> where TListener : class
         Func<IServiceProvider, TListener>? listenerFactory,
         TListener? listenerInstance)
     {
+        // Said while the application is still writing its configuration, which is the earliest moment
+        // the listener's type is known. A factory overload is checked here too, but only against the
+        // type it was declared with; whatever it actually produces is checked when it reaches the
+        // listener manager, at the latest.
+        ListenerShape.Verify(listenerType, typeof(TListener));
+
         ListenerType = listenerType;
         this.listenerFactory = listenerFactory;
         this.listenerInstance = listenerInstance;

@@ -54,7 +54,18 @@ public interface IListenerManager
     /// If a <see cref="IJobListener" /> with the same name is already registered, that listener
     /// and the associated matchers will be replaced.
     /// </para>
+    /// <para>
+    /// The listener's shape is checked as it is added. Every member of <see cref="IJobListener" /> has a
+    /// default implementation, so a public method carrying a notification's name but not its signature
+    /// still compiles — it just stops implementing anything, and the default runs in its place with
+    /// nothing to say the method is dead. Such a listener is refused rather than attached and never
+    /// called.
+    /// </para>
     /// </remarks>
+    /// <exception cref="SchedulerConfigException">
+    /// <paramref name="jobListener" /> has a public method with an <see cref="IJobListener" /> member's
+    /// name but not its signature, so that member is not implemented.
+    /// </exception>
     /// <seealso cref="IMatcher{T}" />
     /// <seealso cref="EverythingMatcher{T}" />
     void AddJobListener(IJobListener jobListener, params IReadOnlyCollection<IMatcher<JobKey>> matchers);
@@ -164,7 +175,18 @@ public interface IListenerManager
     /// If a <see cref="ITriggerListener" /> with the same name is already registered, that listener
     /// and the associated matchers will be replaced.
     /// </para>
+    /// <para>
+    /// The listener's shape is checked as it is added. Every member of <see cref="ITriggerListener" /> has
+    /// a default implementation, so a public method carrying a notification's name but not its signature
+    /// still compiles — it just stops implementing anything, and the default runs in its place with
+    /// nothing to say the method is dead. Such a listener is refused rather than attached and never
+    /// called.
+    /// </para>
     /// </remarks>
+    /// <exception cref="SchedulerConfigException">
+    /// <paramref name="triggerListener" /> has a public method with an <see cref="ITriggerListener" />
+    /// member's name but not its signature, so that member is not implemented.
+    /// </exception>
     /// <seealso cref="IMatcher{T}" />
     /// <seealso cref="EverythingMatcher{T}" />
     void AddTriggerListener(ITriggerListener triggerListener, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers);
@@ -243,9 +265,22 @@ public interface IListenerManager
     /// <see cref="IScheduler" />.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// If a <see cref="ISchedulerListener" /> with the same <see cref="ISchedulerListener.Name" />
     /// is already registered, that listener will be replaced.
+    /// </para>
+    /// <para>
+    /// The listener's shape is checked as it is added. Every member of <see cref="ISchedulerListener" />
+    /// has a default implementation, so a public method carrying a notification's name but not its
+    /// signature still compiles — it just stops implementing anything, and the default runs in its place
+    /// with nothing to say the method is dead. Such a listener is refused rather than attached and never
+    /// called.
+    /// </para>
     /// </remarks>
+    /// <exception cref="SchedulerConfigException">
+    /// <paramref name="schedulerListener" /> has a public method with an <see cref="ISchedulerListener" />
+    /// member's name but not its signature, so that member is not implemented.
+    /// </exception>
     void AddSchedulerListener(ISchedulerListener schedulerListener);
 
     /// <summary>

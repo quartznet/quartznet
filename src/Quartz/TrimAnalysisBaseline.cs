@@ -56,8 +56,9 @@ using System.Diagnostics.CodeAnalysis;
 // silences the analyzer during Quartz's own compile and nothing else. Consumers publishing a trimmed
 // application still see every warning below, which is honest: their app really is affected. The
 // unconditional form would hide it from them too. Where Quartz *has* reasoned an application's way out
-// of a warning, it says so in an [UnconditionalSuppressMessage] at the call site instead — there are two,
-// on JobType.FoundByName and PropertySettingJobFactory.SetObjectProperty, and each carries the argument.
+// of a warning, it says so in an [UnconditionalSuppressMessage] at the call site instead — there are three,
+// on JobType.FoundByName, PropertySettingJobFactory.SetObjectProperty and ListenerManagerImpl.VerifyShape,
+// and each carries the argument.
 
 // --- Types and properties named by string -----------------------------------------------------------
 // Configuration and persistence both store types as text: the flat quartz.* keys, the JOB_CLASS_NAME

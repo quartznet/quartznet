@@ -335,30 +335,58 @@ public interface IQuartzBuilder
         where T : class, ISchedulerPlugin
         where TOptions : class;
 
+    /// <summary>
+    /// Adds a scheduler listener the container builds.
+    /// </summary>
+    /// <remarks>
+    /// The listener's shape is checked here, while the application is still writing its configuration.
+    /// Every member of <see cref="ISchedulerListener" />, <see cref="IJobListener" /> and
+    /// <see cref="ITriggerListener" /> has a default implementation, so a public method that carries a
+    /// notification's name but not its signature still compiles — it just stops implementing anything,
+    /// and the default runs in its place with nothing to say the method is dead. Such a listener is
+    /// refused with a <see cref="SchedulerConfigException" /> naming the member and the signature it
+    /// should have.
+    /// <para>
+    /// What is examined is <typeparamref name="T" />: for an instance overload that is the type the call
+    /// was written with rather than the instance's own, so a listener handed over as its base type is
+    /// checked as that base, and a factory overload declared as the interface has nothing to examine at
+    /// all. Neither escapes — the listener's runtime type is checked again when it is attached to a
+    /// scheduler, which is only a later moment to hear about it.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="T">The listener's type.</typeparam>
     IQuartzBuilder AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, ISchedulerListener;
 
+    /// <inheritdoc cref="AddSchedulerListener{T}()" path="/remarks" />
     IQuartzBuilder AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         T listener) where T : class, ISchedulerListener;
 
+    /// <inheritdoc cref="AddSchedulerListener{T}()" path="/remarks" />
     IQuartzBuilder AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         Func<IServiceProvider, T> factory) where T : class, ISchedulerListener;
 
+    /// <inheritdoc cref="AddSchedulerListener{T}()" path="/remarks" />
     IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener;
 
+    /// <inheritdoc cref="AddSchedulerListener{T}()" path="/remarks" />
     IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         T listener, params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener;
 
+    /// <inheritdoc cref="AddSchedulerListener{T}()" path="/remarks" />
     IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<JobKey>> matchers) where T : class, IJobListener;
 
+    /// <inheritdoc cref="AddSchedulerListener{T}()" path="/remarks" />
     IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener;
 
+    /// <inheritdoc cref="AddSchedulerListener{T}()" path="/remarks" />
     IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         T listener, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener;
 
+    /// <inheritdoc cref="AddSchedulerListener{T}()" path="/remarks" />
     IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener;
 
