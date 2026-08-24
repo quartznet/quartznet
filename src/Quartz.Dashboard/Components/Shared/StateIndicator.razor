@@ -30,7 +30,7 @@
                 return "paused";
             }
 
-            // Checked before "running", which is a scheduler status and has to keep reading as success.
+            // Checked before "running", so that a state whose name contains both reads as executing.
             if (normalized.Contains("executing"))
             {
                 return "executing";

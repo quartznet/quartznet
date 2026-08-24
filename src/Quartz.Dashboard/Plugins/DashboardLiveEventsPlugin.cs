@@ -179,31 +179,40 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default)
     {
-        SchedulerStateDto payload = new(schedulerName, "Standby");
-        return BroadcastToScheduler(schedulerName, client => client.SchedulerStateChanged(payload));
+        return BroadcastState(SchedulerStatus.Standby);
     }
 
     public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
     {
-        SchedulerStateDto payload = new(schedulerName, "Started");
-        return BroadcastToScheduler(schedulerName, client => client.SchedulerStateChanged(payload));
+        return BroadcastState(SchedulerStatus.Running);
     }
 
-    public ValueTask SchedulerStarting(CancellationToken cancellationToken = default)
-    {
-        SchedulerStateDto payload = new(schedulerName, "Starting");
-        return BroadcastToScheduler(schedulerName, client => client.SchedulerStateChanged(payload));
-    }
+    /// <summary>
+    /// Nothing is pushed: a scheduler that is starting is an event, not a state it is in.
+    /// </summary>
+    /// <remarks>
+    /// The state it will be in arrives a moment later as <see cref="SchedulerStarted" />, and pushing
+    /// "starting" first only gave a browser a value that is not a <see cref="SchedulerStatus" /> to
+    /// render in the meantime.
+    /// </remarks>
+    public ValueTask SchedulerStarting(CancellationToken cancellationToken = default) => default;
 
     public ValueTask SchedulerShutdown(CancellationToken cancellationToken = default)
     {
-        SchedulerStateDto payload = new(schedulerName, "Shutdown");
-        return BroadcastToScheduler(schedulerName, client => client.SchedulerStateChanged(payload));
+        return BroadcastState(SchedulerStatus.Shutdown);
     }
 
     public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
     {
-        SchedulerStateDto payload = new(schedulerName, "ShuttingDown");
+        return BroadcastState(SchedulerStatus.ShuttingDown);
+    }
+
+    /// <summary>
+    /// Pushes the state the scheduler is now in, which is what a listener event means.
+    /// </summary>
+    private ValueTask BroadcastState(SchedulerStatus status)
+    {
+        SchedulerStateDto payload = new(schedulerName, status);
         return BroadcastToScheduler(schedulerName, client => client.SchedulerStateChanged(payload));
     }
 

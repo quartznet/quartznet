@@ -42,9 +42,9 @@ namespace Quartz.Dashboard.Hubs
     }
     public sealed class SchedulerStateDto : System.IEquatable<Quartz.Dashboard.Hubs.SchedulerStateDto>
     {
-        public SchedulerStateDto(string SchedulerName, string State) { }
+        public SchedulerStateDto(string SchedulerName, Quartz.SchedulerStatus Status) { }
         public string SchedulerName { get; init; }
-        public string State { get; init; }
+        public Quartz.SchedulerStatus Status { get; init; }
     }
     public sealed class TriggerEventDto : System.IEquatable<Quartz.Dashboard.Hubs.TriggerEventDto>
     {

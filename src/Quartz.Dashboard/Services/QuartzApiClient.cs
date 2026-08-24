@@ -672,9 +672,14 @@ internal sealed class QuartzApiClient : IQuartzApiClient
     }
 
     /// <summary>
-    /// Reads the scheduler status the API reports. It is a name on the wire; the numeric form is still
-    /// read so that a dashboard can talk to a server that predates the change.
+    /// Reads the scheduler status the API reports.
     /// </summary>
+    /// <remarks>
+    /// It is a name on the wire, which is what makes a dashboard and a server of different builds agree:
+    /// names survive the enum gaining members, where ordinals only do by accident. The numeric form is
+    /// still read, for a server that renders it, and an unrecognised value in either form reads as
+    /// <see cref="SchedulerStatus.Unknown" /> rather than failing the page.
+    /// </remarks>
     private static SchedulerStatus GetSchedulerStatusProperty(JsonElement element, string propertyName)
     {
         if (element.ValueKind is not JsonValueKind.Object || !element.TryGetProperty(propertyName, out JsonElement value))
