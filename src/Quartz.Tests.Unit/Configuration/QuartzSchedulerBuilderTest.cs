@@ -242,4 +242,35 @@ public class QuartzSchedulerBuilderTest
 
         provider.GetRequiredService<IJobStore>().Should().BeSameAs(custom, "TryAdd registrations must not displace what the application registered");
     }
+
+    /// <summary>
+    /// The whole point of the builder's covariant returns: a scheduler is described and built in one
+    /// expression. Adding a job or a trigger goes through what is an extension method on
+    /// <see cref="IQuartzBuilder" /> for everybody else, and an extension method cannot preserve the
+    /// receiver's type — so this compiling is the assertion, and the scheduler it produces is the proof
+    /// the mirrored members do the same work.
+    /// </summary>
+    [Test]
+    public async Task TheContentMembersKeepTheBuildersTypeThroughOneExpression()
+    {
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .ConfigureScheduler(options => options.InstanceName = "standalone-chained")
+            .UseInMemoryStore()
+            .UseSimpleTypeLoader()
+            .AddJob<SignallingJob>(job => job.WithIdentity("chained-job").StoreDurably())
+            .AddTrigger(trigger => trigger.WithIdentity("chained-trigger").ForJob("chained-job").StartAt(DateTimeOffset.UtcNow.AddHours(1)))
+            .AddCalendar<Quartz.Impl.Calendar.HolidayCalendar>("chained-calendar")
+            .BuildScheduler();
+
+        try
+        {
+            (await scheduler.Exists(new JobKey("chained-job"))).Should().BeTrue();
+            (await scheduler.Exists(new TriggerKey("chained-trigger"))).Should().BeTrue();
+            (await scheduler.GetCalendar("chained-calendar")).Should().NotBeNull();
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
 }

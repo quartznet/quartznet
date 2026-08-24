@@ -524,6 +524,207 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         return this;
     }
 
+    // The extension half. Every IQuartzBuilder extension in QuartzBuilderExtensions is mirrored here
+    // as an instance method returning this type, for the same reason the interface members above are:
+    // an extension method cannot preserve the receiver's type, because the ones that matter take an
+    // explicit type argument of their own (AddJob<MyJob>) and C# has no partial type-argument
+    // inference — neither AddJob<TBuilder, TJob> nor an extension<TBuilder> block can be called as
+    // AddJob<MyJob>. An instance method wins over an extension method, so this is what keeps
+    // Create()…AddJob<MyJob>(…)…BuildScheduler() a single expression. QuartzBuilderExtensionsMirrorTest
+    // fails when an extension is added without one.
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.UseSimpleTypeLoader" />
+    public QuartzSchedulerBuilder UseSimpleTypeLoader()
+    {
+        inner.UseSimpleTypeLoader();
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.ConfigureJobScope" />
+    public QuartzSchedulerBuilder ConfigureJobScope(Action<IServiceScope, TriggerFiredBundle, IScheduler> configure)
+    {
+        inner.ConfigureJobScope(configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJob{T}(IQuartzBuilder, Action{IJobConfigurator{T}})" />
+    public QuartzSchedulerBuilder AddJob<
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)]
+    T>(Action<IJobConfigurator<T>> configure) where T : IJob
+    {
+        inner.AddJob(configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJob{T}(IQuartzBuilder, Action{IServiceProvider, IJobConfigurator{T}})" />
+    public QuartzSchedulerBuilder AddJob<
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)]
+    T>(Action<IServiceProvider, IJobConfigurator<T>> configure) where T : IJob
+    {
+        inner.AddJob(configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJob(IQuartzBuilder, Type, Action{IJobConfigurator{IJob}})" />
+    public QuartzSchedulerBuilder AddJob(
+           [DynamicallyAccessedMembers(JobTypeMembers.Required)]
+        Type jobType,
+        Action<IJobConfigurator<IJob>> configure)
+    {
+        inner.AddJob(jobType, configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJob(IQuartzBuilder, Type, Action{IServiceProvider, IJobConfigurator{IJob}})" />
+    public QuartzSchedulerBuilder AddJob(
+           [DynamicallyAccessedMembers(JobTypeMembers.Required)]
+        Type jobType,
+        Action<IServiceProvider, IJobConfigurator<IJob>> configure)
+    {
+        inner.AddJob(jobType, configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddTrigger{TJob}(IQuartzBuilder, Action{ITriggerConfigurator{TJob}})" />
+    public QuartzSchedulerBuilder AddTrigger<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
+        Action<ITriggerConfigurator<TJob>> configure) where TJob : IJob
+    {
+        inner.AddTrigger(configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddTrigger{TJob}(IQuartzBuilder, Action{IServiceProvider, ITriggerConfigurator{TJob}})" />
+    public QuartzSchedulerBuilder AddTrigger<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
+        Action<IServiceProvider, ITriggerConfigurator<TJob>> configure) where TJob : IJob
+    {
+        inner.AddTrigger(configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddTrigger(IQuartzBuilder, Action{ITriggerConfigurator{IJob}})" />
+    public QuartzSchedulerBuilder AddTrigger(Action<ITriggerConfigurator<IJob>> configure)
+    {
+        inner.AddTrigger(configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddTrigger(IQuartzBuilder, Action{IServiceProvider, ITriggerConfigurator{IJob}})" />
+    public QuartzSchedulerBuilder AddTrigger(Action<IServiceProvider, ITriggerConfigurator<IJob>> configure)
+    {
+        inner.AddTrigger(configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.ScheduleJob{T}(IQuartzBuilder, Action{ITriggerConfigurator{T}}, Action{IJobConfigurator{T}})" />
+    public QuartzSchedulerBuilder ScheduleJob<
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)]
+    T>(
+        Action<ITriggerConfigurator<T>> trigger,
+        Action<IJobConfigurator<T>>? job = null) where T : IJob
+    {
+        inner.ScheduleJob(trigger, job);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.ScheduleJob{T}(IQuartzBuilder, Action{IServiceProvider, ITriggerConfigurator{T}}, Action{IServiceProvider, IJobConfigurator{T}})" />
+    public QuartzSchedulerBuilder ScheduleJob<
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)]
+    T>(
+        Action<IServiceProvider, ITriggerConfigurator<T>> trigger,
+        Action<IServiceProvider, IJobConfigurator<T>>? job = null) where T : IJob
+    {
+        inner.ScheduleJob(trigger, job);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJobType{TJob}(IQuartzBuilder)" />
+    public QuartzSchedulerBuilder AddJobType<
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>()
+        where TJob : class, IJob
+    {
+        inner.AddJobType<TJob>();
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJobType{TJob}(IQuartzBuilder, ServiceLifetime)" />
+    public QuartzSchedulerBuilder AddJobType<
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
+        ServiceLifetime lifetime) where TJob : class, IJob
+    {
+        inner.AddJobType<TJob>(lifetime);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJobType{TJob, TImplementation}(IQuartzBuilder)" />
+    public QuartzSchedulerBuilder AddJobType<
+            TJob,
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)] TImplementation>()
+        where TJob : class, IJob
+        where TImplementation : class, TJob
+    {
+        inner.AddJobType<TJob, TImplementation>();
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJobType{TJob, TImplementation}(IQuartzBuilder, ServiceLifetime)" />
+    public QuartzSchedulerBuilder AddJobType<
+            TJob,
+            [DynamicallyAccessedMembers(JobTypeMembers.Required)] TImplementation>(
+        ServiceLifetime lifetime)
+        where TJob : class, IJob
+        where TImplementation : class, TJob
+    {
+        inner.AddJobType<TJob, TImplementation>(lifetime);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJobType{TJob}(IQuartzBuilder, Func{IServiceProvider, TJob})" />
+    public QuartzSchedulerBuilder AddJobType<TJob>(
+        Func<IServiceProvider, TJob> implementationFactory) where TJob : class, IJob
+    {
+        inner.AddJobType(implementationFactory);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJobType{TJob}(IQuartzBuilder, Func{IServiceProvider, TJob}, ServiceLifetime)" />
+    public QuartzSchedulerBuilder AddJobType<TJob>(
+        Func<IServiceProvider, TJob> implementationFactory,
+        ServiceLifetime lifetime) where TJob : class, IJob
+    {
+        inner.AddJobType(implementationFactory, lifetime);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddCalendar{T}(IQuartzBuilder, string, AddCalendarOptions, Action{T})" />
+    public QuartzSchedulerBuilder AddCalendar<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        string name,
+        AddCalendarOptions options = default,
+        Action<T>? configure = null) where T : ICalendar, new()
+    {
+        inner.AddCalendar(name, options, configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddCalendar{T}(IQuartzBuilder, string, AddCalendarOptions, Action{IServiceProvider, T})" />
+    public QuartzSchedulerBuilder AddCalendar<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        string name,
+        AddCalendarOptions options,
+        Action<IServiceProvider, T> configure) where T : ICalendar, new()
+    {
+        inner.AddCalendar(name, options, configure);
+        return this;
+    }
+
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddCalendar(IQuartzBuilder, string, ICalendar, AddCalendarOptions)" />
+    public QuartzSchedulerBuilder AddCalendar(
+        string name,
+        ICalendar calendar,
+        AddCalendarOptions options = default)
+    {
+        inner.AddCalendar(name, calendar, options);
+        return this;
+    }
+
     // The interface half. Implemented explicitly so the public members above can return this type
     // rather than IQuartzBuilder — the only way C# expresses a covariant return on an interface
     // implementation, and what lets Create()…BuildScheduler() be a single expression.
