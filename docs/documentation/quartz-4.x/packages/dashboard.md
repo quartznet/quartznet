@@ -196,7 +196,9 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 - Job details and trigger details pages
 - Currently executing jobs view — cluster-wide with a persistent job store, showing which node owns each
   execution, and interrupting the one execution a row names rather than every execution of its job
-- Live event/log stream for scheduler activity
+- Live event/log stream for scheduler activity, fed by plugins `AddQuartzDashboard` installs on every
+  scheduler in the container — so a named scheduler streams its own events, each plugin instance
+  initialized with the name of the scheduler it belongs to
 - Pause, resume, trigger-now, and unschedule/delete actions (when not in read-only mode)
 - Trigger detail cron reschedule and job detail trigger-with-overrides actions
 - Calendar create/replace (cron calendar), details, and delete actions
