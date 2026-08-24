@@ -55,7 +55,7 @@ public interface ICalendar
     /// Set a new base calendar or remove the existing one.
     /// Get the base calendar.
     /// </summary>
-    ICalendar? CalendarBase { set; get; }
+    ICalendar? CalendarBase { get; set; }
 
     /// <summary>
     /// Determine whether the given UTC time  is 'included' by the

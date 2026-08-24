@@ -24,9 +24,11 @@ namespace Quartz;
 /// performed.
 /// </summary>
 /// <remarks>
-/// Instances of this interface must have a <see langword="public" />
-/// no-argument constructor. <see cref="JobDataMap" /> provides a mechanism for 'instance member data'
-/// that may be required by some implementations of this interface.
+/// An instance is built for each fire by the scheduler's <see cref="Quartz.Extensibility.IJobFactory" />,
+/// which by default resolves the job from the dependency-injection container — so a job's dependencies
+/// are ordinary constructor parameters, and there need be no parameterless constructor.
+/// <see cref="JobDataMap" /> provides a mechanism for 'instance member data' that may be required by
+/// some implementations of this interface.
 /// </remarks>
 /// <seealso cref="IJobDetail" />
 /// <seealso cref="JobBuilder" />

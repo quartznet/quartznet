@@ -508,7 +508,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// <param name="cronExpression">String representation of the cron expression; may be <see langword="null" />.</param>
     /// <param name="result">The parsed expression, or <see langword="null" /> when parsing failed.</param>
     /// <returns><see langword="true" /> when <paramref name="cronExpression"/> is a valid cron expression.</returns>
-    public static bool TryParse(string? cronExpression, [NotNullWhen(true)] out CronExpression? result)
+    public static bool TryParse([NotNullWhen(true)] string? cronExpression, [NotNullWhen(true)] out CronExpression? result)
     {
         if (cronExpression is null)
         {

@@ -21,6 +21,7 @@
 
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Quartz;
 
@@ -113,7 +114,7 @@ public sealed class SchedulerContext : IDictionary<string, object?>, IReadOnlyDi
     /// <see langword="true"/> if the <see cref="SchedulerContext"/> contains an element with the specified key;
     /// otherwise, <see langword="false"/>.
     /// </returns>
-    public bool TryGetValue(string key, out object? value)
+    public bool TryGetValue(string key, [MaybeNullWhen(false)] out object? value)
     {
         return store.TryGetValue(key, out value);
     }

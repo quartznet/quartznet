@@ -171,7 +171,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     /// Set a new base calendar or remove the existing one
     /// </summary>
     /// <value></value>
-    public ICalendar? CalendarBase { set; get; }
+    public ICalendar? CalendarBase { get; set; }
 
     /// <summary>
     /// Check if date/time represented by timeStamp is included. If included
