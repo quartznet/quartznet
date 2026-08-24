@@ -2666,7 +2666,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<bool> CalendarIsReferenced(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ClearData(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ClearMisfireOriginalFireTime(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Collections.IDictionary ConvertFromProperty(System.Collections.Specialized.NameValueCollection properties) { }
+        protected virtual System.Collections.Generic.Dictionary<string, object?> ConvertFromProperty(System.Collections.Specialized.NameValueCollection properties) { }
         protected virtual System.Collections.Specialized.NameValueCollection ConvertToProperty(System.Collections.Generic.IDictionary<string, object?> data) { }
         public virtual System.Threading.Tasks.ValueTask<int> CountMisfiredTriggersInState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.StoredTriggerState state, System.DateTimeOffset misfireTime, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> CountTriggersForJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }

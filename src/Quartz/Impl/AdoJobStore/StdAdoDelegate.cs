@@ -19,7 +19,6 @@
 
 #endregion
 
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Specialized;
@@ -355,14 +354,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
             return null;
         }
 
-        IDictionary map = ConvertFromProperty(properties);
-        var result = new Dictionary<string, object?>(map.Count);
-        foreach (DictionaryEntry entry in map)
-        {
-            result[(string) entry.Key] = entry.Value;
-        }
-
-        return new JobDataMap(result);
+        return new JobDataMap(ConvertFromProperty(properties));
     }
 
     /// <summary>
@@ -577,11 +569,11 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     }
 
     /// <summary>
-    /// Convert the JobDataMap into a list of properties.
+    /// Convert the stored properties into the entries of a <see cref="JobDataMap" />.
     /// </summary>
-    protected virtual IDictionary ConvertFromProperty(NameValueCollection properties)
+    protected virtual Dictionary<string, object?> ConvertFromProperty(NameValueCollection properties)
     {
-        var data = new Dictionary<string, string?>();
+        var data = new Dictionary<string, object?>(properties.Count);
         foreach (var key in properties.AllKeys)
         {
             data[key!] = properties[key];
