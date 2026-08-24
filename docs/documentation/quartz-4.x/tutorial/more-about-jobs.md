@@ -19,35 +19,39 @@ First lets take a look back at some of that snippet of code we saw in Lesson 1:
 
 __Using Quartz.NET__
 
+<!-- snippet: sample_more_about_jobs_scheduling -->
 ```csharp
 // define the job and tie it to our HelloJob class
 IJobDetail job = JobBuilder.Create<HelloJob>()
- .WithIdentity("myJob", "group1")
- .Build();
+    .WithIdentity("myJob", "group1")
+    .Build();
 
 // Trigger the job to run now, and then every 40 seconds
 ITrigger trigger = TriggerBuilder.Create()
-  .WithIdentity("myTrigger", "group1")
-  .StartNow()
-  .WithSimpleSchedule(x => x
-   .WithInterval(TimeSpan.FromSeconds(40))
-   .RepeatForever())
-  .Build();
-  
+    .WithIdentity("myTrigger", "group1")
+    .StartNow()
+    .WithSimpleSchedule(x => x
+        .WithInterval(TimeSpan.FromSeconds(40))
+        .RepeatForever())
+    .Build();
+
 await scheduler.ScheduleJob(job, trigger);
 ```
+<!-- endSnippet -->
 
 Now consider the job class __HelloJob__  defined as such:
 
+<!-- snippet: sample_more_about_jobs_hello_job -->
 ```csharp
 public class HelloJob : IJob
 {
- public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
- {
-  await Console.Out.WriteLineAsync("HelloJob is executing.");
- }
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        await Console.Out.WriteLineAsync("HelloJob is executing.");
+    }
 }
 ```
+<!-- endSnippet -->
 
 Notice that we give the scheduler a `IJobDetail` instance, and that it refers to the job to be executed by simply
 providing the job's class. Each (and every) time the scheduler executes the job, it creates a new instance of the
@@ -75,35 +79,39 @@ Here's some quick snippets of putting data into the JobDataMap prior to adding t
 
 __Setting Values in a JobDataMap__
 
+<!-- snippet: sample_more_about_jobs_setting_job_data -->
 ```csharp
 // define the job and tie it to our DumbJob class
 IJobDetail job = JobBuilder.Create<DumbJob>()
- .WithIdentity("myJob", "group1") // name "myJob", group "group1"
- .UsingJobData("jobSays", "Hello World!")
- .UsingJobData("myFloatValue", 3.141f)
- .Build();
+    .WithIdentity("myJob", "group1") // name "myJob", group "group1"
+    .UsingJobData("jobSays", "Hello World!")
+    .UsingJobData("myFloatValue", 3.141f)
+    .Build();
 ```
+<!-- endSnippet -->
 
 Here's a quick example of getting data from the JobDataMap during the job's execution:
 
 __Getting Values from a JobDataMap__
 
+<!-- snippet: sample_more_about_jobs_getting_job_data -->
 ```csharp
 public class DumbJob : IJob
 {
- public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
- {
-  JobKey key = context.JobDetail.Key;
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        JobKey key = context.JobDetail.Key;
 
-  JobDataMap dataMap = context.JobDetail.JobDataMap;
+        JobDataMap dataMap = context.JobDetail.JobDataMap;
 
-  string jobSays = dataMap.GetString("jobSays");
-  float myFloatValue = dataMap.GetFloat("myFloatValue");
+        string? jobSays = dataMap.GetString("jobSays");
+        float myFloatValue = dataMap.GetFloat("myFloatValue");
 
-  await Console.Error.WriteLineAsync("Instance " + key + " of DumbJob says: " + jobSays + ", and val is: " + myFloatValue);
- }
+        await Console.Error.WriteLineAsync("Instance " + key + " of DumbJob says: " + jobSays + ", and val is: " + myFloatValue);
+    }
 }
 ```
+<!-- endSnippet -->
 
 If you use a persistent JobStore (discussed in the JobStore section of this tutorial) you should use some care
 in deciding what you place in the JobDataMap, because the object in it will be serialized, and they therefore
@@ -122,22 +130,31 @@ functionality is not maintained by default when using a custom JobFactory.
 ### Naming the property instead of the key
 
 When the value is meant for one of those properties, you can name the property rather than spell its key.
-The key is then the property's own name, and the value has to be of the property's own type:
+Give the job the properties:
 
+<!-- snippet: sample_more_about_jobs_job_with_properties -->
 ```csharp
 public class DumbJob : IJob
 {
- public string JobSays { get; set; }
- public float FloatValue { get; set; }
- // ...
-}
+    public string JobSays { get; set; } = "";
+    public float FloatValue { get; set; }
 
-IJobDetail job = JobBuilder.Create<DumbJob>()
- .WithIdentity("myJob", "group1")
- .UsingJobData(j => j.JobSays, "Hello World!")
- .UsingJobData(j => j.FloatValue, 3.141f)
- .Build();
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
 ```
+<!-- endSnippet -->
+
+The key is then the property's own name, and the value has to be of the property's own type:
+
+<!-- snippet: sample_more_about_jobs_naming_the_property -->
+```csharp
+IJobDetail job = JobBuilder.Create<DumbJob>()
+    .WithIdentity("myJob", "group1")
+    .UsingJobData(j => j.JobSays, "Hello World!")
+    .UsingJobData(j => j.FloatValue, 3.141f)
+    .Build();
+```
+<!-- endSnippet -->
 
 `JobBuilder.Create<DumbJob>()` returns a `JobBuilder<DumbJob>`, and it is that job type which lets `j` be
 inferred. `JobBuilder.Create()` builds for `IJob`, which has no properties to name, so use the generic
@@ -168,13 +185,15 @@ Otherwise the same care applies as to any other job data: the store has to be ab
 Triggers work the same way through `TriggerBuilder.Create<DumbJob>()`, which is how one job takes different
 inputs per trigger:
 
+<!-- snippet: sample_more_about_jobs_naming_the_property_on_a_trigger -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create<DumbJob>()
- .WithIdentity("myTrigger", "group1")
- .ForJob(job)
- .UsingJobData(j => j.JobSays, "Good evening!")
- .Build();
+    .WithIdentity("myTrigger", "group1")
+    .ForJob(job)
+    .UsingJobData(j => j.JobSays, "Good evening!")
+    .Build();
 ```
+<!-- endSnippet -->
 
 `ForJob(IJobDetail)` also checks that the job really is a `DumbJob`, since that is the one overload that
 knows the job's type.
@@ -183,16 +202,18 @@ The same applies to the configurators in the
 [Microsoft DI integration](../packages/microsoft-di-integration.md), where the job type comes from the call
 itself:
 
+<!-- snippet: sample_more_about_jobs_naming_the_property_under_di -->
 ```csharp
 q.AddJob<DumbJob>(j => j.UsingJobData(x => x.JobSays, "Hello World!"));
 
 q.ScheduleJob<DumbJob>(
- t => t.StartNow().UsingJobData(x => x.JobSays, "Good evening!"),
- j => j.WithIdentity("myJob"));
+    t => t.StartNow().UsingJobData(x => x.JobSays, "Good evening!"),
+    j => j.WithIdentity("myJob"));
 
 // a trigger added on its own names the job type it fires
 q.AddTrigger<DumbJob>(t => t.ForJob(jobKey).UsingJobData(x => x.JobSays, "Good evening!"));
 ```
+<!-- endSnippet -->
 
 `AddTrigger<IJob>` is the untyped form — `IJob` has no properties to name — so name the job's own type
 when you want typed trigger data.
@@ -205,46 +226,50 @@ found on the JobDetail and the one found on the Trigger, with the values in the 
 
 Here's a quick example of getting data from the JobExecutionContext's merged JobDataMap during the job's execution:
 
+<!-- snippet: sample_more_about_jobs_merged_job_data -->
 ```csharp
 public class DumbJob : IJob
 {
- public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
- {
-  JobKey key = context.JobDetail.Key;
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        JobKey key = context.JobDetail.Key;
 
-  JobDataMap dataMap = context.MergedJobDataMap;  // Note the difference from the previous example
+        JobDataMap dataMap = context.MergedJobDataMap;  // Note the difference from the previous example
 
-  string jobSays = dataMap.GetString("jobSays");
-  float myFloatValue = dataMap.GetFloat("myFloatValue");
-  IList<DateTimeOffset> state = (IList<DateTimeOffset>)dataMap["myStateData"];
-  state.Add(DateTimeOffset.UtcNow);
+        string? jobSays = dataMap.GetString("jobSays");
+        float myFloatValue = dataMap.GetFloat("myFloatValue");
+        IList<DateTimeOffset> state = (IList<DateTimeOffset>) dataMap["myStateData"]!;
+        state.Add(DateTimeOffset.UtcNow);
 
-  await Console.Error.WriteLineAsync("Instance " + key + " of DumbJob says: " + jobSays + ", and val is: " + myFloatValue);
- }
+        await Console.Error.WriteLineAsync("Instance " + key + " of DumbJob says: " + jobSays + ", and val is: " + myFloatValue);
+    }
 }
 ```
+<!-- endSnippet -->
 
 Or if you wish to rely on the JobFactory "injecting" the data map values onto your class, it might look like this instead:
 
+<!-- snippet: sample_more_about_jobs_injected_job_data -->
 ```csharp
 public class DumbJob : IJob
 {
- public string JobSays { private get; set; }
- public float FloatValue { private get; set; }
+    public string JobSays { private get; set; } = "";
+    public float FloatValue { private get; set; }
 
- public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
- {
-  JobKey key = context.JobDetail.Key;
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        JobKey key = context.JobDetail.Key;
 
-  JobDataMap dataMap = context.MergedJobDataMap;  // Note the difference from the previous example
+        JobDataMap dataMap = context.MergedJobDataMap;  // Note the difference from the previous example
 
-  IList<DateTimeOffset> state = (IList<DateTimeOffset>)dataMap["myStateData"];
-  state.Add(DateTimeOffset.UtcNow);
+        IList<DateTimeOffset> state = (IList<DateTimeOffset>) dataMap["myStateData"]!;
+        state.Add(DateTimeOffset.UtcNow);
 
-  await Console.Error.WriteLineAsync("Instance " + key + " of DumbJob says: " + JobSays + ", and val is: " + FloatValue);
- }
+        await Console.Error.WriteLineAsync("Instance " + key + " of DumbJob says: " + JobSays + ", and val is: " + FloatValue);
+    }
 }
 ```
+<!-- endSnippet -->
 
 You'll notice that the overall code of the class is longer, but the code in the `Execute()` method is cleaner.
 One could also argue that although the code is longer, that it actually took less coding, if the programmer's IDE was used to auto-generate the properties,
@@ -338,10 +363,11 @@ job definition that carries something of yours alongside the ones above — a te
 the rest of your system keys on — you can implement `IJobDetail` yourself. Everything Quartz asks of a detail is
 declared on the interface:
 
+<!-- snippet: sample_more_about_jobs_custom_job_detail -->
 ```csharp
 public sealed class TenantJobDetail : IJobDetail
 {
-    public TenantJobDetail(JobKey key, JobType jobType, string tenant, JobDataMap jobDataMap = null)
+    public TenantJobDetail(JobKey key, JobType jobType, string tenant, JobDataMap? jobDataMap = null)
     {
         Key = key;
         JobType = jobType;
@@ -369,6 +395,7 @@ public sealed class TenantJobDetail : IJobDetail
         => new TenantJobDetail(Key, JobType, Tenant, new JobDataMap(JobDataMap));
 }
 ```
+<!-- endSnippet -->
 
 ::: warning How far it travels
 A detail of your own round-trips through `RAMJobStore`, which holds the instances it is given and hands back
@@ -390,6 +417,7 @@ that you should throw from the execute method is the JobExecutionException. Beca
 execute method with a 'try-catch' block. The exception's directives to the scheduler are init-only
 properties, set with an object initializer:
 
+<!-- snippet: sample_more_about_jobs_job_execution_exception -->
 ```csharp
 catch (Exception ex)
 {
@@ -397,6 +425,7 @@ catch (Exception ex)
     throw new JobExecutionException(ex) { RefireImmediately = true };
 }
 ```
+<!-- endSnippet -->
 
 Besides `RefireImmediately` there are `UnscheduleFiringTrigger` and `UnscheduleAllTriggers`, which stop
 the trigger that fired the job — or every trigger of the job — from firing again. When

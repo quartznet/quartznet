@@ -23,24 +23,26 @@ However, the Scheduler will not actually act on any triggers (execute jobs) unti
 
 Quartz provides "builder" classes that define a Domain Specific Language (or DSL, also sometimes referred to as a "fluent interface"). In the previous lesson you saw an example of it, which we present a portion of here again:
 
+<!-- snippet: sample_jobs_and_triggers_builders -->
 ```csharp
 // define the job and tie it to our HelloJob class
 IJobDetail job = JobBuilder.Create<HelloJob>()
     .WithIdentity("myJob", "group1") // name "myJob", group "group1"
     .Build();
-    
+
 // Trigger the job to run now, and then every 40 seconds
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("myTrigger", "group1")
     .StartNow()
     .WithSimpleSchedule(x => x
         .WithInterval(TimeSpan.FromSeconds(40))
-        .RepeatForever())            
+        .RepeatForever())
     .Build();
-    
+
 // Tell Quartz to schedule the job using our trigger
 await scheduler.ScheduleJob(job, trigger);
 ```
+<!-- endSnippet -->
   
 The block of code that builds the job definition is using `JobBuilder` using fluent interface to create the product, `IJobDetail`.
 Likewise, the block of code that builds the trigger is using `TriggerBuilder`'s fluent interface and extension methods that are specific to given trigger type.
@@ -71,6 +73,9 @@ faked time.
 A job is a class that implements the `IJob` interface, which has only one simple method:
 
 __IJob Interface__
+
+<!-- Quartz's own declaration of the interface, so it is written out here rather than compiled from the
+     samples project: a second `Quartz.IJob` in that project would shadow the real one. -->
 
 ```csharp
 namespace Quartz

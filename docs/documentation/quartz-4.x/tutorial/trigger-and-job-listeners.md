@@ -18,6 +18,9 @@ Jobs can get stuck after Quartz is unable to determine whether required logic in
 
 __The ITriggerListener Interface__
 
+<!-- Quartz's own declaration of the interface, so it is written out here rather than compiled from the
+     samples project: a second `Quartz.ITriggerListener` in that project would shadow the real one. -->
+
 ```csharp
 public interface ITriggerListener
 {
@@ -39,6 +42,9 @@ is about to do with the trigger, from `NoInstruction` through `SetTriggerComplet
 Job-related events include: a notification that the job is about to be executed, and a notification when the job has completed execution.
 
 __The IJobListener Interface__
+
+<!-- Quartz's own declaration of the interface, so it is written out here rather than compiled from the
+     samples project: a second `Quartz.IJobListener` in that project would shadow the real one. -->
 
 ```csharp
 public interface IJobListener
@@ -75,28 +81,36 @@ Hence, each time your application runs, the listeners need to be re-registered w
 
 __Adding a JobListener that is interested in a particular job:__
 
+<!-- snippet: sample_job_listeners_match_one_job -->
 ```csharp
 scheduler.ListenerManager.AddJobListener(myJobListener, Matchers.Key(new JobKey("myJobName", "myJobGroup")));
 ```
+<!-- endSnippet -->
 
 __Adding a JobListener that is interested in all jobs of a particular group:__
 
+<!-- snippet: sample_job_listeners_match_a_group -->
 ```csharp
 scheduler.ListenerManager.AddJobListener(myJobListener, GroupMatcher<JobKey>.GroupEquals("myJobGroup"));
 ```
+<!-- endSnippet -->
 
 __Adding a JobListener that is interested in all jobs of two particular groups:__
 
+<!-- snippet: sample_job_listeners_match_two_groups -->
 ```csharp
 scheduler.ListenerManager.AddJobListener(myJobListener,
- GroupMatcher<JobKey>.GroupEquals("myJobGroup").Or(GroupMatcher<JobKey>.GroupEquals("yourGroup")));
+    GroupMatcher<JobKey>.GroupEquals("myJobGroup").Or(GroupMatcher<JobKey>.GroupEquals("yourGroup")));
 ```
+<!-- endSnippet -->
 
 __Adding a JobListener that is interested in all jobs:__
 
+<!-- snippet: sample_job_listeners_match_every_job -->
 ```csharp
 scheduler.ListenerManager.AddJobListener(myJobListener, Matchers.AllJobs());
 ```
+<!-- endSnippet -->
 
 Passing no matcher at all means the same thing — a listener with no matchers hears about every job — so
 `AddJobListener(myJobListener)` is the shortest way to say it.
@@ -110,6 +124,7 @@ The `Matchers` class is the entry point: its static factories build the roots (`
 A listener that belongs to the application rather than to a moment in its run is registered where the
 scheduler is configured, and constructed from the container like anything else:
 
+<!-- snippet: sample_job_listeners_under_di -->
 ```csharp
 builder.AddQuartz(q =>
 {
@@ -125,6 +140,7 @@ builder.AddQuartz(q =>
     q.AddJobListener(provider => new MeteredListener(provider.GetRequiredService<IMeterFactory>()));
 });
 ```
+<!-- endSnippet -->
 
 This is the same registration the `ListenerManager` calls perform, done before the scheduler starts, which is
 what makes it survive a restart of the host without a startup hook of your own.

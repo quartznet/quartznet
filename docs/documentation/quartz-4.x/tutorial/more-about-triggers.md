@@ -56,12 +56,14 @@ Each trigger family has its own set of instructions, and each set is an enum of 
 `DailyTimeIntervalTriggerMisfireInstruction` and `RecurrenceTriggerMisfireInstruction`. You set one on the
 schedule builder for that family, so the only values in scope are the ones that family understands:
 
+<!-- snippet: sample_more_about_triggers_misfire_instruction -->
 ```csharp
 .WithSimpleSchedule(x => x
     .WithInterval(TimeSpan.FromMinutes(5))
     .RepeatForever()
     .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount))
 ```
+<!-- endSnippet -->
 
 Every family has `SmartPolicy`, which is the default, and `IgnoreMisfires`, which fires every missed firing as
 fast as it can once the scheduler is back. `SmartPolicy` has dynamic behaviour chosen by the trigger type and its
@@ -76,6 +78,7 @@ preventing resource-intensive jobs from starving other work.
 
 Set an execution group via `TriggerBuilder`:
 
+<!-- snippet: sample_more_about_triggers_execution_group -->
 ```csharp
 TriggerBuilder.Create()
     .WithIdentity("myTrigger")
@@ -83,6 +86,7 @@ TriggerBuilder.Create()
     // ...
     .Build();
 ```
+<!-- endSnippet -->
 
 See the [Execution Groups tutorial](execution-groups.md) for full details on configuration and usage.
 
@@ -96,6 +100,9 @@ Calendars are useful for excluding blocks of time from the trigger's firing sche
 create a trigger that fires a job every weekday at 9:30 am, but then add a Calendar that excludes all of the business's holidays.
 
 A calendar is any object implementing the `ICalendar` interface, which looks like this:
+
+<!-- Quartz's own declaration of the interface, so it is written out here rather than compiled from the
+     samples project: a second `Quartz.ICalendar` in that project would shadow the real one. -->
 
 ```csharp
 namespace Quartz
@@ -133,6 +140,7 @@ excluded from scheduling. The same calendar can be used by any number of trigger
 
 **Calendar Example**
 
+<!-- snippet: sample_more_about_triggers_calendar -->
 ```csharp
 HolidayCalendar holidays = new();
 holidays.AddExcludedDay(new DateOnly(2026, 12, 24));
@@ -164,12 +172,14 @@ ITrigger t3 = TriggerBuilder.Create()
 
 // .. schedule jobs with triggers
 ```
+<!-- endSnippet -->
 
 Any firing that would have occurred during a period the calendar excludes is skipped.
 
 Re-registering a calendar under a name that is already taken is refused unless you say so, and saying so has
 two parts, which is what `AddCalendarOptions` is for:
 
+<!-- snippet: sample_more_about_triggers_replace_calendar -->
 ```csharp
 await scheduler.AddCalendar("myHolidays", holidays, new AddCalendarOptions
 {
@@ -177,18 +187,21 @@ await scheduler.AddCalendar("myHolidays", holidays, new AddCalendarOptions
     UpdateTriggers = true, // recompute the next fire time of every trigger using it
 });
 ```
+<!-- endSnippet -->
 
 Without `UpdateTriggers`, triggers already scheduled against the old calendar keep the fire times they had
 computed; the new exclusions only take effect the next time each trigger recomputes on its own.
 
 Registering a calendar at configuration time rather than at run time is `q.AddCalendar<T>`:
 
+<!-- snippet: sample_more_about_triggers_add_calendar_at_configuration_time -->
 ```csharp
 q.AddCalendar<HolidayCalendar>("myHolidays", new AddCalendarOptions { Replace = true }, calendar =>
 {
     calendar.AddExcludedDay(new DateOnly(2026, 12, 24));
 });
 ```
+<!-- endSnippet -->
 
 See the `Quartz.Impl.Calendar` namespace for a number of `ICalendar` implementations that may suit your needs:
 `AnnualCalendar` (the same days every year), `CronCalendar`, `DailyCalendar` (a time range each day),

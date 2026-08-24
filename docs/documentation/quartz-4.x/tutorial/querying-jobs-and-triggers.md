@@ -53,6 +53,7 @@ part of the same query.
 Every query is a record with init-only filter properties. A null filter matches everything, and the
 filters that are set combine with **AND**:
 
+<!-- snippet: sample_querying_trigger_query -->
 ```csharp
 PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery
 {
@@ -61,6 +62,7 @@ PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery
     Take = 50,
 });
 ```
+<!-- endSnippet -->
 
 | Query | Filters |
 |---|---|
@@ -83,10 +85,12 @@ The matcher text is a literal, not a pattern: a group named `50%` is selected by
 `Matchers` is the entry point when you would rather not spell the generic argument, and it is where
 the combinators live:
 
+<!-- snippet: sample_querying_combining_matchers -->
 ```csharp
 IMatcher<JobKey> notArchived = Matchers.Group<JobKey>(StringOperator.StartsWith, "archive-").Not();
 IMatcher<TriggerKey> either = Matchers.Key(triggerKey).Or(Matchers.AllTriggers());
 ```
+<!-- endSnippet -->
 
 `Matchers.AllJobs()` and `Matchers.AllTriggers()` return `EverythingMatcher<TKey>`, `Matchers.Key(key)`
 matches one key exactly, and `And`, `Or` and `Not` are extension methods on `IMatcher<TKey>`.
@@ -101,6 +105,7 @@ Results are ordered by group and then name, ordinal, on every store. That is wha
 deterministic: `Skip` and `Take` are offsets into one stable ordering, so page 3 is page 3 whichever
 node answers.
 
+<!-- snippet: sample_querying_paging -->
 ```csharp
 PagedResult<JobHeader> page = await scheduler.QueryJobs(new JobQuery
 {
@@ -108,14 +113,17 @@ PagedResult<JobHeader> page = await scheduler.QueryJobs(new JobQuery
     Take = pageSize,
 });
 ```
+<!-- endSnippet -->
 
 `Take` defaults to `PagedQuery.DefaultTake`, which is **250**. An unpaged call therefore cannot
 accidentally materialize a hundred thousand rows; `PagedResult<T>.HasMore` tells you whether anything
 was left out. Ask for everything explicitly:
 
+<!-- snippet: sample_querying_everything -->
 ```csharp
 JobQuery everything = new() { Take = int.MaxValue };
 ```
+<!-- endSnippet -->
 
 ::: warning Changed in 4.x
 In the 4.0 previews `Take` defaulted to `int.MaxValue`. Code that built a query without setting `Take`
@@ -126,6 +134,7 @@ and expected the whole result now gets the first 250 items with `HasMore = true`
 `HasMore` is exact and effectively free — the stores read one row past `Take` to answer it.
 `TotalCount` is `null` unless you ask for it, because on a persistent store it costs a second query:
 
+<!-- snippet: sample_querying_total_count -->
 ```csharp
 PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery
 {
@@ -135,12 +144,14 @@ PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery
 
 int total = page.TotalCount!.Value;   // non-null because IncludeTotalCount was set
 ```
+<!-- endSnippet -->
 
 ### Counting without rows
 
 `GetNumberOfJobs`, `GetNumberOfTriggers` and `GetNumberOfCalendars` are gone. A count is a query that
 asks for no rows:
 
+<!-- snippet: sample_querying_count_only -->
 ```csharp
 PagedResult<JobHeader> count = await scheduler.QueryJobs(new JobQuery
 {
@@ -150,6 +161,7 @@ PagedResult<JobHeader> count = await scheduler.QueryJobs(new JobQuery
 
 int jobCount = count.TotalCount!.Value;
 ```
+<!-- endSnippet -->
 
 `Take = 0` is valid and returns an empty `Items`; the stores recognize the combination and run the
 count query alone. The same idiom counts anything the family can select — triggers in the error state,
@@ -160,12 +172,14 @@ calendars whose name starts with a prefix, firings on one node.
 A listing gives you headers. When the user opens a row, or a script needs the actual objects, fetch
 them by key in one round trip rather than in a loop:
 
+<!-- snippet: sample_querying_headers_to_details -->
 ```csharp
 List<JobKey> keys = page.Items.Select(h => h.Key).ToList();
 List<IJobDetail> details = await scheduler.GetJobDetails(keys);
 
 List<ITrigger> triggers = await scheduler.GetTriggers(triggerKeys);
 ```
+<!-- endSnippet -->
 
 Keys that do not exist are simply absent from the result — a bulk fetch is not an existence check, and
 it does not throw for a key that has been deleted since the listing ran. `Exists(JobKey)` and
@@ -181,6 +195,7 @@ it does not throw for a key that has been deleted since the listing ran. `Exists
 whole `IJobExecutionContext` objects, and it had no filter and no paging. `QueryFireInstances` replaces
 it, and because it is store-backed it covers the whole cluster on a persistent store:
 
+<!-- snippet: sample_querying_fire_instances -->
 ```csharp
 PagedResult<FireInstance> running = await scheduler.QueryFireInstances(new FireInstanceQuery
 {
@@ -192,6 +207,7 @@ foreach (FireInstance fire in running.Items)
     Console.WriteLine($"{fire.TriggerKey} on {fire.SchedulerInstanceId} since {fire.FireTimeUtc:O}");
 }
 ```
+<!-- endSnippet -->
 
 A `FireInstance` carries `FireInstanceId`, `TriggerKey`, `JobKey`, `SchedulerInstanceId`, `State`,
 `FireTimeUtc`, `ScheduledFireTimeUtc` and `ExecutionGroup`.
@@ -201,10 +217,12 @@ family with a **non-null default**. A `FireInstanceQuery` that says nothing abou
 running, because that is the question the query is usually asked. Set `State = null` to include
 firings that a node has reserved but not yet started:
 
+<!-- snippet: sample_querying_fire_instance_state -->
 ```csharp
 FireInstanceQuery reservedAndRunning = new() { State = null };
 FireInstanceQuery reservedOnly = new() { State = FireInstanceState.Acquired };
 ```
+<!-- endSnippet -->
 
 `JobKey` is nullable for the same reason: an `Acquired` firing has not resolved its job yet. That also
 means a query filtered by `Job` never matches a reservation, so combining `Job` with `State = null`
@@ -256,15 +274,18 @@ the pause runs, and records the group, but does not impose the pause on jobs add
 
 Pausing and resuming by matcher tells you which groups it touched:
 
+<!-- snippet: sample_querying_pause_triggers -->
 ```csharp
 List<string> pausedGroups = await scheduler.PauseTriggers(
     GroupMatcher<TriggerKey>.GroupStartsWith("nightly-"));
 ```
+<!-- endSnippet -->
 
 ## A worked example: an admin list screen
 
 Page size, a state filter, a total for the pager, and full detail only for the row that was opened:
 
+<!-- snippet: sample_querying_trigger_list_model -->
 ```csharp
 public sealed class TriggerListModel(IScheduler scheduler)
 {
@@ -296,6 +317,7 @@ public sealed class TriggerListModel(IScheduler scheduler)
         scheduler.GetTriggers(keys, cancellationToken);
 }
 ```
+<!-- endSnippet -->
 
 Nothing here loops over keys, and nothing loads a `JobDataMap` the list does not show.
 

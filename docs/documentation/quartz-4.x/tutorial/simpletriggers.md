@@ -34,14 +34,16 @@ SimpleTrigger instances are built using `TriggerBuilder` (for the trigger's main
 
 __Build a trigger for a specific moment in time, with no repeats:__
 
+<!-- snippet: sample_simpletriggers_one_shot -->
 ```csharp
 // trigger builder creates simple trigger by default
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger1", "group1")
-    .StartAt(myStartTime) // some Date 
+    .StartAt(myStartTime) // some Date
     .ForJob("job1", "group1") // identify job with name, group strings
     .Build();
 ```
+<!-- endSnippet -->
 
 The trigger family interfaces (`ISimpleTrigger` and friends) are read models: cast to one to *inspect*
 a trigger's schedule, never to change it. To change a schedule, rebuild the trigger with
@@ -49,6 +51,7 @@ a trigger's schedule, never to change it. To change a schedule, rebuild the trig
 
 __Build a trigger for a specific moment in time, then repeating every ten seconds ten times:__
 
+<!-- snippet: sample_simpletriggers_repeat_ten_times -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
@@ -56,13 +59,14 @@ ITrigger trigger = TriggerBuilder.Create()
     .WithSimpleSchedule(x => x
         .WithInterval(TimeSpan.FromSeconds(10))
         .WithRepeatCount(10)) // note that 10 repeats will give a total of 11 firings
-    .ForJob(myJob) // identify job with handle to its JobDetail itself                   
+    .ForJob(myJob) // identify job with handle to its JobDetail itself
     .Build();
-
 ```
+<!-- endSnippet -->
 
 __Build a trigger that will fire once, five minutes in the future:__
 
+<!-- snippet: sample_simpletriggers_five_minutes_from_now -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger5", "group1")
@@ -70,9 +74,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .ForJob(myJobKey) // identify job with its JobKey
     .Build();
 ```
+<!-- endSnippet -->
 
 __Build a trigger that will fire now, then repeat every five minutes, until the hour 22:00:__
 
+<!-- snippet: sample_simpletriggers_repeat_until_end_time -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger7", "group1")
@@ -82,9 +88,11 @@ ITrigger trigger = TriggerBuilder.Create()
     .EndAt(DateBuilder.Create().AtHourMinuteAndSecond(22, 0, 0).Build())
     .Build();
 ```
+<!-- endSnippet -->
 
 __Build a trigger that will fire at the top of the next hour, then repeat every 2 hours, forever:__
 
+<!-- snippet: sample_simpletriggers_every_two_hours -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger8") // because group is not specified, "trigger8" will be in the default group
@@ -92,12 +100,13 @@ ITrigger trigger = TriggerBuilder.Create()
     .WithSimpleSchedule(x => x
         .WithInterval(TimeSpan.FromHours(2))
         .RepeatForever())
-    // note that in this example, 'forJob(..)' is not called 
-    //  - which is valid if the trigger is passed to the scheduler along with the job  
+    // note that in this example, 'ForJob(..)' is not called
+    //  - which is valid if the trigger is passed to the scheduler along with the job
     .Build();
 
 await scheduler.ScheduleJob(job, trigger);
 ```
+<!-- endSnippet -->
 
 Spend some time looking at all of the available methods in the language defined by `TriggerBuilder` and its extension method `WithSimpleSchedule`
 so that you can be familiar with options available to you that may not have been demonstrated in the examples above.
@@ -135,6 +144,7 @@ the rest of the schedule is not what anyone means by it. The behaviour lives in
 
 When building SimpleTriggers, you specify the misfire instruction as part of the simple schedule (via `SimpleScheduleBuilder`):
 
+<!-- snippet: sample_simpletriggers_misfire_instruction -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger7", "group1")
@@ -144,3 +154,4 @@ ITrigger trigger = TriggerBuilder.Create()
         .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount))
     .Build();
 ```
+<!-- endSnippet -->

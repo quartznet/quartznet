@@ -2,6 +2,12 @@
 title: 'Testing'
 ---
 
+<!-- The blocks on this page without a `snippet:` marker are hand-written on purpose. Compiling a test
+     means a test framework, an assertion library, `Microsoft.Extensions.TimeProvider.Testing` and
+     `Microsoft.AspNetCore.Mvc.Testing` as dependencies of the documentation-samples project, and a
+     NuGet dependency taken purely for a documentation sample is not worth it. Everything here that
+     compiles against Quartz alone is a snippet. -->
+
 Scheduling code is unusually easy to test badly. A test that starts a scheduler, sleeps two seconds and
 asserts that a counter moved is a test that passes on your laptop and fails in CI, and the fix people
 reach for — a longer sleep — makes the suite slower without making it correct.
@@ -171,6 +177,7 @@ from `context.Scheduler.Context`.
 When the thing under test is the *wiring* — that a trigger reaches a job, that a listener vetoes, that
 `[DisallowConcurrentExecution]` does what it says — run a real scheduler in memory:
 
+<!-- snippet: sample_testing_in_memory_scheduler -->
 ```csharp
 await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
     .UseInMemoryStore()
@@ -180,6 +187,7 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
 IScheduler scheduler = await factory.GetScheduler();
 await scheduler.Start();
 ```
+<!-- endSnippet -->
 
 `BuildScheduler()` is the shortcut when you do not need the factory, but hold the factory in a test:
 disposing it is what shuts the scheduler down and releases its container.
@@ -190,6 +198,7 @@ The one rule that makes level 2 reliable: **the job tells the test when it is do
 `TaskCompletionSource` on a listener is the tidiest form, and because `IJobListener` has a default
 implementation for every member you only write the one you need:
 
+<!-- snippet: sample_testing_completion_listener -->
 ```csharp
 internal sealed class CompletionListener : IJobListener
 {
@@ -208,6 +217,7 @@ internal sealed class CompletionListener : IJobListener
     }
 }
 ```
+<!-- endSnippet -->
 
 ```csharp
 CompletionListener listener = new();
@@ -291,9 +301,11 @@ await scheduler.ScheduleJob(detail, trigger);   // this both schedules and wakes
 
 Where there is nothing natural to signal, shorten the wait instead:
 
+<!-- snippet: sample_testing_idle_wait_time -->
 ```csharp
 .ConfigureScheduler(o => o.IdleWaitTime = TimeSpan.FromSeconds(1))
 ```
+<!-- endSnippet -->
 
 One second is the minimum the option validator accepts; the default is thirty. The misfire handler and
 the cluster manager have the same property — they compute on the `TimeProvider` but wake on their own
@@ -307,11 +319,13 @@ timing, which is the thing the fake clock was supposed to remove.
 Misfire is a comparison between a trigger's scheduled time and now, so a fake clock plus a small
 threshold makes it reachable:
 
+<!-- snippet: sample_testing_misfire_threshold -->
 ```csharp
 QuartzSchedulerBuilder.Create()
     .UseInMemoryStore(o => o.MisfireThreshold = TimeSpan.FromMilliseconds(50))
     .UseTimeProvider(clock)
 ```
+<!-- endSnippet -->
 
 The in-memory store's threshold defaults to five seconds, the ADO store's to one minute, and both must
 be at least one millisecond. Put the scheduler in standby, move the clock past the fire time, then start
@@ -321,6 +335,7 @@ it — the trigger is late by construction, with no sleeping involved.
 
 `DelegatingJobStore` is public, non-sealed and virtual throughout, for exactly this:
 
+<!-- snippet: sample_testing_flaky_job_store -->
 ```csharp
 internal sealed class FlakyJobStore(IJobStore inner) : DelegatingJobStore(inner)
 {
@@ -340,11 +355,14 @@ internal sealed class FlakyJobStore(IJobStore inner) : DelegatingJobStore(inner)
     }
 }
 ```
+<!-- endSnippet -->
 
+<!-- snippet: sample_testing_fault_injection_registration -->
 ```csharp
 QuartzSchedulerBuilder.Create()
     .UseJobStore(sp => new FlakyJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(sp)))
 ```
+<!-- endSnippet -->
 
 Counting, stalling and failing store calls is how you test retry and backoff behaviour without a
 database. `DelegatingScheduler` is the same idea one layer up.

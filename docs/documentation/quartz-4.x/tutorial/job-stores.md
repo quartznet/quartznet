@@ -27,6 +27,7 @@ For some applications this is acceptable - or even the desired behavior, but for
 
 **Configuring Quartz to use RAMJobStore**
 
+<!-- snippet: sample_job_stores_in_memory -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -34,6 +35,7 @@ builder.Services.AddQuartz(q =>
     q.UseInMemoryStore(options => options.MisfireThreshold = TimeSpan.FromSeconds(30));
 });
 ```
+<!-- endSnippet -->
 
 To use `RAMJobStore` you don't need to do anything special. Default configuration
 of Quartz.NET uses `RAMJobStore` as job store implementation.
@@ -63,6 +65,7 @@ other one, for a container that manages the ambient transaction itself.
 Everything the store needs is one call. Naming the database also selects the driver delegate that speaks its
 SQL dialect and the ADO.NET provider that talks to it, so a connection string is usually all you supply:
 
+<!-- snippet: sample_job_stores_persistent -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -79,6 +82,7 @@ builder.Services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 One method per database:
 
@@ -127,9 +131,11 @@ types into a BLOB.
 This is the recommended configuration, because it greatly decreases the possibility of type serialization issues.
 :::
 
+<!-- snippet: sample_job_stores_store_job_data_as_strings -->
 ```csharp
 store.Configure(options => options.StoreJobDataAsStrings = true);
 ```
+<!-- endSnippet -->
 
 The flat key for the same setting is `quartz.jobStore.useProperties`, which is the name it had in 3.x.
 
@@ -163,6 +169,7 @@ other fails.
 Telling the store to accept enlisted transactions lets it use a connection your application already owns instead, so
 scheduling commits with the rest of your work or not at all.
 
+<!-- snippet: sample_job_stores_accept_enlisted_transactions -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
@@ -173,8 +180,12 @@ builder.Services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 You then hand your connection and transaction to the scheduler for the duration of a scope:
+
+<!-- Not a compiled sample: it is written against Entity Framework Core, which this repository does not
+     reference, and a NuGet dependency taken purely for a documentation sample is not worth it. -->
 
 ```csharp
 await using var tx = await dbContext.Database.BeginTransactionAsync();
@@ -199,6 +210,9 @@ Open the connection inside the scope and enlist that one.
 :::
 
 Inside a `TransactionScope` the shape is the same, except that the connection carries the transaction for you:
+
+<!-- Not a compiled sample: it names Npgsql, which this repository does not reference, and naming the
+     provider is the point — a `DbConnection` would not say which one cannot promote a transaction. -->
 
 ```csharp
 var options = new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted };
@@ -257,6 +271,7 @@ whether you are changing *where* scheduling data lives or only what happens arou
 `IJobStore` member to it, so you override only the operations you actually change. The wrapped store is available
 to your code as `InnerJobStore`.
 
+<!-- snippet: sample_job_stores_delegating_store -->
 ```csharp
 public sealed class LoggingJobStore : DelegatingJobStore
 {
@@ -282,6 +297,7 @@ public sealed class LoggingJobStore : DelegatingJobStore
     }
 }
 ```
+<!-- endSnippet -->
 
 The stores Quartz ships are sealed, so this is also how you build on `RAMJobStore` - construct one and hand it
 to the base constructor, as above. Your store's own constructor arguments come from the container, so it can
@@ -299,12 +315,14 @@ and rebuilding one silently swaps it for Quartz's implementation on the job's fi
 
 Either kind is registered the same way, by type:
 
+<!-- snippet: sample_job_stores_registering_your_own -->
 ```csharp
 builder.Services.AddQuartz(q =>
 {
     q.UsePersistentStore<LoggingJobStore>(options =>
     {
-        // …store options
+        // … store options
     });
 });
 ```
+<!-- endSnippet -->

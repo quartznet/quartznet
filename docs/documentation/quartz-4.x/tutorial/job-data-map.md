@@ -19,6 +19,7 @@ A job's data can come from two places:
 in both, and **the trigger wins**. It is built once per firing, lazily, and it is the map a job should
 read:
 
+<!-- snippet: sample_job_data_map_merged_map -->
 ```csharp
 public sealed class ReportJob : IJob
 {
@@ -28,9 +29,12 @@ public sealed class ReportJob : IJob
         string region = data.GetString("region")!;
         int lookbackDays = data.GetInt("lookbackDays");
         // ...
+
+        return default;
     }
 }
 ```
+<!-- endSnippet -->
 
 Writing into the merged map does nothing durable. It is a per-firing copy; values set into it are not
 written back to the job's own map, and a job that wants to persist state across fires uses
@@ -47,6 +51,7 @@ nothing else; read scheduler-wide values from `context.Scheduler.Context`.
 
 `JobBuilder<TJob>` and `TriggerBuilder<TJob>` have the same three `UsingJobData` shapes:
 
+<!-- snippet: sample_job_data_map_using_job_data -->
 ```csharp
 IJobDetail job = JobBuilder.Create<ReportJob>()
     .WithIdentity("nightly", "reports")
@@ -55,6 +60,7 @@ IJobDetail job = JobBuilder.Create<ReportJob>()
     .UsingJobData(existingMap)                          // merge a whole map in
     .Build();
 ```
+<!-- endSnippet -->
 
 The expression overload is worth knowing: `UsingJobData(j => j.LookbackDays, 30)` uses the property's
 own name as the key and the property's own type for the value, so a rename or a type change is a
@@ -62,9 +68,11 @@ compile error rather than a silent no-op at fire time. It pairs with property in
 
 Runtime data for a single firing does not need a trigger at all:
 
+<!-- snippet: sample_job_data_map_trigger_job_with_data -->
 ```csharp
 await scheduler.TriggerJob(jobKey, new JobDataMap { ["reason"] = "manual re-run" }, cancellationToken);
 ```
+<!-- endSnippet -->
 
 ## The read side: typed accessors
 
@@ -86,12 +94,14 @@ indexer, `TryGetValue`, `ContainsKey`, `Remove`, `Count`, `Keys`, `Values`, `Cle
 
 **And one generic** — `TryGet<T>(string key, out T value)`, for a type the list does not name:
 
+<!-- snippet: sample_job_data_map_try_get -->
 ```csharp
-if (data.TryGet<ReportOptions>("options", out ReportOptions options))
+if (data.TryGet<ReportOptions>("options", out ReportOptions? options))
 {
     // ...
 }
 ```
+<!-- endSnippet -->
 
 Each accessor accepts the value **either as its own type or as an invariant-culture string**. The
 stored type is matched first, a string is parsed with `CultureInfo.InvariantCulture`, and only an
@@ -120,6 +130,7 @@ unchanged (`map.GetString(…)` still compiles) but nothing should name the old 
 
 `PutAsString` writes a value in a form that survives anything:
 
+<!-- snippet: sample_job_data_map_put_as_string -->
 ```csharp
 JobDataMap data = new();
 data.PutAsString("runAt", DateTimeOffset.UtcNow);   // "O": 2026-08-22T09:15:00.0000000+00:00
@@ -127,6 +138,7 @@ data.PutAsString("window", TimeSpan.FromHours(6));  // invariant "06:00:00"
 data.PutAsString("batchId", Guid.NewGuid());
 data.PutAsString("lookbackDays", 30);               // any IFormattable
 ```
+<!-- endSnippet -->
 
 | Overload | Written as |
 |---|---|
@@ -159,6 +171,7 @@ types are a versioning commitment.
 `quartz.jobStore.useProperties`) makes the store persist the map as name/value string pairs instead of
 a serialized blob:
 
+<!-- snippet: sample_job_data_map_store_as_strings -->
 ```csharp
 q.UsePersistentStore(s =>
 {
@@ -166,6 +179,7 @@ q.UsePersistentStore(s =>
     s.Configure(o => o.StoreJobDataAsStrings = true);
 });
 ```
+<!-- endSnippet -->
 
 That removes the versioning problem entirely and makes `QRTZ_JOB_DETAILS.JOB_DATA` readable in a query
 tool — at the cost of a hard rule: **every value must be a string**. Put a `DateTimeOffset` in the map
@@ -182,6 +196,7 @@ already in the tables leaves rows the store cannot read.
 If a job has settable properties whose names match keys in the merged map, the default job factory
 assigns them before `Execute` runs, and the job never touches the map:
 
+<!-- snippet: sample_job_data_map_property_injection -->
 ```csharp
 public sealed class ReportJob : IJob
 {
@@ -191,9 +206,12 @@ public sealed class ReportJob : IJob
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         // Region and LookbackDays are already set
+
+        return default;
     }
 }
 ```
+<!-- endSnippet -->
 
 The conversion rules are the accessors' rules: a `"30"` in the map sets an `int LookbackDays`. What
 happens when a key has no matching property, or the value cannot be converted, is
@@ -210,6 +228,7 @@ By default a job's stored map is written once and read many times. `[PersistJobD
 changes that — the job's own `JobDataMap` is re-persisted after every execution, so a counter or a
 watermark survives:
 
+<!-- snippet: sample_job_data_map_persist_across_fires -->
 ```csharp
 [PersistJobDataAfterExecution]
 [DisallowConcurrentExecution]
@@ -223,6 +242,7 @@ public sealed class IncrementalSyncJob : IJob
     }
 }
 ```
+<!-- endSnippet -->
 
 Note the second attribute. `[PersistJobDataAfterExecution]` without `[DisallowConcurrentExecution]` is
 a race: two firings read the same map, both write, and one of the writes is lost. Use them together.
@@ -230,9 +250,11 @@ a race: two firings read the same map, both write, and one of the writes is lost
 The map tracks whether it changed and is only written when it did. To force a write the map did not
 notice — an in-place mutation of a stored object, for instance — put the well-known key in it:
 
+<!-- snippet: sample_job_data_map_force_dirty -->
 ```csharp
 data[SchedulerConstants.ForceJobDataMapDirty] = "true";
 ```
+<!-- endSnippet -->
 
 ## Thread safety
 
