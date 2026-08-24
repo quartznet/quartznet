@@ -3,8 +3,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Quartz.Configuration;
 
 /// <summary>
-/// The names <c>AddQuartz(name, …)</c> has been called with, so that a second registration under a name
-/// already taken is refused where it is written rather than where the scheduler is bound.
+/// What the container has been told to register a scheduler under, while it is still being told: the
+/// names <c>AddQuartz(name, …)</c> has been called with, so that a second registration under a name
+/// already taken is refused where it is written rather than where the scheduler is bound, and the
+/// container-wide configuration <c>ConfigureAllQuartzSchedulers</c> has recorded.
 /// </summary>
 /// <remarks>
 /// Names are compared case-insensitively, because <see cref="Quartz.Impl.SchedulerRepository"/> indexes
@@ -14,6 +16,22 @@ namespace Quartz.Configuration;
 internal sealed class SchedulerNameRegistry
 {
     private readonly List<string> names = [];
+
+    /// <summary>
+    /// The delegates <c>ConfigureAllQuartzSchedulers</c> has recorded, in the order they were recorded.
+    /// </summary>
+    private readonly List<Action<IQuartzBuilder>> configureAll = [];
+
+    /// <summary>
+    /// Which of those delegates has already been applied to which scheduler.
+    /// </summary>
+    /// <remarks>
+    /// Registering the default scheduler is additive, so <c>AddQuartz()</c> can be called twice for one
+    /// scheduler — and a delegate that adds a listener would then add it twice, since a listener
+    /// registration is not a <c>TryAdd</c>. A delegate reaches each scheduler once, whichever call
+    /// carries it there.
+    /// </remarks>
+    private readonly HashSet<(Action<IQuartzBuilder> Configure, string? SchedulerName)> applied = [];
 
     public IReadOnlyList<string> Names => names;
 
@@ -75,6 +93,45 @@ internal sealed class SchedulerNameRegistry
     public void AddDefault()
     {
         HasDefaultScheduler = true;
+    }
+
+    /// <summary>
+    /// Records configuration that belongs to every scheduler in the container, so that a scheduler
+    /// registered after <c>ConfigureAllQuartzSchedulers</c> was called still receives it.
+    /// </summary>
+    public void AddConfigureAll(Action<IQuartzBuilder> configure)
+    {
+        configureAll.Add(configure);
+    }
+
+    /// <summary>
+    /// Applies every recorded container-wide delegate to one scheduler.
+    /// </summary>
+    /// <remarks>
+    /// Called from <c>AddQuartz</c> after the caller's own configuration callback, so a scheduler that
+    /// says something for itself is not overruled by what the container says for everyone — options are
+    /// last-wins and registration is first-wins, and this order gives the scheduler's own word the
+    /// stronger side of both.
+    /// </remarks>
+    public void ApplyConfigureAll(IServiceCollection services, string? schedulerName)
+    {
+        // Indexed rather than foreach: a delegate is free to register a further scheduler, which would
+        // append to this list while it is being walked.
+        for (int i = 0; i < configureAll.Count; i++)
+        {
+            Apply(configureAll[i], services, schedulerName);
+        }
+    }
+
+    /// <summary>
+    /// Applies one container-wide delegate to one scheduler, unless it has already reached it.
+    /// </summary>
+    public void Apply(Action<IQuartzBuilder> configure, IServiceCollection services, string? schedulerName)
+    {
+        if (applied.Add((configure, schedulerName)))
+        {
+            configure(new QuartzBuilder(services, schedulerName));
+        }
     }
 
     /// <summary>

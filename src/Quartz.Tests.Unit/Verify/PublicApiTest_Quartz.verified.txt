@@ -1305,6 +1305,7 @@ namespace Quartz
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null)
             where T : Quartz.QuartzHostedService { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzSchedulers(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration configuration, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection ConfigureAllQuartzSchedulers(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.IQuartzBuilder> configure) { }
     }
     public sealed class RecurrenceScheduleBuilder : Quartz.IScheduleBuilder
     {
