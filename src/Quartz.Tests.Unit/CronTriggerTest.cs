@@ -300,19 +300,30 @@ public class CronTriggerTest
     [Test]
     public void TriggerWithFutureStartTimeIsUnaffectedByPastGuard()
     {
-        var futureStart = DateTimeOffset.UtcNow.AddHours(1);
+        // A frozen clock, with a fraction of a second on it that is the whole of the story. Read
+        // from the wall clock instead, this test failed for one second in every five minutes: when
+        // an hour from now lands on a "0 */5" slot, the trigger rounds that start time down to the
+        // whole second it sits in and fires exactly there - on its own start, but below the
+        // un-rounded value the test had handed in and was comparing against.
+        DateTimeOffset now = new DateTimeOffset(2026, 8, 22, 22, 50, 0, TimeSpan.Zero).AddTicks(4_543_838);
+        DateTimeOffset futureStart = now.AddHours(1);
 
-        var trigger = (IOperableTrigger) TriggerBuilder.Create()
-            .WithIdentity("trigger1", "group1")
-            .WithCronSchedule("0 */5 * ? * *")
-            .StartAt(futureStart)
-            .Build();
+        CronTriggerImpl trigger = new CronTriggerImpl(new FixedTimeProvider(now))
+        {
+            Key = new TriggerKey("trigger1", "group1"),
+            CronExpressionString = "0 */5 * ? * *",
+            TimeZone = TimeZoneInfo.Utc,
+            StartTimeUtc = futureStart
+        };
 
-        var firstFireTime = trigger.ComputeFirstFireTimeUtc(null);
+        DateTimeOffset? firstFireTime = trigger.ComputeFirstFireTimeUtc(null);
 
-        Assert.That(firstFireTime, Is.Not.Null);
-        Assert.That(firstFireTime!.Value, Is.GreaterThanOrEqualTo(futureStart),
-            "Fire time should be on or after the future start time");
+        trigger.StartTimeUtc.Should().Be(new DateTimeOffset(2026, 8, 22, 23, 50, 0, TimeSpan.Zero),
+            "a cron trigger keeps its start time to the whole second, so the sub-second part of what was handed in is gone");
+
+        firstFireTime.Should().Be(trigger.StartTimeUtc,
+            "the guard moves a fire time only when it fell before now, and this one is an hour ahead of it; "
+            + "had it run, the answer would have been the first slot after now, 22:55");
     }
 
     [Test]
