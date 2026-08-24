@@ -2986,6 +2986,133 @@ exception:
 + IJobListener? listener = listenerManager.GetJobListener(name);
 ```
 
+### Listeners are told which scheduler is calling
+
+The listener callbacks that run inside a firing have always been able to say who was calling:
+`IJobExecutionContext.Scheduler`. The rest could not. A listener registered with two schedulers in one
+host — which `AddQuartz("acme", …)` and `AddQuartz("initech", …)` make an ordinary thing to do — was told
+that *a* trigger had been paused, or that *a* scheduler had failed, with no way to ask which one (#3063).
+
+There is one rule now, and it holds for all three listener interfaces: **a listener reaches the scheduler
+it serves through its execution context, or as its first argument when there is no execution.** That makes
+`IScheduler` the first parameter of every one of `ISchedulerListener`'s twenty-three members, and of
+`ITriggerListener.TriggerMisfired` — the one trigger callback with no context to carry it, because a
+misfire is noticed rather than executed.
+
+```diff
+- public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
++ public ValueTask SchedulerStarted(IScheduler scheduler, CancellationToken cancellationToken = default)
+  {
+-     logger.LogInformation("Scheduler started");
++     logger.LogInformation("Scheduler {SchedulerName} started", scheduler.SchedulerName);
+      return default;
+  }
+```
+
+It is the `IScheduler` rather than a name or an identity record, because a listener that knows *which*
+scheduler usually wants to *act* on it — pause the trigger it was just told about, read `Status`. Identity
+is `SchedulerName` and `SchedulerInstanceId` on the same object.
+
+The instance handed over is the one `ISchedulerFactory.GetScheduler()` returns, and the very one
+`IJobExecutionContext.Scheduler` carries, so those two compare by reference. An `IScheduler` injected from
+the container does not: that is a proxy that resolves the scheduler on first use, so compare a
+`SchedulerName` there rather than the objects.
+
+#### `SchedulerError` says what the error was about
+
+`SchedulerError` took a message and an exception, which said what happened but never what it happened to.
+Most of the places that raise it know: a job that threw is reported from its execution context, a job that
+could not be built from the bundle that was fired. Those facts now travel in a `SchedulerErrorContext`:
+
+```diff
+- ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default);
++ ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default);
+```
+
+```csharp
+public sealed record SchedulerErrorContext
+{
+    public required string Message { get; init; }
+    public required SchedulerException Exception { get; init; }
+    public TriggerKey? TriggerKey { get; init; }
+    public JobKey? JobKey { get; init; }
+    public string? FireInstanceId { get; init; }
+}
+```
+
+`Message` and `Exception` are the two old parameters, so a listener that only logged needs one rename:
+
+```diff
+- public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
++ public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default)
+  {
+-     logger.LogError(exception, "{Message}", message);
++     logger.LogError(errorContext.Exception, "{Message}", errorContext.Message);
+      return default;
+  }
+```
+
+The three keys are nullable because some errors genuinely have no subject: a scan for the next trigger to
+fire that never reached a trigger, a job store retrying a failed connection, a schedule file that names
+many jobs. Read a null as "the scheduler could not say", not as "this concerns no trigger". Where the
+scheduler does know — every failure inside a firing, and a misfire notification that a listener broke —
+all three are filled in, which is what discussion #3211 asked for: the trigger behind a `SchedulerError`.
+
+`ISchedulerSignaler.NotifySchedulerListenersError` takes the record for the same reason, so a job store of
+your own can report the trigger it failed for:
+
+```diff
+- ValueTask NotifySchedulerListenersError(string message, SchedulerException exception, CancellationToken cancellationToken = default);
++ ValueTask NotifySchedulerListenersError(SchedulerErrorContext errorContext, CancellationToken cancellationToken = default);
+```
+
+#### The compiler will not point at every callback you have to change
+
+Every member of these interfaces has a default implementation, which is what lets a listener implement only
+the notifications it cares about — and it is also why a listener that keeps an old signature still compiles.
+It simply stops being an implementation of anything: the default runs instead, and the method becomes dead
+code that is never called.
+
+So the build will not fail. Search your listeners for the twenty-four names in the table below rather than
+waiting to be told, and note that `#pragma`-free hints do exist: a callback that no longer overrides
+anything and does not touch instance state trips CA1822 ("can be marked as static"), and an
+`<inheritdoc />` on it trips MA0196. Both fired on Quartz's own listeners while this change was made.
+
+#### Every signature that changed
+
+| 3.x | 4.x |
+|---|---|
+| `ISchedulerListener.JobScheduled(ITrigger, ct)` | `JobScheduled(IScheduler, ITrigger, ct)` |
+| `ISchedulerListener.JobUnscheduled(TriggerKey, ct)` | `JobUnscheduled(IScheduler, TriggerKey, ct)` |
+| `ISchedulerListener.TriggerFinalized(ITrigger, ct)` | `TriggerFinalized(IScheduler, ITrigger, ct)` |
+| `ISchedulerListener.TriggerPaused(TriggerKey, ct)` | `TriggerPaused(IScheduler, TriggerKey, ct)` |
+| `ISchedulerListener.TriggersPaused(string?, ct)` | `TriggersPaused(IScheduler, string?, ct)` |
+| `ISchedulerListener.TriggerResumed(TriggerKey, ct)` | `TriggerResumed(IScheduler, TriggerKey, ct)` |
+| `ISchedulerListener.TriggersResumed(string?, ct)` | `TriggersResumed(IScheduler, string?, ct)` |
+| `ISchedulerListener.TriggerInError(TriggerKey, ct)` | `TriggerInError(IScheduler, TriggerKey, ct)` |
+| `ISchedulerListener.TriggersInError(JobKey, ct)` | `TriggersInError(IScheduler, JobKey, ct)` |
+| `ISchedulerListener.JobAdded(IJobDetail, ct)` | `JobAdded(IScheduler, IJobDetail, ct)` |
+| `ISchedulerListener.JobDeleted(JobKey, ct)` | `JobDeleted(IScheduler, JobKey, ct)` |
+| `ISchedulerListener.JobPaused(JobKey, ct)` | `JobPaused(IScheduler, JobKey, ct)` |
+| `ISchedulerListener.JobsPaused(string?, ct)` | `JobsPaused(IScheduler, string?, ct)` |
+| `ISchedulerListener.JobResumed(JobKey, ct)` | `JobResumed(IScheduler, JobKey, ct)` |
+| `ISchedulerListener.JobsResumed(string?, ct)` | `JobsResumed(IScheduler, string?, ct)` |
+| `ISchedulerListener.JobInterrupted(JobKey, ct)` | `JobInterrupted(IScheduler, JobKey, ct)` |
+| `ISchedulerListener.SchedulerError(string, SchedulerException, ct)` | `SchedulerError(IScheduler, SchedulerErrorContext, ct)` |
+| `ISchedulerListener.SchedulerStarting(ct)` | `SchedulerStarting(IScheduler, ct)` |
+| `ISchedulerListener.SchedulerStarted(ct)` | `SchedulerStarted(IScheduler, ct)` |
+| `ISchedulerListener.SchedulerInStandbyMode(ct)` | `SchedulerInStandbyMode(IScheduler, ct)` |
+| `ISchedulerListener.SchedulerShuttingDown(ct)` | `SchedulerShuttingDown(IScheduler, ct)` |
+| `ISchedulerListener.SchedulerShutdown(ct)` | `SchedulerShutdown(IScheduler, ct)` |
+| `ISchedulerListener.SchedulingDataCleared(ct)` | `SchedulingDataCleared(IScheduler, ct)` |
+| `ITriggerListener.TriggerMisfired(ITrigger, ct)` | `TriggerMisfired(IScheduler, ITrigger, ct)` |
+
+`BroadcastSchedulerListener` and `BroadcastTriggerListener` forward the scheduler they were handed, so a
+listener behind one is told the same thing it would have been told directly.
+
+`IJobListener`'s members and `ITriggerListener`'s other three are unchanged: they all receive an
+`IJobExecutionContext`, which is how they reach the scheduler already.
+
 ### The three `*Support` base classes are gone
 
 `JobListenerSupport`, `TriggerListenerSupport` and `SchedulerListenerSupport` existed so that a listener could
@@ -3050,8 +3177,8 @@ A.CallTo(() => listener.Name).Returns("myListener");
 ```diff
 - ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default);
 - ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default);
-+ ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default);
-+ ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default);
++ ValueTask JobsPaused(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default);
++ ValueTask JobsResumed(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default);
 ```
 
 Null means every group, matching `TriggersPaused` and `TriggersResumed`, which were already nullable. The
@@ -3069,8 +3196,11 @@ unscheduled there is no trigger left to hand out.
 + ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default);
 
 - ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default);
-+ ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default);
++ ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default);
 ```
+
+`SchedulerError`'s two parameters became one record on the way — see [Listeners are told which scheduler is
+calling](#listeners-are-told-which-scheduler-is-calling).
 
 ### Instantiation failures name the trigger
 
@@ -3079,15 +3209,16 @@ reason — the trigger has already fired, but there is no `IJobExecutionContext`
 `IJobListener` callback can be raised. `SchedulerError` is the only notification, and it used to carry the job
 key as interpolated message text and the trigger nowhere at all.
 
-It now receives a `JobInstantiationException`:
+It now receives a `JobInstantiationException`, and the `SchedulerErrorContext` around it names the same
+firing without any unwrapping:
 
 ```csharp
-public override ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
+public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default)
 {
-    if (exception is JobInstantiationException failure)
+    if (errorContext.Exception is JobInstantiationException failure)
     {
         logger.LogError(failure, "Job {Job} could not be built for trigger {Trigger}, fire {FireInstanceId}",
-            failure.JobDetail.Key, failure.Trigger.Key, failure.FireInstanceId);
+            errorContext.JobKey, errorContext.TriggerKey, errorContext.FireInstanceId);
     }
 
     return default;
@@ -3114,8 +3245,8 @@ log — and two of the ADO store's transitions, a job type that will not load wh
 cannot be read back in `TriggersFired`, did not reach the scheduler at all.
 
 ```csharp
-ValueTask TriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
-ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+ValueTask TriggerInError(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+ValueTask TriggersInError(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
 ```
 
 Following the singular/plural pair `ISchedulerListener` already has for pause and resume. Both are
@@ -3246,6 +3377,7 @@ already have them.
 * **`TriggerState.Executing`** — tell whether a trigger's job is running, across the whole cluster (see [Executing is a trigger state](#executing-is-a-trigger-state))
 * **`JobInstantiationException`** — a job that could not be built names the trigger, the job and the fire instance instead of only interpolating the job key into a message (see [Instantiation failures name the trigger](#instantiation-failures-name-the-trigger))
 * **`ISchedulerListener.TriggerInError` / `TriggersInError`** — observe a trigger being moved to `TriggerState.Error`, including two ADO store transitions that reached nothing at all before (see [Triggers entering the error state are reported](#triggers-entering-the-error-state-are-reported))
+* **Every listener callback names its scheduler** — one listener can serve several schedulers in one host and still say which of them paused a trigger or failed, and `SchedulerError` carries the trigger, job and firing it was raised for (see [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling))
 * **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.Configure(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
 * **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
 * **An `IJobDetail` of your own** — the interface no longer declares a member only Quartz can implement, so an application can supply its own job detail type and have `RAMJobStore` hand it back rather than quietly swapping it for Quartz's (see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own))
@@ -6960,9 +7092,11 @@ moved there too, and `Quartz.Core` is now internal from top to bottom: nothing i
 ```diff
 - using Quartz.Core;
 -
-  public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken ct = default)
+- public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken ct = default)
++ public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext error, CancellationToken ct = default)
   {
-      if (cause is JobInstantiationException failure) { … }
+-     if (cause is JobInstantiationException failure) { … }
++     if (error.Exception is JobInstantiationException failure) { … }
       return default;
   }
 ```

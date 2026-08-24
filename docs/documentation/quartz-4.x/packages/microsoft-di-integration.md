@@ -131,18 +131,19 @@ called.
 Jobs that are not registered — those named by an XML or JSON schedule, or built by a job factory of
 your own — can still fail that way. If you need to react to such a failure at fire time rather than
 prevent it — to fail whatever scheduled the work, for instance — `ISchedulerListener.SchedulerError`
-receives a `JobInstantiationException` naming the trigger, the job and the fire instance:
+receives a `SchedulerErrorContext` naming the trigger, the job and the fire instance, wrapped around a
+`JobInstantiationException` that carries the same three:
 
 <!-- snippet: sample_di_instantiation_failure_listener -->
 ```csharp
 public sealed class InstantiationFailureListener(ILogger<InstantiationFailureListener> logger) : ISchedulerListener
 {
-    public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
+    public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default)
     {
-        if (exception is JobInstantiationException failure)
+        if (errorContext.Exception is JobInstantiationException failure)
         {
-            logger.LogError(failure, "Job {Job} could not be built for trigger {Trigger}, fire {FireInstanceId}",
-                failure.JobDetail.Key, failure.Trigger.Key, failure.FireInstanceId);
+            logger.LogError(failure, "Job {Job} could not be built for trigger {Trigger}, fire {FireInstanceId}, on scheduler {SchedulerName}",
+                errorContext.JobKey, errorContext.TriggerKey, errorContext.FireInstanceId, scheduler.SchedulerName);
         }
 
         return default;
