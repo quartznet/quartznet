@@ -63,13 +63,20 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private bool isInitialized;
     private int guardCountDropped;
 
-    protected TaskSchedulingThreadPool() : this(ThreadPoolOptions.DefaultMaxConcurrency)
+    /// <param name="logger">
+    /// Where the pool reports what it is doing. A pool the container builds is handed the application's
+    /// logger; one constructed by hand — <c>UseThreadPool(instance)</c> — is handed nothing and reads
+    /// <see cref="LogProvider" />, as every pool did before.
+    /// </param>
+    protected TaskSchedulingThreadPool(ILogger<TaskSchedulingThreadPool>? logger = null)
+        : this(ThreadPoolOptions.DefaultMaxConcurrency, logger)
     {
     }
 
-    protected TaskSchedulingThreadPool(int maxConcurrency)
+    /// <inheritdoc cref="TaskSchedulingThreadPool(ILogger{TaskSchedulingThreadPool})" />
+    protected TaskSchedulingThreadPool(int maxConcurrency, ILogger<TaskSchedulingThreadPool>? logger = null)
     {
-        logger = LogProvider.CreateLogger<TaskSchedulingThreadPool>();
+        this.logger = logger ?? LogProvider.CreateLogger<TaskSchedulingThreadPool>();
         MaxConcurrency = maxConcurrency;
     }
 

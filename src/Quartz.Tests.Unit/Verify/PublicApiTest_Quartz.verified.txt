@@ -3082,7 +3082,7 @@ namespace Quartz.Impl
 {
     public sealed class DefaultThreadPool : Quartz.Impl.TaskSchedulingThreadPool
     {
-        public DefaultThreadPool() { }
+        public DefaultThreadPool(Microsoft.Extensions.Logging.ILogger<Quartz.Impl.TaskSchedulingThreadPool>? logger = null) { }
         protected override System.Threading.Tasks.TaskScheduler GetDefaultScheduler() { }
     }
     public class DelegatingJobStore : Quartz.Extensibility.IJobStore
@@ -3215,7 +3215,7 @@ namespace Quartz.Impl
     public abstract class HostNameBasedIdGenerator : Quartz.Extensibility.IInstanceIdGenerator
     {
         protected const int IdMaxLength = 50;
-        protected HostNameBasedIdGenerator() { }
+        protected HostNameBasedIdGenerator(Microsoft.Extensions.Logging.ILogger<Quartz.Impl.HostNameBasedIdGenerator>? logger = null) { }
         public abstract System.Threading.Tasks.ValueTask<string> GenerateInstanceId(System.Threading.CancellationToken cancellationToken = default);
         protected virtual System.Threading.Tasks.ValueTask<System.Net.IPHostEntry> GetHostAddress(System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask<string> GetHostName(int maxLength, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3245,7 +3245,7 @@ namespace Quartz.Impl
     }
     public class MicrosoftDependencyInjectionJobFactory : Quartz.Impl.PropertySettingJobFactory
     {
-        public MicrosoftDependencyInjectionJobFactory(System.IServiceProvider serviceProvider, Microsoft.Extensions.Options.IOptions<Quartz.JobFactoryOptions>? options = null) { }
+        public MicrosoftDependencyInjectionJobFactory(System.IServiceProvider serviceProvider, Microsoft.Extensions.Options.IOptions<Quartz.JobFactoryOptions>? options = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) { }
         protected virtual void ConfigureScope(Microsoft.Extensions.DependencyInjection.IServiceScope scope, Quartz.Extensibility.TriggerFiredBundle bundle, Quartz.IScheduler scheduler) { }
         protected override System.Threading.Tasks.ValueTask<Quartz.Extensibility.JobScope> CreateJobInstance(Quartz.Extensibility.TriggerFiredBundle bundle, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public override System.Threading.Tasks.ValueTask ReturnJob(Quartz.Extensibility.JobScope scope, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3258,7 +3258,7 @@ namespace Quartz.Impl
     }
     public class PropertySettingJobFactory : Quartz.Impl.SimpleJobFactory
     {
-        public PropertySettingJobFactory() { }
+        public PropertySettingJobFactory(Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) { }
         public virtual Quartz.Impl.PropertyMismatchBehavior PropertyMismatchBehavior { get; set; }
         protected virtual Quartz.JobDataMap BuildJobDataMap(Quartz.Extensibility.TriggerFiredBundle bundle, Quartz.IScheduler scheduler) { }
         protected virtual object? ConvertValueIfNecessary(System.Type requiredType, object? newValue) { }
@@ -3343,7 +3343,7 @@ namespace Quartz.Impl
     }
     public class SimpleJobFactory : Quartz.Extensibility.IJobFactory
     {
-        public SimpleJobFactory() { }
+        public SimpleJobFactory(Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.Extensibility.JobScope> CreateJob(Quartz.Extensibility.TriggerFiredBundle bundle, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         protected Quartz.IJob InstantiateJobCore(Quartz.Extensibility.TriggerFiredBundle bundle) { }
         public virtual System.Threading.Tasks.ValueTask ReturnJob(Quartz.Extensibility.JobScope scope, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3362,8 +3362,8 @@ namespace Quartz.Impl
     }
     public abstract class TaskSchedulingThreadPool : Quartz.Extensibility.IThreadPool
     {
-        protected TaskSchedulingThreadPool() { }
-        protected TaskSchedulingThreadPool(int maxConcurrency) { }
+        protected TaskSchedulingThreadPool(Microsoft.Extensions.Logging.ILogger<Quartz.Impl.TaskSchedulingThreadPool>? logger = null) { }
+        protected TaskSchedulingThreadPool(int maxConcurrency, Microsoft.Extensions.Logging.ILogger<Quartz.Impl.TaskSchedulingThreadPool>? logger = null) { }
         public int MaxConcurrency { get; protected set; }
         public virtual int PoolSize { get; }
         public System.Threading.Tasks.TaskScheduler Scheduler { get; protected set; }
@@ -3376,7 +3376,7 @@ namespace Quartz.Impl
     }
     public sealed class ZeroSizeThreadPool : Quartz.Extensibility.IThreadPool
     {
-        public ZeroSizeThreadPool() { }
+        public ZeroSizeThreadPool(Microsoft.Extensions.Logging.ILogger<Quartz.Impl.ZeroSizeThreadPool>? logger = null) { }
         public int PoolSize { get; }
         public System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default) { }

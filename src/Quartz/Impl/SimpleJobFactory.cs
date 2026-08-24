@@ -39,9 +39,16 @@ public class SimpleJobFactory : IJobFactory
 {
     private readonly ILogger<SimpleJobFactory> logger;
 
-    public SimpleJobFactory()
+    /// <param name="loggerFactory">
+    /// Where this factory and its derived types create their loggers. A factory the container builds is
+    /// handed the application's; one constructed by hand — <c>UseJobFactory(instance)</c> — is handed
+    /// nothing and reads <see cref="LogProvider" />, as before. A factory rather than a logger, because
+    /// <see cref="PropertySettingJobFactory" /> logs under its own category and has to be able to pass
+    /// the same source down.
+    /// </param>
+    public SimpleJobFactory(ILoggerFactory? loggerFactory = null)
     {
-        logger = LogProvider.CreateLogger<SimpleJobFactory>();
+        logger = loggerFactory?.CreateLogger<SimpleJobFactory>() ?? LogProvider.CreateLogger<SimpleJobFactory>();
     }
 
     /// <summary>

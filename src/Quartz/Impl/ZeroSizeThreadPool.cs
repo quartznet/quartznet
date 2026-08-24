@@ -45,16 +45,20 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// <summary>
     /// Initializes a new instance of the <see cref="ZeroSizeThreadPool"/> class.
     /// </summary>
-    public ZeroSizeThreadPool()
+    /// <param name="logger">
+    /// Where the pool reports the calls it refuses. Filled in by the container when it builds the pool;
+    /// a pool constructed by hand is handed nothing and reads <see cref="LogProvider" />, as before.
+    /// </param>
+    public ZeroSizeThreadPool(ILogger<ZeroSizeThreadPool>? logger = null)
     {
-        logger = LogProvider.CreateLogger<ZeroSizeThreadPool>();
+        this.logger = logger ?? LogProvider.CreateLogger<ZeroSizeThreadPool>();
     }
 
     /// <summary>
     /// Gets the log.
     /// </summary>
     /// <value>The log.</value>
-    private ILogger logger { get; }
+    private ILogger<ZeroSizeThreadPool> logger { get; }
 
     /// <summary>
     /// Gets the size of the pool.

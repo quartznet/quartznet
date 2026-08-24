@@ -54,9 +54,11 @@ public class PropertySettingJobFactory : SimpleJobFactory
 {
     private readonly ILogger<PropertySettingJobFactory> logger;
 
-    public PropertySettingJobFactory()
+    /// <inheritdoc cref="SimpleJobFactory(ILoggerFactory)" />
+    public PropertySettingJobFactory(ILoggerFactory? loggerFactory = null) : base(loggerFactory)
     {
-        logger = LogProvider.CreateLogger<PropertySettingJobFactory>();
+        logger = loggerFactory?.CreateLogger<PropertySettingJobFactory>()
+            ?? LogProvider.CreateLogger<PropertySettingJobFactory>();
     }
 
     /// <summary>

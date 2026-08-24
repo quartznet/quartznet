@@ -78,7 +78,17 @@ internal sealed class SimpleTypeLoader : ITypeLoader
         ", Quartz.Serialization.SystemTextJson",
     ];
 
-    private readonly ILogger<SimpleTypeLoader> logger = LogProvider.CreateLogger<SimpleTypeLoader>();
+    private readonly ILogger<SimpleTypeLoader> logger;
+
+    /// <param name="logger">
+    /// Where a legacy type name that had to be rewritten is reported. The container fills this in; a
+    /// loader constructed by hand — every plugin that builds its own — reads
+    /// <see cref="LogProvider" />, as before.
+    /// </param>
+    public SimpleTypeLoader(ILogger<SimpleTypeLoader>? logger = null)
+    {
+        this.logger = logger ?? LogProvider.CreateLogger<SimpleTypeLoader>();
+    }
 
     /// <inheritdoc />
     public Type? LoadType(string name)
