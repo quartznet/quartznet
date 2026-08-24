@@ -50,7 +50,7 @@ public sealed class SchedulerPluginKeyingTest
 
         await CreateSchedulers(provider, "acme");
 
-        IReadOnlyList<(RecordingPlugin Plugin, string Scheduler)> initializations = log.Initializations;
+        IReadOnlyList<(RecordingPlugin Plugin, string Scheduler, string Name)> initializations = log.Initializations;
 
         initializations.Should().HaveCount(2, "each scheduler runs the plugin its own properties named");
 
@@ -121,13 +121,42 @@ public sealed class SchedulerPluginKeyingTest
 
         await CreateSchedulers(provider, "acme", "initech");
 
-        IReadOnlyList<(RecordingPlugin Plugin, string Scheduler)> initializations = log.Initializations;
+        IReadOnlyList<(RecordingPlugin Plugin, string Scheduler, string Name)> initializations = log.Initializations;
 
         initializations.Select(x => x.Plugin.Tenant).Should().BeEquivalentTo(["acme", "initech"],
             "a type nobody registered was already built once per scheduler from that scheduler's keys, "
             + "and keying the probe must not have cost that");
 
         initializations[0].Plugin.Should().NotBeSameAs(initializations[1].Plugin);
+    }
+
+    [Test]
+    public async Task APluginAddedToEverySchedulerIsOneInstancePerScheduler()
+    {
+        PluginLog log = new();
+
+        ServiceCollection services = new();
+        services.AddSingleton(log);
+
+        services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "shared"));
+        services.AddQuartz("acme");
+        services.ConfigureAllQuartzSchedulers(q => q.AddPlugin<RecordingPlugin>("recording"));
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        await CreateSchedulers(provider, "acme");
+
+        IReadOnlyList<(RecordingPlugin Plugin, string Scheduler, string Name)> initializations = log.Initializations;
+
+        initializations.Select(x => x.Scheduler).Should().BeEquivalentTo(["shared", "acme"],
+            "container-wide configuration reaches the default scheduler and the named ones alike");
+
+        initializations.Select(x => x.Name).Should().AllBe("recording",
+            "the plugin is named where it is added, and each scheduler adds it under that name");
+
+        initializations[0].Plugin.Should().NotBeSameAs(initializations[1].Plugin,
+            "a plugin is told which scheduler it extends when it is initialized, so one instance shared "
+            + "between two schedulers has the second initialization overwrite the first");
     }
 
     /// <summary>
@@ -157,9 +186,9 @@ public sealed class SchedulerPluginKeyingTest
 
     private sealed class PluginLog
     {
-        private readonly List<(RecordingPlugin Plugin, string Scheduler)> initializations = [];
+        private readonly List<(RecordingPlugin Plugin, string Scheduler, string Name)> initializations = [];
 
-        public IReadOnlyList<(RecordingPlugin Plugin, string Scheduler)> Initializations
+        public IReadOnlyList<(RecordingPlugin Plugin, string Scheduler, string Name)> Initializations
         {
             get
             {
@@ -170,11 +199,11 @@ public sealed class SchedulerPluginKeyingTest
             }
         }
 
-        public void Record(RecordingPlugin plugin, string scheduler)
+        public void Record(RecordingPlugin plugin, string scheduler, string name)
         {
             lock (initializations)
             {
-                initializations.Add((plugin, scheduler));
+                initializations.Add((plugin, scheduler, name));
             }
         }
     }
@@ -192,7 +221,7 @@ public sealed class SchedulerPluginKeyingTest
 
         public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
         {
-            log.Record(this, scheduler.SchedulerName);
+            log.Record(this, scheduler.SchedulerName, pluginName);
             return default;
         }
 

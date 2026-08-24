@@ -1566,6 +1566,47 @@ describes, is unchanged.
 The six phases that decide which of a scheduler's descriptions wins — configuration is last-wins,
 registration is first-wins — are now documented on `AddQuartz` itself rather than in comments inside it.
 
+## Every scheduler in the container can be configured at once
+
+`ConfigureAllQuartzSchedulers(Action<IQuartzBuilder>)` is new. It is the options pattern's `ConfigureAll`,
+for schedulers: the delegate is applied to every scheduler `AddQuartz()`, `AddQuartz(name, …)` or
+`AddQuartzSchedulers(…)` registers in the container.
+
+```csharp
+services.AddQuartz();
+services.AddQuartz("acme", q => q.UseInMemoryStore());
+services.AddQuartz("initech", q => q.UseInMemoryStore());
+
+// Both named schedulers and the default one get their own instance of each.
+services.ConfigureAllQuartzSchedulers(q =>
+{
+    q.AddPlugin<AuditPlugin>("audit");
+    q.AddJobListener<TenantMetricsListener>();
+});
+```
+
+**The order of the calls does not matter.** Schedulers already registered are configured where this is
+called; schedulers registered afterwards are configured by their own `AddQuartz`. That is the point: a
+library that adds something to every scheduler cannot know whether the application registers its
+schedulers before or after calling it.
+
+The delegate is handed a builder *per scheduler*, so everything it registers lands under that scheduler's
+own service key — exactly as if it had been written inside that scheduler's `AddQuartz(name, q => …)`
+callback. A plugin or listener added this way is therefore **one instance per scheduler**, each
+initialized with the name of the scheduler it belongs to, rather than one instance shared between them.
+
+It runs after each scheduler's own configuration callback, which is what makes the order immaterial. The
+usual precedence follows: registration is first-wins, so a job store or thread pool a scheduler chose for
+itself is not replaced by one chosen here; options are last-wins, so a value set here overrides the same
+option set on one scheduler, exactly as `ConfigureAll<TOptions>` overrides an earlier named `Configure`.
+
+Remote schedulers registered with `AddQuartzHttpClient` are not built by a builder and are skipped.
+Calling it when no scheduler is registered at all is not an error.
+
+`AddQuartzDashboard()` is its first caller: it installs its live-events and history plugins this way, so
+a scheduler registered with `AddQuartz("acme", …)` finally has a populated live view and execution
+history rather than two silently empty pages.
+
 ## `IScheduler` is a service, keyed by the scheduler's name
 
 `AddQuartz()` now registers `IScheduler` as well as `ISchedulerFactory`. The default scheduler is

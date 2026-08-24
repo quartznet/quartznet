@@ -195,6 +195,71 @@ public static partial class QuartzServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Configures every Quartz scheduler in the container, whenever it was registered.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the options pattern's <c>ConfigureAll</c>, for schedulers. <paramref name="configure"/> is
+    /// applied to every scheduler <c>AddQuartz()</c>, <c>AddQuartz(name, …)</c> or
+    /// <c>AddQuartzSchedulers(…)</c> registers in this container: the ones already registered when this
+    /// is called, and the ones registered after it. <strong>The order of the calls does not matter</strong>
+    /// — which is the point, since a package that adds something to every scheduler cannot know whether
+    /// the application registers its schedulers before or after calling it.
+    /// </para>
+    /// <para>
+    /// The delegate is given a builder <em>per scheduler</em>, so what it registers lands under that
+    /// scheduler's own service key, exactly as if it had been written inside that scheduler's
+    /// <c>AddQuartz(name, q =&gt; …)</c> callback. A plugin or listener added here is therefore one
+    /// instance per scheduler, each initialized with the name of the scheduler it belongs to — not one
+    /// instance shared between them, which would leave each scheduler but the last with a component
+    /// pointing at somebody else's.
+    /// </para>
+    /// <para>
+    /// It runs after each scheduler's own configuration callback, which is what makes the order of the two
+    /// calls immaterial: a scheduler registered later is configured then, and one registered earlier is
+    /// configured here, and both are after its own callback either way. The usual precedence follows —
+    /// registration is first-wins, so a component a scheduler chose for itself is not replaced by one
+    /// chosen here; options are last-wins, so a value set here overrides the same option set on one
+    /// scheduler, exactly as <c>ConfigureAll&lt;TOptions&gt;</c> overrides an earlier named
+    /// <c>Configure</c>.
+    /// </para>
+    /// <para>
+    /// Remote schedulers registered with <c>AddQuartzHttpClient</c> are not built by a builder and are
+    /// skipped. Calling this when no scheduler is registered at all is not an error: the delegate simply
+    /// applies to nothing.
+    /// </para>
+    /// </remarks>
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="configure">Applied to every scheduler in the container.</param>
+    public static IServiceCollection ConfigureAllQuartzSchedulers(
+        this IServiceCollection services,
+        Action<IQuartzBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        SchedulerNameRegistry registry = SchedulerNameRegistry.For(services);
+
+        // Recorded first, so that a scheduler this delegate goes on to register is covered by it too.
+        registry.AddConfigureAll(configure);
+
+        // The schedulers already registered: their AddQuartz call has been and gone, so nothing else
+        // will carry this to them.
+        if (registry.HasDefaultScheduler)
+        {
+            registry.Apply(configure, services, schedulerName: null);
+        }
+
+        // Indexed, because applying this to one scheduler may register another.
+        for (int i = 0; i < registry.Names.Count; i++)
+        {
+            registry.Apply(configure, services, registry.Names[i]);
+        }
+
+        return services;
+    }
+
+    /// <summary>
     /// Registers a named Quartz scheduler, so several independent schedulers can share a container.
     /// </summary>
     /// <remarks>
@@ -348,6 +413,7 @@ public static partial class QuartzServiceCollectionExtensions
     {
         services.AddOptions();
 
+        SchedulerNameRegistry registry = SchedulerNameRegistry.For(services);
         var optionsName = schedulerName ?? Options.DefaultName;
 
         // Phase 1.
@@ -369,6 +435,10 @@ public static partial class QuartzServiceCollectionExtensions
         // Phase 4.
         configure?.Invoke(new QuartzBuilder(services, schedulerName));
 
+        // Phase 4, for everyone: what ConfigureAllQuartzSchedulers said about every scheduler in the
+        // container, applied after this scheduler's own callback so that a scheduler's own word wins.
+        registry.ApplyConfigureAll(services, schedulerName);
+
         // Phase 5: registration is first-wins, so the implementations named by keys go in after it.
         QuartzPropertyBridge.ApplyRegistrations(services, properties, schedulerName);
 
@@ -377,7 +447,7 @@ public static partial class QuartzServiceCollectionExtensions
 
         if (schedulerName is not null)
         {
-            SchedulerNameRegistry.For(services).Add(schedulerName);
+            registry.Add(schedulerName);
         }
 
         return services;

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
+using Quartz.Extensibility;
 using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Extensions.DependencyInjection;
@@ -467,7 +468,153 @@ public sealed class MultipleSchedulerTests
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [Test]
+    public void ConfigureAllQuartzSchedulers_ShouldReachSchedulersRegisteredAfterIt()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        services.ConfigureAllQuartzSchedulers(q => q.AddJobListener<TestJobListenerA>());
+        services.AddQuartz();
+        services.AddQuartz("Named1", q => { });
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetServices<JobListenerRegistration>().Should().ContainSingle()
+            .Which.ListenerType.Should().Be(typeof(TestJobListenerA),
+                "a package that configures every scheduler cannot know whether the application "
+                + "registers its schedulers before or after it");
+        provider.GetKeyedServices<JobListenerRegistration>("Named1").Should().ContainSingle()
+            .Which.ListenerType.Should().Be(typeof(TestJobListenerA));
+    }
+
+    [Test]
+    public void ConfigureAllQuartzSchedulers_ShouldReachSchedulersRegisteredBeforeIt()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        services.AddQuartz();
+        services.AddQuartz("Named1", q => { });
+        services.ConfigureAllQuartzSchedulers(q => q.AddJobListener<TestJobListenerA>());
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetServices<JobListenerRegistration>().Should().ContainSingle()
+            .Which.ListenerType.Should().Be(typeof(TestJobListenerA),
+                "a scheduler whose AddQuartz call has already returned has nothing else to carry this to it");
+        provider.GetKeyedServices<JobListenerRegistration>("Named1").Should().ContainSingle()
+            .Which.ListenerType.Should().Be(typeof(TestJobListenerA));
+    }
+
+    [Test]
+    public void ConfigureAllQuartzSchedulers_ShouldReachEverySchedulerWhicheverSideItIsCalledFrom()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        services.AddQuartz("Before", q => { });
+        services.ConfigureAllQuartzSchedulers(q => q.AddSchedulerListener<TestSchedulerListenerA>());
+        services.AddQuartz("After", q => { });
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetKeyedServices<SchedulerListenerRegistration>("Before").Should().ContainSingle()
+            .Which.ListenerType.Should().Be(typeof(TestSchedulerListenerA));
+        provider.GetKeyedServices<SchedulerListenerRegistration>("After").Should().ContainSingle()
+            .Which.ListenerType.Should().Be(typeof(TestSchedulerListenerA),
+                "the order of the calls is exactly what this seam exists to stop mattering");
+    }
+
+    [Test]
+    public void ConfigureAllQuartzSchedulers_ShouldNotApplyTwiceWhenTheDefaultSchedulerIsAddedAgain()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        services.AddQuartz();
+        services.ConfigureAllQuartzSchedulers(q => q.AddJobListener<TestJobListenerA>());
+
+        // Registering the default scheduler is additive: this contributes more configuration to the
+        // scheduler that already exists rather than registering a second one.
+        services.AddQuartz(q => { });
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetServices<JobListenerRegistration>().Should().ContainSingle(
+            "a listener registration is not a TryAdd, so a delegate that reached this scheduler twice "
+            + "would attach the listener twice");
+    }
+
+    [Test]
+    public void ConfigureAllQuartzSchedulers_WithNoSchedulerRegistered_ShouldNotThrow()
+    {
+        var services = new ServiceCollection();
+
+        var act = () => services.ConfigureAllQuartzSchedulers(q => q.AddJobListener<TestJobListenerA>());
+
+        act.Should().NotThrow("configuring every scheduler when there are none applies to none");
+
+        using var provider = services.BuildServiceProvider();
+        provider.GetServices<JobListenerRegistration>().Should().BeEmpty();
+    }
+
+    [Test]
+    public void ConfigureAllQuartzSchedulers_ShouldSetAnOptionOverTheSchedulersOwn()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        services.ConfigureAllQuartzSchedulers(q => q.UseDefaultThreadPool(3));
+        services.AddQuartz("Named1", q => q.UseDefaultThreadPool(7));
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<ThreadPoolOptions>>().Get("Named1");
+
+        options.MaxConcurrency.Should().Be(3,
+            "container-wide configuration runs after the scheduler's own and options are last-wins, "
+            + "which is what ConfigureAll<TOptions> does over an earlier named Configure");
+    }
+
+    [Test]
+    public async Task ConfigureAllQuartzSchedulers_ShouldLoseToAComponentTheSchedulerChoseItself()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        var containerWide = new RecordingJobFactory();
+        var schedulersOwn = new RecordingJobFactory();
+
+        services.ConfigureAllQuartzSchedulers(q => q.UseJobFactory(containerWide));
+        services.AddQuartz("Named1", q => q.UseJobFactory(schedulersOwn));
+        services.AddQuartz("Named2", q => { });
+
+        await using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredKeyedService<IJobFactory>("Named1").Should().BeSameAs(schedulersOwn,
+            "registration is first-wins, so a component a scheduler chose for itself is not replaced "
+            + "by the container-wide default");
+        provider.GetRequiredKeyedService<IJobFactory>("Named2").Should().BeSameAs(containerWide,
+            "a scheduler that chose nothing gets what the container said for everyone");
+    }
+
     #region Test helpers
+
+    private sealed class RecordingJobFactory : IJobFactory
+    {
+        public ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException("this factory exists to be resolved, not to build jobs");
+        }
+
+        public ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default) => default;
+    }
 
     private sealed class TestJobA : IJob
     {
