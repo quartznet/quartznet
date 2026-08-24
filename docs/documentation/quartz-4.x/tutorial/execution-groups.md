@@ -30,6 +30,7 @@ node-scoped, which is what execution limits have always meant.
 
 Use `TriggerBuilder.WithExecutionGroup()`:
 
+<!-- snippet: sample_execution_groups_trigger -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("myTrigger")
@@ -38,12 +39,14 @@ ITrigger trigger = TriggerBuilder.Create()
     .WithCronSchedule("0 0 2 * * ?")
     .Build();
 ```
+<!-- endSnippet -->
 
 Triggers without an execution group (`null`) use the default behavior. It is expected that all triggers
 for a given job share the same execution group.
 
 A stored trigger can be moved between groups without rescheduling it:
 
+<!-- snippet: sample_execution_groups_update_trigger -->
 ```csharp
 await scheduler.UpdateTriggerDetails(
     trigger.Key,
@@ -54,6 +57,7 @@ await scheduler.UpdateTriggerDetails(
     trigger.Key,
     new TriggerDetailsUpdate().WithExecutionGroup(null));
 ```
+<!-- endSnippet -->
 
 The new group applies from the next acquisition cycle; a job already running keeps counting against the
 group it was acquired under.
@@ -98,6 +102,7 @@ Special values for the limit:
 
 ### Via dependency injection
 
+<!-- snippet: sample_execution_groups_dependency_injection -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -111,12 +116,14 @@ services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 `ForGroup`, `ForDefaultGroup` and `ForOtherGroups` all take an optional trailing
 `ExecutionLimitScope`, defaulting to `Node`.
 
 ### Via scheduler API at runtime
 
+<!-- snippet: sample_execution_groups_set_at_runtime -->
 ```csharp
 await scheduler.SetExecutionLimits(
     ExecutionLimitsBuilder.Create()
@@ -125,6 +132,7 @@ await scheduler.SetExecutionLimits(
         .ForOtherGroups(5)
         .Build());
 ```
+<!-- endSnippet -->
 
 `ExecutionLimitsBuilder` is mutable and `ExecutionLimits` — what `Build()` returns and what the scheduler
 reads — is not, so limits cannot change underneath the scheduler thread that is acquiring triggers with them.
@@ -135,6 +143,7 @@ Some schedules already partition their work by trigger group: a group per tenant
 Tagging every one of those triggers with an execution group of the same name would be a second copy of a
 fact the key already carries. `UseTriggerGroupWhenUnset()` says so once instead:
 
+<!-- snippet: sample_execution_groups_trigger_group_when_unset -->
 ```csharp
 await scheduler.SetExecutionLimits(
     ExecutionLimitsBuilder.Create()
@@ -143,6 +152,7 @@ await scheduler.SetExecutionLimits(
         .ForOtherGroups(2)         // every other tenant gets two
         .Build());
 ```
+<!-- endSnippet -->
 
 With the option on, a trigger that carries no execution group is limited as though its group were its own
 `TriggerKey.Group`. Three things are worth knowing:
@@ -166,6 +176,7 @@ Read one back with `TryGetLimit(group, out int? maxConcurrent)`, or enumerate `G
 group), `OtherGroups` (the catch-all) and `Named(name)` — so reading limits never involves sentinel
 strings, and its `Scope` says which scope the number is counted in:
 
+<!-- snippet: sample_execution_groups_read_limits -->
 ```csharp
 ExecutionLimits? limits = await scheduler.GetExecutionLimits();
 foreach (ExecutionGroupLimit limit in limits?.Groups ?? [])
@@ -178,12 +189,15 @@ foreach (ExecutionGroupLimit limit in limits?.Groups ?? [])
 
 limits?.TryGetLimit(ExecutionGroupScope.Named("batch-jobs"), out int? batchLimit);
 ```
+<!-- endSnippet -->
 
 Limits take effect on the next trigger acquisition cycle. Pass `null` to clear all limits:
 
+<!-- snippet: sample_execution_groups_clear_limits -->
 ```csharp
 await scheduler.SetExecutionLimits(null);
 ```
+<!-- endSnippet -->
 
 ### The `*` in configuration keys, and the other `*`
 
@@ -242,10 +256,12 @@ batch jobs. That is the right answer for hardware capacity and the wrong one for
 
 A cluster-scoped limit is one number for the whole cluster, and every node enforces the same one:
 
+<!-- snippet: sample_execution_groups_cluster_scope -->
 ```csharp
 q.UseExecutionLimits(limits => limits
     .ForGroup("tenant-acme", 8, ExecutionLimitScope.Cluster));
 ```
+<!-- endSnippet -->
 
 **Where the count comes from.** `QRTZ_FIRED_TRIGGERS` already is the cluster's reservation ledger — a
 row appears when any node acquires a trigger, becomes the running execution, and is deleted when the job
@@ -260,9 +276,15 @@ triggers *without* taking the cluster's `TRIGGER_ACCESS` lock (`AcquireTriggersW
 `MaxBatchSize` is `1`), so two nodes can read "2 of 3 in flight" in the same instant and each take one.
 
 > The ceiling holds within one acquisition round. Transient overshoot is bounded by the number of nodes
-> acquiring concurrently — at most `limit + (nodes − 1) × batchSize`, for as long as it takes the losers
-> to notice. Setting `AcquireTriggersWithinLock = true` makes it exact, at the cost of serializing
-> acquisition cluster-wide for *every* group rather than only the limited ones.
+> acquiring concurrently — at most `limit + (nodes − 1)`, for as long as it takes the losers to notice.
+> Setting `AcquireTriggersWithinLock = true` makes it exact, at the cost of serializing acquisition
+> cluster-wide for *every* group rather than only the limited ones.
+
+One trigger per node is the whole of the overshoot, because the lock-free path only exists at an
+effective batch of one: the store takes `TRIGGER_ACCESS` whenever it is asked for more than one trigger,
+and a round asks for `min(available threads, MaxBatchSize)`. Raising `MaxBatchSize` therefore does not
+widen the overshoot — it removes it, by taking the lock on every round that has threads to spare, which
+is the same trade `AcquireTriggersWithinLock` makes deliberately.
 
 That is a real improvement on `limit × nodes`, and it is what a tenant quota actually needs: "8,
 occasionally 9 for a moment" is fine, "8 became 24" is not. If you need exactness more than you need
@@ -309,8 +331,10 @@ than a container's. Two things came out of it:
   acquisition attempt's own candidate select, and 1,311 µs (± 34) on SQL Server against 2,992 µs (± 68).
   The two databases differ because their candidate selects do; the aggregate costs much the same on
   both, and much the same at a thousand rows as at ten — which is to say the round trip is the whole of
-  it. So the ceiling's price at `MaxBatchSize = 1` is *one extra round trip*, not one extra scan. At a
-  batch of five the same round trip is amortised over five triggers.
+  it. So the ceiling's price at `MaxBatchSize = 1` — the default, and the only setting at which the
+  ceiling is approximate at all — is *one extra round trip*, not one extra scan. Raising `MaxBatchSize`
+  amortises that round trip over the whole batch, and makes the ceiling exact into the bargain, since a
+  batched acquisition takes the cluster lock; what it costs instead is that lock's traffic.
 - **Above that the scan starts to show.** At ten thousand rows and sixty-four groups the aggregate took
   2,723 µs (± 116) on PostgreSQL and 7,821 µs (± 167) on SQL Server. `QRTZ_FIRED_TRIGGERS` holds one row
   per reservation or running execution, so ten thousand is past what a realistic cluster's thread pools
@@ -394,6 +418,7 @@ The Quartz Dashboard shows execution group information:
 
 ### Preventing batch jobs from starving interactive work
 
+<!-- snippet: sample_execution_groups_batch_versus_interactive -->
 ```csharp
 q.UseExecutionLimits(limits =>
 {
@@ -401,6 +426,7 @@ q.UseExecutionLimits(limits =>
     limits.ForOtherGroups(maxConcurrent: 10);      // everything else gets up to 10
 });
 ```
+<!-- endSnippet -->
 
 ### Dedicating a node to specific workloads
 
@@ -414,11 +440,13 @@ quartz.executionLimit.* = 0
 
 A tenant quota is a property of the tenant, not of the machine, so it is cluster-scoped:
 
+<!-- snippet: sample_execution_groups_tenant_quotas -->
 ```csharp
 limits.ForGroup("tenant-a", 5, ExecutionLimitScope.Cluster);
 limits.ForGroup("tenant-b", 5, ExecutionLimitScope.Cluster);
 limits.ForGroup("tenant-c", 5, ExecutionLimitScope.Cluster);
 ```
+<!-- endSnippet -->
 
 Node-scoped instead (`limits.ForGroup("tenant-a", 5)`) would give each tenant five threads *per node*,
 which on a three-node cluster is fifteen. See [Multi-tenancy](../multi-tenancy.md) for the rest of the
