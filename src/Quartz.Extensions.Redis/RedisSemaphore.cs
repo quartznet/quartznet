@@ -65,17 +65,12 @@ public sealed class RedisSemaphore : ISemaphore
 
     private readonly ResourceLock triggerLock = new();
     private readonly ResourceLock stateLock = new();
-    private readonly ILogger<RedisSemaphore> logger;
+    private ILogger<RedisSemaphore> logger = LogProvider.CreateLogger<RedisSemaphore>();
 
     private IConnectionMultiplexer? redis;
     private readonly SemaphoreSlim connectionLock = new(1, 1);
     private TimeSpan lockTimeToLive = TimeSpan.FromSeconds(30);
     private TimeSpan lockRetryInterval = TimeSpan.FromMilliseconds(100);
-
-    public RedisSemaphore()
-    {
-        logger = LogProvider.CreateLogger<RedisSemaphore>();
-    }
 
     /// <summary>
     /// Gets or sets the StackExchange.Redis configuration string.
@@ -141,6 +136,11 @@ public sealed class RedisSemaphore : ISemaphore
     public void Initialize(SemaphoreContext context)
     {
         SchedulerName = context.SchedulerName;
+
+        // Lock contention and expiry are what this handler has to say, and they are of no use to an
+        // application that has to set a static before it can hear them. Until the store calls this, the
+        // ambient factory still answers.
+        logger = context.LoggerFactory.CreateLogger<RedisSemaphore>();
     }
 
     /// <inheritdoc />
