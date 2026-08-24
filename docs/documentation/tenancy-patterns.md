@@ -488,8 +488,9 @@ whenever a node is down.
 4.x adds the real thing: `ForGroup("acme", 8, ExecutionLimitScope.Cluster)` is counted from
 `QRTZ_FIRED_TRIGGERS`, which is already the cluster's reservation ledger. Read what it promises before
 relying on it — the ceiling holds within one acquisition round and can transiently overshoot by
-`(nodes − 1) × batchSize` unless `AcquireTriggersWithinLock` is on, and it fails closed, so a node that
-cannot reach the store fires nothing rather than firing unmetered.
+`nodes − 1`, one trigger per node, because the lock-free acquisition path that allows the overshoot
+exists only when a round acquires a single trigger. It fails closed, so a node that cannot reach the
+store fires nothing rather than firing unmetered.
 
 **There is no rate limiting.** Execution limits cap *concurrency*, not throughput. "This tenant may
 run 100 jobs an hour" is not something Quartz.NET can express; build it in the job, or in the thing
