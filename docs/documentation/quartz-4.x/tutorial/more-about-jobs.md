@@ -215,7 +215,7 @@ q.AddTrigger<DumbJob>(t => t.ForJob(jobKey).UsingJobData(x => x.JobSays, "Good e
 ```
 <!-- endSnippet -->
 
-`AddTrigger<IJob>` is the untyped form — `IJob` has no properties to name — so name the job's own type
+`AddTrigger` without a type argument is the untyped form — there are no properties to name — so name the job's own type
 when you want typed trigger data.
 
 Triggers can also have JobDataMaps associated with them. This can be useful in the case where you have a Job that is stored in the scheduler

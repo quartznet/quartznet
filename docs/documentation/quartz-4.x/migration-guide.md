@@ -603,7 +603,7 @@ case the options callback used to be needed for:
 + services.AddQuartz(q =>
 + {
 +     q.AddJob<ExampleJob>(j => j.WithIdentity("job", "group"));
-+     q.AddTrigger<IJob>((provider, t) => t
++     q.AddTrigger((provider, t) => t
 +         .ForJob("job", "group")
 +         .WithCronSchedule(provider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule));
 + });
@@ -1561,20 +1561,16 @@ one taking a configurator, one taking a configurator and the `IServiceProvider`.
 |---|---|
 | `AddJob<T>(JobKey?, …)`, `AddJob(Type, JobKey?, …)` | `WithIdentity(jobKey)` inside the configurator |
 | `AddJob<T>()`, `AddJob<T>(JobKey)` with no configurator | `AddJob<T>(j => j.WithIdentity(…))` |
-| `AddTrigger(Action<ITriggerConfigurator<IJob>>)` and its `IServiceProvider` twin | `AddTrigger<IJob>(…)`, which is the same method said once |
 
 ```diff
   var jobKey = new JobKey("awesome job", "awesome group");
 - q.AddJob<ExampleJob>(jobKey, j => j.WithDescription("my awesome job"));
 + q.AddJob<ExampleJob>(j => j.WithIdentity(jobKey).WithDescription("my awesome job"));
-
-- q.AddTrigger(t => t.WithIdentity("Simple Trigger").ForJob(jobKey).StartNow());
-+ q.AddTrigger<IJob>(t => t.WithIdentity("Simple Trigger").ForJob(jobKey).StartNow());
 ```
 
-The job type on `AddTrigger<TJob>` is what lets the trigger's job data name the job's properties;
-`AddTrigger<IJob>` is the "this trigger's data names nothing" spelling, and it is what the removed
-overloads did.
+The job type on `AddTrigger<TJob>` is what lets the trigger's job data name the job's properties. A
+trigger that only points at its job with `ForJob` has nothing to name, and `AddTrigger` with no type
+argument is that call — the 3.x spelling, unchanged.
 
 The interface these methods extend is `IQuartzBuilder`, which is what 3.x called
 `IServiceCollectionQuartzConfigurator`. The `AddQuartz` overloads that handed the callback an
@@ -1591,7 +1587,7 @@ exists:
 - });
 + services.AddQuartz(q =>
 + {
-+     q.AddTrigger<IJob>((serviceProvider, t) => t
++     q.AddTrigger((serviceProvider, t) => t
 +         .WithIdentity("custom")
 +         .ForJob(jobKey)
 +         .WithCronSchedule(serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule));
@@ -7568,7 +7564,6 @@ Parameters and behavior are unchanged:
 | `HostnameInstanceIdGenerator` is `HostNameInstanceIdGenerator` | Casing matched to `HostNameBasedIdGenerator`. The type is internal; a `quartz.scheduler.instanceIdGenerator.type` still naming the old spelling resolves, with a warning |
 | `AddJob<T>` and `ScheduleJob<T>` register the job type | Scoped, with `TryAdd`, so an unresolvable job fails `ValidateOnBuild` instead of at fire time — see [`AddJob` registers the job with the container](#addjob-registers-the-job-with-the-container) |
 | The `JobKey`-taking `AddJob` overloads removed | Identity is set inside the configurator with `WithIdentity` — see [One shape per registration method](#one-shape-per-registration-method) |
-| The non-generic `AddTrigger` pair removed | `AddTrigger<IJob>(…)` is the same registration, said once |
 | `IServiceCollectionQuartzConfigurator` is `IQuartzBuilder` | And the `AddQuartz` overloads taking an `(configurator, IServiceProvider)` callback are gone; use the `(IServiceProvider, configurator)` shape of `AddJob` / `AddTrigger` / `ScheduleJob` |
 | DI `AddCalendar` takes `AddCalendarOptions` | The two adjacent bools are gone, and `calendarName` is `name` |
 | `AddPlugin` shapes aligned to the listener trio | The name is an optional trailing argument on all three — see [Plugins are registered like listeners](#plugins-are-registered-like-listeners) |

@@ -200,6 +200,31 @@ public static class QuartzBuilderExtensions
     }
 
     /// <summary>
+    /// Adds a trigger for a job added elsewhere, named by key.
+    /// </summary>
+    /// <remarks>
+    /// The job type on <see cref="AddTrigger{TJob}(IQuartzBuilder, Action{ITriggerConfigurator{TJob}})" />
+    /// is what lets a trigger's job data name the job's properties; a trigger that only points at a job
+    /// with <c>ForJob</c> has no use for it, and this is that call without the <c>&lt;IJob&gt;</c>.
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="configure">Configures the trigger, which must name its job with <c>ForJob</c>.</param>
+    public static IQuartzBuilder AddTrigger(
+        this IQuartzBuilder builder,
+        Action<ITriggerConfigurator<IJob>> configure)
+    {
+        return builder.AddTrigger<IJob>(configure);
+    }
+
+    /// <inheritdoc cref="AddTrigger(IQuartzBuilder, Action{ITriggerConfigurator{IJob}})" />
+    public static IQuartzBuilder AddTrigger(
+        this IQuartzBuilder builder,
+        Action<IServiceProvider, ITriggerConfigurator<IJob>> configure)
+    {
+        return builder.AddTrigger<IJob>(configure);
+    }
+
+    /// <summary>
     /// Adds a job together with the one trigger that fires it.
     /// </summary>
     /// <remarks>
