@@ -86,24 +86,31 @@ public sealed class HttpScheduler : IScheduler
     /// </remarks>
     public SchedulerStatus Status => GetSchedulerDetailsSync().Status;
 
-    public SchedulerContext Context
-    {
-        get
-        {
-            var dto = httpClient.Get<SchedulerContextDto>($"{SchedulerEndpointUrl()}/context", jsonSerializerOptions, CancellationToken.None)
-                .AsTask().GetAwaiter().GetResult();
+    /// <summary>
+    /// Not supported. The context belongs to the scheduler's own process: it is a live, writable
+    /// object there, and a snapshot fetched over HTTP would be neither.
+    /// </summary>
+    /// <exception cref="NotSupportedException">Always.</exception>
+    public SchedulerContext Context => throw NotSupportedRemotely(
+        nameof(Context),
+        "the context is a live object in the scheduler's own process, and a copy fetched over HTTP could not be written back");
 
-            return dto.AsContext();
-        }
-    }
+    /// <summary>
+    /// Not supported. Listeners run where the jobs run, which is the scheduler's process rather than
+    /// this one.
+    /// </summary>
+    /// <exception cref="NotSupportedException">Always.</exception>
+    public IListenerManager ListenerManager => throw NotSupportedRemotely(
+        nameof(ListenerManager),
+        "listeners run in the process the jobs run in, which is not this one");
 
-    public IListenerManager ListenerManager
+    /// <summary>
+    /// The one message every "a remote scheduler cannot do this" throw carries, so that all of them
+    /// name the member and say why.
+    /// </summary>
+    private static NotSupportedException NotSupportedRemotely(string member, string reason)
     {
-        get
-        {
-            Throw.SchedulerException("Operation not supported for remote schedulers.");
-            return null;
-        }
+        return new NotSupportedException($"{nameof(HttpScheduler)}.{member} is not supported: {reason}.");
     }
 
     public async ValueTask<SchedulerMetadata> GetMetadata(CancellationToken cancellationToken = default)
@@ -297,9 +304,13 @@ public sealed class HttpScheduler : IScheduler
         return result.FirstFireTimeUtc;
     }
 
+    /// <summary>
+    /// Not supported. The HTTP API has no endpoint for it, so there is nothing to call.
+    /// </summary>
+    /// <exception cref="NotSupportedException">Always.</exception>
     public ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
     {
-        throw new NotSupportedException("UpdateTriggerDetails is not yet supported via the HTTP API.");
+        throw NotSupportedRemotely(nameof(UpdateTriggerDetails), "the HTTP API has no endpoint for it");
     }
 
     public async ValueTask SetExecutionLimits(ExecutionLimits? limits, CancellationToken cancellationToken = default)

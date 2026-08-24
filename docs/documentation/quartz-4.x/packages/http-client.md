@@ -200,22 +200,30 @@ what keeps an older client working.
 
 ## What is not supported remotely
 
-| Member | Behaviour |
+All three throw `NotSupportedException`, with a message that names the member and says why.
+
+| Member | Why not |
 |---|---|
-| `ListenerManager` | throws `SchedulerException` — listeners run in the process that executes jobs |
-| `UpdateTriggerDetails` | throws `NotSupportedException` — not exposed by the API yet |
+| `Context` | the scheduler context is a live object in the scheduler's own process; a copy fetched over HTTP could not be written back |
+| `ListenerManager` | listeners run in the process that executes jobs |
+| `UpdateTriggerDetails` | the HTTP API has no endpoint for it |
 
 Listeners are the important one: a `TriggerListener` registered on a client would never see anything,
 because nothing fires here. Register listeners where the scheduler actually runs.
 
+`Context` is the one that changed shape in the 4.0 alpha series: it used to make a synchronous HTTP
+call from a property getter and hand back a detached copy of the remote context, which blocked the
+calling thread and silently discarded anything written to it. Read scheduler-wide state from the
+endpoint (`GET {apiPath}/schedulers/{name}/context`) if you need it.
+
 ## Blocking members
 
-`IScheduler` has four members that are properties rather than methods, and over HTTP each of them is a
-request:
+`IScheduler` has three members that are properties rather than methods, and over HTTP two of them are
+a request:
 
-`SchedulerInstanceId`, `Status` and `Context` all call the remote scheduler **synchronously**, blocking
-the calling thread for the round trip. `SchedulerName` is the only one that is free — the client already
-knows it.
+`SchedulerInstanceId` and `Status` call the remote scheduler **synchronously**, blocking the calling
+thread for the round trip. `SchedulerName` is the one that is free — the client already knows it.
+`Context` is not in this list because it does not reach the remote scheduler at all; see above.
 
 `Status` is one request for the whole lifecycle, where the `IsStarted` / `InStandbyMode` / `IsShutdown`
 it replaces were three requests to the same endpoint, each reading a different field of the same answer.

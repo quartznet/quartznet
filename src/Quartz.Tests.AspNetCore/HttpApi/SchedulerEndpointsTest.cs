@@ -93,7 +93,7 @@ public class SchedulerEndpointsTest : WebApiTest
     }
 
     [Test]
-    public void GetSchedulerContextShouldWork()
+    public async Task GetSchedulerContextShouldWork()
     {
         var testContext = new SchedulerContext
         {
@@ -103,8 +103,34 @@ public class SchedulerEndpointsTest : WebApiTest
 
         A.CallTo(() => FakeScheduler.Context).Returns(testContext);
 
-        var result = HttpScheduler.Context;
-        result.Should().BeEquivalentTo(testContext);
+        // HttpScheduler does not call this endpoint - a remote scheduler has no in-process context to
+        // hand out - so the reader is built here, off the same wire contract the endpoint writes
+        JsonSerializerOptions serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            .ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
+
+        using var httpClient = WebApplicationFactory.CreateClient();
+        var dto = await httpClient.Get<SchedulerContextDto>(
+            $"schedulers/{TestData.SchedulerName}/context",
+            serializerOptions,
+            CancellationToken.None);
+
+        dto.AsContext().Should().BeEquivalentTo(testContext);
+    }
+
+    /// <summary>
+    /// The two members a scheduler reached over HTTP cannot have: both are live in-process objects,
+    /// and a snapshot of either would be a lie a caller could write to.
+    /// </summary>
+    [Test]
+    public void ContextAndListenerManagerAreNotSupportedRemotely()
+    {
+        Action context = () => _ = HttpScheduler.Context;
+        context.Should().Throw<NotSupportedException>("the context lives in the scheduler's own process")
+            .WithMessage("*HttpScheduler.Context*");
+
+        Action listenerManager = () => _ = HttpScheduler.ListenerManager;
+        listenerManager.Should().Throw<NotSupportedException>("listeners run where the jobs run")
+            .WithMessage("*HttpScheduler.ListenerManager*");
     }
 
     [Test]
