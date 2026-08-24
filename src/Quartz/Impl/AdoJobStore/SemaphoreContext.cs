@@ -19,6 +19,9 @@
 
 #endregion
 
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
@@ -60,4 +63,16 @@ public sealed record SemaphoreContext
     /// a peer that stopped without releasing the row cannot make progress until the statement gives up.
     /// </remarks>
     public TimeSpan? CommandTimeout { get; init; }
+
+    /// <summary>
+    /// The factory the handler creates its logger from, defaulting to
+    /// <see cref="NullLoggerFactory.Instance" />.
+    /// </summary>
+    /// <remarks>
+    /// The job store passes the factory its container gave it, so lock contention, retries and the
+    /// handler's own failures reach an application that never set
+    /// <see cref="Quartz.Diagnostics.LogProvider" />. A handler initialized by hand is handed nothing
+    /// and logs nowhere.
+    /// </remarks>
+    public ILoggerFactory LoggerFactory { get; init; } = NullLoggerFactory.Instance;
 }

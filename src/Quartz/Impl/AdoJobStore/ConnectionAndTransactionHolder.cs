@@ -36,6 +36,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
 {
     private DateTimeOffset? sigChangeForTxCompletion;
 
+    private readonly ILogger<ConnectionAndTransactionHolder> logger;
     private readonly DbConnection connection;
     private DbTransaction? transaction;
     private readonly bool ownsResources;
@@ -95,15 +96,22 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
     /// The enlistment the connection was borrowed from, so its single-use claim can be returned to
     /// that exact entry when this unit of work is cleaned up.
     /// </param>
+    /// <param name="logger">
+    /// Where a connection or transaction that fails to close, dispose or roll back is reported. The job
+    /// store hands over the one its container gave it. A holder built by a caller outside this assembly
+    /// gets none and reads <see cref="LogProvider" />, which is what every holder used to do.
+    /// </param>
     internal ConnectionAndTransactionHolder(
         DbConnection connection,
         DbTransaction? transaction,
         bool ownsResources,
-        EnlistedConnection? borrowedFrom)
+        EnlistedConnection? borrowedFrom,
+        ILogger<ConnectionAndTransactionHolder>? logger = null)
     {
         this.connection = connection;
         this.transaction = transaction;
         this.ownsResources = ownsResources;
+        this.logger = logger ?? LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
         BorrowedFrom = borrowedFrom;
     }
 
@@ -195,9 +203,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
         }
         catch (Exception e)
         {
-            var log = LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
-
-            log.LogError(e,
+            logger.LogError(e,
                 "Unexpected exception closing Connection." +
                 "  This is often due to a Connection being returned after or during shutdown.");
         }
@@ -271,10 +277,9 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
     /// Logged rather than swallowed: the async <see cref="Close" /> path always reported its
     /// failures, and the two disposal paths differed from it in observability for no reason.
     /// </summary>
-    private static void LogDisposeFailure(Exception e)
+    private void LogDisposeFailure(Exception e)
     {
-        LogProvider.CreateLogger<ConnectionAndTransactionHolder>()
-            .LogDebug(e, "Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown.");
+        logger.LogDebug(e, "Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown.");
     }
 
     internal DateTimeOffset? SignalSchedulingChangeOnTxCompletion
@@ -317,8 +322,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
                 // Transaction lost its connection - nothing to rollback, the database
                 // will have already aborted it. This commonly happens with transient
                 // connectivity issues (see https://github.com/quartznet/quartznet/issues/2290)
-                var log = LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
-                log.LogDebug("Rollback skipped - transaction is no longer connected, database will have aborted it");
+                logger.LogDebug("Rollback skipped - transaction is no longer connected, database will have aborted it");
                 return;
             }
 
@@ -328,16 +332,15 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
             }
             catch (Exception e)
             {
-                var log = LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
                 if (transientError)
                 {
                     // original error was transient, ones we have in Azure, don't complain too much about it
                     // we will try again anyway
-                    log.LogDebug("Rollback failed due to transient error");
+                    logger.LogDebug("Rollback failed due to transient error");
                 }
                 else
                 {
-                    log.LogError(e, "Couldn't rollback ADO.NET connection. {ExceptionMessage}", e.Message);
+                    logger.LogError(e, "Couldn't rollback ADO.NET connection. {ExceptionMessage}", e.Message);
                 }
             }
         }

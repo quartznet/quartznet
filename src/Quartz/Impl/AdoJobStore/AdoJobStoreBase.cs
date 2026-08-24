@@ -72,7 +72,8 @@ public abstract class AdoJobStoreBase : IJobStore
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
         ISemaphore? lockHandler = null,
-        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null)
+        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null,
+        ILoggerFactory? loggerFactory = null)
     {
         schedSignaler = schedulerSignaler;
         ObjectSerializer = objectSerializer;
@@ -81,9 +82,19 @@ public abstract class AdoJobStoreBase : IJobStore
         InstanceName = schedulerOptions.Value.InstanceName;
         InstanceId = schedulerOptions.Value.InstanceId;
 
+        // The container has a logger factory and fills this in, which is what makes the store, its
+        // cluster manager, its misfire handler, its delegate and its lock handler log in an application
+        // that never touched LogProvider. A store built by hand is handed nothing and keeps reading the
+        // ambient factory, which is what it did before there was anything to inject.
+        LoggerFactory = loggerFactory ?? LogProviderLoggerFactory.Instance;
+
         // Created from the runtime type, so LocalTransactionJobStore and ExternalTransactionJobStore log
         // under their own names rather than everything arriving as AdoJobStoreBase.
-        Logger = LogProvider.CreateLogger(GetType().FullName!);
+        Logger = LoggerFactory.CreateLogger(GetType().FullName!);
+
+        // One logger for every unit of work this store opens rather than one each: a holder is created
+        // per operation, and CreateLogger<T> allocates.
+        ConnectionLogger = LoggerFactory.CreateLogger<ConnectionAndTransactionHolder>();
 
         var options = storeOptions.Value;
         DataSource = options.DataSource;
@@ -144,6 +155,19 @@ public abstract class AdoJobStoreBase : IJobStore
     /// </summary>
     /// <value>The log.</value>
     internal ILogger Logger { get; }
+
+    /// <summary>
+    /// The factory everything this store owns creates its loggers from — the cluster manager, the
+    /// misfire handler, the units of work, and through the two initialization contexts the driver
+    /// delegate and the lock handler.
+    /// </summary>
+    internal ILoggerFactory LoggerFactory { get; }
+
+    /// <summary>
+    /// The logger every unit of work this store opens reports its connection and transaction failures
+    /// through, created once because a unit of work is created per operation.
+    /// </summary>
+    internal ILogger<ConnectionAndTransactionHolder> ConnectionLogger { get; }
 
     /// <summary>
     /// The prefix pre-pended to all table names.
@@ -515,7 +539,7 @@ public abstract class AdoJobStoreBase : IJobStore
             Throw.JobPersistenceException($"Failed to open the connection enlisted for scheduler '{InstanceName}': {e}", e);
         }
 
-        return new ConnectionAndTransactionHolder(enlisted.Connection, enlisted.Transaction, ownsResources: false, borrowedFrom: enlisted);
+        return new ConnectionAndTransactionHolder(enlisted.Connection, enlisted.Transaction, ownsResources: false, borrowedFrom: enlisted, logger: ConnectionLogger);
     }
 
     /// <summary>
@@ -589,7 +613,7 @@ public abstract class AdoJobStoreBase : IJobStore
             return default;
         }
 
-        return new ConnectionAndTransactionHolder(conn, tx);
+        return new ConnectionAndTransactionHolder(conn, tx, ownsResources: true, borrowedFrom: null, logger: ConnectionLogger);
     }
 
     protected DateTimeOffset MisfireTime
@@ -645,6 +669,7 @@ public abstract class AdoJobStoreBase : IJobStore
             TriggerPersistenceDelegates = triggerPersistenceDelegates,
             TimeProvider = timeProvider,
             CommandTimeout = CommandTimeout,
+            LoggerFactory = LoggerFactory,
         });
     }
 
@@ -837,6 +862,7 @@ public abstract class AdoJobStoreBase : IJobStore
             TablePrefix = TablePrefix,
             TimeProvider = timeProvider,
             CommandTimeout = CommandTimeout,
+            LoggerFactory = LoggerFactory,
         });
 
         activityTracer.SetSchedulerContext(InstanceName, InstanceId);
@@ -884,7 +910,7 @@ public abstract class AdoJobStoreBase : IJobStore
 
         if (Clustered)
         {
-            clusterManager = new ClusterManager(this);
+            clusterManager = new ClusterManager(this, LoggerFactory.CreateLogger<ClusterManager>());
             await clusterManager.Initialize().ConfigureAwait(false);
         }
         else
@@ -900,7 +926,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
         }
 
-        misfireHandler = new MisfireHandler(this);
+        misfireHandler = new MisfireHandler(this, LoggerFactory.CreateLogger<MisfireHandler>());
         misfireHandler.Initialize();
         schedulerRunning = true;
     }

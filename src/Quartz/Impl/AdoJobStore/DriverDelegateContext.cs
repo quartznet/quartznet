@@ -1,5 +1,8 @@
 using System.Collections.Specialized;
 
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Extensibility;
 
@@ -67,4 +70,17 @@ public sealed record DriverDelegateContext
     /// provider's own default in place.
     /// </summary>
     public TimeSpan? CommandTimeout { get; init; }
+
+    /// <summary>
+    /// The factory the delegate creates its logger from, defaulting to
+    /// <see cref="NullLoggerFactory.Instance" />.
+    /// </summary>
+    /// <remarks>
+    /// The job store passes the factory its container gave it, which is what makes a delegate's
+    /// statements and failures visible in an application that never set
+    /// <see cref="Quartz.Diagnostics.LogProvider" />. A delegate initialized by hand — in a test, in a
+    /// benchmark — is handed nothing and logs nowhere, which is what a delegate outside a scheduler
+    /// should do.
+    /// </remarks>
+    public ILoggerFactory LoggerFactory { get; init; } = NullLoggerFactory.Instance;
 }
