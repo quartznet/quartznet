@@ -58,8 +58,12 @@ public class PublicApiTest
             // in this baseline as if it were a contract change. What the dashboard actually offers
             // its consumers (options, extension methods, the model types) is not a component and
             // stays snapshotted.
+            //
+            // _Imports is the same story one step further from being API: the compiler emits a public
+            // class for _Imports.razor, whose entire content is the @using list every component in the
+            // package is compiled with.
             ExcludeTypes = assembly.GetExportedTypes()
-                .Where(static type => typeof(ComponentBase).IsAssignableFrom(type))
+                .Where(static type => typeof(ComponentBase).IsAssignableFrom(type) || type.Name == "_Imports")
                 .ToArray(),
         };
 
