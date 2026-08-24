@@ -44,6 +44,11 @@ namespace Quartz;
 /// for that day will be normal startTimeOfDay incremental values after startTime value. Same reversal logic is applied to endTime
 /// with endTimeOfDay.</para>
 ///
+/// <para>The trigger's <see cref="ITrigger.StartTimeUtc" /> and <see cref="ITrigger.EndTimeUtc" /> are
+/// rounded down to the whole second when they are set, because the fire times are computed as a whole
+/// number of intervals from the start of the day. A start time carrying milliseconds would otherwise be
+/// able to produce a first fire time before itself.</para>
+///
 /// <para>This is a read model: to change a trigger's schedule, rebuild it with
 /// <see cref="ITrigger.GetTriggerBuilder" /> and hand it to
 /// <see cref="IScheduler.RescheduleJob" />.</para>

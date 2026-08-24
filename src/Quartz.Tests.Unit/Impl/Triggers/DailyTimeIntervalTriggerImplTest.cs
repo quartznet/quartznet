@@ -19,6 +19,8 @@
 
 #endregion
 
+using Microsoft.Extensions.Time.Testing;
+
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Jobs;
@@ -1726,5 +1728,56 @@ public class DailyTimeIntervalTriggerImplTest
         trigger.GetFireTimeAfter(TestDates.DateOf(0, 0, 0, 1, 1, 2011)).Should()
             .Be(TestDates.DateOf(8, 0, 0, 2, 1, 2011),
                 "the walk that skips over days the trigger does not run on must ask the set the trigger holds now, not one it read earlier");
+    }
+
+    /// <summary>
+    /// #3386: the fire times are a whole number of intervals from the start of the day, counted in
+    /// whole seconds, so a start time carrying milliseconds used to truncate onto an interval boundary
+    /// lying before the trigger's own start.
+    /// </summary>
+    [Test]
+    public void TheFirstFireTimeIsNeverBeforeASubSecondStartTime()
+    {
+        FakeTimeProvider clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 22, 50, 0, 680, TimeSpan.Zero));
+
+        DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl(clock)
+        {
+            Key = new TriggerKey("sub-second-start"),
+            JobKey = new JobKey("job"),
+            StartTimeUtc = clock.GetUtcNow(),
+            StartTimeOfDay = new TimeOnly(2, 15, 0),
+            RepeatIntervalUnit = IntervalUnit.Minute,
+            RepeatInterval = 5,
+            TimeZone = TimeZoneInfo.Utc,
+        };
+
+        trigger.StartTimeUtc.Should().Be(
+            new DateTimeOffset(2026, 1, 15, 22, 50, 0, TimeSpan.Zero),
+            "the start time is rounded down to the whole second the arithmetic works in");
+
+        DateTimeOffset? first = trigger.ComputeFirstFireTimeUtc(null);
+
+        first.Should().Be(trigger.NextFireTimeUtc);
+        first.Should().Be(
+            new DateTimeOffset(2026, 1, 15, 22, 50, 0, TimeSpan.Zero),
+            "22:50 is 74100 seconds after the 02:15 start of the day, an exact multiple of the five-minute interval");
+        first.Should().BeOnOrAfter(trigger.StartTimeUtc, "a trigger must never fire before it starts");
+    }
+
+    /// <inheritdoc cref="TheFirstFireTimeIsNeverBeforeASubSecondStartTime" />
+    [Test]
+    public void TheEndTimeIsRoundedDownToTheWholeSecondToo()
+    {
+        DailyTimeIntervalTriggerImpl trigger = new DailyTimeIntervalTriggerImpl
+        {
+            Key = new TriggerKey("sub-second-end"),
+            StartTimeUtc = new DateTimeOffset(2026, 1, 15, 8, 0, 0, 250, TimeSpan.Zero),
+            EndTimeUtc = new DateTimeOffset(2026, 1, 16, 8, 0, 0, 750, TimeSpan.Zero),
+        };
+
+        trigger.StartTimeUtc.Should().Be(new DateTimeOffset(2026, 1, 15, 8, 0, 0, TimeSpan.Zero));
+        trigger.EndTimeUtc.Should().Be(
+            new DateTimeOffset(2026, 1, 16, 8, 0, 0, TimeSpan.Zero),
+            "both boundaries are said in the units the trigger reasons in");
     }
 }
