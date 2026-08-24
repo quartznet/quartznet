@@ -117,27 +117,33 @@ When using `H` through the builder API, the trigger identity is used as the hash
 You **must** call `WithIdentity()` so the hash is derived from a stable, meaningful name
 rather than a random GUID:
 
+<!-- snippet: sample_cron_expressions_hash_from_trigger_name -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("nightly-cleanup")
     .WithCronSchedule("0 H H(0-7) * * ?")
     .Build();
 ```
+<!-- endSnippet -->
 
 You can also provide an explicit hash key, which does not require a trigger identity. The key rides on
 the `CronExpression`, and `WithCronSchedule` takes one directly:
 
+<!-- snippet: sample_cron_expressions_hash_key_on_expression -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithCronSchedule(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup"))
     .Build();
 ```
+<!-- endSnippet -->
 
 Or construct a `CronExpression` directly:
 
+<!-- snippet: sample_cron_expressions_hash_key -->
 ```csharp
 var expr = new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup");
 ```
+<!-- endSnippet -->
 
 ::: tip
 `CronExpressionString` returns the **resolved** expression (e.g., `"0 23 3 * * ?"`) after H
@@ -151,6 +157,7 @@ When a schedule is assembled from user input - for example a scheduling UI that 
 dropdowns instead of a free-form cron field - you can compose the expression with the fluent
 `CronExpressionBuilder` instead of concatenating strings:
 
+<!-- snippet: sample_cron_expressions_builder -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("myTrigger")
@@ -161,6 +168,7 @@ ITrigger trigger = TriggerBuilder.Create()
         .OnWeekdays())               // "0 0/15 8-17 ? * MON-FRI"
     .Build();
 ```
+<!-- endSnippet -->
 
 `WithCronSchedule` accepts the builder (or a built `CronExpression`) directly, so the chain closes
 without naming `CronScheduleBuilder`; call `Build()` yourself when you want the `CronExpression` as a
@@ -170,12 +178,14 @@ Each field offers a single value, list, range and increment form (e.g. `WithHour
 `WithHours`, `WithHourRange`, `WithHourIncrements`), and the special characters are
 available through dedicated methods:
 
+<!-- snippet: sample_cron_expressions_day_rules -->
 ```csharp
 CronExpressionBuilder.Create().OnLastDayOfMonth();                         // "* * * L * ?"
 CronExpressionBuilder.Create().OnNearestWeekdayOfMonth(15);                // "* * * 15W * ?"
 CronExpressionBuilder.Create().OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 3); // "* * * ? * FRI#3"
 CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Friday);   // "* * * ? * FRIL"
 ```
+<!-- endSnippet -->
 
 A few rules to be aware of:
 

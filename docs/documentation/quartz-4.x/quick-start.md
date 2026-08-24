@@ -38,6 +38,7 @@ configuration files, so there is one vocabulary to learn.
 
 Most applications register Quartz into their service collection:
 
+<!-- snippet: sample_quick_start_host -->
 ```csharp
 builder.AddQuartz(q =>
 {
@@ -74,6 +75,7 @@ builder.AddQuartz(q =>
 
 builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 ```
+<!-- endSnippet -->
 
 The hosted service starts the scheduler with the application and shuts it down with it.
 
@@ -82,6 +84,7 @@ The hosted service starts the scheduler with the application and shuts it down w
 Console applications and tests build a scheduler directly. The configuration API is the same, and the
 whole chain is one expression:
 
+<!-- snippet: sample_quick_start_standalone -->
 ```csharp
 IScheduler scheduler = await QuartzSchedulerBuilder.Create()
     .ConfigureScheduler(options => options.InstanceName = "MyScheduler")
@@ -91,6 +94,7 @@ IScheduler scheduler = await QuartzSchedulerBuilder.Create()
 
 await scheduler.Start();
 ```
+<!-- endSnippet -->
 
 ### From configuration files
 
@@ -108,9 +112,11 @@ same names:
 
 `builder.AddQuartz(...)` reads that section by itself. On a bare `IServiceCollection`, name it:
 
+<!-- snippet: sample_quick_start_from_configuration -->
 ```csharp
 services.AddQuartz(configuration.GetSection("Quartz"));
 ```
+<!-- endSnippet -->
 
 Flat `quartz.*` keys from earlier versions are still accepted and mean the same thing. Full details are
 in the [Quartz Configuration Reference](configuration/reference.md).
@@ -134,6 +140,10 @@ Actually you don't need to define these properties if you don't want to, Quartz.
 The following program builds a scheduler with the default configuration, starts it, and shuts it down:
 
 **Program.cs**
+
+<!-- The three whole-program listings on this page are hand-written rather than compiled from the
+     samples project: they are top-level statements shown with their `using` directives, and a class
+     library can host neither. Everything else here is a snippet. -->
 
 ```csharp
 using Quartz;
@@ -193,6 +203,7 @@ Now starting the application says considerably more:
 
 We need a simple test job to try the scheduler out; let's create a HelloJob that greets the console.
 
+<!-- snippet: sample_quick_start_job -->
 ```csharp
 public sealed class HelloJob : IJob
 {
@@ -202,9 +213,11 @@ public sealed class HelloJob : IJob
     }
 }
 ```
+<!-- endSnippet -->
 
 To do something interesting, add code just after `Start()`, before the `Task.Delay`:
 
+<!-- snippet: sample_quick_start_scheduling -->
 ```csharp
 // define the job and tie it to our HelloJob class
 IJobDetail job = JobBuilder.Create<HelloJob>()
@@ -226,6 +239,7 @@ await scheduler.ScheduleJob(job, trigger);
 // several triggers for one job go together, in one call
 // await scheduler.ScheduleJob(job, [trigger1, trigger2], new ScheduleJobOptions { Replace = true });
 ```
+<!-- endSnippet -->
 
 The complete console application now looks like this:
 

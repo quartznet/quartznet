@@ -193,6 +193,7 @@ For the simple case — when this job finishes, run that one — Quartz ships
 `JobChainingJobListener`. Register it with the pairs you want chained, and it triggers the second job
 when the first completes:
 
+<!-- snippet: sample_faq_job_chaining -->
 ```csharp
 JobChainingJobListener chain = new("chain");
 chain.AddJobChainLink(new JobKey("extract"), new JobKey("transform"));
@@ -200,6 +201,7 @@ chain.AddJobChainLink(new JobKey("transform"), new JobKey("load"));
 
 scheduler.ListenerManager.AddJobListener(chain);
 ```
+<!-- endSnippet -->
 
 The links live in memory with the listener, so they are re-registered on every start, and the
 second job is fired rather than scheduled — there is no trigger to see in the store.
@@ -363,12 +365,14 @@ Quartz.NET 4.x targets .NET 10.0. You must be running at least .NET 10.0 to use 
 
 Quartz 4.x changed all `Task` return types to `ValueTask`. Your `IJob.Execute` method must now return `ValueTask`:
 
+<!-- snippet: sample_faq_value_task_execute -->
 ```csharp
 public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
 {
     // your job logic
 }
 ```
+<!-- endSnippet -->
 
 If you need `Task` semantics elsewhere (e.g., to await a result multiple times), call `.AsTask()` on the `ValueTask` once and work with the resulting `Task`.
 
@@ -381,6 +385,9 @@ These packages have been merged into the main `Quartz` package in 4.x. You can r
 ## How do I replace SystemTime in Quartz 4.x?
 
 `SystemTime` was removed in 4.x. Use the .NET `TimeProvider` abstraction instead:
+
+<!-- Not a compiled sample: `FakeTimeProvider` comes from `Microsoft.Extensions.TimeProvider.Testing`,
+     which this repository does not reference outside its test projects. -->
 
 ```csharp
 QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
