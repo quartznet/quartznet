@@ -1448,7 +1448,7 @@ namespace Quartz
         ShuttingDown = 4,
         Shutdown = 5,
     }
-    public sealed class SchedulingDataValidationException : System.Exception
+    public sealed class SchedulingDataValidationException : Quartz.SchedulerException
     {
         public SchedulingDataValidationException() { }
         public SchedulingDataValidationException(System.Collections.Generic.IEnumerable<System.Exception> errors) { }

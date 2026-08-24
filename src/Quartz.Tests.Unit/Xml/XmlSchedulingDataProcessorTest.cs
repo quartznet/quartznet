@@ -1156,6 +1156,28 @@ public class XmlSchedulingDataProcessorTest
             .Which.ValidationExceptions.Should().NotBeEmpty();
     }
 
+    /// <summary>
+    /// A validation failure is a <see cref="SchedulerException" /> like everything else Quartz throws,
+    /// so a caller that already has one catch block around loading scheduling data does not need a
+    /// second one for the schema.
+    /// </summary>
+    [Test]
+    public async Task ValidationFailureIsASchedulerException()
+    {
+        TestProcessor processor = CreateProcessor();
+
+        Func<Task> act = async () => await processor.ProcessStream(ToStream(Document("""
+            <schedule>
+              <job>
+                <name>job1</name>
+              </job>
+            </schedule>
+            """)), null);
+
+        await act.Should().ThrowAsync<SchedulerException>(
+            "SchedulingDataValidationException was the one break in the exception hierarchy");
+    }
+
     [Test]
     public async Task ElementsOutOfSchemaOrderAreRejected()
     {

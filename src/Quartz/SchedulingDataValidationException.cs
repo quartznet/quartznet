@@ -26,11 +26,13 @@ namespace Quartz;
 /// </summary>
 /// <remarks>
 /// A whole document is validated before any of it is applied, so this carries a list rather than
-/// the first failure: <see cref="Message" /> is every message, one per line.
+/// the first failure: <see cref="Message" /> is every message, one per line. Like everything else
+/// Quartz throws, it is a <see cref="SchedulerException" />, so one catch block covers a scheduling
+/// data file's failures whether they are schema violations or anything else.
 /// </remarks>
 /// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class SchedulingDataValidationException : Exception
+public sealed class SchedulingDataValidationException : SchedulerException
 {
     private readonly List<Exception> validationExceptions = [];
 
