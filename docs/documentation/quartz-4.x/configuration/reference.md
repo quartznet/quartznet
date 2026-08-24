@@ -10,9 +10,11 @@ title: Configuration Reference
 Quartz is configured with strongly typed options. Every option has the same name whether you set it in
 code or in a configuration file, so there is one vocabulary to learn rather than two:
 
+<!-- snippet: sample_reference_one_option -->
 ```csharp
 services.AddQuartz(q => q.ConfigureScheduler(options => options.MaxBatchSize = 5));
 ```
+<!-- endSnippet -->
 
 ```json
 {
@@ -66,6 +68,7 @@ does not and interrupting them is a reasonable thing to want in either case, or 
 | `WhenWaitingForJobs` | Interrupted only on a shutdown that waits — the wait still happens, so a job that checks its cancellation token gets to unwind cleanly. |
 | `Always` | Interrupted on every shutdown. |
 
+<!-- snippet: sample_reference_scheduler_options -->
 ```csharp
 services.AddQuartz(q => q.ConfigureScheduler(options =>
 {
@@ -75,6 +78,7 @@ services.AddQuartz(q => q.ConfigureScheduler(options =>
     options.ShutdownJobInterruption = ShutdownJobInterruption.Always;
 }));
 ```
+<!-- endSnippet -->
 
 ## Thread pool
 
@@ -84,19 +88,24 @@ services.AddQuartz(q => q.ConfigureScheduler(options =>
 |---|---|---|---|
 | `MaxConcurrency` | int | `10` | How many jobs may run at once. |
 
+<!-- snippet: sample_reference_default_thread_pool -->
 ```csharp
 services.AddQuartz(q => q.UseDefaultThreadPool(maxConcurrency: 20));
 ```
+<!-- endSnippet -->
 
 To supply your own implementation:
 
+<!-- snippet: sample_reference_thread_pool_of_your_own -->
 ```csharp
 services.AddQuartz(q => q.UseThreadPool<MyThreadPool>());
 ```
+<!-- endSnippet -->
 
 `ThreadPoolOptions` belongs to the built-in pools — they are what read `MaxConcurrency` — so
 `UseThreadPool<T>()` takes no callback for it. A pool of your own has options of its own:
 
+<!-- snippet: sample_reference_thread_pool_options -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -104,6 +113,7 @@ services.AddQuartz(q =>
     q.UseThreadPool<MyThreadPool>();
 });
 ```
+<!-- endSnippet -->
 
 `ConfigureOptions<TOptions>` registers the callback under this scheduler's options name and declares the
 type as the scheduler's own, so a component that takes `IOptions<MyThreadPoolOptions>` through its
@@ -120,15 +130,18 @@ survive process restarts.
 |---|---|---|---|
 | `MisfireThreshold` | TimeSpan | `00:00:05` | How late a trigger may fire before it counts as misfired. |
 
+<!-- snippet: sample_reference_in_memory_store -->
 ```csharp
 services.AddQuartz(q => q.UseInMemoryStore(options => options.MisfireThreshold = TimeSpan.FromSeconds(30)));
 ```
+<!-- endSnippet -->
 
 ## Persistent job store
 
 `AdoJobStoreOptions`, bound from `Quartz:JobStore`. Choosing a database also selects the driver delegate
 that speaks its SQL dialect, so a connection string is all you normally supply:
 
+<!-- snippet: sample_reference_persistent_store -->
 ```csharp
 services.AddQuartz(q => q.UsePersistentStore(store =>
 {
@@ -136,6 +149,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
     store.UseSystemTextJsonSerializer();
 }));
 ```
+<!-- endSnippet -->
 
 | Option | Type | Default | Description |
 |---|---|---|---|
@@ -180,10 +194,12 @@ legacy `quartz.jobStore.driverDelegateInitString` key still translates to the sa
 
 Each takes either a connection string or a callback over `DataSourceOptions`:
 
+<!-- snippet: sample_reference_connection_string -->
 ```csharp
 store.UseSqlServer(connectionString);
 store.UseSqlServer(db => db.ConnectionStringName = "Scheduler");
 ```
+<!-- endSnippet -->
 
 Where the connection comes from is the data source's own setting, so to connect through a
 `DbDataSource` registered in the container rather than a connection string of Quartz's own, say
@@ -196,6 +212,7 @@ ADO.NET driver: which connection, command and parameter types to instantiate, ho
 and which enum value means "binary column". Quartz ships descriptions for the drivers of every database
 listed above. For anything else, describe the driver in the `UseGenericDatabase` call:
 
+<!-- snippet: sample_reference_generic_database -->
 ```csharp
 store.UseGenericDatabase("MyDatabase", connectionString, () => new DbMetadata
 {
@@ -213,6 +230,7 @@ store.UseGenericDatabase("MyDatabase", connectionString, () => new DbMetadata
     DbBinaryTypeName = "VarBinary",
 });
 ```
+<!-- endSnippet -->
 
 There is a four-argument overload taking a `DataSourceOptions` callback instead of a connection string,
 for a driver described in code that also uses a named connection string.
@@ -305,6 +323,9 @@ knows nothing about is describable, which is what `UseGenericDatabase` is for.
 
 To connect through a `DbDataSource` registered in the container, for example by `AddNpgsqlDataSource`:
 
+<!-- Not a compiled sample: `AddNpgsqlDataSource` comes from `Npgsql.DependencyInjection`, which this
+     repository does not reference, and naming a real provider is the point. -->
+
 ```csharp
 services.AddNpgsqlDataSource(connectionString);
 services.AddQuartz(q => q.UsePersistentStore(store =>
@@ -318,6 +339,8 @@ for an application with one database. A container that holds several — a sched
 reporting scheduler beside the application's own — keys them apart, and `DataSourceServiceKey` says
 which key is this store's:
 
+<!-- Not a compiled sample, for the same reason as the one above: `AddNpgsqlDataSource` is Npgsql's. -->
+
 ```csharp
 services.AddNpgsqlDataSource(tenantA, serviceKey: "tenant-a");
 services.AddNpgsqlDataSource(tenantB, serviceKey: "tenant-b");
@@ -330,9 +353,11 @@ services.AddQuartz("tenant-b", q => q.UsePersistentStore(store =>
 
 A data source that is built rather than registered goes in `DataSourceFactory`, which wins over both:
 
+<!-- snippet: sample_reference_data_source_factory -->
 ```csharp
 store.UsePostgres(db => db.DataSourceFactory = _ => BuildDataSource());
 ```
+<!-- endSnippet -->
 
 Both are set from code rather than from configuration, because a service key can be any object and a
 factory is a delegate — neither is something a configuration binder can produce. Either one means Quartz
@@ -353,6 +378,7 @@ section. Where the connection itself comes from is `DataSourceOptions`' to say, 
 When connections cannot be described at all — a pooled or credential-rotating factory, or a driver
 whose connections need setting up after they are created — hand Quartz the object that makes them:
 
+<!-- snippet: sample_reference_connection_provider -->
 ```csharp
 services.AddQuartz(q => q.UsePersistentStore(store =>
 {
@@ -360,6 +386,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
     store.UseConnectionProvider<MyDbProvider>();   // …but connections come from here
 }));
 ```
+<!-- endSnippet -->
 
 `UseConnectionProvider(factory)` does the same for a provider that needs building first. This is the
 one method on the builder that **replaces** rather than defers: it wins over the provider the database
@@ -395,6 +422,7 @@ configured: the job store reports whether it is clustered, it does not offer a s
 | `CheckinInterval` | TimeSpan | `00:00:07.5` | How often a node records that it is alive. |
 | `CheckinMisfireThreshold` | TimeSpan | `00:00:07.5` | Grace period before a node is treated as failed. |
 
+<!-- snippet: sample_reference_clustering -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -416,6 +444,7 @@ services.AddQuartz(q =>
     });
 });
 ```
+<!-- endSnippet -->
 
 `UseClustering()` enables database locking as well, because clustering has never worked without it.
 
@@ -423,10 +452,12 @@ services.AddQuartz(q =>
 
 A persistent store must be told how to serialize job data.
 
+<!-- snippet: sample_reference_serializers -->
 ```csharp
 store.UseSystemTextJsonSerializer();
 store.UseNewtonsoftJsonSerializer();   // Quartz.Serialization.Newtonsoft
 ```
+<!-- endSnippet -->
 
 ## Scheduling
 
@@ -439,24 +470,30 @@ registered in code, or declared in a file, already exist in the store under the 
 | `IgnoreDuplicates` | bool | `false` | With `OverwriteExistingData` off, a name that already exists is skipped instead of throwing. |
 | `ScheduleTriggerRelativeToReplacedTrigger` | bool | `false` | A replaced trigger's next fire time is computed from the old trigger's last fire time rather than from now. |
 
+<!-- snippet: sample_reference_scheduling_options -->
 ```csharp
 services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates = true);
 ```
+<!-- endSnippet -->
 
 ## Job factory
 
 By default jobs are resolved from the container, in a scope created per firing, so a job may take scoped
 dependencies. To replace it:
 
+<!-- snippet: sample_reference_job_factory -->
 ```csharp
 services.AddQuartz(q => q.UseJobFactory<MyJobFactory>());
 ```
+<!-- endSnippet -->
 
 To keep it and only add to the scope it opens:
 
+<!-- snippet: sample_reference_job_scope -->
 ```csharp
 services.AddQuartz(q => q.ConfigureJobScope((scope, bundle, scheduler) => { /* … */ }));
 ```
+<!-- endSnippet -->
 
 ## The other seams
 
@@ -477,6 +514,7 @@ waiting, which is on the real clock.
 
 ## Listeners, calendars and plugins
 
+<!-- snippet: sample_reference_listeners_and_plugins -->
 ```csharp
 services.AddQuartz(q =>
 {
@@ -486,6 +524,7 @@ services.AddQuartz(q =>
     q.AddPlugin<MyPlugin>();
 });
 ```
+<!-- endSnippet -->
 
 Listeners and plugins are ordinary services, so they take their dependencies through their constructors.
 
@@ -495,18 +534,22 @@ Registering a scheduler under a name gives it its own job store, thread pool, jo
 The name is the scheduler's instance name, the key its services are registered under, and the name of
 its options.
 
+<!-- snippet: sample_reference_named_schedulers -->
 ```csharp
 services.AddQuartz("reporting", q => q.UsePersistentStore(store => store.UseSqlServer(reportingDb)));
 services.AddQuartz("ingest", q => q.UseInMemoryStore());
 ```
+<!-- endSnippet -->
 
 Resolve them by name:
 
+<!-- snippet: sample_reference_resolving_a_named_scheduler -->
 ```csharp
 var reporting = await serviceProvider
     .GetRequiredKeyedService<ISchedulerFactory>("reporting")
     .GetScheduler();
 ```
+<!-- endSnippet -->
 
 In configuration, use a `Schedulers` section:
 
@@ -527,6 +570,7 @@ Console applications and tests that have no host build a scheduler with `QuartzS
 does not take *the same* configuration API — it **is** the configuration API: `QuartzSchedulerBuilder`
 implements `IQuartzBuilder`, the interface `AddQuartz` hands out, over a container it creates itself.
 
+<!-- snippet: sample_reference_without_a_container -->
 ```csharp
 IScheduler scheduler = await QuartzSchedulerBuilder.Create()
     .ConfigureScheduler(options => options.InstanceName = "reporting")
@@ -534,6 +578,7 @@ IScheduler scheduler = await QuartzSchedulerBuilder.Create()
     .UseInMemoryStore()
     .BuildScheduler();
 ```
+<!-- endSnippet -->
 
 What it adds is the two terminal methods a standalone caller needs, `Build()` for the factory and
 `BuildScheduler()` for the scheduler. Every configuration member returns `QuartzSchedulerBuilder`, so
@@ -542,11 +587,13 @@ the chain reaches them. The `IQuartzBuilder` extension methods — `AddJob`, `Ad
 
 A scheduler configured entirely by flat `quartz.*` keys is built the same way:
 
+<!-- snippet: sample_reference_from_flat_properties -->
 ```csharp
 IScheduler scheduler = await QuartzSchedulerBuilder.Create()
     .UseProperties(properties)
     .BuildScheduler();
 ```
+<!-- endSnippet -->
 
 `UseProperties` checks the keys against the ones Quartz reads, so a misspelling is reported rather
 than silently ignored; set `quartz.checkConfiguration` to `false` to allow keys of your own.
