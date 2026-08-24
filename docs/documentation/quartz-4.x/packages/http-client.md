@@ -96,6 +96,28 @@ IScheduler reporting = provider.GetRequiredKeyedService<IScheduler>("reporting")
 The unkeyed registration is `TryAdd`, so a second remote scheduler does not quietly take over what
 "the scheduler" means — with two of them, inject by key.
 
+### Beside a local scheduler
+
+`AddQuartz()` registers the local default scheduler in the same unkeyed slot, so in a container that has
+both, **call `AddQuartz()` first**:
+
+<!-- snippet: sample_httpclient_beside_local -->
+```csharp
+builder.Services.AddQuartz();                                   // owns GetRequiredService<IScheduler>()
+builder.Services.AddQuartzHttpClient("MyScheduler", "quartz");  // reachable by name
+```
+<!-- endSnippet -->
+
+The local scheduler then owns `GetRequiredService<IScheduler>()`, and the remote one is reached with
+`GetRequiredKeyedService<IScheduler>("MyScheduler")` or `[FromKeyedServices("MyScheduler")]` — which is
+where it always is, whichever order the two calls are written in.
+
+The other order throws an `InvalidOperationException` at registration. Registration is first-wins, so
+`AddQuartzHttpClient(...)` followed by `AddQuartz()` would leave "the scheduler" meaning the remote one
+with nothing said about it, and a program that thought it held its own scheduler would be scheduling jobs
+in somebody else's process. A named local scheduler — `AddQuartz("Local", …)` — is keyed by its name and
+never wanted the unkeyed slot, so it can be registered on either side.
+
 ::: warning Changed in 4.x
 Driving two remote schedulers used to need a marker interface of its own, implemented by a type emitted
 at runtime. The service key says the same thing without the reflection, so the generic
