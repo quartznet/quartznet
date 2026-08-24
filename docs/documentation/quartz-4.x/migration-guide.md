@@ -998,6 +998,100 @@ Applications hosted by `IHost` need no change — the host already disposes its 
 and `AddQuartzHostedService` shuts the schedulers down before that anyway. This is about a container
 built by hand, which is mostly tests.
 
+## A scheduler's lifecycle is one value
+
+`IScheduler.IsStarted`, `IScheduler.InStandbyMode` and `IScheduler.IsShutdown` are gone. One
+`SchedulerStatus Status` replaces all three:
+
+```csharp
+public enum SchedulerStatus
+{
+    Unknown,        // a scheduler that could not be asked - a remote one that did not answer
+    Created,        // built, never started
+    Running,        // firing triggers
+    Standby,        // started once, stood down, can be started again
+    ShuttingDown,   // Shutdown() is running
+    Shutdown        // down, and not restartable
+}
+```
+
+The three booleans mapped onto it exactly, so every call site has a mechanical replacement:
+
+| 3.x | 4.x |
+|---|---|
+| `scheduler.IsStarted` | `scheduler.Status is not SchedulerStatus.Created` |
+| `scheduler.InStandbyMode` | `scheduler.Status is SchedulerStatus.Created or SchedulerStatus.Standby or SchedulerStatus.ShuttingDown` |
+| `scheduler.IsShutdown` | `scheduler.Status is SchedulerStatus.Shutdown` |
+
+Those rows are the *faithful* translations, and two of them are worth reading twice. `IsStarted` stayed
+`true` after a shutdown — it meant "`Start` has been called at some point", not "is running now" — so
+code that used it as "is running" was already wrong and should say `Status is SchedulerStatus.Running`.
+And `InStandbyMode` was `true` for a scheduler that had never been started at all, which is why
+`Created` exists: both fire nothing, but only one of them has ever run and has a `RunningSince`.
+
+`SchedulerMetadata` follows, for the same reason:
+
+```diff
+- if (metadata.Shutdown) { … }
+- else if (metadata.InStandbyMode) { … }
+- else if (metadata.Started) { … }
++ switch (metadata.Status) { … }
+```
+
+| 3.x | 4.x |
+|---|---|
+| `SchedulerMetadata.Started`, `.InStandbyMode`, `.Shutdown` | `required SchedulerStatus Status` |
+
+The two producers derive it the same way now. They did not before: `StdScheduler.GetMetadata` set
+`Started` from "has ever been started" while `HttpScheduler.GetMetadata` set it from "is running now", so
+the same scheduler described itself differently depending on which side of an HTTP call you asked from.
+`RunningSince` is unchanged.
+
+### The transitions are honest about themselves
+
+Reducing the state to one value made four behaviours that were only true of some of the booleans have
+to become true of the value. A transition that does not happen is not announced:
+
+| Call | 3.x | 4.x |
+|---|---|---|
+| `Start()` on a scheduler that is already running | re-emits `SchedulerStarting` and `SchedulerStarted`, and tells the job store the scheduler resumed | does nothing at all |
+| `Standby()` on a scheduler that is not running | emits `SchedulerInStandbyMode` and tells the job store it paused, for a scheduler that was already firing nothing | does nothing at all; a never-started scheduler stays `Created` |
+| `Standby()` on a scheduler that has shut down | silently pauses a scheduler that is already down | throws `SchedulerException` |
+| `Shutdown()` | calls `Standby()` on the way down, so listeners hear `SchedulerInStandbyMode` before `SchedulerShuttingDown` | goes `Running`/`Standby`/`Created` → `ShuttingDown` → `Shutdown`, and no listener is told about a standby that never happened |
+
+The last one is a listener-visible change, inherited from Java, and it is the one to check for. A
+listener that counted `SchedulerInStandbyMode` to detect "the scheduler stopped firing" should be
+counting `SchedulerShuttingDown` as well — it is raised by every shutdown, as it always was. The full
+sequence over a start, a standby and a shutdown is now exactly:
+
+`SchedulerStarting` → `SchedulerStarted` → `SchedulerInStandbyMode` → `SchedulerShuttingDown` →
+`SchedulerShutdown`
+
+`Status` becomes `Shutdown` at the *end* of the shutdown, once the plugins and the job store are down,
+so a scheduler that is draining its running jobs reads `ShuttingDown` for as long as it takes — and it
+reads `Shutdown` even when a plugin or job store threw on the way down, because the shutdown is claimed
+once and cannot be run again to finish the job.
+
+A scheduler that has begun shutting down refuses work exactly as a shut-down one does, and
+`ISchedulerFactory.GetScheduler()` refuses to hand it back for the same reason. It is still *listed* by
+`ISchedulerRepository` and by the dashboard while it drains, which is what `ShuttingDown` is for.
+
+### The health check reports the state it found
+
+`AddQuartzHealthChecks()` read `IsStarted` alone, which made a scheduler in standby **healthy** (it had
+been started once) and a shut-down one fall through to the store probe, where the failure was reported
+as a connectivity problem. It reports the state it actually found instead:
+
+| `Status` | Health |
+|---|---|
+| `Running` | the store probe decides: `Healthy`, or `Unhealthy` when the store cannot be reached |
+| `Standby` | `Degraded` — deliberate and reversible, so neither healthy nor a reason to take a node out of rotation |
+| `Created`, `ShuttingDown`, `Shutdown`, `Unknown` | `Unhealthy`, with a message naming the scheduler and the state |
+
+The check also no longer throws when it is registered for a default scheduler in a container that has
+only named ones: it reports `Unhealthy` and says to call `AddQuartzHealthChecks()` on the scheduler's own
+builder.
+
 ## Clustering is configured in one place
 
 `AdoJobStoreOptions` no longer carries `Clustered`, `ClusterCheckinInterval` and
@@ -1629,11 +1723,12 @@ the only way.
 
 What is registered is a handle rather than the scheduler itself, because building a scheduler is
 asynchronous and a container constructs synchronously. Every asynchronous member awaits the scheduler
-being built, so they are always safe. The synchronous ones — `SchedulerInstanceId`, `IsStarted`,
-`InStandbyMode`, `IsShutdown`, `Context` and `ListenerManager` — can only answer once the scheduler
-exists, and throw `InvalidOperationException` if reading one would have to build it. Under
-`AddQuartzHostedService()` that cannot happen: every scheduler in the container is built and started
-before the application runs. `SchedulerName` is answered from the registration and never builds anything.
+being built, so they are always safe. The synchronous ones — `SchedulerInstanceId`, `Status`, `Context`
+and `ListenerManager` — can only answer once the scheduler exists, and throw
+`InvalidOperationException` if reading one would have to build it. Under `AddQuartzHostedService()` that
+cannot happen: every scheduler in the container is built while the host starts, which is all those
+members need — starting them is a separate step, and by default waits until the application has
+started. `SchedulerName` is answered from the registration and never builds anything.
 
 ## A remote scheduler is registered by name, not by a marker interface
 
@@ -5204,6 +5299,7 @@ The renamed and reshaped properties:
 | `SchedulerRemote` / `IsRemote` | `IsProxy` |
 | `NumberOfJobsExecuted` | `JobsExecuted` |
 | `JobStoreSupportsPersistence` | `JobStorePersistent`, reading like its sibling `JobStoreClustered` |
+| `Started`, `InStandbyMode`, `Shutdown` | one `required SchedulerStatus Status` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
 
 The `Type` members became assembly-qualified names (without version) because a proxy cannot promise to
 materialize them: an `HttpScheduler` reads the remote scheduler's metadata over the wire, and the remote's
@@ -5500,11 +5596,15 @@ returns `PagedResult<T>` with `HasMore` and a nullable `TotalCount`. A 1-based p
 call site. `JobPageDto`, `TriggerPageDto`, `DashboardHistoryPage`, `JobHistoryPageDto` and
 `JobHistoryQueryDto` are gone.
 
-`SchedulerStatus` collapses `IsStarted` / `InStandbyMode` / `IsShutdown` into one value, in the precedence
-those three have to be read in. It is the enum the HTTP API has always put on the wire; it is public now
-because the dashboard's contract needed a name for it. Note that a running scheduler is `Running`: the
-in-process client used to call it `"Started"` while the HTTP-backed client called the same state
-`"Running"`, and code that matched on either string now matches on the enum.
+`SchedulerStatus` is the enum the HTTP API has always put on the wire; it is public now because the
+dashboard's contract needed a name for it, and it is what
+[`IScheduler.Status`](#a-scheduler-s-lifecycle-is-one-value) reports. Note that a running scheduler is
+`Running`: the in-process client used to call it `"Started"` while the HTTP-backed client called the same
+state `"Running"`, and code that matched on either string now matches on the enum.
+
+The dashboard hub's `SchedulerStateDto` follows: it is `(string SchedulerName, SchedulerStatus Status)`
+rather than `(string SchedulerName, string State)`, and it is pushed once per state the scheduler
+arrives in. `SchedulerStarting` pushes nothing, being an event rather than a state.
 
 ### A trigger is an `ITrigger`, a calendar is an `ICalendar`
 
@@ -7487,11 +7587,15 @@ removals on types that are still public and still open, which no section above n
 | `IDriverDelegate.UpdateTriggerPreferredNode`, `StdAdoDelegate.UpdateTriggerPreferredNode` | Removed | `UpdateTriggerPreferredNodeConditional`, which is a compare-and-swap, or `IScheduler.UpdateTriggerDetails` from outside the store — see [The preferred node is a value](#the-preferred-node-is-a-value) |
 | `InvalidConfigurationException()` | Removed; the type is `sealed` and keeps only `(string message)` | Say what was invalid — an exception with no message is one nobody can act on |
 | `IObjectSerializer.Initialize()` | Removed | No replacement; a serializer builds what it needs on first use — see [Names that were normalized](#names-that-were-normalized) |
+| `IScheduler.InStandbyMode` | Removed | `Status is SchedulerStatus.Created or SchedulerStatus.Standby or SchedulerStatus.ShuttingDown` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
+| `IScheduler.IsShutdown` | Removed | `Status is SchedulerStatus.Shutdown` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
+| `IScheduler.IsStarted` | Removed | `Status is not SchedulerStatus.Created` faithfully; `Status is SchedulerStatus.Running` if what you meant was "is running now", which it did not say — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
 | `JobBuilder.CreateForAsync<T>()` | Removed | `JobBuilder.Create<T>()`; every job has been asynchronous since 3.0 |
 | `JobStoreSupport.calendarCache`, `.delegateType`, `.firstCheckIn` | Removed (`protected` fields) | No replacement; they are the base class's own bookkeeping |
 | `JobStoreSupport.GetTriggerNames(conn, matcher, ct)` | Removed (`protected`) | The listing members became queries — see [Job store listings became queries](#job-store-listings-became-queries) |
 | `LogProvider.IsDisabled` | Removed | No replacement; filter through the `ILoggerFactory` — see [Logging](#logging) |
 | `LogProvider.SetCurrentLogProvider(ILogProvider)` | Removed with LibLog | `LogProvider.SetLogProvider(ILoggerFactory)` — see [Logging](#logging) |
+| `SchedulerMetadata.Started`, `.InStandbyMode`, `.Shutdown` | Removed | `Status`, a `required SchedulerStatus` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
 | `SimplePropertiesTriggerPersistenceDelegateSupport.SchedNameLiteral`, and the same member on `DbSemaphore` | Removed; both were `[Obsolete]` in 3.x | No replacement; the scheduler name is a SQL parameter, not literal text |
 | `StdAdoDelegate.GetStorableJobTypeName(Type)` | Removed (`protected`) | `new JobType(type).FullName`, which is the spelling the `JOB_CLASS_NAME` column holds |
 | `StdAdoDelegate.SchedulerNameLiteral` | Removed; it was `[Obsolete]` in 3.x | No replacement; as above |

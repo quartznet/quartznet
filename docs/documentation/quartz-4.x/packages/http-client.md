@@ -210,12 +210,15 @@ because nothing fires here. Register listeners where the scheduler actually runs
 
 ## Blocking members
 
-`IScheduler` has six members that are properties rather than methods, and over HTTP each of them is a
+`IScheduler` has four members that are properties rather than methods, and over HTTP each of them is a
 request:
 
-`SchedulerInstanceId`, `IsStarted`, `InStandbyMode`, `IsShutdown` and `Context` all call the remote
-scheduler **synchronously**, blocking the calling thread for the round trip. `SchedulerName` is the
-only one that is free — the client already knows it.
+`SchedulerInstanceId`, `Status` and `Context` all call the remote scheduler **synchronously**, blocking
+the calling thread for the round trip. `SchedulerName` is the only one that is free — the client already
+knows it.
+
+`Status` is one request for the whole lifecycle, where the `IsStarted` / `InStandbyMode` / `IsShutdown`
+it replaces were three requests to the same endpoint, each reading a different field of the same answer.
 
 Do not touch them on a request path. `GetMetadata()` is the async member that answers most of the same
 questions in one call:
