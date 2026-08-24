@@ -22,23 +22,27 @@
     </select>
 
     <span class="qz-scheduler-status">
-        <span class="qz-state-dot qz-state-dot-lg @StatusDotClass" aria-hidden="true"></span>
-        <span>@_statusLabel</span>
+        @if (_schedulerStatus is { } status)
+        {
+            <Quartz.Dashboard.Components.Shared.SchedulerStatusIndicator Status="status" Large="true" />
+        }
+        else
+        {
+            <span class="qz-state-dot qz-state-dot-lg qz-state-waiting" aria-hidden="true"></span>
+            <span>@_statusLabel</span>
+        }
     </span>
 </div>
 
 @code
 {
+    /// <summary>
+    /// What to say while there is no status to show: the scheduler has not been asked yet, or could not
+    /// be reached. Neither is a <see cref="SchedulerStatus" />, which is why they are a label of their own.
+    /// </summary>
     private string _statusLabel = "Loading…";
-    private SchedulerStatus? _schedulerStatus;
 
-    private string StatusDotClass => _schedulerStatus switch
-    {
-        SchedulerStatus.Running => "qz-state-running",
-        SchedulerStatus.Standby => "qz-state-standby",
-        SchedulerStatus.Shutdown => "qz-state-shutdown",
-        _ => "qz-state-waiting"
-    };
+    private SchedulerStatus? _schedulerStatus;
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,7 +102,6 @@
                 await ApiClient.GetScheduler(SchedulerState.ActiveSchedulerName);
 
             _schedulerStatus = detail.Status;
-            _statusLabel = detail.Status.ToString();
         }
         catch
         {

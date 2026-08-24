@@ -758,11 +758,22 @@
     box-shadow: 0 0 0 3px var(--qz-color-warning-bg);
 }
 
+/*
+ * On its way down but not down yet: amber like standby, because both mean "alive and firing nothing",
+ * and grey is reserved for the scheduler that has actually stopped.
+ */
+.qz-state-dot.qz-state-shutting-down {
+    background-color: var(--qz-color-warning);
+    box-shadow: 0 0 0 3px var(--qz-color-warning-bg);
+}
+
 .qz-state-dot.qz-state-shutdown {
     background-color: var(--qz-color-text-muted);
     box-shadow: 0 0 0 3px var(--qz-color-surface-alt);
 }
 
+/* qz-state-created is a scheduler built but never started: the same "nothing yet" blue as waiting. */
+.qz-state-dot.qz-state-created,
 .qz-state-dot.qz-state-waiting,
 .qz-state-dot.qz-state-info,
 .qz-state-indicator.qz-state-info .qz-state-dot {

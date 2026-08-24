@@ -1,0 +1,53 @@
+@*
+    One rendering of a scheduler's status, for every page that shows one.
+
+    The two places that showed it used to classify it twice - a switch over the enum on the scheduler
+    selector, and a substring match over its name in the generic StateIndicator - so the same scheduler
+    could be a different colour in the header than it was on the page below it.
+*@
+@using Quartz
+
+<span class="qz-state-indicator" title="@Status.ToString()">
+    <span class="@DotClass" aria-hidden="true"></span>
+    @if (ShowLabel)
+    {
+        <span class="qz-state-label">@Status.ToString()</span>
+    }
+</span>
+
+@code {
+    /// <summary>
+    /// The status to show.
+    /// </summary>
+    [Parameter]
+    public SchedulerStatus Status { get; set; } = SchedulerStatus.Unknown;
+
+    /// <summary>
+    /// Whether to render the status name beside the dot.
+    /// </summary>
+    [Parameter]
+    public bool ShowLabel { get; set; } = true;
+
+    /// <summary>
+    /// Whether to draw the larger dot the layout header uses.
+    /// </summary>
+    [Parameter]
+    public bool Large { get; set; }
+
+    private string DotClass => Large
+        ? "qz-state-dot qz-state-dot-lg " + StatusModifier
+        : "qz-state-dot " + StatusModifier;
+
+    /// <summary>
+    /// The CSS modifier for a status, and the only mapping of the two in the dashboard.
+    /// </summary>
+    private string StatusModifier => Status switch
+    {
+        SchedulerStatus.Created => "qz-state-created",
+        SchedulerStatus.Running => "qz-state-running",
+        SchedulerStatus.Standby => "qz-state-standby",
+        SchedulerStatus.ShuttingDown => "qz-state-shutting-down",
+        SchedulerStatus.Shutdown => "qz-state-shutdown",
+        _ => "qz-state-waiting"
+    };
+}

@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Text.Json.Serialization;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -61,7 +63,13 @@ public static class QuartzDashboardServiceCollectionExtensions
         services.AddRazorComponents()
             .AddInteractiveServerComponents();
 
-        services.AddSignalR();
+        // The hub's scheduler status goes out as its name, the way Quartz writes it on every other wire:
+        // a browser rendering a live event should read "Standby" rather than a number whose meaning
+        // depends on the build. Named per enum rather than a blanket converter, because these options
+        // belong to the whole application's SignalR and a host's own hubs must keep their own format.
+        services.AddSignalR()
+            .AddJsonProtocol(options =>
+                options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter<SchedulerStatus>()));
         services.AddHttpContextAccessor();
         services.AddHttpClient("QuartzDashboard");
 

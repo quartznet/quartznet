@@ -85,6 +85,15 @@ public sealed record TriggerEventDto(
     JobKeyDto? JobKey,
     DateTimeOffset? FireTimeUtc);
 
-public sealed record SchedulerStateDto(string SchedulerName, string State);
+/// <summary>
+/// The state a scheduler is now in, pushed whenever it changes.
+/// </summary>
+/// <remarks>
+/// A <see cref="SchedulerStatus" /> rather than free text: this used to be a phrase chosen at each
+/// call site, which is how a running scheduler came to be announced as <c>"Started"</c> here while the
+/// same state was called <c>"Running"</c> everywhere else. It carries the state the scheduler is in,
+/// so an event that is not a state — a scheduler that is starting — is not one of these at all.
+/// </remarks>
+public sealed record SchedulerStateDto(string SchedulerName, SchedulerStatus Status);
 
 public sealed record SchedulerErrorDto(string SchedulerName, string Message, string? Cause);
