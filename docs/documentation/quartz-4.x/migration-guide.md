@@ -2041,6 +2041,12 @@ public async ValueTask Execute(IJobExecutionContext context, CancellationToken c
 `Execute` also gained a `CancellationToken`. See [Jobs take a CancellationToken](#jobs-take-a-cancellationtoken)
 below for why, and for what to do with it.
 
+Listeners are the one place where a missed `Task` → `ValueTask` does not fail the build. Every member of
+`IJobListener`, `ITriggerListener` and `ISchedulerListener` has a default implementation, so a 3.x signature
+still compiles and simply stops implementing anything — the default runs, and the method is never called.
+Quartz refuses a listener in that shape when it is registered, naming the member; see
+[The compiler will not point at the callbacks you have to change, but the registration will](#the-compiler-will-not-point-at-the-callbacks-you-have-to-change-but-the-registration-will).
+
 ::: warning
 The following operations should never be performed on a `ValueTask<TResult>` instance:
 
@@ -3114,17 +3120,44 @@ your own can report the trigger it failed for:
 + ValueTask NotifySchedulerListenersError(SchedulerErrorContext errorContext, CancellationToken cancellationToken = default);
 ```
 
-#### The compiler will not point at every callback you have to change
+#### The compiler will not point at the callbacks you have to change, but the registration will
 
 Every member of these interfaces has a default implementation, which is what lets a listener implement only
 the notifications it cares about — and it is also why a listener that keeps an old signature still compiles.
 It simply stops being an implementation of anything: the default runs instead, and the method becomes dead
 code that is never called.
 
-So the build will not fail. Search your listeners for the twenty-four names in the table below rather than
-waiting to be told, and note that `#pragma`-free hints do exist: a callback that no longer overrides
-anything and does not touch instance state trips CA1822 ("can be marked as static"), and an
-`<inheritdoc />` on it trips MA0196. Both fired on Quartz's own listeners while this change was made.
+So the build does not fail. Registering the listener does. Quartz reads the shape of a listener as it is
+registered and refuses one that carries a public method with a notification's name but not its signature,
+naming both signatures in a `SchedulerConfigException` (#3398):
+
+```text
+MyListener declares 'ValueTask SchedulerError(String, SchedulerException, CancellationToken)', which does
+not implement ISchedulerListener.SchedulerError. The interface member is
+'ValueTask SchedulerError(IScheduler, SchedulerErrorContext, CancellationToken)': the names match but the
+signatures do not, and every member of ISchedulerListener has a default implementation, so this compiles
+and the default runs instead. The scheduler never calls SchedulerError. Listener callbacks take
+IScheduler scheduler first since 4.0.0-alpha.2. Correct the signature, or rename the method if it is not
+meant to be that notification. See
+https://www.quartz-scheduler.net/documentation/quartz-4.x/migration-guide.html#listeners-are-told-which-scheduler-is-calling.
+```
+
+Where that lands depends on how the listener was registered. `q.AddJobListener<MyListener>()` and the
+instance overload throw from the `AddQuartz` call itself, since the listener's type is known while the
+configuration is still being written. Everything else — a factory overload declared as the interface, a
+listener registered as a plain service, a `quartz.jobListener.*` key, and
+`scheduler.ListenerManager.AddJobListener(…)` — throws when the listener is attached to a scheduler, which
+for a hosted application is host start.
+
+A method that deliberately overloads a notification's name for an unrelated purpose is refused as well.
+Rename it: the alternative is letting the far commoner stale signature through in silence. A listener that
+implements the interface explicitly is never examined, because an explicit implementation is not a public
+method of the class.
+
+The table below is the whole list of what moved. The compile-time hints are worth knowing too: a callback
+that no longer overrides anything and does not touch instance state trips CA1822 ("can be marked as
+static"), and an `<inheritdoc />` on it trips MA0196. Both fired on Quartz's own listeners while this change
+was made.
 
 #### Every signature that changed
 
@@ -3185,6 +3218,12 @@ Implement the interface instead, and drop `override`:
 
 `Name` can go: it defaults to the type's name. Keep it only when several instances of one type are registered
 with the same scheduler, since the later registration would otherwise replace the earlier one.
+
+A listener that derived from one of these base classes fails to compile, which is the outcome you want. A 3.x
+listener that implemented the interface directly has the silent version of the same problem: its `Task`-returning
+members compile against 4.x and implement nothing. Quartz refuses such a listener when it is registered and
+names the member — see
+[The compiler will not point at the callbacks you have to change, but the registration will](#the-compiler-will-not-point-at-the-callbacks-you-have-to-change-but-the-registration-will).
 
 One consequence is easy to miss: **a default interface member is not a class member**. Code that reads `Name`
 off the concrete type no longer compiles unless the listener declares `Name` itself, so read it through the
@@ -3425,7 +3464,7 @@ already have them.
 * **`TriggerState.Executing`** — tell whether a trigger's job is running, across the whole cluster (see [Executing is a trigger state](#executing-is-a-trigger-state))
 * **`JobInstantiationException`** — a job that could not be built names the trigger, the job and the fire instance instead of only interpolating the job key into a message (see [Instantiation failures name the trigger](#instantiation-failures-name-the-trigger))
 * **`ISchedulerListener.TriggerInError` / `TriggersInError`** — observe a trigger being moved to `TriggerState.Error`, including two ADO store transitions that reached nothing at all before (see [Triggers entering the error state are reported](#triggers-entering-the-error-state-are-reported))
-* **Every listener callback names its scheduler** — one listener can serve several schedulers in one host and still say which of them paused a trigger or failed, and `SchedulerError` carries the trigger, job and firing it was raised for (see [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling))
+* **Every listener callback names its scheduler** — one listener can serve several schedulers in one host and still say which of them paused a trigger or failed, and `SchedulerError` carries the trigger, job and firing it was raised for. A listener still carrying a signature from 3.x or from alpha.1 is refused when it is registered, with a message naming the member, rather than being attached and never called (see [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling))
 * **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.Configure(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
 * **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
 * **An `IJobDetail` of your own** — the interface no longer declares a member only Quartz can implement, so an application can supply its own job detail type and have `RAMJobStore` hand it back rather than quietly swapping it for Quartz's (see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own))
