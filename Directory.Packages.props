@@ -42,12 +42,12 @@
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <PackageVersion Include="Npgsql.DependencyInjection" Version="10.0.3" />
-    <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.18.0" />
     <PackageVersion Include="OpenTracing" Version="0.12.1" />
     <PackageVersion Include="Oracle.ManagedDataAccess" Version="23.26.100" />
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.300" />
