@@ -3625,6 +3625,7 @@ namespace Quartz.Listeners
         public JobChainingJobListener(string name) { }
         public string Name { get; }
         public void AddJobChainLink(Quartz.JobKey firstJob, Quartz.JobKey secondJob) { }
+        public void AddJobChainLinks(Quartz.JobKey firstJob, System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> followUpJobs) { }
         public System.Threading.Tasks.ValueTask JobWasExecuted(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? jobException, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
