@@ -13,7 +13,7 @@ public abstract class WebApiTest
     [OneTimeSetUp]
     public void OneTimeSetup()
     {
-        Environment.SetEnvironmentVariable("ASPNETCORE_TEST_CONTENTROOT_QUARTZ_TESTS_ASPNETCORE", ResolveContentRoot());
+        TestContentRoot.Apply();
         WebApplicationFactory = new WebApplicationFactory<Program>();
         HttpScheduler = new HttpScheduler(TestData.SchedulerName, WebApplicationFactory.CreateClient());
     }
@@ -69,20 +69,4 @@ public abstract class WebApiTest
         }
     }
 
-    private static string ResolveContentRoot()
-    {
-        DirectoryInfo? directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            string projectFilePath = Path.Combine(directory.FullName, "src", "Quartz.Tests.AspNetCore", "Quartz.Tests.AspNetCore.csproj");
-            if (File.Exists(projectFilePath))
-            {
-                return Path.Combine(directory.FullName, "src", "Quartz.Tests.AspNetCore");
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new InvalidOperationException($"Could not locate content root from base path {AppContext.BaseDirectory}.");
-    }
 }
