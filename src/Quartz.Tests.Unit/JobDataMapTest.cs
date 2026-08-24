@@ -273,6 +273,49 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         missing.Should().BeNull();
     }
 
+    /// <summary>
+    /// <c>Get&lt;T&gt;</c> makes the same pure type test <c>TryGet&lt;T&gt;</c> does, and tells the two
+    /// ways it can fail apart — an entry that is not there and an entry of the wrong type are different
+    /// mistakes.
+    /// </summary>
+    [Test]
+    public void Get_SaysWhichWayItFailed()
+    {
+        JobKey stored = new JobKey("job");
+        JobDataMap map = new JobDataMap
+        {
+            ["key"] = stored,
+            ["text"] = "42"
+        };
+
+        map.Get<JobKey>("key").Should().BeSameAs(stored);
+
+        Action missing = () => map.Get<JobKey>("nope");
+        missing.Should().Throw<KeyNotFoundException>().WithMessage("*nope*", "the message has to name the key");
+
+        Action wrongType = () => map.Get<int>("text");
+        wrongType.Should().Throw<InvalidCastException>()
+            .WithMessage("*text*", "the message has to name the key")
+            .And.Message.Should().Contain("System.String").And.Contain("System.Int32",
+                "and both the stored type and the requested one, since neither is obvious from the call site");
+    }
+
+    [Test]
+    public void GetValueOrDefault_FallsBackForAMissingOrMistypedEntry()
+    {
+        JobDataMap map = new JobDataMap
+        {
+            ["count"] = 7,
+            ["text"] = "42"
+        };
+
+        int count = map.GetValueOrDefault("count", -1);
+        count.Should().Be(7, "the overload taking a typed default must win over the dictionary extension, which would return object?");
+
+        map.GetValueOrDefault("nope", -1).Should().Be(-1);
+        map.GetValueOrDefault("text", -1).Should().Be(-1, "GetValueOrDefault<T> never parses either");
+    }
+
     [Test]
     public void PutAsString_StoresTimeSpanValueAsString()
     {

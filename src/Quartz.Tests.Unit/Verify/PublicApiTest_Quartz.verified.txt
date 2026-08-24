@@ -239,6 +239,8 @@ namespace Quartz
             public bool TryGetEnum<TEnum>(string key, out TEnum value)
                 where TEnum :  struct, System.Enum { }
             public bool TryGet<T>(string key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value) { }
+            public T Get<T>(string key) { }
+            public T GetValueOrDefault<T>(string key, T defaultValue) { }
         }
         extension(Quartz.JobDataMap map)
         {
@@ -275,6 +277,8 @@ namespace Quartz
             public bool TryGetEnum<TEnum>(string key, out TEnum value)
                 where TEnum :  struct, System.Enum { }
             public bool TryGet<T>(string key, [System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T value) { }
+            public T Get<T>(string key) { }
+            public T GetValueOrDefault<T>(string key, T defaultValue) { }
         }
     }
     public sealed class DataSourceOptions

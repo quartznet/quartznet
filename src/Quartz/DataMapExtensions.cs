@@ -209,6 +209,21 @@ public static class DataMapExtensions
         /// as a <typeparamref name="T" />. A pure type test — no string parsing or conversion.
         /// </summary>
         public bool TryGet<T>(string key, [MaybeNullWhen(false)] out T value) => TryCoerceExact(map.TryGetValue(key, out object? obj), obj, out value);
+
+        /// <summary>
+        /// Retrieve the identified value from the <see cref="JobDataMap" />, which must be stored as a
+        /// <typeparamref name="T" />. The same pure type test <c>TryGet&lt;T&gt;</c> makes, saying
+        /// what went wrong instead of answering <see langword="false" />.
+        /// </summary>
+        /// <exception cref="KeyNotFoundException">The map has no entry under <paramref name="key" />.</exception>
+        /// <exception cref="InvalidCastException">The entry is not a <typeparamref name="T" />.</exception>
+        public T Get<T>(string key) => CoerceExactOrThrow<T>(key, map.TryGetValue(key, out object? obj), obj);
+
+        /// <summary>
+        /// Retrieve the identified value from the <see cref="JobDataMap" /> when it is stored as a
+        /// <typeparamref name="T" />, or <paramref name="defaultValue" /> when there is no such entry.
+        /// </summary>
+        public T GetValueOrDefault<T>(string key, T defaultValue) => CoerceExactOrDefault(map.TryGetValue(key, out object? obj), obj, defaultValue);
     }
 
     /// <summary>Typed read accessors for <see cref="SchedulerContext" />.</summary>
@@ -372,6 +387,21 @@ public static class DataMapExtensions
         /// stored as a <typeparamref name="T" />. A pure type test — no string parsing or conversion.
         /// </summary>
         public bool TryGet<T>(string key, [MaybeNullWhen(false)] out T value) => TryCoerceExact(context.TryGetValue(key, out object? obj), obj, out value);
+
+        /// <summary>
+        /// Retrieve the identified value from the <see cref="SchedulerContext" />, which must be stored
+        /// as a <typeparamref name="T" />. The same pure type test <c>TryGet&lt;T&gt;</c> makes,
+        /// saying what went wrong instead of answering <see langword="false" />.
+        /// </summary>
+        /// <exception cref="KeyNotFoundException">The context has no entry under <paramref name="key" />.</exception>
+        /// <exception cref="InvalidCastException">The entry is not a <typeparamref name="T" />.</exception>
+        public T Get<T>(string key) => CoerceExactOrThrow<T>(key, context.TryGetValue(key, out object? obj), obj);
+
+        /// <summary>
+        /// Retrieve the identified value from the <see cref="SchedulerContext" /> when it is stored as
+        /// a <typeparamref name="T" />, or <paramref name="defaultValue" /> when there is no such entry.
+        /// </summary>
+        public T GetValueOrDefault<T>(string key, T defaultValue) => CoerceExactOrDefault(context.TryGetValue(key, out object? obj), obj, defaultValue);
     }
 
     // The coercion core. Each method takes the result of the receiver's TryGetValue so the two
@@ -536,6 +566,33 @@ public static class DataMapExtensions
 
         value = default;
         return false;
+    }
+
+    /// <summary>
+    /// <see cref="TryCoerceExact{T}" />'s test, with the two ways it can fail told apart: an absent
+    /// entry and an entry of the wrong type are different mistakes, and a message that named neither
+    /// the key nor the types would leave the caller guessing which one was made.
+    /// </summary>
+    private static T CoerceExactOrThrow<T>(string key, bool found, object? obj)
+    {
+        if (!found)
+        {
+            Throw.KeyNotFoundException($"No entry named '{key}'.");
+        }
+
+        if (obj is T typed)
+        {
+            return typed;
+        }
+
+        object storedType = obj is null ? "null" : obj.GetType();
+        Throw.InvalidCastException($"Entry '{key}' holds {storedType}, which cannot be read as {typeof(T)}.");
+        return default!;
+    }
+
+    private static T CoerceExactOrDefault<T>(bool found, object? obj, T defaultValue)
+    {
+        return found && obj is T typed ? typed : defaultValue;
     }
 
     private static bool TryCoerceInt(bool found, object? obj, out int value)

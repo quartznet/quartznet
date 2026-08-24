@@ -171,6 +171,13 @@ internal static class Throw
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static void KeyNotFoundException(string message)
+    {
+        throw new KeyNotFoundException(message);
+    }
+
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void LockException(string message, Exception? innerException = null)
     {
         throw new LockException(message, innerException);
