@@ -104,7 +104,7 @@ public sealed class TriggerInErrorNotificationAdoTest
 
         public Task<JobKey> JobTriggers => jobTriggers.Task;
 
-        public ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggersInError(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             jobTriggers.TrySetResult(jobKey);
             return default;

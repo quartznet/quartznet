@@ -647,33 +647,33 @@ public sealed class MultipleSchedulerTests
         public string Name => nameof(TestTriggerListenerA);
         public ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
         public ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default) => new(false);
-        public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default) => default;
+        public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
         public ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default) => default;
     }
 
     private sealed class TestSchedulerListenerA : ISchedulerListener
     {
-        public ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default) => default;
-        public ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
-        public ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default) => default;
-        public ValueTask TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
-        public ValueTask TriggersPaused(string triggerGroup, CancellationToken cancellationToken = default) => default;
-        public ValueTask TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
-        public ValueTask TriggersResumed(string triggerGroup, CancellationToken cancellationToken = default) => default;
-        public ValueTask JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default) => default;
-        public ValueTask JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
-        public ValueTask JobPaused(JobKey jobKey, CancellationToken cancellationToken = default) => default;
-        public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default) => default;
-        public ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default) => default;
-        public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default) => default;
-        public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default) => default;
-        public ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default) => default;
-        public ValueTask SchedulerStarted(CancellationToken cancellationToken = default) => default;
-        public ValueTask SchedulerStarting(CancellationToken cancellationToken = default) => default;
-        public ValueTask SchedulerShutdown(CancellationToken cancellationToken = default) => default;
-        public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default) => default;
-        public ValueTask SchedulingDataCleared(CancellationToken cancellationToken = default) => default;
-        public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+        public ValueTask JobScheduled(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
+        public ValueTask JobUnscheduled(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+        public ValueTask TriggerFinalized(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default) => default;
+        public ValueTask TriggerPaused(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+        public ValueTask TriggersPaused(IScheduler scheduler, string triggerGroup, CancellationToken cancellationToken = default) => default;
+        public ValueTask TriggerResumed(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+        public ValueTask TriggersResumed(IScheduler scheduler, string triggerGroup, CancellationToken cancellationToken = default) => default;
+        public ValueTask JobAdded(IScheduler scheduler, IJobDetail jobDetail, CancellationToken cancellationToken = default) => default;
+        public ValueTask JobDeleted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
+        public ValueTask JobPaused(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
+        public ValueTask JobsPaused(IScheduler scheduler, string jobGroup, CancellationToken cancellationToken = default) => default;
+        public ValueTask JobResumed(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
+        public ValueTask JobsResumed(IScheduler scheduler, string jobGroup, CancellationToken cancellationToken = default) => default;
+        public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default) => default;
+        public ValueTask SchedulerInStandbyMode(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
+        public ValueTask SchedulerStarted(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
+        public ValueTask SchedulerStarting(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
+        public ValueTask SchedulerShutdown(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
+        public ValueTask SchedulerShuttingDown(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
+        public ValueTask SchedulingDataCleared(IScheduler scheduler, CancellationToken cancellationToken = default) => default;
+        public ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default) => default;
     }
 
     #endregion

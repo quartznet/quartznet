@@ -19,16 +19,21 @@ public class JobInstantiationExceptionTest
         // InvalidOperationException out unwrapped, so it lands in JobRunShell's generic catch.
         InvalidOperationException cause = new InvalidOperationException("Unable to resolve service for type 'ITaskTracker'");
 
-        (SchedulerException reported, IScheduler scheduler) = await RunFailingJob(cause);
+        (SchedulerErrorContext reported, IScheduler scheduler) = await RunFailingJob(cause);
 
         try
         {
-            JobInstantiationException failure = reported.Should().BeOfType<JobInstantiationException>().Subject;
+            JobInstantiationException failure = reported.Exception.Should().BeOfType<JobInstantiationException>().Subject;
 
             failure.Trigger.Key.Should().Be(new TriggerKey("trigger1", "instantiation"));
             failure.JobDetail.Key.Should().Be(new JobKey("job1", "instantiation"));
             failure.FireInstanceId.Should().NotBeNullOrEmpty();
             failure.InnerException.Should().BeSameAs(cause);
+
+            reported.TriggerKey.Should().Be(new TriggerKey("trigger1", "instantiation"),
+                "the same identity has to be reachable without unwrapping the exception");
+            reported.JobKey.Should().Be(new JobKey("job1", "instantiation"));
+            reported.FireInstanceId.Should().Be(failure.FireInstanceId);
         }
         finally
         {
@@ -43,11 +48,11 @@ public class JobInstantiationExceptionTest
         // so enriching only the generic catch would leave these users where they were.
         SchedulerException cause = new SchedulerException("Problem instantiating class 'MyJob'", new MissingMethodException());
 
-        (SchedulerException reported, IScheduler scheduler) = await RunFailingJob(cause);
+        (SchedulerErrorContext reported, IScheduler scheduler) = await RunFailingJob(cause);
 
         try
         {
-            JobInstantiationException failure = reported.Should().BeOfType<JobInstantiationException>().Subject;
+            JobInstantiationException failure = reported.Exception.Should().BeOfType<JobInstantiationException>().Subject;
 
             failure.Trigger.Key.Should().Be(new TriggerKey("trigger1", "instantiation"));
             failure.InnerException.Should().BeSameAs(cause,
@@ -64,11 +69,11 @@ public class JobInstantiationExceptionTest
     public async Task FactoryThrowingOperationCanceled_LeavesTriggerOutOfErrorState()
     {
         // Shutdown races must not poison the schedule; only real failures set Error.
-        (SchedulerException reported, IScheduler scheduler) = await RunFailingJob(new OperationCanceledException());
+        (SchedulerErrorContext reported, IScheduler scheduler) = await RunFailingJob(new OperationCanceledException());
 
         try
         {
-            reported.Should().BeOfType<JobInstantiationException>();
+            reported.Exception.Should().BeOfType<JobInstantiationException>();
 
             TriggerState state = await scheduler.GetTriggerState(new TriggerKey("trigger1", "instantiation"));
             state.Should().NotBe(TriggerState.Error,
@@ -82,10 +87,10 @@ public class JobInstantiationExceptionTest
 
     /// <summary>
     /// Schedules a single job whose instantiation fails with <paramref name="cause"/> and returns the
-    /// exception handed to <see cref="ISchedulerListener.SchedulerError"/>. The scheduler is returned
+    /// error handed to <see cref="ISchedulerListener.SchedulerError"/>. The scheduler is returned
     /// still running so that trigger state can be inspected before shutdown.
     /// </summary>
-    private static async Task<(SchedulerException Reported, IScheduler Scheduler)> RunFailingJob(Exception cause)
+    private static async Task<(SchedulerErrorContext Reported, IScheduler Scheduler)> RunFailingJob(Exception cause)
     {
         ErrorCapturingListener listener = new ErrorCapturingListener();
 
@@ -109,7 +114,7 @@ public class JobInstantiationExceptionTest
         await scheduler.ScheduleJob(job, trigger);
         await scheduler.Start();
 
-        SchedulerException reported = await listener.Reported.WaitAsync(TimeSpan.FromSeconds(30));
+        SchedulerErrorContext reported = await listener.Reported.WaitAsync(TimeSpan.FromSeconds(30));
         return (reported, scheduler);
     }
 
@@ -129,16 +134,14 @@ public class JobInstantiationExceptionTest
 
     private sealed class ErrorCapturingListener : ISchedulerListener
     {
-        private readonly TaskCompletionSource<SchedulerException> reported = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<SchedulerErrorContext> reported = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public Task<SchedulerException> Reported => reported.Task;
+        public Task<SchedulerErrorContext> Reported => reported.Task;
 
-        public ValueTask SchedulerError(
-            string message,
-            SchedulerException exception,
+        public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext,
             CancellationToken cancellationToken = default)
         {
-            reported.TrySetResult(exception);
+            reported.TrySetResult(errorContext);
             return default;
         }
     }

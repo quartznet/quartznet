@@ -99,8 +99,8 @@ public class XmlSchedulingDataProcessorPluginTest
 
         // Verify that SchedulerListener.SchedulerError was called
         A.CallTo(() => mockSchedulerListener.SchedulerError(
-                A<string>.That.Contains("Could not schedule jobs and triggers from file"),
-                A<SchedulerException>._,
+                mockScheduler,
+                A<SchedulerErrorContext>.That.Matches(e => e.Message.Contains("Could not schedule jobs and triggers from file")),
                 A<System.Threading.CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
@@ -128,8 +128,8 @@ public class XmlSchedulingDataProcessorPluginTest
 
         // Verify that SchedulerListener.SchedulerError was called even when not throwing
         A.CallTo(() => mockSchedulerListener.SchedulerError(
-                A<string>.That.Contains("Could not schedule jobs and triggers from file"),
-                A<SchedulerException>._,
+                mockScheduler,
+                A<SchedulerErrorContext>.That.Matches(e => e.Message.Contains("Could not schedule jobs and triggers from file")),
                 A<System.Threading.CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
@@ -152,8 +152,8 @@ public class XmlSchedulingDataProcessorPluginTest
 
         // Configure the throwing listener to throw when SchedulerError is called
         A.CallTo(() => throwingListener.SchedulerError(
-                A<string>._,
-                A<SchedulerException>._,
+                A<IScheduler>._,
+                A<SchedulerErrorContext>._,
                 A<System.Threading.CancellationToken>._))
             .Throws(new Exception("Listener failed to process error"));
 
@@ -168,21 +168,21 @@ public class XmlSchedulingDataProcessorPluginTest
 
         // Assert - verify that all listeners had SchedulerError called, including the throwing one
         A.CallTo(() => throwingListener.SchedulerError(
-                A<string>.That.Contains("Could not schedule jobs and triggers from file"),
-                A<SchedulerException>._,
+                mockScheduler,
+                A<SchedulerErrorContext>.That.Matches(e => e.Message.Contains("Could not schedule jobs and triggers from file")),
                 A<System.Threading.CancellationToken>._))
             .MustHaveHappenedOnceExactly();
 
         // Verify that the non-throwing listeners were still notified despite the first one throwing
         A.CallTo(() => successListener1.SchedulerError(
-                A<string>.That.Contains("Could not schedule jobs and triggers from file"),
-                A<SchedulerException>._,
+                mockScheduler,
+                A<SchedulerErrorContext>.That.Matches(e => e.Message.Contains("Could not schedule jobs and triggers from file")),
                 A<System.Threading.CancellationToken>._))
             .MustHaveHappenedOnceExactly();
 
         A.CallTo(() => successListener2.SchedulerError(
-                A<string>.That.Contains("Could not schedule jobs and triggers from file"),
-                A<SchedulerException>._,
+                mockScheduler,
+                A<SchedulerErrorContext>.That.Matches(e => e.Message.Contains("Could not schedule jobs and triggers from file")),
                 A<System.Threading.CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }

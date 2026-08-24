@@ -96,4 +96,13 @@ public sealed record TriggerEventDto(
 /// </remarks>
 public sealed record SchedulerStateDto(string SchedulerName, SchedulerStatus Status);
 
-public sealed record SchedulerErrorDto(string SchedulerName, string Message, string? Cause);
+/// <remarks>
+/// <see cref="TriggerKey" /> and <see cref="JobKey" /> are null when the scheduler could not say what
+/// the error was about — a store retrying a failed operation names neither.
+/// </remarks>
+public sealed record SchedulerErrorDto(
+    string SchedulerName,
+    string Message,
+    string? Cause,
+    TriggerKeyDto? TriggerKey,
+    JobKeyDto? JobKey);

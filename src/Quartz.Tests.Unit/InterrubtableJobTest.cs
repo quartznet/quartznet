@@ -137,7 +137,7 @@ public class InterruptableJobTest
     {
         public TaskCompletionSource<JobKey> Interrupted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             Interrupted.TrySetResult(jobKey);
             return default;

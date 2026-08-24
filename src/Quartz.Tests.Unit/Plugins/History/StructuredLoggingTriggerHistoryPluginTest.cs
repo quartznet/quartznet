@@ -19,6 +19,8 @@
 
 #endregion
 
+using FakeItEasy;
+
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl;
@@ -77,7 +79,7 @@ public class StructuredLoggingTriggerHistoryPluginTest
 
         t.JobKey = new JobKey("name", "group");
 
-        await plugin.TriggerMisfired(t);
+        await plugin.TriggerMisfired(A.Fake<IScheduler>(), t);
 
         Assert.That(loggerProvider.Entries, Has.Count.EqualTo(1));
         Assert.That(loggerProvider.Entries[0].Level, Is.EqualTo(LogLevel.Information));

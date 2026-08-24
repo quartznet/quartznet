@@ -501,7 +501,7 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask JobUnscheduled(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -511,37 +511,37 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
+        public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerInStandbyMode(IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask SchedulerShutdown(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerShutdown(IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerShuttingDown(IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerStarted(IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask SchedulerStarting(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerStarting(IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask SchedulingDataCleared(CancellationToken cancellationToken = default)
+        public ValueTask SchedulingDataCleared(IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -551,7 +551,7 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
+        public ValueTask TriggerFinalized(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -561,27 +561,27 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
+        public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggerPaused(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggerResumed(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default)
+        public ValueTask TriggersPaused(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default)
+        public ValueTask TriggersResumed(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -591,42 +591,42 @@ public class QuartSchedulerBenchmark
             return new ValueTask<bool>(false);
         }
 
-        public ValueTask JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default)
+        public ValueTask JobAdded(IScheduler scheduler, IJobDetail jobDetail, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobDeleted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobInterrupted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask JobPaused(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobPaused(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobResumed(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default)
+        public ValueTask JobScheduled(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsPaused(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsResumed(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default)
         {
             return default;
         }

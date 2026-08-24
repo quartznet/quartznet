@@ -155,7 +155,10 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
                 quartzScheduler.SetExecutionLimits(executionLimits);
             }
 
-            var scheduler = new StdScheduler(quartzScheduler);
+            // The scheduler's own facade, not a fresh one: it is what every listener callback and every
+            // execution context is handed, so anything that compares the scheduler it was told about
+            // with the one it holds must be comparing the same object.
+            IScheduler scheduler = quartzScheduler.Scheduler;
 
             foreach (var pair in options.Context)
             {

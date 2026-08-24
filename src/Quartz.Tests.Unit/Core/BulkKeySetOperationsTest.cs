@@ -385,61 +385,61 @@ public class BulkKeySetOperationsTest
             ResumedJobGroups.Clear();
         }
 
-        public ValueTask JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobDeleted(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             DeletedJobs.Add(jobKey);
             return default;
         }
 
-        public ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask JobUnscheduled(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             UnscheduledTriggers.Add(triggerKey);
             return default;
         }
 
-        public ValueTask TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggerPaused(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             PausedTriggers.Add(triggerKey);
             return default;
         }
 
-        public ValueTask TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default)
+        public ValueTask TriggersPaused(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default)
         {
             PausedTriggerGroups.Add(triggerGroup);
             return default;
         }
 
-        public ValueTask TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggerResumed(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             ResumedTriggers.Add(triggerKey);
             return default;
         }
 
-        public ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default)
+        public ValueTask TriggersResumed(IScheduler scheduler, string? triggerGroup, CancellationToken cancellationToken = default)
         {
             ResumedTriggerGroups.Add(triggerGroup);
             return default;
         }
 
-        public ValueTask JobPaused(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobPaused(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             PausedJobs.Add(jobKey);
             return default;
         }
 
-        public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsPaused(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default)
         {
             PausedJobGroups.Add(jobGroup);
             return default;
         }
 
-        public ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobResumed(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
         {
             ResumedJobs.Add(jobKey);
             return default;
         }
 
-        public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsResumed(IScheduler scheduler, string? jobGroup, CancellationToken cancellationToken = default)
         {
             ResumedJobGroups.Add(jobGroup);
             return default;

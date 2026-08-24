@@ -131,7 +131,9 @@ internal sealed class JobRunShell
             // The factory said what went wrong; the exception handed to listeners adds which trigger
             // and which firing it went wrong for, which the message text alone never carried.
             JobInstantiationException failure = new JobInstantiationException(se.Message, firedTriggerBundle, se);
-            await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job='{jobDetail.Key}'", failure, cancellationToken).ConfigureAwait(false);
+            await qs!.NotifySchedulerListenersError(
+                ErrorFor(firedTriggerBundle, $"An error occurred instantiating job to be executed. job='{jobDetail.Key}'", failure),
+                cancellationToken).ConfigureAwait(false);
 
             IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;
             SchedulerInstruction instruction = se.InnerException is ObjectDisposedException or OperationCanceledException
@@ -200,7 +202,7 @@ internal sealed class JobRunShell
                     catch (SchedulerException se)
                     {
                         string msg = $"Error during veto of Job {context.JobDetail.Key}: couldn't finalize execution.";
-                        await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+                        await qs.NotifySchedulerListenersError(ErrorFor(context, msg, se), cancellationToken).ConfigureAwait(false);
                     }
                     break;
                 }
@@ -241,7 +243,9 @@ internal sealed class JobRunShell
                     endTimestamp = timeProvider.GetTimestamp();
                     logger.LogError(e, "Job {JobDetailKey} threw an unhandled Exception: ", jobDetail.Key);
                     SchedulerException se = new JobExecutionProcessException(context, e);
-                    await qs.NotifySchedulerListenersError($"Job {context.JobDetail.Key} threw an exception.", se, cancellationToken).ConfigureAwait(false);
+                    await qs.NotifySchedulerListenersError(
+                        ErrorFor(context, $"Job {context.JobDetail.Key} threw an exception.", se),
+                        cancellationToken).ConfigureAwait(false);
                     jobExEx = new JobExecutionException(se);
                     jobExEx.JobDetail = jobDetail;
                 }
@@ -267,7 +271,9 @@ internal sealed class JobRunShell
                 {
                     // If this happens, there's a bug in the trigger...
                     SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
-                    await qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se, cancellationToken).ConfigureAwait(false);
+                    await qs.NotifySchedulerListenersError(
+                        ErrorFor(context, "Please report this error to the Quartz developers.", se),
+                        cancellationToken).ConfigureAwait(false);
                 }
 
                 // re-Execute job — skip listener notifications so that listeners like
@@ -304,7 +310,9 @@ internal sealed class JobRunShell
                     catch (Exception e)
                     {
                         SchedulerException se2 = new SchedulerException("Error notifying scheduler listeners of finalized trigger.", e);
-                        await qs.NotifySchedulerListenersError("Error notifying scheduler listeners of finalized trigger.", se2, cancellationToken).ConfigureAwait(false);
+                        await qs.NotifySchedulerListenersError(
+                            ErrorFor(context, "Error notifying scheduler listeners of finalized trigger.", se2),
+                            cancellationToken).ConfigureAwait(false);
                     }
 
                     await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
@@ -327,8 +335,10 @@ internal sealed class JobRunShell
                 // Run is handed to the thread pool and nobody awaits it, so letting this escape would
                 // lose it entirely. Report it and carry on to the context disposal below.
                 await qs.NotifySchedulerListenersError(
-                    $"An error occurred returning job to the job factory. job='{jobDetail.Key}'",
-                    new SchedulerException($"Problem returning job '{jobDetail.Key}' to the job factory: {e.Message}", e),
+                    ErrorFor(
+                        firedTriggerBundle,
+                        $"An error occurred returning job to the job factory. job='{jobDetail.Key}'",
+                        new SchedulerException($"Problem returning job '{jobDetail.Key}' to the job factory: {e.Message}", e)),
                     cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -344,7 +354,9 @@ internal sealed class JobRunShell
         async ValueTask NotifyInstantiationFailed(Exception e)
         {
             SchedulerException se = new JobInstantiationException($"Problem instantiating type '{jobDetail.JobType.FullName}': {e.Message}", firedTriggerBundle, e);
-            await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job='{jobDetail.Key}', message='{e.Message}'", se, cancellationToken).ConfigureAwait(false);
+            await qs!.NotifySchedulerListenersError(
+                ErrorFor(firedTriggerBundle, $"An error occurred instantiating job to be executed. job='{jobDetail.Key}', message='{e.Message}'", se),
+                cancellationToken).ConfigureAwait(false);
 
             IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;
             SchedulerInstruction instruction = e is ObjectDisposedException or OperationCanceledException
@@ -368,7 +380,7 @@ internal sealed class JobRunShell
         catch (SchedulerException se)
         {
             var msg = $"Unable to notify TriggerListener(s) while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-            await qs!.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+            await qs!.NotifySchedulerListenersError(ErrorFor(ctx, msg, se), cancellationToken).ConfigureAwait(false);
             return false;
         }
 
@@ -384,7 +396,7 @@ internal sealed class JobRunShell
             catch (SchedulerException se)
             {
                 var msg = $"Unable to notify JobListener(s) of vetoed execution while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+                await qs.NotifySchedulerListenersError(ErrorFor(ctx, msg, se), cancellationToken).ConfigureAwait(false);
             }
             throw new VetoedException(this);
         }
@@ -397,7 +409,7 @@ internal sealed class JobRunShell
         catch (SchedulerException se)
         {
             string msg = $"Unable to notify JobListener(s) of Job to be executed: (Job will NOT be executed!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-            await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+            await qs.NotifySchedulerListenersError(ErrorFor(ctx, msg, se), cancellationToken).ConfigureAwait(false);
 
             return false;
         }
@@ -417,7 +429,7 @@ internal sealed class JobRunShell
         catch (SchedulerException se)
         {
             string msg = $"Unable to notify JobListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-            await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+            await qs.NotifySchedulerListenersError(ErrorFor(ctx, msg, se), cancellationToken).ConfigureAwait(false);
 
             return false;
         }
@@ -479,9 +491,43 @@ internal sealed class JobRunShell
             CancellationToken cancellationToken)
         {
             string msg = $"Unable to notify TriggerListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-            await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+            await qs.NotifySchedulerListenersError(ErrorFor(ctx, msg, se), cancellationToken).ConfigureAwait(false);
             return false;
         }
+    }
+
+    /// <summary>
+    /// The error context for a failure inside this firing, taken from the bundle the store fired.
+    /// </summary>
+    /// <remarks>
+    /// Used before the execution context exists — a job that could not be built has no context, but the
+    /// trigger, the job and the fire instance are all known regardless.
+    /// </remarks>
+    private static SchedulerErrorContext ErrorFor(TriggerFiredBundle bundle, string message, SchedulerException exception)
+    {
+        return new SchedulerErrorContext
+        {
+            Message = message,
+            Exception = exception,
+            TriggerKey = bundle.Trigger.Key,
+            JobKey = bundle.JobDetail.Key,
+            FireInstanceId = bundle.Trigger.FireInstanceId,
+        };
+    }
+
+    /// <summary>
+    /// The error context for a failure inside this firing, taken from the execution context.
+    /// </summary>
+    private static SchedulerErrorContext ErrorFor(JobExecutionContextImpl context, string message, SchedulerException exception)
+    {
+        return new SchedulerErrorContext
+        {
+            Message = message,
+            Exception = exception,
+            TriggerKey = context.Trigger.Key,
+            JobKey = context.JobDetail.Key,
+            FireInstanceId = context.FireInstanceId,
+        };
     }
 
     internal sealed class VetoedException : Exception

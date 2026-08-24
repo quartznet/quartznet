@@ -9,9 +9,9 @@ public class TestSchedulerListener : ISchedulerListener
         this.logger = logger;
     }
 
-    public ValueTask SchedulerStarting(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerStarting(IScheduler scheduler, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Scheduler starting");
+        logger.LogInformation("Scheduler {SchedulerName} starting", scheduler.SchedulerName);
         return ValueTask.CompletedTask;
     }
 }

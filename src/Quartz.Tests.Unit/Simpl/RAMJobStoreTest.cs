@@ -1355,8 +1355,7 @@ public class RAMJobStoreTest
         }
 
         public ValueTask NotifySchedulerListenersError(
-            string message,
-            SchedulerException jpe,
+            SchedulerErrorContext errorContext,
             CancellationToken cancellationToken = default)
         {
             return default;

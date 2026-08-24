@@ -335,9 +335,11 @@ public sealed class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerList
     /// does a lot.
     /// </para>
     /// </summary>
+    /// <param name="scheduler">The scheduler raising the notification.</param>
     /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public ValueTask TriggerMisfired(
+        IScheduler scheduler,
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {

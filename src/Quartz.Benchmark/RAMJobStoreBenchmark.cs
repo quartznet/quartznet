@@ -504,7 +504,7 @@ public class RAMJobStoreBenchmark
 
     public class NoOpSignaler : ISchedulerSignaler
     {
-        public ValueTask NotifySchedulerListenersError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
+        public ValueTask NotifySchedulerListenersError(SchedulerErrorContext errorContext, CancellationToken cancellationToken = default)
         {
             return default;
         }

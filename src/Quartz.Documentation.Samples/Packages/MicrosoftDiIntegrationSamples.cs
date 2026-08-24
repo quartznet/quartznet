@@ -75,12 +75,12 @@ public static class MicrosoftDiIntegrationSamples
 
     public sealed class InstantiationFailureListener(ILogger<InstantiationFailureListener> logger) : ISchedulerListener
     {
-        public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
+        public ValueTask SchedulerError(IScheduler scheduler, SchedulerErrorContext errorContext, CancellationToken cancellationToken = default)
         {
-            if (exception is JobInstantiationException failure)
+            if (errorContext.Exception is JobInstantiationException failure)
             {
-                logger.LogError(failure, "Job {Job} could not be built for trigger {Trigger}, fire {FireInstanceId}",
-                    failure.JobDetail.Key, failure.Trigger.Key, failure.FireInstanceId);
+                logger.LogError(failure, "Job {Job} could not be built for trigger {Trigger}, fire {FireInstanceId}, on scheduler {SchedulerName}",
+                    errorContext.JobKey, errorContext.TriggerKey, errorContext.FireInstanceId, scheduler.SchedulerName);
             }
 
             return default;
