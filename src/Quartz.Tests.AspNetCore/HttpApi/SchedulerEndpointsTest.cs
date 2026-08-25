@@ -92,13 +92,23 @@ public class SchedulerEndpointsTest : WebApiTest
             "the job store type name passes through as a string - the remote type need not exist in the client process");
     }
 
+    /// <summary>
+    /// The context endpoint reads a context holding what a context holds: whatever the application put
+    /// in it.
+    /// </summary>
+    /// <remarks>
+    /// The non-string entry is the point. This test passed for as long as the endpoint refused one,
+    /// because the fixture's scheduler is a fake whose context the test filled with strings — while
+    /// every scheduler a container had built carried a value that made the endpoint answer <c>500</c>.
+    /// </remarks>
     [Test]
     public async Task GetSchedulerContextShouldWork()
     {
-        var testContext = new SchedulerContext
+        SchedulerContext testContext = new()
         {
             { "TestKey1", "TestValue" },
-            { "TestKey2", "4352" }
+            { "TestKey2", "4352" },
+            { "TestKey3", 4352 }
         };
 
         A.CallTo(() => FakeScheduler.Context).Returns(testContext);
@@ -114,7 +124,12 @@ public class SchedulerEndpointsTest : WebApiTest
             serializerOptions,
             CancellationToken.None);
 
-        dto.AsContext().Should().BeEquivalentTo(testContext);
+        dto.Context.Should().Equal(new Dictionary<string, string?>
+        {
+            ["TestKey1"] = "TestValue",
+            ["TestKey2"] = "4352",
+            ["TestKey3"] = "4352"
+        }, "a value that is not a string arrives as its invariant text - text is all a remote reader has");
     }
 
     /// <summary>

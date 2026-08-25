@@ -1,0 +1,8 @@
+﻿{
+  "context": {
+    "activeFrom": "2025-06-01T12:30:00.0000000+00:00",
+    "nothing": null,
+    "retries": "4352",
+    "tenant": "acme"
+  }
+}

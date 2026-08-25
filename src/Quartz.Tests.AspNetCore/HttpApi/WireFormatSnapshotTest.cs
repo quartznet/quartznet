@@ -125,6 +125,31 @@ public class WireFormatSnapshotTest : WebApiTest
         await VerifyBody(body);
     }
 
+    /// <summary>
+    /// The scheduler context, which is the one body whose values the application chose the types of.
+    /// </summary>
+    /// <remarks>
+    /// Every one of them goes out as a JSON string: the context is a <c>Map&lt;String, Object&gt;</c> in
+    /// the scheduler's own process, and text is what a remote reader can use. The number and the instant
+    /// are here to pin the rendering as invariant — an <c>int</c> must not pick up a group separator and
+    /// a <c>DateTimeOffset</c> must not pick up the server's date format — and the null to say an absent
+    /// value stays absent rather than becoming the empty string.
+    /// </remarks>
+    [Test]
+    public async Task SchedulerContextBody()
+    {
+        A.CallTo(() => FakeScheduler.Context).Returns(new SchedulerContext
+        {
+            { "tenant", "acme" },
+            { "retries", 4352 },
+            { "activeFrom", new DateTimeOffset(2025, 6, 1, 12, 30, 0, TimeSpan.Zero) },
+            { "nothing", null }
+        });
+
+        string body = await Get($"{SchedulerUrl}/context");
+        await VerifyBody(body);
+    }
+
     [Test]
     public async Task AppliedJobKeysBody()
     {
