@@ -112,14 +112,21 @@ internal static class HttpApiJson
     /// first body either way.
     /// </para>
     /// <para>
-    /// The suppression therefore hides nothing an application is not told. The reflection it silences is
+    /// A native AOT publish is the same publish: it implies <c>PublishTrimmed</c>, so it sets the same
+    /// switch to false and ILCompiler substitutes the same property. That is why the AOT warning is
+    /// answered here rather than recorded — the resolver this branch would construct does not exist in
+    /// an AOT application to need constructing.
+    /// </para>
+    /// <para>
+    /// The suppressions therefore hide nothing an application is not told. The reflection they silence is
     /// already reported against
     /// <c>Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions</c>, which every caller of this
     /// method reaches through <c>JobDataMapConverter</c>, and which is deliberately not suppressed for
-    /// consumers.
+    /// consumers — as trimming-unsafe and as AOT-unsafe both.
     /// </para>
     /// </remarks>
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Guarded by IsReflectionEnabledByDefault, which a trimmed publish substitutes away along with this branch. See the remarks.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "Guarded by IsReflectionEnabledByDefault, which an AOT publish substitutes away along with this branch. See the remarks.")]
     private static DefaultJsonTypeInfoResolver? ReflectionResolver()
     {
         return JsonSerializer.IsReflectionEnabledByDefault ? new DefaultJsonTypeInfoResolver() : null;

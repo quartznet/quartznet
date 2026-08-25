@@ -498,11 +498,16 @@ internal class XmlSchedulingDataProcessor
         return retValue;
     }
 
-    protected virtual bool TryParseEnum<T>(string value, out T result) where T : struct
+    /// <remarks>
+    /// The generic overloads of <see cref="Enum.GetNames{TEnum}" /> and <see cref="Enum.GetValues{TEnum}" />
+    /// rather than the ones taking a <see cref="Type" />: building an array of an enum type named at runtime
+    /// is code the AOT compiler would have to generate, and the constraint means it never has to.
+    /// </remarks>
+    protected virtual bool TryParseEnum<T>(string value, out T result) where T : struct, Enum
     {
-        var names = Enum.GetNames(typeof(T));
-        result = (T) Enum.GetValues(typeof(T)).GetValue(0)!;
-        foreach (var name in names)
+        string[] names = Enum.GetNames<T>();
+        result = Enum.GetValues<T>()[0];
+        foreach (string name in names)
         {
             if (name == value)
             {

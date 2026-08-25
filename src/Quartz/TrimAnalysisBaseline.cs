@@ -21,10 +21,11 @@
 
 using System.Diagnostics.CodeAnalysis;
 
-// The trim-analysis warnings Quartz still produces (https://github.com/quartznet/quartznet/issues/3341).
-// It is a baseline, not an all-clear: none of these call sites is trim-safe. What the baseline buys is
-// that a *new* one fails the build, because TreatWarningsAsErrors makes IL2xxx an error and nothing
-// suppresses a warning that is not listed here.
+// The trim- and AOT-analysis warnings Quartz still produces (https://github.com/quartznet/quartznet/issues/3341).
+// It is a baseline, not an all-clear: none of these call sites is trim-safe, and the IL3050 ones are not
+// AOT-safe either. What the baseline buys is that a *new* one fails the build, because
+// TreatWarningsAsErrors makes an IL2xxx or an IL3xxx an error and nothing suppresses a warning that is
+// not listed here.
 //
 // Step 3 of that issue took the fire path out of this file. A job type that reached Quartz as a type -
 // JobBuilder.Create<T>(), OfType<T>(), AddJob<T>() - now carries [DynamicallyAccessedMembers] all the
@@ -36,6 +37,17 @@ using System.Diagnostics.CodeAnalysis;
 // the API exchanges, and HttpApiJson.ConfigureWireFormat asks it before it asks reflection. That change
 // removed no entry either, because the contract's reflection was never Quartz's own warning to record -
 // it lived in System.Text.Json's lazy fallback, which nothing reports.
+//
+// Step 5 turned the AOT and single-file analyzers on beside the trim analyzer, which is where the IL3050
+// entries came from. The single-file analyzer found nothing at all: Quartz reads no file it did not
+// embed, so there is no Assembly.Location for it to object to. The AOT analyzer found twelve call sites
+// and not one new type - every IL3050 below is on a type this file already listed, because needing
+// runtime code generation and being untrimmable are the same three habits here: binding options,
+// serializing job data, and reading it back. Two of the twelve are gone rather than recorded, which is
+// the order this file asks for: XmlSchedulingDataProcessor asked Enum.GetValues for an array of a type
+// named at runtime and now asks the generic overload for the same array at compile time, and
+// HttpApiJson.ReflectionResolver answers at the call site, because a native AOT publish substitutes its
+// feature switch away exactly as a trimmed one does.
 //
 // Adding an entry is the wrong first move. Reach for it only after establishing that the reflection is
 // genuinely unavoidable, and then say in the group comment why. The preferred fixes, in order:
@@ -113,13 +125,33 @@ using System.Diagnostics.CodeAnalysis;
 // is serialized. Everything around it is closed now - the wire contract by HttpApiJsonContext, the
 // trigger and calendar shapes by their serializers - and these two are the open middle that is left:
 // the values themselves, which no generated contract can name because the application chose them.
+//
+// The same two types are where the AOT analyzer lands, and for the same reason one step further on: a
+// converter System.Text.Json has to work out at runtime is a converter it has to generate. Every
+// JsonSerializer overload taking a JsonSerializerOptions is RequiresDynamicCode wholesale, so this
+// covers the one closed shape among them - a job data value read back as Dictionary<string, string> -
+// as well as the open ones.
+//
+// These two are also the entries that keep Quartz.csproj from saying IsAotCompatible, and they are the
+// only ones this file records that a publish does not merely warn about. A trimmed or AOT publish
+// switches System.Text.Json's reflection fallback off, and CreateSerializerOptions builds options with
+// converters but no resolver - so serializing anything through them throws "Reflection-based
+// serialization has been disabled for this application" rather than losing a member. A persistent job
+// store hits that on the first trigger it writes. Closing it means giving these options a resolver that
+// survives with reflection off, which is a change of shape rather than a suppression, and is what step 6
+// of #3341 is for.
 
 [assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Impl.SystemTextJsonObjectSerializer", Justification = "Job data is serialized as whatever the application stored, which no generated contract can name.")]
 [assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions", Justification = "Job data is serialized as whatever the application stored, which no generated contract can name.")]
+[assembly: SuppressMessage("AOT", "IL3050", Scope = "type", Target = "T:Quartz.Impl.SystemTextJsonObjectSerializer", Justification = "Serializing a type chosen by the application is what System.Text.Json needs runtime code generation for.")]
+[assembly: SuppressMessage("AOT", "IL3050", Scope = "type", Target = "T:Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions", Justification = "Serializing a type chosen by the application is what System.Text.Json needs runtime code generation for.")]
 
 // --- Configuration binding ------------------------------------------------------------------------------
-// IServiceCollection.Configure<TOptions>(name, section) is RequiresUnreferencedCode: the binder reflects
-// over TOptions. The options types are ours and closed, so the source-generated binder is the fix; that
-// is a separate change from this baseline.
+// IServiceCollection.Configure<TOptions>(name, section) is RequiresUnreferencedCode and
+// RequiresDynamicCode both: the binder reflects over TOptions, and builds what it needs to set a
+// collection or a nullable property on it. The options types are ours and closed, so the
+// source-generated binder is the fix for both; that is a separate change from this baseline, and the
+// one entry here that a later step can expect to delete rather than argue for.
 
 [assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.QuartzTypedOptions", Justification = "Binding the quartz configuration section reflects over the options types; the source-generated binder is the fix.")]
+[assembly: SuppressMessage("AOT", "IL3050", Scope = "type", Target = "T:Quartz.Configuration.QuartzTypedOptions", Justification = "Binding the quartz configuration section generates code for the options types; the source-generated binder is the fix.")]

@@ -130,12 +130,23 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// Publishes the example applications, one of which is the repository's trim canary.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Named <c>PublishAot</c> until issue #3341: nothing here has ever published native AOT, and
     /// leaving the misnomer in place would have collided with the real thing when it arrives.
     /// <c>Quartz.Examples.Worker</c> publishes fully trimmed over Quartz and nothing else, so an IL2xxx
     /// warning it reports is Quartz's own and fails this leg. <c>Quartz.Examples.AspNetCore</c> is a
     /// plain publish, because Razor Pages, MVC and Blazor Server are not trimmable and never will be —
     /// its csproj says so at length.
+    /// </para>
+    /// <para>
+    /// Still no native AOT publish here after step 5 of that issue, and the reason is a tooling one
+    /// rather than a scheduling one: ILCompiler takes no <c>--link-attributes</c>, so
+    /// <c>ILLink.Suppressions.xml</c> — which is what makes this leg green without silencing anything for
+    /// consumers — cannot be handed to it. An AOT publish of the worker therefore reports every recorded
+    /// warning as an error, and the only ways to quiet it are the two the issue has already refused: bake
+    /// the suppressions into the shipped assembly, or <c>NoWarn</c> the family and prove nothing. Step 5
+    /// ran the publish by hand and wrote down what it found; a leg here waits on step 6.
+    /// </para>
     /// </remarks>
     Target PublishTrimmed => _ => _
         .After<ICompile>()

@@ -9,6 +9,15 @@
   warning to silence. Removing an entry that looks unused because the analyzer is quiet about it fails
   the publish; verify against a clean `dotnet fallout PublishTrimmed`, not against the compile.
 
+  The other difference is that this file carries no IL3050, where TrimAnalysisBaseline.cs carries three.
+  That is not an omission. ILLink does not report IL3050 at all — dynamic code is ILCompiler's concern,
+  and ILCompiler cannot be handed this file: its command line offers a descriptor option and a
+  substitution option and no link-attributes option at all, and the SDK item below only ever reaches
+  ILLink. The only way to tell ILCompiler would be to bake UnconditionalSuppressMessage into the shipped
+  assembly, which is exactly the lie the paragraph below refuses to tell. So a native AOT publish of the
+  examples reports every one of these against Quartz and cannot be made a CI leg; step 5 of #3341 ran it
+  by hand instead, and its pull request records what it said.
+
   Two files are needed because the two tools cannot be told the same way. SuppressMessageAttribute is
   [Conditional("CODE_ANALYSIS")], so the C# baseline never reaches metadata and ILLink cannot see it;
   ILLink is told through its link-attributes option instead. The unconditional attribute would cover
