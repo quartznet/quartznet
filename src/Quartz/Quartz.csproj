@@ -10,16 +10,21 @@
     <!--
       IsAotCompatible would turn these two on as well, and it is deliberately not set. Step 5 of #3341
       turned them on by themselves instead, so that the warnings could be counted before the claim was
-      made: twelve IL3050 call sites, of which one was fixed, one answered at the call site and ten are
-      recorded in TrimAnalysisBaseline.cs. That much would be the same standard IsTrimmable is held to.
+      made: twelve IL3050 call sites, of which one was fixed and one answered at the call site. Step 6
+      took six more away rather than recording them, and the six that are left are one entry in
+      TrimAnalysisBaseline.cs — the configuration binder, whose fix is the source-generated one.
 
-      What stops the claim is not a warning but a run. A native AOT publish switches reflection-based
-      System.Text.Json off, and the default IObjectSerializer has no resolver to fall back on when it is
-      — so a native AOT application over RAMJobStore starts, fires its triggers and shuts down cleanly,
-      while one over a persistent store throws "Reflection-based serialization has been disabled for
-      this application" the first time it writes a trigger. Saying IsAotCompatible here would claim
-      otherwise. (A trimmed publish switches the same thing off, so this predates AOT; the trim canary
-      never noticed because it is an in-memory application.)
+      What stopped the claim was not a warning but a run, and step 6 fixed the run. A native AOT publish
+      switches reflection-based System.Text.Json off, and the default IObjectSerializer used to have no
+      resolver to fall back on when it was — so a native AOT application over RAMJobStore started, fired
+      its triggers and shut down cleanly, while one over a persistent store threw "Reflection-based
+      serialization has been disabled for this application" the first time it wrote a trigger. It no
+      longer does: Quartz.Trimming.Canary round-trips every blob a job store writes out of a trimmed
+      publish on every build, and out of a native AOT publish when run by hand.
+
+      What is left is the recorded set above, which is what an application publishing native AOT would
+      see reported against Quartz. Setting IsAotCompatible is therefore a judgement about those, not
+      about the store any more, and it is the one decision this file is still waiting on.
     -->
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>

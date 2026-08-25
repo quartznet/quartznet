@@ -3678,10 +3678,12 @@ suppressed in the shipped assembly, deliberately — suppressing them would hide
 Configuration by flat `quartz.*` keys, jobs named as strings (`job_scheduling_data` XML, a persisted
 `JOB_CLASS_NAME`), and `JobDataMap` values bound onto job properties are the paths that need reflection;
 an application that configures in code, references its job types statically and keeps job data to
-primitives exercises far less of it. One thing it does not get round: a **persistent job store** cannot
-be published trimmed at all yet, because a trimmed publish switches reflection-based `System.Text.Json`
-off and the default serializer has no generated contract to fall back on — see
-[Trimming](tutorial/more-about-jobs.md#trimming) for what that looks like. Progress is tracked on
+primitives exercises far less of it. A **persistent job store** publishes trimmed: the default
+System.Text.Json serializer carries a source-generated contract for every blob a store writes, and a
+custom trigger or calendar type is answered by the registry it was registered with. The one thing left
+open is a job-data value of a type of your own, which the registry is handed metadata for through
+`SystemTextJsonSerializerRegistry.AddTypeInfoResolver` — see
+[Trimming](tutorial/more-about-jobs.md#trimming) for the shape of that. Progress is tracked on
 [#3341](https://github.com/quartznet/quartznet/issues/3341).
 
 ## Executing is a trigger state
@@ -7594,6 +7596,7 @@ Parameters and behavior are unchanged:
 | `IQuartzApiClient` speaks Quartz's vocabulary | See [The dashboard's client speaks one currency](#the-dashboard-s-client-speaks-one-currency) |
 | The dashboard's HTTP-backed API client is gone | `QuartzApiClient` was never registered; the dashboard renders the schedulers in its own process, and `QuartzDashboardOptions.BaseUrl` and `.ApiPath` went with it — see [The dashboard reads the schedulers in its own process](#the-dashboard-reads-the-schedulers-in-its-own-process) |
 | Serializers outside a scheduler read a container-wide registry | Because the serializer maps are per-serializer, the HTTP API and `Quartz.HttpClient` read a `SystemTextJsonSerializerRegistry` registered in the container. Register it as a singleton to make a custom serializer visible to them. The dashboard no longer registers one of its own: it passes triggers and calendars through as themselves |
+| `SystemTextJsonSerializerRegistry` gained `AddTypeInfoResolver(IJsonTypeInfoResolver)` | Where reflection-based serialization is off — a `PublishTrimmed` or `PublishAot` application — this is how job-data values of the application's own types are answered for. Hand it a generated `JsonSerializerContext`'s `Default`. Everything Quartz writes, and every custom trigger or calendar registered with the registry, is already covered; with reflection on it changes nothing — see [Trimming annotations](#trimming-annotations) |
 | `IDriverDelegate` trigger states are `StoredTriggerState` | Eighteen members took the state as a `string`; the database still stores the same values — see [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate) |
 | The `…FromOtherStates` members take a state collection | Two or three fixed old-state parameters became one `IReadOnlyCollection<StoredTriggerState>` |
 | `FiredTriggerQuery.InstanceName` is `InstanceId` | With the `instanceName` parameters of the scheduler-state members; the `INSTANCE_NAME` column is unchanged |

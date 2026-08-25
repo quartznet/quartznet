@@ -230,3 +230,35 @@ services.AddKeyedSingleton("reporting", new SystemTextJsonSerializerRegistry()
 `AddQuartzHttpClient`; when a `HttpScheduler` is constructed by hand, pass one to its `serializerRegistry`
 parameter. A remote scheduler's own registrations cannot be discovered over HTTP, so custom types are only
 readable if this process knows their serializers.
+
+## Publishing trimmed or native AOT
+
+`PublishTrimmed` and `PublishAot` set `System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault` to
+false, so a type nobody has written metadata for cannot be serialized at all. This serializer carries a
+source-generated contract for everything Quartz writes — every trigger type, every calendar type,
+`CronExpression`, `NameValueCollection`, and a `JobDataMap` holding any of the value types
+`DataMapExtensions` declares an accessor for — and the registry answers for every custom trigger and
+calendar type registered with it, because `AddTriggerSerializer<TTrigger>` and
+`AddCalendarSerializer<TCalendar>` know the type statically.
+
+What is left is a **job-data value of a type of your own**. Hand the registry the metadata for it, as a
+generated `JsonSerializerContext`:
+
+<!-- snippet: sample_stj_type_info_resolver -->
+```csharp
+// The metadata for this application's own job-data value types. Only a trimmed or native AOT
+// publish needs it: with reflection on, the resolver chain still ends in reflection.
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseSqlServer("my connection string");
+    store.UseSystemTextJsonSerializer(json => json.AddTypeInfoResolver(JobDataContext.Default));
+}));
+```
+<!-- endSnippet -->
+
+Resolvers are asked in the order they were added, behind Quartz's own contract and in front of
+reflection, so `AddTypeInfoResolver` can be called more than once and is safe to configure whether or
+not the application is published trimmed.
+
+The `Quartz.Serialization.Newtonsoft` serializer has no equivalent: it is reflection by nature, so an
+application that publishes trimmed uses this one.

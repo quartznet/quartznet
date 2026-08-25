@@ -447,27 +447,67 @@ rooted:
 Registering every job type with `AddJob<TJob>()` or `AddJobType<TJob>()` covers the first of those:
 those calls are what the trimmer follows, and the store then finds the type it needs.
 
-::: warning A trimmed publish switches reflection-based JSON off
-`PublishTrimmed` sets `System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault` to false, and the
-default `IObjectSerializer` has no source-generated contract to fall back on. An application that keeps
-its schedule in memory never notices; one with a **persistent job store** gets
+### A persistent store under trimming
 
+`PublishTrimmed` sets `System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault` to false. An
+application that keeps its schedule in memory never notices; one with a **persistent job store** writes
+every trigger, calendar and `JobDataMap` through `IObjectSerializer`, and so depends on what
+`System.Text.Json` can still resolve.
+
+The default System.Text.Json serializer carries a source-generated contract for everything Quartz
+itself writes, so **the built-in shapes need nothing from you**: every trigger type, every calendar
+type, `CronExpression`, the `NameValueCollection` written under `useProperties`, and a `JobDataMap`
+holding a `string`, `bool`, `char`, `int`, `long`, `float`, `double`, `decimal`, `DateTime`,
+`DateTimeOffset`, `TimeSpan`, `Guid` or a `Dictionary<string, string>` — which is to say every type
+`DataMapExtensions` declares an accessor for. A **custom trigger or calendar type** needs nothing
+either: `AddTriggerSerializer<TTrigger>` and `AddCalendarSerializer<TCalendar>` know the type, so the
+registry answers for it.
+
+What is left open is a job-data value of a type of your own — an enum, or anything else you put in the
+map. With reflection off there is no metadata for it, and the write fails naming it. Hand the registry
+your own generated context:
+
+<!-- snippet: sample_more_about_jobs_trimmed_job_data_context -->
+```csharp
+// A job data value type of this application's own, which no contract of Quartz's can name.
+public enum ReportFormat
+{
+    Csv,
+    Pdf
+}
+
+// The metadata the registry is handed. Only a trimmed or native AOT publish needs it: with reflection
+// on, the resolver chain still ends in reflection and this changes nothing.
+[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
+[JsonSerializable(typeof(ReportFormat))]
+internal sealed partial class ReportJobDataContext : JsonSerializerContext;
 ```
-System.InvalidOperationException: Reflection-based serialization has been disabled for this
-application. Either use the source generator APIs or explicitly configure the
-'JsonSerializerOptions.TypeInfoResolver' property.
+<!-- endSnippet -->
+
+<!-- snippet: sample_more_about_jobs_trimmed_job_data_metadata -->
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseSqlServer(connectionString);
+    store.UseSystemTextJsonSerializer(registry => registry.AddTypeInfoResolver(ReportJobDataContext.Default));
+}));
 ```
+<!-- endSnippet -->
 
-the first time it writes a trigger. **Publish a persistent-store application untrimmed** until that is
-closed.
+`AddTypeInfoResolver` can be called more than once, and resolvers are asked in the order they were
+added, behind Quartz's own contract and in front of reflection. With reflection on it changes nothing,
+so it is safe to configure unconditionally.
 
-Turning the switch back on with
-`<JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>` is not a
-way round it either: the trimmer has already removed what reflection would have needed, and what
-remains fails later and less clearly. In the console application that produced the exception above,
-the same write came back as `FileNotFoundException: Could not load file or assembly
-'System.Private.Uri'`, under `TrimMode=partial` as much as `full`; a larger application keeps more
-and fails elsewhere. Reflection over a trimmed assembly is unsupported, not merely unreliable.
+::: warning Turning reflection back on is not a way round anything
+`<JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>` looks
+like an escape hatch and is not one: the trimmer has already removed what reflection would have needed,
+and what remains fails later and less clearly. In one console application the same write came back as
+`FileNotFoundException: Could not load file or assembly 'System.Private.Uri'`, under `TrimMode=partial`
+as much as `full`; a larger application keeps more and fails elsewhere. Reflection over a trimmed
+assembly is unsupported, not merely unreliable.
+
+The `Quartz.Serialization.Newtonsoft` serializer is reflection by nature and has no source-generated
+form to fall back on, so an application that publishes trimmed uses the System.Text.Json one.
 :::
 
 ## Native AOT
@@ -489,24 +529,23 @@ executes and disposes job instances, applies flat `quartz.*` keys from `appsetti
 down cleanly on Ctrl+C with `WaitForJobsToComplete` honoured. Job types named as types, listeners and
 the DI graph all survive.
 
-**A scheduler over a persistent store does not, yet.** It is the serializer above, not the scheduler:
-`IObjectSerializer` writes triggers, calendars and `JobDataMap` values through reflection-based
-`System.Text.Json`, which is both switched off and uncompilable under AOT. This is what stops the
-`Quartz` package from declaring `IsAotCompatible`, and it is tracked on
-[issue #3341](https://github.com/quartznet/quartznet/issues/3341).
+**The store serializer runs too.** A native AOT publish is a trimmed publish, so it switches the same
+reflection off, and the source-generated contract described above is what answers instead. The
+repository's `Quartz.Trimming.Canary` round-trips every blob a job store writes — every trigger, every
+calendar including a chained one, a `JobDataMap`, a `NameValueCollection` and a `CronExpression` —
+out of a fully trimmed publish on every build, and out of a native AOT publish when run by hand.
 
 **Publishing AOT reports Quartz's own warnings, and that is deliberate.** Quartz records its remaining
 reflective call sites in the repository rather than in the shipped assembly, so an
 `UnconditionalSuppressMessage` never hides them from you. Expect `IL2xxx` for the string-named
-configuration paths described above, and `IL3050` for two more:
+configuration paths described above, and `IL3050` for one more: **configuration binding**.
+`Configure<TOptions>(name, section)` binds the `Quartz` section by reflecting over the options types;
+configuring in code with `AddQuartz(q => …)` rather than from `appsettings.json` avoids it.
 
-- **configuration binding** — `Configure<TOptions>(name, section)` binds the `Quartz` section by
-  reflecting over the options types. Configuring in code with `AddQuartz(q => …)` rather than from
-  `appsettings.json` avoids it;
-- **job data serialization** — the persistent-store path above.
-
-Neither is on the fire path of an in-memory scheduler, so an application that configures in code and
-schedules in memory publishes AOT with warnings it can read and dismiss.
+That warning is not on the fire path of any scheduler, so an application that configures in code
+publishes AOT with warnings it can read and dismiss. The `Quartz` package still does not declare
+`IsAotCompatible` — the remaining warnings are what that claim would have to answer for, and the
+question is tracked on [issue #3341](https://github.com/quartznet/quartznet/issues/3341).
 
 ## JobExecutionException
 
