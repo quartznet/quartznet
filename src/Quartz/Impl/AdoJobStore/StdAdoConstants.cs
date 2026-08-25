@@ -304,7 +304,7 @@ internal static class StdAdoConstants
     /// Exclusion counts are rounded up and padded to one of these sizes, limiting the acquisition
     /// query shapes seen by the database plan cache.
     /// </summary>
-    private static readonly int[] excludedJobTypeBuckets = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, TriggerAcquisitionRequest.MaxExcludedJobTypeNames];
+    private static readonly int[] excludedJobTypeBuckets = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, JobTypeExclusions.MaxNames];
 
     // Unsynchronized on purpose: two threads racing here just build the same string twice and one
     // reference assignment wins, which costs nothing and cannot produce a wrong value.
@@ -328,7 +328,7 @@ internal static class StdAdoConstants
             }
         }
 
-        Throw.ArgumentOutOfRangeException(nameof(count), $"Excluded job type count must not exceed {TriggerAcquisitionRequest.MaxExcludedJobTypeNames}");
+        Throw.ArgumentOutOfRangeException(nameof(count), $"Excluded job type count must not exceed {JobTypeExclusions.MaxNames}");
         return default;
     }
 

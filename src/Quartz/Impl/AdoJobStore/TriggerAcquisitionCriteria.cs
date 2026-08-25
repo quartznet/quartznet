@@ -19,6 +19,8 @@
 
 #endregion
 
+using Quartz.Extensibility;
+
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
@@ -66,9 +68,31 @@ public sealed record TriggerAcquisitionCriteria
 
     /// <summary>
     /// Job type names to exclude from acquisition, copied from
-    /// <see cref="Quartz.Extensibility.TriggerAcquisitionRequest.ExcludedJobTypeNames" />.
+    /// <see cref="Quartz.Extensibility.TriggerAcquisitionRequest.ExcludedJobTypeNames" /> — or set by
+    /// a derived store's <c>CreateAcquisitionCriteria</c>, which is how a deployment says what this
+    /// node will not pick up.
     /// </summary>
-    public IReadOnlyCollection<string>? ExcludedJobTypeNames { get; init; }
+    /// <remarks>
+    /// <para>
+    /// <see cref="StdAdoDelegate" /> keeps the rows out in the acquisition SQL, where comparison
+    /// follows the job-class column's collation. A delegate is free to ignore the property, as it is
+    /// with every other one here — <see cref="AdoJobStoreBase" /> post-filters the results ordinally
+    /// afterwards, so an uncooperative delegate degrades to a wasted read rather than to running work
+    /// the deployment excluded.
+    /// </para>
+    /// <para>
+    /// Entries must be non-blank, and there may be at most 1,000 of them — Oracle's ceiling on an
+    /// <c>IN</c> list. Blank is rejected rather than skipped because one would make the clause
+    /// <c>NOT IN (…, NULL)</c>, which matches no row at all and would stop the node acquiring
+    /// anything.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">An entry is blank, or there are too many of them.</exception>
+    public IReadOnlyCollection<string>? ExcludedJobTypeNames
+    {
+        get;
+        init => field = JobTypeExclusions.Validated(value, nameof(value));
+    }
 
     /// <summary>
     /// What the whole cluster already holds in flight per (execution group, trigger group) pair, which

@@ -1551,7 +1551,7 @@ public class AdoJobStoreBaseTest
     [Test]
     public void TriggerAcquisitionRequest_ShouldRejectTooManyExcludedJobTypeNames()
     {
-        string[] names = Enumerable.Range(0, TriggerAcquisitionRequest.MaxExcludedJobTypeNames + 1)
+        string[] names = Enumerable.Range(0, JobTypeExclusions.MaxNames + 1)
             .Select(index => "Job" + index)
             .ToArray();
         Action act = () => _ = new TriggerAcquisitionRequest
@@ -1561,7 +1561,46 @@ public class AdoJobStoreBaseTest
         };
 
         act.Should().Throw<ArgumentException>()
-            .WithMessage($"ExcludedJobTypeNames must not exceed {TriggerAcquisitionRequest.MaxExcludedJobTypeNames} entries.*");
+            .WithMessage($"ExcludedJobTypeNames must not exceed {JobTypeExclusions.MaxNames} entries.*");
+    }
+
+    [TestCase("")]
+    [TestCase(" ")]
+    [TestCase(null)]
+    public void TriggerAcquisitionCriteria_ShouldRejectInvalidExcludedJobTypeNames(string name)
+    {
+        Action act = () => _ = new TriggerAcquisitionCriteria
+        {
+            NoLaterThan = DateTimeOffset.UtcNow,
+            NoEarlierThan = DateTimeOffset.UtcNow,
+            MaxCount = 1,
+            LiveNodeCutoff = DateTimeOffset.UtcNow,
+            ExcludedJobTypeNames = [name]
+        };
+
+        act.Should().Throw<ArgumentException>(
+                "a derived store sets its exclusions on the criteria and never touches the request, so the check has to hold here too - a blank entry would make the clause NOT IN (..., NULL), which matches no row and would stop the node acquiring anything at all")
+            .WithMessage("ExcludedJobTypeNames must not contain null, empty, or whitespace entries.*");
+    }
+
+    [Test]
+    public void TriggerAcquisitionCriteria_ShouldRejectTooManyExcludedJobTypeNames()
+    {
+        string[] names = Enumerable.Range(0, JobTypeExclusions.MaxNames + 1)
+            .Select(index => "Job" + index)
+            .ToArray();
+        Action act = () => _ = new TriggerAcquisitionCriteria
+        {
+            NoLaterThan = DateTimeOffset.UtcNow,
+            NoEarlierThan = DateTimeOffset.UtcNow,
+            MaxCount = 1,
+            LiveNodeCutoff = DateTimeOffset.UtcNow,
+            ExcludedJobTypeNames = names
+        };
+
+        act.Should().Throw<ArgumentException>(
+                "the cap is Oracle's IN-list ceiling, which the criteria reach as surely as the request does")
+            .WithMessage($"ExcludedJobTypeNames must not exceed {JobTypeExclusions.MaxNames} entries.*");
     }
 
     /// <summary>

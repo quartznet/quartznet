@@ -36,9 +36,6 @@ namespace Quartz.Extensibility;
 /// <seealso cref="IJobStore.AcquireNextTriggers" />
 public sealed record TriggerAcquisitionRequest
 {
-    // Oracle limits an IN list to 1000 expressions.
-    internal const int MaxExcludedJobTypeNames = 1000;
-
     /// <summary>
     /// Highest value of <see cref="ITrigger.NextFireTimeUtc" /> of the triggers to acquire. A
     /// store must not return a trigger that would fire later than this.
@@ -113,29 +110,15 @@ public sealed record TriggerAcquisitionRequest
     /// rewrites a stored name, so an exclusion will not match such a row. Matching is exact: there is
     /// no prefix or wildcard form.
     /// </para>
+    /// <para>
+    /// Entries must be non-blank, and there may be at most 1,000 of them — Oracle's ceiling on an
+    /// <c>IN</c> list. Both are checked here rather than at acquisition time.
+    /// </para>
     /// </remarks>
+    /// <exception cref="ArgumentException">An entry is blank, or there are too many of them.</exception>
     public IReadOnlyCollection<string>? ExcludedJobTypeNames
     {
         get;
-        init
-        {
-            if (value is not null)
-            {
-                foreach (string name in value)
-                {
-                    if (string.IsNullOrWhiteSpace(name))
-                    {
-                        throw new ArgumentException("ExcludedJobTypeNames must not contain null, empty, or whitespace entries.", nameof(value));
-                    }
-                }
-
-                if (value.Count > MaxExcludedJobTypeNames)
-                {
-                    throw new ArgumentException($"ExcludedJobTypeNames must not exceed {MaxExcludedJobTypeNames} entries.", nameof(value));
-                }
-            }
-
-            field = value;
-        }
+        init => field = JobTypeExclusions.Validated(value, nameof(value));
     }
 }
