@@ -103,3 +103,56 @@ internal sealed class BudgetedJobStore(
 
     #endregion
 }
+
+/// <summary>
+/// The same scaffolding as <see cref="BudgetedJobStore" />, for the second override the page shows.
+/// </summary>
+internal sealed class MaintenanceWindowJobStore(
+    ISchedulerSignaler schedulerSignaler,
+    ITypeLoader typeLoader,
+    TimeProvider timeProvider,
+    IOptions<QuartzSchedulerOptions> schedulerOptions,
+    IOptions<AdoJobStoreOptions> storeOptions,
+    IOptions<ClusteringOptions> clusteringOptions,
+    IObjectSerializer objectSerializer,
+    IDbProvider dbProvider,
+    IDriverDelegate driverDelegate)
+    : LocalTransactionJobStore(
+        schedulerSignaler,
+        typeLoader,
+        timeProvider,
+        schedulerOptions,
+        storeOptions,
+        clusteringOptions,
+        objectSerializer,
+        dbProvider,
+        driverDelegate)
+{
+    private readonly IMaintenanceWindow maintenanceWindow = null!;
+
+    #region sample_custom_job_store_excluded_job_types
+
+    // JobType.FullName is the spelling the store persists - "Namespace.TypeName, AssemblyName".
+    // Type.FullName carries no assembly name and would never match a stored row.
+    private static readonly string reportingJobTypeName = new JobType(typeof(ReportingJob)).FullName;
+
+    protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
+    {
+        // Asked again on every acquisition attempt, so a window that opens between two of them takes
+        // effect on the next one without restarting anything.
+        string[]? excluded = this.maintenanceWindow.IsOpen ? [reportingJobTypeName] : null;
+
+        return base.CreateAcquisitionCriteria(request) with { ExcludedJobTypeNames = excluded };
+    }
+
+    #endregion
+}
+
+/// <summary>
+/// The deployment's own notion of when the heavy jobs are not welcome. Named only so the sample above
+/// compiles.
+/// </summary>
+public interface IMaintenanceWindow
+{
+    bool IsOpen { get; }
+}

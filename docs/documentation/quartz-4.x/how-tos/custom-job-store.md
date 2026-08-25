@@ -257,6 +257,45 @@ recomputed, which is deliberate.
 added later will default to "no additional filtering" — an override that starts from `base` and adjusts
 one field keeps working.
 
+### Excluding job types from acquisition
+
+`ExcludedJobTypeNames` is the first of those properties, and it is how a node declines whole classes
+of work: names in the set are kept out of the acquisition query's result set, so an excluded job type
+never occupies one of the `MaxCount` rows a post-filter would have to discard.
+
+<!-- snippet: sample_custom_job_store_excluded_job_types -->
+```csharp
+// JobType.FullName is the spelling the store persists - "Namespace.TypeName, AssemblyName".
+// Type.FullName carries no assembly name and would never match a stored row.
+private static readonly string reportingJobTypeName = new JobType(typeof(ReportingJob)).FullName;
+
+protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
+{
+    // Asked again on every acquisition attempt, so a window that opens between two of them takes
+    // effect on the next one without restarting anything.
+    string[]? excluded = this.maintenanceWindow.IsOpen ? [reportingJobTypeName] : null;
+
+    return base.CreateAcquisitionCriteria(request) with { ExcludedJobTypeNames = excluded };
+}
+```
+<!-- endSnippet -->
+
+Two things to get right:
+
+- **Name the type the way the store persists it.** That is `JobType.FullName` —
+  `Namespace.TypeName, AssemblyName`, the same string `TriggerAcquireResult.JobTypeName` carries and
+  the same one the ADO schema keeps in `JOB_CLASS_NAME`. `Type.FullName` has no assembly name and will
+  never match a stored row.
+- **Matching is exact.** There is no prefix or wildcard form. The SQL comparison follows the
+  `JOB_CLASS_NAME` column's collation, so its case sensitivity is the database's, not .NET's; the
+  in-memory store compares ordinally. Rows written by Quartz 2.x or 3.x can carry an older spelling,
+  and the read side never rewrites a stored name, so an exclusion will not match those.
+
+The property is also on `TriggerAcquisitionRequest`, which every shipped store honours — set it there
+when the caller knows the exclusions, and override `CreateAcquisitionCriteria` when the *store* does.
+Entries must be non-blank and there may be at most 1000 of them, both checked at construction; 1000 is
+Oracle's ceiling on an `IN` list.
+
 ## Rebuilding jobs and triggers
 
 A store that reads its data back has to reconstruct `IJobDetail` and `IOperableTrigger`. The two are
