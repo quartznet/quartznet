@@ -498,6 +498,15 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 added, behind Quartz's own contract and in front of reflection. With reflection on it changes nothing,
 so it is safe to configure unconditionally.
 
+**The provider's connection type is the one thing a `TrimMode=full` publish still has to be told
+about.** An ADO.NET store resolves its provider's `DbConnection` type from the driver description by
+name, and the trimmer does not follow a name: `UseSqlite(connectionString)` published `TrimMode=full`
+fails while the container is being built, with `Cannot instantiate type which has no empty constructor`.
+Either register a `DbDataSource` in the container and set `UseRegisteredDataSource`, as
+[Job stores](job-stores.md) describes, or root the provider assembly with
+`<TrimmerRootAssembly Include="Microsoft.Data.Sqlite" />`. Making the store need neither is the open
+step on [#3341](https://github.com/quartznet/quartznet/issues/3341).
+
 ::: warning Turning reflection back on is not a way round anything
 `<JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>` looks
 like an escape hatch and is not one: the trimmer has already removed what reflection would have needed,

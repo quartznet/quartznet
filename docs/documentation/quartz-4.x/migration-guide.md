@@ -3678,7 +3678,9 @@ suppressed in the shipped assembly, deliberately — suppressing them would hide
 Configuration by flat `quartz.*` keys, jobs named as strings (`job_scheduling_data` XML, a persisted
 `JOB_CLASS_NAME`), and `JobDataMap` values bound onto job properties are the paths that need reflection;
 an application that configures in code, references its job types statically and keeps job data to
-primitives exercises far less of it. A **persistent job store** publishes trimmed: the default
+primitives exercises far less of it. A **persistent job store** publishes trimmed, given a registered
+`DbDataSource` to reach its provider through (a `TrimMode=full` publish does not keep a connection type
+that is only named by string): the default
 System.Text.Json serializer carries a source-generated contract for every blob a store writes, and a
 custom trigger or calendar type is answered by the registry it was registered with. The one thing left
 open is a job-data value of a type of your own, which the registry is handed metadata for through
