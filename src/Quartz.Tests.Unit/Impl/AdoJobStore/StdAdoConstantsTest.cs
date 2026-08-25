@@ -64,7 +64,8 @@ public class StdAdoConstantsTest
     {
         string sql = StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket: 0);
 
-        sql.Should().Be(StdAdoConstants.SqlSelectNextTriggerToAcquire);
+        sql.Should().BeSameAs(StdAdoConstants.SqlSelectNextTriggerToAcquire,
+            "the two are one template with an empty exclusion clause, so asking for no exclusions hands back the very string every exclusion-free caller already uses rather than an equal copy built beside it");
     }
 
     [Test]

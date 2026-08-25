@@ -276,9 +276,16 @@ internal static class StdAdoConstants
         Invariant($@"AND (t.{AdoConstants.ColumnPreferredNode} IS NULL OR t.{AdoConstants.ColumnPreferredNode} = @instanceId OR t.{AdoConstants.ColumnPreferredNode} = @autoPinSentinel
                      OR t.{AdoConstants.ColumnPreferredNode} NOT IN (SELECT ss.{AdoConstants.ColumnInstanceName} FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState} ss WHERE ss.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND ss.{AdoConstants.ColumnLastCheckinTime} + ss.{AdoConstants.ColumnCheckinInterval} * 10000 >= @liveNodeCutoff))");
 
+    // The one acquisition statement. Everything a caller can vary about it is the job-type exclusion
+    // clause, which is empty when nothing is excluded - so SqlSelectNextTriggerToAcquire below is
+    // literally the no-exclusion case of this template rather than a second copy kept in step by eye,
+    // and a change to the projection, the join, the predicates or the ORDER BY is a change in one
+    // place. The clause carries its own leading newline and indent, so passing an empty one yields
+    // the statement byte for byte as it was before there was a clause to pass.
+    //
     // PREFERRED_NODE is filtered entirely in PreferredNodeWhereClause and is not projected —
     // acquisition never reads it from the result (the trigger is reloaded via GetTrigger).
-    public static readonly string SqlSelectNextTriggerToAcquire =
+    private static string SelectNextTriggerToAcquire(string exclusionClause) =>
         Invariant($@"SELECT
                 t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, t.{AdoConstants.ColumnExecutionGroup}
               FROM
@@ -287,9 +294,11 @@ internal static class StdAdoConstants
                 {TablePrefixSubst}{AdoConstants.TableJobDetails} jd ON (jd.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND  jd.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND jd.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName})
               WHERE
                 t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerState} = @state AND {AdoConstants.ColumnNextFireTime} <= @noLaterThan AND ({AdoConstants.ColumnMisfireInstruction} = -1 OR ({AdoConstants.ColumnMisfireInstruction} <> -1 AND {AdoConstants.ColumnNextFireTime} >= @noEarlierThan))
-                {PreferredNodeWhereClause}
+                {PreferredNodeWhereClause}{exclusionClause}
               ORDER BY
                 {AdoConstants.ColumnNextFireTime} ASC, {AdoConstants.ColumnPriority} DESC");
+
+    public static readonly string SqlSelectNextTriggerToAcquire = SelectNextTriggerToAcquire(exclusionClause: "");
 
     /// <summary>
     /// Exclusion counts are rounded up and padded to one of these sizes, limiting the acquisition
@@ -345,38 +354,42 @@ internal static class StdAdoConstants
             return cached;
         }
 
-        StringBuilder exclusionClause = new StringBuilder("AND jd.").Append(AdoConstants.ColumnJobClass).Append(" NOT IN (");
-        for (int i = 0; i < excludedJobTypeBucket; i++)
-        {
-            if (i > 0)
-            {
-                exclusionClause.Append(", ");
-            }
-
-            exclusionClause.Append('@').Append(ExcludedJobTypeParameter(i));
-        }
-
-        exclusionClause.Append(')');
-
-        // Same shape as SqlSelectNextTriggerToAcquire above, plus the exclusion clause - kept as a
-        // second copy rather than spliced at runtime, so this stays as easy to read (and to keep in
-        // sync by eye) as the query it is built from.
-        string predicateSql = Invariant($@"SELECT
-                t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, t.{AdoConstants.ColumnExecutionGroup}
-              FROM
-                {TablePrefixSubst}{AdoConstants.TableTriggers} t
-              JOIN
-                {TablePrefixSubst}{AdoConstants.TableJobDetails} jd ON (jd.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND  jd.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND jd.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName})
-              WHERE
-                t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerState} = @state AND {AdoConstants.ColumnNextFireTime} <= @noLaterThan AND ({AdoConstants.ColumnMisfireInstruction} = -1 OR ({AdoConstants.ColumnMisfireInstruction} <> -1 AND {AdoConstants.ColumnNextFireTime} >= @noEarlierThan))
-                {PreferredNodeWhereClause}
-                {exclusionClause}
-              ORDER BY
-                {AdoConstants.ColumnNextFireTime} ASC, {AdoConstants.ColumnPriority} DESC");
+        string predicateSql = SelectNextTriggerToAcquire(ExcludedJobTypeWhereClause(excludedJobTypeBucket));
 
         sqlSelectNextTriggerToAcquireByExcludedJobTypeBucket[bucketIndex] = predicateSql;
         return predicateSql;
     }
+
+    /// <summary>
+    /// The exclusion clause the acquisition template splices in, on a line of its own and indented to
+    /// match the predicate above it. The parameter names are fixed-width so that no name is a prefix
+    /// of another — see the remarks above <see cref="PreferredNodeWhereClause" />.
+    /// </summary>
+    private static string ExcludedJobTypeWhereClause(int excludedJobTypeBucket)
+    {
+        StringBuilder clause = new StringBuilder(ClauseSeparator)
+            .Append("AND jd.")
+            .Append(AdoConstants.ColumnJobClass)
+            .Append(" NOT IN (");
+
+        for (int i = 0; i < excludedJobTypeBucket; i++)
+        {
+            if (i > 0)
+            {
+                clause.Append(", ");
+            }
+
+            clause.Append('@').Append(ExcludedJobTypeParameter(i));
+        }
+
+        return clause.Append(')').ToString();
+    }
+
+    /// <summary>
+    /// What separates one optional WHERE clause of the acquisition statement from the next: a line
+    /// break and the indent the template's own predicates sit at.
+    /// </summary>
+    private const string ClauseSeparator = "\n                ";
 
     internal static string ExcludedJobTypeParameter(int index) =>
         "excludedJobType" + index.ToString("D4", CultureInfo.InvariantCulture);
