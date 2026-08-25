@@ -36,3 +36,8 @@ public sealed class AnExampleJob : IJob
 {
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 }
+
+public sealed class ReportingJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
