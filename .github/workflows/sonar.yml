@@ -91,6 +91,14 @@ jobs:
           # coverage any more; if a component test cannot be written, that is a seam to add rather
           # than a line to put back here.
           #
+          # src/Quartz.Trimming.Canary is excused from coverage for the opposite reason to the usual
+          # one: it is not code a test covers, it is a test. `dotnet fallout PublishTrimmed` publishes
+          # it fully trimmed and then runs it, and a non-zero exit fails that leg — which is the only
+          # way to prove what it proves, since the failure it guards against (#3341, step 6) produced
+          # no compile-time warning of its own. No coverage instrumentation sees any of it: the run
+          # happens out of process, in a different leg, over a trimmed self-contained publish. It
+          # stays in analysis like everything else here.
+          #
           # database/ is excused from copy-paste detection and from two PL/SQL rules, and from
           # nothing else. Its bug and security rules still apply; these three are the ones that
           # have nothing true to say about it.
@@ -121,7 +129,7 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**" \
             /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,database/**" \
-            /d:sonar.coverage.exclusions="docs/.vuepress/**" \
+            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**" \
             /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.resourceKey="database/migrations/**/*.sql" \
