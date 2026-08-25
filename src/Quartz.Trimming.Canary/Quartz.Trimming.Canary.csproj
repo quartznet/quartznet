@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SignAssembly>false</SignAssembly>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+  </PropertyGroup>
+
+  <!--
+    The trim canary that runs. Quartz.Examples.Worker is published trimmed and never started, so it can
+    only prove the absence of a warning; this one starts, and proves that a persistent job store's
+    serializer still works when System.Text.Json's reflection fallback is gone. That distinction is not
+    academic — issue #3341's step 6 fixed a failure that produced no warning at all beyond the two
+    already recorded, and that a compile could not have found.
+
+    No TrimmerRootAssembly here, deliberately. The worker roots Quartz so that the trim analyzer walks
+    every path in it and any IL2xxx is reported; this project wants the opposite, an application trimmed
+    down to what it actually reaches, because that is the shape in which a missing JsonTypeInfo shows up.
+
+    ILLink.Suppressions.xml is not applied either, and must not be needed: the store serializer's own
+    path is warning-free after step 6, so a warning here is news. It does not ship — see the header of
+    that file — so applying it would only hide something.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+
+</Project>

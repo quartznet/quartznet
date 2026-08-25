@@ -47,5 +47,6 @@
   <Project Path="src/Quartz.Extensions.Redis/Quartz.Extensions.Redis.csproj" />
   <Project Path="src/Quartz.Serialization.Newtonsoft/Quartz.Serialization.Newtonsoft.csproj" />
   <Project Path="src/Quartz.Server/Quartz.Server.csproj" />
+  <Project Path="src/Quartz.Trimming.Canary/Quartz.Trimming.Canary.csproj" />
   <Project Path="src/Quartz/Quartz.csproj" />
 </Solution>

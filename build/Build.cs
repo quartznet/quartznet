@@ -127,7 +127,8 @@ partial class Build : FalloutBuild, ICompile, IPack
         .SetVersionSuffix(VersionSuffix);
 
     /// <summary>
-    /// Publishes the example applications, one of which is the repository's trim canary.
+    /// Publishes the example applications, one of which is a trim canary, and runs the trim canary that
+    /// is not an example.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -139,13 +140,25 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// its csproj says so at length.
     /// </para>
     /// <para>
-    /// Still no native AOT publish here after step 5 of that issue, and the reason is a tooling one
-    /// rather than a scheduling one: ILCompiler takes no <c>--link-attributes</c>, so
-    /// <c>ILLink.Suppressions.xml</c> — which is what makes this leg green without silencing anything for
-    /// consumers — cannot be handed to it. An AOT publish of the worker therefore reports every recorded
-    /// warning as an error, and the only ways to quiet it are the two the issue has already refused: bake
-    /// the suppressions into the shipped assembly, or <c>NoWarn</c> the family and prove nothing. Step 5
-    /// ran the publish by hand and wrote down what it found; a leg here waits on step 6.
+    /// <c>Quartz.Trimming.Canary</c> is published for the runner's own RID and then <em>started</em>, and
+    /// a non-zero exit fails the leg. That is step 6's addition, and the reason for it is what step 6
+    /// fixed: a persistent job store's serializer threw on the first trigger it wrote in any trimmed
+    /// application, and the two warnings that hinted at it were already in the baseline, so a publish
+    /// that only compiles could never have found it. The canary asserts that
+    /// <c>JsonSerializer.IsReflectionEnabledByDefault</c> really is false and then round-trips every blob
+    /// a job store writes through the ordinary serializer. Publishing it for the runner's RID is what
+    /// makes it runnable — a trimmed publish is a self-contained one — and it is why this leg gets a
+    /// clean output directory rather than reusing an earlier run's.
+    /// </para>
+    /// <para>
+    /// Still no native AOT publish here after step 6, and the reason is a tooling one rather than a
+    /// scheduling one: ILCompiler takes no <c>--link-attributes</c>, so <c>ILLink.Suppressions.xml</c> —
+    /// which is what makes this leg green without silencing anything for consumers — cannot be handed to
+    /// it. An AOT publish of the worker therefore reports every recorded warning as an error, and the
+    /// only ways to quiet it are the two the issue has already refused: bake the suppressions into the
+    /// shipped assembly, or <c>NoWarn</c> the family and prove nothing. The canary applies no
+    /// suppressions at all, so it is the one project here that could carry a native AOT leg; whether it
+    /// should is a decision that belongs with <c>IsAotCompatible</c>, and both are still open.
     /// </para>
     /// </remarks>
     Target PublishTrimmed => _ => _
@@ -164,6 +177,21 @@ partial class Build : FalloutBuild, ICompile, IPack
                 .SetProject(solution.AllProjects.First(x => x.Name == "Quartz.Examples.AspNetCore"))
                 .SetConfiguration(configuration)
             );
+
+            AbsolutePath canaryDirectory = ArtifactsDirectory / "trim-canary";
+            canaryDirectory.CreateOrCleanDirectory();
+
+            DotNetPublish(s => s
+                .SetProject(solution.AllProjects.First(x => x.Name == "Quartz.Trimming.Canary"))
+                .SetConfiguration(configuration)
+                .SetRuntime(RuntimeInformation.RuntimeIdentifier)
+                .SetOutput(canaryDirectory)
+            );
+
+            AbsolutePath canary = canaryDirectory / (IsRunningOnWindows ? "Quartz.Trimming.Canary.exe" : "Quartz.Trimming.Canary");
+            Log.Information("Running the trim canary: {Canary}", canary);
+
+            ProcessTasks.StartProcess(canary, logOutput: true).AssertZeroExitCode();
         });
 
     /// <summary>

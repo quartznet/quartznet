@@ -49,6 +49,17 @@ using System.Diagnostics.CodeAnalysis;
 // HttpApiJson.ReflectionResolver answers at the call site, because a native AOT publish substitutes its
 // feature switch away exactly as a trimmed one does.
 //
+// Step 6 deleted four entries - the IL2026 and IL3050 on SystemTextJsonObjectSerializer and on
+// Utf8JsonWriterExtensions - and they are the only ones this file has ever recorded that a publish did
+// not merely warn about. The store serializer built options with converters and no resolver, and a
+// trimmed publish switches System.Text.Json's reflection fallback off, so a persistent job store threw
+// "Reflection-based serialization has been disabled for this application" on the first trigger it wrote.
+// QuartzStoreJsonContext names the closed set, SystemTextJsonSerializerRegistry answers for the trigger
+// and calendar types registered with it and for whatever context the application handed in, and the
+// call sites ask options.GetTypeInfo and pass the JsonTypeInfo - which is the overload that carries
+// neither attribute. Quartz.Trimming.Canary runs the round trip out of a trimmed publish, so the leg
+// proves the fix rather than the absence of a warning.
+//
 // Adding an entry is the wrong first move. Reach for it only after establishing that the reflection is
 // genuinely unavoidable, and then say in the group comment why. The preferred fixes, in order:
 //
@@ -119,32 +130,6 @@ using System.Diagnostics.CodeAnalysis;
 // SqliteException.SqliteErrorCode). Quartz must not reference the provider assemblies to read them.
 
 [assembly: SuppressMessage("Trimming", "IL2070", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.TransientErrorDetector", Justification = "Retry classification reads provider error codes off exception types Quartz deliberately does not reference.")]
-
-// --- Reflection-based serialization ---------------------------------------------------------------------
-// A JobDataMap holds whatever the application put in it, so the payload's types are not known until it
-// is serialized. Everything around it is closed now - the wire contract by HttpApiJsonContext, the
-// trigger and calendar shapes by their serializers - and these two are the open middle that is left:
-// the values themselves, which no generated contract can name because the application chose them.
-//
-// The same two types are where the AOT analyzer lands, and for the same reason one step further on: a
-// converter System.Text.Json has to work out at runtime is a converter it has to generate. Every
-// JsonSerializer overload taking a JsonSerializerOptions is RequiresDynamicCode wholesale, so this
-// covers the one closed shape among them - a job data value read back as Dictionary<string, string> -
-// as well as the open ones.
-//
-// These two are also the entries that keep Quartz.csproj from saying IsAotCompatible, and they are the
-// only ones this file records that a publish does not merely warn about. A trimmed or AOT publish
-// switches System.Text.Json's reflection fallback off, and CreateSerializerOptions builds options with
-// converters but no resolver - so serializing anything through them throws "Reflection-based
-// serialization has been disabled for this application" rather than losing a member. A persistent job
-// store hits that on the first trigger it writes. Closing it means giving these options a resolver that
-// survives with reflection off, which is a change of shape rather than a suppression, and is what step 6
-// of #3341 is for.
-
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Impl.SystemTextJsonObjectSerializer", Justification = "Job data is serialized as whatever the application stored, which no generated contract can name.")]
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions", Justification = "Job data is serialized as whatever the application stored, which no generated contract can name.")]
-[assembly: SuppressMessage("AOT", "IL3050", Scope = "type", Target = "T:Quartz.Impl.SystemTextJsonObjectSerializer", Justification = "Serializing a type chosen by the application is what System.Text.Json needs runtime code generation for.")]
-[assembly: SuppressMessage("AOT", "IL3050", Scope = "type", Target = "T:Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions", Justification = "Serializing a type chosen by the application is what System.Text.Json needs runtime code generation for.")]
 
 // --- Configuration binding ------------------------------------------------------------------------------
 // IServiceCollection.Configure<TOptions>(name, section) is RequiresUnreferencedCode and
