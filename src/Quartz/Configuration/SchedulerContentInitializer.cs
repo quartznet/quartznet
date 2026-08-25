@@ -21,14 +21,18 @@ namespace Quartz.Configuration;
 /// scheduler is therefore never even seen by another, and a listener arrives together with the matchers
 /// it was registered with instead of being re-joined to them by type.
 /// </para>
+/// <para>
+/// The container is deliberately not among the content. It used to be written into
+/// <c>scheduler.Context["Quartz.ServiceProvider"]</c> so that plugins could reach it, but the scheduler
+/// context is the application's own map and Quartz's plumbing is not application data — an entry no
+/// application put there is one every reader of the context has to know about to skip, and the HTTP
+/// API's context endpoint answered <c>500</c> for every container-built scheduler because of it.
+/// Plugins, listeners and jobs are constructed by the container, so they take what they need by
+/// constructor.
+/// </para>
 /// </remarks>
 internal sealed class SchedulerContentInitializer
 {
-    /// <summary>
-    /// The scheduler context entry through which plugins reach the container.
-    /// </summary>
-    internal const string ServiceProviderContextKey = "Quartz.ServiceProvider";
-
     private readonly IServiceProvider serviceProvider;
     private readonly SchedulerKey schedulerKey;
     private readonly NameValueCollection properties;
@@ -56,9 +60,6 @@ internal sealed class SchedulerContentInitializer
 
     public async ValueTask Initialize(IScheduler scheduler, CancellationToken cancellationToken)
     {
-        // Plugins reach the container through the scheduler context.
-        scheduler.Context[ServiceProviderContextKey] = serviceProvider;
-
         AddSchedulerListeners(scheduler);
         AddJobListeners(scheduler);
         AddTriggerListeners(scheduler);

@@ -65,36 +65,19 @@ public class DashboardSchedulerStateEventsTest
         IHubClients<IQuartzDashboardHubClient> clients = A.Fake<IHubClients<IQuartzDashboardHubClient>>();
         A.CallTo(() => clients.Group(A<string>._)).Returns(client);
 
-        // Written out rather than faked: the hub is internal, so a dynamic proxy over
-        // IHubContext<QuartzDashboardHub, …> cannot be emitted.
         IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient> hubContext = new CapturingHubContext(clients);
 
         ServiceCollection services = new();
         services.AddSingleton(hubContext);
         ServiceProvider provider = services.BuildServiceProvider();
 
-        SchedulerContext context = new() { ["Quartz.ServiceProvider"] = provider };
-
         IScheduler scheduler = A.Fake<IScheduler>();
         A.CallTo(() => scheduler.SchedulerName).Returns("TestScheduler");
-        A.CallTo(() => scheduler.Context).Returns(context);
         A.CallTo(() => scheduler.ListenerManager).Returns(A.Fake<IListenerManager>());
 
-        DashboardLiveEventsPlugin plugin = new();
+        DashboardLiveEventsPlugin plugin = new(provider);
         await plugin.Initialize("live", scheduler);
 
         return (plugin, pushed, scheduler);
-    }
-
-    private sealed class CapturingHubContext : IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>
-    {
-        public CapturingHubContext(IHubClients<IQuartzDashboardHubClient> clients)
-        {
-            Clients = clients;
-        }
-
-        public IHubClients<IQuartzDashboardHubClient> Clients { get; }
-
-        public IGroupManager Groups => throw new NotSupportedException("the plugin sends to groups, it does not manage them");
     }
 }

@@ -28,15 +28,25 @@ namespace Quartz.Dashboard.Plugins;
 
 public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, ITriggerListener, ISchedulerListener
 {
-    private IScheduler? scheduler;
+    private readonly IServiceProvider serviceProvider;
     private IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>? hubContext;
+
+    /// <summary>
+    /// Takes the container the dashboard's SignalR hub is resolved from.
+    /// </summary>
+    /// <remarks>
+    /// <inheritdoc cref="DashboardHistoryPlugin(IServiceProvider)" path="/remarks" />
+    /// </remarks>
+    public DashboardLiveEventsPlugin(IServiceProvider serviceProvider)
+    {
+        this.serviceProvider = serviceProvider;
+    }
 
     public string Name { get; private set; } = "QuartzDashboardLiveEvents";
 
     public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         Name = pluginName;
-        this.scheduler = scheduler;
 
         scheduler.ListenerManager.AddJobListener(this, Matchers.AllJobs());
         scheduler.ListenerManager.AddTriggerListener(this, Matchers.AllTriggers());
@@ -231,13 +241,10 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
         try
         {
-            if (hubContext is null
-                && scheduler?.Context is { } ctx
-                && ctx.TryGetValue(DashboardPluginKeys.ServiceProvider, out var value)
-                && value is IServiceProvider sp)
-            {
-                hubContext = sp.GetService<IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>>();
-            }
+            // Resolved on the first event and kept, as when this went through the scheduler context. An
+            // application with no hub registered has none to broadcast to, so the event is dropped
+            // rather than the execution failed.
+            hubContext ??= serviceProvider.GetService<IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>>();
 
             if (hubContext is null)
             {
