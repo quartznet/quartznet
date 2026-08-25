@@ -463,10 +463,11 @@ closed.
 
 Turning the switch back on with
 `<JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>` is not a
-way round it, and the failure it buys is a more confusing one: the trimmer has already removed what
-reflection would have needed, so the same write comes back as
-`FileNotFoundException: Could not load file or assembly 'System.Private.Uri'` instead. That holds for
-`TrimMode=partial` as much as for `full`.
+way round it either: the trimmer has already removed what reflection would have needed, and what
+remains fails later and less clearly. In the console application that produced the exception above,
+the same write came back as `FileNotFoundException: Could not load file or assembly
+'System.Private.Uri'`, under `TrimMode=partial` as much as `full`; a larger application keeps more
+and fails elsewhere. Reflection over a trimmed assembly is unsupported, not merely unreliable.
 :::
 
 ## Native AOT
