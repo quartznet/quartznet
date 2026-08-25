@@ -1416,6 +1416,76 @@ public abstract class JobStoreContractTest
             "the ceiling is per execution group, so work in one group is not charged to another");
     }
 
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Job type exclusions
+    //
+    // The ADO.NET store keeps these out of the acquisition result set with a NOT IN clause and the
+    // in-memory store compares the name it holds, so the two arrive at the same answer by different
+    // routes. That is exactly why the assertion belongs here: a store that grew the property and
+    // ignored it would look identical from the outside until a node ran work it was told to leave
+    // alone.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AcquisitionSkipsATriggerWhoseJobTypeIsExcluded()
+    {
+        await GivenTwoDueTriggersOfDifferentJobTypes();
+
+        List<IOperableTrigger> acquired = await AcquireExcluding(typeof(OtherContractTestJob));
+
+        acquired.Should().ContainSingle(x => x.Key.Name == "included",
+            "the excluded job type's trigger is due and would otherwise be acquired, so only the exclusion can account for its absence");
+    }
+
+    [Test]
+    public async Task AnExcludedTriggerIsAcquirableAgainOnceTheExclusionIsLifted()
+    {
+        await GivenTwoDueTriggersOfDifferentJobTypes();
+
+        await AcquireExcluding(typeof(OtherContractTestJob));
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 5,
+            TimeWindow = TimeSpan.FromMinutes(1)
+        });
+
+        acquired.Should().Contain(x => x.Key.Name == "excluded",
+            "an exclusion declines a trigger for one attempt, it does not retire it - the next request may carry a different set");
+    }
+
+    /// <summary>
+    /// Schedules two due triggers whose jobs are of different types, named for what the exclusion
+    /// tests do to each.
+    /// </summary>
+    private async Task GivenTwoDueTriggersOfDifferentJobTypes()
+    {
+        IJobDetail included = CreateJob("included", JobGroupA);
+        await Store.ScheduleJob(included, CreateTrigger("included", TriggerGroupA, included.Key,
+            startAt: DateTimeOffset.UtcNow.AddSeconds(5)));
+
+        IJobDetail excluded = JobBuilder.Create<OtherContractTestJob>()
+            .WithIdentity("excluded", JobGroupA)
+            .Build();
+        await Store.ScheduleJob(excluded, CreateTrigger("excluded", TriggerGroupA, excluded.Key,
+            startAt: DateTimeOffset.UtcNow.AddSeconds(5)));
+    }
+
+    /// <summary>
+    /// Acquires with the given job types excluded, naming them the way the store persists them.
+    /// </summary>
+    private ValueTask<List<IOperableTrigger>> AcquireExcluding(params Type[] jobTypes)
+    {
+        return Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 5,
+            TimeWindow = TimeSpan.FromMinutes(1),
+            ExcludedJobTypeNames = jobTypes.Select(x => new JobType(x).FullName).ToArray()
+        });
+    }
+
     /// <summary>
     /// Schedules one due trigger per name, all in the same execution group.
     /// </summary>
@@ -1632,6 +1702,14 @@ public abstract class JobStoreContractTest
     }
 
     public sealed class ContractTestJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// A second job type, so that a test can tell two jobs apart by their type rather than their key.
+    /// </summary>
+    public sealed class OtherContractTestJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }

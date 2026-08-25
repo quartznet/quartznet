@@ -2482,6 +2482,13 @@ public sealed class RAMJobStore : IJobStore
             ExecutionSlots? executionSlots = request.ExecutionLimits?.CreateSlots(
                 request.ExecutionLimits.HasClusterScopedLimits ? CollectInFlightExecutionGroupsNoLock() : null);
 
+            // The names are compared against JobType.FullName, which is the same string the ADO store
+            // writes into JOB_CLASS_NAME and compares its NOT IN clause against, so one exclusion set
+            // means the same thing to both stores. Ordinal, because a type name is not prose.
+            HashSet<string>? excludedJobTypeNames = request.ExcludedJobTypeNames is { Count: > 0 } names
+                ? new HashSet<string>(names, StringComparer.Ordinal)
+                : null;
+
             while (true)
             {
                 var tw = timeTriggers.Min;
@@ -2539,6 +2546,17 @@ public sealed class RAMJobStore : IJobStore
                 }
 
                 IJobDetail job = jobWrapper.JobDetail;
+
+                // An excluded job type is declined for this attempt only, so the trigger goes back into
+                // timeTriggers with the rest of the turned-away ones rather than being dropped: the next
+                // request may carry a different exclusion set, and a trigger left out of timeTriggers
+                // stays out until something stores or resumes it again.
+                if (excludedJobTypeNames is not null && excludedJobTypeNames.Contains(job.JobType.FullName))
+                {
+                    excludedTriggers ??= [];
+                    excludedTriggers.Add(tw);
+                    continue;
+                }
 
                 // If trigger's job disallows concurrent execution and the job was already added to the result,
                 // then we'll add the trigger to the list of excluded triggers (which we'll add back to the set
