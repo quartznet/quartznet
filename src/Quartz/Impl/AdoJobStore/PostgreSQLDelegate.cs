@@ -32,9 +32,9 @@ public class PostgreSQLDelegate : StdAdoDelegate
     /// MySQL version with LIMIT support.
     /// </summary>
     /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
+    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
     {
-        return base.GetSelectNextTriggerToAcquireSql(maxCount, excludedJobTypeBucket) + " LIMIT " + maxCount;
+        return base.GetSelectNextTriggerToAcquireSql(shape) + " LIMIT " + shape.MaxCount;
     }
 
     protected override string GetSelectMisfiredTriggersToRecoverSql(int count)

@@ -1327,12 +1327,10 @@ public partial class StdAdoDelegate
         return await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
     }
 
-    protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
+    protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
     {
         // by default we don't support limits, this is db specific
-        return excludedJobTypeBucket == 0
-            ? StdAdoConstants.SqlSelectNextTriggerToAcquire
-            : StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket);
+        return StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(shape.ExcludedJobTypeBucket);
     }
 
     /// <summary>
@@ -1411,9 +1409,9 @@ public partial class StdAdoDelegate
             : null;
         int excludedJobTypeBucket = StdAdoConstants.RoundUpExcludedJobTypeCount(excludedJobTypeNames?.Count ?? 0);
 
-        string sql = acquisitionSqlByMaxCount.GetOrAdd(
-            (maxCount, excludedJobTypeBucket),
-            static (key, self) => self.ReplaceTablePrefix(self.GetSelectNextTriggerToAcquireSql(key.MaxCount, key.ExcludedJobTypeBucket)),
+        string sql = acquisitionSqlByShape.GetOrAdd(
+            new TriggerAcquisitionSqlShape(maxCount, excludedJobTypeBucket),
+            static (shape, self) => self.ReplaceTablePrefix(self.GetSelectNextTriggerToAcquireSql(shape)),
             this);
 
         using var cmd = PrepareCommand(conn, sql);
