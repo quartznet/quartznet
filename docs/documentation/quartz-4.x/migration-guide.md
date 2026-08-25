@@ -3655,7 +3655,10 @@ suppressed in the shipped assembly, deliberately — suppressing them would hide
 Configuration by flat `quartz.*` keys, jobs named as strings (`job_scheduling_data` XML, a persisted
 `JOB_CLASS_NAME`), and `JobDataMap` values bound onto job properties are the paths that need reflection;
 an application that configures in code, references its job types statically and keeps job data to
-primitives exercises far less of it. Progress is tracked on
+primitives exercises far less of it. One thing it does not get round: a **persistent job store** cannot
+be published trimmed at all yet, because a trimmed publish switches reflection-based `System.Text.Json`
+off and the default serializer has no generated contract to fall back on — see
+[Trimming](tutorial/more-about-jobs.md#trimming) for what that looks like. Progress is tracked on
 [#3341](https://github.com/quartznet/quartznet/issues/3341).
 
 ## Executing is a trigger state

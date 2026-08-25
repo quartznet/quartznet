@@ -447,10 +447,65 @@ rooted:
 Registering every job type with `AddJob<TJob>()` or `AddJobType<TJob>()` covers the first of those:
 those calls are what the trimmer follows, and the store then finds the type it needs.
 
-::: tip
-Native AOT is not supported yet — that work is tracked on
-[issue #3341](https://github.com/quartznet/quartznet/issues/3341).
+::: warning A trimmed publish switches reflection-based JSON off
+`PublishTrimmed` sets `System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault` to false, and the
+default `IObjectSerializer` has no source-generated contract to fall back on. An application that keeps
+its schedule in memory never notices; one with a **persistent job store** gets
+
+```
+System.InvalidOperationException: Reflection-based serialization has been disabled for this
+application. Either use the source generator APIs or explicitly configure the
+'JsonSerializerOptions.TypeInfoResolver' property.
+```
+
+the first time it writes a trigger. **Publish a persistent-store application untrimmed** until that is
+closed.
+
+Turning the switch back on with
+`<JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>` is not a
+way round it, and the failure it buys is a more confusing one: the trimmer has already removed what
+reflection would have needed, so the same write comes back as
+`FileNotFoundException: Could not load file or assembly 'System.Private.Uri'` instead. That holds for
+`TrimMode=partial` as much as for `full`.
 :::
+
+## Native AOT
+
+Everything above applies to `PublishAot` as well — it is a trimmed publish with an ahead-of-time
+compiler behind it — and native AOT adds one question of its own: what needs code to be *generated* at
+run time, which an AOT application has no way to do. Quartz builds with the AOT analyzer on, so those
+call sites are known rather than guessed at.
+
+**A scheduler over the in-memory store runs.** The worker example publishes and runs as a single native
+executable, with no runtime installed:
+
+```shell
+dotnet publish src/Quartz.Examples.Worker -c Release -r linux-x64 -p:PublishAot=true
+```
+
+It starts, initialises `RAMJobStore`, fires both its simple and its daily-time-interval trigger,
+executes and disposes job instances, applies flat `quartz.*` keys from `appsettings.json`, and shuts
+down cleanly on Ctrl+C with `WaitForJobsToComplete` honoured. Job types named as types, listeners and
+the DI graph all survive.
+
+**A scheduler over a persistent store does not, yet.** It is the serializer above, not the scheduler:
+`IObjectSerializer` writes triggers, calendars and `JobDataMap` values through reflection-based
+`System.Text.Json`, which is both switched off and uncompilable under AOT. This is what stops the
+`Quartz` package from declaring `IsAotCompatible`, and it is tracked on
+[issue #3341](https://github.com/quartznet/quartznet/issues/3341).
+
+**Publishing AOT reports Quartz's own warnings, and that is deliberate.** Quartz records its remaining
+reflective call sites in the repository rather than in the shipped assembly, so an
+`UnconditionalSuppressMessage` never hides them from you. Expect `IL2xxx` for the string-named
+configuration paths described above, and `IL3050` for two more:
+
+- **configuration binding** — `Configure<TOptions>(name, section)` binds the `Quartz` section by
+  reflecting over the options types. Configuring in code with `AddQuartz(q => …)` rather than from
+  `appsettings.json` avoids it;
+- **job data serialization** — the persistent-store path above.
+
+Neither is on the fire path of an in-memory scheduler, so an application that configures in code and
+schedules in memory publishes AOT with warnings it can read and dismiss.
 
 ## JobExecutionException
 
