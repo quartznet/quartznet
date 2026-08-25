@@ -5421,10 +5421,12 @@ hot path of every store. As a record, the next one is an added optional property
 store-level counterpart of the delegate-level `TriggerAcquisitionCriteria`. `TimeWindow`
 rejects a negative value at construction, where `AdoJobStoreBase` used to throw from inside acquisition.
 
-Both records also expose optional `ExcludedJobTypeNames` collections. `AdoJobStoreBase` copies the request
-property into its delegate criteria, and the standard ADO.NET delegates apply it in the acquisition SQL.
-Names use the stored `TriggerAcquireResult.JobTypeName` spelling. Comparison follows the database job-class
-column's collation, including its case-sensitivity rules.
+Both records also expose optional `ExcludedJobTypeNames` collections, and **every shipped store honours the
+request-level one**. `AdoJobStoreBase` copies it into its delegate criteria and the standard ADO.NET delegates
+keep the rows out in the acquisition SQL; `RAMJobStore` skips a candidate whose job type name is in the set.
+Names use the stored `TriggerAcquireResult.JobTypeName` spelling, which is `JobType.FullName`. `RAMJobStore`
+compares ordinally; SQL comparison follows the database job-class column's collation, including its
+case-sensitivity rules.
 
 ## Options records replace boolean parameters
 
@@ -7612,7 +7614,7 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.SelectJobForTrigger`'s `loadJobType` is required | It defaulted in front of the cancellation token; pass `loadJobType: true` for the old default |
 | `IDriverDelegate.UpdateTriggerPreferredNodeConditional` takes a `PreferredNodeTransition` | Four loose compare-and-swap parameters became one record naming `Expected` and `New` |
 | `TriggerAcquisitionCriteria.LiveNodeCutoff` is a `required DateTimeOffset` | It was an optional `long` of `UtcTicks` beside two required `DateTimeOffset` siblings, and omitting it silently meant "every node is dead". The tick conversion happens in `AddPreferredNodeParameters`, whose parameter is a `DateTimeOffset` too |
-| `TriggerAcquisitionRequest.ExcludedJobTypeNames` and `TriggerAcquisitionCriteria.ExcludedJobTypeNames` added | Optional exact job-type-name exclusions for acquisition. The ADO.NET store applies them in SQL; comparison follows the `JOB_CLASS_NAME` column's collation |
+| `TriggerAcquisitionRequest.ExcludedJobTypeNames` and `TriggerAcquisitionCriteria.ExcludedJobTypeNames` added | Optional exact job-type-name exclusions for acquisition, honoured by every shipped store. The ADO.NET store applies them in SQL, where comparison follows the `JOB_CLASS_NAME` column's collation; `RAMJobStore` compares `JobType.FullName` ordinally |
 | `StdAdoDelegate.AddPagingParameters(cmd, int skip, int take, bool)` | `skip`/`take` were `long` while `PagedQuery.Skip`/`.Take` are `int`; the dialect override contract now matches the query object it serves |
 | `StdAdoDelegate.ReadBytesFromBlob` takes a `DbDataReader` and is asynchronous | It took a `System.Data.IDataReader` — the last legacy `System.Data.I*` interface anywhere in the public surface — which forced a synchronous, thread-blocking read that ignored the cancellation token it was handed. It is `async ValueTask<byte[]?>` over `IsDBNullAsync` / `GetFieldValueAsync<byte[]>`. **The behaviour contract is unchanged**: a `NULL` column still yields `null`, and an empty blob still yields an empty array, which the only caller (`GetObjectFromBlob`) has always treated the same as `null` by testing `Length > 0`. An override changes its parameter type; every reader the store passes was already a `DbDataReader` |
 | `StdAdoDelegate`'s date/time and time-span conversions are non-virtual | UTC ticks and whole milliseconds are the schema contract the liveness SQL assumes; only the boolean pair remains a dialect seam. A delegate that changes the storage format implements `IDriverDelegate` itself — see [If you implement `IDriverDelegate`: the listing members](#if-you-implement-idriverdelegate-the-listing-members) |

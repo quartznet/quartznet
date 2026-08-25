@@ -97,11 +97,23 @@ public sealed record TriggerAcquisitionRequest
     /// <summary>
     /// Job type names to exclude, spelled as
     /// <see cref="Quartz.Impl.AdoJobStore.TriggerAcquireResult.JobTypeName" /> stores them.
-    /// <see langword="null" /> means no exclusion. Comparison is exact according to the database
-    /// column's collation; case sensitivity follows that collation and is not guaranteed to be
-    /// ordinal. This is the store-level counterpart threaded into
-    /// <see cref="Quartz.Impl.AdoJobStore.TriggerAcquisitionCriteria.ExcludedJobTypeNames" />.
+    /// <see langword="null" /> means no exclusion.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every shipped store honours this. The in-memory store compares
+    /// <see cref="JobType.FullName" /> ordinally; the ADO.NET store threads the names into
+    /// <see cref="Quartz.Impl.AdoJobStore.TriggerAcquisitionCriteria.ExcludedJobTypeNames" /> and
+    /// excludes the rows in SQL, where comparison is exact according to the job-class column's
+    /// collation — case sensitivity follows that collation and is not guaranteed to be ordinal. The
+    /// two agree in practice because 4.x writes the name the same way it compares it.
+    /// </para>
+    /// <para>
+    /// A row written by 2.x or 3.x can carry an older spelling, and the read side deliberately never
+    /// rewrites a stored name, so an exclusion will not match such a row. Matching is exact: there is
+    /// no prefix or wildcard form.
+    /// </para>
+    /// </remarks>
     public IReadOnlyCollection<string>? ExcludedJobTypeNames
     {
         get;
