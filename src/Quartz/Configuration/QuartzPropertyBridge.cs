@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;

@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.Configuration;

@@ -1,4 +1,4 @@
-﻿using FakeItEasy;
+using FakeItEasy;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

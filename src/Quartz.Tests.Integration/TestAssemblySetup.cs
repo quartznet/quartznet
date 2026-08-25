@@ -1,4 +1,4 @@
-﻿namespace Quartz.Tests.Integration;
+namespace Quartz.Tests.Integration;
 
 [SetUpFixture]
 public class TestAssemblySetup
