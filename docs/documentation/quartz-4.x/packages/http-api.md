@@ -109,6 +109,39 @@ That parameter was `?delayMilliseconds=30000` in the 4.0 previews. `TimeSpan` ma
 duration the API carries and does not round a sub-millisecond delay away.
 :::
 
+## The scheduler context travels as text
+
+`GET {ApiPath}/schedulers/{name}/context` answers with the scheduler's context, and **every value in it
+goes out as a string**. The context is the application's own map of `string` to `object`, so a value
+that is not one is rendered as its invariant text; a null stays null.
+
+```json
+{
+  "context": {
+    "activeFrom": "2025-06-01T12:30:00.0000000+00:00",
+    "nothing": null,
+    "retries": "4352",
+    "tenant": "acme"
+  }
+}
+```
+
+Two rules make that body the same one everywhere: an instant — a `DateTimeOffset` or a `DateTime` —
+is rendered in the round-trip `"O"` format, the ISO-8601 spelling every other instant on this wire
+carries, and the entries are ordered by key ordinally rather than in the order a concurrent dictionary
+happens to enumerate them.
+
+Text is all a remote reader has — the endpoint hands out a snapshot of a live in-process map, and a
+client reading it back gets every entry as a string whatever it was in the scheduler's process. An
+entry whose type a caller has to act on belongs in an endpoint of its own rather than in the context.
+
+::: warning Changed in 4.x
+This endpoint answered `500` for every container-built scheduler in the 4.0 previews: the DI
+integration seeded the `IServiceProvider` into `scheduler.Context["Quartz.ServiceProvider"]`, and the
+endpoint refused any value that was not a string. Both are gone — nothing writes the container to the
+context, and no value is refused.
+:::
+
 ## Response-shape conventions
 
 **A `200` carries a body exactly when the operation has something to say that the caller could not

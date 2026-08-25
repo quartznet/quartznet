@@ -60,7 +60,7 @@ namespace Quartz.Dashboard.Plugins
 {
     public sealed class DashboardHistoryPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.IJobListener
     {
-        public DashboardHistoryPlugin() { }
+        public DashboardHistoryPlugin(System.IServiceProvider serviceProvider) { }
         public string Name { get; }
         public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobExecutionVetoed(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
@@ -71,7 +71,7 @@ namespace Quartz.Dashboard.Plugins
     }
     public sealed class DashboardLiveEventsPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.IJobListener, Quartz.ISchedulerListener, Quartz.ITriggerListener
     {
-        public DashboardLiveEventsPlugin() { }
+        public DashboardLiveEventsPlugin(System.IServiceProvider serviceProvider) { }
         public string Name { get; }
         public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobAdded(Quartz.IScheduler scheduler, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }

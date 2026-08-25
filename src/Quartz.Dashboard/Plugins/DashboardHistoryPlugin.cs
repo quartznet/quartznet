@@ -26,14 +26,28 @@ namespace Quartz.Dashboard.Plugins;
 
 public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener
 {
-    private IScheduler? scheduler;
+    private readonly IServiceProvider serviceProvider;
+
+    /// <summary>
+    /// Takes the container the history store is resolved from.
+    /// </summary>
+    /// <remarks>
+    /// A plugin is constructed by the container — this one is registered for every scheduler by
+    /// <c>AddQuartzDashboard</c> — so it asks for what it needs the way any other component does. It used
+    /// to read the container back out of <c>scheduler.Context["Quartz.ServiceProvider"]</c>, which put
+    /// Quartz's plumbing into the application's own map, and left the scheduler-context endpoint of the
+    /// HTTP API answering <c>500</c> for every scheduler a container had built.
+    /// </remarks>
+    public DashboardHistoryPlugin(IServiceProvider serviceProvider)
+    {
+        this.serviceProvider = serviceProvider;
+    }
 
     public string Name { get; private set; } = "QuartzDashboardHistory";
 
     public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         Name = pluginName;
-        this.scheduler = scheduler;
         scheduler.ListenerManager.AddJobListener(this, Matchers.AllJobs());
         return default;
     }
@@ -50,14 +64,11 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener
     {
         try
         {
-            if (scheduler?.Context is not { } ctx
-                || !ctx.TryGetValue(DashboardPluginKeys.ServiceProvider, out var value)
-                || value is not IServiceProvider sp)
-            {
-                return default;
-            }
-
-            IDashboardHistoryStore? store = sp.GetService<IDashboardHistoryStore>();
+            // Resolved per execution and allowed to be absent, as when this went through the scheduler
+            // context: a dashboard that was never registered is a reason to record nothing, not a reason
+            // to fail the execution that just finished. Nor is a container the host has begun disposing,
+            // which is what the catch below is for.
+            IDashboardHistoryStore? store = serviceProvider.GetService<IDashboardHistoryStore>();
             if (store is null)
             {
                 return default;

@@ -113,29 +113,26 @@ public sealed class TenantSchedulerRoutingTest
     }
 
     /// <summary>
-    /// A defect this fixture walked into, kept as the failing test rather than fixed here: the
-    /// scheduler-context endpoint answers <c>500</c> for every scheduler a container built.
+    /// A container-built scheduler's context reads back over the API, holding what the application put
+    /// there and nothing else.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <c>SchedulerContentInitializer.Initialize</c> puts the <see cref="IServiceProvider" /> into
-    /// <c>scheduler.Context["Quartz.ServiceProvider"]</c> so that plugins can reach the container, and
-    /// <c>SchedulerContextDto.Create</c> throws <see cref="NotSupportedException" /> when any context value
-    /// is not a string. Every scheduler built by <c>AddQuartz</c> — and by
-    /// <c>QuartzSchedulerBuilder</c>, which builds a container of its own — therefore has exactly one
-    /// entry the endpoint refuses, so <c>GET …/schedulers/{name}/context</c> is unusable in every real
-    /// deployment while <c>SchedulerEndpointsTest.GetSchedulerContextShouldWork</c> passes: that fixture's
-    /// scheduler is a fake whose context the test filled with strings.
+    /// Nothing here is specific to a tenant; it is that a real container-built scheduler had never been
+    /// driven through this route, and doing so answered <c>500</c> every time (#3408). Two things made
+    /// it: <c>SchedulerContentInitializer</c> wrote the <see cref="IServiceProvider" /> into
+    /// <c>scheduler.Context["Quartz.ServiceProvider"]</c> so that plugins could reach the container, and
+    /// <c>SchedulerContextDto.Create</c> threw on any value that was not a string — so every scheduler
+    /// from <c>AddQuartz</c> carried exactly one entry the endpoint refused, while
+    /// <c>SchedulerEndpointsTest.GetSchedulerContextShouldWork</c> passed against a fake whose context
+    /// the test had filled with strings.
     /// </para>
     /// <para>
-    /// Nothing about it is specific to a tenant; it is only that a real container-built scheduler had
-    /// never been driven through this route. Which way to fix it is a product decision — skip
-    /// non-serializable entries, report them as their type name, or move the service provider off the
-    /// context — so this test is <c>[Explicit]</c> and states the failure rather than choosing.
+    /// Both halves are asserted: the container is absent from the context, and a value the application
+    /// put there that is not a string is rendered rather than refused.
     /// </para>
     /// </remarks>
     [Test]
-    [Explicit("Fails: GET /schedulers/{name}/context is 500 for any container-built scheduler. See the remarks.")]
     public async Task TheContextOfAContainerBuiltSchedulerCanBeRead()
     {
         WebApplicationFactory<Program> application = CreateApplication("Acme");
@@ -146,12 +143,29 @@ public sealed class TenantSchedulerRoutingTest
 
         try
         {
+            scheduler.Context["tenant"] = "Acme";
+            scheduler.Context["retries"] = 3;
+
             using HttpClient client = application.CreateClient();
 
-            using HttpResponseMessage context = await client.GetAsync("schedulers/Acme/context");
-            context.StatusCode.Should().Be(HttpStatusCode.OK,
-                "a scheduler's context is readable over the API, and every container-built scheduler carries "
-                + "the container in it - so an endpoint that refuses a non-string value refuses them all");
+            using HttpResponseMessage response = await client.GetAsync("schedulers/Acme/context");
+            response.StatusCode.Should().Be(HttpStatusCode.OK,
+                "a scheduler's context is readable over the API, and an application may put any object in it");
+
+            JsonSerializerOptions serializerOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web)
+                .ConfigureWireFormat(new SystemTextJsonSerializerRegistry());
+
+            string body = await response.Content.ReadAsStringAsync();
+            SchedulerContextDto dto = JsonSerializer.Deserialize<SchedulerContextDto>(body, serializerOptions)!;
+
+            dto.Context.Should().Equal(
+                new Dictionary<string, string?>
+                {
+                    ["tenant"] = "Acme",
+                    ["retries"] = "3"
+                },
+                "the context carries what the application put in it - the container is not application data, "
+                + "and a value that is not a string arrives as its invariant text");
         }
         finally
         {

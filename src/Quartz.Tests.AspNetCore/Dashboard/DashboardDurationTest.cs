@@ -25,9 +25,9 @@ public class DashboardDurationTest
     public async Task HistoryPluginRecordsTheRunTimeItWasGiven()
     {
         DashboardHistoryStore store = new();
-        IScheduler scheduler = SchedulerWith(store);
+        IScheduler scheduler = FakeScheduler();
 
-        DashboardHistoryPlugin plugin = new();
+        DashboardHistoryPlugin plugin = new(ProviderWith(store));
         await plugin.Initialize("history", scheduler);
         await plugin.JobWasExecuted(ExecutionContext(scheduler, SubMillisecond), jobException: null);
 
@@ -45,9 +45,9 @@ public class DashboardDurationTest
     public async Task HistoryPluginRecordsTheFailureAndItsMessage()
     {
         DashboardHistoryStore store = new();
-        IScheduler scheduler = SchedulerWith(store);
+        IScheduler scheduler = FakeScheduler();
 
-        DashboardHistoryPlugin plugin = new();
+        DashboardHistoryPlugin plugin = new(ProviderWith(store));
         await plugin.Initialize("history", scheduler);
         await plugin.JobWasExecuted(
             ExecutionContext(scheduler, TimeSpan.FromSeconds(2)),
@@ -68,9 +68,9 @@ public class DashboardDurationTest
     [Test]
     public async Task LiveEventsPluginSurvivesHavingNoHubToBroadcastTo()
     {
-        IScheduler scheduler = SchedulerWith(new DashboardHistoryStore());
+        IScheduler scheduler = FakeScheduler();
 
-        DashboardLiveEventsPlugin plugin = new();
+        DashboardLiveEventsPlugin plugin = new(ProviderWith(new DashboardHistoryStore()));
         await plugin.Initialize("live", scheduler);
 
         Func<Task> executed = async () =>
@@ -130,20 +130,20 @@ public class DashboardDurationTest
         ExceptionMessage: null);
 
     /// <remarks>
-    /// The plugins reach their services through the scheduler context, the way the dashboard's own
-    /// registration puts them there.
+    /// The plugins take the container by constructor, the way the dashboard's own registration builds
+    /// them.
     /// </remarks>
-    private static IScheduler SchedulerWith(IDashboardHistoryStore store)
+    private static ServiceProvider ProviderWith(IDashboardHistoryStore store)
     {
         ServiceCollection services = new();
         services.AddSingleton(store);
-        ServiceProvider provider = services.BuildServiceProvider();
+        return services.BuildServiceProvider();
+    }
 
-        SchedulerContext context = new() { ["Quartz.ServiceProvider"] = provider };
-
+    private static IScheduler FakeScheduler()
+    {
         IScheduler scheduler = A.Fake<IScheduler>();
         A.CallTo(() => scheduler.SchedulerName).Returns("TestScheduler");
-        A.CallTo(() => scheduler.Context).Returns(context);
         A.CallTo(() => scheduler.ListenerManager).Returns(A.Fake<IListenerManager>());
         return scheduler;
     }

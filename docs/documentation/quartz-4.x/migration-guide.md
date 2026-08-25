@@ -1630,6 +1630,29 @@ configures it under — some plugins derive persisted job and trigger keys from 
 deployment's identity rather than a label. Left unset, the plugin's type name is used, exactly as
 before.
 
+### The container is not in the scheduler context
+
+3.x's `ServiceCollectionSchedulerFactory` put the `IServiceProvider` into
+`scheduler.Context["Quartz.ServiceProvider"]`, and a plugin that needed the container read it back out
+of there. 4.0 writes no such entry. Plugins and listeners are constructed by the container, so they
+take what they need by constructor — and a job takes its dependencies the same way:
+
+```diff
+- private IServiceProvider? services;
+-
+- public ValueTask Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken = default)
+- {
+-     services = (IServiceProvider) scheduler.Context["Quartz.ServiceProvider"]!;
++ private readonly IMyService service;
++
++ public MyPlugin(IMyService service) => this.service = service;
+```
+
+The entry was Quartz's plumbing in a map that belongs to the application, and the HTTP API's
+`GET …/schedulers/{name}/context` answered `500` for every container-built scheduler because of it
+([#3408](https://github.com/quartznet/quartznet/issues/3408)). That endpoint renders every value as
+text now, so a context entry of any type reads back.
+
 ## Registered schedulers can be listed without being started
 
 `ISchedulerFactory.GetAllSchedulers()` — `GetAllSchedulers()` on 3.x too — lists the schedulers
@@ -5135,10 +5158,11 @@ public class ContextMergingJobFactory : MicrosoftDependencyInjectionJobFactory
 }
 ```
 
-The merge was also defective in ways the removal fixes: the DI integration seeds a service-provider
+The merge was also defective in ways the removal fixes: 3.x's DI integration seeded a service-provider
 entry into every scheduler context, which no job has a property for, so every container-hosted fire
 logged a property miss — and threw, with `PropertyMismatchBehavior.Throw`; and the factory
-enumerated the context while plugins could still be writing to it.
+enumerated the context while plugins could still be writing to it. 4.0 seeds no such entry either —
+see [The container is not in the scheduler context](#the-container-is-not-in-the-scheduler-context).
 
 ### One setting says what a property miss does
 
