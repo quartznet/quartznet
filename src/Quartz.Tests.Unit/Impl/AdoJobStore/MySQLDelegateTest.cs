@@ -91,8 +91,8 @@ public class MySQLDelegateTest
 
     private sealed class TestMySQLDelegate : MySQLDelegate
     {
-        public string GetSelectNextTriggerToAcquireSqlPublic(int maxCount)
-            => GetSelectNextTriggerToAcquireSql(maxCount, excludedJobTypeBucket: 0);
+        public string GetSelectNextTriggerToAcquireSqlPublic(int maxCount, int excludedJobTypeBucket = 0)
+            => GetSelectNextTriggerToAcquireSql(new TriggerAcquisitionSqlShape(maxCount, excludedJobTypeBucket));
 
         public string GetCountMisfiredTriggersInStateSqlPublic()
             => GetCountMisfiredTriggersInStateSql();

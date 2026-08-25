@@ -83,25 +83,30 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     private readonly ConcurrentDictionary<string, string> cachedQueries = new();
 
     /// <summary>
-    /// The acquisition statement, and the misfire recovery statement, for each row limit they have been
-    /// asked for.
+    /// The acquisition statement for each <see cref="TriggerAcquisitionSqlShape" /> it has been asked
+    /// for.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Both statements carry their limit in the text — a <c>SELECT TOP n</c> spliced into the projection
+    /// The statement carries its limit in the text — a <c>SELECT TOP n</c> spliced into the projection
     /// on SQL Server, a <c>rownum</c> wrapper on Oracle, a trailing <c>LIMIT n</c> elsewhere — so the
     /// dialect rebuilds around a kilobyte of SQL for every acquisition, and the table-prefix cache then
-    /// hashes all of it to hand back a string it already had. Each is a pure function of its limit;
-    /// acquisition also depends on the job-type exclusion bucket, so the finished statements are
-    /// remembered against those inputs.
+    /// hashes all of it to hand back a string it already had. It is a pure function of its shape, so
+    /// the finished statement is remembered against the shape instead — which is why the shape is a
+    /// record: adding an acquisition dimension extends the key without touching this cache.
     /// </para>
     /// <para>
-    /// The limits take few distinct values: acquisition asks for the smaller of the free thread count
-    /// and the configured batch size, and recovery for the configured misfire batch, so both dictionaries
-    /// settle within a handful of entries.
+    /// The shape takes few distinct values: acquisition asks for the smaller of the free thread count
+    /// and the configured batch size, and the exclusion count is bucketed, so the dictionary settles
+    /// within a handful of entries.
     /// </para>
     /// </remarks>
-    private readonly ConcurrentDictionary<(int MaxCount, int ExcludedJobTypeBucket), string> acquisitionSqlByMaxCount = new();
+    private readonly ConcurrentDictionary<TriggerAcquisitionSqlShape, string> acquisitionSqlByShape = new();
+
+    /// <summary>
+    /// The misfire recovery statement for each row limit it has been asked for, remembered for the
+    /// same reason and settling on as few entries.
+    /// </summary>
 
     private readonly ConcurrentDictionary<int, string> misfireRecoverySqlByCount = new();
 

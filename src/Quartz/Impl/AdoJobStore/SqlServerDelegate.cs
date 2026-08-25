@@ -34,12 +34,12 @@ public class SqlServerDelegate : StdAdoDelegate
     /// SQL Server specific version with TOP functionality
     /// </summary>
     /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
+    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
     {
-        string sqlSelectNextTriggerToAcquire = base.GetSelectNextTriggerToAcquireSql(maxCount, excludedJobTypeBucket);
+        string sqlSelectNextTriggerToAcquire = base.GetSelectNextTriggerToAcquireSql(shape);
 
         // add limit clause to correct place
-        sqlSelectNextTriggerToAcquire = "SELECT TOP " + maxCount + " " + sqlSelectNextTriggerToAcquire.Substring(6);
+        sqlSelectNextTriggerToAcquire = "SELECT TOP " + shape.MaxCount + " " + sqlSelectNextTriggerToAcquire.Substring(6);
 
         return sqlSelectNextTriggerToAcquire;
     }

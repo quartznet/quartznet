@@ -25,8 +25,8 @@ internal sealed class DialectDelegateOverrides : StdAdoDelegate
     #region sample_dialect_delegate_row_limiting
 
     // append (PostgreSQL, Firebird)
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
-        => base.GetSelectNextTriggerToAcquireSql(maxCount, excludedJobTypeBucket) + " LIMIT " + maxCount;
+    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
+        => base.GetSelectNextTriggerToAcquireSql(shape) + " LIMIT " + shape.MaxCount;
 
     // splice a prefix (SQL Server: SELECT TOP n)
     // wrap the whole statement (Oracle: SELECT * FROM ( … ) WHERE rownum <= n)

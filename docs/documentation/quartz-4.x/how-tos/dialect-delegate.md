@@ -33,7 +33,7 @@ that happens to be `protected virtual` so the class can be composed — treat th
 
 | Member | Override when |
 |---|---|
-| `protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)` | your database limits rows differently from ANSI |
+| `protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)` | your database limits rows differently from ANSI |
 | `protected virtual string GetSelectMisfiredTriggersToRecoverSql(int count)` | the same, for the misfire scan; `count == -1` means "no limit" |
 | `protected virtual string GetCountMisfiredTriggersInStateSql()` | the counting form needs a different shape |
 | `protected virtual string ApplyPaging(string sql, bool takeLimited)` | `OFFSET … FETCH NEXT …` is not understood |
@@ -44,21 +44,28 @@ that happens to be `protected virtual` so the class can be composed — treat th
 
 ### Row limiting
 
-The default `GetSelectNextTriggerToAcquireSql` ignores `maxCount` entirely — *"by default we don't
-support limits, this is db specific"* — so a dialect that can limit rows should say so. Four shapes
-appear among the shipped dialects:
+The default `GetSelectNextTriggerToAcquireSql` ignores `shape.MaxCount` entirely — *"by default we
+don't support limits, this is db specific"* — so a dialect that can limit rows should say so. Four
+shapes appear among the shipped dialects:
 
 <!-- snippet: sample_dialect_delegate_row_limiting -->
 ```csharp
 // append (PostgreSQL, Firebird)
-protected override string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
-    => base.GetSelectNextTriggerToAcquireSql(maxCount, excludedJobTypeBucket) + " LIMIT " + maxCount;
+protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
+    => base.GetSelectNextTriggerToAcquireSql(shape) + " LIMIT " + shape.MaxCount;
 
 // splice a prefix (SQL Server: SELECT TOP n)
 // wrap the whole statement (Oracle: SELECT * FROM ( … ) WHERE rownum <= n)
 // append with an index hint (MySQL: FORCE INDEX (…) … LIMIT n)
 ```
 <!-- endSnippet -->
+
+`TriggerAcquisitionSqlShape` carries everything about an acquisition attempt that changes the text of
+the statement — the row limit, and how many job-type exclusion terms the `NOT IN` clause needs. Read
+`shape.MaxCount` and hand the whole shape to `base`: a dimension added later becomes a property on
+the record, so an override written today keeps compiling and keeps applying it. It is also the key
+the finished statement is cached under, which is why it holds the bucketed exclusion count rather
+than the caller's exact one.
 
 ### Paging
 
@@ -131,9 +138,8 @@ not a contract; the schema it addresses is, and that lives in `AdoConstants`, wh
 For a delegate in your own assembly this means two things:
 
 - You cannot write `StdAdoConstants.SqlSelectNextTriggerToAcquire`. Derive your statement from what the
-  base returns — `base.GetSelectNextTriggerToAcquireSql(maxCount, excludedJobTypeBucket)` — and
-  transform the string, which is exactly what MySQL's `.Replace("{0}TRIGGERS t", …)` does. Or write
-  the statement whole.
+  base returns — `base.GetSelectNextTriggerToAcquireSql(shape)` — and transform the string, which is
+  exactly what MySQL's `.Replace("{0}TRIGGERS t", …)` does. Or write the statement whole.
 - You *can* name tables, columns, trigger types and state values: `AdoConstants.TableTriggers`,
   `AdoConstants.ColumnTriggerName`, `AdoConstants.StateWaiting` and the rest are public precisely so a
   dialect can build its own SQL against the schema.

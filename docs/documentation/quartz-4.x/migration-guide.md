@@ -4898,11 +4898,14 @@ which always projects `EXECUTION_GROUP` and always carries the preferred-node fi
 which is the one that was already there:
 
 ```csharp
-protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)
+protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
 ```
 
-Its `excludedJobTypeBucket` parameter is new — pass it to `base` and the job-type exclusions ride
-along — and it is still the only thing the dialects differed in: `FirebirdDelegate` appends
+Its parameter is new: `TriggerAcquisitionSqlShape` carries everything about an acquisition attempt
+that changes the statement's text — `MaxCount`, and `ExcludedJobTypeBucket` for the job-type
+exclusion clause — so the next acquisition dimension is a property on the record rather than another
+parameter here. Read `shape.MaxCount` and pass the whole shape to `base`. It is still the only thing
+the dialects differed in: `FirebirdDelegate` appends
 `ROWS n`, `SqlServerDelegate` splices in `SELECT TOP n`, `OracleDelegate` wraps the statement in a
 `rownum` filter, and the rest append `LIMIT n`. **A dialect delegate of your own should keep its
 `GetSelectNextTriggerToAcquireSql` override and delete the other three.**
@@ -7663,7 +7666,7 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.UpdateFiredTrigger` removed | `ApplyTriggerFired` writes the fired-trigger row as one command of its batch, and nothing else called it; an override of it would have stopped taking effect silently — see [Batched trigger fire](#batched-trigger-fire) |
 | `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |
 | `GetSelectNextTriggerToAcquireWith*Sql` removed | The `…WithExecutionGroupSql`, `…WithPreferredNodeSql` and `…WithPreferredNodeOnlySql` hooks, on `StdAdoDelegate` and all six dialect delegates. One statement covers every case now, so a dialect delegate keeps only its `GetSelectNextTriggerToAcquireSql` override — see [The three extra acquisition SQL hooks went with them](#the-three-extra-acquisition-sql-hooks-went-with-them) |
-| `StdAdoDelegate.GetSelectNextTriggerToAcquireSql(int maxCount)` | `GetSelectNextTriggerToAcquireSql(int maxCount, int excludedJobTypeBucket)`; a custom dialect override must pass the bucket through when it adds its row limit |
+| `StdAdoDelegate.GetSelectNextTriggerToAcquireSql(int maxCount)` | `GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)`; a custom dialect override reads `shape.MaxCount` for its row limit and passes the whole shape to `base`, so the next acquisition dimension is a property on the record rather than another parameter |
 | `IDbConnectionManager` / `DbConnectionManager` removed | The container is the provider registry, keyed by scheduler name; register a provider with `UseConnectionProvider` — see [The connection manager is gone](#the-connection-manager-is-gone) |
 | `AdoJobStoreOptions.TxIsolationLevelSerializable` is `TransactionIsolationLevel` | An `IsolationLevel?` rather than a `bool`, so `Snapshot` and the rest are expressible. The legacy key still translates — see [The isolation level is an isolation level](#the-isolation-level-is-an-isolation-level) |
 | `AdoJobStoreOptions.CommandTimeout` added | Bounds every statement the store issues, the lock handler's included; it reaches them through `DriverDelegateContext.CommandTimeout` and `SemaphoreContext.CommandTimeout`. Unset keeps each provider's own default, so nothing changes for a store that does not set it. 3.x had no way to say this at all — there was no `quartz.*` key for it, so nothing needs translating |
