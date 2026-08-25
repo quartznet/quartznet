@@ -8,11 +8,11 @@ root = true
 [*]
 indent_style = space
 trim_trailing_whitespace = true
+charset = utf-8
 
 # Code files
 [*.cs]
 indent_size = 4
-charset = utf-8
 
 #Formatting - new line options
 
@@ -141,3 +141,10 @@ indent_size = 2
 # XML config files
 [*.{props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
 indent_size = 2
+
+# Verify snapshots
+# Verify writes its snapshots with a byte-order mark, and the snapshots are its output rather than
+# ours, so they are the one place a BOM belongs — stripping one only means the next regeneration
+# puts it back. SourceEncodingTest exempts them for the same reason.
+[*.verified.*]
+charset = utf-8-bom
