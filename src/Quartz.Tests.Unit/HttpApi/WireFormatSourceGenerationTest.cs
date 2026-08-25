@@ -6,6 +6,7 @@ using System.Text.Json.Serialization.Metadata;
 using Quartz.HttpApiContract;
 using Quartz.Serialization.SystemTextJson;
 using Quartz.Serialization.SystemTextJson.Converters;
+using Quartz.Tests.Unit.Simpl;
 
 namespace Quartz.Tests.Unit.HttpApi;
 
@@ -80,6 +81,22 @@ public class WireFormatSourceGenerationTest
             "a contract type must never reach the reflection resolver, and the chain is consulted in order");
         options.TypeInfoResolverChain[^1].Should().BeOfType<DefaultJsonTypeInfoResolver>(
             "the values inside a JobDataMap are whatever the application put there, so the chain has to end in reflection");
+    }
+
+    /// <summary>
+    /// The wire has the same open half the store format does — the values inside a
+    /// <see cref="JobDataMap" /> — so it is given the same seam, assembled by the same method.
+    /// </summary>
+    [Test]
+    public void TheSchedulersRegistryIsAskedBehindTheContract()
+    {
+        SystemTextJsonSerializerRegistry registry = new();
+        registry.AddTypeInfoResolver(JobDataValueContext.Default);
+
+        JsonSerializerOptions options = new JsonSerializerOptions(JsonSerializerDefaults.Web).ConfigureWireFormat(registry);
+
+        options.TypeInfoResolverChain[2].Should().BeSameAs(JobDataValueContext.Default,
+            "an application publishing trimmed answers for its own job-data value types once, and both formats read the same registry");
     }
 
     [Test]

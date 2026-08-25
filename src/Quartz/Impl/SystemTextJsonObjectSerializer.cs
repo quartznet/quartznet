@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 using Quartz.Serialization.SystemTextJson;
 using Quartz.Extensibility;
@@ -59,9 +60,22 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
         }
     }
 
+    /// <summary>
+    /// Builds the options this serializer reads and writes with: Quartz's converters, and the resolver
+    /// chain that lets them work where reflection-based serialization is switched off.
+    /// </summary>
+    /// <remarks>
+    /// The chain is <see cref="QuartzStoreJsonContext" />, then the scheduler's registry — the trigger
+    /// and calendar types registered with it, and whatever the application handed to
+    /// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> — then reflection, where a
+    /// publish has left any. A resolver decides only how a type is answered; the payload is still
+    /// written by the converters, byte for byte as every earlier version of Quartz wrote it.
+    /// </remarks>
     protected virtual JsonSerializerOptions CreateSerializerOptions()
     {
-        return new JsonSerializerOptions().AddQuartzConverters(Registry, newtonsoftCompatibilityMode: true);
+        JsonSerializerOptions options = new JsonSerializerOptions().AddQuartzConverters(Registry, newtonsoftCompatibilityMode: true);
+        options.UseQuartzContract(QuartzStoreJsonContext.Default, Registry);
+        return options;
     }
 
     /// <summary>
@@ -69,9 +83,18 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     /// that can be stored to permanent stores.
     /// </summary>
     /// <param name="obj">Object to serialize.</param>
+    /// <remarks>
+    /// Written as <see cref="object" /> so that the payload names the runtime type, which is what every
+    /// stored blob has always said. Asking the options for that type's metadata and handing the result
+    /// to <see cref="JsonSerializer" /> is the same call the overload taking
+    /// <see cref="JsonSerializerOptions" /> would make internally, minus that overload's blanket
+    /// <c>RequiresUnreferencedCode</c> — it is what a trimmed application needs and what keeps this
+    /// class out of the trim-analysis baseline.
+    /// </remarks>
     public byte[] Serialize<T>(T obj) where T : class
     {
-        return JsonSerializer.SerializeToUtf8Bytes<object>(obj, Options);
+        JsonTypeInfo typeInfo = Options.GetTypeInfo(typeof(object));
+        return JsonSerializer.SerializeToUtf8Bytes(obj, typeInfo);
     }
 
     /// <summary>
@@ -82,7 +105,8 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     {
         try
         {
-            return JsonSerializer.Deserialize<T?>(data, Options);
+            JsonTypeInfo<T> typeInfo = (JsonTypeInfo<T>) Options.GetTypeInfo(typeof(T));
+            return JsonSerializer.Deserialize(data, typeInfo);
         }
         // Quartz's exception comes from Quartz's own converters; System.Text.Json's comes from the
         // reader, which rejects a payload whose very first token is malformed before any converter is

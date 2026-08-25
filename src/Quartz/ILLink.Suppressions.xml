@@ -9,7 +9,7 @@
   warning to silence. Removing an entry that looks unused because the analyzer is quiet about it fails
   the publish; verify against a clean `dotnet fallout PublishTrimmed`, not against the compile.
 
-  The other difference is that this file carries no IL3050, where TrimAnalysisBaseline.cs carries three.
+  The other difference is that this file carries no IL3050, where TrimAnalysisBaseline.cs carries one.
   That is not an omission. ILLink does not report IL3050 at all — dynamic code is ILCompiler's concern,
   and ILCompiler cannot be handed this file: its command line offers a descriptor option and a
   substitution option and no link-attributes option at all, and the SDK item below only ever reaches
@@ -163,22 +163,6 @@
         <argument>Trimming</argument>
         <argument>IL2070</argument>
         <property name="Justification">Retry classification reads provider error codes off exception types Quartz deliberately does not reference.</property>
-      </attribute>
-    </type>
-
-    <!-- Reflection-based serialization -->
-    <type fullname="Quartz.Impl.SystemTextJsonObjectSerializer*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2026</argument>
-        <property name="Justification">Job data is serialized as whatever the application stored, which no generated contract can name.</property>
-      </attribute>
-    </type>
-    <type fullname="Quartz.Serialization.SystemTextJson.Utf8JsonWriterExtensions*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2026</argument>
-        <property name="Justification">Job data is serialized as whatever the application stored, which no generated contract can name.</property>
       </attribute>
     </type>
 

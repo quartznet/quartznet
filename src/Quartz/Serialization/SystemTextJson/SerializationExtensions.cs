@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Quartz.Serialization.SystemTextJson;
 
@@ -283,14 +284,26 @@ internal static class Utf8JsonWriterExtensions
         return new JobKey(name!, group!);
     }
 
+    /// <summary>
+    /// Writes a job data map's entries, each value as whatever the application stored.
+    /// </summary>
+    /// <remarks>
+    /// The value is written as <see cref="object" />, so its runtime type is looked up through the
+    /// options' resolver chain — the closed set Quartz names, then the scheduler's registry, then
+    /// reflection where a publish left any. Asking for that metadata here rather than passing the
+    /// options to <see cref="JsonSerializer" /> is what makes this method trimming- and AOT-clean: the
+    /// overloads taking <see cref="JsonSerializerOptions" /> are <c>RequiresUnreferencedCode</c> and
+    /// <c>RequiresDynamicCode</c> wholesale, whatever they are handed.
+    /// </remarks>
     public static void WriteJobDataMapValue(this Utf8JsonWriter writer, JobDataMap jobDataMap, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
 
+        JsonTypeInfo valueTypeInfo = options.GetTypeInfo(typeof(object));
         foreach (var pair in jobDataMap)
         {
             writer.WritePropertyName(pair.Key);
-            JsonSerializer.Serialize(writer, pair.Value, options);
+            JsonSerializer.Serialize(writer, pair.Value, valueTypeInfo);
         }
 
         writer.WriteEndObject();
@@ -332,7 +345,9 @@ internal static class Utf8JsonWriterExtensions
                     }
                     break;
                 case JsonValueKind.Object:
-                    value = property.Value.Deserialize<Dictionary<string, string>>(options);
+                    // The one shape past the primitives a job data value comes back as, and the reason
+                    // Dictionary<string, string> is named in QuartzStoreJsonContext.
+                    value = property.Value.Deserialize((JsonTypeInfo<Dictionary<string, string>>) options.GetTypeInfo(typeof(Dictionary<string, string>)));
                     break;
                 default:
                     throw new JsonException($"Unsupported value kind: {property.Value.ValueKind}");

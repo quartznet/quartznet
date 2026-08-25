@@ -3659,6 +3659,7 @@ namespace Quartz.Serialization.SystemTextJson
             where TCalendar : Quartz.ICalendar { }
         public Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry AddTriggerSerializer<TTrigger>(Quartz.Serialization.SystemTextJson.Triggers.ITriggerSerializer serializer)
             where TTrigger : Quartz.ITrigger { }
+        public Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry AddTypeInfoResolver(System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver resolver) { }
     }
 }
 namespace Quartz.Serialization.SystemTextJson.Triggers
