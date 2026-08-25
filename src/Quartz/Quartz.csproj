@@ -7,6 +7,22 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <!--
+      IsAotCompatible would turn these two on as well, and it is deliberately not set. Step 5 of #3341
+      turned them on by themselves instead, so that the warnings could be counted before the claim was
+      made: twelve IL3050 call sites, of which one was fixed, one answered at the call site and ten are
+      recorded in TrimAnalysisBaseline.cs. That much would be the same standard IsTrimmable is held to.
+
+      What stops the claim is not a warning but a run. A native AOT publish switches reflection-based
+      System.Text.Json off, and the default IObjectSerializer has no resolver to fall back on when it is
+      — so a native AOT application over RAMJobStore starts, fires its triggers and shuts down cleanly,
+      while one over a persistent store throws "Reflection-based serialization has been disabled for
+      this application" the first time it writes a trigger. Saying IsAotCompatible here would claim
+      otherwise. (A trimmed publish switches the same thing off, so this predates AOT; the trim canary
+      never noticed because it is an in-memory application.)
+    -->
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>
