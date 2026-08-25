@@ -1,4 +1,4 @@
-﻿using Quartz.Core;
+using Quartz.Core;
 
 namespace Quartz.Tests.Unit.Core;
 

@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 using System.Data;
 
 using Microsoft.Extensions.Configuration;

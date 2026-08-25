@@ -1,4 +1,4 @@
-﻿using Quartz.Util;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Utils;
 

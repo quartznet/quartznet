@@ -1,4 +1,4 @@
-﻿namespace Quartz.Tests.Unit;
+namespace Quartz.Tests.Unit;
 
 [SetUpFixture]
 public class TestAssemblySetup

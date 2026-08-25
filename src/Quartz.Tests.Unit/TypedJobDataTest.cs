@@ -1,4 +1,4 @@
-﻿using FakeItEasy;
+using FakeItEasy;
 
 using Quartz.Impl;
 

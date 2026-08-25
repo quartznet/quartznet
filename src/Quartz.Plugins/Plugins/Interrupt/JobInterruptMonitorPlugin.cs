@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Listeners;
