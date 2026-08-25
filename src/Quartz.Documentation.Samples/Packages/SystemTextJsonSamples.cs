@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -146,4 +147,30 @@ public static class SystemTextJsonSamples
 
         #endregion
     }
+
+    public static void TypeInfoResolver(IServiceCollection services)
+    {
+        #region sample_stj_type_info_resolver
+
+        // The metadata for this application's own job-data value types. Only a trimmed or native AOT
+        // publish needs it: with reflection on, the resolver chain still ends in reflection.
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseSqlServer("my connection string");
+            store.UseSystemTextJsonSerializer(json => json.AddTypeInfoResolver(JobDataContext.Default));
+        }));
+
+        #endregion
+    }
 }
+
+/// <summary>A job-data value type of the application's own, which no contract of Quartz's can name.</summary>
+public enum Severity
+{
+    Routine,
+    Urgent
+}
+
+[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
+[JsonSerializable(typeof(Severity))]
+internal sealed partial class JobDataContext : JsonSerializerContext;
