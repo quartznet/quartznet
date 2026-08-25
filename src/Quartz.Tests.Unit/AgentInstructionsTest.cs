@@ -77,7 +77,7 @@ public class AgentInstructionsTest
     [Test]
     public void EveryInstructionFileIsOneTheRootAccountsFor()
     {
-        DirectoryInfo root = FindRepositoryRoot();
+        DirectoryInfo root = RepositoryRoot.Find();
 
         List<string> found = Discover(root)
             .Select(x => Path.GetRelativePath(root.FullName, x.FullName).Replace('\\', '/'))
@@ -94,7 +94,7 @@ public class AgentInstructionsTest
 
     private static IEnumerable<TestCaseData> Cases(IReadOnlyList<string> relativePaths)
     {
-        DirectoryInfo root = FindRepositoryRoot();
+        DirectoryInfo root = RepositoryRoot.Find();
 
         return relativePaths
             .Select(x => new TestCaseData(new FileInfo(Path.Combine(root.FullName, x))).SetArgDisplayNames(x))
@@ -123,18 +123,5 @@ public class AgentInstructionsTest
                 yield return file;
             }
         }
-    }
-
-    private static DirectoryInfo FindRepositoryRoot()
-    {
-        DirectoryInfo directory = new(AppContext.BaseDirectory);
-
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Quartz.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory ?? throw new InvalidOperationException(
-            $"No Quartz.slnx above {AppContext.BaseDirectory}, so the instruction files cannot be found.");
     }
 }

@@ -52,6 +52,11 @@ binds this repository.
 - **Single target** — everything targets `net10.0`.
 - **SDK**: .NET 10 SDK (see `global.json`), with `rollForward: latestMinor`.
 - **License headers** — source files include Apache 2.0 license region at the top.
+- **UTF-8 without a byte-order mark** — everything under `src/`, whatever its extension;
+  `SourceEncodingTest` fails a file that starts with one. `*.verified.*` snapshots are the exemption,
+  because Verify writes the mark and the next regeneration would put it straight back. A script that
+  writes a source file uses Python's `encoding="utf-8"` — never `utf-8-sig` — or PowerShell's
+  `-Encoding utf8NoBOM`.
 
 ### Naming decisions that are settled
 

@@ -115,7 +115,7 @@ public class PackageReadmeTest
     /// </remarks>
     private static List<FileInfo> FindPackableProjects()
     {
-        List<FileInfo> projects = FindRepositoryRoot()
+        List<FileInfo> projects = RepositoryRoot.Find()
             .GetDirectories("src")
             .Single()
             .GetDirectories()
@@ -131,17 +131,4 @@ public class PackageReadmeTest
     private static bool IsOptedOut(FileInfo project) => XDocument.Load(project.FullName)
         .Descendants("IsPackable")
         .Any(x => string.Equals(x.Value.Trim(), "false", StringComparison.OrdinalIgnoreCase));
-
-    private static DirectoryInfo FindRepositoryRoot()
-    {
-        DirectoryInfo directory = new(AppContext.BaseDirectory);
-
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Quartz.slnx")))
-        {
-            directory = directory.Parent;
-        }
-
-        return directory ?? throw new InvalidOperationException(
-            $"No Quartz.slnx above {AppContext.BaseDirectory}, so the packable projects cannot be found.");
-    }
 }
