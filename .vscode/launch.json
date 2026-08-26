@@ -6,66 +6,45 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceRoot}/src/Quartz.Examples/bin/Debug/netcoreapp1.0/Quartz.Examples.dll",
+            "program": "${workspaceFolder}/artifacts/bin/Quartz.Examples/debug/Quartz.Examples.dll",
             "args": [],
-            "cwd": "${workspaceRoot}",
-            "stopAtEntry": false
-        },
-         {
-            "name": "Unit Tests",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceRoot}/src/Quartz.Tests.Unit/bin/Debug/netcoreapp1.0/Quartz.Tests.Unit.dll",
-            "args": [],
-            "cwd": "${workspaceRoot}",
+            "cwd": "${workspaceFolder}",
             "stopAtEntry": false
         },
         {
-            "name": "Integration Tests",
+            "name": "Worker example",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceRoot}/src/Quartz.Tests.Integration/bin/Debug/netcoreapp1.0/Quartz.Tests.Integration.dll",
+            "program": "${workspaceFolder}/artifacts/bin/Quartz.Examples.Worker/debug/Quartz.Examples.Worker.dll",
             "args": [],
-            "cwd": "${workspaceRoot}",
-            "stopAtEntry": false
-        },
-        {
-            "name": ".NET Core Attach",
-            "type": "coreclr",
-            "request": "attach",
-            "processName": "<example>"
-        },
-        {
-            "name": ".NET Core Launch (web)",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build",
-            "program": "${workspaceRoot}/src/Quartz.Web/bin/Debug/netcoreapp2.0/Quartz.Web.dll",
-            "args": [],
-            "cwd": "${workspaceRoot}/src/Quartz.Web",
+            "cwd": "${workspaceFolder}/src/Quartz.Examples.Worker",
             "stopAtEntry": false,
-            "launchBrowser": {
-                "enabled": true,
-                "args": "${auto-detect-url}",
-                "windows": {
-                    "command": "cmd.exe",
-                    "args": "/C start ${auto-detect-url}"
-                },
-                "osx": {
-                    "command": "open"
-                },
-                "linux": {
-                    "command": "xdg-open"
-                }
-            },
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": "ASP.NET Core example",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/artifacts/bin/Quartz.Examples.AspNetCore/debug/Quartz.Examples.AspNetCore.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/Quartz.Examples.AspNetCore",
+            "stopAtEntry": false,
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             },
-            "sourceFileMap": {
-                "/Views": "${workspaceRoot}/Views"
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
             }
+        },
+        {
+            "name": "Attach",
+            "type": "coreclr",
+            "request": "attach"
         }
     ]
 }

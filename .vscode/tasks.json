@@ -2,35 +2,33 @@
     // See https://go.microsoft.com/fwlink/?LinkId=733558
     // for the documentation about the tasks.json format
     "version": "2.0.0",
-    "command": "dotnet",
     "tasks": [
         {
             "label": "build",
-            "type": "shell",
+            "type": "process",
             "command": "dotnet",
             "args": [
                 "build",
-                "Quartz.sln"
+                "Quartz.slnx"
             ],
             "problemMatcher": "$msCompile",
             "group": {
-                "_id": "build",
-                "isDefault": false
+                "kind": "build",
+                "isDefault": true
             }
         },
         {
             "label": "test",
-            "type": "shell",
+            "type": "process",
             "command": "dotnet",
             "args": [
                 "test",
-                "src/Quartz.Tests.Unit/project.json",
-                "src/Quartz.Tests.Integration/project.json"
+                "src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj"
             ],
-            "problemMatcher": [],
+            "problemMatcher": "$msCompile",
             "group": {
-                "_id": "test",
-                "isDefault": false
+                "kind": "test",
+                "isDefault": true
             }
         }
     ]

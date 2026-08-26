@@ -1,8 +1,7 @@
 [![Downloads](https://img.shields.io/nuget/dt/Quartz)](#)
-[![Build status](https://ci.appveyor.com/api/projects/status/d9ahvu9u77qjhx9r/branch/master?svg=true)](https://ci.appveyor.com/project/lahma/quartznet-6fcn8/branch/master)
+[![Build status](https://github.com/quartznet/quartznet/actions/workflows/build.yml/badge.svg)](https://github.com/quartznet/quartznet/actions/workflows/build.yml)
 [![NuGet](http://img.shields.io/nuget/v/Quartz.svg)](https://www.nuget.org/packages/Quartz/)
 [![NuGet pre-release](http://img.shields.io/nuget/vpre/Quartz.svg)](https://www.nuget.org/packages/Quartz/)
-[![MyGet pre-release](https://img.shields.io/myget/quartznet/vpre/Quartz)](#)
 [![Join the chat at https://gitter.im/quartznet/quartznet](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/quartznet/quartznet?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # Quartz.NET - Enterprise Job Scheduler
@@ -11,7 +10,9 @@ Please visit [https://www.quartz-scheduler.net/](https://www.quartz-scheduler.ne
 
 ## Compatibility
 
-Quartz.NET supports .NET Core/netstandard 2.0 and .NET Framework 4.6.2 and later.
+Quartz.NET 4 targets .NET 10, and nothing else. Quartz.NET 3.x, maintained on the
+[`3.x` branch](https://github.com/quartznet/quartznet/tree/3.x), supports .NET Standard 2.0 and
+.NET Framework 4.6.2 and later.
 
 ## Installation
 
@@ -20,8 +21,13 @@ Quartz.NET supports .NET Core/netstandard 2.0 and .NET Framework 4.6.2 and later
 
 ## Building
 
-* You can build the code by running `build.cmd` (Windows) or `build.sh` (*nix platform)
-* You need MSBuild 17 and .NET Core SDK 6.0 to build
+* You need the .NET 10 SDK. `global.json` asks for 10.0.100 and rolls forward to the latest 10.0.x you
+  have installed.
+* Build the code by running `build.cmd` (Windows) or `./build.sh` (Linux, macOS). The scripts restore the
+  [Fallout](https://fallout.build/) CLI from `.config/dotnet-tools.json` and hand it the arguments, so
+  there is nothing to install globally.
+* `build.cmd Compile UnitTest` compiles and runs the unit tests. The integration tests need a running
+  Docker daemon; [CONTRIBUTING.md](CONTRIBUTING.md) has the rest.
 
 ## License
 
