@@ -145,6 +145,53 @@ public class MisfireHandlerTest
         timeToSleep.Should().Be(TimeSpan.FromSeconds(15));
     }
 
+    /// <summary>
+    /// The cadence the loop sleeps at is the configured one, and an unconfigured one falls back to the
+    /// misfire threshold — a store that scans less often than it counts a trigger late would leave a
+    /// misfire sitting for the difference.
+    /// </summary>
+    /// <remarks>
+    /// Asserted through <see cref="MisfireHandler.ComputeTimeToSleep" /> rather than by starting the
+    /// loop and watching it: the loop's only use of the frequency is the value it passes here, so this
+    /// is the whole of the cadence, and it costs no thread and no wall time to say so.
+    /// </remarks>
+    [Test]
+    public void MisfireHandlerFrequency_IsWhatTheLoopSleepsFor_WhenConfigured()
+    {
+        TimeSpan configured = TimeSpan.FromSeconds(20);
+        TestAdoJobStoreBase jobStore = new(misfireHandlerFrequency: configured, misfireThreshold: TimeSpan.FromMinutes(5));
+
+        jobStore.MisfireHandlerFrequency.Should().Be(configured,
+            "a configured cadence is the one the store reports, whatever its misfire threshold says");
+
+        MisfireHandler.ComputeTimeToSleep(
+            hasMoreMisfiredTriggers: false,
+            misfireHandlerFrequency: jobStore.MisfireHandlerFrequency,
+            elapsed: TimeSpan.Zero,
+            dbRetryInterval: jobStore.DbRetryInterval,
+            numFails: 0).Should().Be(configured,
+            "a scan that took no time is followed by a full cycle of sleep");
+    }
+
+    [Test]
+    public void MisfireHandlerFrequency_FallsBackToTheMisfireThreshold_WhenNotConfigured()
+    {
+        TimeSpan threshold = TimeSpan.FromSeconds(45);
+        TestAdoJobStoreBase jobStore = new(misfireHandlerFrequency: null, misfireThreshold: threshold);
+
+        jobStore.MisfireHandlerFrequency.Should().Be(threshold,
+            "with no cadence configured the store scans as often as it declares a trigger late, so that a "
+            + "misfire is never left waiting longer than it took to become one");
+
+        MisfireHandler.ComputeTimeToSleep(
+            hasMoreMisfiredTriggers: false,
+            misfireHandlerFrequency: jobStore.MisfireHandlerFrequency,
+            elapsed: TimeSpan.Zero,
+            dbRetryInterval: jobStore.DbRetryInterval,
+            numFails: 0).Should().Be(threshold,
+            "the fallback is the cadence, so it is also what the loop sleeps for");
+    }
+
     [Test]
     public async Task QueuedTaskScheduler_ShouldNotDeadlock_WhenDisposedBeforeTaskStarts()
     {
@@ -169,10 +216,25 @@ public class MisfireHandlerTest
 
     private sealed class TestAdoJobStoreBase : AdoJobStoreBase
     {
-        public TestAdoJobStoreBase()
-        // A short misfire handler frequency so that if the Run loop starts, it quickly checks the
-        // cancellation token and exits, letting shutdown tests complete faster.
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(configure: options => options.MisfireHandlerFrequency = TimeSpan.FromMilliseconds(100)), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        /// <summary>
+        /// A store with a short misfire handler frequency, so that if the Run loop starts it quickly
+        /// checks the cancellation token and exits, letting the shutdown tests complete faster.
+        /// </summary>
+        public TestAdoJobStoreBase() : this(TimeSpan.FromMilliseconds(100), TimeSpan.FromMinutes(1))
+        {
+        }
+
+        /// <param name="misfireHandlerFrequency">
+        /// The configured cadence, or <see langword="null" /> to leave it unset so that the fallback is
+        /// what answers for it.
+        /// </param>
+        /// <param name="misfireThreshold">The configured misfire threshold.</param>
+        public TestAdoJobStoreBase(TimeSpan? misfireHandlerFrequency, TimeSpan misfireThreshold)
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(configure: options =>
+        {
+            options.MisfireHandlerFrequency = misfireHandlerFrequency;
+            options.MisfireThreshold = misfireThreshold;
+        }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
         }
 
