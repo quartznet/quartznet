@@ -518,6 +518,13 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return await historyStore.GetPage(query, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<PagedResult<DashboardMisfireEntry>?> GetMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        return await historyStore.GetMisfires(query, cancellationToken).ConfigureAwait(false);
+    }
+
     private static GroupMatcher<TKey>? BuildGroupMatcher<TKey>(string? groupFilter) where TKey : Key<TKey>
     {
         return string.IsNullOrWhiteSpace(groupFilter) ? null : GroupMatcher<TKey>.GroupContains(groupFilter);

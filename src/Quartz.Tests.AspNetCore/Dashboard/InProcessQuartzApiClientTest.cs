@@ -8,6 +8,7 @@ using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
 
@@ -683,7 +684,7 @@ public class InProcessQuartzApiClientTest
             repository,
             new StubSchedulerRegistry(repository, registeredButNotCreated),
             Options.Create(new QuartzDashboardOptions()),
-            new DashboardHistoryStore());
+            TestData.Dashboard.HistoryStore());
     }
 
     /// <summary>

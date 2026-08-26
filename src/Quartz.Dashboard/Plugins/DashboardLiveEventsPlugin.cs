@@ -35,7 +35,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     /// Takes the container the dashboard's SignalR hub is resolved from.
     /// </summary>
     /// <remarks>
-    /// <inheritdoc cref="DashboardHistoryPlugin(IServiceProvider)" path="/remarks" />
+    /// <inheritdoc cref="DashboardHistoryPlugin(IServiceProvider, TimeProvider)" path="/remarks" />
     /// </remarks>
     public DashboardLiveEventsPlugin(IServiceProvider serviceProvider)
     {
@@ -62,6 +62,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobEventDto payload = new(
+            SchedulerInstanceId: context.Scheduler.SchedulerInstanceId,
             JobKey: new JobKeyDto(context.JobDetail.Key.Group, context.JobDetail.Key.Name),
             TriggerKey: new TriggerKeyDto(context.Trigger.Key.Group, context.Trigger.Key.Name),
             FireTimeUtc: context.FireTimeUtc,
@@ -73,6 +74,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobExecutionResultDto payload = new(
+            SchedulerInstanceId: context.Scheduler.SchedulerInstanceId,
             JobKey: new JobKeyDto(context.JobDetail.Key.Group, context.JobDetail.Key.Name),
             TriggerKey: new TriggerKeyDto(context.Trigger.Key.Group, context.Trigger.Key.Name),
             FireTimeUtc: context.FireTimeUtc,
@@ -86,6 +88,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
     {
         JobExecutionResultDto payload = new(
+            SchedulerInstanceId: context.Scheduler.SchedulerInstanceId,
             JobKey: new JobKeyDto(context.JobDetail.Key.Group, context.JobDetail.Key.Name),
             TriggerKey: new TriggerKeyDto(context.Trigger.Key.Group, context.Trigger.Key.Name),
             FireTimeUtc: context.FireTimeUtc,
@@ -99,6 +102,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     public ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         TriggerEventDto payload = new(
+            SchedulerInstanceId: context.Scheduler.SchedulerInstanceId,
             TriggerKey: new TriggerKeyDto(trigger.Key.Group, trigger.Key.Name),
             JobKey: new JobKeyDto(context.JobDetail.Key.Group, context.JobDetail.Key.Name),
             FireTimeUtc: context.FireTimeUtc);
@@ -114,6 +118,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
     {
         TriggerEventDto payload = new(
+            SchedulerInstanceId: scheduler.SchedulerInstanceId,
             TriggerKey: new TriggerKeyDto(trigger.Key.Group, trigger.Key.Name),
             JobKey: trigger.JobKey is null ? null : new JobKeyDto(trigger.JobKey.Group, trigger.JobKey.Name),
             FireTimeUtc: null);
@@ -128,6 +133,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         CancellationToken cancellationToken = default)
     {
         TriggerEventDto payload = new(
+            SchedulerInstanceId: context.Scheduler.SchedulerInstanceId,
             TriggerKey: new TriggerKeyDto(trigger.Key.Group, trigger.Key.Name),
             JobKey: new JobKeyDto(context.JobDetail.Key.Group, context.JobDetail.Key.Name),
             FireTimeUtc: context.FireTimeUtc);
@@ -143,7 +149,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public ValueTask TriggerPaused(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        TriggerKeyDto payload = new(triggerKey.Group, triggerKey.Name);
+        TriggerLifecycleDto payload = new(scheduler.SchedulerInstanceId, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.TriggerPaused(payload));
     }
 
@@ -151,7 +157,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public ValueTask TriggerResumed(IScheduler scheduler, TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        TriggerKeyDto payload = new(triggerKey.Group, triggerKey.Name);
+        TriggerLifecycleDto payload = new(scheduler.SchedulerInstanceId, new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.TriggerResumed(payload));
     }
 
@@ -163,7 +169,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public ValueTask JobPaused(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        JobKeyDto payload = new(jobKey.Group, jobKey.Name);
+        JobLifecycleDto payload = new(scheduler.SchedulerInstanceId, new JobKeyDto(jobKey.Group, jobKey.Name));
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.JobPaused(payload));
     }
 
@@ -173,7 +179,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public ValueTask JobResumed(IScheduler scheduler, JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        JobKeyDto payload = new(jobKey.Group, jobKey.Name);
+        JobLifecycleDto payload = new(scheduler.SchedulerInstanceId, new JobKeyDto(jobKey.Group, jobKey.Name));
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.JobResumed(payload));
     }
 
@@ -183,6 +189,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     {
         SchedulerErrorDto payload = new(
             SchedulerName: scheduler.SchedulerName,
+            SchedulerInstanceId: scheduler.SchedulerInstanceId,
             Message: errorContext.Message,
             Cause: errorContext.Exception.Message,
             TriggerKey: errorContext.TriggerKey is null ? null : new TriggerKeyDto(errorContext.TriggerKey.Group, errorContext.TriggerKey.Name),
@@ -226,7 +233,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     /// </summary>
     private ValueTask BroadcastState(IScheduler scheduler, SchedulerStatus status)
     {
-        SchedulerStateDto payload = new(scheduler.SchedulerName, status);
+        SchedulerStateDto payload = new(scheduler.SchedulerName, scheduler.SchedulerInstanceId, status);
         return BroadcastToScheduler(scheduler.SchedulerName, client => client.SchedulerStateChanged(payload));
     }
 

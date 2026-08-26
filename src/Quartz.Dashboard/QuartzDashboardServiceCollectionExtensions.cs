@@ -44,7 +44,13 @@ public static class QuartzDashboardServiceCollectionExtensions
                 "DashboardPath must start with '/'")
             .Validate(
                 options => IsRoutableDashboardPath(options.DashboardPath),
-                "DashboardPath must be a simple URL path: it cannot contain '{', '}', '?', '#', '.' or '..' segments, or empty segments ('//')");
+                "DashboardPath must be a simple URL path: it cannot contain '{', '}', '?', '#', '.' or '..' segments, or empty segments ('//')")
+            .Validate(
+                options => options.HistoryRetention > TimeSpan.Zero,
+                "HistoryRetention must be positive: a zero or negative window would forget every execution the moment it was recorded")
+            .Validate(
+                options => options.HistoryMaxEntriesPerScheduler > 0,
+                "HistoryMaxEntriesPerScheduler must be at least 1");
 
         if (configure is not null)
         {
@@ -74,7 +80,12 @@ public static class QuartzDashboardServiceCollectionExtensions
         services.TryAddScoped<SchedulerState>();
         services.TryAddScoped<ToastService>();
         services.TryAddSingleton<IDashboardLiveConnectionFactory, SignalRDashboardLiveConnectionFactory>();
-        services.TryAddSingleton<IDashboardHistoryStore, DashboardHistoryStore>();
+        // The store measures its retention window on the scheduler's clock, and falls back to the system
+        // one only when the dashboard is registered without Quartz — which AddQuartz would otherwise have
+        // put in the container.
+        services.TryAddSingleton<IDashboardHistoryStore>(static provider => new DashboardHistoryStore(
+            provider.GetRequiredService<IOptions<QuartzDashboardOptions>>(),
+            provider.GetService<TimeProvider>() ?? TimeProvider.System));
         services.TryAddSingleton<DashboardActionLogService>();
 
         // The dashboard's own plugins, registered rather than named by a quartz.plugin.*.type key. A type

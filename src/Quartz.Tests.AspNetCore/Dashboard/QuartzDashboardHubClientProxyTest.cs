@@ -32,7 +32,7 @@ public class QuartzDashboardHubClientProxyTest
         // Touching Clients is what makes SignalR emit the proxy; sending is what invokes it.
         IQuartzDashboardHubClient client = hubContext.Clients.All;
 
-        var act = async () => await client.SchedulerStateChanged(new SchedulerStateDto("scheduler", SchedulerStatus.Running));
+        var act = async () => await client.SchedulerStateChanged(new SchedulerStateDto("scheduler", "node-a", SchedulerStatus.Running));
 
         act.Should().NotThrowAsync(
             "the typed-client proxy lives in a dynamic assembly that can only implement a public interface");

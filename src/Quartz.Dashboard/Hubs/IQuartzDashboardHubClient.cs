@@ -35,6 +35,14 @@ namespace Quartz.Dashboard.Hubs;
 /// The <see cref="Task" /> return types are dictated by SignalR for the same reason: the typed-client
 /// proxy only implements members returning <see cref="Task" /> or <see cref="Task{TResult}" />.
 /// </para>
+/// <para>
+/// Every payload leads with the <c>SchedulerInstanceId</c> of the node that raised the event. A browser
+/// joins a group named after a scheduler, and in a cluster that group is fed by every node running that
+/// scheduler — so without the id a live view cannot say which machine an event came from, which is what
+/// <see href="https://github.com/quartznet/quartznet/issues/3422" /> reported. A pause and a resume get
+/// a payload of their own for it rather than a <c>JobKeyDto</c> / <c>TriggerKeyDto</c>: those are keys,
+/// used by <see cref="Services.IQuartzApiClient" /> everywhere, and a key does not belong to a node.
+/// </para>
 /// </remarks>
 public interface IQuartzDashboardHubClient
 {
@@ -48,13 +56,13 @@ public interface IQuartzDashboardHubClient
 
     Task TriggerMisfired(TriggerEventDto triggerEvent);
 
-    Task TriggerPaused(TriggerKeyDto triggerKey);
+    Task TriggerPaused(TriggerLifecycleDto triggerEvent);
 
-    Task TriggerResumed(TriggerKeyDto triggerKey);
+    Task TriggerResumed(TriggerLifecycleDto triggerEvent);
 
-    Task JobPaused(JobKeyDto jobKey);
+    Task JobPaused(JobLifecycleDto jobEvent);
 
-    Task JobResumed(JobKeyDto jobKey);
+    Task JobResumed(JobLifecycleDto jobEvent);
 
     Task SchedulerStateChanged(SchedulerStateDto state);
 
@@ -62,6 +70,7 @@ public interface IQuartzDashboardHubClient
 }
 
 public sealed record JobEventDto(
+    string SchedulerInstanceId,
     JobKeyDto JobKey,
     TriggerKeyDto TriggerKey,
     DateTimeOffset FireTimeUtc,
@@ -73,6 +82,7 @@ public sealed record JobEventDto(
 /// be threw away everything below one.
 /// </remarks>
 public sealed record JobExecutionResultDto(
+    string SchedulerInstanceId,
     JobKeyDto JobKey,
     TriggerKeyDto TriggerKey,
     DateTimeOffset FireTimeUtc,
@@ -81,9 +91,20 @@ public sealed record JobExecutionResultDto(
     string? ExceptionMessage);
 
 public sealed record TriggerEventDto(
+    string SchedulerInstanceId,
     TriggerKeyDto TriggerKey,
     JobKeyDto? JobKey,
     DateTimeOffset? FireTimeUtc);
+
+/// <summary>
+/// A trigger that was paused or resumed, and the node that did it.
+/// </summary>
+public sealed record TriggerLifecycleDto(string SchedulerInstanceId, TriggerKeyDto TriggerKey);
+
+/// <summary>
+/// A job that was paused or resumed, and the node that did it.
+/// </summary>
+public sealed record JobLifecycleDto(string SchedulerInstanceId, JobKeyDto JobKey);
 
 /// <summary>
 /// The state a scheduler is now in, pushed whenever it changes.
@@ -93,8 +114,12 @@ public sealed record TriggerEventDto(
 /// call site, which is how a running scheduler came to be announced as <c>"Started"</c> here while the
 /// same state was called <c>"Running"</c> everywhere else. It carries the state the scheduler is in,
 /// so an event that is not a state — a scheduler that is starting — is not one of these at all.
+/// <para>
+/// The state is one node's. A cluster is a scheduler running in several processes at once, each with a
+/// lifecycle of its own, so a node going into standby says nothing about its peers.
+/// </para>
 /// </remarks>
-public sealed record SchedulerStateDto(string SchedulerName, SchedulerStatus Status);
+public sealed record SchedulerStateDto(string SchedulerName, string SchedulerInstanceId, SchedulerStatus Status);
 
 /// <remarks>
 /// <see cref="TriggerKey" /> and <see cref="JobKey" /> are null when the scheduler could not say what
@@ -102,6 +127,7 @@ public sealed record SchedulerStateDto(string SchedulerName, SchedulerStatus Sta
 /// </remarks>
 public sealed record SchedulerErrorDto(
     string SchedulerName,
+    string SchedulerInstanceId,
     string Message,
     string? Cause,
     TriggerKeyDto? TriggerKey,

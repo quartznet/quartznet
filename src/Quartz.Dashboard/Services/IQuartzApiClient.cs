@@ -193,6 +193,12 @@ public interface IQuartzApiClient
     /// </summary>
     ValueTask<PagedResult<DashboardHistoryEntry>?> GetHistory(DashboardHistoryQuery query, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns one page of the triggers that missed a firing, newest first, or <see langword="null" />
+    /// when the data source keeps no history.
+    /// </summary>
+    ValueTask<PagedResult<DashboardMisfireEntry>?> GetMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default);
+
     ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default);
 }
 
@@ -230,7 +236,7 @@ public sealed record DashboardFireInstanceQuery : PagedQuery
 }
 
 /// <summary>
-/// One page of the execution history of a scheduler, optionally narrowed by job and trigger.
+/// One page of the execution history of a scheduler, optionally narrowed by node, job and trigger.
 /// </summary>
 /// <remarks>
 /// A filter matches a key's group, its name, or the two joined as <c>group.name</c>, case-insensitively.
@@ -239,7 +245,30 @@ public sealed record DashboardHistoryQuery : PagedQuery
 {
     public required string SchedulerName { get; init; }
 
+    /// <summary>
+    /// The node whose executions to list, or <see langword="null" /> for every node's.
+    /// </summary>
+    public string? SchedulerInstanceId { get; init; }
+
     public string? JobFilter { get; init; }
+
+    public string? TriggerFilter { get; init; }
+}
+
+/// <summary>
+/// One page of the misfires of a scheduler, optionally narrowed by node and trigger.
+/// </summary>
+/// <remarks>
+/// <inheritdoc cref="DashboardHistoryQuery" path="/remarks" />
+/// </remarks>
+public sealed record DashboardMisfireQuery : PagedQuery
+{
+    public required string SchedulerName { get; init; }
+
+    /// <summary>
+    /// The node whose misfires to list, or <see langword="null" /> for every node's.
+    /// </summary>
+    public string? SchedulerInstanceId { get; init; }
 
     public string? TriggerFilter { get; init; }
 }
