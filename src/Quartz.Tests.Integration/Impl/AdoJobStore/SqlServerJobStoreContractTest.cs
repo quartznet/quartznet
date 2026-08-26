@@ -31,13 +31,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [Category("db-sqlserver")]
 public sealed class SqlServerJobStoreContractTest : AdoJobStoreContractTest
 {
-    protected override string DbProviderName => TestConstants.DefaultSqlServerProvider;
+    protected override string DbProviderName => DataSourceOptions.Providers.SqlServer;
 
     protected override IDriverDelegate CreateDriverDelegate() => new SqlServerDelegate();
 
     protected override ValueTask<string> PrepareDatabase()
     {
         // The container and its schema are the assembly's, started once by TestAssemblySetup.
-        return new ValueTask<string>(TestConstants.SqlServerConnectionString);
+        return new ValueTask<string>(ContainerConnectionString("MSSQL_CONNECTION_STRING"));
     }
 }

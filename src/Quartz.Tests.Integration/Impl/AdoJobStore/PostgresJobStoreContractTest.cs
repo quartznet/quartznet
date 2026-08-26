@@ -31,13 +31,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [Category("db-postgres")]
 public sealed class PostgresJobStoreContractTest : AdoJobStoreContractTest
 {
-    protected override string DbProviderName => TestConstants.PostgresProvider;
+    protected override string DbProviderName => DataSourceOptions.Providers.Npgsql;
 
     protected override IDriverDelegate CreateDriverDelegate() => new PostgreSQLDelegate();
 
     protected override ValueTask<string> PrepareDatabase()
     {
         // The container and its schema are the assembly's, started once by TestAssemblySetup.
-        return new ValueTask<string>(TestConstants.PostgresConnectionString);
+        return new ValueTask<string>(ContainerConnectionString("PG_CONNECTION_STRING"));
     }
 }

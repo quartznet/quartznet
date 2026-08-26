@@ -31,13 +31,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [Category("db-firebird")]
 public sealed class FirebirdJobStoreContractTest : AdoJobStoreContractTest
 {
-    protected override string DbProviderName => TestConstants.FirebirdProvider;
+    protected override string DbProviderName => DataSourceOptions.Providers.Firebird;
 
     protected override IDriverDelegate CreateDriverDelegate() => new FirebirdDelegate();
 
     protected override ValueTask<string> PrepareDatabase()
     {
         // The container and its schema are the assembly's, started once by TestAssemblySetup.
-        return new ValueTask<string>(TestConstants.FirebirdConnectionString);
+        return new ValueTask<string>(ContainerConnectionString("FIREBIRD_CONNECTION_STRING"));
     }
 }
