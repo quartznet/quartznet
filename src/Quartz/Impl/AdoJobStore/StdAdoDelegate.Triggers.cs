@@ -2326,8 +2326,10 @@ public partial class StdAdoDelegate
             }
 
             // Providers are not required to implement DbBatchCommand.CreateParameter, so keep one
-            // throwaway command around to mint parameter instances for those that do not.
-            using var parameterFactory = DbProvider.CreateCommand();
+            // throwaway command around to mint parameter instances for those that do not. Asked of the
+            // connection rather than of the provider, because a driver reached through a factory or a
+            // data source describes no command type for the provider to construct one from.
+            using var parameterFactory = conn.Connection.CreateCommand();
 
             for (var i = offset; i < offset + length; i++)
             {

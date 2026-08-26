@@ -2972,6 +2972,15 @@ namespace Quartz.Impl.AdoJobStore.Common
         System.Data.Common.DbConnection CreateConnection();
         void Shutdown();
     }
+    public sealed class ProviderFactoryDbProvider : Quartz.Impl.AdoJobStore.Common.IDbProvider
+    {
+        public ProviderFactoryDbProvider(Quartz.Impl.AdoJobStore.Common.DbMetadata metadata, System.Data.Common.DbProviderFactory factory, string connectionString) { }
+        public string ConnectionString { get; }
+        public Quartz.Impl.AdoJobStore.Common.DbMetadata Metadata { get; }
+        public System.Data.Common.DbCommand CreateCommand() { }
+        public System.Data.Common.DbConnection CreateConnection() { }
+        public void Shutdown() { }
+    }
 }
 namespace Quartz.Impl.Calendar
 {
