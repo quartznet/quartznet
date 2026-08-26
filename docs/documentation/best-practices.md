@@ -115,9 +115,13 @@ the store walks the fired-trigger rows the failed instance left behind, and for 
   scheduled to fire as soon as the scheduler can run it, carrying the original trigger's job data.
 - A row whose job does not is deleted, and that occurrence is lost.
 
-Cluster recovery draws one further distinction: a row that was only **acquired** — reserved, but
-never fired — is released back to `WAITING` rather than recovered, so its own trigger fires it again
-in the ordinary way.
+A reservation that never became an execution is not recovered on either path, and the mechanism is
+worth knowing because it is what makes that safe. The fired-trigger row is inserted when a trigger is
+*acquired*, but the job has not been loaded at that point, so the row goes in with no job name and
+`REQUESTS_RECOVERY` false; only when the trigger actually fires is it updated to `EXECUTING` with the
+job's real flags. Recovery therefore selects executions and never reservations. Cluster recovery
+additionally releases the reservation back to `WAITING`, so its own trigger fires it again in the
+ordinary way.
 
 The re-run is not a retry of a *failure*. A job that threw is a completed firing as far as the store
 is concerned; recovery is only ever about executions that were interrupted, by a process dying or a
@@ -430,9 +434,15 @@ families answer "what time is it" in genuinely different ways.
 | Every N calendar days, months or years | `CalendarIntervalTrigger` | The instant shifts by the transition delta unless `PreserveHourOfDayAcrossDaylightSavings` is set, which is off by default. |
 | Repeatedly inside a daily window | `DailyTimeIntervalTrigger` | The window is wall-clock, so a transition lengthens or shortens the day's run. |
 
-Pattern that cron cannot express — "the second Monday of the month", "the last weekday of March" —
-is what `RecurrenceTrigger` and its RFC 5545 rule are for, on
-[4.x](/documentation/quartz-4.x/tutorial/recurrencetrigger) and
+Quartz cron says more than most cron dialects, so check it before assuming a pattern needs something
+else: `0 0 0 ? * MON#2` is the second Monday of the month, `0 0 0 LW 3 ?` the last weekday of March,
+and `0 0 0 ? * MON/2` every other Monday, holding its fortnightly cadence across month and year
+boundaries. What it genuinely cannot state is a position counted from the *end* of a month other
+than the last one — `#` counts forwards, and only as far as 5 — and any cadence its fields cannot
+divide: `0 0 0 1/3 * ?` reads like "every third day" but restarts at the 1st of each month, so 31
+January is followed by 1 February. `RecurrenceTrigger` and its RFC 5545 rule state both,
+`FREQ=MONTHLY;BYDAY=-2FR` for the second-to-last Friday and `FREQ=DAILY;INTERVAL=3` for a three-day
+cadence that does not reset, on [4.x](/documentation/quartz-4.x/tutorial/recurrencetrigger) and
 [3.x](/documentation/quartz-3.x/tutorial/recurrencetrigger). Reaching for several cron triggers, or
 for a cron expression with a workaround in it, is usually the sign.
 
