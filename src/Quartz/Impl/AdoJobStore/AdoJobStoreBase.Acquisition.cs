@@ -59,9 +59,8 @@ public abstract partial class AdoJobStoreBase
         return ExecuteInLocalTransactionLock(
             lockKind,
             conn => AcquireNextTrigger(conn, request, cancellationToken),
-            async (conn, result) =>
-            {
-                try
+            (conn, result) => Guarded(
+                async () =>
                 {
                     var acquired = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken).ConfigureAwait(false);
                     var fireInstanceIds = new HashSet<string>();
@@ -77,13 +76,8 @@ public abstract partial class AdoJobStoreBase
                         }
                     }
                     return false;
-                }
-                catch (Exception e)
-                {
-                    Throw.JobPersistenceException("error validating trigger acquisition", e);
-                    return default;
-                }
-            },
+                },
+                "validate trigger acquisition"),
             cancellationToken: cancellationToken);
     }
 
@@ -153,169 +147,167 @@ public abstract partial class AdoJobStoreBase
     // TODO: this really ought to return something like a FiredTriggerBundle,
     // so that the fireInstanceId doesn't have to be on the trigger...
 
-    protected async ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
+    protected ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionRequest request,
         CancellationToken cancellationToken = default)
     {
-        List<IOperableTrigger> acquiredTriggers = [];
-        HashSet<JobKey> acquiredJobKeysForNoConcurrentExec = [];
-        const int MaxDoLoopRetry = 3;
-        int currentLoopCount = 0;
-
-        do
-        {
-            currentLoopCount++;
-            try
+        return Guarded(
+            async () =>
             {
-                // Built inside the loop, so each retry asks again and sees the time it retried at.
-                TriggerAcquisitionCriteria criteria = CreateAcquisitionCriteria(request);
-                // This delegate fallback deliberately compares ordinally; SQL filtering follows the
-                // job-class column's collation and is not guaranteed to agree.
-                HashSet<string>? excludedJobTypeNames = criteria.ExcludedJobTypeNames is { Count: > 0 } names
-                    ? new HashSet<string>(names, StringComparer.Ordinal)
-                    : null;
+                List<IOperableTrigger> acquiredTriggers = [];
+                HashSet<JobKey> acquiredJobKeysForNoConcurrentExec = [];
+                const int MaxDoLoopRetry = 3;
+                int currentLoopCount = 0;
 
-                // A cluster-scoped limit is counted against the fired-triggers table, so the count is
-                // read here rather than derived from anything this node remembers. One aggregate per
-                // attempt, and none at all unless a cluster-scoped limit is configured - which is also
-                // why an override that already answered the question is left alone.
-                if (criteria.ClusterInFlight is null && criteria.ExecutionLimits?.HasClusterScopedLimits == true)
+                do
                 {
-                    criteria = criteria with
+                    currentLoopCount++;
+                    // Built inside the loop, so each retry asks again and sees the time it retried at.
+                    TriggerAcquisitionCriteria criteria = CreateAcquisitionCriteria(request);
+                    // This delegate fallback deliberately compares ordinally; SQL filtering follows the
+                    // job-class column's collation and is not guaranteed to agree.
+                    HashSet<string>? excludedJobTypeNames = criteria.ExcludedJobTypeNames is { Count: > 0 } names
+                        ? new HashSet<string>(names, StringComparer.Ordinal)
+                        : null;
+
+                    // A cluster-scoped limit is counted against the fired-triggers table, so the count is
+                    // read here rather than derived from anything this node remembers. One aggregate per
+                    // attempt, and none at all unless a cluster-scoped limit is configured - which is also
+                    // why an override that already answered the question is left alone.
+                    if (criteria.ClusterInFlight is null && criteria.ExecutionLimits?.HasClusterScopedLimits == true)
                     {
-                        ClusterInFlight = await Delegate.SelectExecutionGroupsInFlight(conn, cancellationToken).ConfigureAwait(false),
-                    };
-                }
-
-                List<TriggerAcquireResult> results = await Delegate.SelectTriggersToAcquire(conn, criteria, cancellationToken).ConfigureAwait(false);
-
-                // No trigger is ready to fire yet.
-                if (results.Count == 0)
-                {
-                    return acquiredTriggers;
-                }
-
-                DateTimeOffset batchEnd = request.NoLaterThan;
-
-                foreach (var result in results)
-                {
-                    TriggerKey triggerKey = result.TriggerKey;
-
-                    // If our trigger is no longer available, try a new one.
-                    var nextTrigger = await GetTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-                    if (nextTrigger is null)
-                    {
-                        continue; // next trigger
-                    }
-
-                    // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
-                    // put it back into the timeTriggers set and continue to search for next trigger.
-                    Type jobType;
-                    try
-                    {
-                        jobType = JobType.Resolve(result.JobTypeName, typeLoader)!;
-                    }
-                    catch (Exception e)
-                    {
-                        try
+                        criteria = criteria with
                         {
-                            Logger.JobRetrievalFailed(e);
-                            await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
-
-                            // A trigger whose job type will not load stops firing here and is reported
-                            // nowhere else - not even through SchedulerError. Inline, as the misfire
-                            // notification in this store already is.
-                            await schedSignaler.NotifySchedulerListenersTriggerInError(triggerKey, cancellationToken).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.TriggerErrorStateUpdateFailed(ex);
-                        }
-                        continue;
+                            ClusterInFlight = await Delegate.SelectExecutionGroupsInFlight(conn, cancellationToken).ConfigureAwait(false),
+                        };
                     }
 
-                    if (excludedJobTypeNames is not null && excludedJobTypeNames.Contains(result.JobTypeName))
+                    List<TriggerAcquireResult> results = await Delegate.SelectTriggersToAcquire(conn, criteria, cancellationToken).ConfigureAwait(false);
+
+                    // No trigger is ready to fire yet.
+                    if (results.Count == 0)
                     {
-                        continue; // next trigger — this delegate did not filter it out itself
+                        return acquiredTriggers;
                     }
 
-                    // The same question JobDetailImpl answers, answered the same way: the attribute is
-                    // inherited from an interface as readily as from a base class, and this loop used to
-                    // consult the non-walking check and so let an interface-inherited one fire twice.
-                    if (JobTypeInformation.GetOrCreate(jobType).ConcurrentExecutionDisallowed)
+                    DateTimeOffset batchEnd = request.NoLaterThan;
+
+                    foreach (var result in results)
                     {
-                        if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
+                        TriggerKey triggerKey = result.TriggerKey;
+
+                        // If our trigger is no longer available, try a new one.
+                        var nextTrigger = await GetTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                        if (nextTrigger is null)
                         {
                             continue; // next trigger
                         }
 
-                        // Cluster-safe check: skip if job is already executing on another node
-                        if (await Delegate.IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false))
+                        // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
+                        // put it back into the timeTriggers set and continue to search for next trigger.
+                        Type jobType;
+                        try
                         {
+                            jobType = JobType.Resolve(result.JobTypeName, typeLoader)!;
+                        }
+                        catch (Exception e)
+                        {
+                            try
+                            {
+                                Logger.JobRetrievalFailed(e);
+                                await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
+
+                                // A trigger whose job type will not load stops firing here and is reported
+                                // nowhere else - not even through SchedulerError. Inline, as the misfire
+                                // notification in this store already is.
+                                await schedSignaler.NotifySchedulerListenersTriggerInError(triggerKey, cancellationToken).ConfigureAwait(false);
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.TriggerErrorStateUpdateFailed(ex);
+                            }
                             continue;
                         }
+
+                        if (excludedJobTypeNames is not null && excludedJobTypeNames.Contains(result.JobTypeName))
+                        {
+                            continue; // next trigger — this delegate did not filter it out itself
+                        }
+
+                        // The same question JobDetailImpl answers, answered the same way: the attribute is
+                        // inherited from an interface as readily as from a base class, and this loop used to
+                        // consult the non-walking check and so let an interface-inherited one fire twice.
+                        if (JobTypeInformation.GetOrCreate(jobType).ConcurrentExecutionDisallowed)
+                        {
+                            if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
+                            {
+                                continue; // next trigger
+                            }
+
+                            // Cluster-safe check: skip if job is already executing on another node
+                            if (await Delegate.IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false))
+                            {
+                                continue;
+                            }
+                        }
+
+                        var nextFireTimeUtc = nextTrigger.NextFireTimeUtc;
+
+                        // A trigger should not return NULL on nextFireTime when fetched from DB.
+                        // But for whatever reason if we do have this (BAD trigger implementation or
+                        // data?), we then should log a warning and continue to next trigger.
+                        // User would need to manually fix these triggers from DB as they will not
+                        // able to be clean up by Quartz since we are not returning it to be processed.
+                        if (nextFireTimeUtc is null)
+                        {
+                            Logger.TriggerHasNoNextFireTime(nextTrigger.Key);
+                            continue;
+                        }
+
+                        if (nextFireTimeUtc > batchEnd)
+                        {
+                            break;
+                        }
+
+                        // We now have a acquired trigger, let's add to return list.
+                        // If our trigger was no longer in the expected state, try a new one.
+                        int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Waiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
+                        if (rowsUpdated <= 0)
+                        {
+                            // TODO: Hum... shouldn't we log a warning here?
+                            continue; // next trigger
+                        }
+                        nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
+                        await Delegate.InsertFiredTrigger(conn, nextTrigger, StoredTriggerState.Acquired, null, cancellationToken).ConfigureAwait(false);
+
+                        if (acquiredTriggers.Count == 0)
+                        {
+                            var now = timeProvider.GetUtcNow();
+                            var nextFireTime = nextFireTimeUtc.Value;
+                            var max = now > nextFireTime ? now : nextFireTime;
+
+                            batchEnd = max + request.TimeWindow;
+                        }
+
+                        acquiredTriggers.Add(nextTrigger);
                     }
 
-                    var nextFireTimeUtc = nextTrigger.NextFireTimeUtc;
-
-                    // A trigger should not return NULL on nextFireTime when fetched from DB.
-                    // But for whatever reason if we do have this (BAD trigger implementation or
-                    // data?), we then should log a warning and continue to next trigger.
-                    // User would need to manually fix these triggers from DB as they will not
-                    // able to be clean up by Quartz since we are not returning it to be processed.
-                    if (nextFireTimeUtc is null)
+                    // if we didn't end up with any trigger to fire from that first
+                    // batch, try again for another batch. We allow with a max retry count.
+                    if (acquiredTriggers.Count == 0 && currentLoopCount < MaxDoLoopRetry)
                     {
-                        Logger.TriggerHasNoNextFireTime(nextTrigger.Key);
                         continue;
                     }
 
-                    if (nextFireTimeUtc > batchEnd)
-                    {
-                        break;
-                    }
+                    // We are done with the while loop.
+                    break;
+                } while (true);
 
-                    // We now have a acquired trigger, let's add to return list.
-                    // If our trigger was no longer in the expected state, try a new one.
-                    int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Waiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
-                    if (rowsUpdated <= 0)
-                    {
-                        // TODO: Hum... shouldn't we log a warning here?
-                        continue; // next trigger
-                    }
-                    nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
-                    await Delegate.InsertFiredTrigger(conn, nextTrigger, StoredTriggerState.Acquired, null, cancellationToken).ConfigureAwait(false);
-
-                    if (acquiredTriggers.Count == 0)
-                    {
-                        var now = timeProvider.GetUtcNow();
-                        var nextFireTime = nextFireTimeUtc.Value;
-                        var max = now > nextFireTime ? now : nextFireTime;
-
-                        batchEnd = max + request.TimeWindow;
-                    }
-
-                    acquiredTriggers.Add(nextTrigger);
-                }
-
-                // if we didn't end up with any trigger to fire from that first
-                // batch, try again for another batch. We allow with a max retry count.
-                if (acquiredTriggers.Count == 0 && currentLoopCount < MaxDoLoopRetry)
-                {
-                    continue;
-                }
-
-                // We are done with the while loop.
-                break;
-            }
-            catch (Exception e)
-            {
-                Throw.JobPersistenceException("Couldn't acquire next trigger: " + e.Message, e);
-            }
-        } while (true);
-
-        // Return the acquired trigger list
-        return acquiredTriggers;
+                // Return the acquired trigger list
+                return acquiredTriggers;
+            },
+            "acquire next trigger");
     }
 
     public ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
@@ -361,9 +353,8 @@ public abstract partial class AdoJobStoreBase
 
                 return results;
             },
-            async (conn, result) =>
-            {
-                try
+            (conn, result) => Guarded(
+                async () =>
                 {
                     var acquired = await Delegate
                         .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken)
@@ -387,13 +378,8 @@ public abstract partial class AdoJobStoreBase
                     }
 
                     return false;
-                }
-                catch (Exception e)
-                {
-                    Throw.JobPersistenceException("error validating trigger acquisition", e);
-                    return default;
-                }
-            },
+                },
+                "validate trigger acquisition"),
             cancellationToken: cancellationToken);
     }
 
@@ -404,26 +390,18 @@ public abstract partial class AdoJobStoreBase
     {
         IJobDetail? job;
         ICalendar? calendar = null;
-        // Assigned in the try below, whose catch never returns; the initializer is what definite
-        // assignment needs to see, since it does not read [DoesNotReturn] the way nullable analysis does.
-        StoredTriggerHeader? header = null;
 
-        // Make sure trigger wasn't deleted, paused, or completed...
-        try
+        // Make sure trigger wasn't deleted, paused, or completed... No row at all means the trigger was
+        // deleted, which is not a state it may fire from either. The header also carries the type
+        // discriminator, which is what the write below would otherwise have gone back for, and its very
+        // existence is the answer to "does this row exist" that the write used to ask separately.
+        StoredTriggerHeader? header = await Guarded(
+            () => Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken),
+            "select trigger state").ConfigureAwait(false);
+
+        if (header is null || header.State != StoredTriggerState.Acquired)
         {
-            // No row at all means the trigger was deleted, which is not a state it may fire from either.
-            // The header also carries the type discriminator, which is what the write below would
-            // otherwise have gone back for, and its very existence is the answer to "does this row
-            // exist" that the write used to ask separately.
-            header = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-            if (header is null || header.State != StoredTriggerState.Acquired)
-            {
-                return null;
-            }
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't select trigger state: " + e.Message, e);
+            return null;
         }
 
         try
@@ -458,18 +436,14 @@ public abstract partial class AdoJobStoreBase
         // AcquireNextTrigger) so it won't appear in the query results.
         if (job.ConcurrentExecutionDisallowed)
         {
-            try
+            bool alreadyExecuting = await Guarded(
+                () => Delegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, cancellationToken),
+                $"check concurrent execution for job '{trigger.JobKey}'").ConfigureAwait(false);
+
+            if (alreadyExecuting)
             {
-                bool alreadyExecuting = await Delegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
-                if (alreadyExecuting)
-                {
-                    Logger.ConcurrentExecutionDeclined(trigger.Key, trigger.JobKey);
-                    return null;
-                }
-            }
-            catch (Exception e)
-            {
-                Throw.JobPersistenceException($"Couldn't check concurrent execution for job '{trigger.JobKey}': " + e.Message, e);
+                Logger.ConcurrentExecutionDeclined(trigger.Key, trigger.JobKey);
+                return null;
             }
         }
 
@@ -563,9 +537,8 @@ public abstract partial class AdoJobStoreBase
             state2 = await ApplyPausedTriggerGroupState(conn, trigger.Key.Group, state2, cancellationToken).ConfigureAwait(false);
         }
 
-        try
-        {
-            await Delegate.ApplyTriggerFired(conn, new TriggerFiredUpdate
+        await Guarded(
+            () => Delegate.ApplyTriggerFired(conn, new TriggerFiredUpdate
             {
                 Trigger = trigger,
                 JobDetail = job,
@@ -574,12 +547,8 @@ public abstract partial class AdoJobStoreBase
                 ScheduledFireTimeUtc = scheduledFireTimeUtc,
                 ClearMisfireOriginalFireTime = scheduledFireTime.HasValue,
                 BlockJobTriggers = job.ConcurrentExecutionDisallowed,
-            }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException($"Couldn't record the fire of trigger '{trigger.Key}' for '{trigger.JobKey}' job: {e.Message}", e);
-        }
+            }, cancellationToken),
+            $"record the fire of trigger '{trigger.Key}' for '{trigger.JobKey}' job").ConfigureAwait(false);
 
         job.JobDataMap.ClearDirtyFlag();
 

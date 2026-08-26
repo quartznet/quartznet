@@ -43,56 +43,53 @@ public abstract partial class AdoJobStoreBase
     /// Will recover any failed or misfired jobs and clean up the data store as
     /// appropriate.
     /// </summary>
-    protected async ValueTask RecoverJobs(
+    protected ValueTask RecoverJobs(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            // update inconsistent job states
-            int rows = await Delegate.UpdateTriggerStatesFromOtherStates(conn, StoredTriggerState.Waiting, [StoredTriggerState.Acquired, StoredTriggerState.Blocked], cancellationToken).ConfigureAwait(false);
-
-            rows += await Delegate.UpdateTriggerStatesFromOtherStates(conn, StoredTriggerState.Paused, [StoredTriggerState.PausedBlocked], cancellationToken).ConfigureAwait(false);
-
-            Logger.TriggersFreedFromAcquiredOrBlocked(rows);
-
-            // clean up misfired jobs
-            await RecoverMisfiredJobs(conn, true, cancellationToken).ConfigureAwait(false);
-
-            // recover jobs marked for recovery that were not fully executed
-            var recoveringJobTriggers = await Delegate.SelectTriggersForRecoveringJobs(conn, cancellationToken).ConfigureAwait(false);
-            Logger.RecoveringInProgressJobs(recoveringJobTriggers.Count);
-
-            foreach (IOperableTrigger trigger in recoveringJobTriggers)
+        // Recovery is a sequence of operations that each say what they could not do, so one of their
+        // failures travels as itself rather than behind a second "couldn't recover jobs".
+        return Guarded(
+            async () =>
             {
-                if (await JobExists(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false))
+                // update inconsistent job states
+                int rows = await Delegate.UpdateTriggerStatesFromOtherStates(conn, StoredTriggerState.Waiting, [StoredTriggerState.Acquired, StoredTriggerState.Blocked], cancellationToken).ConfigureAwait(false);
+
+                rows += await Delegate.UpdateTriggerStatesFromOtherStates(conn, StoredTriggerState.Paused, [StoredTriggerState.PausedBlocked], cancellationToken).ConfigureAwait(false);
+
+                Logger.TriggersFreedFromAcquiredOrBlocked(rows);
+
+                // clean up misfired jobs
+                await RecoverMisfiredJobs(conn, true, cancellationToken).ConfigureAwait(false);
+
+                // recover jobs marked for recovery that were not fully executed
+                var recoveringJobTriggers = await Delegate.SelectTriggersForRecoveringJobs(conn, cancellationToken).ConfigureAwait(false);
+                Logger.RecoveringInProgressJobs(recoveringJobTriggers.Count);
+
+                foreach (IOperableTrigger trigger in recoveringJobTriggers)
                 {
-                    trigger.ComputeFirstFireTimeUtc(null);
-                    await AddTrigger(conn, trigger, null, false, StoredTriggerState.Waiting, false, true, cancellationToken).ConfigureAwait(false);
+                    if (await JobExists(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false))
+                    {
+                        trigger.ComputeFirstFireTimeUtc(null);
+                        await AddTrigger(conn, trigger, null, false, StoredTriggerState.Waiting, false, true, cancellationToken).ConfigureAwait(false);
+                    }
                 }
-            }
-            Logger.RecoveryComplete();
+                Logger.RecoveryComplete();
 
-            // remove lingering 'complete' triggers...
-            var triggersInState = await Delegate.SelectTriggersInState(conn, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
-            foreach (var trigger in triggersInState)
-            {
-                await DeleteTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
-            }
-            Logger.CompleteTriggersRemoved(triggersInState.Count);
+                // remove lingering 'complete' triggers...
+                var triggersInState = await Delegate.SelectTriggersInState(conn, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
+                foreach (var trigger in triggersInState)
+                {
+                    await DeleteTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
+                }
+                Logger.CompleteTriggersRemoved(triggersInState.Count);
 
-            // clean up any fired trigger entries
-            int n = await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery(), cancellationToken).ConfigureAwait(false);
-            Logger.StaleFiredJobEntriesRemoved(n);
-        }
-        catch (JobPersistenceException)
-        {
-            throw;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't recover jobs: " + e.Message, e);
-        }
+                // clean up any fired trigger entries
+                int n = await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery(), cancellationToken).ConfigureAwait(false);
+                Logger.StaleFiredJobEntriesRemoved(n);
+            },
+            "recover jobs",
+            wrapPersistenceFailures: false);
     }
 
     private bool firstCheckIn = true;

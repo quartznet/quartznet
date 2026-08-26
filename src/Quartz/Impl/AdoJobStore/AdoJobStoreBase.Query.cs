@@ -28,39 +28,27 @@ public abstract partial class AdoJobStoreBase
     /// <summary>
     /// Check existence of a given job.
     /// </summary>
-    protected async ValueTask<bool> JobExists(
+    protected ValueTask<bool> JobExists(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.JobExists(conn, jobKey, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't determine job existence (" + jobKey + "): " + e.Message, e);
-            return false;
-        }
+        return Guarded(
+            () => Delegate.JobExists(conn, jobKey, cancellationToken),
+            $"determine job existence ({jobKey})");
     }
 
     /// <summary>
     /// Check existence of a given trigger.
     /// </summary>
-    protected async ValueTask<bool> TriggerExists(
+    protected ValueTask<bool> TriggerExists(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.TriggerExists(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't determine trigger existence (" + triggerKey + "): " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.TriggerExists(conn, triggerKey, cancellationToken),
+            $"determine trigger existence ({triggerKey})");
     }
 
     /// <summary>
@@ -78,31 +66,15 @@ public abstract partial class AdoJobStoreBase
         return ExecuteWithoutLock(conn => GetJob(conn, jobKey, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<IJobDetail?> GetJob(
+    protected ValueTask<IJobDetail?> GetJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var job = await Delegate.SelectJobDetail(conn, jobKey, TypeLoader, cancellationToken).ConfigureAwait(false);
-            return job;
-        }
-        catch (TypeLoadException e)
-        {
-            Throw.JobPersistenceException("Couldn't retrieve job because a required type was not found: " + e.Message, e);
-            return default;
-        }
-        catch (IOException e)
-        {
-            Throw.JobPersistenceException("Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e);
-            return default;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't retrieve job: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectJobDetail(conn, jobKey, TypeLoader, cancellationToken),
+            "retrieve job",
+            ReadFailureReason);
     }
 
     /// <summary>
@@ -119,37 +91,24 @@ public abstract partial class AdoJobStoreBase
             cancellationToken);
     }
 
-    protected async ValueTask<IOperableTrigger?> GetTrigger(
+    protected ValueTask<IOperableTrigger?> GetTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var trigger = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            return trigger;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't retrieve trigger: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectTrigger(conn, triggerKey, cancellationToken),
+            "retrieve trigger");
     }
 
-    protected async ValueTask<bool> CalendarExists(
+    protected ValueTask<bool> CalendarExists(
         ConnectionAndTransactionHolder conn,
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.CalendarExists(conn, calendarName, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't determine calendar existence (" + calendarName + "): " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.CalendarExists(conn, calendarName, cancellationToken),
+            $"determine calendar existence ({calendarName})");
     }
 
     /// <summary>
@@ -182,38 +141,25 @@ public abstract partial class AdoJobStoreBase
             return calendar;
         }
 
-        try
-        {
-            calendar = await Delegate.SelectCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false);
-            if (!Clustered)
+        return await Guarded(
+            async () =>
             {
-                calendarCache[calendarName] = calendar; // lazy-cache...
-            }
-            return calendar;
-        }
-        catch (IOException e)
-        {
-            Throw.JobPersistenceException("Couldn't retrieve calendar because the BLOB couldn't be deserialized: " + e.Message, e);
-            return default;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't retrieve calendar: " + e.Message, e);
-            return default;
-        }
+                ICalendar? loaded = await Delegate.SelectCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false);
+                if (!Clustered)
+                {
+                    calendarCache[calendarName] = loaded; // lazy-cache...
+                }
+                return loaded;
+            },
+            "retrieve calendar",
+            ReadFailureReason).ConfigureAwait(false);
     }
 
-    protected async ValueTask<List<JobKey>> GetJobNames(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    protected ValueTask<List<JobKey>> GetJobNames(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectJobKeysInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't obtain job names: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectJobKeysInGroup(conn, matcher, cancellationToken),
+            "obtain job names");
     }
 
     /// <summary>
@@ -233,20 +179,14 @@ public abstract partial class AdoJobStoreBase
             conn => Exists(conn, jobKey, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<bool> Exists(
+    protected ValueTask<bool> Exists(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.JobExists(conn, jobKey, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.JobExists(conn, jobKey, cancellationToken),
+            "check for existence of job");
     }
 
     /// <summary>
@@ -266,33 +206,23 @@ public abstract partial class AdoJobStoreBase
             conn => Exists(conn, triggerKey, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<bool> Exists(
+    protected ValueTask<bool> Exists(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.TriggerExists(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
-            return default;
-        }
+        // "of trigger", where this used to say "of job": the message was a copy of the overload above,
+        // and named the wrong kind of thing to go looking for.
+        return Guarded(
+            () => Delegate.TriggerExists(conn, triggerKey, cancellationToken),
+            "check for existence of trigger");
     }
 
-    protected async ValueTask<List<string>> GetTriggerGroupNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
+    protected ValueTask<List<string>> GetTriggerGroupNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectTriggerGroupNames(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectTriggerGroupNames(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken),
+            "obtain trigger groups");
     }
 
     /// <inheritdoc />
@@ -304,20 +234,14 @@ public abstract partial class AdoJobStoreBase
         return ExecuteWithoutLock(conn => QueryJobs(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<PagedResult<JobHeader>> QueryJobs(
+    protected ValueTask<PagedResult<JobHeader>> QueryJobs(
         ConnectionAndTransactionHolder conn,
         JobQuery query,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectJobHeaders(conn, query, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't query jobs: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectJobHeaders(conn, query, cancellationToken),
+            "query jobs");
     }
 
     /// <inheritdoc />
@@ -329,20 +253,14 @@ public abstract partial class AdoJobStoreBase
         return ExecuteWithoutLock(conn => QueryTriggers(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<PagedResult<TriggerHeader>> QueryTriggers(
+    protected ValueTask<PagedResult<TriggerHeader>> QueryTriggers(
         ConnectionAndTransactionHolder conn,
         TriggerQuery query,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectTriggerHeaders(conn, query, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't query triggers: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectTriggerHeaders(conn, query, cancellationToken),
+            "query triggers");
     }
 
     /// <inheritdoc />
@@ -354,20 +272,14 @@ public abstract partial class AdoJobStoreBase
         return ExecuteWithoutLock(conn => QueryJobGroups(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<PagedResult<JobGroup>> QueryJobGroups(
+    protected ValueTask<PagedResult<JobGroup>> QueryJobGroups(
         ConnectionAndTransactionHolder conn,
         JobGroupQuery query,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectJobGroups(conn, query, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't query job groups: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectJobGroups(conn, query, cancellationToken),
+            "query job groups");
     }
 
     /// <inheritdoc />
@@ -379,20 +291,14 @@ public abstract partial class AdoJobStoreBase
         return ExecuteWithoutLock(conn => QueryTriggerGroups(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(
+    protected ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(
         ConnectionAndTransactionHolder conn,
         TriggerGroupQuery query,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectTriggerGroups(conn, query, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't query trigger groups: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectTriggerGroups(conn, query, cancellationToken),
+            "query trigger groups");
     }
 
     /// <inheritdoc />
@@ -404,20 +310,14 @@ public abstract partial class AdoJobStoreBase
         return ExecuteWithoutLock(conn => QueryCalendarNames(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<PagedResult<string>> QueryCalendarNames(
+    protected ValueTask<PagedResult<string>> QueryCalendarNames(
         ConnectionAndTransactionHolder conn,
         CalendarQuery query,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectCalendarNames(conn, query, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't query calendar names: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectCalendarNames(conn, query, cancellationToken),
+            "query calendar names");
     }
 
     /// <inheritdoc />
@@ -430,20 +330,14 @@ public abstract partial class AdoJobStoreBase
         return ExecuteWithoutLock(conn => QueryFireInstances(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<PagedResult<FireInstance>> QueryFireInstances(
+    protected ValueTask<PagedResult<FireInstance>> QueryFireInstances(
         ConnectionAndTransactionHolder conn,
         FireInstanceQuery query,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectFireInstances(conn, query, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't query fire instances: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectFireInstances(conn, query, cancellationToken),
+            "query fire instances");
     }
 
     /// <inheritdoc />
@@ -479,16 +373,9 @@ public abstract partial class AdoJobStoreBase
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        List<SchedulerStateRecord> states;
-        try
-        {
-            states = await Delegate.SelectSchedulerStateRecords(conn, instanceId: null, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't query cluster nodes: " + e.Message, e);
-            return default;
-        }
+        List<SchedulerStateRecord> states = await Guarded(
+            () => Delegate.SelectSchedulerStateRecords(conn, instanceId: null, cancellationToken),
+            "query cluster nodes").ConfigureAwait(false);
 
         DateTimeOffset now = timeProvider.GetUtcNow();
         List<ClusterNode> nodes = new(states.Count);
@@ -543,30 +430,15 @@ public abstract partial class AdoJobStoreBase
         return ExecuteWithoutLock(conn => GetJobs(conn, jobKeys, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<List<IJobDetail>> GetJobs(
+    protected ValueTask<List<IJobDetail>> GetJobs(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectJobDetails(conn, jobKeys, TypeLoader, cancellationToken).ConfigureAwait(false);
-        }
-        catch (TypeLoadException e)
-        {
-            Throw.JobPersistenceException("Couldn't retrieve jobs because a required type was not found: " + e.Message, e);
-            return default;
-        }
-        catch (IOException e)
-        {
-            Throw.JobPersistenceException("Couldn't retrieve jobs because the BLOB couldn't be deserialized: " + e.Message, e);
-            return default;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't retrieve jobs: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectJobDetails(conn, jobKeys, TypeLoader, cancellationToken),
+            "retrieve jobs",
+            ReadFailureReason);
     }
 
     /// <inheritdoc />
@@ -578,20 +450,14 @@ public abstract partial class AdoJobStoreBase
         return ExecuteWithoutLock(conn => GetTriggers(conn, triggerKeys, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<List<IOperableTrigger>> GetTriggers(
+    protected ValueTask<List<IOperableTrigger>> GetTriggers(
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectTriggers(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't retrieve triggers: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectTriggers(conn, triggerKeys, cancellationToken),
+            "retrieve triggers");
     }
 
     /// <summary>
@@ -608,16 +474,10 @@ public abstract partial class AdoJobStoreBase
         return ExecuteWithoutLock(conn => GetTriggersForJob(conn, jobKey, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<List<IOperableTrigger>> GetTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey, CancellationToken cancellationToken = default)
+    protected ValueTask<List<IOperableTrigger>> GetTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            return await Delegate.SelectTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't obtain triggers for job: " + e.Message, e);
-            return default;
-        }
+        return Guarded(
+            () => Delegate.SelectTriggersForJob(conn, jobKey, cancellationToken),
+            "obtain triggers for job");
     }
 }

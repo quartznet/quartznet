@@ -92,23 +92,20 @@ public abstract partial class AdoJobStoreBase
     /// <param name="triggerKey">The key identifying the trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
-    protected async ValueTask<TriggerState> GetTriggerState(
+    protected ValueTask<TriggerState> GetTriggerState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            TriggerExecutionState stored = await Delegate
-                .SelectTriggerStateWithExecuting(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+        return Guarded(
+            async () =>
+            {
+                TriggerExecutionState stored = await Delegate
+                    .SelectTriggerStateWithExecuting(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            return TriggerStateMapping.ToTriggerState(stored.State, stored.IsExecuting);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException($"Couldn't determine state of trigger ({triggerKey}): {e.Message}", e);
-            return default;
-        }
+                return TriggerStateMapping.ToTriggerState(stored.State, stored.IsExecuting);
+            },
+            $"determine state of trigger ({triggerKey})");
     }
 
     public async ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
@@ -141,35 +138,32 @@ public abstract partial class AdoJobStoreBase
         }, cancellationToken);
     }
 
-    private async ValueTask<bool> ResetTriggerFromErrorState(
+    private ValueTask<bool> ResetTriggerFromErrorState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            StoredTriggerState newState = StoredTriggerState.Waiting;
-
-            if (await Delegate.IsTriggerGroupPaused(conn, triggerKey.Group, cancellationToken).ConfigureAwait(false))
+        return Guarded(
+            async () =>
             {
-                newState = StoredTriggerState.Paused;
-            }
+                StoredTriggerState newState = StoredTriggerState.Waiting;
 
-            int updated = await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
-            if (updated == 0)
-            {
-                // no trigger with the key, or it was not in the error state
-                return false;
-            }
+                if (await Delegate.IsTriggerGroupPaused(conn, triggerKey.Group, cancellationToken).ConfigureAwait(false))
+                {
+                    newState = StoredTriggerState.Paused;
+                }
 
-            Logger.TriggerResetFromError(triggerKey, newState);
-            return true;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException($"Couldn't reset from error state of trigger ({triggerKey}): {e.Message}", e);
-            return default;
-        }
+                int updated = await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
+                if (updated == 0)
+                {
+                    // no trigger with the key, or it was not in the error state
+                    return false;
+                }
+
+                Logger.TriggerResetFromError(triggerKey, newState);
+                return true;
+            },
+            $"reset from error state of trigger ({triggerKey})");
     }
 
     /// <summary>
@@ -209,33 +203,30 @@ public abstract partial class AdoJobStoreBase
     /// <see langword="true" /> if the trigger existed in a pausable state and was moved into the
     /// paused state by this call.
     /// </returns>
-    protected async ValueTask<bool> PauseTrigger(
+    protected ValueTask<bool> PauseTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            StoredTriggerState oldState = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-
-            if (oldState is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
+        return Guarded(
+            async () =>
             {
-                return await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false) > 0;
-            }
+                StoredTriggerState oldState = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            if (oldState == StoredTriggerState.Blocked)
-            {
-                return await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false) > 0;
-            }
+                if (oldState is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
+                {
+                    return await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false) > 0;
+                }
 
-            // missing, already paused, or in a state that cannot be paused
-            return false;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException($"Couldn't pause trigger '{triggerKey}': {e.Message}", e);
-            return default;
-        }
+                if (oldState == StoredTriggerState.Blocked)
+                {
+                    return await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false) > 0;
+                }
+
+                // missing, already paused, or in a state that cannot be paused
+                return false;
+            },
+            $"pause trigger '{triggerKey}'");
     }
 
     /// <summary>
@@ -349,25 +340,23 @@ public abstract partial class AdoJobStoreBase
     /// relies on. The table's primary key is the backstop: were the lock ever bypassed, the second
     /// insert would fail rather than leave the group paused twice.
     /// </remarks>
-    private async ValueTask RecordPausedJobGroups(
+    private ValueTask RecordPausedJobGroups(
         ConnectionAndTransactionHolder conn,
         IEnumerable<string> groupNames,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            foreach (string group in groupNames)
+        return Guarded(
+            async () =>
             {
-                if (!await Delegate.IsJobGroupPaused(conn, group, cancellationToken).ConfigureAwait(false))
+                foreach (string group in groupNames)
                 {
-                    await Delegate.InsertPausedJobGroup(conn, group, cancellationToken).ConfigureAwait(false);
+                    if (!await Delegate.IsJobGroupPaused(conn, group, cancellationToken).ConfigureAwait(false))
+                    {
+                        await Delegate.InsertPausedJobGroup(conn, group, cancellationToken).ConfigureAwait(false);
+                    }
                 }
-            }
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't pause job groups: " + e.Message, e);
-        }
+            },
+            "pause job groups");
     }
 
     /// <summary>
@@ -388,26 +377,23 @@ public abstract partial class AdoJobStoreBase
             return currentState;
         }
 
-        try
-        {
-            var lst = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Job = jobKey }, cancellationToken).ConfigureAwait(false);
-
-            if (lst.Count > 0)
+        return await Guarded(
+            async () =>
             {
-                FiredTriggerRecord rec = lst[0];
-                if (rec.JobDisallowsConcurrentExecution) // TODO: worry about failed/recovering/volatile job  states?
-                {
-                    return StoredTriggerState.Paused == currentState ? StoredTriggerState.PausedBlocked : StoredTriggerState.Blocked;
-                }
-            }
+                var lst = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Job = jobKey }, cancellationToken).ConfigureAwait(false);
 
-            return currentState;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't determine if trigger should be in a blocked state '" + jobKey + "': " + e.Message, e);
-            return default;
-        }
+                if (lst.Count > 0)
+                {
+                    FiredTriggerRecord rec = lst[0];
+                    if (rec.JobDisallowsConcurrentExecution) // TODO: worry about failed/recovering/volatile job  states?
+                    {
+                        return StoredTriggerState.Paused == currentState ? StoredTriggerState.PausedBlocked : StoredTriggerState.Blocked;
+                    }
+                }
+
+                return currentState;
+            },
+            "determine if trigger should be in a blocked state '" + jobKey + "'").ConfigureAwait(false);
     }
 
     public async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
@@ -449,54 +435,51 @@ public abstract partial class AdoJobStoreBase
     /// <see langword="true" /> if the trigger existed in a paused state and was resumed by this
     /// call.
     /// </returns>
-    protected async ValueTask<bool> ResumeTrigger(
+    protected ValueTask<bool> ResumeTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            StoredTriggerHeader? status = await Delegate.SelectTriggerHeader(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-
-            if (status?.NextFireTimeUtc is null || status.NextFireTimeUtc == DateTimeOffset.MinValue)
+        return Guarded(
+            async () =>
             {
-                return false;
-            }
+                StoredTriggerHeader? status = await Delegate.SelectTriggerHeader(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            if (status.State is not StoredTriggerState.Paused and not StoredTriggerState.PausedBlocked)
-            {
-                // not paused, nothing to resume
-                return false;
-            }
+                if (status?.NextFireTimeUtc is null || status.NextFireTimeUtc == DateTimeOffset.MinValue)
+                {
+                    return false;
+                }
 
-            bool blocked = status.State == StoredTriggerState.PausedBlocked;
+                if (status.State is not StoredTriggerState.Paused and not StoredTriggerState.PausedBlocked)
+                {
+                    // not paused, nothing to resume
+                    return false;
+                }
 
-            StoredTriggerState newState = await CheckBlockedState(conn, status.JobKey, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
+                bool blocked = status.State == StoredTriggerState.PausedBlocked;
 
-            bool misfired = false;
+                StoredTriggerState newState = await CheckBlockedState(conn, status.JobKey, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
 
-            if (schedulerRunning && status.NextFireTimeUtc.Value < timeProvider.GetUtcNow())
-            {
-                misfired = await UpdateMisfiredTrigger(conn, triggerKey, newState, forceState: true, cancellationToken).ConfigureAwait(false);
-            }
+                bool misfired = false;
 
-            if (misfired)
-            {
-                return true;
-            }
+                if (schedulerRunning && status.NextFireTimeUtc.Value < timeProvider.GetUtcNow())
+                {
+                    misfired = await UpdateMisfiredTrigger(conn, triggerKey, newState, forceState: true, cancellationToken).ConfigureAwait(false);
+                }
 
-            if (blocked)
-            {
-                return await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false) > 0;
-            }
+                if (misfired)
+                {
+                    return true;
+                }
 
-            return await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false) > 0;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't resume trigger '" + triggerKey + "': " + e.Message, e);
-            return default;
-        }
+                if (blocked)
+                {
+                    return await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false) > 0;
+                }
+
+                return await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false) > 0;
+            },
+            "resume trigger '" + triggerKey + "'");
     }
 
     /// <summary>
@@ -578,14 +561,9 @@ public abstract partial class AdoJobStoreBase
             // Forget the pause of every group the matcher selects, whatever operator it carries —
             // a prefix pause recorded a row per matched group, so a resume that only understood
             // equality would leave them paused forever.
-            try
-            {
-                await Delegate.DeletePausedJobGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                Throw.JobPersistenceException("Couldn't resume job groups: " + e.Message, e);
-            }
+            await Guarded(
+                () => Delegate.DeletePausedJobGroup(conn, matcher, cancellationToken),
+                "resume job groups").ConfigureAwait(false);
 
             var jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
             var groupNames = new HashSet<string>();
@@ -620,40 +598,37 @@ public abstract partial class AdoJobStoreBase
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
-    protected async ValueTask<List<string>> PauseTriggerGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    protected ValueTask<List<string>> PauseTriggerGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
-        try
-        {
-            await Delegate.UpdateTriggerGroupStateFromOtherStates(conn, matcher, StoredTriggerState.Paused,
-                [StoredTriggerState.Acquired, StoredTriggerState.Waiting], cancellationToken).ConfigureAwait(false);
-
-            await Delegate.UpdateTriggerGroupStateFromOtherState(conn, matcher, StoredTriggerState.PausedBlocked,
-                StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
-
-            var groups = new List<string>(await Delegate.SelectTriggerGroupNames(conn, matcher, cancellationToken).ConfigureAwait(false));
-
-            // make sure to account for an exact group match for a group that doesn't yet exist
-            StringOperator op = matcher.CompareWithOperator;
-            if (op.Equals(StringOperator.Equality) && !groups.Contains(matcher.CompareToValue))
+        return Guarded(
+            async () =>
             {
-                groups.Add(matcher.CompareToValue);
-            }
+                await Delegate.UpdateTriggerGroupStateFromOtherStates(conn, matcher, StoredTriggerState.Paused,
+                    [StoredTriggerState.Acquired, StoredTriggerState.Waiting], cancellationToken).ConfigureAwait(false);
 
-            foreach (string group in groups)
-            {
-                if (!await Delegate.IsTriggerGroupPaused(conn, group, cancellationToken).ConfigureAwait(false))
+                await Delegate.UpdateTriggerGroupStateFromOtherState(conn, matcher, StoredTriggerState.PausedBlocked,
+                    StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
+
+                var groups = new List<string>(await Delegate.SelectTriggerGroupNames(conn, matcher, cancellationToken).ConfigureAwait(false));
+
+                // make sure to account for an exact group match for a group that doesn't yet exist
+                StringOperator op = matcher.CompareWithOperator;
+                if (op.Equals(StringOperator.Equality) && !groups.Contains(matcher.CompareToValue))
                 {
-                    await Delegate.InsertPausedTriggerGroup(conn, group, cancellationToken).ConfigureAwait(false);
+                    groups.Add(matcher.CompareToValue);
                 }
-            }
 
-            return groups;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
-            return default;
-        }
+                foreach (string group in groups)
+                {
+                    if (!await Delegate.IsTriggerGroupPaused(conn, group, cancellationToken).ConfigureAwait(false))
+                    {
+                        await Delegate.InsertPausedTriggerGroup(conn, group, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
+                return groups;
+            },
+            "pause trigger group '" + matcher + "'");
     }
 
     public ValueTask<List<string>> ResumeTriggers(
@@ -673,31 +648,30 @@ public abstract partial class AdoJobStoreBase
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    protected async ValueTask<List<string>> ResumeTriggers(
+    protected ValueTask<List<string>> ResumeTriggers(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            await Delegate.DeletePausedTriggerGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
-            var groups = new HashSet<string>();
-
-            List<TriggerKey>? keys = await Delegate.SelectTriggerKeysInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
-
-            foreach (TriggerKey key in keys)
+        // "resume trigger group", where this used to say "pause trigger group": the message was a copy
+        // of PauseTriggerGroup's, and told an operator the opposite of what had just failed.
+        return Guarded(
+            async () =>
             {
-                await ResumeTrigger(conn, key, cancellationToken).ConfigureAwait(false);
-                groups.Add(key.Group);
-            }
+                await Delegate.DeletePausedTriggerGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+                var groups = new HashSet<string>();
 
-            return [..groups];
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
-            return default;
-        }
+                List<TriggerKey>? keys = await Delegate.SelectTriggerKeysInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+
+                foreach (TriggerKey key in keys)
+                {
+                    await ResumeTrigger(conn, key, cancellationToken).ConfigureAwait(false);
+                    groups.Add(key.Group);
+                }
+
+                return new List<string>(groups);
+            },
+            "resume trigger group '" + matcher + "'");
     }
 
     public async ValueTask PauseAll(CancellationToken cancellationToken = default)
@@ -725,17 +699,15 @@ public abstract partial class AdoJobStoreBase
             await PauseTriggerGroup(conn, GroupMatcher<TriggerKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false);
         }
 
-        try
-        {
-            if (!await Delegate.IsTriggerGroupPaused(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false))
+        await Guarded(
+            async () =>
             {
-                await Delegate.InsertPausedTriggerGroup(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false);
-            }
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't pause all trigger groups: " + e.Message, e);
-        }
+                if (!await Delegate.IsTriggerGroupPaused(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false))
+                {
+                    await Delegate.InsertPausedTriggerGroup(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false);
+                }
+            },
+            "pause all trigger groups").ConfigureAwait(false);
     }
 
     /// <summary>
@@ -772,20 +744,18 @@ public abstract partial class AdoJobStoreBase
             await ResumeTriggers(conn, GroupMatcher<TriggerKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false);
         }
 
-        try
-        {
-            // Every paused group, not just the all-groups marker: the loop above only visits groups the
-            // trigger table knows about, so a group that was paused while empty would keep its row and
-            // go on pausing whatever was added to it after a resume-all resumed everything.
-            await Delegate.DeletePausedTriggerGroup(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
+        await Guarded(
+            async () =>
+            {
+                // Every paused group, not just the all-groups marker: the loop above only visits groups the
+                // trigger table knows about, so a group that was paused while empty would keep its row and
+                // go on pausing whatever was added to it after a resume-all resumed everything.
+                await Delegate.DeletePausedTriggerGroup(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
 
-            // Resume-all means everything, job groups included — otherwise a paused job group would
-            // survive it and go on reporting itself paused with nothing left to resume it.
-            await Delegate.DeletePausedJobGroup(conn, GroupMatcher<JobKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't resume all trigger groups: " + e.Message, e);
-        }
+                // Resume-all means everything, job groups included — otherwise a paused job group would
+                // survive it and go on reporting itself paused with nothing left to resume it.
+                await Delegate.DeletePausedJobGroup(conn, GroupMatcher<JobKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
+            },
+            "resume all trigger groups").ConfigureAwait(false);
     }
 }

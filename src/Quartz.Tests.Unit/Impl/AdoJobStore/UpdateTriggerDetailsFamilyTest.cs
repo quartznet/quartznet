@@ -43,14 +43,14 @@ public class UpdateTriggerDetailsFamilyTest
     private static readonly TriggerKey TestTrigger = new TriggerKey("t1", "g1");
     private static readonly JobKey TestJob = new JobKey("j1", "jg1");
 
-    private FamilyValidationStore jobStore;
+    private AdoJobStoreBaseTest.TestAdoJobStoreBase jobStore;
     private IDriverDelegate driverDelegate;
     private ConnectionAndTransactionHolder conn;
 
     [SetUp]
     public void SetUp()
     {
-        jobStore = new FamilyValidationStore();
+        jobStore = new AdoJobStoreBaseTest.TestAdoJobStoreBase();
         driverDelegate = A.Fake<IDriverDelegate>();
         jobStore.DirectDelegate = driverDelegate;
         jobStore.DirectSignaler = A.Fake<ISchedulerSignaler>();
@@ -135,20 +135,5 @@ public class UpdateTriggerDetailsFamilyTest
         result.Should().BeTrue();
         stored.MisfireInstructionCode.Should().Be(testCase.InstructionCode,
             "WithMisfireInstructionCode names no family, so only the trigger's own range check applies");
-    }
-
-    /// <summary>
-    /// Exposes the connection-taking <c>UpdateTriggerDetails</c>. The public entry point goes through
-    /// <c>ExecuteInLock</c>, which the test store short-circuits to <c>default</c>.
-    /// </summary>
-    private sealed class FamilyValidationStore : AdoJobStoreBaseTest.TestAdoJobStoreBase
-    {
-        internal ValueTask<bool> CallUpdateTriggerDetails(
-            ConnectionAndTransactionHolder conn,
-            TriggerKey triggerKey,
-            TriggerDetailsUpdate update)
-        {
-            return UpdateTriggerDetails(conn, triggerKey, update, CancellationToken.None);
-        }
     }
 }

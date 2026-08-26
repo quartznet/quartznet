@@ -38,21 +38,19 @@ public abstract partial class AdoJobStoreBase
             cancellationToken).ConfigureAwait(false);
     }
 
-    protected async ValueTask ReleaseAcquiredTrigger(
+    protected ValueTask ReleaseAcquiredTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
-            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
-            await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't release acquired trigger: " + e.Message, e);
-        }
+        return Guarded(
+            async () =>
+            {
+                await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
+                await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
+            },
+            "release acquired trigger");
     }
 
     /// <summary>
@@ -94,88 +92,81 @@ public abstract partial class AdoJobStoreBase
         SchedulerInstruction triggerInstructionCode,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
+        await Guarded(
+            async () =>
             {
-                if (!trigger.NextFireTimeUtc.HasValue)
+                if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
                 {
-                    // double check for possible reschedule within job
-                    // execution, which would cancel the need to delete...
-                    var stat = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                    if (stat is not null && !stat.NextFireTimeUtc.HasValue)
+                    if (!trigger.NextFireTimeUtc.HasValue)
+                    {
+                        // double check for possible reschedule within job
+                        // execution, which would cancel the need to delete...
+                        var stat = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                        if (stat is not null && !stat.NextFireTimeUtc.HasValue)
+                        {
+                            await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
+                        }
+                    }
+                    else
                     {
                         await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
+                        conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                     }
                 }
-                else
+                else if (triggerInstructionCode == SchedulerInstruction.SetTriggerComplete)
                 {
-                    await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
                     conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
-            }
-            else if (triggerInstructionCode == SchedulerInstruction.SetTriggerComplete)
-            {
-                await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
-                conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
-            }
-            else if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
-            {
-                Logger.TriggerSetToError(trigger.Key);
-                await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
-                conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
-            }
-            else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
-            {
-                await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
-                conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
-            }
-            else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
-            {
-                Logger.JobTriggersSetToError(trigger.JobKey);
-                await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
-                conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
-            }
-
-            if (jobDetail.ConcurrentExecutionDisallowed)
-            {
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, unblockJobTriggersTransitions, cancellationToken).ConfigureAwait(false);
-                conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
-
-                await RecoverUnblockedMisfires(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
-            }
-            if (jobDetail.PersistJobDataAfterExecution)
-            {
-                try
+                else if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
                 {
-                    if (jobDetail.JobDataMap.Dirty)
+                    Logger.TriggerSetToError(trigger.Key);
+                    await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
+                    conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
+                }
+                else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
+                {
+                    await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
+                    conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
+                }
+                else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
+                {
+                    Logger.JobTriggersSetToError(trigger.JobKey);
+                    await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
+                    conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
+                }
+
+                if (jobDetail.ConcurrentExecutionDisallowed)
+                {
+                    await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, unblockJobTriggersTransitions, cancellationToken).ConfigureAwait(false);
+                    conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
+
+                    await RecoverUnblockedMisfires(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
+                }
+                if (jobDetail.PersistJobDataAfterExecution && jobDetail.JobDataMap.Dirty)
+                {
+                    // Its own catch rather than a Guarded call: the two failures name different
+                    // operations - one of them the serialization inside the write - where Guarded
+                    // reports one operation with an optional reason.
+                    try
                     {
                         await Delegate.UpdateJobData(conn, jobDetail, cancellationToken).ConfigureAwait(false);
                     }
+                    catch (IOException e)
+                    {
+                        Throw.JobPersistenceException("Couldn't serialize job data: " + e.Message, e);
+                    }
+                    catch (Exception e)
+                    {
+                        Throw.JobPersistenceException("Couldn't update job data: " + e.Message, e);
+                    }
                 }
-                catch (IOException e)
-                {
-                    Throw.JobPersistenceException("Couldn't serialize job data: " + e.Message, e);
-                }
-                catch (Exception e)
-                {
-                    Throw.JobPersistenceException("Couldn't update job data: " + e.Message, e);
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't update trigger state(s): " + e.Message, e);
-        }
+            },
+            "update trigger state(s)").ConfigureAwait(false);
 
-        try
-        {
-            await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't delete fired trigger: " + e.Message, e);
-        }
+        await Guarded(
+            () => Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken),
+            "delete fired trigger").ConfigureAwait(false);
     }
 
     /// <summary>
