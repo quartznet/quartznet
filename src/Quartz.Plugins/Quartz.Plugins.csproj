@@ -6,6 +6,23 @@
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!--
+      Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431).
+      Without IsTrimmable a trimmer keeps this assembly whole and collapses whatever it cannot follow into
+      one IL2104, so an application publishing trimmed learned nothing about the package; with it, the
+      warning is the reflective call site.
+
+      Four warnings when the analyzers were first turned on here, two now, and neither of the two is a
+      new one: the schedule-file plugins hand a job type spelled as text to the scheduler, which is what
+      the file format is for. What went away is the JSON reader itself — quartz_jobs.json is read through
+      metadata the compiler wrote, so the shape of the file needs no reflection and needs no code
+      generated at run time either. The package produces no IL3050 at all, and the single-file analyzer
+      found nothing. TrimAnalysisBaseline.cs beside this file records the two that are left.
+    -->
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>

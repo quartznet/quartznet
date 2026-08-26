@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text.Json;
 
@@ -40,12 +41,13 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
 {
     public const string QuartzJsonFileName = "quartz_jobs.json";
 
-    private static readonly JsonSerializerOptions jsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true
-    };
+    /// <summary>
+    /// What a schedule file spells as text and the trimmer therefore cannot follow. The wording matches
+    /// <see cref="XmlSchedulingDataProcessor" />'s, because it is the same contract in a different file
+    /// format: the shape of the file is metadata the compiler wrote, and the job type inside it is not.
+    /// </summary>
+    private const string JobTypeNamedByString =
+        "Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in quartz_jobs.json is not guaranteed to survive trimming.";
 
     private readonly ILogger<JsonSchedulingDataProcessor> logger;
     private readonly TimeProvider timeProvider;
@@ -74,6 +76,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
     internal void ProtectJobGroup(string groupName) => protectedJobGroups.Add(groupName);
     internal void ProtectTriggerGroup(string groupName) => protectedTriggerGroups.Add(groupName);
 
+    [RequiresUnreferencedCode(JobTypeNamedByString)]
     public async Task ProcessJsonFileAndScheduleJobs(
         string fileName,
         IScheduler scheduler,
@@ -100,6 +103,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
         await ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
+    [RequiresUnreferencedCode(JobTypeNamedByString)]
     internal void ProcessJsonContent(string json)
     {
         PrepareForProcessing();
@@ -108,7 +112,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
         jsonJobsToDelete.Clear();
         jsonTriggersToDelete.Clear();
 
-        var data = JsonSerializer.Deserialize<JsonJobSchedulingData>(json, jsonOptions)
+        JsonJobSchedulingData data = JsonSerializer.Deserialize(json, JsonSchedulingDataContext.Default.JsonJobSchedulingData)
             ?? throw new SchedulerConfigException("Job definition data from JSON was null after deserialization.");
 
         if (data.PreProcessingCommands is not null)
@@ -240,6 +244,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
         }
     }
 
+    [RequiresUnreferencedCode(JobTypeNamedByString)]
     private void ProcessJobs(List<JsonFileJobDefinition> jobDefs)
     {
         foreach (var jobDef in jobDefs)
