@@ -33,11 +33,29 @@ namespace Quartz;
 /// </remarks>
 public static class PersistentStoreBuilderExtensions
 {
+    /// <summary>
+    /// What every overload that chooses a driver by name has to say for itself.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It surfaces inside the application's <c>UsePersistentStore</c> callback, which is where the
+    /// decision is made and where the answer is: the same registration with the driver's factory, or a
+    /// <see cref="System.Data.Common.DbDataSource"/> in the container. It stops there — <c>AddQuartz</c>
+    /// does not carry it, because these are extension methods nothing inside Quartz calls.
+    /// </para>
+    /// </remarks>
+    private const string NamesTheDriversTypes =
+        "The driver is chosen by name, and Quartz names its connection, command and parameter types as strings, "
+        + "so a trimmed application has no guarantee they survived. Pass the driver's DbProviderFactory to the "
+        + "overload that takes one, or register a DbDataSource in the container.";
+
     /// <summary>Stores the schedule in Microsoft SQL Server.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseSqlServer(this IPersistentStoreBuilder builder, string connectionString)
         => builder.UseDatabase<SqlServerDelegate>(DataSourceOptions.Providers.SqlServer, connectionString);
 
     /// <summary>Stores the schedule in Microsoft SQL Server.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseSqlServer(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
         => builder.UseDatabase<SqlServerDelegate>(DataSourceOptions.Providers.SqlServer, configure);
 
@@ -50,10 +68,12 @@ public static class PersistentStoreBuilderExtensions
         => builder.UseDatabase<SqlServerDelegate>(DataSourceOptions.Providers.SqlServer, factory, connectionString);
 
     /// <summary>Stores the schedule in PostgreSQL.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UsePostgres(this IPersistentStoreBuilder builder, string connectionString)
         => builder.UseDatabase<PostgreSQLDelegate>(DataSourceOptions.Providers.Npgsql, connectionString);
 
     /// <summary>Stores the schedule in PostgreSQL.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UsePostgres(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
         => builder.UseDatabase<PostgreSQLDelegate>(DataSourceOptions.Providers.Npgsql, configure);
 
@@ -63,10 +83,12 @@ public static class PersistentStoreBuilderExtensions
         => builder.UseDatabase<PostgreSQLDelegate>(DataSourceOptions.Providers.Npgsql, factory, connectionString);
 
     /// <summary>Stores the schedule in MySQL, using the MySql.Data driver.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseMySql(this IPersistentStoreBuilder builder, string connectionString)
         => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySql, connectionString);
 
     /// <summary>Stores the schedule in MySQL, using the MySql.Data driver.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseMySql(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
         => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySql, configure);
 
@@ -79,10 +101,12 @@ public static class PersistentStoreBuilderExtensions
         => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySql, factory, connectionString);
 
     /// <summary>Stores the schedule in MySQL, using the MySqlConnector driver.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseMySqlConnector(this IPersistentStoreBuilder builder, string connectionString)
         => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySqlConnector, connectionString);
 
     /// <summary>Stores the schedule in MySQL, using the MySqlConnector driver.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseMySqlConnector(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
         => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySqlConnector, configure);
 
@@ -95,10 +119,12 @@ public static class PersistentStoreBuilderExtensions
         => builder.UseDatabase<MySQLDelegate>(DataSourceOptions.Providers.MySqlConnector, factory, connectionString);
 
     /// <summary>Stores the schedule in Firebird.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseFirebird(this IPersistentStoreBuilder builder, string connectionString)
         => builder.UseDatabase<FirebirdDelegate>(DataSourceOptions.Providers.Firebird, connectionString);
 
     /// <summary>Stores the schedule in Firebird.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseFirebird(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
         => builder.UseDatabase<FirebirdDelegate>(DataSourceOptions.Providers.Firebird, configure);
 
@@ -111,10 +137,12 @@ public static class PersistentStoreBuilderExtensions
         => builder.UseDatabase<FirebirdDelegate>(DataSourceOptions.Providers.Firebird, factory, connectionString);
 
     /// <summary>Stores the schedule in Oracle.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseOracle(this IPersistentStoreBuilder builder, string connectionString)
         => builder.UseDatabase<OracleDelegate>(DataSourceOptions.Providers.Oracle, connectionString);
 
     /// <summary>Stores the schedule in Oracle.</summary>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseOracle(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
         => builder.UseDatabase<OracleDelegate>(DataSourceOptions.Providers.Oracle, configure);
 
@@ -182,10 +210,12 @@ public static class PersistentStoreBuilderExtensions
     /// <c>UseMySql</c> does, and the way Entity Framework Core spells the same choice. The legacy
     /// System.Data.SQLite driver is <see cref="UseSystemDataSqlite(IPersistentStoreBuilder, string)"/>.
     /// </remarks>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseSqlite(this IPersistentStoreBuilder builder, string connectionString)
         => builder.UseDatabase<SQLiteDelegate>(DataSourceOptions.Providers.Sqlite, connectionString);
 
     /// <inheritdoc cref="UseSqlite(IPersistentStoreBuilder, string)"/>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseSqlite(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
         => builder.UseDatabase<SQLiteDelegate>(DataSourceOptions.Providers.Sqlite, configure);
 
@@ -202,10 +232,12 @@ public static class PersistentStoreBuilderExtensions
     /// Named after its driver rather than after the database, because
     /// <see cref="UseSqlite(IPersistentStoreBuilder, string)"/> is the one to reach for.
     /// </remarks>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseSystemDataSqlite(this IPersistentStoreBuilder builder, string connectionString)
         => builder.UseDatabase<SQLiteDelegate>(DataSourceOptions.Providers.SystemDataSqlite, connectionString);
 
     /// <inheritdoc cref="UseSystemDataSqlite(IPersistentStoreBuilder, string)"/>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseSystemDataSqlite(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
         => builder.UseDatabase<SQLiteDelegate>(DataSourceOptions.Providers.SystemDataSqlite, configure);
 
@@ -224,6 +256,7 @@ public static class PersistentStoreBuilderExtensions
     /// <param name="builder">The store being configured.</param>
     /// <param name="provider">The Quartz provider name identifying the ADO.NET driver.</param>
     /// <param name="connectionString">The connection string.</param>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseGenericDatabase(
         this IPersistentStoreBuilder builder,
         string provider,
@@ -237,6 +270,7 @@ public static class PersistentStoreBuilderExtensions
     /// <param name="builder">The store being configured.</param>
     /// <param name="provider">The Quartz provider name identifying the ADO.NET driver.</param>
     /// <param name="configure">Configures the data source, for example a named connection string.</param>
+    [RequiresUnreferencedCode(NamesTheDriversTypes)]
     public static IPersistentStoreBuilder UseGenericDatabase(
         this IPersistentStoreBuilder builder,
         string provider,
