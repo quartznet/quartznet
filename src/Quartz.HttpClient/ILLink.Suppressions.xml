@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+  The ILLink half of the baseline recorded in TrimAnalysisBaseline.cs beside this file. Same types, same
+  reasons — read that file; the reasoning lives there and is not repeated here.
+
+  Two files are needed because the two tools cannot be told the same way, which src/Quartz/ILLink.Suppressions.xml
+  explains in full: SuppressMessageAttribute is [Conditional("CODE_ANALYSIS")] and never reaches metadata,
+  so ILLink cannot see the C# baseline and is told through its link-attributes option instead. The
+  unconditional attribute would cover both and would be baked into the shipped assembly, silencing these
+  warnings for every consumer publishing a trimmed application — which is the lie neither file tells.
+
+  fullname carries a trailing '*' throughout, so that the compiler-generated closure and state-machine
+  types ILLink reports against are matched by the same entry as the type they belong to.
+
+  **Nothing in this repository applies this file today**, and that is worth knowing before trusting it.
+  Quartz.Examples.Worker and Quartz.Trimming.Canary are the only trimmed publishes here and both reference
+  Quartz alone, so ILLink never links this assembly and build/Build.cs reads src/Quartz/ILLink.Suppressions.xml
+  only. It exists because the C# baseline covers the analyzer and nothing else: an application that publishes
+  trimmed over this package hits ILLink, which sees through calls the analyzer does not, and this is the
+  form that answer has to take. Should a canary ever reference this package, add it there as an
+  _ILLinkSuppressions item and teach build/Build.cs to read this file as well as Quartz's own — until then
+  an entry here is checked by review rather than by CI, so keep it in step with the file beside it by hand.
+-->
+<linker>
+  <assembly fullname="Quartz.HttpClient">
+
+    <!-- A job type named in an HTTP response -->
+    <type fullname="Quartz.HttpScheduler*">
+      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
+        <argument>Trimming</argument>
+        <argument>IL2026</argument>
+        <property name="Justification">A job read back over HTTP names its type as a string; IScheduler cannot carry the attribute that says so.</property>
+      </attribute>
+    </type>
+
+  </assembly>
+</linker>
