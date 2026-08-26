@@ -18,7 +18,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <c>[NonParallelizable]</c> because they also share static execution records.
 /// </para>
 /// <para>
-/// <b>There is deliberately no <c>FakeTimeProvider</c> anywhere in this project.</b> A clustered node
+/// <b>There is deliberately no <c>FakeTimeProvider</c> under this base class.</b> A clustered node
 /// decides that a peer has died by comparing the peer's <c>LAST_CHECKIN_TIME</c> — an absolute instant
 /// sitting in <c>QRTZ_SCHEDULER_STATE</c> — against its own clock, and the same is true of every other
 /// node reading the same row. The database is the clock the cluster agrees on. Handing one node
@@ -26,6 +26,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// and the server's own timing stayed on real time, so the test would exercise a cluster that does not
 /// exist. Where a test needs the past, it moves the database instead: see
 /// <see cref="BackdateCheckin"/>, which ages a check-in row rather than sleeping past a threshold.
+/// A single-node fixture that drives a store's own misfire pass by hand has no such peers to agree
+/// with, and does use a fake clock — see <c>MisfireThroughAStoreTestBase</c>.
 /// </para>
 /// </summary>
 [NonParallelizable]
