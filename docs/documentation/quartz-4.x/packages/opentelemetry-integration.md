@@ -56,8 +56,8 @@ triggers would otherwise produce a span per page.
 
 ::: tip Every store, not just the database one
 Store tracing is a decorator over `IJobStore`, applied to whatever store the scheduler was built with.
-The in-memory store, the Redis store and a store you wrote yourself all emit these spans; before 4.0.0
-they came from inside the ADO.NET store and nothing else produced any.
+The in-memory store, a community package's store and a store you wrote yourself all emit these spans;
+before 4.0.0 they came from inside the ADO.NET store and nothing else produced any.
 :::
 
 The span names are constants, on `Quartz.Diagnostics.OperationName`. Attributes are namespaced `quartz.*`,
