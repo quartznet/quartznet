@@ -329,6 +329,17 @@ resource, so one `AuthorizationHandler<TRequirement, SchedulerResource>` answers
 HTTP API together. The worked example is in
 [Multi-tenancy](../multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler).
 
+::: warning Standalone hosting is where this applies today
+The *not authorized* frame is drawn by the dashboard's own layout, which is in the render tree only when
+the dashboard owns its Blazor root — the `MapQuartzDashboard()` overloads that take no components builder.
+Every scheduler listing the dashboard writes is filtered in both hosting modes, and so is the hub
+subscription, so nothing in the dashboard itself will ever point a visitor at a scheduler they fail the
+policy for. But when the components are hosted under an application's own layout
+([Integrating with an existing Blazor Server app](#integrating-with-an-existing-blazor-server-app)) the
+frame is not rendered, so an application that routes a visitor to a scheduler by its own means is
+responsible for not routing them to one they fail for.
+:::
+
 Leaving it unset is the behaviour every earlier release had: whoever passes `AuthorizationPolicy` sees
 every scheduler in the process.
 
