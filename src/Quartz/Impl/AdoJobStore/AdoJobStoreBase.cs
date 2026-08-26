@@ -495,7 +495,7 @@ public abstract class AdoJobStoreBase : IJobStore
                 + "the transaction scope it was created in, and dispose it before that scope ends.");
         }
 
-        var expected = DbProvider.Metadata.ConnectionType;
+        var expected = DbProvider.ExpectedConnectionType();
         if (expected is not null && !expected.IsInstanceOfType(enlisted.Connection))
         {
             Throw.JobPersistenceException(
@@ -842,9 +842,10 @@ public abstract class AdoJobStoreBase : IJobStore
                 Logger.SqlServerCouldUseRowLocking();
             }
             // be ready to give a friendly warning if SQL Server provider and wrong delegate
-            if (DbProvider.Metadata.ConnectionType?.Namespace is not null
-                && DbProvider.Metadata.ConnectionType.Namespace.Contains("SqlClient")
-                && DbProvider.Metadata.ConnectionType.Name == "SqlConnection"
+            Type? connectionType = DbProvider.ExpectedConnectionType();
+            if (connectionType?.Namespace is not null
+                && connectionType.Namespace.Contains("SqlClient")
+                && connectionType.Name == "SqlConnection"
                 && !(Delegate is SqlServerDelegate))
             {
                 Logger.SqlServerProviderWithoutSqlServerDelegate();

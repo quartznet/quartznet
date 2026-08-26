@@ -43,6 +43,23 @@ internal sealed class DataSourceDbProvider : IDbProvider
     /// </remarks>
     internal DbDataSource DataSource => source;
 
+    /// <summary>
+    /// The type of connection the data source hands out, worked out by asking it for one.
+    /// </summary>
+    /// <remarks>
+    /// Read by the two checks that used to read <see cref="DbMetadata.ConnectionType"/> — see
+    /// <see cref="DbProviderConnections"/>. The connection is never opened.
+    /// </remarks>
+    internal Type ConnectionType => connectionType ??= SampleConnectionType();
+
+    private Type? connectionType;
+
+    private Type SampleConnectionType()
+    {
+        using DbConnection connection = source.CreateConnection();
+        return connection.GetType();
+    }
+
     /// <inheritdoc />
     public DbConnection CreateConnection()
     {
