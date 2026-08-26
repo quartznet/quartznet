@@ -29,7 +29,7 @@ namespace Quartz.Examples.Example07;
 /// </summary>
 /// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 /// <author>Marko Lahma (.NET)</author>
-public class InterrupInProgressJobsExample : IExample
+public class InterruptingJobsInProgressExample : IExample
 {
     public virtual async Task Run()
     {
@@ -46,7 +46,7 @@ public class InterrupInProgressJobsExample : IExample
 
         DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(15);
 
-        IJobDetail job = JobBuilder.Create<DumbInterruptableJob>()
+        IJobDetail job = JobBuilder.Create<InterruptableJob>()
             .WithIdentity("interruptableJob1", "group1")
             .Build();
 

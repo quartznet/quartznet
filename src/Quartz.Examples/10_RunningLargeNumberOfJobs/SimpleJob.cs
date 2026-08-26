@@ -19,10 +19,10 @@
 
 #endregion
 
-namespace Quartz.Examples.Example11;
+namespace Quartz.Examples.Example10;
 
 /// <summary>
-/// This is just a simple job that gets fired off many times by example 11.
+/// This is just a simple job that gets fired off many times by example 10.
 /// </summary>
 /// <author>Bill Kratzer</author>
 /// <author>Marko Lahma (.NET)</author>

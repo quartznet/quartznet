@@ -19,7 +19,7 @@
 
 #endregion
 
-namespace Quartz.Examples.Example14;
+namespace Quartz.Examples.Example11;
 
 /// <summary>
 /// This is a simple job that echos the name of the Trigger
