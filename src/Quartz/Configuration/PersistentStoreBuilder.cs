@@ -64,25 +64,37 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
 
             // The driver description comes from the container, so a provider Quartz ships no description
             // for is usable as soon as the application registers one.
-            var metadata = provider.GetRequiredService<DbMetadataResolver>().Resolve(options.Provider);
+            DbMetadataResolver resolver = provider.GetRequiredService<DbMetadataResolver>();
 
             // Where the connection comes from is the data source's own setting, decided here rather than
             // by a second entry point that had to be called in the right order to take effect. Most
             // specific first: a data source the caller builds, then one registered under a key of its
             // own, then the container's single unkeyed one.
+            //
+            // Each of those three takes the half of the description that names no type, which is why the
+            // resolution happens inside the branch rather than above it: a data source hands over the
+            // connection, so there is nothing here to construct, and asking for the driver's own types
+            // resolves each of them by name — the Type.GetType a trimmed application cannot rely on, for
+            // an assembly it may well not carry.
             if (options.DataSourceFactory is { } dataSourceFactory)
             {
-                return new DataSourceDbProvider(metadata, dataSourceFactory(provider));
+                return new DataSourceDbProvider(
+                    resolver.ResolveWithoutTypes(options.Provider),
+                    dataSourceFactory(provider));
             }
 
             if (options.DataSourceServiceKey is { } dataSourceKey)
             {
-                return new DataSourceDbProvider(metadata, provider.GetRequiredKeyedService<DbDataSource>(dataSourceKey));
+                return new DataSourceDbProvider(
+                    resolver.ResolveWithoutTypes(options.Provider),
+                    provider.GetRequiredKeyedService<DbDataSource>(dataSourceKey));
             }
 
             if (options.UseRegisteredDataSource)
             {
-                return new DataSourceDbProvider(metadata, provider.GetRequiredService<DbDataSource>());
+                return new DataSourceDbProvider(
+                    resolver.ResolveWithoutTypes(options.Provider),
+                    provider.GetRequiredService<DbDataSource>());
             }
 
             var connectionString = options.ConnectionString;
@@ -97,7 +109,9 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
                 }
             }
 
-            return new DbProvider(metadata, connectionString!);
+            // Quartz holds the connection string here, so it constructs the driver's connection and
+            // command itself — and this is the one path that needs their types named.
+            return new DbProvider(resolver.Resolve(options.Provider), connectionString!);
         });
 
         return this;
