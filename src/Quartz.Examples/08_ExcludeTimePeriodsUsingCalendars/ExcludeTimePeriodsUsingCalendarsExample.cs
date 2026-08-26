@@ -37,6 +37,11 @@ namespace Quartz.Examples.Example08;
 /// <author>Marko Lahma (.NET)</author>
 public class ExcludeTimePeriodsUsingCalendarsExample : IExample
 {
+    /// <summary>
+    /// The group both jobs and both triggers live in.
+    /// </summary>
+    private const string Group = "group1";
+
     public virtual async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("------- Initializing ----------------------");
@@ -60,11 +65,11 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         DateTimeOffset halloween = NextOccurrenceOf(month: 10, day: 31, hour: 10);
 
         IJobDetail holidayJob = JobBuilder.Create<SimpleJob>()
-            .WithIdentity("holidayJob", "group1")
+            .WithIdentity("holidayJob", Group)
             .Build();
 
         ITrigger holidayTrigger = TriggerBuilder.Create()
-            .WithIdentity("holidayTrigger", "group1")
+            .WithIdentity("holidayTrigger", Group)
             .StartAt(halloween)
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .WithCalendarName("holidays")
@@ -82,11 +87,11 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         await scheduler.AddCalendar("quiet-half-minute", quietHalfMinute, cancellationToken: cancellationToken);
 
         IJobDetail chattyJob = JobBuilder.Create<SimpleJob>()
-            .WithIdentity("chattyJob", "group1")
+            .WithIdentity("chattyJob", Group)
             .Build();
 
         ITrigger chattyTrigger = TriggerBuilder.Create()
-            .WithIdentity("chattyTrigger", "group1")
+            .WithIdentity("chattyTrigger", Group)
             .StartNow()
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever())
             .WithCalendarName("quiet-half-minute")

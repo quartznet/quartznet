@@ -34,11 +34,11 @@ namespace Quartz.Examples.Example13;
 /// running, which is what <c>RequestRecovery()</c> asks for.
 /// </para>
 /// <para>
-/// It needs a SQL Server with the Quartz schema in it. The DDL is
-/// <c>database/tables/tables_sqlserver.sql</c> in this repository, and the default connection string
-/// below expects a <c>quartznet</c> database on <c>localhost</c>; <c>src/Quartz.Examples/README.md</c>
-/// has the one-line docker command that produces one. Set <c>QUARTZ_EXAMPLES_SQLSERVER</c> to point
-/// somewhere else.
+/// It needs a SQL Server with the Quartz schema in it, named by the <c>QUARTZ_EXAMPLES_SQLSERVER</c>
+/// environment variable. The DDL is <c>database/tables/tables_sqlserver.sql</c> in this repository, and
+/// <c>src/Quartz.Examples/README.md</c> has the one-line docker command that produces a server to run
+/// it against. With the variable unset the example says so and stops, rather than reaching for a
+/// default that would have to spell a password in this file.
 /// </para>
 /// <para>
 /// <i>Note:</i> Never run clustering on separate machines, unless their clocks are synchronized using
@@ -51,12 +51,14 @@ namespace Quartz.Examples.Example13;
 public class ClusteringJobsExecutionExample : IExample
 {
     /// <summary>
-    /// The connection string, which the same environment variable the integration tests read overrides.
+    /// The environment variable this example takes its connection string from.
     /// </summary>
-    private static string ConnectionString =>
-        Environment.GetEnvironmentVariable("QUARTZ_EXAMPLES_SQLSERVER")
-        ?? Environment.GetEnvironmentVariable("MSSQL_CONNECTION_STRING")
-        ?? "Server=localhost;Database=quartznet;User Id=sa;Password=Quartz!DockerP4ss;TrustServerCertificate=true;";
+    /// <remarks>
+    /// There is no default, and deliberately so: a connection string carries a credential, and a
+    /// credential written into a source file is a credential that has leaked. The readme has the shape
+    /// of the value, beside a docker command that produces a database to point it at.
+    /// </remarks>
+    private const string ConnectionStringVariable = "QUARTZ_EXAMPLES_SQLSERVER";
 
     /// <summary>
     /// The group the jobs live in. Fixed rather than named after the node, because every node
@@ -66,6 +68,14 @@ public class ClusteringJobsExecutionExample : IExample
 
     public async ValueTask Run(CancellationToken cancellationToken = default)
     {
+        string? connectionString = Environment.GetEnvironmentVariable(ConnectionStringVariable);
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            Console.Error.WriteLine($"Set {ConnectionStringVariable} to a SQL Server connection string - server, database and credentials - for a database carrying the Quartz schema, and run this again. src/Quartz.Examples/README.md has the shape of the value and a docker command that produces the database.");
+            return;
+        }
+
         Console.WriteLine("------- Initializing ----------------------");
 
         QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
@@ -83,7 +93,7 @@ public class ClusteringJobsExecutionExample : IExample
             .UseDefaultThreadPool(maxConcurrency: 5)
             .UsePersistentStore(store =>
             {
-                store.UseSqlServer(ConnectionString);
+                store.UseSqlServer(connectionString);
 
                 // if running SQLite this would be UseSystemDataSqlite (System.Data.SQLite) or
                 // UseSqlite (Microsoft.Data.Sqlite), plus UseLockHandler<UpdateRowSemaphore>()
@@ -112,10 +122,11 @@ public class ClusteringJobsExecutionExample : IExample
         }
         catch (Exception ex) when (ex is SchedulerException or DbException)
         {
-            Console.Error.WriteLine("Could not reach the database this example needs.");
-            Console.Error.WriteLine($"  connection string: {ConnectionString}");
+            // the connection string itself is not echoed back: it carries a credential, and a console
+            // is somewhere a log scraper and a screen recording both reach
+            Console.Error.WriteLine($"Could not reach the database {ConnectionStringVariable} names.");
             Console.Error.WriteLine("  create a database and run database/tables/tables_sqlserver.sql against it,");
-            Console.Error.WriteLine("  or point QUARTZ_EXAMPLES_SQLSERVER somewhere else.");
+            Console.Error.WriteLine($"  or point {ConnectionStringVariable} somewhere else.");
             Console.Error.WriteLine("  src/Quartz.Examples/README.md has a docker command that produces one.");
             Console.Error.WriteLine(ex.Message);
             return;

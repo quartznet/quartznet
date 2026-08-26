@@ -45,6 +45,11 @@ namespace Quartz.Examples.Example05;
 /// <author>Marko Lahma (.NET)</author>
 public class SchedulingJobsSettingMisfireInstructionsExample : IExample
 {
+    /// <summary>
+    /// The group both jobs and both triggers live in.
+    /// </summary>
+    private const string Group = "group1";
+
     public virtual async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("------- Initializing -------------------");
@@ -65,12 +70,12 @@ public class SchedulingJobsSettingMisfireInstructionsExample : IExample
 
         // job1 wants to run every three seconds, and takes ten
         IJobDetail job1 = JobBuilder.Create<SlowJob>()
-            .WithIdentity("slowJob1", "group1")
+            .WithIdentity("slowJob1", Group)
             .UsingJobData(SlowJob.ExecutionDelaySeconds, 10)
             .Build();
 
         ISimpleTrigger trigger1 = (ISimpleTrigger) TriggerBuilder.Create()
-            .WithIdentity("trigger1", "group1")
+            .WithIdentity("trigger1", Group)
             .StartAt(startTime)
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(3)).RepeatForever())
             // no misfire instruction: the smart policy, which for a repeat-forever simple trigger
@@ -82,12 +87,12 @@ public class SchedulingJobsSettingMisfireInstructionsExample : IExample
 
         // job2 is the same in every respect but one
         IJobDetail job2 = JobBuilder.Create<SlowJob>()
-            .WithIdentity("slowJob2", "group1")
+            .WithIdentity("slowJob2", Group)
             .UsingJobData(SlowJob.ExecutionDelaySeconds, 10)
             .Build();
 
         ISimpleTrigger trigger2 = (ISimpleTrigger) TriggerBuilder.Create()
-            .WithIdentity("trigger2", "group1")
+            .WithIdentity("trigger2", Group)
             .StartAt(startTime)
             .WithSimpleSchedule(x => x
                 .WithInterval(TimeSpan.FromSeconds(3))
