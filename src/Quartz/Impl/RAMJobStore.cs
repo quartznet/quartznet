@@ -208,6 +208,8 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public async ValueTask Clear(CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -217,7 +219,7 @@ public sealed class RAMJobStore : IJobStore
                 var keys = GetTriggerKeysNoLock(GroupMatcher<TriggerKey>.GroupEquals(group));
                 foreach (TriggerKey key in keys)
                 {
-                    await RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false);
+                    RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, ref pending);
                 }
             }
 
@@ -227,7 +229,7 @@ public sealed class RAMJobStore : IJobStore
                 var keys = GetJobKeysNoLock(GroupMatcher<JobKey>.GroupEquals(group));
                 foreach (JobKey key in keys)
                 {
-                    await RemoveJobNoLock(key, cancellationToken).ConfigureAwait(false);
+                    RemoveJobNoLock(key, ref pending);
                 }
             }
 
@@ -244,6 +246,8 @@ public sealed class RAMJobStore : IJobStore
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -322,24 +326,30 @@ public sealed class RAMJobStore : IJobStore
     /// </returns>
     public async ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+        bool deleted;
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await RemoveJobNoLock(jobKey, cancellationToken).ConfigureAwait(false);
+            deleted = RemoveJobNoLock(jobKey, ref pending);
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return deleted;
     }
 
-    private async ValueTask<bool> RemoveJobNoLock(JobKey jobKey, CancellationToken cancellationToken)
+    private bool RemoveJobNoLock(JobKey jobKey, ref PendingSignals pending)
     {
         bool found = false;
         var triggersForJob = GetTriggerKeysForJobNoLock(jobKey);
         foreach (var key in triggersForJob)
         {
-            await RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false);
+            RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, ref pending);
             found = true;
         }
 
@@ -362,50 +372,58 @@ public sealed class RAMJobStore : IJobStore
 
     public async ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+        List<JobKey> deleted = new List<JobKey>(jobKeys.Count);
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<JobKey> deleted = new List<JobKey>(jobKeys.Count);
             foreach (JobKey key in jobKeys)
             {
-                if (await RemoveJobNoLock(key, cancellationToken).ConfigureAwait(false))
+                if (RemoveJobNoLock(key, ref pending))
                 {
                     deleted.Add(key);
                 }
             }
-
-            return deleted;
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return deleted;
     }
 
     public async ValueTask<List<TriggerKey>> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+        List<TriggerKey> deleted = new List<TriggerKey>(triggerKeys.Count);
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<TriggerKey> deleted = new List<TriggerKey>(triggerKeys.Count);
             foreach (TriggerKey key in triggerKeys)
             {
-                if (await RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false))
+                if (RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, ref pending))
                 {
                     deleted.Add(key);
                 }
             }
-
-            return deleted;
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return deleted;
     }
 
     public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -437,7 +455,7 @@ public sealed class RAMJobStore : IJobStore
                 AddJobNoLock(triggersByJob.Key, replace: true);
                 foreach (IOperableTrigger trigger in triggersByJob.Value)
                 {
-                    await AddTriggerNoLock(trigger, replace: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    AddTriggerNoLock(trigger, replace: true, ref pending);
                 }
             }
         }
@@ -445,6 +463,8 @@ public sealed class RAMJobStore : IJobStore
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -470,18 +490,22 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await AddTriggerNoLock(trigger, replace, cancellationToken).ConfigureAwait(false);
+            AddTriggerNoLock(trigger, replace, ref pending);
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task AddTriggerNoLock(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken)
+    private void AddTriggerNoLock(IOperableTrigger trigger, bool replace, ref PendingSignals pending)
     {
         TriggerWrapper tw = new((IOperableTrigger) trigger.Clone());
         if (triggersByKey.ContainsKey(tw.TriggerKey))
@@ -492,7 +516,7 @@ public sealed class RAMJobStore : IJobStore
             }
 
             // don't delete orphaned job, this trigger has the job anyways
-            await RemoveTriggerNoLock(tw.TriggerKey, removeOrphanedJob: false, keepExecutions: true, cancellationToken).ConfigureAwait(false);
+            RemoveTriggerNoLock(tw.TriggerKey, removeOrphanedJob: false, keepExecutions: true, ref pending);
         }
 
         if (!jobsByKey.ContainsKey(tw.JobKey))
@@ -553,21 +577,27 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="cancellationToken"></param>
     private async ValueTask<bool> DeleteTrigger(TriggerKey key, bool removeOrphanedJob, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+        bool deleted;
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await RemoveTriggerNoLock(key, removeOrphanedJob, keepExecutions: false, cancellationToken).ConfigureAwait(false);
+            deleted = RemoveTriggerNoLock(key, removeOrphanedJob, keepExecutions: false, ref pending);
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return deleted;
     }
 
     // keepExecutions: whether executions already started under this key survive. Only a trigger being
     // replaced in place keeps them, matching the ADO store, where updating a trigger leaves its
     // fired-trigger rows alone but deleting one removes them. There is no default: every caller says which.
-    private async Task<bool> RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, bool keepExecutions, CancellationToken cancellationToken)
+    private bool RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, bool keepExecutions, ref PendingSignals pending)
     {
         if (!keepExecutions)
         {
@@ -602,9 +632,9 @@ public sealed class RAMJobStore : IJobStore
             {
                 JobWrapper jw = jobsByKey[tw.JobKey];
                 var triggerKeys = GetTriggerKeysForJobNoLock(tw.JobKey);
-                if (triggerKeys.Length == 0 && !jw.JobDetail.Durable && await RemoveJobNoLock(jw.Key, cancellationToken).ConfigureAwait(false))
+                if (triggerKeys.Length == 0 && !jw.JobDetail.Durable && RemoveJobNoLock(jw.Key, ref pending))
                 {
-                    await signaler.NotifySchedulerListenersJobDeleted(jw.Key, cancellationToken).ConfigureAwait(false);
+                    pending.RecordJobDeleted(jw.Key);
                 }
             }
         }
@@ -620,6 +650,7 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
         bool found;
 
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -643,16 +674,16 @@ public sealed class RAMJobStore : IJobStore
                 // The old trigger is deleted rather than updated, so its executions go with it, as they do
                 // in the ADO store where ReplaceTrigger deletes the fired-trigger rows. Removing through
                 // the shared path means anything kept per trigger is cleaned up here too.
-                await RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: false, cancellationToken).ConfigureAwait(false);
+                RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: false, ref pending);
 
                 try
                 {
-                    await AddTriggerNoLock(trigger, replace: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    AddTriggerNoLock(trigger, replace: false, ref pending);
                 }
                 catch (JobPersistenceException)
                 {
                     // put previous trigger back...
-                    await AddTriggerNoLock(tw.Trigger, replace: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    AddTriggerNoLock(tw.Trigger, replace: false, ref pending);
 
                     // ...along with the executions it never stopped running.
                     if (fireInstances is not null)
@@ -668,6 +699,8 @@ public sealed class RAMJobStore : IJobStore
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
         return found;
     }
 
@@ -2084,15 +2117,21 @@ public sealed class RAMJobStore : IJobStore
     /// </remarks>
     public async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+        bool resumed;
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false);
+            resumed = ResumeTriggerNoLock(triggerKey, ref pending);
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return resumed;
     }
 
     /// <summary>
@@ -2102,27 +2141,30 @@ public sealed class RAMJobStore : IJobStore
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+        List<TriggerKey> resumed = new List<TriggerKey>(triggerKeys.Count);
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<TriggerKey> resumed = new List<TriggerKey>(triggerKeys.Count);
             foreach (TriggerKey triggerKey in triggerKeys)
             {
-                if (await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false))
+                if (ResumeTriggerNoLock(triggerKey, ref pending))
                 {
                     resumed.Add(triggerKey);
                 }
             }
-
-            return resumed;
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return resumed;
     }
 
-    private async ValueTask<bool> ResumeTriggerNoLock(TriggerKey triggerKey)
+    private bool ResumeTriggerNoLock(TriggerKey triggerKey, ref PendingSignals pending)
     {
         // does the trigger exist?
         if (!triggersByKey.TryGetValue(triggerKey, out var tw))
@@ -2146,7 +2188,7 @@ public sealed class RAMJobStore : IJobStore
             tw.state = StoredTriggerState.Waiting;
         }
 
-        await ApplyMisfireNoLock(tw).ConfigureAwait(false);
+        ApplyMisfireNoLock(tw, ref pending);
 
         if (tw.state == StoredTriggerState.Waiting)
         {
@@ -2166,18 +2208,24 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public async ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+        List<string> resumedGroups;
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await ResumeTriggersNoLock(matcher).ConfigureAwait(false);
+            resumedGroups = ResumeTriggersNoLock(matcher, ref pending);
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return resumedGroups;
     }
 
-    private async ValueTask<List<string>> ResumeTriggersNoLock(GroupMatcher<TriggerKey> matcher)
+    private List<string> ResumeTriggersNoLock(GroupMatcher<TriggerKey> matcher, ref PendingSignals pending)
     {
         var groups = new HashSet<string>();
         var keys = GetTriggerKeysNoLock(matcher);
@@ -2194,7 +2242,7 @@ public sealed class RAMJobStore : IJobStore
                 }
             }
 
-            await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false);
+            ResumeTriggerNoLock(triggerKey, ref pending);
         }
 
         // Forget the pause of every group the matcher selects, whichever operator it carries — the
@@ -2225,15 +2273,21 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+        bool resumed;
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await ResumeJobNoLock(jobKey).ConfigureAwait(false);
+            resumed = ResumeJobNoLock(jobKey, ref pending);
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return resumed;
     }
 
     /// <summary>
@@ -2243,27 +2297,30 @@ public sealed class RAMJobStore : IJobStore
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+        List<JobKey> resumed = new List<JobKey>(jobKeys.Count);
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<JobKey> resumed = new List<JobKey>(jobKeys.Count);
             foreach (JobKey jobKey in jobKeys)
             {
-                if (await ResumeJobNoLock(jobKey).ConfigureAwait(false))
+                if (ResumeJobNoLock(jobKey, ref pending))
                 {
                     resumed.Add(jobKey);
                 }
             }
-
-            return resumed;
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return resumed;
     }
 
-    private async ValueTask<bool> ResumeJobNoLock(JobKey jobKey)
+    private bool ResumeJobNoLock(JobKey jobKey, ref PendingSignals pending)
     {
         if (!jobsByKey.ContainsKey(jobKey))
         {
@@ -2278,7 +2335,7 @@ public sealed class RAMJobStore : IJobStore
         var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
         foreach (TriggerKey key in triggerKeysForJob)
         {
-            await ResumeTriggerNoLock(key).ConfigureAwait(false);
+            ResumeTriggerNoLock(key, ref pending);
         }
 
         return true;
@@ -2295,10 +2352,12 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public async ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+        var resumedGroups = new List<string>();
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var resumedGroups = new List<string>();
             var keys = GetJobKeysNoLock(matcher);
 
             foreach (string pausedJobGroup in pausedJobGroups)
@@ -2320,15 +2379,17 @@ public sealed class RAMJobStore : IJobStore
                 var triggerKeys = GetTriggerKeysForJobNoLock(key);
                 foreach (TriggerKey triggerKey in triggerKeys)
                 {
-                    await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false);
+                    ResumeTriggerNoLock(triggerKey, ref pending);
                 }
             }
-            return resumedGroups;
         }
         finally
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return resumedGroups;
     }
 
     /// <summary>
@@ -2367,6 +2428,8 @@ public sealed class RAMJobStore : IJobStore
     /// <seealso cref="PauseAll(CancellationToken)" />
     public async ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
+        PendingSignals pending = default;
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -2376,7 +2439,7 @@ public sealed class RAMJobStore : IJobStore
 
             foreach (string groupName in triggersByGroup.Keys)
             {
-                await ResumeTriggersNoLock(GroupMatcher<TriggerKey>.GroupEquals(groupName)).ConfigureAwait(false);
+                ResumeTriggersNoLock(GroupMatcher<TriggerKey>.GroupEquals(groupName), ref pending);
             }
 
             // make sure we don't have anything left in groups
@@ -2386,18 +2449,24 @@ public sealed class RAMJobStore : IJobStore
         {
             lockObject.Release();
         }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Applies the misfire.
     /// </summary>
     /// <param name="tw">The trigger wrapper.</param>
+    /// <param name="pending">
+    /// Collects the misfire notification, and the finalization that may follow it, for the caller to
+    /// raise once the store's lock is released.
+    /// </param>
     /// <returns>
     /// <see langword="true"/> if the next fire time of the trigger was updated from either
     /// one value to another, or from a given value to <see langword="null"/>; otherwise,
     /// <see langword="false"/>.
     /// </returns>
-    private async ValueTask<bool> ApplyMisfireNoLock(TriggerWrapper tw)
+    private bool ApplyMisfireNoLock(TriggerWrapper tw, ref PendingSignals pending)
     {
         if (tw.Trigger.MisfireInstructionCode == MisfireInstruction.IgnoreMisfirePolicy)
         {
@@ -2422,7 +2491,10 @@ public sealed class RAMJobStore : IJobStore
             calendarsByName.TryGetValue(tw.Trigger.CalendarName, out calendar);
         }
 
-        await signaler.NotifyTriggerListenersMisfired(tw.Trigger.Clone()).ConfigureAwait(false);
+        // Cloned here rather than at the point the notification is raised: the listener is told about
+        // the trigger as it was when it misfired, which is what it saw before this method deferred the
+        // notification, and UpdateAfterMisfire is about to move the trigger on.
+        pending.RecordMisfire(tw.Trigger.Clone());
 
         // Save the original scheduled fire time before misfire handling changes it.
         var originalFireTime = tnft;
@@ -2446,7 +2518,7 @@ public sealed class RAMJobStore : IJobStore
         if (!updatedTnft.HasValue)
         {
             tw.state = StoredTriggerState.Complete;
-            await signaler.NotifySchedulerListenersFinalized(tw.Trigger).ConfigureAwait(false);
+            pending.RecordFinalized(tw.Trigger);
 
             // We do not remove the trigger that we applied the misfire for (since its next fire time has been
             // updated). Instead we remove a trigger with the same trigger key, but with no next fire time set.
@@ -2472,16 +2544,18 @@ public sealed class RAMJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        PendingSignals pending = default;
+        List<IOperableTrigger> result = [];
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            // return empty list if store has no triggers.
+            // return empty list if store has no triggers. Returning from inside the lock skips the
+            // notification flush below, which is only safe because nothing has been recorded yet.
             if (timeTriggers.Count == 0)
             {
-                return [];
+                return result;
             }
-
-            List<IOperableTrigger> result = [];
 
             // Both sets stay null until something needs them. Only a job that disallows concurrent
             // execution fills the first, and only a trigger that is turned away fills the second, so on
@@ -2524,7 +2598,7 @@ public sealed class RAMJobStore : IJobStore
                     continue;
                 }
 
-                if (await ApplyMisfireNoLock(tw).ConfigureAwait(false))
+                if (ApplyMisfireNoLock(tw, ref pending))
                 {
                     // If - after applying the misfire policy - the trigger is still scheduled to fire, we'll
                     // add it back to the set of triggers. We cannot use the "cached" next fire time here as
@@ -2635,13 +2709,16 @@ public sealed class RAMJobStore : IJobStore
                     timeTriggers.Add(excludedTrigger);
                 }
             }
-
-            return result;
         }
         finally
         {
             lockObject.Release();
         }
+
+        // Before the batch is handed back, so that every misfire this pass applied has been announced
+        // by the time the caller can fire anything it acquired.
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return result;
     }
 
     /// <summary>
@@ -2835,10 +2912,7 @@ public sealed class RAMJobStore : IJobStore
     /// </summary>
     public async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
     {
-        // Which error notification the state changes below earned, raised once the lock is gone.
-        // Listener code runs on this thread and may well call back into the store, which would
-        // deadlock on the semaphore we are holding.
-        ErrorNotification errorNotification = ErrorNotification.None;
+        PendingSignals pending = default;
 
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -2889,7 +2963,7 @@ public sealed class RAMJobStore : IJobStore
                             // with a past-due fire time still on it until then. The ADO store applies
                             // the policy as it unblocks (RecoverUnblockedMisfires, in the same
                             // transaction), and this is the same moment.
-                            await ApplyMisfireNoLock(ttw).ConfigureAwait(false);
+                            ApplyMisfireNoLock(ttw, ref pending);
 
                             if (ttw.state == StoredTriggerState.Waiting)
                             {
@@ -2915,11 +2989,11 @@ public sealed class RAMJobStore : IJobStore
                     {
                         foreach (TriggerKey finalizedKey in finalized)
                         {
-                            await RemoveTriggerNoLock(finalizedKey, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false);
+                            RemoveTriggerNoLock(finalizedKey, removeOrphanedJob: true, keepExecutions: false, ref pending);
                         }
                     }
 
-                    await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
+                    pending.RecordSchedulingChange();
                 }
             }
             else
@@ -2946,7 +3020,7 @@ public sealed class RAMJobStore : IJobStore
                         d = tw.Trigger.NextFireTimeUtc;
                         if (!d.HasValue)
                         {
-                            await RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false);
+                            RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, ref pending);
                         }
                         else
                         {
@@ -2955,34 +3029,34 @@ public sealed class RAMJobStore : IJobStore
                     }
                     else
                     {
-                        await RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false);
-                        await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
+                        RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, ref pending);
+                        pending.RecordSchedulingChange();
                     }
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetTriggerComplete)
                 {
                     tw.state = StoredTriggerState.Complete;
                     timeTriggers.Remove(tw);
-                    await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
+                    pending.RecordSchedulingChange();
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
                 {
                     logger.TriggerSetToError(trigger.Key);
                     tw.state = StoredTriggerState.Error;
-                    errorNotification = ErrorNotification.Trigger;
-                    await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
+                    pending.RecordSchedulingChange();
+                    pending.RecordTriggerInError(trigger.Key);
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     logger.JobTriggersSetToError(trigger.JobKey);
                     SetAllTriggersOfJobToState(trigger.JobKey, StoredTriggerState.Error);
-                    errorNotification = ErrorNotification.JobTriggers;
-                    await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
+                    pending.RecordSchedulingChange();
+                    pending.RecordTriggersInError(trigger.JobKey);
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
                     SetAllTriggersOfJobToState(trigger.JobKey, StoredTriggerState.Complete);
-                    await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
+                    pending.RecordSchedulingChange();
                 }
             }
         }
@@ -2991,24 +3065,7 @@ public sealed class RAMJobStore : IJobStore
             lockObject.Release();
         }
 
-        if (errorNotification == ErrorNotification.Trigger)
-        {
-            await signaler.NotifySchedulerListenersTriggerInError(trigger.Key, cancellationToken).ConfigureAwait(false);
-        }
-        else if (errorNotification == ErrorNotification.JobTriggers)
-        {
-            await signaler.NotifySchedulerListenersTriggersInError(trigger.JobKey, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    /// <summary>
-    /// Which error notification a completed firing earned, deferred until the store's lock is released.
-    /// </summary>
-    private enum ErrorNotification
-    {
-        None,
-        Trigger,
-        JobTriggers
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
 
     public TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => TimeSpan.FromMilliseconds(5);
@@ -3070,5 +3127,106 @@ public sealed class RAMJobStore : IJobStore
         }
 
         return str.ToString();
+    }
+
+    /// <summary>
+    /// Whether some caller is currently inside the store's critical section. For tests that assert
+    /// where a notification is raised from; nothing in the store's own logic asks.
+    /// </summary>
+    internal bool LockHeld => lockObject.CurrentCount == 0;
+
+    /// <summary>
+    /// The notifications a locked section owes the signaler, raised once the lock is released.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every notification this store raises runs listener code on the calling thread, and a listener is
+    /// entitled to call back into the scheduler, which calls straight back into this store. The store's
+    /// lock is a <see cref="SemaphoreSlim" /> and is not re-entrant, so a notification raised from
+    /// inside it deadlocks the caller against itself. The sites that would notify therefore record
+    /// instead, and each public entry point raises what it collected after releasing the lock, in the
+    /// order it was recorded.
+    /// </para>
+    /// <para>
+    /// A <see langword="default" /> value is an empty collector that has allocated nothing, which is
+    /// what the operations that dominate a running scheduler leave behind; it is passed by reference so
+    /// that the first recorded signal reaches the entry point that will raise it.
+    /// </para>
+    /// </remarks>
+    private struct PendingSignals
+    {
+        private List<PendingSignal>? signals;
+
+        /// <summary>Records the misfire of <paramref name="trigger" />, as it was when it misfired.</summary>
+        public void RecordMisfire(ITrigger trigger) => Record(PendingSignalKind.Misfired, trigger);
+
+        /// <summary>Records that <paramref name="trigger" /> has no fire time left.</summary>
+        public void RecordFinalized(ITrigger trigger) => Record(PendingSignalKind.Finalized, trigger);
+
+        /// <summary>Records that the job <paramref name="jobKey" /> named was deleted.</summary>
+        public void RecordJobDeleted(JobKey jobKey) => Record(PendingSignalKind.JobDeleted, jobKey);
+
+        /// <summary>Records that the trigger <paramref name="triggerKey" /> named is now in error.</summary>
+        public void RecordTriggerInError(TriggerKey triggerKey) => Record(PendingSignalKind.TriggerInError, triggerKey);
+
+        /// <summary>Records that every trigger of the job <paramref name="jobKey" /> named is now in error.</summary>
+        public void RecordTriggersInError(JobKey jobKey) => Record(PendingSignalKind.TriggersInError, jobKey);
+
+        /// <summary>Records that there is something new for the scheduler thread to look at.</summary>
+        public void RecordSchedulingChange() => Record(PendingSignalKind.SchedulingChange, payload: null);
+
+        private void Record(PendingSignalKind kind, object? payload) => (signals ??= []).Add(new PendingSignal(kind, payload));
+
+        /// <summary>
+        /// Raises what was collected, in the order it was collected. Call only once the store's lock
+        /// has been released.
+        /// </summary>
+        public readonly ValueTask Raise(ISchedulerSignaler signaler, CancellationToken cancellationToken)
+        {
+            return signals is null ? default : RaiseAll(signaler, signals, cancellationToken);
+        }
+
+        private static async ValueTask RaiseAll(
+            ISchedulerSignaler signaler,
+            List<PendingSignal> signals,
+            CancellationToken cancellationToken)
+        {
+            foreach (PendingSignal signal in signals)
+            {
+                switch (signal.Kind)
+                {
+                    case PendingSignalKind.Misfired:
+                        await signaler.NotifyTriggerListenersMisfired((ITrigger) signal.Payload!, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case PendingSignalKind.Finalized:
+                        await signaler.NotifySchedulerListenersFinalized((ITrigger) signal.Payload!, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case PendingSignalKind.JobDeleted:
+                        await signaler.NotifySchedulerListenersJobDeleted((JobKey) signal.Payload!, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case PendingSignalKind.TriggerInError:
+                        await signaler.NotifySchedulerListenersTriggerInError((TriggerKey) signal.Payload!, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case PendingSignalKind.TriggersInError:
+                        await signaler.NotifySchedulerListenersTriggersInError((JobKey) signal.Payload!, cancellationToken).ConfigureAwait(false);
+                        break;
+                    case PendingSignalKind.SchedulingChange:
+                        await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
+                        break;
+                }
+            }
+        }
+
+        private readonly record struct PendingSignal(PendingSignalKind Kind, object? Payload);
+
+        private enum PendingSignalKind
+        {
+            Misfired,
+            Finalized,
+            JobDeleted,
+            TriggerInError,
+            TriggersInError,
+            SchedulingChange
+        }
     }
 }
