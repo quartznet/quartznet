@@ -251,7 +251,9 @@ Pluggable serialization for job store persistence:
   404s. `PackageReadmeTest` fails on each of those, on a packable project with no readme, and on a csproj
   that packs anything out of `docs/`. The readmes carry the same `<!-- snippet: … -->` markers as the
   documentation, so keep them short and let the site hold the prose.
-- **`src/Quartz.Tests.Unit/Verify/PublicApiTest_*.verified.txt` are the public API baselines.**
+- **`src/Quartz.Tests.Unit/Verify/PublicApiTest_*.verified.txt` are the public API baselines**, and
+  `src/Quartz.Tests.AspNetCore/Verify/PublicApiTest_*.verified.txt` are the same thing for
+  `Quartz.AspNetCore` and `Quartz.Dashboard`, whose dependencies only that project has.
   Any change to public API fails those tests; review the diff, and if the change is intended,
   accept the new baseline and carry the same diff into
   `docs/documentation/quartz-4.x/migration-guide.md`. Never hand-edit them.
