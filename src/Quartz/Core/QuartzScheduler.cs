@@ -242,7 +242,7 @@ internal sealed class QuartzScheduler
                 Throw.ArgumentException("JobFactory cannot be set to null!");
             }
 
-            logger.LogInformation("JobFactory set to: {Value}", value);
+            logger.JobFactorySet(value);
 
             jobFactory = value;
         }
@@ -282,7 +282,7 @@ internal sealed class QuartzScheduler
         SchedulerSignaler = new SchedulerSignalerImpl(this, schedThread, loggerFactory.CreateLogger<SchedulerSignalerImpl>());
         Scheduler = new StdScheduler(this);
 
-        logger.LogInformation("Quartz Scheduler created");
+        logger.SchedulerCreated();
     }
 
     /// <summary>
@@ -360,7 +360,7 @@ internal sealed class QuartzScheduler
 
         status = SchedulerStatus.Running;
 
-        logger.LogInformation("Scheduler {SchedulerIdentifier} started.", resources.GetUniqueIdentifier());
+        logger.SchedulerStarted(resources.GetUniqueIdentifier());
 
         await NotifySchedulerListenersStarted(cancellationToken).ConfigureAwait(false);
     }
@@ -385,7 +385,7 @@ internal sealed class QuartzScheduler
             }
             catch (SchedulerException se)
             {
-                logger.LogError(se, "Unable to start scheduler after startup delay.");
+                logger.DelayedStartFailed(se);
             }
         }, cancellationToken);
 #pragma warning restore MA0134
@@ -431,7 +431,7 @@ internal sealed class QuartzScheduler
     {
         await resources.JobStore.SchedulerPaused(cancellationToken).ConfigureAwait(false);
         schedThread.TogglePause(pause: true);
-        logger.LogInformation("Scheduler {SchedulerIdentifier} paused.", resources.GetUniqueIdentifier());
+        logger.SchedulerPaused(resources.GetUniqueIdentifier());
     }
 
     /// <summary>
@@ -495,7 +495,7 @@ internal sealed class QuartzScheduler
 
         try
         {
-            logger.LogInformation("Scheduler {SchedulerIdentifier} shutting down.", resources.GetUniqueIdentifier());
+            logger.SchedulerShuttingDown(resources.GetUniqueIdentifier());
 
             // Firing stops here, but the scheduler does not pass through standby on its way down and no
             // listener is told that it did: a scheduler being torn down is not one waiting to be started
@@ -542,10 +542,7 @@ internal sealed class QuartzScheduler
                 // handed the whole of the execution, of which that update is the last act.
                 if (!await resources.ThreadPool.Drain(cancellationToken).ConfigureAwait(false))
                 {
-                    logger.LogWarning(
-                        "Scheduler {SchedulerIdentifier} gave up waiting for its running jobs, which are still executing. "
-                        + "Their job store updates may not complete, and the store is about to be shut down under them.",
-                        resources.GetUniqueIdentifier());
+                    logger.GaveUpWaitingForRunningJobs(resources.GetUniqueIdentifier());
                 }
             }
             else
@@ -585,7 +582,7 @@ internal sealed class QuartzScheduler
             holdToPreventGc.Clear();
         }
 
-        logger.LogInformation("Scheduler {SchedulerIdentifier} Shutdown complete.", resources.GetUniqueIdentifier());
+        logger.SchedulerShutdownComplete(resources.GetUniqueIdentifier());
     }
 
     /// <summary>
@@ -2140,8 +2137,8 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of error");
-                logger.LogError(error.Exception, "  Original error (for notification) was: {Message}", error.Message);
+                logger.ListenerNotificationOfErrorFailed(e);
+                logger.OriginalErrorForNotification(error.Message, error.Exception);
             }
         }
     }
@@ -2184,9 +2181,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e,
-                    "Error while notifying SchedulerListener of unscheduled job. Trigger={TriggerKey}",
-                    triggerKey?.ToString() ?? "ALL DATA");
+                logger.ListenerNotificationOfUnscheduledJobFailed(triggerKey?.ToString() ?? "ALL DATA", e);
             }
         }
     }
@@ -2224,7 +2219,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of paused group: {Group}", group);
+                logger.ListenerNotificationOfPausedGroupFailed(group, e);
             }
         }
     }
@@ -2246,7 +2241,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of trigger in error state. Trigger={TriggerKey}", triggerKey);
+                logger.ListenerNotificationOfTriggerInErrorFailed(triggerKey, e);
             }
         }
     }
@@ -2268,7 +2263,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of job triggers in error state. Job={JobKey}", jobKey);
+                logger.ListenerNotificationOfJobTriggersInErrorFailed(jobKey, e);
             }
         }
     }
@@ -2292,7 +2287,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of paused trigger. Trigger={TriggerKey}", triggerKey);
+                logger.ListenerNotificationOfPausedTriggerFailed(triggerKey, e);
             }
         }
     }
@@ -2328,7 +2323,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of resumed trigger. Trigger={TriggerKey}", triggerKey);
+                logger.ListenerNotificationOfResumedTriggerFailed(triggerKey, e);
             }
         }
     }
@@ -2351,7 +2346,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of paused job. Job={JobKey}", jobKey);
+                logger.ListenerNotificationOfPausedJobFailed(jobKey, e);
             }
         }
     }
@@ -2375,7 +2370,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of paused group: {Group}", group);
+                logger.ListenerNotificationOfPausedGroupFailed(group, e);
             }
         }
     }
@@ -2399,7 +2394,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of resumed job: {JobKey}", jobKey);
+                logger.ListenerNotificationOfResumedJobFailed(jobKey, e);
             }
         }
     }
@@ -2423,7 +2418,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of resumed group: {Group}", group);
+                logger.ListenerNotificationOfResumedGroupFailed(group, e);
             }
         }
     }
@@ -2489,7 +2484,7 @@ internal sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of {Action}", action);
+                logger.ListenerNotificationFailed(action, e);
             }
         }
     }

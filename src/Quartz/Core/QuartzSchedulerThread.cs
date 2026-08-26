@@ -351,7 +351,7 @@ internal sealed class QuartzSchedulerThread
                         acquiresFailed = 0;
                         if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            logger.LogDebug("Batch acquisition of {TriggerCount} triggers", triggers.Count);
+                            logger.TriggerBatchAcquired(triggers.Count);
                         }
                     }
                     catch (JobPersistenceException jpe)
@@ -379,7 +379,7 @@ internal sealed class QuartzSchedulerThread
                     {
                         if (acquiresFailed == 0)
                         {
-                            logger.LogError(e, "quartzSchedulerThreadLoop: RuntimeException {Message}", e.Message);
+                            logger.SchedulerThreadLoopFailed(e.Message, e);
                         }
                         if (acquiresFailed < int.MaxValue)
                         {
@@ -496,7 +496,7 @@ internal sealed class QuartzSchedulerThread
                             // TODO SQL exception?
                             if (exception is not null && (exception is DbException || exception.InnerException is DbException))
                             {
-                                logger.LogError(exception, "DbException while firing trigger {Trigger}", trigger);
+                                logger.TriggerFireFailedWithDbException(trigger, exception);
                                 await SafeReleaseAcquiredTrigger(trigger, "after DbException").ConfigureAwait(false);
                                 continue;
                             }
@@ -580,14 +580,14 @@ internal sealed class QuartzSchedulerThread
                                     // Scheduler is shutting down, complete the trigger gracefully
                                     // Use TriggeredJobComplete to properly unblock other triggers
                                     // for DisallowConcurrentExecution jobs (TriggersFired already ran)
-                                    logger.LogDebug("ThreadPool.TryRun() returned false due to scheduler shutdown, completing trigger");
+                                    logger.ThreadPoolRefusedWorkDuringShutdown();
                                     await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
                                 }
                                 else
                                 {
                                     // this case should never happen, as it is indicative of a bug in the thread pool or
                                     // a thread pool being used concurrently - which the docs say not to do...
-                                    logger.LogError("ThreadPool.TryRun() returned false");
+                                    logger.ThreadPoolRefusedWork();
                                     await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
                                 }
                             }
@@ -620,7 +620,7 @@ internal sealed class QuartzSchedulerThread
             }
             catch (Exception re)
             {
-                logger.LogError(re, "Runtime error occurred in main trigger firing loop.");
+                logger.TriggerFiringLoopFailed(re);
             }
         } // while (!halted)
     }
@@ -704,7 +704,7 @@ internal sealed class QuartzSchedulerThread
         }
         catch (Exception releaseEx)
         {
-            logger.LogError(releaseEx, "Error releasing acquired trigger '{TriggerKey}' {Context}", trigger.Key, context);
+            logger.AcquiredTriggerReleaseFailed(trigger.Key, context, releaseEx);
         }
     }
 
