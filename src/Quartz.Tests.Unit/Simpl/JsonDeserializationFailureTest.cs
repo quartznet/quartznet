@@ -118,8 +118,9 @@ public class NewtonsoftJsonDeserializationFailureTest
     {
         NewtonsoftJsonObjectSerializer serializer = new NewtonsoftJsonObjectSerializer();
 
-        // The calendar converter has no catch of its own, so Newtonsoft's reader exception travels
-        // all the way out to the serializer - the exact path the shadowed catch used to miss.
+        // Newtonsoft's reader exception is raised under the calendar converter, which wraps it, and the
+        // serializer wraps that again to attach the payload - the exact path the shadowed catch used to
+        // miss. What matters either way is that Newtonsoft's own type is the cause and never the escapee.
         const string Truncated = """{"$type": "Quartz.Impl.Calendar.AnnualCalendar, Quartz", "Description": "x""";
 
         Action act = () => serializer.Deserialize<AnnualCalendar>(Encoding.UTF8.GetBytes(Truncated));
@@ -127,7 +128,7 @@ public class NewtonsoftJsonDeserializationFailureTest
         Quartz.JsonSerializationException thrown = act.Should().Throw<Quartz.JsonSerializationException>().Which;
 
         thrown.Message.Should().Contain(Truncated);
-        thrown.InnerException.Should().BeOfType<global::Newtonsoft.Json.JsonReaderException>();
+        thrown.GetBaseException().Should().BeOfType<global::Newtonsoft.Json.JsonReaderException>();
     }
 
     [Test]
