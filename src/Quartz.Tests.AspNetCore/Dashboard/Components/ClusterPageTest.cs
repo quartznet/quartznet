@@ -112,8 +112,8 @@ public class ClusterPageTest
         IRenderedComponent<Cluster> page = context.Render<Cluster>();
 
         page.Markup.Should().Contain("This scheduler is not clustered",
-            "one node with no check-in history is what a non-clustered store looks like from here, and a "
-            + "single-row table with two dashes in it explains nothing");
+            "the scheduler says its store is not clustered, and a single-row table with two dashes in it "
+            + "explains nothing");
         RowCells(page, rowIndex: 0).Should().Contain("—",
             "an absent check-in time is shown as absent rather than as the epoch");
     }
@@ -121,11 +121,40 @@ public class ClusterPageTest
     [Test]
     public void AClusterOfSeveralNodesIsNotDescribedAsUnclustered()
     {
+        context.WithScheduler(clustered: true, persistent: true);
         GivenNodes(CurrentNode(), Node("node-b", ClusterNodeState.Alive));
 
         IRenderedComponent<Cluster> page = context.Render<Cluster>();
 
         page.Markup.Should().NotContain("This scheduler is not clustered");
+    }
+
+    /// <summary>
+    /// The one case the node list cannot decide: a clustered store whose only node has not finished its
+    /// first check-in looks exactly like a store that keeps no cluster state.
+    /// </summary>
+    /// <remarks>
+    /// The page used to infer the verdict from that shape and so told an operator, for up to one
+    /// check-in interval after every fresh start, that the cluster they had just configured was not one.
+    /// <c>SchedulerDetailDto.Clustered</c> is what the scheduler itself reports, and it is never
+    /// ambiguous.
+    /// </remarks>
+    [Test]
+    public void AClusteredSchedulerWhoseOnlyNodeHasNotCheckedInYetIsNotCalledUnclustered()
+    {
+        context.WithScheduler(clustered: true, persistent: true);
+        GivenNodes(new ClusterNodeDto(
+            TestData.SchedulerInstanceId,
+            LastCheckInUtc: null,
+            CheckInInterval: null,
+            ClusterNodeState.Alive,
+            IsCurrentNode: true));
+
+        IRenderedComponent<Cluster> page = context.Render<Cluster>();
+
+        page.Markup.Should().NotContain("This scheduler is not clustered",
+            "the store is clustered whatever its check-in table has had time to say, and a cluster of one "
+            + "that has just started is the commonest way to see this page");
     }
 
     [Test]

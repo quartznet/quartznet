@@ -85,12 +85,14 @@ internal sealed class DashboardComponentContext : BunitContext
     /// </summary>
     public DashboardComponentContext WithScheduler(
         string schedulerName = TestData.SchedulerName,
-        SchedulerStatus status = SchedulerStatus.Running)
+        SchedulerStatus status = SchedulerStatus.Running,
+        bool clustered = false,
+        bool persistent = false)
     {
         A.CallTo(() => Api.GetSchedulers(A<CancellationToken>._))
             .Returns(new List<SchedulerHeaderDto> { TestData.Dashboard.SchedulerHeader(schedulerName, status) });
         A.CallTo(() => Api.GetScheduler(schedulerName, A<CancellationToken>._))
-            .Returns(TestData.Dashboard.SchedulerDetail(status, schedulerName));
+            .Returns(TestData.Dashboard.SchedulerDetail(status, schedulerName, clustered, persistent));
 
         SchedulerState.ActiveSchedulerName = schedulerName;
         return this;

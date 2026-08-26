@@ -68,7 +68,38 @@ internal sealed class SchedulerState
         }
     }
 
-    public IReadOnlyList<string> AvailableSchedulers { get; set; } = [];
+    /// <summary>
+    /// Every scheduler the container knows about, registrations that nothing has built included.
+    /// </summary>
+    /// <remarks>
+    /// The headers rather than the names, because whether a scheduler exists is the one thing a picker
+    /// has to know about a name it is offering: a registration nobody has built has nothing to show, and
+    /// omitting it would make the tenant look as if it had never been registered.
+    /// </remarks>
+    public IReadOnlyList<SchedulerHeaderDto> AvailableSchedulers { get; set; } = [];
+
+    /// <summary>
+    /// Whether a scheduler exists under <paramref name="schedulerName" />, as the last listing reported
+    /// it. A name the listing does not carry reads as created, so a page that was pointed at a scheduler
+    /// by hand is not told it does not exist.
+    /// </summary>
+    public bool IsCreated(string? schedulerName)
+    {
+        if (string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return false;
+        }
+
+        foreach (SchedulerHeaderDto scheduler in AvailableSchedulers)
+        {
+            if (string.Equals(scheduler.SchedulerName, schedulerName, StringComparison.OrdinalIgnoreCase))
+            {
+                return scheduler.IsCreated;
+            }
+        }
+
+        return true;
+    }
 
     public string SelectedTimeZoneId
     {

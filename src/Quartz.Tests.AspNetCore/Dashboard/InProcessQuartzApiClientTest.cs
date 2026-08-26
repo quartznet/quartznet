@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Services;
+using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
@@ -567,7 +568,7 @@ public class InProcessQuartzApiClientTest
     /// </summary>
     /// <remarks>
     /// In-process the scheduler here is backed by the in-memory store, so the honest answer is one node
-    /// with no check-in history — which is also the answer the Cluster page reads as "not clustered".
+    /// with no check-in history.
     /// </remarks>
     [Test]
     public async Task ClusterNodesComeFromTheScheduler()
@@ -592,6 +593,77 @@ public class InProcessQuartzApiClientTest
         }
     }
 
+    /// <summary>
+    /// The scheduler detail carries what the scheduler is made of, not only its name and its state.
+    /// </summary>
+    /// <remarks>
+    /// Everything <see cref="SchedulerMetadata" /> knows used to be dropped on the way to the UI, so the
+    /// dashboard could not say whether a scheduler was clustered, what store it used, or how many
+    /// threads it had. The values are read from the scheduler rather than assembled here, which is why
+    /// this asserts against its own metadata rather than against literals.
+    /// </remarks>
+    [Test]
+    public async Task TheSchedulerDetailCarriesTheMetadataTheSchedulerReports()
+    {
+        IScheduler scheduler = await CreateScheduler("SchedulerDetailTest");
+        try
+        {
+            await scheduler.Start();
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            SchedulerMetadata metadata = await scheduler.GetMetadata();
+            SchedulerDetailDto detail = await client.GetScheduler(scheduler.SchedulerName);
+
+            detail.SchedulerName.Should().Be(scheduler.SchedulerName);
+            detail.SchedulerInstanceId.Should().Be(scheduler.SchedulerInstanceId);
+            detail.Status.Should().Be(SchedulerStatus.Running);
+            detail.Clustered.Should().BeFalse("an in-memory store has no cluster to be part of");
+            detail.Persistent.Should().BeFalse();
+            detail.JobStoreTypeName.Should().Be(metadata.JobStoreTypeName);
+            detail.ThreadPoolTypeName.Should().Be(metadata.ThreadPoolTypeName);
+            detail.ThreadPoolSize.Should().Be(1, "the scheduler was built with one thread");
+            detail.RunningSince.Should().NotBeNull("the scheduler has been started");
+            detail.JobsExecuted.Should().Be(metadata.JobsExecuted);
+            detail.Version.Should().Be(metadata.Version);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// The listing is the registrations, so a tenant nothing has built is in it — with no status and no
+    /// instance id, because there is no scheduler to have either.
+    /// </summary>
+    [Test]
+    public async Task TheListingCarriesRegistrationsNothingHasBuilt()
+    {
+        IScheduler scheduler = await CreateScheduler("SchedulerListingTest");
+        try
+        {
+            InProcessQuartzApiClient client = CreateClient(scheduler, "acme");
+
+            List<SchedulerHeaderDto> schedulers = await client.GetSchedulers();
+
+            SchedulerHeaderDto built = schedulers.Should().ContainSingle(x => x.SchedulerName == scheduler.SchedulerName).Subject;
+            built.IsCreated.Should().BeTrue();
+            built.SchedulerInstanceId.Should().Be(scheduler.SchedulerInstanceId,
+                "the registration does not carry an instance id, so the repository is asked for the one "
+                + "scheduler that has one");
+
+            SchedulerHeaderDto registered = schedulers.Should().ContainSingle(x => x.SchedulerName == "acme").Subject;
+            registered.IsCreated.Should().BeFalse();
+            registered.Status.Should().BeNull("null is what says the registration is there and nothing has built it");
+            registered.SchedulerInstanceId.Should().BeNull("there is no scheduler to have one");
+            registered.Origin.Should().Be(SchedulerOrigin.Container);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
     private static async Task<IScheduler> CreateScheduler(string testName)
     {
         NameValueCollection properties = new()
@@ -603,14 +675,49 @@ public class InProcessQuartzApiClientTest
         return await QuartzSchedulerBuilder.Create().UseProperties(properties).BuildScheduler();
     }
 
-    private static InProcessQuartzApiClient CreateClient(IScheduler scheduler)
+    private static InProcessQuartzApiClient CreateClient(IScheduler scheduler, params string[] registeredButNotCreated)
     {
         SchedulerRepository repository = new();
         repository.Bind(scheduler);
         return new InProcessQuartzApiClient(
             repository,
+            new StubSchedulerRegistry(repository, registeredButNotCreated),
             Options.Create(new QuartzDashboardOptions()),
             new DashboardHistoryStore());
+    }
+
+    /// <summary>
+    /// A registry over a repository plus the names nothing has built, which is the shape
+    /// <c>ContainerSchedulerRegistry</c> answers with. The real one needs a container to be told what was
+    /// registered; what this client does with the answer is what these tests are about.
+    /// </summary>
+    private sealed class StubSchedulerRegistry : ISchedulerRegistry
+    {
+        private readonly ISchedulerRepository repository;
+        private readonly IReadOnlyList<string> registeredButNotCreated;
+
+        public StubSchedulerRegistry(ISchedulerRepository repository, IReadOnlyList<string> registeredButNotCreated)
+        {
+            this.repository = repository;
+            this.registeredButNotCreated = registeredButNotCreated;
+        }
+
+        public ValueTask<List<SchedulerRegistration>> QuerySchedulers(CancellationToken cancellationToken = default)
+        {
+            List<SchedulerRegistration> registrations = [];
+            foreach (IScheduler scheduler in repository.LookupAll())
+            {
+                registrations.Add(new SchedulerRegistration(scheduler.SchedulerName, SchedulerOrigin.Container, scheduler.Status));
+            }
+
+            foreach (string name in registeredButNotCreated)
+            {
+                registrations.Add(new SchedulerRegistration(name, SchedulerOrigin.Container, Status: null));
+            }
+
+            registrations.Sort(static (left, right) => string.CompareOrdinal(left.Name, right.Name));
+            return new ValueTask<List<SchedulerRegistration>>(registrations);
+        }
     }
 
     private sealed class NoOpJob : IJob

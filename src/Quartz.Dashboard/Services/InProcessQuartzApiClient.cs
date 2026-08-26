@@ -33,36 +33,62 @@ namespace Quartz.Dashboard.Services;
 internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 {
     private readonly ISchedulerRepository schedulerRepository;
+    private readonly ISchedulerRegistry schedulerRegistry;
     private readonly IOptions<QuartzDashboardOptions> options;
     private readonly IDashboardHistoryStore historyStore;
 
     public InProcessQuartzApiClient(
         ISchedulerRepository schedulerRepository,
+        ISchedulerRegistry schedulerRegistry,
         IOptions<QuartzDashboardOptions> options,
         IDashboardHistoryStore historyStore)
     {
         this.schedulerRepository = schedulerRepository;
+        this.schedulerRegistry = schedulerRegistry;
         this.options = options;
         this.historyStore = historyStore;
     }
 
-    public ValueTask<List<SchedulerHeaderDto>> GetSchedulers(CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// The registrations, not the repository: a tenant nothing has built yet is still a tenant, and the
+    /// dashboard is where an operator goes to find out that it has not started. The repository is asked
+    /// only for the instance id of the schedulers that do exist, which a registration does not carry.
+    /// </remarks>
+    public async ValueTask<List<SchedulerHeaderDto>> GetSchedulers(CancellationToken cancellationToken = default)
     {
-        List<IScheduler> schedulers = schedulerRepository.LookupAll();
-        List<SchedulerHeaderDto> result = [];
-        foreach (IScheduler scheduler in schedulers)
+        List<SchedulerRegistration> registrations = await schedulerRegistry.QuerySchedulers(cancellationToken).ConfigureAwait(false);
+
+        List<SchedulerHeaderDto> result = new(registrations.Count);
+        foreach (SchedulerRegistration registration in registrations)
         {
-            result.Add(new SchedulerHeaderDto(scheduler.SchedulerName, scheduler.SchedulerInstanceId, scheduler.Status));
+            IScheduler? scheduler = registration.IsCreated ? schedulerRepository.Lookup(registration.Name) : null;
+            result.Add(new SchedulerHeaderDto(
+                registration.Name,
+                scheduler?.SchedulerInstanceId,
+                registration.Status,
+                registration.Origin));
         }
 
-        return ValueTask.FromResult(result);
+        return result;
     }
 
-    public ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
+    public async ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        SchedulerDetailDto result = new(scheduler.SchedulerInstanceId, scheduler.SchedulerName, scheduler.Status);
-        return ValueTask.FromResult(result);
+        SchedulerMetadata metadata = await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false);
+
+        return new SchedulerDetailDto(
+            scheduler.SchedulerInstanceId,
+            scheduler.SchedulerName,
+            metadata.Status,
+            metadata.JobStoreClustered,
+            metadata.JobStorePersistent,
+            metadata.JobStoreTypeName,
+            metadata.ThreadPoolTypeName,
+            metadata.ThreadPoolSize,
+            metadata.RunningSince,
+            metadata.JobsExecuted,
+            metadata.Version);
     }
 
     public ValueTask StartScheduler(string schedulerName, CancellationToken cancellationToken = default)

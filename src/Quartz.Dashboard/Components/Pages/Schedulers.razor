@@ -1,0 +1,284 @@
+@page "/quartz/schedulers"
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Services
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject NavigationManager Navigation
+
+<div class="qz-page">
+    <div class="qz-page-header">
+        <h1>Schedulers</h1>
+        <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">
+            Every scheduler this process has registered, whether or not one has been built
+        </span>
+    </div>
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+
+    <table class="qz-table">
+        <thead>
+            <tr>
+                <th>Scheduler</th>
+                <th>Origin</th>
+                <th>Status</th>
+                <th>Job store</th>
+                <th>Threads</th>
+                <th>Running since</th>
+                <th>Jobs executed</th>
+                <th>Nodes</th>
+                <th>Version</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (_rows.Count == 0)
+            {
+                <tr>
+                    <td colspan="9" class="qz-muted">No schedulers registered.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (SchedulerRow row in _rows)
+                {
+                    <tr>
+                        <td>
+                            @if (row.Header.IsCreated)
+                            {
+                                <a href="@DashboardHref" @onclick="() => SelectAsync(row.Header.SchedulerName)" @onclick:preventDefault>@row.Header.SchedulerName</a>
+                            }
+                            else
+                            {
+                                @row.Header.SchedulerName
+                            }
+
+                            @if (row.Header.SchedulerInstanceId is { Length: > 0 } instanceId)
+                            {
+                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">@instanceId</div>
+                            }
+                        </td>
+                        <td>@row.Header.Origin.ToString()</td>
+                        <td>
+                            @if (row.Header.Status is { } status)
+                            {
+                                <SchedulerStatusIndicator Status="status" />
+                            }
+                            else
+                            {
+                                <StateIndicator State="Not created" />
+                            }
+
+                            @if (!string.IsNullOrWhiteSpace(row.Error))
+                            {
+                                <div class="qz-muted" style="font-size: var(--qz-font-size-xs);">@row.Error</div>
+                            }
+                        </td>
+                        <td>
+                            @if (row.Detail is { } jobStore)
+                            {
+                                <span title="@jobStore.JobStoreTypeName">@ShortTypeName(jobStore.JobStoreTypeName)</span>
+                                <span class="qz-tag">@(jobStore.Persistent ? "persistent" : "in-memory")</span>
+                                @if (jobStore.Clustered)
+                                {
+                                    <span class="qz-tag">clustered</span>
+                                }
+                            }
+                            else
+                            {
+                                @Dash
+                            }
+                        </td>
+                        <td>
+                            @if (row.Detail is { } threadPool)
+                            {
+                                <span title="@threadPool.ThreadPoolTypeName">@threadPool.ThreadPoolSize</span>
+                            }
+                            else
+                            {
+                                @Dash
+                            }
+                        </td>
+                        <td>
+                            @if (row.Detail?.RunningSince is { } runningSince)
+                            {
+                                @Scheduler.FormatInSelectedTimeZone(runningSince)
+                            }
+                            else
+                            {
+                                @Dash
+                            }
+                        </td>
+                        <td>
+                            @if (row.Detail is { } statistics)
+                            {
+                                @statistics.JobsExecuted
+                            }
+                            else
+                            {
+                                @Dash
+                            }
+                        </td>
+                        <td>
+                            @if (row.NodeCount is { } nodeCount)
+                            {
+                                @nodeCount
+                            }
+                            else
+                            {
+                                @Dash
+                            }
+                        </td>
+                        <td>
+                            @if (row.Detail is { } version)
+                            {
+                                @version.Version
+                            }
+                            else
+                            {
+                                @Dash
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    /// <summary>
+    /// What an absent value reads as. A scheduler nothing has built has no metadata to show, and a blank
+    /// cell reads as a rendering fault.
+    /// </summary>
+    private const string Dash = "—";
+
+    private readonly List<SchedulerRow> _rows = [];
+    private bool _isLoading = true;
+    private string? _error;
+
+    private string DashboardHref => DashboardLink.To(Options.Value, "");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            _rows.Clear();
+
+            List<SchedulerHeaderDto> schedulers = await Api.GetSchedulers();
+            Scheduler.AvailableSchedulers = schedulers.AsReadOnly();
+
+            foreach (SchedulerHeaderDto header in schedulers)
+            {
+                _rows.Add(await LoadRowAsync(header));
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// One registration's row: its metadata when a scheduler exists behind it, and its node count when
+    /// that scheduler's store is one that has nodes.
+    /// </summary>
+    /// <remarks>
+    /// A scheduler that cannot answer is reported in its own row rather than allowed to escape. This is
+    /// the fleet view, and one unreachable tenant must not be the reason an operator cannot see the
+    /// others.
+    /// </remarks>
+    private async Task<SchedulerRow> LoadRowAsync(SchedulerHeaderDto header)
+    {
+        if (!header.IsCreated)
+        {
+            return new SchedulerRow(header);
+        }
+
+        try
+        {
+            SchedulerDetailDto detail = await Api.GetScheduler(header.SchedulerName);
+
+            // Only a persistent, clustered store has a node table to read. A RAM store answers with the
+            // one node it is, which is a query per scheduler for an answer that is always "1".
+            int? nodeCount = null;
+            if (detail.Persistent && detail.Clustered)
+            {
+                List<ClusterNodeDto> nodes = await Api.GetClusterNodes(header.SchedulerName);
+                nodeCount = nodes.Count;
+            }
+
+            return new SchedulerRow(header) { Detail = detail, NodeCount = nodeCount };
+        }
+        catch (Exception ex)
+        {
+            return new SchedulerRow(header) { Error = ex.Message };
+        }
+    }
+
+    /// <summary>
+    /// Makes <paramref name="schedulerName" /> the scheduler the rest of the dashboard is about, and
+    /// opens its Dashboard page.
+    /// </summary>
+    private Task SelectAsync(string schedulerName)
+    {
+        Scheduler.ActiveSchedulerName = schedulerName;
+        Navigation.NavigateTo(DashboardHref);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The type's own name, with the full name kept as the cell's tooltip. A column of
+    /// assembly-qualified names is a column nobody can read.
+    /// </summary>
+    private static string ShortTypeName(string typeName)
+    {
+        int comma = typeName.IndexOf(',', StringComparison.Ordinal);
+        string withoutAssembly = comma < 0 ? typeName : typeName.Substring(0, comma);
+
+        int lastDot = withoutAssembly.LastIndexOf('.');
+        return lastDot < 0 ? withoutAssembly : withoutAssembly.Substring(lastDot + 1);
+    }
+
+    /// <summary>
+    /// One registration as the page shows it.
+    /// </summary>
+    private sealed record SchedulerRow(SchedulerHeaderDto Header)
+    {
+        /// <summary>
+        /// What the scheduler is made of, or null when nothing has built it or it could not answer.
+        /// </summary>
+        public SchedulerDetailDto? Detail { get; init; }
+
+        /// <summary>
+        /// How many nodes the cluster has, or null when the store keeps no node table.
+        /// </summary>
+        public int? NodeCount { get; init; }
+
+        /// <summary>
+        /// Why the scheduler could not be read, when it could not.
+        /// </summary>
+        public string? Error { get; init; }
+    }
+}

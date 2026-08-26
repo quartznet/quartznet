@@ -315,16 +315,40 @@ public static class TestData
 
         public static SchedulerHeaderDto SchedulerHeader(
             string schedulerName = SchedulerName,
-            SchedulerStatus status = SchedulerStatus.Running)
+            SchedulerStatus status = SchedulerStatus.Running,
+            SchedulerOrigin origin = SchedulerOrigin.Container)
         {
-            return new SchedulerHeaderDto(schedulerName, SchedulerInstanceId, status);
+            return new SchedulerHeaderDto(schedulerName, SchedulerInstanceId, status, origin);
+        }
+
+        /// <summary>
+        /// A registration nothing has built: no status, and so no instance id either.
+        /// </summary>
+        public static SchedulerHeaderDto RegisteredSchedulerHeader(
+            string schedulerName,
+            SchedulerOrigin origin = SchedulerOrigin.Container)
+        {
+            return new SchedulerHeaderDto(schedulerName, SchedulerInstanceId: null, Status: null, origin);
         }
 
         public static SchedulerDetailDto SchedulerDetail(
             SchedulerStatus status = SchedulerStatus.Running,
-            string schedulerName = SchedulerName)
+            string schedulerName = SchedulerName,
+            bool clustered = false,
+            bool persistent = false)
         {
-            return new SchedulerDetailDto(SchedulerInstanceId, schedulerName, status);
+            return new SchedulerDetailDto(
+                SchedulerInstanceId,
+                schedulerName,
+                status,
+                Clustered: clustered,
+                Persistent: persistent,
+                JobStoreTypeName: persistent ? "Quartz.Impl.AdoJobStore.LocalTransactionJobStore" : "Quartz.Simpl.RAMJobStore",
+                ThreadPoolTypeName: "Quartz.Simpl.DefaultThreadPool",
+                ThreadPoolSize: 10,
+                RunningSince: status == SchedulerStatus.Running ? FiredAt : null,
+                JobsExecuted: 42,
+                Version: "4.0.0.0");
         }
 
         /// <summary>
