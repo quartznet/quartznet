@@ -793,11 +793,16 @@ puts it correctly: allowing users to define whatever job they want "effectively 
 all sorts of vulnerabilities comparable/equivalent to Command Injection Attacks as defined by OWASP
 and MITRE". Offer a fixed set of job types and validate their parameters.
 
-The same caution applies to the management surfaces. The dashboard has a single authorization policy
-and a single read-only flag, and 4.x's HTTP API serves every scheduler in the container behind one
-uniformly applied policy. There is no per-scheduler policy; if different people should reach
-different schedulers, enforce that outside Quartz.NET. See
-[Tenancy Patterns](tenancy-patterns.md#what-quartz-net-does-not-give-you).
+The same caution applies to the management surfaces. On 3.x the dashboard has a single authorization
+policy and a single read-only flag, and there is no per-scheduler policy: if different people should
+reach different schedulers, enforce that outside Quartz.NET. On 4.x both surfaces take a
+`SchedulerAuthorizationPolicy` — `QuartzDashboardOptions` and `QuartzHttpApiOptions` — evaluated per
+request against a `SchedulerResource` naming the scheduler, so one
+`AuthorizationHandler<TRequirement, SchedulerResource>` holds each caller to its own scheduler. What
+a caller may *do* to the scheduler it reaches is still process-wide, through the dashboard's read-only
+flag. See
+[Authorizing a tenant on its own scheduler](quartz-4.x/multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler)
+and [Tenancy Patterns](tenancy-patterns.md#what-quartz-net-does-not-give-you).
 
 ## What to watch
 

@@ -453,13 +453,34 @@ a total outage.
 
 `QuartzHttpApiOptions` supports:
 
-- `ApiPath` (default: `/quartz-api`) - base path for all API endpoints
-- `IncludeStackTraceInProblemDetails` (default: `false`) - includes stack traces in RFC 7807 error payloads
+| Option | Default | What it does |
+|---|---|---|
+| `ApiPath` | `/quartz-api` | The base path every endpoint is served under — see [Where the API is served](#where-the-api-is-served) |
+| `IncludeStackTraceInProblemDetails` | `false` | Adds `Quartz-ExceptionStackTrace` to RFC 7807 error payloads |
+| `SchedulerAuthorizationPolicy` | none | The policy every route that names a scheduler is held to, evaluated against that scheduler — see [Authorizing per scheduler](#authorizing-per-scheduler) |
 
 There is one set of these per process, not one per scheduler: `ApiPath` describes the endpoints, and
 every scheduler is reached under it. Calling `services.AddQuartzHttpApi(configure)` twice therefore
 configures the same options twice, and the callback registered last wins for any setting both of them
 touch.
+
+### Authorizing per scheduler
+
+`RequireAuthorization(...)` on what `MapQuartzHttpApi()` returns covers the whole API uniformly, which is
+the right shape when everyone who reaches the API may reach every scheduler in the process. When they may
+not, name a policy in `SchedulerAuthorizationPolicy` and it is evaluated per request as
+`IAuthorizationService.AuthorizeAsync(user, new SchedulerResource(name), policy)`, against the
+`{schedulerName}` the route carries. A caller who fails gets `403` with problem details,
+decided **before** the scheduler is looked up — so a `404` only ever answers a name the caller was allowed
+to ask about — and `GET {ApiPath}/schedulers` is filtered to the schedulers they may act on. The
+application writes one `AuthorizationHandler<TRequirement, SchedulerResource>`; Quartz supplies the
+resource and asks. `QuartzDashboardOptions.SchedulerAuthorizationPolicy` takes the same policy against the
+same resource, so one handler answers for both. The worked example, with the handler, is in
+[Multi-tenancy](../multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler).
+
+Setting it in a container with no authorization services fails at startup. The check is authorization and
+never authentication: an anonymous caller gets whatever the policy says, which is a `403` when it refuses,
+so keep `RequireAuthorization()` on the mapped group if they should be challenged with a `401` first.
 
 ## Calling it from .NET
 

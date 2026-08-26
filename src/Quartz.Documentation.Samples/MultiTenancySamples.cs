@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -320,6 +321,51 @@ public static class MultiTenancySamples
 
         await tenantFactory.DisposeAsync();
         app.Services.GetRequiredService<ISchedulerRepository>().Remove(tenantId);
+
+        #endregion
+    }
+
+    #region sample_tenancy_scheduler_authorization_handler
+
+    // What "may act on this scheduler" means is the application's to decide, so the requirement itself
+    // says nothing and the handler says everything.
+    public sealed class SchedulerOwnerRequirement : IAuthorizationRequirement;
+
+    public sealed class SchedulerOwnerHandler : AuthorizationHandler<SchedulerOwnerRequirement, SchedulerResource>
+    {
+        protected override Task HandleRequirementAsync(
+            AuthorizationHandlerContext context,
+            SchedulerOwnerRequirement requirement,
+            SchedulerResource resource)
+        {
+            string? tenant = context.User.FindFirst("tenant")?.Value;
+
+            // Scheduler names are compared ignoring case everywhere else in Quartz, so compare them that
+            // way here too - otherwise "Acme" and "acme" are the same scheduler and different tenants.
+            if (string.Equals(tenant, resource.SchedulerName, StringComparison.OrdinalIgnoreCase))
+            {
+                context.Succeed(requirement);
+            }
+
+            return Task.CompletedTask;
+        }
+    }
+
+    #endregion
+
+    public static void SchedulerAuthorization(IHostApplicationBuilder builder)
+    {
+        #region sample_tenancy_scheduler_authorization
+
+        builder.Services.AddAuthorizationBuilder()
+            .AddPolicy("SchedulerOwner", policy => policy.AddRequirements(new SchedulerOwnerRequirement()));
+
+        builder.Services.AddSingleton<IAuthorizationHandler, SchedulerOwnerHandler>();
+
+        // One policy, one handler, both surfaces: the API answers 403 for a scheduler the caller fails
+        // for, and the dashboard offers them only the schedulers they pass for.
+        builder.Services.AddQuartzHttpApi(options => options.SchedulerAuthorizationPolicy = "SchedulerOwner");
+        builder.Services.AddQuartzDashboard(options => options.SchedulerAuthorizationPolicy = "SchedulerOwner");
 
         #endregion
     }
