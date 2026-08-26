@@ -14,10 +14,20 @@ namespace Quartz.Tests.Unit;
 /// for — the same job <c>SourceEncodingTest</c> does for byte-order marks.
 /// </para>
 /// <para>
-/// The four packages #3414 names are covered, and so is <c>Quartz.AspNetCore</c>. The rest of what
-/// ships joins <see cref="Converted" /> with the sweep that finishes it; tests, examples and the
-/// documentation samples are deliberately never covered, because a plain call is the right thing to
-/// write in all three.
+/// Every packable project under <c>src/</c> is covered, which
+/// <see cref="EveryPackableProjectIsCovered" /> is what keeps true: a package that ships is a package
+/// whose messages an operator has to be able to filter, so a new one joins <see cref="Converted" /> on
+/// the day it is added rather than on the day somebody notices. <c>CA1848</c> guards the same boundary
+/// from the compiler's side, which is what catches a call in a <c>.razor</c> file that this scan of
+/// <c>.cs</c> files does not see.
+/// </para>
+/// <para>
+/// Nothing that does not ship is covered, and that is deliberate rather than unfinished.
+/// <c>Quartz.Examples*</c> and <c>Quartz.Documentation.Samples</c> are application code shown to a
+/// reader, and application code logs with <c>logger.LogInformation(…)</c> — a sample that routed its
+/// one message through a generated class would be teaching the wrong lesson about how to use Quartz.
+/// <c>Quartz.Server</c>, <c>Quartz.Benchmark</c>, <c>Quartz.Trimming.Canary</c> and the test projects
+/// have no operator to serve at all.
 /// </para>
 /// </remarks>
 public class LogCallSiteTest
@@ -29,9 +39,13 @@ public class LogCallSiteTest
     [
         "src/Quartz",
         "src/Quartz.AspNetCore",
+        "src/Quartz.Dashboard",
         "src/Quartz.Extensions.Redis",
+        "src/Quartz.HttpClient",
         "src/Quartz.Jobs",
         "src/Quartz.Plugins",
+        "src/Quartz.Plugins.TimeZoneConverter",
+        "src/Quartz.Serialization.Newtonsoft",
     ];
 
     /// <summary>
@@ -128,6 +142,36 @@ public class LogCallSiteTest
                 $"{path} is on the allow-list because {reason}. It no longer calls ILogger directly, so the "
                 + "entry excuses nothing and should be deleted before it starts excusing something else");
         }
+    }
+
+    /// <summary>
+    /// A package that ships is a package whose log messages somebody operates on, so the list of covered
+    /// projects is the list of packable ones and nothing less.
+    /// </summary>
+    /// <remarks>
+    /// Without this, a package added after the conversion would ship unguarded — and it would look
+    /// exactly like a package with nothing to convert, because both spend their whole life passing every
+    /// other test in this file. A project that packs nothing is not covered and does not need to be.
+    /// </remarks>
+    [Test]
+    public void EveryPackableProjectIsCovered()
+    {
+        DirectoryInfo root = RepositoryRoot.Find();
+
+        List<string> packable = ShippedProjects.Find()
+            .Select(x => Path.GetRelativePath(root.FullName, x.DirectoryName!).Replace('\\', '/'))
+            .ToList();
+
+        packable.Should().BeSubsetOf(Converted,
+            "every package that ships logs to somebody who has to filter it, so its call sites are covered "
+            + "from the day the package exists. A new package joins the Converted list with its own *Log "
+            + "class and an event id range in LogEventCatalogTest; one that logs nothing joins with neither, "
+            + "and stays honest the day it starts logging");
+
+        Converted.Should().BeSubsetOf(packable,
+            "a project that ships nothing has no operator to serve, and covering one would say that the "
+            + "examples and the documentation samples should stop writing the plain call this repository "
+            + "teaches readers to write");
     }
 
     private static IEnumerable<FileInfo> Discover(DirectoryInfo directory)

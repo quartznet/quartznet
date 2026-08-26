@@ -16,4 +16,24 @@
     <AdditionalFiles Include="$(MSBuildThisFileDirectory)Analyzers/BannedSymbols.txt" Link="BannedSymbols.txt" />
   </ItemGroup>
 
+  <!--
+    CA1848 - "use the LoggerMessage delegates" - is on for every assembly we ship, and off for the ones
+    we do not. A shipped package's messages are somebody's production log, so they go through a
+    source-generated [LoggerMessage] method with an event id (#3414); LogCallSiteTest guards the same
+    boundary from the source side, and CA1848 is what catches a call the compiler sees and that scan
+    does not.
+
+    The examples and the documentation samples are the reason for the exception rather than a leftover.
+    They are application code shown to a reader, and application code logs with
+    logger.LogInformation(...) - a sample that routed its one message through a generated class would be
+    teaching the wrong lesson about how to use Quartz. Quartz.Server, the benchmarks, the trimming canary
+    and the test projects have no operator to serve at all.
+
+    $(IsPackable) is how this repository marks the projects that ship, and it is not final until the
+    project body has been evaluated, which is why this is here and not in Directory.Build.props.
+  -->
+  <PropertyGroup Condition="'$(IsPackable)' != 'true'">
+    <NoWarn>$(NoWarn);CA1848</NoWarn>
+  </PropertyGroup>
+
 </Project>

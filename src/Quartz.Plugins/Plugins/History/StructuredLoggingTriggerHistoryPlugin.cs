@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
+
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
@@ -45,6 +47,10 @@ namespace Quartz.Plugins.History;
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
+[SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification =
+    "Same as StructuredLoggingJobHistoryPlugin: the configured template's named placeholders are the plugin's "
+    + "reason to exist, and they cannot survive a compile-time template. Every call is already behind an "
+    + "IsEnabled check. LogCallSiteTest.Allowed records the same decision from the source side.")]
 public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
 {
     private readonly ILogger<StructuredLoggingTriggerHistoryPlugin> logger;

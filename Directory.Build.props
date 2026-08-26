@@ -63,9 +63,6 @@
     <!-- Do not declare static members on generic types -->
     <NoWarn>$(NoWarn);CA1000</NoWarn>
 
-    <!-- For improved performance, use the LoggerMessage delegates -->
-    <NoWarn>$(NoWarn);CA1848</NoWarn>
-
     <!-- Rename type name X so that it does not end in 'Delegate', 'EventHandler', 'Permission' etc -->
     <NoWarn>$(NoWarn);CA1711</NoWarn>
 
