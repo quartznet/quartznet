@@ -7046,7 +7046,36 @@ is built:
   not by the `EndingDailyAfterCount` call. A count that is not positive is still rejected immediately.
 
 `DailyTimeIntervalScheduleBuilder.Create()` takes no `TimeProvider` — none of the schedule builders
-do; the clock belongs to `TriggerBuilder.Create(TimeProvider?)`.
+do; the clock belongs to `TriggerBuilder.Create(TimeProvider?)`, and it reaches the trigger itself as
+well as the schedule — see [A trigger holds the clock that built it](#a-trigger-holds-the-clock-that-built-it).
+
+## A trigger holds the clock that built it
+
+3.x had one clock. `SystemTime.UtcNow` was a process-wide hook, so a trigger, the store that swept it
+up and the scheduler that fired it could not disagree about what time it was. 4.x replaced it with
+`TimeProvider`, which is an object rather than a hook — which means each trigger *has* a clock, and it
+matters where it got one.
+
+It gets one from whoever produced it:
+
+* `TriggerBuilder.Create(clock)...Build()` gives the built trigger that clock. Previously it used the
+  clock only for the default start time and for the schedule builder's own arithmetic, and the trigger
+  itself was left on `TimeProvider.System` — so the past-due clamp in `ComputeFirstFireTimeUtc` and the
+  whole of `UpdateAfterMisfire` read the machine's wall clock. `TriggerBuilder.Create()` with no
+  argument still means `TimeProvider.System`.
+* `trigger.GetTriggerBuilder()` carries the trigger's clock into the rebuilt trigger.
+* A job store hands its scheduler's clock to every trigger it materializes. `RAMJobStore` hands back
+  the object it was given, clock and all; the ADO.NET store builds triggers from rows and stamps each
+  one — the blob path included, since the clock does not serialize.
+
+In production every one of these is `TimeProvider.System` and nothing looks different. It shows up in a
+scheduler configured with a `FakeTimeProvider`: a misfire that the store *selected* on the test's clock
+used to be *recovered* onto the machine's, which is the ADO.NET half of what
+[#3456](https://github.com/quartznet/quartznet/issues/3456) reported.
+
+The clock is not part of a trigger's public surface. It is a construction-or-store decision, because
+the decision that a trigger has misfired and the arithmetic that recovers it have to be made against
+one reading of "now".
 
 ## `InTimeZone` is nullable everywhere
 

@@ -68,6 +68,10 @@ scheduled.
 `TriggerBuilder.Create()` with no argument defaults its start time to the **wall clock**, even inside a
 test holding a `FakeTimeProvider`. Pass the clock — `TriggerBuilder.Create(clock)` — and set `StartAt`
 explicitly. See [Time and TimeProvider](time-and-timeprovider.md#the-trap-triggers-built-outside-the-container).
+
+Passing the clock is enough: the built trigger keeps it, so every "now" it reads afterwards — a cron
+trigger's past-due clamp in `ComputeFirstFireTimeUtc`, and the whole of `UpdateAfterMisfire` — is the
+clock you passed rather than the machine's.
 :::
 
 Calendars are testable the same way: `ICalendar.IsTimeIncluded(when)` needs nothing but the calendar.

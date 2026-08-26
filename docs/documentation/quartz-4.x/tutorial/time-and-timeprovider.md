@@ -93,10 +93,11 @@ TriggerBuilder.Create(TimeProvider? timeProvider = null);
 TriggerBuilder.Create<TJob>(TimeProvider? timeProvider = null);
 ```
 
-Inside the builder it does three things: it is the default `StartTimeUtc` when you do not call
-`StartAt`, it is what `StartNow()` reads, and it is handed to the schedule builder at `Build()` time so
+Inside the builder it does four things: it is the default `StartTimeUtc` when you do not call
+`StartAt`, it is what `StartNow()` reads, it is handed to the schedule builder at `Build()` time so
 that a schedule computed there — `DailyTimeIntervalScheduleBuilder.EndingDailyAfterCount(n)` is the one
-that does this — is computed against the same clock.
+that does this — is computed against the same clock, and it is handed to the trigger itself, which
+keeps it. See [Which clock a trigger holds](#which-clock-a-trigger-holds).
 
 The five schedule builders take **no** clock:
 
@@ -178,12 +179,34 @@ ITrigger trigger = TriggerBuilder.Create(fakeClock)
 An explicit `StartAt` sidesteps the question entirely, which is why it is worth being explicit in tests
 even when you would not bother in production code.
 
+## Which clock a trigger holds
+
+A trigger does not go looking for a clock; it is given one, and it keeps it. Everything it later reads
+as "now" — the past-due clamp in `ComputeFirstFireTimeUtc`, and the whole of `UpdateAfterMisfire` — is
+that clock.
+
+| A trigger produced by | holds |
+|---|---|
+| `TriggerBuilder.Create(clock)` | `clock` |
+| `TriggerBuilder.Create()` | `TimeProvider.System` |
+| `AddTrigger<TJob>` / `ScheduleJob<T>` in DI configuration | the scheduler's `TimeProvider` |
+| `trigger.GetTriggerBuilder().Build()` | whatever `trigger` held |
+| `new CronTriggerImpl(clock)` and its siblings | `clock`, or `TimeProvider.System` when omitted |
+| a job store reading it back | the clock that store's scheduler runs on |
+
+The last row is the one that is easy to miss. `RAMJobStore` hands back the very object it was given, so
+a trigger stored there keeps whatever built it. The ADO.NET store has only rows, so it builds a trigger
+afresh on every read and gives it the store's clock — including a trigger deserialized from
+`BLOB_TRIGGERS`, whose clock cannot have survived the round trip because the field does not serialize.
+
+That is what keeps a misfire honest. The store decides a trigger has misfired by its own clock; the
+trigger computes the recovery. Both readings have to come from the same place, or a scheduler on a
+`FakeTimeProvider` recovers a 2024 misfire onto today.
+
 ::: warning
-Constructing a trigger implementation directly —
-`new SimpleTriggerImpl(timeProvider)`, `new CronTriggerImpl(name, group, expression, timeProvider)` and
-their siblings — takes a `TimeProvider?` that defaults to `TimeProvider.System`. The parameter is also
-not serialized: a trigger read back out of a job store reads the system clock until the store hands it
-one.
+The clock is not part of a trigger's public surface — there is no `ITrigger.TimeProvider` to read or
+assign. It is decided when the trigger is constructed, or by the store that materialized it, and
+nothing else changes it.
 :::
 
 ## Time zones are a separate axis
