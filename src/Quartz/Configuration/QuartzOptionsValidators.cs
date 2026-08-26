@@ -1,3 +1,7 @@
+using System.Collections.Frozen;
+using System.Reflection;
+
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Quartz.Configuration;
@@ -115,6 +119,203 @@ internal sealed class DefaultSchedulerNameValidator : IValidateOptions<QuartzSch
             + "is also registered, and two schedulers cannot share a name — the repository indexes them by "
             + "name, ignoring case. Give the default scheduler a different InstanceName, or move what "
             + "AddQuartz() configures onto the named scheduler and register only that one.");
+    }
+}
+
+/// <summary>
+/// Refuses a registered job type whose constructor takes one of a scheduler's own parts.
+/// </summary>
+/// <remarks>
+/// <para>
+/// A job type the container holds is built by the <em>container</em>, which resolves constructor
+/// parameters without a service key — so a job on scheduler <c>acme</c> taking an
+/// <see cref="ISchedulerFactory"/> is handed the default scheduler's, and in a container holding only
+/// named schedulers cannot be built at all. A job type the container does not hold is activated by the
+/// job factory through <see cref="SchedulerScopedServiceProvider"/> and is handed its own scheduler's
+/// parts. Registering a job — the documented, recommended thing to do — therefore changed which
+/// scheduler's collaborators it saw, and nothing about the job said which path it was on.
+/// </para>
+/// <para>
+/// The rule this enforces is the one the documentation already gives: a registered job does not take a
+/// scheduler's parts by constructor. It reads the scheduler running it from
+/// <see cref="IJobExecutionContext.Scheduler"/>, the firing from
+/// <see cref="IJobExecutionContextAccessor"/>, and where it genuinely has to be <em>constructed</em>
+/// with something of its scheduler's it is registered with <c>AddJobType&lt;T&gt;(factory)</c> and
+/// resolves that part by key inside the factory — which is why a registration that builds the job with
+/// a factory, or hands one over ready made, is not examined here.
+/// </para>
+/// <para>
+/// Every public constructor is examined rather than the one the container would pick. Which one that is
+/// depends on what else the container holds, since a constructor is only chosen when every parameter of
+/// it can be resolved: a job whose clean constructor is chosen today is chosen differently the moment an
+/// unrelated registration appears, and the trap would be back without the job having changed. A job that
+/// must not be built with a scheduler's parts therefore does not declare a constructor taking them.
+/// </para>
+/// <para>
+/// It runs wherever <see cref="QuartzSchedulerOptions"/> are created for a scheduler, which on a host is
+/// <c>ValidateOnStart</c> and in a container built by <see cref="QuartzSchedulerBuilder"/> — where
+/// nothing runs the startup validation — is when the scheduler is first built.
+/// </para>
+/// </remarks>
+internal sealed class RegisteredJobConstructorValidator : IValidateOptions<QuartzSchedulerOptions>
+{
+    /// <summary>
+    /// The service types belonging to one scheduler rather than to the container.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="SchedulerScopedServiceProvider"/>'s own list, so the two cannot drift apart, plus
+    /// <see cref="IScheduler"/> — registered per scheduler but resolved by key rather than through that
+    /// wrapper — plus every shape of the options types a scheduler owns, whose unnamed members read the
+    /// default scheduler's instance.
+    /// </para>
+    /// <para>
+    /// <see cref="TimeProvider"/> is deliberately absent although the wrapper routes it too: a scheduler
+    /// given no clock of its own inherits the container's, injecting one is what the rest of this
+    /// repository asks code to do rather than reading a clock statically, and refusing it would cost far
+    /// more than the case it would catch.
+    /// </para>
+    /// </remarks>
+    private static readonly FrozenSet<Type> schedulerParts = SchedulerParts();
+
+    private readonly RegisteredJobTypes jobTypes;
+    private readonly IEnumerable<SchedulerNamedOptions> pluginOptions;
+    private HashSet<Type>? declaredPluginOptions;
+
+    public RegisteredJobConstructorValidator(
+        RegisteredJobTypes jobTypes,
+        IEnumerable<SchedulerNamedOptions> pluginOptions)
+    {
+        this.jobTypes = jobTypes;
+        this.pluginOptions = pluginOptions;
+    }
+
+    public ValidateOptionsResult Validate(string? name, QuartzSchedulerOptions options)
+    {
+        List<string>? failures = null;
+        string schedulerName = name ?? Options.DefaultName;
+
+        foreach (ServiceDescriptor registration in jobTypes.Registrations(schedulerName))
+        {
+            Type? implementationType = RegisteredJobTypes.ImplementationType(registration);
+            if (implementationType is null)
+            {
+                continue;
+            }
+
+            foreach (ConstructorInfo constructor in implementationType.GetConstructors())
+            {
+                foreach (ParameterInfo parameter in constructor.GetParameters())
+                {
+                    if (!IsSchedulerPart(parameter.ParameterType))
+                    {
+                        continue;
+                    }
+
+                    string failure = Failure(schedulerName, registration.ServiceType, implementationType, parameter);
+
+                    // Two constructors can take the same part under the same name, and the report names
+                    // the job and the parameter rather than which constructor it was found on.
+                    failures ??= [];
+                    if (!failures.Contains(failure))
+                    {
+                        failures.Add(failure);
+                    }
+                }
+            }
+        }
+
+        return QuartzSchedulerOptionsValidator.Result(failures);
+    }
+
+    private static FrozenSet<Type> SchedulerParts()
+    {
+        HashSet<Type> parts = [.. SchedulerScopedServiceProvider.SchedulerScopedServiceTypes, typeof(IScheduler)];
+
+        foreach (Type optionsService in SchedulerScopedServiceProvider.DeclareQuartzOptions().Keys)
+        {
+            parts.Add(optionsService);
+        }
+
+        return FrozenSet.ToFrozenSet(parts);
+    }
+
+    private bool IsSchedulerPart(Type parameterType)
+    {
+        return schedulerParts.Contains(parameterType) || IsPluginOptions(parameterType);
+    }
+
+    /// <summary>
+    /// Whether the parameter is one shape of an options type a plugin declared as its scheduler's.
+    /// </summary>
+    /// <remarks>
+    /// The static set cannot list these: the type comes from the plugin rather than from Quartz.
+    /// <c>AddPlugin&lt;T, TOptions&gt;</c> registers a declaration instead, and a declaration names the
+    /// same three closed generic services <see cref="SchedulerScopedServiceProvider"/> answers.
+    /// </remarks>
+    private bool IsPluginOptions(Type parameterType)
+    {
+        // Every options service is a closed generic over IOptions<>, IOptionsMonitor<> or
+        // IOptionsSnapshot<>, so anything else is turned away before the declarations are read.
+        if (!parameterType.IsConstructedGenericType)
+        {
+            return false;
+        }
+
+        return (declaredPluginOptions ??= DeclarePluginOptions()).Contains(parameterType);
+    }
+
+    private HashSet<Type> DeclarePluginOptions()
+    {
+        Dictionary<Type, Func<IServiceProvider, string, object>> declared = [];
+
+        foreach (SchedulerNamedOptions options in pluginOptions)
+        {
+            options.DeclareInto(declared);
+        }
+
+        return [.. declared.Keys];
+    }
+
+    private static string Failure(
+        string schedulerName,
+        Type jobType,
+        Type implementationType,
+        ParameterInfo parameter)
+    {
+        string scheduler = string.IsNullOrEmpty(schedulerName)
+            ? "the default scheduler"
+            : $"scheduler '{schedulerName}'";
+
+        string built = implementationType == jobType ? "" : $", built as {TypeName(implementationType)},";
+
+        return $"Job type {TypeName(jobType)}{built} is registered on {scheduler}, and its constructor takes "
+            + $"{TypeName(parameter.ParameterType)} {parameter.Name} — a part that belongs to one scheduler. "
+            + "A registered job type is built by the container, which resolves constructor parameters without "
+            + "a scheduler's service key: what the job is handed is the unkeyed registration — the default "
+            + "scheduler's — whichever scheduler the job belongs to, and in a container holding only named "
+            + "schedulers there is no unkeyed registration to hand it. Read the scheduler running the job from "
+            + "IJobExecutionContext.Scheduler, take IJobExecutionContextAccessor for the firing it is part of, "
+            + $"or register the job with AddJobType<{TypeName(jobType)}>(provider => ...) and resolve the part "
+            + "by key inside that factory.";
+    }
+
+    /// <summary>
+    /// A type as it is spelled in source, one level of generic arguments deep — which is as deep as
+    /// <c>IOptions&lt;QuartzSchedulerOptions&gt;</c>, the only generic shape that reaches here, goes.
+    /// </summary>
+    private static string TypeName(Type type)
+    {
+        if (!type.IsConstructedGenericType)
+        {
+            return type.Name;
+        }
+
+        string name = type.Name;
+        int arity = name.IndexOf('`', StringComparison.Ordinal);
+        string[] arguments = Array.ConvertAll(type.GetGenericArguments(), static argument => argument.Name);
+
+        return $"{(arity < 0 ? name : name[..arity])}<{string.Join(", ", arguments)}>";
     }
 }
 
