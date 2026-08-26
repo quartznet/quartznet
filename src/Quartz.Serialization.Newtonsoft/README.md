@@ -34,6 +34,19 @@ The same `UseNewtonsoftJsonSerializer` call configures a store built without a h
 `StoreJobDataAsStrings` is worth setting whichever serializer you use: it keeps job data out of the
 serializer altogether, which is what avoids surprises when a persisted type later changes shape.
 
+## Trimming
+
+This package is deliberately **not** trimmable, and does not declare `IsTrimmable`. Json.NET decides what
+a type looks like by reflecting over it — a contract resolver reads the members of whatever it is handed
+and constructs it — and there is no source-generated form of that to move to. Marking the package
+trimmable would tell the trimmer it may remove members that a job data map is about to be deserialized
+into, and the failure would arrive at run time when a job fires.
+
+Publish trimmed or native AOT with the System.Text.Json serializer instead, which is built into the
+`Quartz` package and is the default. It carries a source-generated contract for everything a job store
+writes, and `SystemTextJsonSerializerRegistry.AddTypeInfoResolver` is where an application's own job data
+value types are declared.
+
 ## Documentation
 
 <https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/json-serialization.html>

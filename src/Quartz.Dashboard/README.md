@@ -41,6 +41,18 @@ Execution-history views stay empty until the scheduler records history: add
 `q.UseJobHistoryLogging()` and `q.UseTriggerHistoryLogging()` from
 [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins).
 
+## Trimming
+
+This package is deliberately **not** trimmable, and does not declare `IsTrimmable`. Blazor Server is a
+reflective framework: a component's `[Parameter]` properties are set by name from the render tree, the
+router finds page components by type, and grids, event callbacks and the SignalR hub proxy all bind
+members that nothing statically references. That is the framework's model rather than anything this
+package could resolve, and the Blazor packages themselves are not marked trimmable either.
+
+An application that publishes trimmed or native AOT therefore does so without the dashboard. `Quartz`,
+`Quartz.AspNetCore` and the HTTP API are trimmable, so a trimmed service can still be driven remotely —
+by the API, or by a dashboard hosted in a separate application.
+
 ## Documentation
 
 The full guide covers custom paths and reverse proxies, authorization, integrating into an existing

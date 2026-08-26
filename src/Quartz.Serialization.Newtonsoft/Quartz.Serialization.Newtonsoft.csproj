@@ -7,6 +7,21 @@
     <Description>Quartz.NET JSON Serialization Support; $(Description)</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!--
+      Not trimmable, said out loud rather than left to the default (issue #3431). Json.NET's contract is
+      reflection: a contract resolver walks the type it is handed, reads its members and constructs it,
+      and there is no source-generated form of that to move to — which is the difference between this
+      serializer and the System.Text.Json one built into Quartz, where a generated context names every
+      blob a store writes. Turned on, the analyzers report 16 trim warnings here, and every one of them
+      is that same fact arriving by a different route; a baseline of them would record the design of the
+      dependency rather than anything this package could fix.
+
+      An application that publishes trimmed uses the System.Text.Json serializer. This package stays for
+      the database that already has Json.NET's output in it, and marking it IsTrimmable would tell a
+      trimmer it may cut into the types a job data map is about to be deserialized into. README.md says
+      the same thing for anyone reading on nuget.org.
+    -->
+    <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
 
   <ItemGroup>
