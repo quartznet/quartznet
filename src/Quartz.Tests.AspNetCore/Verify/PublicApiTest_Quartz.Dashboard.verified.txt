@@ -390,6 +390,7 @@ namespace Quartz
         public int HistoryMaxEntriesPerScheduler { get; set; }
         public System.TimeSpan HistoryRetention { get; set; }
         public bool ReadOnly { get; set; }
+        public string? SchedulerAuthorizationPolicy { get; set; }
     }
     public static class QuartzDashboardServiceCollectionExtensions
     {

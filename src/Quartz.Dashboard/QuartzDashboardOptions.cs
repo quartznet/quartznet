@@ -44,6 +44,28 @@ public sealed class QuartzDashboardOptions
 
     public string? AuthorizationPolicy { get; set; }
 
+    /// <summary>
+    /// The authorization policy each scheduler is held to, evaluated against a
+    /// <see cref="SchedulerResource" /> carrying that scheduler's name. Null — the default — leaves the
+    /// dashboard as it was: whoever passes <see cref="AuthorizationPolicy" /> sees every scheduler in the
+    /// process.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set it and the scheduler picker offers only the schedulers the visitor passes for, a page opened on
+    /// one they do not says so without reading anything, and the live-events hub refuses to subscribe them
+    /// to it. The two policies compose: <see cref="AuthorizationPolicy" /> decides who reaches the
+    /// dashboard at all, this one decides which schedulers they see once they are in, and
+    /// <see cref="ReadOnly" /> still decides what anyone may change.
+    /// </para>
+    /// <para>
+    /// It is the same policy and the same resource the HTTP API's
+    /// <c>QuartzHttpApiOptions.SchedulerAuthorizationPolicy</c> evaluates, so one
+    /// <c>AuthorizationHandler&lt;TRequirement, SchedulerResource&gt;</c> answers for both surfaces.
+    /// </para>
+    /// </remarks>
+    public string? SchedulerAuthorizationPolicy { get; set; }
+
     public bool ReadOnly { get; set; }
 
     /// <summary>

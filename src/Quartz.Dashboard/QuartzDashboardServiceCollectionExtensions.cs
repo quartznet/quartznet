@@ -78,6 +78,7 @@ public static class QuartzDashboardServiceCollectionExtensions
             provider.GetRequiredService<IOptions<QuartzDashboardOptions>>(),
             provider.GetRequiredService<IDashboardHistoryStore>()));
         services.TryAddScoped<SchedulerState>();
+        services.TryAddScoped<SchedulerAuthorization>();
         services.TryAddScoped<ToastService>();
         services.TryAddSingleton<IDashboardLiveConnectionFactory, SignalRDashboardLiveConnectionFactory>();
         // The store measures its retention window on the scheduler's clock, and falls back to the system

@@ -2,7 +2,9 @@
 @using Microsoft.JSInterop
 @using Quartz.Dashboard.Components.Shared
 @using Quartz.Dashboard.Services
+@implements IDisposable
 @inject Quartz.Dashboard.Services.SchedulerState SchedulerState
+@inject Quartz.Dashboard.Services.SchedulerAuthorization Authorization
 @inject Microsoft.JSInterop.IJSRuntime JsRuntime
 
 <HeadContent>
@@ -54,7 +56,21 @@
             </header>
 
             <main class="qz-content" role="main">
-                @Body
+                @* The page frame is where a per-scheduler refusal belongs: a page that is never rendered
+                   never runs its OnInitializedAsync, so nothing about a scheduler the visitor may not see
+                   is read on their behalf. The header above stays, so they can pick one they may. *@
+                @if (_access is SchedulerAccess.Granted)
+                {
+                    @Body
+                }
+                else if (_access is SchedulerAccess.Denied)
+                {
+                    <SchedulerNotAuthorized SchedulerName="@SchedulerState.ActiveSchedulerName" />
+                }
+                else
+                {
+                    <LoadingSpinner />
+                }
             </main>
         </div>
     </div>
@@ -65,11 +81,60 @@
     private const string themePreferenceKey = "qz_theme";
     private const string timeZonePreferenceKey = "qz_tz";
 
+    /// <summary>
+    /// What the frame knows about the visitor's right to the scheduler the dashboard is currently about.
+    /// </summary>
+    private enum SchedulerAccess
+    {
+        /// <summary>The policy has not answered yet, and until it does the page is not rendered.</summary>
+        Unknown,
+        Granted,
+        Denied
+    }
+
+    private SchedulerAccess _access = SchedulerAccess.Unknown;
+
     private readonly IReadOnlyList<TimeZoneInfo> _timeZones = TimeZoneInfo
         .GetSystemTimeZones()
         .OrderBy(static tz => tz.Id, StringComparer.Ordinal)
         .ToList();
     private bool _preferencesLoaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        SchedulerState.OnSchedulerChanged += OnSchedulerChanged;
+
+        // Awaited before the first render, so a dashboard with no per-scheduler policy — where this
+        // completes synchronously — renders its page exactly as it always did, with no intermediate frame.
+        await UpdateAccessAsync();
+    }
+
+    /// <summary>
+    /// Re-asks the policy about whatever the dashboard is now about. The previous answer stands while the
+    /// new one is being fetched: dropping back to <see cref="SchedulerAccess.Unknown" /> would tear the
+    /// page down and build it again on every switch between two schedulers the visitor may see.
+    /// </summary>
+    private async Task UpdateAccessAsync()
+    {
+        _access = await Authorization.IsAuthorized(SchedulerState.ActiveSchedulerName)
+            ? SchedulerAccess.Granted
+            : SchedulerAccess.Denied;
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        SchedulerAccess previous = _access;
+        await UpdateAccessAsync();
+        if (previous != _access)
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        SchedulerState.OnSchedulerChanged -= OnSchedulerChanged;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

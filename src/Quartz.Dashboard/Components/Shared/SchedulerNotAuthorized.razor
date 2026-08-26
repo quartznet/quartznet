@@ -1,0 +1,29 @@
+@* What a page frame renders instead of the page when the visitor may not see the scheduler it would be
+   about. Nothing is fetched to draw it, which is the point: the refusal happens before the page exists,
+   so no scheduler the visitor may not see is read on their behalf. *@
+
+<div class="qz-page">
+    <div class="qz-empty" role="alert">
+        <p class="qz-empty-title">Not authorized</p>
+        <p class="qz-empty-description">
+            @if (string.IsNullOrWhiteSpace(SchedulerName))
+            {
+                <text>You are not authorized to view this scheduler.</text>
+            }
+            else
+            {
+                <text>You are not authorized to view scheduler <strong>@SchedulerName</strong>.</text>
+            }
+            Pick another one from the scheduler list above.
+        </p>
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// The scheduler the visitor was pointed at, named so that someone who administers several knows
+    /// which one they were refused rather than only that they were.
+    /// </summary>
+    [Parameter]
+    public string? SchedulerName { get; set; }
+}
