@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Listeners;
 
@@ -104,6 +106,231 @@ public static class VersionNeutralPageSamples
 
         #endregion
     }
+
+    public static void RequestRecovery(IServiceCollection services)
+    {
+        services.AddQuartz(q =>
+        {
+            #region sample_best_practices_request_recovery
+
+            q.AddJob<ChargeInvoicesJob>(j => j
+                .WithIdentity("charge-invoices")
+                .RequestRecovery());
+
+            #endregion
+        });
+    }
+
+    public static void MisfireInstructionByConsequence(IServiceCollection services)
+    {
+        services.AddQuartz(q =>
+        {
+            #region sample_best_practices_misfire_do_nothing
+
+            q.AddTrigger<NightlyRollupJob>(t => t
+                .WithIdentity("nightly-rollup")
+                .WithCronSchedule("0 0 2 * * ?", x => x
+                    .InTimeZone(TimeZones.FindById("Europe/Helsinki"))
+                    .WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)));
+
+            #endregion
+        });
+    }
+
+    public static void FixedStartTime(IServiceCollection services)
+    {
+        services.AddQuartz(q =>
+        {
+            #region sample_best_practices_fixed_start_time
+
+            q.AddTrigger<HourlySyncJob>(t => t
+                .WithIdentity("hourly-sync")
+                .StartAt(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero))
+                .WithSimpleSchedule(s => s
+                    .WithInterval(TimeSpan.FromHours(1))
+                    .RepeatForever()));
+
+            #endregion
+        });
+    }
+
+    public static void CapTheHeavyGroup(IServiceCollection services)
+    {
+        services.AddQuartz(q =>
+        {
+            #region sample_best_practices_execution_limits
+
+            q.AddTrigger<ReindexTenantJob>(t => t
+                .WithIdentity("reindex-acme")
+                .WithExecutionGroup("reindex")
+                .WithCronSchedule("0 0 3 * * ?"));
+
+            q.UseExecutionLimits(limits =>
+            {
+                limits.ForGroup("reindex", maxConcurrent: 2);
+                limits.ForOtherGroups(maxConcurrent: 8);
+            });
+
+            #endregion
+        });
+    }
+
+    public static void SizingThePools(IServiceCollection services, string connectionString)
+    {
+        #region sample_best_practices_pool_sizing
+
+        services.AddQuartz(q =>
+        {
+            q.UseDefaultThreadPool(maxConcurrency: 20);
+
+            q.UsePersistentStore(s =>
+            {
+                s.UseSystemTextJsonSerializer();
+                s.UseClustering();
+
+                // 20 workers, the scheduler thread, the misfire handler and the cluster manager
+                s.UseSqlServer($"{connectionString};Max Pool Size=25");
+            });
+        });
+
+        #endregion
+    }
+
+    public static void ShutdownBudget(IServiceCollection services)
+    {
+        #region sample_best_practices_shutdown
+
+        // The scheduler's wait for running jobs is bounded by the host's shutdown budget,
+        // which is 30 seconds unless you say otherwise.
+        services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromMinutes(2));
+
+        services.AddQuartz(q => q.ConfigureScheduler(options =>
+            options.ShutdownJobInterruption = ShutdownJobInterruption.Always));
+
+        services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+        #endregion
+    }
+}
+
+/// <summary>Stands in for the application's own storage in the idempotence sample.</summary>
+public interface IInvoiceLedger
+{
+    /// <summary>Charges the period's invoices unless <paramref name="idempotencyKey" /> has been seen before.</summary>
+    ValueTask ChargeOnce(string idempotencyKey, string period, CancellationToken cancellationToken);
+}
+
+public sealed class ChargeInvoicesJob : IJob
+{
+    private readonly IInvoiceLedger ledger;
+
+    public ChargeInvoicesJob(IInvoiceLedger ledger) => this.ledger = ledger;
+
+    #region sample_best_practices_idempotent_job
+
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        // The key names the occurrence, not the firing. A recovered execution arrives on a new trigger
+        // with a new fire instance id, so a key derived from either of those would never match the
+        // execution it is repeating.
+        string period = context.MergedJobDataMap.GetString("period")!;
+        string idempotencyKey = $"{context.JobDetail.Key}:{period}";
+
+        // Recording the key and doing the work commit together, and a unique index on the key is what
+        // settles a race between two executions rather than a read followed by a write.
+        await ledger.ChargeOnce(idempotencyKey, period, cancellationToken);
+    }
+
+    #endregion
+}
+
+public sealed class RecoveryAwareJob : IJob
+{
+    private readonly ILogger<RecoveryAwareJob> logger;
+
+    public RecoveryAwareJob(ILogger<RecoveryAwareJob> logger) => this.logger = logger;
+
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        #region sample_best_practices_recovering
+
+        if (context.Recovering)
+        {
+            TriggerKey original = context.RecoveringTriggerKey!;
+            string firstFiredAt = context.MergedJobDataMap.GetString(
+                SchedulerConstants.FailedJobOriginalTriggerFireTime)!;
+
+            logger.LogWarning(
+                "Recovering work that {Trigger} started at {FirstFiredAt} on a node that did not finish it.",
+                original, firstFiredAt);
+        }
+
+        #endregion
+
+        return default;
+    }
+}
+
+/// <summary>Stands in for whatever the job calls in the refire sample.</summary>
+public interface IReportGateway
+{
+    ValueTask Publish(JobKey job, CancellationToken cancellationToken);
+}
+
+public sealed class PublishReportJob : IJob
+{
+    private readonly IReportGateway gateway;
+
+    public PublishReportJob(IReportGateway gateway) => this.gateway = gateway;
+
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        #region sample_best_practices_bounded_refire
+
+        try
+        {
+            await gateway.Publish(context.JobDetail.Key, cancellationToken);
+        }
+        catch (HttpRequestException ex) when (context.RefireCount < 3)
+        {
+            // A refire runs this firing again immediately, on the same worker, with no delay of its own.
+            throw new JobExecutionException(ex) { RefireImmediately = true };
+        }
+
+        #endregion
+    }
+}
+
+#region sample_best_practices_disallow_concurrent
+
+[DisallowConcurrentExecution]
+public sealed class RebuildSearchIndexJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        // One execution of this job key at a time — across the whole cluster, with a persistent store.
+        return default;
+    }
+}
+
+#endregion
+
+/// <summary>Stands in for a job of your own in the misfire sample.</summary>
+public sealed class NightlyRollupJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
+
+/// <summary>Stands in for one of many reindexing jobs in the execution-limits sample.</summary>
+public sealed class ReindexTenantJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
+
+/// <summary>Stands in for a job of your own in the start-time sample.</summary>
+public sealed class HourlySyncJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 }
 
 /// <summary>Stands in for a job of your own in the <c>ScheduleJobs</c> sample.</summary>
