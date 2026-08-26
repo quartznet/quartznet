@@ -163,6 +163,68 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
     }
 
     /// <summary>
+    /// What the node listing says while a corpse is still on the table, and after it is cleared. This is
+    /// the operator's question — "which of my nodes is alive" — asked of the same rows recovery reads,
+    /// so the two can be seen to agree.
+    /// </summary>
+    /// <remarks>
+    /// The survivor is created but not started until the residue is written, because starting it runs
+    /// the first check-in, which is also the pass that sweeps the dead node away. The listing is
+    /// therefore read once before <c>Start()</c> — where the dead node is still there and reported
+    /// <see cref="ClusterNodeState.Failed" /> — and once after recovery, where it is gone.
+    /// </remarks>
+    [Test]
+    public async Task KilledNode_IsListedAsFailedAndThenDisappearsWhenRecovered()
+    {
+        IScheduler survivor = await CreateScheduler("survivor");
+
+        try
+        {
+            await InsertDeadNodeCheckin();
+
+            List<ClusterNode> beforeRecovery = await survivor.QueryClusterNodes();
+
+            beforeRecovery[0].InstanceId.Should().Be("survivor",
+                "the node answering is listed first whether or not it has checked in yet");
+            beforeRecovery[0].IsCurrentNode.Should().BeTrue();
+
+            ClusterNode dead = beforeRecovery.Should().ContainSingle(x => x.InstanceId == DeadNode,
+                    "a node that died leaves its state row behind, and that row is what an operator needs to see")
+                .Subject;
+            dead.State.Should().Be(ClusterNodeState.Failed,
+                "the row was backdated five minutes past a two-second misfire threshold, which is the same "
+                + "arithmetic that decides recovery — the listing must not call it merely overdue");
+            dead.IsCurrentNode.Should().BeFalse();
+            dead.LastCheckInUtc.Should().NotBeNull("the row carries the stamp the dead node last wrote");
+
+            await survivor.Start();
+
+            await WaitForCondition(
+                async () => (await CountDeadNodeRows("QRTZ_SCHEDULER_STATE")) == 0,
+                timeoutMs: 30_000,
+                async () => $"the survivor's check-in to recover the dead node. State:\n{await DumpDatabaseState()}");
+
+            List<ClusterNode> afterRecovery = await survivor.QueryClusterNodes();
+
+            afterRecovery.Should().NotContain(x => x.InstanceId == DeadNode,
+                "recovery deletes the row, so a corpse is reported until it is cleaned up and never after");
+
+            ClusterNode current = afterRecovery.Should().ContainSingle(x => x.IsCurrentNode).Subject;
+            current.InstanceId.Should().Be("survivor");
+            current.State.Should().Be(ClusterNodeState.Alive,
+                "a node whose check-in loop is running reports itself alive");
+            current.LastCheckInUtc.Should().NotBeNull(
+                "once the loop is running, this node has a row of its own like any other");
+            current.CheckInInterval.Should().Be(TimeSpan.FromSeconds(1),
+                "the interval reported is the one this fixture configured the node with");
+        }
+        finally
+        {
+            await survivor.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
     /// The property the clustered job store exists to provide: two nodes, one set of triggers, every
     /// trigger fired exactly once.
     /// </summary>

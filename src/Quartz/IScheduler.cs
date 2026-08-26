@@ -175,6 +175,34 @@ public interface IScheduler : IAsyncDisposable
     ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lists the scheduler nodes the job store knows about, as <see cref="ClusterNode" />s — this node
+    /// first, then the rest by instance id.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This node is always listed, and is the only one whose <see cref="ClusterNode.IsCurrentNode" /> is
+    /// <see langword="true" />; its <see cref="ClusterNode.InstanceId" /> is
+    /// <see cref="SchedulerInstanceId" />. A scheduler that is not clustered — the in-memory store, or a
+    /// persistent one with clustering switched off — answers with that single node and no check-in
+    /// times, which is the truthful answer rather than an empty list.
+    /// </para>
+    /// <para>
+    /// The states are what this node believes, read off its own clock against the check-in stamps the
+    /// other nodes wrote, and they are decided by the same predicate cluster recovery applies. A node
+    /// reported <see cref="ClusterNodeState.Failed" /> has its in-flight work taken over on the next
+    /// check-in pass, after which it stops being listed.
+    /// </para>
+    /// <para>
+    /// The result is an 'instantaneous' snapshot: by the time it is returned a node may have checked in
+    /// or been swept away. Join it with <see cref="QueryFireInstances" /> on
+    /// <see cref="FireInstance.SchedulerInstanceId" /> to see what each node is running.
+    /// </para>
+    /// </remarks>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <seealso cref="ClusterNode" />
+    ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get a reference to the scheduler's <see cref="IListenerManager" />,
     /// through which listeners may be registered.
     /// </summary>

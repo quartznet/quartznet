@@ -262,6 +262,11 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
+        public ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();

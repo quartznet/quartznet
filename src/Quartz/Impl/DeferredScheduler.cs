@@ -119,6 +119,12 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.QueryFireInstances(query, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.QueryClusterNodes(cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask Start(CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);

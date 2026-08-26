@@ -32,6 +32,11 @@ public class DelegatingScheduler : IScheduler
         return scheduler.QueryFireInstances(query, cancellationToken);
     }
 
+    public virtual ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
+    {
+        return scheduler.QueryClusterNodes(cancellationToken);
+    }
+
     public virtual IListenerManager ListenerManager => scheduler.ListenerManager;
 
     public virtual ValueTask Start(CancellationToken cancellationToken = default)

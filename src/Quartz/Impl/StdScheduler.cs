@@ -107,6 +107,14 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
+    public ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
+    {
+        return scheduler.QueryClusterNodes(cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
     public ValueTask Clear(CancellationToken cancellationToken = default)
     {
         return scheduler.Clear(cancellationToken);

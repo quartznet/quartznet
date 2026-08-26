@@ -1551,6 +1551,37 @@ public abstract class JobStoreContractTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Cluster nodes
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// Neither store under this fixture is clustered — the in-memory store cannot be and SQLite is
+    /// refused as a clustered store — so both have to answer the same way: with the one node they are.
+    /// </summary>
+    [Test]
+    public async Task AStoreThatKeepsNoClusterStateListsItselfAsTheOnlyNode()
+    {
+        List<ClusterNode> nodes = await Store.QueryClusterNodes();
+
+        using (new AssertionScope())
+        {
+            ClusterNode node = nodes.Should().ContainSingle(
+                "a store with no cluster state has exactly one node to report, and it is the one answering").Subject;
+
+            node.InstanceId.Should().Be(StoreInstanceId,
+                "the node is named by the instance id the store was initialized with, the same value a "
+                + "firing it owns is stamped with");
+            node.IsCurrentNode.Should().BeTrue();
+            node.State.Should().Be(ClusterNodeState.Alive,
+                "the node answering the question is by definition running");
+            node.LastCheckInUtc.Should().BeNull(
+                "a store that keeps no check-in history reports its absence rather than inventing a time");
+            node.CheckInInterval.Should().BeNull(
+                "there is no check-in interval where there are no check-ins");
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Execution limits
     //////////////////////////////////////////////////////////////////////////////////////////////
 

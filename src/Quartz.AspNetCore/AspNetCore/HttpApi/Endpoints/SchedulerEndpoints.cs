@@ -42,6 +42,9 @@ internal static class SchedulerEndpoints
         yield return builder.MapPost(patternPrefix + "/{schedulerName}/resume-all", ResumeAll)
             .WithQuartzDefaults(nameof(ResumeAll), "Resume (un-pause) all triggers");
 
+        yield return builder.MapGet(patternPrefix + "/{schedulerName}/nodes", GetClusterNodes)
+            .WithQuartzDefaults(nameof(GetClusterNodes), "Get the scheduler's cluster nodes");
+
         yield return builder.MapGet(patternPrefix + "/{schedulerName}/execution-limits", GetExecutionLimits)
             .WithQuartzDefaults(nameof(GetExecutionLimits), "Get execution group limits");
 
@@ -171,6 +174,31 @@ internal static class SchedulerEndpoints
         CancellationToken cancellationToken = default)
     {
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.ResumeAll(cancellationToken).AsTask());
+    }
+
+    /// <summary>
+    /// The nodes of the cluster, this scheduler's own node first. A scheduler that is not clustered
+    /// answers with the one node it is.
+    /// </summary>
+    [ProducesResponseType(typeof(ClusterNodeDto[]), StatusCodes.Status200OK)]
+    private static Task<IResult> GetClusterNodes(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        CancellationToken cancellationToken = default)
+    {
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            List<ClusterNode> nodes = await scheduler.QueryClusterNodes(cancellationToken).ConfigureAwait(false);
+
+            ClusterNodeDto[] result = new ClusterNodeDto[nodes.Count];
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                result[i] = ClusterNodeDto.Create(nodes[i]);
+            }
+
+            return result;
+        });
     }
 
     [ProducesResponseType(typeof(ExecutionLimitsResponse), StatusCodes.Status200OK)]

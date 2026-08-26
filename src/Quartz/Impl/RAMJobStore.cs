@@ -1562,6 +1562,18 @@ public sealed class RAMJobStore : IJobStore
                && (query.TriggerName is null || query.TriggerName.IsMatch(triggerKey));
     }
 
+    /// <inheritdoc />
+    public ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
+    {
+        // This store's world is one process, so the cluster is this node and nothing else. It keeps no
+        // check-in history because it has nobody to keep one for: the times are absent rather than
+        // invented, and the state is Alive because the node answering is by definition running.
+        return new ValueTask<List<ClusterNode>>(new List<ClusterNode>
+        {
+            new ClusterNode(schedulerInstanceId, LastCheckInUtc: null, CheckInInterval: null, ClusterNodeState.Alive, IsCurrentNode: true)
+        });
+    }
+
     /// <summary>
     /// What this store holds in flight per (execution group, trigger group) pair, which is what a
     /// <see cref="ExecutionLimitScope.Cluster" /> execution limit is counted against.

@@ -1624,6 +1624,16 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Lists the scheduler nodes the job store knows about, this node first.
+    /// </summary>
+    public ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
+    {
+        ValidateState();
+
+        return resources.JobStore.QueryClusterNodes(cancellationToken);
+    }
+
+    /// <summary>
     /// Retrieves the given jobs in one round trip.
     /// </summary>
     public ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
