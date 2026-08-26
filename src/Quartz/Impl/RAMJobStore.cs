@@ -151,7 +151,7 @@ public sealed class RAMJobStore : IJobStore
         ArgumentNullException.ThrowIfNull(identity);
 
         schedulerInstanceId = identity.InstanceId;
-        logger.LogInformation("RAMJobStore initialized.");
+        logger.StoreInitialized();
         return default;
     }
 
@@ -2541,7 +2541,7 @@ public sealed class RAMJobStore : IJobStore
                 // take down the acquisition loop and stop every other trigger from firing.
                 if (!jobsByKey.TryGetValue(jobKey, out var jobWrapper))
                 {
-                    logger.LogWarning("Skipping trigger {TriggerKey}: its job {JobKey} no longer exists", tw.TriggerKey, jobKey);
+                    logger.TriggerSkippedJobMissing(tw.TriggerKey, jobKey);
                     continue;
                 }
 
@@ -2696,7 +2696,7 @@ public sealed class RAMJobStore : IJobStore
                     calendarsByName.TryGetValue(tw.Trigger.CalendarName, out calendar);
                     if (calendar is null)
                     {
-                        logger.LogWarning("Trigger {TriggerKey} references calendar '{CalendarName}', which does not exist - the fire was skipped and the trigger will not run until the calendar is added or the reference is cleared.", tw.Trigger.Key, tw.Trigger.CalendarName);
+                        logger.TriggerReferencesMissingCalendar(tw.Trigger.Key, tw.Trigger.CalendarName);
                         results.Add(TriggerFiredResult.NotFired);
                         continue;
                     }
@@ -2893,7 +2893,7 @@ public sealed class RAMJobStore : IJobStore
             {
                 if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
                 {
-                    logger.LogDebug("Deleting trigger");
+                    logger.TriggerDeleting();
                     DateTimeOffset? d = trigger.NextFireTimeUtc;
                     if (!d.HasValue)
                     {
@@ -2906,7 +2906,7 @@ public sealed class RAMJobStore : IJobStore
                         }
                         else
                         {
-                            logger.LogDebug("Deleting cancelled - trigger still active");
+                            logger.TriggerDeletionCancelled();
                         }
                     }
                     else
@@ -2923,14 +2923,14 @@ public sealed class RAMJobStore : IJobStore
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
                 {
-                    logger.LogInformation("Trigger {TriggerKey} set to ERROR state.", trigger.Key);
+                    logger.TriggerSetToError(trigger.Key);
                     tw.state = StoredTriggerState.Error;
                     errorNotification = ErrorNotification.Trigger;
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
-                    logger.LogInformation("All triggers of Job {JobKey} set to ERROR state.", trigger.JobKey);
+                    logger.JobTriggersSetToError(trigger.JobKey);
                     SetAllTriggersOfJobToState(trigger.JobKey, StoredTriggerState.Error);
                     errorNotification = ErrorNotification.JobTriggers;
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
