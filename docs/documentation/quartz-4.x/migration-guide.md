@@ -2929,6 +2929,17 @@ of these is a 3.x behaviour, not a 4.x regression:
   store and not the other. `ObjectAlreadyExistsException` derives from `JobPersistenceException`, so
   code catching the base type is unaffected.
 
+* **The threshold instant itself is a misfire on the ADO store too.** A trigger is late once its fire
+  time is *at or before* `now - MisfireThreshold`, and that is now one comparison wherever the
+  question is asked. The ADO store's periodic sweep asked for `NEXT_FIRE_TIME < @nextFireTime` while
+  everything else — `RAMJobStore`, and the ADO store's own single-trigger path that a resumed or
+  unblocked trigger goes through — used `<=`, so the ADO store disagreed with the in-memory one and
+  with itself about one tick. The acquisition statement moved with it, from
+  `NEXT_FIRE_TIME >= @noEarlierThan` to `>`, so that a waiting trigger belongs to acquisition or to
+  the misfire handler and never to both. It is a change to the SQL only — no schema migration — and
+  the practical effect is that a trigger due at exactly that instant misfires rather than being fired
+  late without its policy. 3.x behaves the old way.
+
 ## JobKey and TriggerKey Null Validation
 
 `JobKey` and `TriggerKey` now throw `ArgumentNullException` when you specify `null` for `name` or `group`. Triggers can no longer be constructed with a null group name. If your code was relying on null group names, switch to an explicit group name.

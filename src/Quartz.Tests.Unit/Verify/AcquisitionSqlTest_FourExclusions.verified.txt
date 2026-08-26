@@ -5,7 +5,7 @@
               JOIN
                 {0}JOB_DETAILS jd ON (jd.SCHED_NAME = t.SCHED_NAME AND  jd.JOB_GROUP = t.JOB_GROUP AND jd.JOB_NAME = t.JOB_NAME)
               WHERE
-                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME >= @noEarlierThan))
+                t.SCHED_NAME = @schedulerName AND TRIGGER_STATE = @state AND NEXT_FIRE_TIME <= @noLaterThan AND (MISFIRE_INSTR = -1 OR (MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME > @noEarlierThan))
                 AND (t.PREFERRED_NODE IS NULL OR t.PREFERRED_NODE = @instanceId OR t.PREFERRED_NODE = @autoPinSentinel
                      OR t.PREFERRED_NODE NOT IN (SELECT ss.INSTANCE_NAME FROM {0}SCHEDULER_STATE ss WHERE ss.SCHED_NAME = t.SCHED_NAME AND ss.LAST_CHECKIN_TIME + ss.CHECKIN_INTERVAL * 10000 >= @liveNodeCutoff))
                 AND jd.JOB_CLASS_NAME NOT IN (@excludedJobType0000, @excludedJobType0001, @excludedJobType0002, @excludedJobType0003)

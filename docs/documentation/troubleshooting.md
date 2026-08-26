@@ -86,10 +86,17 @@ A **misfire** occurs when a trigger's scheduled fire time passes without the job
 
 ### How It Works
 
-1. On startup (and periodically during operation), Quartz scans for triggers whose `NEXT_FIRE_TIME` is older than `now - misfireThreshold`.
+1. On startup (and periodically during operation), Quartz scans for triggers whose `NEXT_FIRE_TIME` is at or older than `now - misfireThreshold`.
 2. For each misfired trigger, Quartz applies the trigger's configured misfire instruction.
 3. The default misfire threshold is 60 seconds for a persistent store — `JobStore:MisfireThreshold` in 4.x,
    `quartz.jobStore.misfireThreshold` as a flat key on both versions.
+
+A trigger is misfired when its fire time is at or before `now - misfireThreshold` — the threshold
+instant itself counts as late. In 4.x that is one rule wherever the question is asked: the in-memory
+store, the persistent store's periodic sweep, and the single-trigger path a resumed or unblocked
+trigger goes through all draw the line in the same place. On 3.x the persistent store's sweep is
+strictly *before* the threshold instant, so a trigger due at exactly `now - misfireThreshold` is
+misfired in memory and, for one tick, not in the database.
 
 ### Misfire Instructions by Trigger Type
 

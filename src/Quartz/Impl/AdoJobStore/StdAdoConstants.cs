@@ -244,8 +244,20 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectJobsInGroup =
         Invariant($"SELECT {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnJobGroup} = @jobGroup");
 
+    /// <summary>
+    /// The cheap count the misfire handler peeks with before it takes the trigger lock. It has to
+    /// select the same rows <see cref="SqlSelectMisfiredTriggersToRecover" /> does, or the sweep
+    /// decides there is nothing to recover and skips work it would have found.
+    /// </summary>
+    /// <remarks>
+    /// <c>NEXT_FIRE_TIME &lt;= @nextFireTime</c> is the one rule about a misfire, spelled here in SQL:
+    /// a trigger is late once its fire time is <em>at or before</em> <c>now - MisfireThreshold</c>.
+    /// <c>RAMJobStore.ApplyMisfireNoLock</c>, <c>AdoJobStoreBase.UpdateMisfiredTrigger</c> and
+    /// <c>AdoJobStoreBase.RecoverUnblockedMisfires</c> all decline a trigger whose fire time is
+    /// strictly greater, and <see cref="SqlSelectNextTriggerToAcquire" /> takes the complement of it.
+    /// </remarks>
     public static readonly string SqlCountMisfiredTriggersInStates =
-        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {AdoConstants.ColumnNextFireTime} < @nextFireTime AND {AdoConstants.ColumnTriggerState} = @state");
+        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {AdoConstants.ColumnNextFireTime} <= @nextFireTime AND {AdoConstants.ColumnTriggerState} = @state");
 
     /// <summary>
     /// Sentinel stored in PREFERRED_NODE to request auto-pin that has not yet been claimed by
@@ -285,6 +297,12 @@ internal static class StdAdoConstants
     //
     // PREFERRED_NODE is filtered entirely in PreferredNodeWhereClause and is not projected —
     // acquisition never reads it from the result (the trigger is reloaded via GetTrigger).
+    //
+    // NEXT_FIRE_TIME > @noEarlierThan is the exact complement of the misfire predicate in
+    // SqlCountMisfiredTriggersInStates, and has to stay that way: @noEarlierThan is the very
+    // now - MisfireThreshold the sweep asks about, so a waiting trigger belongs either to acquisition
+    // or to the misfire handler and never to both. Acquiring one the store already counts as misfired
+    // would fire it late without ever applying the policy it asked for.
     private static string SelectNextTriggerToAcquire(string exclusionClause) =>
         Invariant($@"SELECT
                 t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, t.{AdoConstants.ColumnExecutionGroup}
@@ -293,7 +311,7 @@ internal static class StdAdoConstants
               JOIN
                 {TablePrefixSubst}{AdoConstants.TableJobDetails} jd ON (jd.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND  jd.{AdoConstants.ColumnJobGroup} = t.{AdoConstants.ColumnJobGroup} AND jd.{AdoConstants.ColumnJobName} = t.{AdoConstants.ColumnJobName})
               WHERE
-                t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerState} = @state AND {AdoConstants.ColumnNextFireTime} <= @noLaterThan AND ({AdoConstants.ColumnMisfireInstruction} = -1 OR ({AdoConstants.ColumnMisfireInstruction} <> -1 AND {AdoConstants.ColumnNextFireTime} >= @noEarlierThan))
+                t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerState} = @state AND {AdoConstants.ColumnNextFireTime} <= @noLaterThan AND ({AdoConstants.ColumnMisfireInstruction} = -1 OR ({AdoConstants.ColumnMisfireInstruction} <> -1 AND {AdoConstants.ColumnNextFireTime} > @noEarlierThan))
                 {PreferredNodeWhereClause}{exclusionClause}
               ORDER BY
                 {AdoConstants.ColumnNextFireTime} ASC, {AdoConstants.ColumnPriority} DESC");
@@ -478,7 +496,7 @@ internal static class StdAdoConstants
                 t.{AdoConstants.ColumnTriggerName},
                 t.{AdoConstants.ColumnTriggerGroup}{TriggerSelectFastPathFrom}
             WHERE
-                t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{AdoConstants.ColumnNextFireTime} < @nextFireTime AND t.{AdoConstants.ColumnTriggerState} = @state
+                t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{AdoConstants.ColumnNextFireTime} <= @nextFireTime AND t.{AdoConstants.ColumnTriggerState} = @state
             ORDER BY t.{AdoConstants.ColumnNextFireTime} ASC, t.{AdoConstants.ColumnPriority} DESC");
 
     /// <summary>

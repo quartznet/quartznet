@@ -14,7 +14,7 @@ public class StdAdoConstantsTest
 
         var sql = StdAdoConstants.SqlCountMisfiredTriggersInStates;
 
-        sql.Should().Be("SELECT COUNT(TRIGGER_NAME) FROM {0}TRIGGERS WHERE SCHED_NAME = @schedulerName AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME < @nextFireTime AND TRIGGER_STATE = @state");
+        sql.Should().Be("SELECT COUNT(TRIGGER_NAME) FROM {0}TRIGGERS WHERE SCHED_NAME = @schedulerName AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME <= @nextFireTime AND TRIGGER_STATE = @state");
     }
 
     /// <summary>
@@ -54,9 +54,31 @@ public class StdAdoConstantsTest
         var sql = StdAdoConstants.SqlSelectMisfiredTriggersToRecover;
 
         sql.Should().Contain("t.MISFIRE_INSTR <> -1");
-        sql.Should().Contain("t.NEXT_FIRE_TIME < @nextFireTime");
+        sql.Should().Contain("t.NEXT_FIRE_TIME <= @nextFireTime");
         sql.Should().Contain("t.TRIGGER_STATE = @state");
         sql.Should().Contain("ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC");
+    }
+
+    /// <summary>
+    /// A waiting trigger belongs to acquisition or to the misfire handler, never to both and never to
+    /// neither: the acquisition statement's <c>@noEarlierThan</c> predicate has to be the exact
+    /// complement of the misfire statements' <c>@nextFireTime</c> one, since both parameters are bound
+    /// to the same <c>now - MisfireThreshold</c>.
+    /// </summary>
+    /// <remarks>
+    /// The comparison is <c>&lt;=</c> because that is what the whole scheduler means by a misfire —
+    /// <c>RAMJobStore.ApplyMisfireNoLock</c> and <c>AdoJobStoreBase.UpdateMisfiredTrigger</c> decline
+    /// only a trigger whose fire time is strictly later — so the threshold instant itself is late.
+    /// </remarks>
+    [Test]
+    public void TheAcquisitionPredicateShouldBeTheComplementOfTheMisfirePredicate()
+    {
+        StdAdoConstants.SqlCountMisfiredTriggersInStates.Should().Contain("NEXT_FIRE_TIME <= @nextFireTime",
+            "a trigger due at or before now - MisfireThreshold is misfired");
+        StdAdoConstants.SqlSelectMisfiredTriggersToRecover.Should().Contain("t.NEXT_FIRE_TIME <= @nextFireTime",
+            "the sweep and the count it is peeked at with have to select the same rows");
+        StdAdoConstants.SqlSelectNextTriggerToAcquire.Should().Contain("NEXT_FIRE_TIME > @noEarlierThan",
+            "acquisition takes what is not misfired, so a trigger exactly on the threshold instant is left to the misfire handler rather than fired late without its policy");
     }
 
     [Test]
