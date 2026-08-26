@@ -2266,10 +2266,10 @@ Further information on configuring Microsoft.Logging can be found [at Microsoft 
 
 ### Every message carries an event id
 
-The `Quartz` package logs through source-generated `[LoggerMessage]` methods rather than
-`logger.LogInformation(…)` and its siblings. Two things follow. Nothing is formatted or boxed when the
-level is off, including on the scheduling loop. And every message has a stable event id, so an operator
-can filter or alert on the event rather than on its text.
+The `Quartz` and `Quartz.Plugins` packages log through source-generated `[LoggerMessage]` methods
+rather than `logger.LogInformation(…)` and its siblings. Two things follow. Nothing is formatted or
+boxed when the level is off, including on the scheduling loop. And every message has a stable event id,
+so an operator can filter or alert on the event rather than on its text.
 
 Ids are allocated in ranges by area, and are stable from 4.0 onwards:
 
@@ -2283,7 +2283,12 @@ Ids are allocated in ranges by area, and are stable from 4.0 onwards:
 | 3700–3799 | Lock handlers |
 | 4000–4999 | Configuration, dependency injection and hosting, including the thread pools and job factories |
 | 5000–5999 | Serialization, type loading, triggers, calendars, XML scheduling data and the utilities |
-| 6000–8999 | Reserved for `Quartz.Plugins`, `Quartz.Jobs` and `Quartz.Extensions.Redis`, which are converting to the same shape |
+| 6000–6199 | The history plugins — `LoggingJobHistoryPlugin` and `LoggingTriggerHistoryPlugin` |
+| 6200–6299 | The XML scheduling data plugin |
+| 6300–6399 | The JSON scheduling data plugin and its processor |
+| 6400–6499 | The job interrupt monitor plugin |
+| 6500–6599 | The management plugins — the shutdown hook |
+| 7000–8999 | Reserved for `Quartz.Jobs` and `Quartz.Extensions.Redis`, which are converting to the same shape |
 
 Levels and message templates are otherwise **unchanged from 3.x**, so a log query that matched a
 message before still matches it. Two exceptions:
@@ -2298,6 +2303,19 @@ message before still matches it. Two exceptions:
   about a trigger that already existed — spelled with double spaces in one place and single spaces in
   the other — is one event with the single-space spelling. A query matching those on text needs
   updating; one matching on event id does not, which is rather the point.
+* One message in `Quartz.Plugins` carried a typo, corrected while its id was new: the interrupt
+  monitor's `…scheduled to interrupt with the delay :{Delay}` had the space before the colon rather
+  than after it.
+
+`LoggingJobHistoryPlugin` and `LoggingTriggerHistoryPlugin` are a special case, because the message
+they log is a template *you* configure — `JobSuccessMessage` and its siblings, with `{0}`-style
+placeholders — and a template only known at run time cannot be a compile-time one. They format it
+exactly as before and pass the result through an event whose own template is `{Message}`: the text a
+sink renders is unchanged, and each occurrence has an id of its own (6000–6003 for the job plugin,
+6010–6012 for the trigger plugin). `StructuredLoggingJobHistoryPlugin` and
+`StructuredLoggingTriggerHistoryPlugin` keep plain `ILogger` calls and have no event ids, because their
+configured templates carry *named* placeholders that a structured sink resolves into properties for
+itself — which is the whole reason those two plugins exist, and which no fixed template can preserve.
 
 ## The ambient logger factory stays ambient
 
