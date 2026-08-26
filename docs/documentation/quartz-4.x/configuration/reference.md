@@ -160,7 +160,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `MaxMisfiresToHandleAtATime` | int | `20` | How many misfired triggers are handled per pass. |
 | `CommandTimeout` | TimeSpan? | provider default | How long a statement may run before the provider cancels it, applied to every statement the store issues including the lock handler's. Unset leaves each provider's own default, usually 30 seconds. ADO.NET counts whole seconds, so the value is rounded **up** — `00:00:01.500` is applied as 2 seconds, because rounding down would turn a sub-second value into `0`, which means "no timeout". |
 | `DbRetryInterval` | TimeSpan | `00:00:15` | How long to wait before retrying after a database failure. |
-| `MaxTransientRetries` | int | `3` | How many times a transient failure such as a deadlock is retried. |
+| `MaxTransientRetries` | int | `3` | How many times a transient failure such as a deadlock is retried. Transient means the driver's own `DbException.IsTransient`, a SQLSTATE in class `40` — the standard's "transaction rollback", covering a serialization failure or a deadlock whichever provider reports it, with `40002` excepted because a deferred constraint violation fails identically on every retry — SQL Server's transient error numbers, SQLite's busy and locked codes, or a timeout. |
 | `TransientRetryInterval` | TimeSpan | `00:00:01` | Delay between transient retries. |
 | `RetryableActionErrorLogThreshold` | int | `4` | How many consecutive failures before they are logged as errors. |
 | `UseDbLocks` | bool | `false` | Uses database row locks. Required for clustering, and implied by `UseClustering()`. |
