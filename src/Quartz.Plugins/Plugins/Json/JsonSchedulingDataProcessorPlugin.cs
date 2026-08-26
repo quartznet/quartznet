@@ -123,7 +123,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
 
                         await Scheduler.UnscheduleJob(tKey, cancellationToken).ConfigureAwait(false);
 
-                        var trig = new SimpleTriggerImpl();
+                        var trig = new SimpleTriggerImpl(timeProvider);
                         trig.Key = tKey;
                         trig.StartTimeUtc = timeProvider.GetUtcNow();
                         trig.EndTimeUtc = null;

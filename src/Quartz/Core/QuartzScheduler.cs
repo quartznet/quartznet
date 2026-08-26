@@ -1152,7 +1152,8 @@ internal sealed class QuartzScheduler
             this.resources.TimeProvider.GetUtcNow(),
             null,
             0,
-            TimeSpan.Zero);
+            TimeSpan.Zero,
+            this.resources.TimeProvider);
 
         trig.ComputeFirstFireTimeUtc(null);
         if (data is not null)

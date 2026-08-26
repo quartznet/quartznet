@@ -177,7 +177,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
                         await Scheduler.UnscheduleJob(tKey, cancellationToken).ConfigureAwait(false);
 
                         // TODO: convert to use builder
-                        var trig = new SimpleTriggerImpl();
+                        var trig = new SimpleTriggerImpl(timeProvider);
                         trig.Key = tKey;
                         trig.StartTimeUtc = timeProvider.GetUtcNow();
                         trig.EndTimeUtc = null;
