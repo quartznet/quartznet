@@ -51,6 +51,7 @@ public class LogEventCatalogTest
         typeof(global::Quartz.IScheduler).Assembly,
         typeof(global::Quartz.Plugins.Management.ShutdownHookPlugin).Assembly,
         typeof(global::Quartz.Jobs.DirectoryScanJob).Assembly,
+        typeof(global::Quartz.RedisLockHandlerConfigurationExtensions).Assembly,
     ];
 
     private static IEnumerable<TestCaseData> Assemblies()

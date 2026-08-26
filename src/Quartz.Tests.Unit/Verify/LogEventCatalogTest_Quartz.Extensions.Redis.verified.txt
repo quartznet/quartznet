@@ -1,0 +1,20 @@
+﻿8000  Debug  RedisLockHandlerLog.LockDesired
+    "Lock '{LockName}' is desired by: {RequestorId}"
+8001  Debug  RedisLockHandlerLog.LockAlreadyOwned
+    "Lock '{LockName}' already owned by: {RequestorId}"
+8002  Debug  RedisLockHandlerLog.LockBeingObtained
+    "Lock '{LockName}' is being obtained: {RequestorId}"
+8003  Debug  RedisLockHandlerLog.LockNotObtainedCancelled
+    "Lock '{LockName}' was not obtained by: {RequestorId} - cancelled"
+8004  Debug  RedisLockHandlerLog.LockGiven
+    "Lock '{LockName}' given to: {RequestorId}"
+8005  Warning  RedisLockHandlerLog.LockReturnedByNonOwner
+    "Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!"
+8006  Warning  RedisLockHandlerLog.WrongfulReturnerStack
+    "stack-trace of wrongful returner: {StackTrace}"
+8007  Debug  RedisLockHandlerLog.LockReturned
+    "Lock '{LockName}' returned by: {RequestorId}"
+8008  Warning  RedisLockHandlerLog.LockReleaseFailed
+    "Failed to release Redis lock '{LockName}'"
+8009  Information  RedisLockHandlerLog.ConnectingToRedis
+    "Connecting to Redis"
