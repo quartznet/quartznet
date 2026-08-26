@@ -39,6 +39,9 @@ public class DashboardSchedulerStateEventsTest
             "a listener event names the state the scheduler has arrived in, and the dashboard shows that state");
 
         pushed.Should().OnlyContain(state => state.SchedulerName == "TestScheduler");
+        pushed.Should().OnlyContain(state => state.SchedulerInstanceId == "node-a",
+            "a cluster is one scheduler in several processes, each with a lifecycle of its own, so a "
+            + "state change says nothing until it says which node changed");
     }
 
     [Test]
@@ -73,6 +76,7 @@ public class DashboardSchedulerStateEventsTest
 
         IScheduler scheduler = A.Fake<IScheduler>();
         A.CallTo(() => scheduler.SchedulerName).Returns("TestScheduler");
+        A.CallTo(() => scheduler.SchedulerInstanceId).Returns("node-a");
         A.CallTo(() => scheduler.ListenerManager).Returns(A.Fake<IListenerManager>());
 
         DashboardLiveEventsPlugin plugin = new(provider);

@@ -393,10 +393,12 @@ public static class TestData
             TimeSpan duration,
             bool succeeded = true,
             string jobName = "DummyJob",
-            string? exceptionMessage = null)
+            string? exceptionMessage = null,
+            string schedulerInstanceId = SchedulerInstanceId)
         {
             return new DashboardHistoryEntry(
                 SchedulerName,
+                schedulerInstanceId,
                 JobGroup: "DummyGroup",
                 JobName: jobName,
                 TriggerGroup: "CronTriggerGroup",
@@ -405,6 +407,46 @@ public static class TestData
                 Duration: duration,
                 Succeeded: succeeded,
                 ExceptionMessage: exceptionMessage);
+        }
+
+        public static DashboardMisfireEntry MisfireEntry(
+            string triggerName = "CronTriggerKey",
+            string schedulerInstanceId = SchedulerInstanceId,
+            JobKeyDto? jobKey = null)
+        {
+            return new DashboardMisfireEntry(
+                SchedulerName,
+                schedulerInstanceId,
+                TriggerGroup: "CronTriggerGroup",
+                TriggerName: triggerName,
+                JobKey: jobKey,
+                MisfiredAtUtc: FiredAt,
+                ScheduledFireTimeUtc: FiredAt.AddMinutes(-1));
+        }
+
+        /// <summary>
+        /// A history store bounded the way an application that configured nothing would have it, on a
+        /// clock a test can move.
+        /// </summary>
+        internal static DashboardHistoryStore HistoryStore(
+            TimeProvider? timeProvider = null,
+            TimeSpan? retention = null,
+            int? maxEntriesPerScheduler = null)
+        {
+            QuartzDashboardOptions options = new();
+            if (retention is { } configuredRetention)
+            {
+                options.HistoryRetention = configuredRetention;
+            }
+
+            if (maxEntriesPerScheduler is { } configuredMax)
+            {
+                options.HistoryMaxEntriesPerScheduler = configuredMax;
+            }
+
+            return new DashboardHistoryStore(
+                Microsoft.Extensions.Options.Options.Create(options),
+                timeProvider ?? TimeProvider.System);
         }
 
         /// <summary>

@@ -1,6 +1,7 @@
 using FakeItEasy;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Plugins;
@@ -21,13 +22,23 @@ public class DashboardDurationTest
 {
     private static readonly TimeSpan SubMillisecond = TimeSpan.FromTicks(4_567);
 
+    /// <summary>
+    /// The instant everything here is recorded at. The store forgets by age as well as by count, so a
+    /// test whose fire times are constants — as they must be, to be asserted on — needs a clock standing
+    /// beside them rather than the wall's.
+    /// </summary>
+    private static readonly DateTimeOffset TestTime = new(2025, 1, 1, 0, 0, 30, TimeSpan.Zero);
+
+    private static DashboardHistoryStore StoreAtTestTime() =>
+        TestData.Dashboard.HistoryStore(new FakeTimeProvider(TestTime));
+
     [Test]
     public async Task HistoryPluginRecordsTheRunTimeItWasGiven()
     {
-        DashboardHistoryStore store = new();
+        DashboardHistoryStore store = StoreAtTestTime();
         IScheduler scheduler = FakeScheduler();
 
-        DashboardHistoryPlugin plugin = new(ProviderWith(store));
+        DashboardHistoryPlugin plugin = new(ProviderWith(store), TimeProvider.System);
         await plugin.Initialize("history", scheduler);
         await plugin.JobWasExecuted(ExecutionContext(scheduler, SubMillisecond), jobException: null);
 
@@ -44,10 +55,10 @@ public class DashboardDurationTest
     [Test]
     public async Task HistoryPluginRecordsTheFailureAndItsMessage()
     {
-        DashboardHistoryStore store = new();
+        DashboardHistoryStore store = StoreAtTestTime();
         IScheduler scheduler = FakeScheduler();
 
-        DashboardHistoryPlugin plugin = new(ProviderWith(store));
+        DashboardHistoryPlugin plugin = new(ProviderWith(store), TimeProvider.System);
         await plugin.Initialize("history", scheduler);
         await plugin.JobWasExecuted(
             ExecutionContext(scheduler, TimeSpan.FromSeconds(2)),
@@ -70,7 +81,7 @@ public class DashboardDurationTest
     {
         IScheduler scheduler = FakeScheduler();
 
-        DashboardLiveEventsPlugin plugin = new(ProviderWith(new DashboardHistoryStore()));
+        DashboardLiveEventsPlugin plugin = new(ProviderWith(StoreAtTestTime()));
         await plugin.Initialize("live", scheduler);
 
         Func<Task> executed = async () =>
@@ -86,6 +97,7 @@ public class DashboardDurationTest
     public void JobExecutionResultCarriesTheRunTimeAsATimeSpan()
     {
         JobExecutionResultDto result = new(
+            SchedulerInstanceId: TestData.SchedulerInstanceId,
             JobKey: new JobKeyDto("group", "job"),
             TriggerKey: new TriggerKeyDto("group", "trigger"),
             FireTimeUtc: new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
@@ -99,7 +111,7 @@ public class DashboardDurationTest
     [Test]
     public async Task HistoryPageIsNewestFirstAndCountsTheWholeMatch()
     {
-        DashboardHistoryStore store = new();
+        DashboardHistoryStore store = StoreAtTestTime();
         for (int i = 0; i < 5; i++)
         {
             await store.Add(EntryAt(new DateTimeOffset(2025, 1, 1, 0, 0, i, TimeSpan.Zero), "job" + i));
@@ -120,6 +132,7 @@ public class DashboardDurationTest
 
     private static DashboardHistoryEntry EntryAt(DateTimeOffset firedAt, string jobName) => new(
         SchedulerName: "TestScheduler",
+        SchedulerInstanceId: TestData.SchedulerInstanceId,
         JobGroup: "DummyGroup",
         JobName: jobName,
         TriggerGroup: "DummyTriggerGroup",
@@ -144,6 +157,7 @@ public class DashboardDurationTest
     {
         IScheduler scheduler = A.Fake<IScheduler>();
         A.CallTo(() => scheduler.SchedulerName).Returns("TestScheduler");
+        A.CallTo(() => scheduler.SchedulerInstanceId).Returns(TestData.SchedulerInstanceId);
         A.CallTo(() => scheduler.ListenerManager).Returns(A.Fake<IListenerManager>());
         return scheduler;
     }

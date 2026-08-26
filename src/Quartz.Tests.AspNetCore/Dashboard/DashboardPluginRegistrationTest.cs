@@ -2,6 +2,7 @@ using FakeItEasy;
 
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Configuration;
 using Quartz.Dashboard.Hubs;
@@ -109,7 +110,10 @@ public class DashboardPluginRegistrationTest
     [Test]
     public async Task TheHistoryPluginBuiltForANamedSchedulerRecordsToThatContainersStore()
     {
-        DashboardHistoryStore store = new();
+        // the execution below is recorded at a constant fire time, so the store needs a clock standing
+        // beside it rather than the wall's — it forgets by age as well as by count
+        DashboardHistoryStore store = TestData.Dashboard.HistoryStore(
+            new FakeTimeProvider(new DateTimeOffset(2025, 1, 1, 0, 0, 30, TimeSpan.Zero)));
 
         ServiceCollection services = new();
         // registered before the dashboard, whose own store registration is a TryAdd, so this is the
@@ -167,13 +171,14 @@ public class DashboardPluginRegistrationTest
         await plugin.SchedulerStarted(scheduler);
 
         pushed.Should().ContainSingle("the plugin resolves its hub from the container it was built with")
-            .Which.Should().BeEquivalentTo(new SchedulerStateDto("acme", SchedulerStatus.Running));
+            .Which.Should().BeEquivalentTo(new SchedulerStateDto("acme", "acme-node", SchedulerStatus.Running));
     }
 
     private static IScheduler FakeScheduler(string name)
     {
         IScheduler scheduler = A.Fake<IScheduler>();
         A.CallTo(() => scheduler.SchedulerName).Returns(name);
+        A.CallTo(() => scheduler.SchedulerInstanceId).Returns(name + "-node");
         A.CallTo(() => scheduler.ListenerManager).Returns(A.Fake<IListenerManager>());
         return scheduler;
     }

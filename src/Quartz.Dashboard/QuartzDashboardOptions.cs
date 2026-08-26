@@ -47,6 +47,22 @@ public sealed class QuartzDashboardOptions
     public bool ReadOnly { get; set; }
 
     /// <summary>
+    /// How far back the dashboard's own history store keeps executions and misfires. Defaults to 24 hours.
+    /// </summary>
+    /// <remarks>
+    /// The count bound below cannot answer for a scheduler that has gone quiet: it keeps whatever it last
+    /// recorded, so a page shows executions from an arbitrary distance in the past with nothing to say how
+    /// old they are. Both bounds apply, and whichever bites first wins.
+    /// </remarks>
+    public TimeSpan HistoryRetention { get; set; } = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// How many executions and how many misfires the dashboard's own history store keeps per scheduler,
+    /// oldest dropped first. Defaults to 2000 of each.
+    /// </summary>
+    public int HistoryMaxEntriesPerScheduler { get; set; } = 2000;
+
+    /// <summary>
     /// <see cref="DashboardPath"/> normalized to a rooted path without a trailing slash,
     /// falling back to <see cref="DefaultDashboardPath"/> when unset or empty.
     /// </summary>
