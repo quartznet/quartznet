@@ -24,12 +24,25 @@ using Quartz.Util;
 namespace Quartz.Tests.Unit;
 
 /// <summary>
-/// Differential / property tests for the bitmask fast path added to
-/// <see cref="CronExpression" />. These guard against the bitmask diverging
-/// from the original SortedSet-based behaviour, including the De Bruijn
-/// trailing-zero fallback used on frameworks without
-/// <c>System.Numerics.BitOperations</c> (net462/net472/netstandard2.0).
+/// Differential / property tests for <see cref="CronExpression" />: every expectation here is
+/// computed by this file rather than borrowed from the class under test, so a parse that disagrees
+/// with its own evaluation has somewhere to surface.
 /// </summary>
+/// <remarks>
+/// <para>
+/// The first group guards the bitmask fast path against diverging from the original SortedSet-based
+/// behaviour, including the De Bruijn trailing-zero fallback used on frameworks without
+/// <c>System.Numerics.BitOperations</c> (net462/net472/netstandard2.0).
+/// </para>
+/// <para>
+/// The last one is wider and works on whole expressions rather than one field's mechanics: a random
+/// expression is walked minute by minute over a bounded window and the minutes it matches are
+/// compared with the sequence <c>GetNextValidTimeAfter</c> chains out of it. That is a genuine
+/// difference of method even though both ends are Quartz — the walk only ever asks the search to step
+/// one minute, while the chain asks it to jump a gap, and it is jumping that has to work out which
+/// day, month or year to land in. A disagreement is a fire time one of the two invented or lost.
+/// </para>
+/// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public class CronExpressionDifferentialTest
 {
@@ -281,6 +294,305 @@ public class CronExpressionDifferentialTest
 
             expected.Should().NotBeNull("expression {0} fires within a year", expr);
             actual.Should().Be(expected, "expression {0}, start {1:O}", expr, start);
+        }
+    }
+
+    /// <summary>The window every generated expression is walked over — long enough to cross a month boundary.</summary>
+    private const int WindowDays = 45;
+
+    /// <summary>
+    /// How many fire times are compared per expression. A dense expression fires every minute, and
+    /// chaining through all sixty-four thousand of them would dominate the run for no extra reach: a
+    /// chain that skips or invents a fire disagrees at that index, whatever comes after it. The day
+    /// fields, which are the ones that make the search jump, get the whole window instead — see the
+    /// once-a-day comparison in the test.
+    /// </summary>
+    private const int FiresPerExpression = 300;
+
+    /// <summary>How many minutes per expression are put to <c>IsSatisfiedBy</c> as well as to the walk.</summary>
+    private const int SampledMinutes = 120;
+
+    private const int ExpressionsPerSeed = 120;
+
+    /// <summary>
+    /// Expression-level property: the minutes a random expression matches, found by walking the window
+    /// a minute at a time, are exactly the fire times <see cref="CronExpression.GetNextValidTimeAfter" />
+    /// chains out of the same window — and <see cref="CronExpression.IsSatisfiedBy" /> agrees with both
+    /// on a sample of the minutes in between.
+    /// </summary>
+    /// <remarks>
+    /// The membership rule is this file's own arithmetic, so a field parsed into the wrong set is caught
+    /// as well as a search that lands in the wrong place. The generated grammar is deliberately the part
+    /// the worked examples cover thinnest: wrapping ranges in every field, step values, and the
+    /// day-of-week forms — a plain set, <c>d#n</c> and <c>dL</c>. The day-of-month special forms are left
+    /// out because <see cref="GetNextValidTimeAfter_MatchesBruteForce_LastDayAndWeekday" /> already walks
+    /// those against a reference of their own.
+    /// </remarks>
+    /// <param name="seed">
+    /// Fixed, and part of the case name: a fuzz that draws from the clock reports a failure nobody can
+    /// reproduce.
+    /// </param>
+    [TestCase(101)]
+    [TestCase(202)]
+    [TestCase(303)]
+    [TestCase(404)]
+    [TestCase(505)]
+    [TestCase(606)]
+    public void MinuteWalkAndGetNextValidTimeAfterAgreeOnRandomExpressions(int seed)
+    {
+        Random random = new Random(seed);
+        DateTimeOffset windowStart = new DateTimeOffset(2024, 3, 1, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset windowEnd = windowStart.AddDays(WindowDays);
+
+        int expressionsThatFired = 0;
+
+        for (int iteration = 0; iteration < ExpressionsPerSeed; iteration++)
+        {
+            GeneratedExpression generated = NextExpression(random);
+            CronExpression cron = new CronExpression(generated.Text, TimeZoneInfo.Utc);
+
+            // The walk: every minute in the window, tested against this file's own membership rule.
+            List<DateTimeOffset> expected = [];
+            for (DateTimeOffset minute = windowStart.AddMinutes(1); minute <= windowEnd && expected.Count < FiresPerExpression; minute = minute.AddMinutes(1))
+            {
+                if (generated.Matches(minute))
+                {
+                    expected.Add(minute);
+                }
+            }
+
+            // The chain: each fire time asked for from the one before it, so every step is a jump.
+            List<DateTimeOffset> actual = [];
+            DateTimeOffset cursor = windowStart;
+            while (actual.Count < FiresPerExpression)
+            {
+                DateTimeOffset? next = cron.GetNextValidTimeAfter(cursor);
+                if (next is null || next > windowEnd)
+                {
+                    break;
+                }
+
+                actual.Add(next.Value);
+                cursor = next.Value;
+            }
+
+            actual.Should().Equal(expected, "expression '{0}' (seed {1}, expression {2})", generated.Text, seed, iteration);
+
+            if (expected.Count > 0)
+            {
+                expressionsThatFired++;
+            }
+
+            // The same day and month fields at a fixed time of day. This fires at most once a day, so the
+            // comparison reaches the end of the window however dense the minute and hour fields were - and
+            // it is the day fields that make the search jump a gap, so a jump landing in the wrong week or
+            // the wrong month has nowhere else to show up.
+            CronExpression daily = new CronExpression(generated.DailyText, TimeZoneInfo.Utc);
+
+            DateTimeOffset noonOnTheFirstDay = new DateTimeOffset(windowStart.Year, windowStart.Month, windowStart.Day, 12, 0, 0, TimeSpan.Zero);
+
+            List<DateTimeOffset> expectedDays = [];
+            for (int day = 0; day <= WindowDays; day++)
+            {
+                DateTimeOffset candidate = noonOnTheFirstDay.AddDays(day);
+                if (candidate > windowStart && candidate <= windowEnd && generated.MatchesDay(candidate))
+                {
+                    expectedDays.Add(candidate);
+                }
+            }
+
+            List<DateTimeOffset> actualDays = [];
+            cursor = windowStart;
+            while (true)
+            {
+                DateTimeOffset? next = daily.GetNextValidTimeAfter(cursor);
+                if (next is null || next > windowEnd)
+                {
+                    break;
+                }
+
+                actualDays.Add(next.Value);
+                cursor = next.Value;
+            }
+
+            actualDays.Should().Equal(expectedDays, "expression '{0}' (seed {1}, expression {2})", generated.DailyText, seed, iteration);
+
+            for (int sample = 0; sample < SampledMinutes; sample++)
+            {
+                DateTimeOffset minute = windowStart.AddMinutes(random.Next(0, WindowDays * 24 * 60));
+
+                cron.IsSatisfiedBy(minute).Should().Be(
+                    generated.Matches(minute),
+                    "expression '{0}' at {1:O} (seed {2}, expression {3})", generated.Text, minute, seed, iteration);
+            }
+        }
+
+        // Around half of the draws pick a month the window does not contain, and those still assert
+        // something worth having - that the chain finds nothing either. The floor is here for the case
+        // where a change to the generator makes every expression fire on nothing.
+        expressionsThatFired.Should().BeGreaterThan(
+            ExpressionsPerSeed / 3,
+            "a generator that stopped producing expressions which fire inside the window would leave this test asserting nothing");
+    }
+
+    /// <summary>
+    /// A random expression together with the membership rule this file derived it from. The two are
+    /// built side by side so the rule can never be read back out of <see cref="CronExpression" />.
+    /// </summary>
+    private sealed class GeneratedExpression
+    {
+        public required string Text { get; init; }
+
+        /// <summary>The same day and month fields, fixed at noon.</summary>
+        public required string DailyText { get; init; }
+
+        public required HashSet<int> Minutes { get; init; }
+
+        public required HashSet<int> Hours { get; init; }
+
+        public required HashSet<int> Months { get; init; }
+
+        public required Func<DateTimeOffset, bool> DayMatches { get; init; }
+
+        public bool Matches(DateTimeOffset moment)
+        {
+            return moment.Second == 0
+                   && moment.Millisecond == 0
+                   && MatchesDay(moment)
+                   && Hours.Contains(moment.Hour)
+                   && Minutes.Contains(moment.Minute);
+        }
+
+        public bool MatchesDay(DateTimeOffset moment)
+        {
+            return Months.Contains(moment.Month) && DayMatches(moment);
+        }
+    }
+
+    private static GeneratedExpression NextExpression(Random random)
+    {
+        (string minuteToken, HashSet<int> minutes) = NextField(random, 0, 59);
+        (string hourToken, HashSet<int> hours) = NextField(random, 0, 23);
+        (string monthToken, HashSet<int> months) = NextField(random, 1, 12);
+
+        string dayOfMonthToken;
+        string dayOfWeekToken;
+        Func<DateTimeOffset, bool> dayMatches;
+
+        // Exactly one of the two day fields carries a value and the other a '?', which is the only
+        // combination Quartz reads without complaint.
+        if (random.Next(2) == 0)
+        {
+            (dayOfWeekToken, dayMatches) = NextDayOfWeek(random);
+            dayOfMonthToken = "?";
+        }
+        else
+        {
+            (dayOfMonthToken, HashSet<int> daysOfMonth) = NextField(random, 1, 31);
+            dayMatches = moment => daysOfMonth.Contains(moment.Day);
+            dayOfWeekToken = "?";
+        }
+
+        return new GeneratedExpression
+        {
+            Text = $"0 {minuteToken} {hourToken} {dayOfMonthToken} {monthToken} {dayOfWeekToken}",
+            DailyText = $"0 0 12 {dayOfMonthToken} {monthToken} {dayOfWeekToken}",
+            Minutes = minutes,
+            Hours = hours,
+            Months = months,
+            DayMatches = dayMatches
+        };
+    }
+
+    private static (string Token, Func<DateTimeOffset, bool> Matches) NextDayOfWeek(Random random)
+    {
+        int shape = random.Next(5);
+
+        // Quartz numbers the week 1 = Sunday through 7 = Saturday.
+        if (shape == 3)
+        {
+            int day = random.Next(1, 8);
+            int nth = random.Next(1, 6);
+
+            // The nth such weekday in the month, and no fallback when the month has fewer than n of them.
+            return ($"{day}#{nth}", moment => QuartzDayOfWeek(moment) == day && (moment.Day - 1) / 7 + 1 == nth);
+        }
+
+        if (shape == 4)
+        {
+            int day = random.Next(1, 8);
+
+            return ($"{day}L", moment => QuartzDayOfWeek(moment) == day && moment.Day + 7 > DateTime.DaysInMonth(moment.Year, moment.Month));
+        }
+
+        (string token, HashSet<int> values) = NextField(random, 1, 7);
+        return (token, moment => values.Contains(QuartzDayOfWeek(moment)));
+    }
+
+    private static int QuartzDayOfWeek(DateTimeOffset moment) => (int) moment.DayOfWeek + 1;
+
+    /// <summary>
+    /// One field, as a token and as the set of values that token means. Four shapes: the wildcard, a
+    /// list, a range that may run backwards through the top of the field, and a step.
+    /// </summary>
+    private static (string Token, HashSet<int> Values) NextField(Random random, int min, int max)
+    {
+        int span = max - min + 1;
+
+        switch (random.Next(4))
+        {
+            case 0:
+            {
+                HashSet<int> all = [];
+                for (int value = min; value <= max; value++)
+                {
+                    all.Add(value);
+                }
+
+                return ("*", all);
+            }
+
+            case 1:
+            {
+                HashSet<int> values = [];
+                int count = random.Next(1, 5);
+                for (int i = 0; i < count; i++)
+                {
+                    values.Add(random.Next(min, max + 1));
+                }
+
+                return (string.Join(",", values.OrderBy(value => value)), values);
+            }
+
+            case 2:
+            {
+                int from = random.Next(min, max + 1);
+                int to = random.Next(min, max + 1);
+
+                HashSet<int> values = [];
+                for (int value = from; value <= (from <= to ? to : to + span); value++)
+                {
+                    values.Add(value > max ? value - span : value);
+                }
+
+                return ($"{from}-{to}", values);
+            }
+
+            default:
+            {
+                int from = random.Next(min, max + 1);
+
+                // Quartz rejects an increment that reaches the top of the field, so the draw stops short of it.
+                int increment = random.Next(1, span);
+
+                HashSet<int> values = [];
+                for (int value = from; value <= max; value += increment)
+                {
+                    values.Add(value);
+                }
+
+                return ($"{from}/{increment}", values);
+            }
         }
     }
 
