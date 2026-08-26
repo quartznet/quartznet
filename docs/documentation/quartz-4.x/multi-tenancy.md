@@ -159,13 +159,19 @@ up the distinction matters less than it looks. It matters while the host is stil
 resolve schedulers yourself, when a start failed, and whenever you want an inventory rather than a list
 of live objects.
 
-::: warning The dashboard and the HTTP API list the repository, not the registry
-Both resolve a scheduler by looking it up in `ISchedulerRepository`, which holds the schedulers something
-has already built. A tenant that is registered but has never been created is therefore absent from the
-dashboard's scheduler list, and its API routes answer `404` — not because the name is unknown, but
-because nothing has built it yet. Under `AddQuartzHostedService()` that window closes as the host starts;
-outside it — a scheduler resolved lazily, or one whose start failed — the two views disagree, and
-`ISchedulerRegistry` is the one that knows the tenant exists.
+The dashboard and the HTTP API read the same registry, so a tenant nothing has built is listed by both.
+`GET {ApiPath}/schedulers` reports it with a `null` status and no instance id, and the dashboard's
+**Schedulers** page at `/quartz/schedulers` gives it a row saying **not created** — beside, for every
+tenant that does exist, what its job store and thread pool are, when it started, how many jobs it has
+executed and how many nodes it has. The header's scheduler picker offers it too, greyed out.
+
+::: warning A tenant's own routes still resolve through the repository
+The listing is the one read that goes through the registry. Everything addressed *at* a scheduler —
+`GET {ApiPath}/schedulers/acme`, its jobs, its triggers — resolves through `ISchedulerRepository`, which
+holds the schedulers something has already built, so those routes answer `404` for a tenant nothing has
+created. Not because the name is unknown: the listing is where you see that it is not. Under
+`AddQuartzHostedService()` that window closes as the host starts; outside it — a scheduler resolved
+lazily, or one whose start failed — it stays open.
 :::
 
 ### What is per scheduler

@@ -1692,6 +1692,34 @@ public enum SchedulerOrigin { Container, Runtime }
 Nothing is removed: `GetAllSchedulers()` still means what it always meant, and it is still the call to
 make when you want the live schedulers themselves rather than an inventory.
 
+### `GET /schedulers` answers from the registry
+
+The HTTP API's scheduler listing reads `ISchedulerRegistry` too, so it carries the registrations rather
+than only what has been built, and each entry says which it is:
+
+```json
+{ "name": "acme", "schedulerInstanceId": null, "status": null, "origin": "Container" }
+```
+
+| | 3.x and the 4.0 previews | 4.0.0-alpha.3 |
+|---|---|---|
+| Source | `ISchedulerRepository.LookupAll()` | `ISchedulerRegistry.QuerySchedulers()` |
+| `status` | always a name | `null` when nothing has built the scheduler |
+| `schedulerInstanceId` | always present | `null` when nothing has built the scheduler |
+| `origin` | — | `Container` or `Runtime` |
+
+A reader that assumed `status` and `schedulerInstanceId` are always present has to handle `null`, and
+one that took the listing to mean "the schedulers that are running" should filter on `status`. Nothing
+else moved: a scheduler's own routes still resolve through the repository, so `GET /schedulers/{name}`
+answers `404` for a registration nothing has built.
+
+`Quartz.Dashboard`'s own projection changed with it — `SchedulerHeaderDto.Status` and
+`SchedulerInstanceId` are nullable, it gained `Origin` and `IsCreated`, and `SchedulerDetailDto` grew the
+`SchedulerMetadata` the dashboard used to drop: `Clustered`, `Persistent`, `JobStoreTypeName`,
+`ThreadPoolTypeName`, `ThreadPoolSize`, `RunningSince`, `JobsExecuted` and `Version`. Both types are
+public because `IQuartzApiClient` is replaceable; an application that implements that interface itself
+has to fill the new members.
+
 `ISchedulerRegistry` is deliberately the *narrow* half of the API [#3338](https://github.com/quartznet/quartznet/issues/3338)
 sketches for runtime tenant lifecycle. Adding and removing schedulers at runtime is a 4.1 concern; when it
 lands, its manager interface extends this one rather than replacing it.

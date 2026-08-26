@@ -93,6 +93,25 @@ scheduler selector and its jobs and triggers rendered, but its Live Logs view an
 silently always empty. There was nothing to configure to get them; this is a fix rather than a new option.
 :::
 
+### Schedulers
+
+The **Schedulers** page at `/quartz/schedulers` is the fleet: one row per scheduler the container knows
+about, whether or not anything has built it. It reads `ISchedulerRegistry`, so a scheduler registered
+with `AddQuartz("acme", …)` that nothing has resolved yet is listed with its origin and a **not created**
+status rather than being absent — and listing it does not build it.
+
+Each row that has a scheduler behind it shows what that scheduler is made of, read from its
+`SchedulerMetadata`: its instance id, whether its job store is persistent and whether it is clustered,
+the store and thread pool it uses, the pool size, when it started (in the time zone the header picker
+selects), how many jobs it has executed, and the version of Quartz running it. The node count beside it
+comes from the cluster-node query, and only for a store that has nodes — a persistent, clustered one. An
+in-memory store is never asked, because the answer would always be "one".
+
+Following a row makes that scheduler the active one and opens its Dashboard page, which is the same
+switch the header's scheduler picker makes. A registration nothing has built is not a link: there is no
+scheduler behind it for any page to show. The picker offers it too, greyed out, so that a tenant that
+failed to start is visible rather than looking as though it had never been registered.
+
 ## Hosting under a custom path
 
 When the dashboard hosts its own Blazor root, it can be served from a custom base path. Name it where the endpoints are mapped, the way the rest of ASP.NET Core reads (`MapHealthChecks("/health")`):
@@ -216,18 +235,23 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 - Job details and trigger details pages
 - Currently executing jobs view — cluster-wide with a persistent job store, showing which node owns each
   execution, and interrupting the one execution a row names rather than every execution of its job
+- Schedulers view at `/quartz/schedulers` — one row per scheduler the container knows about, built or
+  merely registered, with its origin and status and, for one that exists, its job store and thread pool,
+  when it started, how many jobs it has executed, its node count when it is clustered, and its version;
+  a row is the link that makes that scheduler the active one
 - Cluster view at `/quartz/cluster` — one row per node with its state (`Alive`, `Overdue`, `Failed`),
   its last check-in in the selected time zone and as a relative time, its check-in interval, and how
-  many firings it is holding and running; the node answering is marked, and a scheduler whose store
-  keeps no cluster state says so rather than showing an empty table
+  many firings it is holding and running; the node answering is marked, and a scheduler whose job store
+  is not clustered says so rather than showing an empty table
 - Live event/log stream for scheduler activity, fed by plugins `AddQuartzDashboard` installs on every
   scheduler in the container — so a named scheduler streams its own events, each plugin instance
   initialized with the name of the scheduler it belongs to
 - Pause, resume, trigger-now, and unschedule/delete actions (when not in read-only mode)
 - Trigger detail cron reschedule and job detail trigger-with-overrides actions
 - Calendar create/replace (cron calendar), details, and delete actions
-- Multi-scheduler selection, over the schedulers the container has *built* — the dashboard lists
-  `ISchedulerRepository`, so a registered scheduler nothing has created yet does not appear
+- Multi-scheduler selection, over every scheduler the container knows about — the dashboard lists
+  `ISchedulerRegistry`, so a registered scheduler nothing has created yet is offered greyed out rather
+  than omitted
 - Read-only mode support via dashboard options
 
 ::: warning Fixed in 4.0.0-alpha.2
