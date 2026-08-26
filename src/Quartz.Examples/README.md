@@ -64,10 +64,13 @@ docker run -d -p 1433:1433 -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='Quartz!DockerP
   mcr.microsoft.com/mssql/server:2022-latest
 ```
 
-then create a `quartznet` database and run `database/tables/tables_sqlserver.sql` against it. That is
-what the default connection string expects; `QUARTZ_EXAMPLES_SQLSERVER` points somewhere else. Run the
-example in two terminals to see a cluster of two, and kill one of them to watch the other take its
-work over.
+then create a `quartznet` database and run `database/tables/tables_sqlserver.sql` against it — the
+script opens with `USE [enter_db_name_here]`, so put the database's name there first. That is what the
+default connection string expects; `QUARTZ_EXAMPLES_SQLSERVER` points somewhere else.
+
+Run the example in two terminals to see a cluster of two. Each node prints what it is running and what
+it believes about the others; kill one and the survivor reports it `Failed` and re-runs the jobs it was
+holding, marked `RECOVERING`.
 
 ## Adding an example
 
