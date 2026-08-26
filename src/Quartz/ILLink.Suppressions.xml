@@ -13,10 +13,10 @@
   That is not an omission. ILLink does not report IL3050 at all — dynamic code is ILCompiler's concern,
   and ILCompiler cannot be handed this file: its command line offers a descriptor option and a
   substitution option and no link-attributes option at all, and the SDK item below only ever reaches
-  ILLink. The only way to tell ILCompiler would be to bake UnconditionalSuppressMessage into the shipped
-  assembly, which is exactly the lie the paragraph below refuses to tell. So a native AOT publish of the
-  examples reports every one of these against Quartz and cannot be made a CI leg; step 5 of #3341 ran it
-  by hand instead, and its pull request records what it said.
+  ILLink. The only way to tell ILCompiler in the assembly would be to bake UnconditionalSuppressMessage
+  into it, which is exactly the lie the paragraph below refuses to tell. So a native AOT publish reports
+  every one of these against Quartz, and the CI leg that runs one reads the report instead of being
+  silenced — see the paragraph on ILCompiler further down.
 
   Two files are needed because the two tools cannot be told the same way. SuppressMessageAttribute is
   [Conditional("CODE_ANALYSIS")], so the C# baseline never reaches metadata and ILLink cannot see it;
@@ -35,6 +35,12 @@
   When ILLink reports a warning against a type that is not listed here, that is the baseline working.
   Fix the reflection, or make the case for a new entry — see TrimAnalysisBaseline.cs for the order to
   try the fixes in.
+
+  ILCompiler is told the same thing a third way. It has no link-attributes option, so this file cannot be
+  handed to it at all; build/Build.cs reads the entries below and applies them itself to what a native AOT
+  publish of the trim canary reports, failing on a Quartz type this file does not list. That is also how
+  the canary's own trimmed publish is checked, since it applies no suppressions and has to link before it
+  can run.
 
   One local-only wrinkle: the link step is incremental on the assemblies it consumes and does not track
   this file, so editing it alone may not re-link. Delete the example's linked output, or touch a source
@@ -74,7 +80,7 @@
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
         <argument>IL2057</argument>
-        <property name="Justification">An ADO.NET provider's connection type is named by the driver description, so the provider assembly need not be referenced.</property>
+        <property name="Justification">Only the name-resolved half of a driver description asks for a type; a provider built over a DbProviderFactory or a DbDataSource never does.</property>
       </attribute>
     </type>
     <type fullname="Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory*">

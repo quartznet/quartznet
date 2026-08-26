@@ -49,6 +49,15 @@ using System.Diagnostics.CodeAnalysis;
 // HttpApiJson.ReflectionResolver answers at the call site, because a native AOT publish substitutes its
 // feature switch away exactly as a trimmed one does.
 //
+// Step 7 deleted none, and moved the ADO store out from behind the one that reads worst. The driver
+// descriptions BuiltInDbMetadataFactory ships are split in two: what is true of a driver whatever Quartz
+// reaches it through, and the types, which are still resolved from strings. A registration that hands
+// over the driver's DbProviderFactory - or a DbDataSource - reads only the first half and constructs
+// nothing, so the IL2057 below is the name path's alone, and the overloads that take a name say
+// [RequiresUnreferencedCode] rather than leaving an application to find out. The trim canary runs a whole
+// SQLite store out of a TrimMode=full publish and out of a native one, which is what makes that a fact
+// rather than a claim.
+//
 // Step 6 deleted four entries - the IL2026 and IL3050 on SystemTextJsonObjectSerializer and on
 // Utf8JsonWriterExtensions - and they are the only ones this file has ever recorded that a publish did
 // not merely warn about. The store serializer built options with converters and no resolver, and a
@@ -102,7 +111,7 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.JobType", Justification = "A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver.")]
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.StdAdoDelegate", Justification = "A persisted job's type is the JOB_CLASS_NAME column, which is a string by the time it is read back.")]
 [assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.StdAdoDelegate", Justification = "A persisted job's type reaches JobBuilder.OfType as a Type resolved from JOB_CLASS_NAME.")]
-[assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.BuiltInDbMetadataFactory", Justification = "An ADO.NET provider's connection type is named by the driver description, so the provider assembly need not be referenced.")]
+[assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.BuiltInDbMetadataFactory", Justification = "Only the name-resolved half of a driver description asks for a type; a provider built over a DbProviderFactory or a DbDataSource never does.")]
 [assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory", Justification = "A driver described by quartz.dbprovider.* keys has those keys applied to its DbMetadata by name.")]
 [assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "Translating legacy quartz.* keys means constructing the component each key names.")]
 [assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "Translating legacy quartz.* keys means constructing the component each key names.")]
