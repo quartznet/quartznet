@@ -192,14 +192,11 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
                 .Initialize(scheduler, cancellationToken)
                 .ConfigureAwait(false);
 
-            logger.LogInformation(
-                "Quartz Scheduler {Version} - '{SchedulerName}' with instanceId '{SchedulerInstanceId}' initialized",
+            logger.SchedulerInitialized(
                 quartzScheduler.Version, quartzScheduler.SchedulerName, quartzScheduler.SchedulerInstanceId);
-            logger.LogInformation(
-                "Using thread pool '{ThreadPoolType}', size: {ThreadPoolSize}",
+            logger.UsingThreadPool(
                 quartzScheduler.ThreadPoolType.FullName, quartzScheduler.ThreadPoolSize);
-            logger.LogInformation(
-                "Using job store '{JobStoreType}', supports persistence: {SupportsPersistence}, clustered: {Clustered}",
+            logger.UsingJobStore(
                 quartzScheduler.JobStoreType.FullName, quartzScheduler.SupportsPersistence, quartzScheduler.Clustered);
 
             return scheduler;
@@ -259,7 +256,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         }
         catch (Exception e) when (e is not SchedulerException)
         {
-            logger.LogError(e, "Couldn't generate instance id");
+            logger.InstanceIdGenerationFailed(e);
             Throw.SchedulerException("Cannot run without an instance id.", e);
             return default!;
         }
@@ -275,7 +272,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Got another exception while shutting down after instantiation exception");
+            logger.ShutdownAfterInstantiationFailureFailed(e);
         }
     }
 }

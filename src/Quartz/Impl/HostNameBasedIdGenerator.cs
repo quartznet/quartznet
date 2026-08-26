@@ -23,6 +23,7 @@ using System.Net;
 
 using Microsoft.Extensions.Logging;
 
+using Quartz.Configuration;
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
 
@@ -67,7 +68,7 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
             if (hostName.Length > maxLength)
             {
                 string newName = hostName.Substring(0, maxLength);
-                logger.LogInformation("Host name '{HostName}' was too long, shortened to '{Newname}'", hostName, newName);
+                logger.HostNameShortened(hostName, newName);
                 hostName = newName;
             }
             return hostName;

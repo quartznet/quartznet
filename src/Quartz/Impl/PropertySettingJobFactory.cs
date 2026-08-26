@@ -23,6 +23,7 @@ using System.Runtime.ExceptionServices;
 
 using Microsoft.Extensions.Logging;
 
+using Quartz.Configuration;
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
 using Quartz.Util;
@@ -155,7 +156,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
             catch (Exception e)
             {
                 // Never let cleanup replace the failure that caused it.
-                factory.logger.LogWarning(e, "Failed to return a job after its creation failed; the original error follows");
+                factory.logger.JobReturnAfterFailedCreationFailed(e);
             }
 
             ExceptionDispatchInfo.Capture(failure).Throw();
@@ -343,16 +344,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
 
         if (PropertyMismatchBehavior == PropertyMismatchBehavior.Warn)
         {
-#pragma warning disable CA2254
-            if (e is null)
-            {
-                logger.LogWarning(message);
-            }
-            else
-            {
-                logger.LogWarning(e, message);
-            }
-#pragma warning restore CA2254
+            logger.JobPropertyNotSet(message, e);
         }
     }
 }

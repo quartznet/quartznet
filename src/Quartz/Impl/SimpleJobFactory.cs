@@ -19,6 +19,7 @@
 
 using Microsoft.Extensions.Logging;
 
+using Quartz.Configuration;
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
 using Quartz.Util;
@@ -87,7 +88,7 @@ public class SimpleJobFactory : IJobFactory
         {
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("Producing instance of Job '{JobKey}', class={JobFullName}", jobDetail.Key, jobType.FullName);
+                logger.ProducingJobInstance(jobDetail.Key, jobType.FullName);
             }
 
             return ObjectUtils.InstantiateType<IJob>(jobType);

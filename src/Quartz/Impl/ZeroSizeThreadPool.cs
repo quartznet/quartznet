@@ -21,6 +21,7 @@
 
 using Microsoft.Extensions.Logging;
 
+using Quartz.Configuration;
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
 
@@ -85,7 +86,7 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default)
     {
-        logger.LogDebug("Shutdown complete");
+        logger.ZeroSizeThreadPoolShutdownComplete();
         return default;
     }
 

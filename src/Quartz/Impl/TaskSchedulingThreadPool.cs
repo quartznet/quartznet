@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 
+using Quartz.Configuration;
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
 
@@ -175,8 +176,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug("TaskSchedulingThreadPool configured with max concurrency of {MaxConcurrency} and TaskScheduler {SchedulerName}.",
-                MaxConcurrency, Scheduler.GetType().Name);
+            logger.TaskSchedulingThreadPoolConfigured(MaxConcurrency, Scheduler.GetType().Name);
         }
 
         return default;
@@ -307,7 +307,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         {
             // Observing the fault here keeps it off the UnobservedTaskException path; a failure
             // can reach this point only by escaping the job run shell's own error handling.
-            logger.LogError(completedTask.Exception, "A task handed to the thread pool faulted.");
+            logger.ThreadPoolTaskFaulted(completedTask.Exception);
         }
 
         concurrencySemaphore.Release();
@@ -337,7 +337,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             return;
         }
 
-        logger.LogDebug("Shutting down threadpool...");
+        logger.ThreadPoolShuttingDown();
 
         Task drained = CloseToNewWork();
 
@@ -349,7 +349,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             // tears down afterwards would run with jobs still writing to the store.
             await drained.ConfigureAwait(false);
 
-            logger.LogDebug("No executing jobs remaining, all threads stopped.");
+            logger.ThreadPoolDrained();
         }
 
         ReleaseResources();
@@ -364,7 +364,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             return true;
         }
 
-        logger.LogDebug("Draining threadpool...");
+        logger.ThreadPoolDraining();
 
         Task drained = CloseToNewWork();
         bool drainedInTime = true;
@@ -386,11 +386,11 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
 
         if (drainedInTime)
         {
-            logger.LogDebug("No executing jobs remaining, all threads stopped.");
+            logger.ThreadPoolDrained();
         }
         else
         {
-            logger.LogDebug("Gave up waiting for the thread pool to drain; work is still running.");
+            logger.ThreadPoolDrainGivenUp();
         }
 
         ReleaseResources();
@@ -417,7 +417,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
                 ? Interlocked.Decrement(ref runningTasks)
                 : Volatile.Read(ref runningTasks);
 
-            logger.LogDebug("Thread pool closed to new work with {RunningTaskCount} running tasks remaining.", remaining);
+            logger.ThreadPoolClosedToNewWork(remaining);
 
             if (remaining == 0)
             {
@@ -435,6 +435,6 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         // Dispose the scheduler to release its resources (e.g. QueuedTaskScheduler threads)
         (scheduler as IDisposable)?.Dispose();
 
-        logger.LogDebug("Shutdown of threadpool complete.");
+        logger.ThreadPoolShutdownComplete();
     }
 }
