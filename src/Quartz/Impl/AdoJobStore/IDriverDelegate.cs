@@ -989,7 +989,7 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="state">The trigger state to scan.</param>
-    /// <param name="misfireTime">Triggers whose next fire time is before this are misfired.</param>
+    /// <param name="misfireTime">Triggers whose next fire time is at or before this are misfired.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
     ValueTask<int> CountMisfiredTriggersInState(
@@ -1058,7 +1058,7 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="state">The trigger state to scan (<see cref="StoredTriggerState.Waiting" />).</param>
-    /// <param name="misfireTime">Triggers whose next fire time is before this are misfired.</param>
+    /// <param name="misfireTime">Triggers whose next fire time is at or before this are misfired.</param>
     /// <param name="count">Maximum number of triggers to return, or -1 for all of them.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<MisfiredTriggerBatch> SelectMisfiredTriggersToRecover(

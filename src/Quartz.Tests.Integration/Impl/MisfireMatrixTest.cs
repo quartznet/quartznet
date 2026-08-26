@@ -206,11 +206,16 @@ public sealed class MisfireMatrixTest : MisfireThroughAStoreTestBase
 
     /// <summary>
     /// Where a store draws the line, to the tick. The threshold instant itself is the interesting one:
-    /// the in-memory store's <c>ApplyMisfireNoLock</c> declines only a trigger whose fire time is
-    /// strictly <em>after</em> <c>now - MisfireThreshold</c>, so the instant itself is a misfire, while
-    /// the ADO store's recovery SELECT asks for <c>NEXT_FIRE_TIME &lt; @nextFireTime</c>, so the instant
-    /// itself is not.
+    /// both stores' comparison is <c>&lt;=</c> — the in-memory store's <c>ApplyMisfireNoLock</c> declines
+    /// only a trigger whose fire time is strictly <em>after</em> <c>now - MisfireThreshold</c>, and the
+    /// ADO store's recovery SELECT asks for <c>NEXT_FIRE_TIME &lt;= @nextFireTime</c> — so the instant
+    /// itself is a misfire on both.
     /// </summary>
+    /// <remarks>
+    /// The two flags are kept apart rather than collapsed into one so that
+    /// <see cref="BothStoresAgreeOnTheThresholdInstant" /> has two things to compare: a change that moved
+    /// one store's comparison and not the other's would have to say so here first.
+    /// </remarks>
     public sealed record ThresholdEdgeCase(string Position, long TickOffset, bool InMemoryMisfires, bool AdoMisfires)
     {
         public override string ToString() => Position;
@@ -219,7 +224,7 @@ public sealed class MisfireMatrixTest : MisfireThroughAStoreTestBase
     public static IEnumerable<ThresholdEdgeCase> ThresholdEdgeCases()
     {
         yield return new ThresholdEdgeCase("one tick before the threshold", -1, InMemoryMisfires: true, AdoMisfires: true);
-        yield return new ThresholdEdgeCase("exactly on the threshold", 0, InMemoryMisfires: true, AdoMisfires: false);
+        yield return new ThresholdEdgeCase("exactly on the threshold", 0, InMemoryMisfires: true, AdoMisfires: true);
         yield return new ThresholdEdgeCase("one tick after the threshold", 1, InMemoryMisfires: false, AdoMisfires: false);
     }
 
@@ -232,45 +237,33 @@ public sealed class MisfireMatrixTest : MisfireThroughAStoreTestBase
     }
 
     [TestCaseSource(nameof(ThresholdEdgeCases))]
-    public async Task TheAdoStoreLeavesTheThresholdInstantItselfAlone(ThresholdEdgeCase testCase)
+    public async Task TheAdoStoreCountsTheThresholdInstantItselfAsLate(ThresholdEdgeCase testCase)
     {
         await AssertThresholdEdge(await SqliteStore(Anchor()), testCase, testCase.AdoMisfires,
-            "the recovery SELECT asks for NEXT_FIRE_TIME < now - MisfireThreshold, so the threshold "
-            + "instant itself is strictly excluded");
+            "the recovery SELECT asks for NEXT_FIRE_TIME <= now - MisfireThreshold, so the threshold "
+            + "instant itself is included");
     }
 
     /// <summary>
-    /// The two stores disagree about the threshold instant itself, which is a finding rather than
-    /// something for this test to paper over: the in-memory store's comparison is <c>&lt;=</c> and the
-    /// ADO store's recovery SELECT is <c>&lt;</c>, so a trigger due at exactly
-    /// <c>now - MisfireThreshold</c> misfires on one store and not on the other.
+    /// A trigger due at exactly <c>now - MisfireThreshold</c> means the same thing to both stores: it is
+    /// late. One comparison, <c>&lt;=</c>, wherever the question is asked — the in-memory store's
+    /// <c>ApplyMisfireNoLock</c>, the ADO store's recovery SELECT and its count, and its single-trigger
+    /// <c>UpdateMisfiredTrigger</c> path that a resumed trigger goes through.
     /// </summary>
     /// <remarks>
-    /// Reported rather than asserted, per the rule that a matrix says what 4.0 does and does not change
-    /// it. Note that the ADO store is not even internally consistent about it: its single-trigger path,
-    /// <c>UpdateMisfiredTrigger</c> — which is what a resumed trigger goes through — uses the in-memory
-    /// store's <c>&lt;=</c>.
+    /// The two stores used to disagree here — the ADO sweep's SELECT was <c>&lt;</c> while everything
+    /// else was <c>&lt;=</c>, so the ADO store did not even agree with itself. #3462 closed that.
     /// </remarks>
     [Test]
     public void BothStoresAgreeOnTheThresholdInstant()
     {
         ThresholdEdgeCase edge = ThresholdEdgeCases().Single(x => x.TickOffset == 0);
 
-        if (edge.InMemoryMisfires != edge.AdoMisfires)
-        {
-            Assert.Inconclusive(
-                "A trigger due at exactly now - MisfireThreshold is treated differently by the two stores. "
-                + $"Observed: RAMJobStore misfires it ({edge.InMemoryMisfires}), the ADO store does not "
-                + $"({edge.AdoMisfires}). Expected: the same answer from both. RAMJobStore's "
-                + "ApplyMisfireNoLock declines only when NextFireTimeUtc > now - MisfireThreshold, so its "
-                + "comparison is <=; StdAdoConstants.SqlSelectMisfiredTriggersToRecover asks for "
-                + "NEXT_FIRE_TIME < @nextFireTime, so the ADO sweep's is <. AdoJobStoreBase.UpdateMisfiredTrigger, "
-                + "the ADO store's own single-trigger path, uses <= like the in-memory store, so the ADO "
-                + "store also disagrees with itself.");
-        }
-
         edge.AdoMisfires.Should().Be(edge.InMemoryMisfires,
             "a trigger due at exactly now - MisfireThreshold has to mean the same thing to both stores");
+        edge.InMemoryMisfires.Should().BeTrue(
+            "the one rule is that a trigger is misfired when its fire time is at or before now - MisfireThreshold, "
+            + "so the threshold instant itself is late rather than the last instant that is not");
     }
 
     /// <summary>
