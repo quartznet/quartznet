@@ -5138,8 +5138,9 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <remarks>
     /// The seam for a store whose driver reports something Quartz does not know how to read. The
     /// default answer comes from <see cref="TransientErrorDetector" />: the driver's own
-    /// <see cref="DbException.IsTransient" />, SQL Server's transient error numbers, SQLite's busy and
-    /// locked codes, and <see cref="TimeoutException" />, over the whole chain of inner exceptions.
+    /// <see cref="DbException.IsTransient" />, a SQLSTATE in class <c>40</c> (transaction rollback,
+    /// <c>40002</c> excepted), SQL Server's transient error numbers, SQLite's busy and locked codes,
+    /// and <see cref="TimeoutException" />, over the whole chain of inner exceptions.
     /// </remarks>
     /// <param name="ex">The exception to classify.</param>
     /// <returns>If the exception is identified as transient.</returns>
