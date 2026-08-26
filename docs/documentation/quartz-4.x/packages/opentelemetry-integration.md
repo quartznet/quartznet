@@ -27,47 +27,99 @@ builder.Services.AddOpenTelemetry()
 existing `AddSource("Quartz")` keeps working.
 
 ::: warning Upgrading from 3.x
-Every instrument and every attribute was renamed in 4.0, and two of the four instruments are gone. Dashboards
+Every instrument and every attribute was renamed in 4.0, and two of 3.x's four instruments are gone — while
+five new ones cover misfires, acquisition, cluster check-in and recovery, and store round trips. Dashboards
 and alerts written against the old names do not survive the upgrade — the migration guide has the
 [complete old → new table](../migration-guide.md#old-and-new-telemetry-names).
 :::
 
 ## Traces
 
-One activity per job execution, plus one per job store operation:
+Three kinds of span: the execution, the veto, and one per job store round trip.
 
-| Span | When |
-|---|---|
-| `Quartz.Job.Execute` | A job runs. The span covers the whole fire, and records the exception when one is thrown. |
-| `Quartz.Job.Veto` | A trigger listener vetoed the fire, so the job did not run. |
-| `Quartz.JobStore.*` | One per store operation — `Quartz.JobStore.AcquireNextTriggers`, `.TriggersFired`, `.ScheduleJob`, `.PauseTrigger` and the rest. |
+| Span | Kind | When |
+|---|---|---|
+| `Quartz.Job.Execute` | `Internal` | A job runs. The span covers the whole fire, and records the exception when one is thrown. |
+| `Quartz.Job.Veto` | `Internal` | A trigger listener vetoed the fire, so the job did not run. |
+| `Quartz.JobStore.<operation>` | `Client` | One per store operation. The twenty-nine names are the members of `Quartz.Diagnostics.OperationName.JobStore`. |
 
-The span names are constants too, on `Quartz.Diagnostics.OperationName`.
+The twenty-nine store operations are the ones that change something or hand work to the scheduler:
 
-Attributes are namespaced `quartz.*`, and are constants on `Quartz.Diagnostics.ActivityTags`:
+`AcquireNextTriggers`, `TriggersFired`, `TriggeredJobComplete`, `ReleaseAcquiredTrigger`, `ScheduleJob`,
+`ScheduleJobs`, `AddJob`, `AddTrigger`, `AddCalendar`, `DeleteJob`, `DeleteJobs`, `DeleteTrigger`,
+`DeleteTriggers`, `DeleteCalendar`, `ReplaceTrigger`, `UpdateTriggerDetails`, `PauseTrigger`,
+`PauseTriggers`, `PauseJob`, `PauseJobs`, `ResumeTrigger`, `ResumeTriggers`, `ResumeJob`, `ResumeJobs`,
+`PauseAll`, `ResumeAll`, `ResetTriggerFromErrorState`, `ResetTriggersFromErrorState`, `Clear`.
+
+Reads — `GetJob`, `Exists`, the `Query*` members — are deliberately not spans. A dashboard listing
+triggers would otherwise produce a span per page.
+
+::: tip Every store, not just the database one
+Store tracing is a decorator over `IJobStore`, applied to whatever store the scheduler was built with.
+The in-memory store, the Redis store and a store you wrote yourself all emit these spans; before 4.0.0
+they came from inside the ADO.NET store and nothing else produced any.
+:::
+
+The span names are constants, on `Quartz.Diagnostics.OperationName`. Attributes are namespaced `quartz.*`,
+and are constants on `Quartz.Diagnostics.ActivityTags`:
 
 | Attribute | On |
 |---|---|
 | `quartz.scheduler.name`, `quartz.scheduler.id` | every span |
 | `quartz.job.name`, `quartz.job.group`, `quartz.job.type` | job spans |
-| `quartz.trigger.name`, `quartz.trigger.group` | job spans |
+| `quartz.trigger.name`, `quartz.trigger.group` | job spans; store spans about one trigger |
+| `quartz.execution.group` | job spans, when the trigger names an execution group |
 | `quartz.fire.instance.id` | job spans — the id of this one firing, which is also what `IScheduler.InterruptFireInstance` takes |
-| `quartz.jobstore.trigger.count`, `quartz.jobstore.batch.size` | job store spans |
+| `quartz.job.name`, `quartz.job.group` | store spans about one job |
+| `quartz.jobstore.batch.size` | `Quartz.JobStore.AcquireNextTriggers` — how many triggers the scheduler asked for |
+| `quartz.jobstore.trigger.count` | `Quartz.JobStore.AcquireNextTriggers` (how many came back) and `.TriggersFired` (how many were fired) |
+| `error.type` | any span that ended in a failure |
 
 ## Metrics
 
-| Instrument | Type | Unit | Attributes |
-|---|---|---|---|
-| `quartz.job.execution.duration` | `Histogram<double>` | `s` | the five identity attributes, plus `error.type` when the execution failed |
-| `quartz.job.execution.active` | `UpDownCounter<long>` | `{job}` | the five identity attributes |
+Seven instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
+`quartz.scheduler.id`** — the name says which scheduler, the id says which node of it, and a cluster is
+several nodes sharing one name.
 
-Two instruments answer more than the four they replaced. A histogram carries its own count, so the number of
-executions is `quartz.job.execution.duration`'s count and the number of failures is the part of that count
-tagged with `error.type` — which also says *which* exception, something a plain error counter never could.
+| Instrument | Type | Unit | Extra attributes | What it measures |
+|---|---|---|---|---|
+| `quartz.job.execution.duration` | `Histogram<double>` | `s` | `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group`, `quartz.job.name`, `quartz.execution.group`¹, `error.type`² | How long a job took. Its **count** is the number of executions. |
+| `quartz.job.execution.active` | `UpDownCounter<long>` | `{job}` | the same identity attributes, `quartz.execution.group`¹ | How many jobs are running right now. |
+| `quartz.trigger.misfire` | `Counter<long>` | `{trigger}` | `quartz.trigger.group`, `quartz.execution.group`¹ | Firings that were owed and did not happen on time. |
+| `quartz.trigger.acquisition.duration` | `Histogram<double>` | `s` | — | How long the scheduling loop waited on its store for the next batch. |
+| `quartz.trigger.acquired` | `Counter<long>` | `{trigger}` | — | How many triggers those rounds came back with. |
+| `quartz.cluster.checkin.duration` | `Histogram<double>` | `s` | `error.type`² | How long a cluster check-in took. Recorded per attempt, so a retried one is two measurements. |
+| `quartz.cluster.recovery.trigger` | `Counter<long>` | `{trigger}` | `quartz.cluster.recovered.instance.id` | Fired-trigger rows recovered from a node that failed. |
+| `quartz.jobstore.operation.duration` | `Histogram<double>` | `s` | `quartz.jobstore.operation`, `error.type`² | Every round trip to the store, named by the operation. |
 
-`error.type` is the OpenTelemetry convention rather than a Quartz name, and its value is the exception type's
-name. It is deliberately not on `quartz.job.execution.active`: an up-down counter's increment and decrement
-must carry identical attributes, and whether a job will fail is not known when it starts.
+¹ Only when the trigger names an execution group. A trigger in no group carries no such attribute rather
+than an empty one, so the two are not folded into one series.
+² Only when the operation failed. The value is the fully-qualified name of the exception type.
+
+`quartz.jobstore.operation`'s value is one of the twenty-nine `Quartz.JobStore.*` names above, so the same
+string finds a slow operation in a trace and in a metric. Its histogram's count is how many of each
+operation there were, and the `error.type`-tagged part of that count is how many failed.
+
+The two cluster instruments come from the ADO.NET store, which is the only clustered one. The other five
+are store-agnostic.
+
+### Reading the numbers
+
+A histogram carries its own count, which is why there is no execution counter and no error counter: the
+number of executions is `quartz.job.execution.duration`'s count, and the number of failures is the part of
+that count tagged with `error.type` — which also says *which* exception, something a plain error counter
+never could.
+
+`error.type` is the OpenTelemetry convention rather than a Quartz name. It is deliberately not on
+`quartz.job.execution.active`: an up-down counter's increment and decrement must carry identical
+attributes, and whether a job will fail is not known when it starts.
+
+::: warning Cardinality
+`quartz.job.name` and `quartz.trigger.name` are per job and per trigger, and `quartz.scheduler.id` is per
+node. A backend can find itself with a series per node per trigger. Drop the name attributes in a view
+before they reach the backend unless you know you need them; the group attributes are usually the ones
+worth keeping.
+:::
 
 The meter is created from the container's `IMeterFactory` when there is one — which `AddMetrics()`, and
 therefore every application built on the generic host, registers. That is what lets two schedulers, or two
