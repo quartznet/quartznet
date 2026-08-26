@@ -6,7 +6,28 @@
     <RootNamespace>Quartz.Dashboard</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <NoWarn>$(NoWarn);IL2110;IL2111</NoWarn>
+    <!--
+      Not trimmable, said out loud rather than left to the default (issue #3431). Blazor Server is a
+      reflective framework by construction: a component's [Parameter] properties are set by name from the
+      render tree, its type is discovered by the router, and QuickGrid, EventCallback and the SignalR hub
+      proxy all bind members the compiler never sees referenced. The framework says so itself — the
+      Microsoft.AspNetCore.Components packages are not marked IsTrimmable, and Blazor Server has no
+      trimming story to opt into, unlike Blazor WebAssembly which links against a different runtime
+      profile.
+
+      So the honest statement is false, not a baseline: with the analyzers on this package reports 20
+      warnings that are all the framework's model rather than anything to fix here, and marking it
+      IsTrimmable would tell a trimmer it may cut into a component graph nothing statically references.
+      A trimmed application that references this package gets the one IL2104 for it, which is correct.
+      README.md says the same thing for anyone reading on nuget.org.
+
+      This is also where IL2110 and IL2111 used to be suppressed by NoWarn — the two ILLink codes for
+      reflecting over a DynamicallyAccessedMembers-annotated member, which is the [Parameter] model
+      exactly. Nothing emits them today, because nothing turns the trim analyzer on here; the suppression
+      was hiding a warning nobody was producing. If a future SDK starts reporting them for a Razor project,
+      that should be visible rather than pre-silenced.
+    -->
+    <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
 
   <ItemGroup>
