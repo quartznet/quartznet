@@ -4,7 +4,6 @@ using Quartz.Util;
 namespace Quartz.Benchmark;
 
 [MemoryDiagnoser]
-[DisassemblyDiagnoser]
 public class KeyBenchmark
 {
     private const string KeyNameA = "KeyNameA";

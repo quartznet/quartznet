@@ -73,6 +73,7 @@ namespace Quartz.Benchmark;
 /// </remarks>
 [MemoryDiagnoser]
 [SimpleJob(RunStrategy.Throughput, warmupCount: 3, iterationCount: 10)]
+[BenchmarkCategory(BenchmarkCategories.RequiresDatabase)]
 public class ExecutionCeilingBenchmark
 {
     private const string SchedulerName = "BenchmarkScheduler";

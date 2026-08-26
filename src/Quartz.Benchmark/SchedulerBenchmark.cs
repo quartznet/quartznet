@@ -6,10 +6,24 @@ using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
 
+/// <remarks>
+/// Excluded from the <c>BenchmarkSmoke</c> build target's dry run: one case is hundreds of thousands of
+/// job executions through a running scheduler, which is minutes even when it is asked for once. Run it
+/// by name — <c>dotnet run -c Release --project src/Quartz.Benchmark -- --filter *SchedulerBenchmark*</c>
+/// — and expect to wait.
+/// </remarks>
 [MemoryDiagnoser]
+[BenchmarkCategory(BenchmarkCategories.LongRunning)]
 public class SchedulerBenchmark
 {
     private static readonly IJobFactory _jobFactory = new SimpleJobFactory();
+
+    /// <summary>
+    /// The shortest idle wait the scheduler accepts, and what every case that would rather have none
+    /// uses. It is only ever waited when the job store hands the scheduler nothing, which these runs are
+    /// arranged never to do: every trigger they schedule is due at once.
+    /// </summary>
+    private static readonly TimeSpan _minimumIdleWaitTime = TimeSpan.FromSeconds(1);
 
     private IScheduler? _scheduler;
 
@@ -23,7 +37,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 1,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 29_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -39,7 +53,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 5,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 1_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -55,7 +69,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 1,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 14_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -71,7 +85,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 2,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 7_499,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -87,7 +101,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 2,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 14_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -103,7 +117,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 1,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 14_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -119,7 +133,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 3,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1000L),
             repeatCount: 4_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -209,7 +223,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 1,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 29_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -225,7 +239,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 5,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 1_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -241,7 +255,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 1,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 14_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -257,7 +271,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 2,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 14_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -273,7 +287,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 1,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 14_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -289,7 +303,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 3,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 4_999,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -305,7 +319,7 @@ public class SchedulerBenchmark
             persistJobDataAfterExecution: false,
             triggersPerJob: 2,
             maxBatchSize: 16,
-            idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+            idleWaitTime: _minimumIdleWaitTime,
             repeatInterval: TimeSpan.FromTicks(1L),
             repeatCount: 7_499,
             misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
@@ -541,8 +555,6 @@ public class SchedulerBenchmark
     {
         RAMJobStore store = TestJobStores.Ram();
 
-        var threadPool = new DefaultThreadPool { MaxConcurrency = threadCount };
-
         QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
 
         builder
@@ -551,10 +563,15 @@ public class SchedulerBenchmark
                 options.InstanceName = name;
                 options.InstanceId = instanceId;
                 options.IdleWaitTime = idleWaitTime;
-                options.MaxBatchSize = maxBatchSize;
+
+                // A batch larger than the pool that has to run it is refused by 4.x, and would not fire
+                // the surplus any sooner if it were not: the triggers are this node's, unfireable by any
+                // other, until a thread frees up. Every case here asks for sixteen, which is more than
+                // the smaller pools have, so each gets the biggest batch its pool can run.
+                options.MaxBatchSize = Math.Min(maxBatchSize, threadCount);
                 options.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.Zero;
             })
-            .UseThreadPool(threadPool)
+            .UseDefaultThreadPool(threadCount)
             .UseJobStore(store)
             .UseJobFactory(_jobFactory);
 
