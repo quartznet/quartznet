@@ -184,12 +184,121 @@ public class HistoryPageTest
             .MustHaveHappened();
     }
 
-    private static DashboardHistoryEntry Entry(int durationMilliseconds, bool succeeded = true, string? exceptionMessage = null)
+    [Test]
+    public void EachRowSaysWhichNodeRanIt()
+    {
+        GivenHistory(
+            Entry(100, node: "node-a"),
+            Entry(200, node: "node-b"));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.TextOfAll(".qz-history-node").Should().Equal(["node-a", "node-b"],
+            "every node of a cluster keeps its own history, and a row that does not name one cannot be "
+            + "attributed to a machine");
+    }
+
+    [Test]
+    public void TheNodeFilterNarrowsTheListingAndTheStatCardsSaySo()
+    {
+        GivenHistory(Entry(100, node: "node-b"));
+
+        context.Navigate("/quartz/history?node=node-b");
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        A.CallTo(() => context.Api.GetHistory(
+                A<DashboardHistoryQuery>.That.Matches(query => query.SchedulerInstanceId == "node-b"),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+
+        page.StatCardValue("Success rate (page, node-b)").Should().Be("100.0 %",
+            "the figures are over one node's rows now, so the card has to say which node they cover");
+        page.Markup.Should().Contain("Node: node-b",
+            "the summary above the table says what the listing is narrowed to");
+    }
+
+    [Test]
+    public void AnUnfilteredListingSaysItCoversEveryNode()
+    {
+        GivenHistory(Entry(100));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.Markup.Should().Contain("Node: all nodes",
+            "a reader has to be able to tell 'every node' from 'the one node this page happens to show'");
+        page.StatCardValue("Success rate (page)").Should().Be("100.0 %");
+    }
+
+    [Test]
+    public void TheNodeFilterOffersTheClusterNodesEvenWhereNoRowNamesThem()
+    {
+        GivenHistory(Entry(100, node: "node-a"));
+        A.CallTo(() => context.Api.GetClusterNodes(TestData.SchedulerName, A<CancellationToken>._))
+            .Returns(new List<ClusterNodeDto>
+            {
+                new("node-a", null, null, ClusterNodeState.Alive, IsCurrentNode: true),
+                new("node-b", null, null, ClusterNodeState.Failed, IsCurrentNode: false)
+            });
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.TextOfAll("#history-node-filter option").Should().Equal(["All nodes", "node-a", "node-b"],
+            "a node that has produced nothing on this page is still a node worth asking about — most "
+            + "of all the one that stopped");
+    }
+
+    [Test]
+    public void ChoosingANodePutsItInTheUrlSoTheViewCanBeShared()
+    {
+        GivenHistory(Entry(100, node: "node-a"), Entry(200, node: "node-b"));
+
+        IRenderedComponent<History> page = context.Render<History>();
+        page.Find("#history-node-filter").Change("node-b");
+
+        context.CurrentUri.Should().EndWith("/quartz/history?node=node-b",
+            "the filters are query parameters so a narrowed listing is a link someone can send");
+    }
+
+    [Test]
+    public void MisfiresAreListedBesideTheExecutions()
+    {
+        GivenHistory(Entry(100));
+        GivenMisfires(
+            TestData.Dashboard.MisfireEntry("nightly", jobKey: new JobKeyDto("reports", "rollup")),
+            TestData.Dashboard.MisfireEntry("hourly", schedulerInstanceId: "node-b"));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.TextOfAll(".qz-misfire-node").Should().Equal([TestData.SchedulerInstanceId, "node-b"]);
+        page.Markup.Should().Contain("nightly").And.Contain("hourly");
+        page.Markup.Should().Contain("reports.rollup",
+            "the job a missed trigger points at is what a reader is looking for");
+    }
+
+    [Test]
+    public void ASchedulerWithNoMisfiresSaysSoRatherThanShowingNothing()
+    {
+        GivenHistory(Entry(100));
+        GivenMisfires();
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.Markup.Should().Contain("No misfires recorded",
+            "an empty section says the scheduler is healthy; a missing one says nothing at all");
+    }
+
+    private static DashboardHistoryEntry Entry(
+        int durationMilliseconds,
+        bool succeeded = true,
+        string? exceptionMessage = null,
+        string node = TestData.SchedulerInstanceId)
     {
         return TestData.Dashboard.HistoryEntry(
             TimeSpan.FromMilliseconds(durationMilliseconds),
             succeeded,
-            exceptionMessage: exceptionMessage);
+            exceptionMessage: exceptionMessage,
+            schedulerInstanceId: node);
     }
 
     private void GivenHistory(params DashboardHistoryEntry[] entries)
@@ -201,5 +310,16 @@ public class HistoryPageTest
     {
         A.CallTo(() => context.Api.GetHistory(A<DashboardHistoryQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<DashboardHistoryEntry>(entries, totalCount));
+    }
+
+    /// <remarks>
+    /// Left unstubbed the fake answers null, which is the "this data source keeps no history" answer —
+    /// so a test that says nothing about misfires renders no misfire section, and the tests above are
+    /// unaffected by one.
+    /// </remarks>
+    private void GivenMisfires(params DashboardMisfireEntry[] entries)
+    {
+        A.CallTo(() => context.Api.GetMisfires(A<DashboardMisfireQuery>._, A<CancellationToken>._))
+            .Returns(TestData.Dashboard.Page<DashboardMisfireEntry>(entries));
     }
 }

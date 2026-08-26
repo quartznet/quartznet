@@ -80,6 +80,11 @@ internal sealed class DashboardComponentContext : BunitContext
     }
 
     /// <summary>
+    /// Where the browser is now, which is what a page writing its filters into the query string moves.
+    /// </summary>
+    public string CurrentUri => Services.GetRequiredService<NavigationManager>().Uri;
+
+    /// <summary>
     /// Points the pages at a scheduler that exists and is running, which is what all but the
     /// no-scheduler-selected tests want.
     /// </summary>

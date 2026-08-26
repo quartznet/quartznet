@@ -28,6 +28,21 @@
                        placeholder="group.name or fragment"
                        @bind="_triggerFilter" />
             </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="history-node-filter">Node</label>
+                @* Applies on its own rather than waiting for the button beside the text filters: a
+                   dropdown that does nothing when it is changed reads as a broken control. *@
+                <select id="history-node-filter"
+                        class="qz-select"
+                        value="@_appliedNodeFilter"
+                        @onchange="OnNodeFilterChangedAsync">
+                    <option value="">All nodes</option>
+                    @foreach (string node in NodeOptions())
+                    {
+                        <option value="@node">@node</option>
+                    }
+                </select>
+            </div>
         </div>
         <div class="qz-actions qz-group-actions">
             <button type="button" class="qz-button qz-button-primary" @onclick="ApplyFiltersAsync">Apply filters</button>
@@ -38,10 +53,7 @@
     @if (!_isLoading && !_historyUnavailable && string.IsNullOrWhiteSpace(_error))
     {
         <p class="qz-muted">Page @_page / @_totalPages · Showing @_entries.Count row(s) · Total @_totalCount row(s)</p>
-        @if (HasFilters)
-        {
-            <p class="qz-muted">@BuildFilterSummary()</p>
-        }
+        <p class="qz-muted">@BuildFilterSummary()</p>
     }
 
     @if (_isLoading)
@@ -63,10 +75,10 @@
     else
     {
         <div class="qz-grid qz-grid-4">
-            <StatCard Title="Success rate (page)" Value="@GetSuccessRateText()" Icon="✔" Color="success" />
-            <StatCard Title="Failures (page)" Value="@_pageFailureCount.ToString()" Icon="⚠" Color="error" />
-            <StatCard Title="Avg duration (page)" Value="@FormatDurationValue(_pageAverageDuration)" Icon="⏱️" Color="info" />
-            <StatCard Title="P95 duration (page)" Value="@FormatDurationValue(_pageP95Duration)" Icon="📈" Color="info" />
+            <StatCard Title="@ScopedStatTitle("Success rate")" Value="@GetSuccessRateText()" Icon="✔" Color="success" />
+            <StatCard Title="@ScopedStatTitle("Failures")" Value="@_pageFailureCount.ToString()" Icon="⚠" Color="error" />
+            <StatCard Title="@ScopedStatTitle("Avg duration")" Value="@FormatDurationValue(_pageAverageDuration)" Icon="⏱️" Color="info" />
+            <StatCard Title="@ScopedStatTitle("P95 duration")" Value="@FormatDurationValue(_pageP95Duration)" Icon="📈" Color="info" />
         </div>
 
         <table class="qz-table">
@@ -74,6 +86,7 @@
                 <tr>
                     <th>Job</th>
                     <th>Trigger</th>
+                    <th>Node</th>
                     <th>Fired</th>
                     <th>Duration</th>
                     <th>Status</th>
@@ -86,6 +99,7 @@
                     <tr>
                         <td><KeyBadge GroupName="@entry.JobGroup" ItemName="@entry.JobName" /></td>
                         <td><KeyBadge GroupName="@entry.TriggerGroup" ItemName="@entry.TriggerName" /></td>
+                        <td class="qz-table-cell-mono qz-history-node">@NodeLabel(entry.SchedulerInstanceId)</td>
                         <td>@FormatFiredAt(entry.FiredAtUtc)</td>
                         <td>@FormatDurationValue(entry.Duration)</td>
                         <td><StateIndicator State="@(entry.Succeeded ? "Complete" : "Error")" /></td>
@@ -99,6 +113,57 @@
                     PageSize="@_currentPageSize"
                     CurrentPage="@_page"
                     OnPageChanged="OnPageChangedAsync" />
+    }
+
+    @if (!_isLoading && !_historyUnavailable && string.IsNullOrWhiteSpace(_error) && !_misfiresUnavailable)
+    {
+        <section class="qz-section qz-misfires">
+            <h2>Misfires</h2>
+            <p class="qz-muted">
+                Firings the scheduler missed. Nothing ran, so these never appear above — they are the
+                triggers whose misfire instruction decided what happened instead.
+            </p>
+
+            @if (_misfires.Count == 0)
+            {
+                <p class="qz-muted">No misfires recorded@(HasNodeFilter ? " for this node." : ".")</p>
+            }
+            else
+            {
+                <table class="qz-table">
+                    <thead>
+                        <tr>
+                            <th>Trigger</th>
+                            <th>Job</th>
+                            <th>Node</th>
+                            <th>Missed firing</th>
+                            <th>Noticed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (DashboardMisfireEntry misfire in _misfires)
+                        {
+                            <tr>
+                                <td><KeyBadge GroupName="@misfire.TriggerGroup" ItemName="@misfire.TriggerName" /></td>
+                                <td>
+                                    @if (misfire.JobKey is { } jobKey)
+                                    {
+                                        <KeyBadge GroupName="@jobKey.Group" ItemName="@jobKey.Name" />
+                                    }
+                                    else
+                                    {
+                                        <span class="qz-muted">&#8212;</span>
+                                    }
+                                </td>
+                                <td class="qz-table-cell-mono qz-misfire-node">@NodeLabel(misfire.SchedulerInstanceId)</td>
+                                <td>@FormatFiredAt(misfire.ScheduledFireTimeUtc)</td>
+                                <td>@FormatFiredAt(misfire.MisfiredAtUtc)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </section>
     }
 </div>
 
@@ -120,6 +185,20 @@
     private string _triggerFilter = string.Empty;
     private string _appliedJobFilter = string.Empty;
     private string _appliedTriggerFilter = string.Empty;
+    private string _appliedNodeFilter = string.Empty;
+    private readonly List<DashboardMisfireEntry> _misfires = [];
+    private bool _misfiresUnavailable;
+
+    /// <summary>
+    /// The nodes the filter offers: the scheduler's cluster nodes, so a node that has stopped producing
+    /// history is still selectable.
+    /// </summary>
+    /// <remarks>
+    /// Read once per scheduler rather than on every refresh tick — on a persistent store it is a database
+    /// read, and the page refreshes once a second.
+    /// </remarks>
+    private readonly List<string> _clusterNodes = [];
+    private string? _clusterNodesLoadedFor;
     private PeriodicTimer? _refreshTimer;
     private CancellationTokenSource? _refreshLoopCancellation;
     private bool _loadingInProgress;
@@ -133,12 +212,19 @@
     public string? TriggerFilterQuery { get; set; }
 
     [Parameter]
+    [SupplyParameterFromQuery(Name = "node")]
+    public string? NodeFilterQuery { get; set; }
+
+    [Parameter]
     [SupplyParameterFromQuery(Name = "page")]
     public int? PageQuery { get; set; }
 
     private bool HasFilters =>
         !string.IsNullOrWhiteSpace(_appliedJobFilter) ||
-        !string.IsNullOrWhiteSpace(_appliedTriggerFilter);
+        !string.IsNullOrWhiteSpace(_appliedTriggerFilter) ||
+        HasNodeFilter;
+
+    private bool HasNodeFilter => !string.IsNullOrWhiteSpace(_appliedNodeFilter);
 
     protected override Task OnInitializedAsync()
     {
@@ -153,12 +239,14 @@
     {
         string requestedJobFilter = (JobFilterQuery ?? string.Empty).Trim();
         string requestedTriggerFilter = (TriggerFilterQuery ?? string.Empty).Trim();
+        string requestedNodeFilter = (NodeFilterQuery ?? string.Empty).Trim();
         int requestedPage = Math.Max(1, PageQuery ?? 1);
 
         _jobFilter = requestedJobFilter;
         _triggerFilter = requestedTriggerFilter;
         _appliedJobFilter = requestedJobFilter;
         _appliedTriggerFilter = requestedTriggerFilter;
+        _appliedNodeFilter = requestedNodeFilter;
         _page = requestedPage;
 
         await LoadDataAsync();
@@ -221,8 +309,13 @@
         _loadingInProgress = true;
         _isLoading = true;
         _historyUnavailable = false;
+        // Nothing has answered yet, so there is no misfire feed to show. Anything short of a page coming
+        // back — no scheduler selected, a data source that keeps no history, a read that threw — leaves
+        // the section out rather than rendering "no misfires" over an answer nobody gave.
+        _misfiresUnavailable = true;
         _error = null;
         _entries.Clear();
+        _misfires.Clear();
         _totalCount = 0;
         _totalPages = 1;
         _pageSuccessCount = 0;
@@ -237,6 +330,8 @@
             {
                 return;
             }
+
+            await LoadClusterNodesAsync(schedulerName);
 
             PagedResult<DashboardHistoryEntry>? page = await Api.GetHistory(HistoryQuery(schedulerName, _page));
             if (page is null)
@@ -259,6 +354,13 @@
 
             _entries.AddRange(page.Items);
 
+            PagedResult<DashboardMisfireEntry>? misfires = await Api.GetMisfires(MisfireQuery(schedulerName));
+            _misfiresUnavailable = misfires is null;
+            if (misfires is not null)
+            {
+                _misfires.AddRange(misfires.Items);
+            }
+
             ComputeAnalytics();
         }
         catch (Exception ex)
@@ -273,11 +375,39 @@
     }
 
     /// <summary>
+    /// Reads the scheduler's nodes so the filter can offer them. A data source that cannot answer leaves
+    /// the dropdown with whatever the loaded rows name, which is a narrower list rather than an error.
+    /// </summary>
+    private async Task LoadClusterNodesAsync(string schedulerName)
+    {
+        if (string.Equals(_clusterNodesLoadedFor, schedulerName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _clusterNodesLoadedFor = schedulerName;
+        _clusterNodes.Clear();
+
+        try
+        {
+            foreach (ClusterNodeDto node in await Api.GetClusterNodes(schedulerName))
+            {
+                _clusterNodes.Add(node.InstanceId);
+            }
+        }
+        catch (Exception)
+        {
+            // a node listing is a convenience here, not the page
+        }
+    }
+
+    /// <summary>
     /// The 1-based page the pager speaks, as the <c>Skip</c>/<c>Take</c> the API speaks.
     /// </summary>
     private DashboardHistoryQuery HistoryQuery(string schedulerName, int page) => new()
     {
         SchedulerName = schedulerName,
+        SchedulerInstanceId = NormalizedNodeFilter(),
         JobFilter = _appliedJobFilter,
         TriggerFilter = _appliedTriggerFilter,
         Skip = Math.Max(0, page - 1) * _pageSize,
@@ -285,30 +415,50 @@
         IncludeTotalCount = true
     };
 
+    /// <remarks>
+    /// The newest page only: the misfire feed is a "what has been going wrong" list beside the history,
+    /// not a listing of its own with a pager.
+    /// </remarks>
+    private DashboardMisfireQuery MisfireQuery(string schedulerName) => new()
+    {
+        SchedulerName = schedulerName,
+        SchedulerInstanceId = NormalizedNodeFilter(),
+        TriggerFilter = _appliedTriggerFilter,
+        Take = _pageSize
+    };
+
+    private string? NormalizedNodeFilter() => string.IsNullOrWhiteSpace(_appliedNodeFilter) ? null : _appliedNodeFilter;
+
     private async Task OnPageChangedAsync(int page)
     {
-        await UpdateQueryStateAsync(page, _appliedJobFilter, _appliedTriggerFilter);
+        await UpdateQueryStateAsync(page, _appliedJobFilter, _appliedTriggerFilter, _appliedNodeFilter);
     }
 
     private Task ApplyFiltersAsync()
     {
-        return UpdateQueryStateAsync(1, _jobFilter, _triggerFilter);
+        return UpdateQueryStateAsync(1, _jobFilter, _triggerFilter, _appliedNodeFilter);
+    }
+
+    private Task OnNodeFilterChangedAsync(ChangeEventArgs args)
+    {
+        return UpdateQueryStateAsync(1, _appliedJobFilter, _appliedTriggerFilter, args.Value?.ToString() ?? string.Empty);
     }
 
     private Task ClearFiltersAsync()
     {
         _jobFilter = string.Empty;
         _triggerFilter = string.Empty;
-        return UpdateQueryStateAsync(1, string.Empty, string.Empty);
+        return UpdateQueryStateAsync(1, string.Empty, string.Empty, string.Empty);
     }
 
-    private Task UpdateQueryStateAsync(int page, string jobFilter, string triggerFilter)
+    private Task UpdateQueryStateAsync(int page, string jobFilter, string triggerFilter, string nodeFilter)
     {
         int normalizedPage = Math.Max(1, page);
         string normalizedJobFilter = jobFilter.Trim();
         string normalizedTriggerFilter = triggerFilter.Trim();
+        string normalizedNodeFilter = nodeFilter.Trim();
 
-        string updatedPath = BuildHistoryRelativeUri(normalizedPage, normalizedJobFilter, normalizedTriggerFilter);
+        string updatedPath = BuildHistoryRelativeUri(normalizedPage, normalizedJobFilter, normalizedTriggerFilter, normalizedNodeFilter);
 
         // Not Navigation.ToBaseRelativePath: it compares ordinally and throws when the browser URL
         // casing differs from the base URI casing (server-side route matching is case-insensitive,
@@ -319,6 +469,7 @@
             _page = normalizedPage;
             _appliedJobFilter = normalizedJobFilter;
             _appliedTriggerFilter = normalizedTriggerFilter;
+            _appliedNodeFilter = normalizedNodeFilter;
             return LoadDataAsync();
         }
 
@@ -342,7 +493,7 @@
             && leftQuery.SequenceEqual(rightQuery);
     }
 
-    private string BuildHistoryRelativeUri(int page, string jobFilter, string triggerFilter)
+    private string BuildHistoryRelativeUri(int page, string jobFilter, string triggerFilter, string nodeFilter)
     {
         List<string> queryParts = [];
         if (page > 1)
@@ -360,6 +511,11 @@
             queryParts.Add("trigger=" + Uri.EscapeDataString(triggerFilter));
         }
 
+        if (!string.IsNullOrWhiteSpace(nodeFilter))
+        {
+            queryParts.Add("node=" + Uri.EscapeDataString(nodeFilter));
+        }
+
         if (queryParts.Count == 0)
         {
             return DashboardLink.To(Options.Value, "history");
@@ -372,7 +528,68 @@
     {
         string jobPart = string.IsNullOrWhiteSpace(_appliedJobFilter) ? "Any job" : "Job: " + _appliedJobFilter;
         string triggerPart = string.IsNullOrWhiteSpace(_appliedTriggerFilter) ? "Any trigger" : "Trigger: " + _appliedTriggerFilter;
-        return jobPart + " · " + triggerPart;
+        return jobPart + " · " + triggerPart + " · Node: " + NodeScopeLabel();
+    }
+
+    /// <summary>
+    /// What the listing is narrowed to by node, in the words the stat cards and the summary both use.
+    /// </summary>
+    private string NodeScopeLabel() => HasNodeFilter ? _appliedNodeFilter : "all nodes";
+
+    /// <summary>
+    /// A stat card's title, carrying the scope the figure covers.
+    /// </summary>
+    /// <remarks>
+    /// The figures are over the rows on the page — never over the whole history — and now over one node
+    /// as well when the filter names one, so the title has to say which.
+    /// </remarks>
+    private string ScopedStatTitle(string measure)
+    {
+        return HasNodeFilter
+            ? measure + " (page, " + _appliedNodeFilter + ")"
+            : measure + " (page)";
+    }
+
+    /// <summary>
+    /// The nodes the filter offers: the cluster's, plus any the loaded rows name that it did not list —
+    /// a node that has stopped checking in still has history worth reading.
+    /// </summary>
+    private List<string> NodeOptions()
+    {
+        List<string> options = [];
+        HashSet<string> seen = new(StringComparer.OrdinalIgnoreCase);
+
+        foreach (string node in _clusterNodes)
+        {
+            if (!string.IsNullOrWhiteSpace(node) && seen.Add(node))
+            {
+                options.Add(node);
+            }
+        }
+
+        foreach (DashboardHistoryEntry entry in _entries)
+        {
+            if (!string.IsNullOrWhiteSpace(entry.SchedulerInstanceId) && seen.Add(entry.SchedulerInstanceId))
+            {
+                options.Add(entry.SchedulerInstanceId);
+            }
+        }
+
+        if (HasNodeFilter && seen.Add(_appliedNodeFilter))
+        {
+            options.Add(_appliedNodeFilter);
+        }
+
+        options.Sort(StringComparer.OrdinalIgnoreCase);
+        return options;
+    }
+
+    /// <summary>
+    /// The node a row came from, or a dash where a store recorded none.
+    /// </summary>
+    private static string NodeLabel(string? schedulerInstanceId)
+    {
+        return string.IsNullOrWhiteSpace(schedulerInstanceId) ? "—" : schedulerInstanceId;
     }
 
     /// <summary>
