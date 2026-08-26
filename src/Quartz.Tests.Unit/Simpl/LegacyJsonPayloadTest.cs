@@ -314,6 +314,30 @@ public class LegacyJsonPayloadTest
         }
         """;
 
+    private const string LegacyRecurrenceTrigger =
+        """
+        {
+          "TriggerType": "RecurrenceTrigger",
+          "Key": {
+            "Name": "RecurrenceTriggerKey",
+            "Group": "RecurrenceTriggerGroup"
+          },
+          "JobKey": null,
+          "Description": "RecurrenceTrigger description",
+          "CalendarName": null,
+          "JobDataMap": {},
+          "MisfireInstruction": 2,
+          "StartTimeUtc": "2024-07-01T00:00:00+00:00",
+          "EndTimeUtc": null,
+          "Priority": 5,
+          "NextFireTimeUtc": "2024-07-15T09:00:00+09:00",
+          "PreviousFireTimeUtc": "2024-07-01T09:00:00+09:00",
+          "RecurrenceRule": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR",
+          "TimeZone": "Tokyo Standard Time",
+          "TimesTriggered": 6
+        }
+        """;
+
     [Test]
     public void AnnualCalendarReadsTheTimestampArrayItUsedToBeWrittenWith()
     {
@@ -456,6 +480,25 @@ public class LegacyJsonPayloadTest
         daily.TimesTriggered.Should().Be(4);
     }
 
+    /// <summary>
+    /// The RRULE trigger has been written with these field names since 3.x added it, so its blobs are
+    /// as much in the wild as the other four's.
+    /// </summary>
+    [Test]
+    public void RecurrenceTriggerStillReadsItsUnchangedPayload()
+    {
+        var trigger = Deserialize<IOperableTrigger>(LegacyRecurrenceTrigger);
+
+        var recurrence = trigger.Should().BeOfType<RecurrenceTriggerImpl>().Subject;
+        recurrence.Key.Should().Be(new TriggerKey("RecurrenceTriggerKey", "RecurrenceTriggerGroup"));
+        recurrence.RecurrenceRule.Should().Be("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR");
+        recurrence.TimeZone.Should().Be(TimeZoneInfo.FindSystemTimeZoneById("Tokyo Standard Time"),
+            "the rule is evaluated in the stored zone, so reading it back as the machine's local zone would silently reschedule the job");
+        recurrence.TimesTriggered.Should().Be(6);
+        recurrence.MisfireInstructionCode.Should().Be(MisfireInstruction.RecurrenceTrigger.DoNothing);
+        recurrence.NextFireTimeUtc.Should().Be(new DateTimeOffset(2024, 7, 15, 9, 0, 0, TimeSpan.FromHours(9)));
+    }
+
     [Test]
     public void TriggerPayloadsWrittenBeforePinningReadBackUnpinned()
     {
@@ -464,7 +507,8 @@ public class LegacyJsonPayloadTest
             LegacySimpleTrigger,
             LegacyCronTrigger,
             LegacyCalendarIntervalTrigger,
-            LegacyDailyTimeIntervalTrigger
+            LegacyDailyTimeIntervalTrigger,
+            LegacyRecurrenceTrigger
         ];
 
         foreach (string payload in payloads)

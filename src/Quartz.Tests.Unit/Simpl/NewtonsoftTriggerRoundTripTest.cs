@@ -30,7 +30,7 @@ namespace Quartz.Tests.Unit.Simpl;
 /// <see cref="NewtonsoftJsonObjectSerializer.RegisterTriggerConverters" /> is on, and reads it back
 /// by constructing the concrete type reflectively. That path needs a genuinely parameterless
 /// constructor on every trigger implementation - a constructor whose only parameter has a default
-/// value does not count as one - so each of the four gets a round trip here.
+/// value does not count as one - so each of the five gets a round trip here.
 /// </summary>
 [TestFixture]
 public class NewtonsoftTriggerRoundTripTest
@@ -127,6 +127,26 @@ public class NewtonsoftTriggerRoundTripTest
         restored.StartTimeOfDay.Should().Be(new TimeOnly(3, 30));
         restored.EndTimeOfDay.Should().Be(new TimeOnly(4, 40));
         restored.DaysOfWeek.Should().BeEquivalentTo(new[] { DayOfWeek.Monday, DayOfWeek.Wednesday });
+    }
+
+    [Test]
+    public void RecurrenceTriggerSurvivesTheRoundTrip()
+    {
+        RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl
+        {
+            Key = new TriggerKey("recurrence", "group"),
+            JobKey = new JobKey("job", "jobGroup"),
+            RecurrenceRule = "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR",
+            TimesTriggered = 3,
+            StartTimeUtc = startTime,
+            EndTimeUtc = startTime.AddDays(30)
+        };
+
+        RecurrenceTriggerImpl restored = RoundTrip(trigger);
+
+        restored.RecurrenceRule.Should().Be("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR",
+            "the rule is the whole schedule, so a trigger that loses it fires on nothing");
+        restored.TimesTriggered.Should().Be(3);
     }
 
     private T RoundTrip<T>(T trigger) where T : class, IOperableTrigger

@@ -1,0 +1,28 @@
+﻿{
+  "TriggerType": "RecurrenceTrigger",
+  "Key": {
+    "Name": "RecurrenceTriggerKey",
+    "Group": "RecurrenceTriggerGroup"
+  },
+  "JobKey": {
+    "Name": "RecurrenceJobKey",
+    "Group": "RecurrenceJobGroup"
+  },
+  "Description": "RecurrenceTrigger description",
+  "CalendarName": "SomeCalendar",
+  "JobDataMap": {
+    "TestKey": "TestValue"
+  },
+  "MisfireInstruction": 2,
+  "StartTimeUtc": "2024-07-01T00:00:00.5+00:00",
+  "EndTimeUtc": "2024-07-31T00:00:01+00:00",
+  "Priority": 8,
+  "NextFireTimeUtc": "2024-07-17T09:00:00+09:00",
+  "PreviousFireTimeUtc": "2024-07-15T09:00:00+09:00",
+  "ExecutionGroup": null,
+  "PreferredNode": null,
+  "PreferredNodeAuto": false,
+  "RecurrenceRule": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR",
+  "TimeZone": "Tokyo Standard Time",
+  "TimesTriggered": 4
+}
