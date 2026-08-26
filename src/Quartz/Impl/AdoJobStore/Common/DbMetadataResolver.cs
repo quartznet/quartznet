@@ -31,6 +31,10 @@ internal sealed class DbMetadataResolver
     // one resolver serves every scheduler in the container.
     private readonly ConcurrentDictionary<string, DbMetadata> resolved = new(StringComparer.Ordinal);
 
+    // The type-free answers are cached apart from the full ones, because they are a different
+    // description of the same name and one must never be served where the other was asked for.
+    private readonly ConcurrentDictionary<string, DbMetadata> resolvedWithoutTypes = new(StringComparer.Ordinal);
+
     public DbMetadataResolver(IEnumerable<DbMetadataFactory> factories)
     {
         ArgumentNullException.ThrowIfNull(factories);
@@ -70,9 +74,32 @@ internal sealed class DbMetadataResolver
     /// </summary>
     public DbMetadata Resolve(string providerName)
     {
+        return Resolve(providerName, resolved, static (factory, name) => factory.GetDbMetadata(name));
+    }
+
+    /// <summary>
+    /// Returns the metadata describing a provider without the driver's own types, for a provider that
+    /// reaches the driver through its <see cref="System.Data.Common.DbProviderFactory" /> or a
+    /// <see cref="System.Data.Common.DbDataSource" />.
+    /// </summary>
+    /// <remarks>
+    /// Answers for a driver whose assembly is not loaded at all, which the full resolution cannot: it
+    /// names every type it needs and throws when one will not load. That is what makes this the
+    /// resolution a trimmed application uses.
+    /// </remarks>
+    public DbMetadata ResolveWithoutTypes(string providerName)
+    {
+        return Resolve(providerName, resolvedWithoutTypes, static (factory, name) => factory.GetTypeFreeDbMetadata(name));
+    }
+
+    private DbMetadata Resolve(
+        string providerName,
+        ConcurrentDictionary<string, DbMetadata> cache,
+        Func<DbMetadataFactory, string, DbMetadata> describe)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
 
-        if (resolved.TryGetValue(providerName, out var metadata))
+        if (cache.TryGetValue(providerName, out var metadata))
         {
             return metadata;
         }
@@ -81,7 +108,7 @@ internal sealed class DbMetadataResolver
         {
             if (factory.GetProviderNames().Contains(providerName))
             {
-                return resolved.GetOrAdd(providerName, factory.GetDbMetadata(providerName));
+                return cache.GetOrAdd(providerName, describe(factory, providerName));
             }
         }
 
