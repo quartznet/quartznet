@@ -8,31 +8,45 @@
 -- running in dedicated mode, so only consider the above as a hint ;-)
 --
 
-delete from qrtz_fired_triggers;
-delete from qrtz_simple_triggers;
-delete from qrtz_simprop_triggers;
-delete from qrtz_cron_triggers;
-delete from qrtz_blob_triggers;
-delete from qrtz_triggers;
-delete from qrtz_job_details;
-delete from qrtz_calendars;
-delete from qrtz_paused_trigger_grps;
-delete from qrtz_paused_job_grps;
-delete from qrtz_locks;
-delete from qrtz_scheduler_state;
+-- This initializes the database to pristine for Quartz, by first removing any existing Quartz tables
+-- and then recreating them from scratch.
+-- Should you only require it to create the tables, set DropDb to 0.
 
-drop table qrtz_calendars;
-drop table qrtz_fired_triggers;
-drop table qrtz_blob_triggers;
-drop table qrtz_cron_triggers;
-drop table qrtz_simple_triggers;
-drop table qrtz_simprop_triggers;
-drop table qrtz_triggers;
-drop table qrtz_job_details;
-drop table qrtz_paused_trigger_grps;
-drop table qrtz_paused_job_grps;
-drop table qrtz_locks;
-drop table qrtz_scheduler_state;
+-- Oracle 21c and earlier have no DROP TABLE IF EXISTS, so the drops run as EXECUTE IMMEDIATE
+-- inside a PL/SQL block, where a variable can hold the switch and "table does not exist" can be
+-- tolerated. That also makes the block a no-op on a database that has no Quartz tables yet.
+-- The tables go children first, so the foreign keys do not stand in the way.
+
+DECLARE
+  DropDb NUMBER := 1; -- Set this to 0 to skip DROP statements, 1 to include them
+
+  PROCEDURE DropQuartzTable(TableName IN VARCHAR2) IS
+  BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE ' || TableName;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- ORA-00942: table or view does not exist. Anything else is a real failure.
+      IF SQLCODE != -942 THEN
+        RAISE;
+      END IF;
+  END;
+BEGIN
+  IF DropDb = 1 THEN
+    DropQuartzTable('QRTZ_FIRED_TRIGGERS');
+    DropQuartzTable('QRTZ_PAUSED_TRIGGER_GRPS');
+    DropQuartzTable('QRTZ_PAUSED_JOB_GRPS');
+    DropQuartzTable('QRTZ_SCHEDULER_STATE');
+    DropQuartzTable('QRTZ_LOCKS');
+    DropQuartzTable('QRTZ_SIMPLE_TRIGGERS');
+    DropQuartzTable('QRTZ_SIMPROP_TRIGGERS');
+    DropQuartzTable('QRTZ_CRON_TRIGGERS');
+    DropQuartzTable('QRTZ_BLOB_TRIGGERS');
+    DropQuartzTable('QRTZ_TRIGGERS');
+    DropQuartzTable('QRTZ_JOB_DETAILS');
+    DropQuartzTable('QRTZ_CALENDARS');
+  END IF;
+END;
+/
 
 
 CREATE TABLE qrtz_job_details

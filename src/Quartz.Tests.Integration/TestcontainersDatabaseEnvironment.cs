@@ -272,8 +272,8 @@ internal static class TestcontainersDatabaseEnvironment
         ExecResult createDatabaseResult = await ExecFirebirdAdminScriptAsync(FirebirdCreateDatabaseScript);
         EnsureScriptSucceeded("Firebird database creation", createDatabaseResult);
 
-        // Strip unconditional DROP TABLE statements that fail on a fresh database
-        script = StripDropStatements(script);
+        // The script runs as it ships: its drops check RDB$RELATIONS first, so a fresh database is
+        // no obstacle. Nothing is stripped out of it here, which is the point.
         ExecResult result = await firebirdSqlContainer.ExecScriptAsync(script);
         EnsureScriptSucceeded("Firebird", result);
 
@@ -329,6 +329,9 @@ internal static class TestcontainersDatabaseEnvironment
 
         if (dialect == "firebird")
         {
+            // For the historical 3.16 baseline, whose drops are bare DROP TABLE and so fail on the
+            // fresh database the migration tests build their schemas in. The current script guards
+            // its own and passes through untouched.
             script = StripDropStatements(script);
         }
 
@@ -372,7 +375,8 @@ internal static class TestcontainersDatabaseEnvironment
 
     /// <summary>
     /// Removes unconditional DROP TABLE/INDEX statements from scripts that lack IF EXISTS
-    /// guards (e.g. Firebird), since Testcontainers start with a fresh empty database.
+    /// guards, since Testcontainers start with a fresh empty database. Only the frozen 3.16
+    /// baselines still need this; every current script guards its own drops.
     /// </summary>
     private static string StripDropStatements(string script)
     {

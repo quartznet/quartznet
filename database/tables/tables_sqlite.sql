@@ -1,3 +1,11 @@
+-- this script is for SQLite
+
+-- This initializes the database to pristine for Quartz, by first removing any existing Quartz tables
+-- and then recreating them from scratch.
+-- SQLite has no variables and no statement-level IF, so the drops cannot be put behind a switch.
+-- Should you only require it to create the tables, delete everything between the two markers below.
+
+-- === BEGIN DROP TABLES ===========================================================================
 DROP TABLE IF EXISTS QRTZ_FIRED_TRIGGERS;
 DROP TABLE IF EXISTS QRTZ_PAUSED_TRIGGER_GRPS;
 DROP TABLE IF EXISTS QRTZ_PAUSED_JOB_GRPS;
@@ -10,6 +18,7 @@ DROP TABLE IF EXISTS QRTZ_BLOB_TRIGGERS;
 DROP TABLE IF EXISTS QRTZ_TRIGGERS;
 DROP TABLE IF EXISTS QRTZ_JOB_DETAILS;
 DROP TABLE IF EXISTS QRTZ_CALENDARS;
+-- === END DROP TABLES =============================================================================
 
 
 CREATE TABLE QRTZ_JOB_DETAILS
