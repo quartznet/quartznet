@@ -2264,6 +2264,33 @@ inject, which the next section lists.
 
 Further information on configuring Microsoft.Logging can be found [at Microsoft docs](https://docs.microsoft.com/en-us/dotnet/core/extensions/logging).
 
+### Every message carries an event id
+
+The `Quartz` package logs through source-generated `[LoggerMessage]` methods rather than
+`logger.LogInformation(…)` and its siblings. Two things follow. Nothing is formatted or boxed when the
+level is off, including on the scheduling loop. And every message has a stable event id, so an operator
+can filter or alert on the event rather than on its text.
+
+Ids are allocated in ranges by area, and are stable from 4.0 onwards:
+
+| Range | Area |
+|---|---|
+| 1000–1999 | Scheduler core — the scheduler, its firing loop, the job run shell, the signaler, the error listener |
+| 2000–2999 | `RAMJobStore` |
+| 3000–3499 | ADO.NET store, its connections and its driver delegate |
+| 3500–3599 | Clustering — check-in, failed-instance detection and recovery |
+| 3600–3699 | Misfire handling |
+| 3700–3799 | Lock handlers |
+| 4000–4999 | Configuration, dependency injection and hosting, including the thread pools and job factories |
+| 5000–5999 | Serialization, type loading, triggers, calendars, XML scheduling data and the utilities |
+| 6000–8999 | Reserved for `Quartz.Plugins`, `Quartz.Jobs` and `Quartz.Extensions.Redis`, which are converting to the same shape |
+
+Levels and message templates are otherwise **unchanged from 3.x**, so a log query that matched a
+message before still matches it. The one exception is `JobStoreSupport.LogWarnIfNonZero`, which wrote
+the cluster recovery counts at Information when the count was non-zero and at Debug when it was zero,
+whatever its name said: those six messages are Warning events now, raised only when the count is
+non-zero. If you filtered them at Information, filter them at Warning.
+
 ## The ambient logger factory stays ambient
 
 `LogProvider.SetLogProvider(ILoggerFactory)` is the one piece of mutable process-wide state left in
@@ -4571,10 +4598,11 @@ Two properties that nothing read are gone rather than made read-only: `DriverDel
 injected, not loaded from a type name here) and `DontSetAutoCommitFalse` (never consulted).
 `AdoJobStoreOptions.DontSetAutoCommitFalse` went with the store property: no code path ever read it and no
 configuration key ever set it, so an application that set it was configuring nothing.
-`LastCheckin` and `LogWarnIfNonZero` are internal and private respectively — cluster check-in bookkeeping
-and a log helper, neither of which a subclass has any business in. The `[TimeSpanParseRule]` attributes on
-these properties are gone too; they are read only when a component's settings arrive as strings, which for
-this store they no longer do.
+`LastCheckin` is internal — cluster check-in bookkeeping a subclass has no business in — and
+`LogWarnIfNonZero` is gone: its callers raise source-generated events instead, at the level its name always
+claimed, as [Every message carries an event id](#every-message-carries-an-event-id) describes. The
+`[TimeSpanParseRule]` attributes on these properties are gone too; they are read only when a component's
+settings arrive as strings, which for this store they no longer do.
 
 ### `AdoJobStoreBase`'s overridable surface is a decision now
 
@@ -7632,7 +7660,7 @@ Parameters and behavior are unchanged:
 | `AdoJobStoreBase`'s virtual surface is a curated seam | Only `Initialize`, `Shutdown`, `GetConnection`, `GetLocalTransactionConnection`, `ExecuteInLock<T>`, `IsTransient`, `AcquireNextTriggers`, `CreateAcquisitionCriteria` and `GetFiredTriggerRecordId` remain overridable; the other ~75 members were virtual by default, not by design, and freezing the store's internal call order as a behavior contract would have made it unrefactorable |
 | `AdoJobStoreBase.DriverDelegateType` and `.DontSetAutoCommitFalse` removed | Nothing read either one; the driver delegate is injected |
 | `AdoJobStoreOptions.DontSetAutoCommitFalse` removed | The option the deleted store property mirrored. No code path read it and no `quartz.*` key set it, so setting it configured nothing |
-| `AdoJobStoreBase.LastCheckin` is internal, `LogWarnIfNonZero` is private | Cluster check-in bookkeeping and a logging helper, neither of them an extension point |
+| `AdoJobStoreBase.LastCheckin` is internal, `LogWarnIfNonZero` is removed | Cluster check-in bookkeeping and a logging helper, neither of them an extension point. The helper's callers raise source-generated events, at the level its name always claimed — see [Every message carries an event id](#every-message-carries-an-event-id) |
 | `AdoJobStoreBase.RecoverJobs(CancellationToken)` returns `ValueTask` | The `bool` it returned was the constant `true` |
 | `DbSemaphore.LockSql` (was `Sql`) and `InsertSql` are get-only, fed by the constructor | Assigning one after construction left it un-prefixed relative to its pair — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | The row-lock semaphores are named for the SQL they issue | `StdRowLockSemaphore` is `SelectForUpdateSemaphore`, `UpdateLockRowSemaphore` is `UpdateRowSemaphore`, `PostgreSQLRowLockSemaphore` is `PostgreSqlSelectForUpdateSemaphore`, `UpdateLockRowSemaphoreMOT` is `SqlServerMemoryOptimizedUpdateRowSemaphore`. `quartz.jobStore.lockHandler.type` naming an old one still resolves, with a warning — see [The semaphores were tidied](#the-semaphores-were-tidied) |
