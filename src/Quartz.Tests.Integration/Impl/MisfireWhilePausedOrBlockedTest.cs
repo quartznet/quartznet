@@ -113,96 +113,76 @@ public sealed class MisfireWhilePausedOrBlockedTest : MisfireThroughAStoreTestBa
         MisfireMatrixCases.Cell(MisfireTriggerShape.Cron, nameof(CronTriggerMisfireInstruction.DoNothing));
 
     /// <summary>
-    /// The in-memory store's half of the blocked case. A trigger blocked behind a running execution of a
-    /// <see cref="DisallowConcurrentExecutionAttribute" /> job is out of the acquisition set entirely, so
-    /// no pass can reach it however late it gets. Completing the execution puts it back with the missed
-    /// fire time still on it, and the next acquisition is what applies its policy.
+    /// A trigger blocked behind a running execution of a <see cref="DisallowConcurrentExecutionAttribute" />
+    /// job is out of the acquisition set entirely, so no misfire pass can reach it however late it gets.
+    /// Completing the execution is what lets it go, and both stores apply its policy at that moment: by
+    /// the time <c>TriggeredJobComplete</c> returns, the trigger's state and next fire time are the ones
+    /// its own <c>UpdateAfterMisfire</c> asked for.
     /// </summary>
     /// <remarks>
-    /// <c>RAMJobStore.TriggeredJobComplete</c> moves a blocked trigger to <c>Waiting</c> and adds it back
-    /// to <c>timeTriggers</c>, and does nothing else — <c>ApplyMisfireNoLock</c> is reached from
-    /// acquisition and from resume, and the unblocking path is neither. So the debt is settled by the
-    /// very next acquisition, which is also the first thing that could have fired the trigger.
+    /// The ADO store has always done this — <c>TriggeredJobComplete</c> unblocks the job's triggers and
+    /// then calls <c>RecoverUnblockedMisfires</c> in the same transaction. The in-memory store used to
+    /// return the trigger to <c>timeTriggers</c> and nothing more, leaving the policy to the next
+    /// acquisition, so a caller reading the trigger in between saw a past-due fire time on one store and
+    /// a recomputed one on the other. #3463 closed that.
     /// </remarks>
     [Test]
-    public async Task TheInMemoryStoreLeavesAnUnblockedTriggersMisfireToTheNextAcquisition()
+    public async Task BothStoresApplyAnUnblockedTriggersMisfireAsTheyUnblockIt()
     {
         DateTimeOffset anchor = Anchor();
         DateTimeOffset scheduled = anchor - HalfPeriod;
 
-        MisfireStoreUnderTest store = await InMemoryStore(anchor);
-        BlockedTrigger blocked = await GivenATriggerBlockedPastItsThreshold(store, anchor);
+        foreach (MisfireStoreUnderTest store in await BothStores(anchor))
+        {
+            BlockedTrigger blocked = await GivenATriggerBlockedPastItsThreshold(store, anchor);
 
-        await store.Store.TriggeredJobComplete(blocked.Firing, blocked.Job, SchedulerInstruction.NoInstruction);
+            IOperableTrigger detached = Detached(anchor, store.Clock, blocked.Key, blocked.Job.Key, scheduled);
 
-        (await store.Store.GetTriggerState(blocked.Key)).Should().Be(TriggerState.Normal,
-            "completing the execution is what lets the blocked siblings go");
-        (await store.Store.GetTrigger(blocked.Key)).NextFireTimeUtc.Should().Be(scheduled,
-            "RAMJobStore's unblocking returns the trigger to the acquisition set and nothing more, so the "
-            + "missed firing is still on the books at this point");
+            MisfireExpectation expected = MisfireExpectation.From(detached, calendar: null, store.Clock);
 
-        IOperableTrigger detached = Detached(anchor, store.Clock, blocked.Key, blocked.Job.Key, scheduled);
+            await store.Store.TriggeredJobComplete(blocked.Firing, blocked.Job, SchedulerInstruction.NoInstruction);
 
-        MisfireExpectation expected = MisfireExpectation.From(detached, calendar: null, store.Clock);
+            IOperableTrigger readBack = await store.Store.GetTrigger(blocked.Key);
 
-        await store.Sweep(scheduled - TimeSpan.FromTicks(1));
+            readBack.Should().NotBeNull(
+                "{0} must still hold the unblocked trigger: its policy left it a fire time to keep", store.Name);
 
-        expected.AssertAgainst(
-            store.Name,
-            BlockedCase + " unblocked",
-            await store.Store.GetTriggerState(blocked.Key),
-            (await store.Store.GetTrigger(blocked.Key)).NextFireTimeUtc);
+            expected.AssertAgainst(
+                store.Name,
+                BlockedCase + " unblocked",
+                await store.Store.GetTriggerState(blocked.Key),
+                readBack.NextFireTimeUtc);
+        }
     }
 
     /// <summary>
-    /// The ADO store's half, which settles the debt a step earlier: <c>TriggeredJobComplete</c> unblocks
-    /// the job's triggers and then calls <c>RecoverUnblockedMisfires</c>, so the policy has already run
-    /// by the time the caller can look.
+    /// The debt is settled once. A misfire pass run straight after the unblocking finds a trigger that is
+    /// no longer late and leaves it exactly where the unblocking put it — on both stores, since the
+    /// in-memory store's pass is an acquisition and would otherwise apply the policy a second time.
     /// </summary>
     [Test]
-    public async Task TheAdoStoreAppliesAnUnblockedTriggersMisfireAsItUnblocksIt()
+    public async Task AnUnblockedTriggersMisfireIsNotAppliedTwice()
     {
         DateTimeOffset anchor = Anchor();
         DateTimeOffset scheduled = anchor - HalfPeriod;
 
-        MisfireStoreUnderTest store = await SqliteStore(anchor);
-        BlockedTrigger blocked = await GivenATriggerBlockedPastItsThreshold(store, anchor);
+        foreach (MisfireStoreUnderTest store in await BothStores(anchor))
+        {
+            BlockedTrigger blocked = await GivenATriggerBlockedPastItsThreshold(store, anchor);
 
-        IOperableTrigger detached = Detached(anchor, store.Clock, blocked.Key, blocked.Job.Key, scheduled);
+            await store.Store.TriggeredJobComplete(blocked.Firing, blocked.Job, SchedulerInstruction.NoInstruction);
 
-        MisfireExpectation expected = MisfireExpectation.From(detached, calendar: null, store.Clock);
+            DateTimeOffset? settled = (await store.Store.GetTrigger(blocked.Key)).NextFireTimeUtc;
+            TriggerState settledState = await store.Store.GetTriggerState(blocked.Key);
 
-        await store.Store.TriggeredJobComplete(blocked.Firing, blocked.Job, SchedulerInstruction.NoInstruction);
+            await store.Sweep(scheduled - TimeSpan.FromTicks(1));
 
-        expected.AssertAgainst(
-            store.Name,
-            BlockedCase + " unblocked",
-            await store.Store.GetTriggerState(blocked.Key),
-            (await store.Store.GetTrigger(blocked.Key)).NextFireTimeUtc);
-    }
-
-    /// <summary>
-    /// The two stores settle an unblocked trigger's misfire at different moments, which is a finding
-    /// rather than something for these tests to smooth over.
-    /// </summary>
-    /// <remarks>
-    /// Reported rather than asserted, per the rule that a matrix says what 4.0 does and does not change
-    /// it. The window between the two is real but narrow — the in-memory store's next acquisition — and
-    /// a caller that reads the trigger inside it sees a fire time in the past on one store and a
-    /// recomputed one on the other.
-    /// </remarks>
-    [Test]
-    public void BothStoresAgreeOnWhenAnUnblockedTriggerMisfires()
-    {
-        Assert.Inconclusive(
-            "The two stores apply an unblocked trigger's misfire policy at different moments. "
-            + "Observed: AdoJobStoreBase.TriggeredJobComplete unblocks the job's triggers and then calls "
-            + "RecoverUnblockedMisfires, so the policy has run by the time TriggeredJobComplete returns; "
-            + "RAMJobStore.TriggeredJobComplete only moves the trigger from Blocked to Waiting and adds it "
-            + "back to timeTriggers, leaving the policy to the next AcquireNextTriggers. Expected: the same "
-            + "moment on both, since a caller reading the trigger between the two gets a different answer "
-            + "depending on which store it is talking to. The two tests above pin each store's actual "
-            + "behaviour, so this reports the gap rather than asserting it away.");
+            (await store.Store.GetTrigger(blocked.Key)).NextFireTimeUtc.Should().Be(settled,
+                "{0} settled the unblocked trigger's misfire as it unblocked it, so the pass after it has "
+                + "nothing left to recompute", store.Name);
+            (await store.Store.GetTriggerState(blocked.Key)).Should().Be(settledState,
+                "{0} must leave the state the unblocking arrived at alone", store.Name);
+        }
     }
 
     /// <summary>

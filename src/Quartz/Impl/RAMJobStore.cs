@@ -2871,6 +2871,10 @@ public sealed class RAMJobStore : IJobStore
 
                     var triggerWrappersForJob = GetTriggerWrappersForJobNoLock(jd.Key);
 
+                    // Triggers this completion unblocked that have nothing left to fire. Removing one
+                    // mutates the very list being walked, so they are collected and removed afterwards.
+                    List<TriggerKey>? finalized = null;
+
                     for (var i = 0; i < triggerWrappersForJob.Count; i++)
                     {
                         var ttw = triggerWrappersForJob[i];
@@ -2878,12 +2882,40 @@ public sealed class RAMJobStore : IJobStore
                         if (ttw.state == StoredTriggerState.Blocked)
                         {
                             ttw.state = StoredTriggerState.Waiting;
-                            timeTriggers.Add(ttw);
-                        }
 
-                        if (ttw.state == StoredTriggerState.PausedBlocked)
+                            // A trigger that sat blocked while the job ran may well have passed a fire
+                            // time meanwhile, and nothing else would notice it: acquisition is the only
+                            // other place the policy runs, so the trigger would be handed to a caller
+                            // with a past-due fire time still on it until then. The ADO store applies
+                            // the policy as it unblocks (RecoverUnblockedMisfires, in the same
+                            // transaction), and this is the same moment.
+                            await ApplyMisfireNoLock(ttw).ConfigureAwait(false);
+
+                            if (ttw.state == StoredTriggerState.Waiting)
+                            {
+                                timeTriggers.Add(ttw);
+                            }
+                            else
+                            {
+                                // Nothing left to fire. The ADO store deletes such a trigger rather than
+                                // leaving a COMPLETE row that GetTrigger would keep handing back, so a
+                                // one-shot trigger that missed its firing while blocked goes away here too.
+                                (finalized ??= []).Add(ttw.TriggerKey);
+                            }
+                        }
+                        else if (ttw.state == StoredTriggerState.PausedBlocked)
                         {
+                            // A paused trigger accrues no misfire — pausing is a decision not to fire, and
+                            // resuming is what settles the debt — so this one is a state change and nothing more.
                             ttw.state = StoredTriggerState.Paused;
+                        }
+                    }
+
+                    if (finalized is not null)
+                    {
+                        foreach (TriggerKey finalizedKey in finalized)
+                        {
+                            await RemoveTriggerNoLock(finalizedKey, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false);
                         }
                     }
 

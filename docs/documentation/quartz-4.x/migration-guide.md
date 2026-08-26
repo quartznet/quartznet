@@ -2940,6 +2940,17 @@ of these is a 3.x behaviour, not a 4.x regression:
   the practical effect is that a trigger due at exactly that instant misfires rather than being fired
   late without its policy. 3.x behaves the old way.
 
+* **An unblocked trigger's misfire policy is applied as it is unblocked, in memory too.** When a
+  `[DisallowConcurrentExecution]` job finishes, the triggers of that job that sat `Blocked` behind it
+  go back to `Waiting` — and a trigger that passed its fire time while it waited has its misfire
+  policy applied there and then, so its state and `NextFireTimeUtc` are settled by the time
+  `TriggeredJobComplete` returns. The ADO store has always done this; `RAMJobStore` returned the
+  trigger to the acquisition set and left the policy to the next acquisition, so a `GetTrigger`
+  in between reported the fire time the trigger had already missed, and a trigger past its end time
+  read as waiting on one store and finished on the other. As on the ADO store, an unblocked trigger
+  whose policy leaves it with nothing to fire is removed rather than kept in `Complete`, so
+  `GetTrigger` answers `null` for it. 3.x behaves the old way.
+
 ## JobKey and TriggerKey Null Validation
 
 `JobKey` and `TriggerKey` now throw `ArgumentNullException` when you specify `null` for `name` or `group`. Triggers can no longer be constructed with a null group name. If your code was relying on null group names, switch to an explicit group name.
