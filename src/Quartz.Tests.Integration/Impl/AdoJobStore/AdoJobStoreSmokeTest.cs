@@ -148,11 +148,11 @@ public class AdoJobStoreSmokeTest
                 store.UseFirebird(FirebirdClientFactory.Instance, connectionString);
                 break;
             case "OracleODPManaged":
-                store.UseOracle(OracleClientFactory.Instance, connectionString, options =>
-                {
-                    options.ConfigureCommand = command => ((OracleCommand) command).BindByName = true;
-                    options.ConfigureBinaryParameter = parameter => ((OracleParameter) parameter).OracleDbType = OracleDbType.Blob;
-                });
+                store.UseOracle(
+                    OracleClientFactory.Instance,
+                    connectionString,
+                    configureCommand: command => ((OracleCommand) command).BindByName = true,
+                    configureBinaryParameter: parameter => ((OracleParameter) parameter).OracleDbType = OracleDbType.Blob);
                 break;
             default:
                 throw new ArgumentException($"No factory registration for provider '{dbProvider}'", nameof(dbProvider));

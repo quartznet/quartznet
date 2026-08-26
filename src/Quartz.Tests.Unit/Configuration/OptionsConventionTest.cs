@@ -83,14 +83,7 @@ public class OptionsConventionTest
         // a keyed-service key is typed 'object' by Microsoft.Extensions.DependencyInjection's own
         // contract (ServiceDescriptor.ServiceKey, [FromKeyedServices(object)]), so an option that
         // carries one to the container cannot be narrower than the container itself.
-        ["Quartz.DataSourceOptions.DataSourceServiceKey"] = "a DI service key is typed 'object' by the container's contract",
-
-        // A driver description is data, not a component: an immutable record of values, the same one the
-        // container-registered path carries, and the same one quartz.dbprovider.* keys are bound onto. It
-        // is here rather than in the container because it answers a question the data source asks - which
-        // driver is this - and because supplying it is the alternative to naming a provider, which is a
-        // setting on this same type.
-        ["Quartz.DataSourceOptions.ProviderMetadata"] = "a driver description is an immutable record of values rather than a service"
+        ["Quartz.DataSourceOptions.DataSourceServiceKey"] = "a DI service key is typed 'object' by the container's contract"
     };
 
     /// <summary>
@@ -99,11 +92,7 @@ public class OptionsConventionTest
     private static readonly HashSet<Type> scalarTypes =
     [
         typeof(string), typeof(decimal), typeof(TimeSpan), typeof(DateTime), typeof(DateTimeOffset),
-        typeof(TimeOnly), typeof(DateOnly), typeof(Guid), typeof(Uri), typeof(Type), typeof(Version),
-
-        // A driver's DbProviderFactory is a singleton the application hands over whole - SqlClientFactory.Instance,
-        // NpgsqlFactory.Instance - so it is a value like the rest of these rather than a graph to bind into.
-        typeof(System.Data.Common.DbProviderFactory)
+        typeof(TimeOnly), typeof(DateOnly), typeof(Guid), typeof(Uri), typeof(Type), typeof(Version)
     ];
 
     /// <summary>

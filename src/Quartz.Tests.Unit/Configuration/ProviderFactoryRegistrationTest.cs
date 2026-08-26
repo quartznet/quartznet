@@ -67,18 +67,29 @@ public sealed class ProviderFactoryRegistrationTest
             "handing over a factory says how to reach the database, not which SQL it speaks");
     }
 
+    /// <summary>
+    /// The factory registration replaces whatever the name path would have registered, whichever order
+    /// the two were called in — the rule <c>UseConnectionProvider</c> already had, and this is one.
+    /// </summary>
     [Test]
-    public void AConnectionStringNameStillResolvesThroughTheFactoryOverloadsSibling()
+    public void TheFactoryRegistrationBeatsANameRegistrationInEitherOrder()
     {
-        using ServiceProvider container = Container(store => store.UsePostgres(options =>
+        using ServiceProvider first = Container(store =>
         {
-            options.ProviderFactory = NpgsqlFactory.Instance;
-            options.ConnectionString = ConnectionString;
-        }));
+            store.UsePostgres("Host=named");
+            store.UsePostgres(NpgsqlFactory.Instance, ConnectionString);
+        });
 
-        container.GetRequiredService<IDbProvider>().Should().BeOfType<ProviderFactoryDbProvider>(
-            "the factory is an ordinary data source setting, so everything else a data source can say "
-            + "still applies to it");
+        using ServiceProvider second = Container(store =>
+        {
+            store.UsePostgres(NpgsqlFactory.Instance, ConnectionString);
+            store.UsePostgres("Host=named");
+        });
+
+        first.GetRequiredService<IDbProvider>().Should().BeOfType<ProviderFactoryDbProvider>();
+        second.GetRequiredService<IDbProvider>().Should().BeOfType<ProviderFactoryDbProvider>(
+            "the call that loses must not be the one that said something Quartz could not have worked out "
+            + "for itself");
     }
 
     /// <summary>
@@ -86,16 +97,13 @@ public sealed class ProviderFactoryRegistrationTest
     /// plumbing is what is under test rather than ODP.NET.
     /// </summary>
     [Test]
-    public void TheSeamsAConfigureCallbackSetsReachTheCommandAndTheBinaryParameter()
+    public void TheSeamsTheOracleOverloadTakesReachTheCommandAndTheBinaryParameter()
     {
         using ServiceProvider container = Container(store => store.UseOracle(
             FakeDbProviderFactory.Instance,
             ConnectionString,
-            options =>
-            {
-                options.ConfigureCommand = command => ((FakeCommand) command).BindByName = false;
-                options.ConfigureBinaryParameter = parameter => parameter.Size = -1;
-            }));
+            configureCommand: command => ((FakeCommand) command).BindByName = false,
+            configureBinaryParameter: parameter => parameter.Size = -1));
 
         IDbProvider provider = container.GetRequiredService<IDbProvider>();
 
@@ -127,6 +135,7 @@ public sealed class ProviderFactoryRegistrationTest
         provider.Should().BeOfType<ProviderFactoryDbProvider>();
         provider.Metadata.Should().BeSameAs(described,
             "there is no provider name to look a description up by, because the description arrived");
+        provider.Metadata.GetParameterName("schedName").Should().Be("$schedName");
         provider.CreateConnection().Should().BeOfType<FakeConnection>();
         container.GetRequiredService<IDriverDelegate>().Should().BeOfType<StdAdoDelegate>();
     }

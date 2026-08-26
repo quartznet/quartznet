@@ -284,15 +284,11 @@ namespace Quartz
     public sealed class DataSourceOptions
     {
         public DataSourceOptions() { }
-        public System.Action<System.Data.Common.DbParameter>? ConfigureBinaryParameter { get; set; }
-        public System.Action<System.Data.Common.DbCommand>? ConfigureCommand { get; set; }
         public string? ConnectionString { get; set; }
         public string? ConnectionStringName { get; set; }
         public System.Func<System.IServiceProvider, System.Data.Common.DbDataSource>? DataSourceFactory { get; set; }
         public object? DataSourceServiceKey { get; set; }
         public string Provider { get; set; }
-        public System.Data.Common.DbProviderFactory? ProviderFactory { get; set; }
-        public Quartz.Impl.AdoJobStore.Common.DbMetadata? ProviderMetadata { get; set; }
         public bool UseRegisteredDataSource { get; set; }
         public static class Providers
         {
@@ -1148,7 +1144,7 @@ namespace Quartz
         [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(@"The driver is chosen by name, and Quartz names its connection, command and parameter types as strings, so a trimmed application has no guarantee they survived. Pass the driver's DbProviderFactory to the overload that takes one, or register a DbDataSource in the container.")]
         public static Quartz.IPersistentStoreBuilder UseOracle(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseOracle(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString) { }
-        public static Quartz.IPersistentStoreBuilder UseOracle(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString, System.Action<Quartz.DataSourceOptions> configure) { }
+        public static Quartz.IPersistentStoreBuilder UseOracle(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString, System.Action<System.Data.Common.DbCommand>? configureCommand, System.Action<System.Data.Common.DbParameter>? configureBinaryParameter) { }
         [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(@"The driver is chosen by name, and Quartz names its connection, command and parameter types as strings, so a trimmed application has no guarantee they survived. Pass the driver's DbProviderFactory to the overload that takes one, or register a DbDataSource in the container.")]
         public static Quartz.IPersistentStoreBuilder UsePostgres(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(@"The driver is chosen by name, and Quartz names its connection, command and parameter types as strings, so a trimmed application has no guarantee they survived. Pass the driver's DbProviderFactory to the overload that takes one, or register a DbDataSource in the container.")]

@@ -64,7 +64,7 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
 
             // The driver description comes from the container, so a provider Quartz ships no description
             // for is usable as soon as the application registers one.
-            var metadata = DescribeDriver(provider, options);
+            var metadata = provider.GetRequiredService<DbMetadataResolver>().Resolve(options.Provider);
 
             // Where the connection comes from is the data source's own setting, decided here rather than
             // by a second entry point that had to be called in the right order to take effect. Most
@@ -97,53 +97,10 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
                 }
             }
 
-            // A factory hands back a connection of the driver's own type, so nothing here has to be
-            // constructed from a type name - which is the whole difference for a trimmed application.
-            if (options.ProviderFactory is { } factory)
-            {
-                return new ProviderFactoryDbProvider(metadata, factory, connectionString!);
-            }
-
             return new DbProvider(metadata, connectionString!);
         });
 
         return this;
-    }
-
-    /// <summary>
-    /// The driver description this data source's provider is built from.
-    /// </summary>
-    /// <remarks>
-    /// Three sources, most specific first: a description the application wrote, then the shipped
-    /// description of the named driver, in the half that names no type when a factory is going to supply
-    /// the connections. Whichever it is, the two typed seams the data source configured are copied onto
-    /// it, so that a driver needing one is configured in one place whether or not Quartz ships a
-    /// description for it.
-    /// </remarks>
-    private static DbMetadata DescribeDriver(IServiceProvider provider, DataSourceOptions options)
-    {
-        DbMetadata metadata = options.ProviderMetadata ?? Resolve(provider, options);
-
-        if (options.ConfigureCommand is null && options.ConfigureBinaryParameter is null)
-        {
-            return metadata;
-        }
-
-        // Copied rather than assigned: a resolved description is shared by every data source that names
-        // the same provider, and one scheduler's seams are not another's.
-        return metadata with
-        {
-            ConfigureCommand = options.ConfigureCommand ?? metadata.ConfigureCommand,
-            ConfigureBinaryParameter = options.ConfigureBinaryParameter ?? metadata.ConfigureBinaryParameter,
-        };
-
-        static DbMetadata Resolve(IServiceProvider provider, DataSourceOptions options)
-        {
-            DbMetadataResolver resolver = provider.GetRequiredService<DbMetadataResolver>();
-            return options.ProviderFactory is null
-                ? resolver.Resolve(options.Provider)
-                : resolver.ResolveWithoutTypes(options.Provider);
-        }
     }
 
     public IPersistentStoreBuilder UseConnectionProvider<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
