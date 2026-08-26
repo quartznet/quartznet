@@ -25,7 +25,11 @@ services.AddQuartz(q => q.ConfigureScheduler(options => options.MaxBatchSize = 5
 ```
 
 Options are bound from the `Quartz` section by section name and validated at startup, so a bad value is
-reported against the setting that is wrong rather than failing later during scheduling. The sections are:
+reported against the setting that is wrong rather than failing later during scheduling. The binding is
+source-generated — the compiler writes a binder for each options type rather than reflecting over it at
+startup — which is what makes configuring from a file as safe under `PublishTrimmed` and `PublishAot`
+as configuring in code. Nothing is asked of your application for that; it is how `Quartz` is built. The
+sections are:
 
 | Section | Options | |
 |---|---|---|
