@@ -582,6 +582,39 @@ shipped assembly, so an `UnconditionalSuppressMessage` never hides them from you
 own application's closure reaches, and none of it stops a scheduler from starting, firing and shutting
 down out of a native executable.
 
+### Which packages say whether they can be trimmed
+
+Every shipped package answers the question, because an unmarked assembly is not a "no" — it is silence.
+A trimmer keeps an unmarked assembly whole and collapses everything it cannot reason about into a single
+`IL2104: Assembly 'X' produced trim warnings`, which tells you nothing about what is at risk.
+
+| Package | Trimmable | What a trimmed publish reports against it |
+|---|---|---|
+| `Quartz` | yes, and `IsAotCompatible` | the string-named paths described above |
+| `Quartz.Jobs` | yes | one: `DirectoryScanJob` finds the listener named in its job data by walking the loaded assemblies for a type of that name |
+| `Quartz.Plugins` | yes | two: the XML and JSON schedule-file plugins name each job's type as text, which is what the file format is for |
+| `Quartz.HttpClient` | yes | one: a job read back over HTTP carries its type as a name |
+| `Quartz.AspNetCore` | yes | one: a job posted to the HTTP API names its type as a string |
+| `Quartz.Extensions.Redis` | yes | nothing |
+| `Quartz.Plugins.TimeZoneConverter` | yes | nothing |
+| `Quartz.Serialization.Newtonsoft` | **no** | Json.NET decides what a type looks like by reflecting over it, and has no source-generated form to move to |
+| `Quartz.Dashboard` | **no** | Blazor Server sets a component's `[Parameter]` properties by name and finds page components by type; that is the framework's model, not something the package can resolve |
+
+None of the trimmable ones needs anything of your application beyond what the sections above ask for:
+name job types as types, and register a job whose type a store or a request will later name as a string.
+Each records its remaining warnings in a `TrimAnalysisBaseline.cs` in the repository rather than in the
+shipped assembly, so you still see every one of them against your own build.
+
+The two that say **no** say it in their csproj and in their nuget.org readme, so it reads as a decision
+rather than an oversight. An application that publishes trimmed uses the System.Text.Json serializer
+built into `Quartz`, and drives its schedulers through the HTTP API rather than the dashboard — both of
+which are trimmable.
+
+`IsAotCompatible` is declared by `Quartz` alone for now, and it is a narrower claim than trimmability:
+that nothing needs code generated at run time. None of the other packages reports an `IL3050` either,
+so the claim would hold for the trimmable ones as well; making it is tracked on
+[#3341](https://github.com/quartznet/quartznet/issues/3341) rather than assumed here.
+
 ## JobExecutionException
 
 Finally, we need to inform you of a few details of the `IJob.Execute(..)` method. The only type of exception

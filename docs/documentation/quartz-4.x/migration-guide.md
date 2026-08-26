@@ -3827,6 +3827,17 @@ is published by ILCompiler and **run** on Windows, Linux and macOS on every pull
 and firing over a real SQLite store and binding a whole scheduler out of an `IConfiguration`. The rest
 of the track is [#3341](https://github.com/quartznet/quartznet/issues/3341).
 
+**Every other shipped package now answers the question too**, which on 3.x none of them does. On 3.x an
+application that adds any plugin to a trimmed publish gets one `IL2104` per unmarked assembly and no
+detail; on 4.0, `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.HttpClient`, `Quartz.AspNetCore`,
+`Quartz.Extensions.Redis` and `Quartz.Plugins.TimeZoneConverter` are marked trimmable and report their
+individual call sites — between none and two each, all of them a job type spelled as a string. No public
+member of any of them gained `[RequiresUnreferencedCode]` or `[DynamicallyAccessedMembers]`, so nothing
+you call changes shape. `Quartz.Serialization.Newtonsoft` and `Quartz.Dashboard` say the opposite
+deliberately, in their csproj and in their nuget.org readme: Json.NET's contract is reflection, and
+Blazor Server binds components and their parameters by name. The table is in
+[Which packages say whether they can be trimmed](tutorial/more-about-jobs.md#which-packages-say-whether-they-can-be-trimmed).
+
 ## Executing is a trigger state
 
 There was no way to ask whether a trigger's job is running right now. 3.x's
@@ -7877,6 +7888,7 @@ Parameters and behavior are unchanged:
 | Serializers outside a scheduler read a container-wide registry | Because the serializer maps are per-serializer, the HTTP API and `Quartz.HttpClient` read a `SystemTextJsonSerializerRegistry` registered in the container. Register it as a singleton to make a custom serializer visible to them. The dashboard no longer registers one of its own: it passes triggers and calendars through as themselves |
 | `SystemTextJsonSerializerRegistry` gained `AddTypeInfoResolver(IJsonTypeInfoResolver)` | Where reflection-based serialization is off — a `PublishTrimmed` or `PublishAot` application — this is how job-data values of the application's own types are answered for. Hand it a generated `JsonSerializerContext`'s `Default`. Everything Quartz writes, and every custom trigger or calendar registered with the registry, is already covered; with reflection on it changes nothing — see [Trimming annotations](#trimming-annotations) |
 | The `Quartz` package declares `IsAotCompatible`, and binds configuration with the source-generated binder | No API moved. Quartz reports no `IL3050` at all now: the `Quartz` section binds through code the compiler wrote rather than through `ConfigurationBinder`'s reflection, so an application configured from `appsettings.json` publishes native AOT as safely as one configured in code — with the reflection binder that preceded it, `MaxBatchSize`, `ShutdownJobInterruption` and the whole scheduler context arrived as their defaults out of a native publish, silently. The `IL2xxx` for the string-named paths are unchanged — see [Trimming annotations](#trimming-annotations) |
+| Every other shipped package says whether it is trimmable | No API moved, and no public member gained `[RequiresUnreferencedCode]` or `[DynamicallyAccessedMembers]`. Six packages are marked `IsTrimmable` and report their own reflective call sites where 3.x reported one `IL2104` per assembly; `Quartz.Serialization.Newtonsoft` and `Quartz.Dashboard` say `IsTrimmable=false` on purpose, and their readmes say why — see [Trimming annotations](#trimming-annotations) |
 | `IDriverDelegate` trigger states are `StoredTriggerState` | Eighteen members took the state as a `string`; the database still stores the same values — see [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate) |
 | The `…FromOtherStates` members take a state collection | Two or three fixed old-state parameters became one `IReadOnlyCollection<StoredTriggerState>` |
 | `FiredTriggerQuery.InstanceName` is `InstanceId` | With the `instanceName` parameters of the scheduler-state members; the `INSTANCE_NAME` column is unchanged |
