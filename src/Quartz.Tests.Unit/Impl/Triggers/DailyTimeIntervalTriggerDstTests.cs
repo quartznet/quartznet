@@ -255,6 +255,98 @@ public class DailyTimeIntervalTriggerDstTests
     }
 
     /// <summary>
+    /// Lord Howe Island moves its clocks by thirty minutes, which is the case that catches anything
+    /// assuming a whole hour. The local day is 23.5 hours long in spring and 24.5 in autumn, and the
+    /// quarter-hour grid steps through both in UTC ticks, so the counts are
+    /// <c>floor(windowLengthInSeconds / 900) + 1</c> just as they are anywhere else - it is only the
+    /// wall-clock labels that jump by half an hour.
+    /// </summary>
+    /// <remarks>
+    /// Spring forward (2024-10-06): 02:00 becomes 02:30, so the day has no 02:00 or 02:15 at all and
+    /// the grid steps from 01:45 +10:30 straight to 02:30 +11:00 - fifteen minutes of elapsed time
+    /// later. Fall back (2024-04-07): 02:00 becomes 01:30, so 01:30 and 01:45 each happen twice and
+    /// the day yields two quarter-hours more than an ordinary one.
+    /// </remarks>
+    [Test]
+    [Category("windowstimezoneid")]
+    [TestCase("2024-10-05T13:30:00Z", "2024-10-06", 94, 96)]
+    [TestCase("2024-04-06T13:00:00Z", "2024-04-07", 98, 96)]
+    public void HalfHourTransition_LordHowe_QuarterHourGrid(
+        string startTimeUtc,
+        string transitionDayText,
+        int expectedFireCountOnTransitionDay,
+        int expectedFireCountOnOrdinaryDay)
+    {
+        TimeZoneInfo timeZone = TestTimeZones.LordHowe;
+        TestTimeZones.AssumeInvalidLocalTime(timeZone, new DateTime(2024, 10, 6, 2, 15, 0));
+        TestTimeZones.AssumeAmbiguousLocalTime(timeZone, new DateTime(2024, 4, 7, 1, 45, 0));
+
+        DateTime transitionDay = DateTime.Parse(transitionDayText, System.Globalization.CultureInfo.InvariantCulture);
+
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(new TimeOnly(0, 0))
+            .EndingDailyAt(new TimeOnly(23, 59, 59))
+            .OnEveryDay()
+            .WithInterval(15, IntervalUnit.Minute)
+            .InTimeZone(timeZone)
+            .Build();
+
+        // the start times are local midnight on the transition day, which the half-hour offset puts
+        // on a half-hour boundary in UTC
+        trigger.StartTimeUtc = DateTimeOffset.Parse(startTimeUtc, System.Globalization.CultureInfo.InvariantCulture);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        List<DateTimeOffset> local = TestTimeZones
+            .Walk(after => trigger.GetFireTimeAfter(after),
+                trigger.StartTimeUtc.AddSeconds(-1),
+                // two days and a margin: the transition moves the local day boundary off the UTC one,
+                // so two days of elapsed time stop short of the end of the second local day
+                trigger.StartTimeUtc.AddDays(2).AddHours(2))
+            .Select(t => TimeZoneInfo.ConvertTime(t, timeZone))
+            .ToList();
+
+        List<DateTimeOffset> onTransitionDay = local.Where(t => t.Date == transitionDay).ToList();
+
+        onTransitionDay.Should().HaveCount(expectedFireCountOnTransitionDay,
+            "the local day is {0} minutes long and the grid steps every 15", (expectedFireCountOnTransitionDay - 1) * 15);
+        local.Count(t => t.Date == transitionDay.AddDays(1)).Should().Be(expectedFireCountOnOrdinaryDay,
+            "the day after the transition is an ordinary 24 hour day again");
+
+        onTransitionDay[0].TimeOfDay.Should().Be(TimeSpan.Zero, "the first fire of the day is startTimeOfDay");
+
+        if (transitionDay == new DateTime(2024, 10, 6))
+        {
+            onTransitionDay.Should().NotContain(t => t.Hour == 2 && t.Minute < 30,
+                "02:00 and 02:15 do not exist on the spring-forward day - the clocks go straight from 02:00 to 02:30");
+
+            List<DateTimeOffset> acrossTheGap = onTransitionDay.Where(t => t.Hour is 1 or 2).ToList();
+            acrossTheGap.Should().Equal(
+                TestTimeZones.Local("2024-10-06 01:00 +10:30"),
+                TestTimeZones.Local("2024-10-06 01:15 +10:30"),
+                TestTimeZones.Local("2024-10-06 01:30 +10:30"),
+                TestTimeZones.Local("2024-10-06 01:45 +10:30"),
+                TestTimeZones.Local("2024-10-06 02:30 +11:00"),
+                TestTimeZones.Local("2024-10-06 02:45 +11:00"));
+        }
+        else
+        {
+            onTransitionDay.Where(t => t.Hour == 1 && t.Minute >= 30).Should().HaveCount(4,
+                "01:30 and 01:45 each happen twice on the fall-back day, once at +11:00 and once at +10:30");
+
+            List<DateTimeOffset> acrossTheRepeat = onTransitionDay.Where(t => t.Hour is 1 or 2).ToList();
+            acrossTheRepeat.Should().StartWith(new[]
+            {
+                TestTimeZones.Local("2024-04-07 01:00 +11:00"),
+                TestTimeZones.Local("2024-04-07 01:15 +11:00"),
+                TestTimeZones.Local("2024-04-07 01:30 +11:00"),
+                TestTimeZones.Local("2024-04-07 01:45 +11:00"),
+                TestTimeZones.Local("2024-04-07 01:30 +10:30"),
+                TestTimeZones.Local("2024-04-07 01:45 +10:30")
+            });
+        }
+    }
+
+    /// <summary>
     /// Regression test for the offset resolution in <c>AdvanceToNextDayOfWeekIfNecessary</c>: when
     /// the day-of-week walk crosses a spring-forward transition, the advanced day's start-of-day
     /// must resolve through the wall-clock policy before it is compared against
