@@ -196,7 +196,7 @@ public class ClusteringJobsExecutionExample : IExample
         foreach (ClusterNode node in nodes)
         {
             string marker = node.IsCurrentNode ? " (this node)" : "";
-            Console.WriteLine($"        {node.InstanceId}{marker}: {node.State}, last check-in {node.LastCheckInUtc:HH:mm:ss}");
+            Console.WriteLine($"        {node.InstanceId}{marker}: {node.State}, last check-in {node.LastCheckInUtc?.LocalDateTime:HH:mm:ss}");
         }
     }
 }
