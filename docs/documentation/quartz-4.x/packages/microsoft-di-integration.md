@@ -105,6 +105,17 @@ A singleton job serves every fire from one instance, so it must be thread-safe a
 scoped dependencies. Prefer scoped, which is what `AddJob` registers.
 :::
 
+::: warning A registered job may not take a scheduler's parts by constructor
+`IScheduler`, `ISchedulerFactory`, `IJobStore`, `IThreadPool` and `IOptions<QuartzSchedulerOptions>`
+belong to one scheduler, and the container that builds the job resolves them unkeyed — it knows nothing
+about which scheduler is firing it. Startup therefore refuses such a constructor, naming the job and the
+parameter. The scheduler running the fire is `IJobExecutionContext.Scheduler`; code the context is not
+handed to reads the firing from `IJobExecutionContextAccessor`; and a job that really has to be
+*constructed* with something of its scheduler's is registered with `AddJobType<T>(provider => …)`, which
+resolves that part by key and is not examined. See
+[which scheduler's parts a job is built from](../multi-tenancy.md#which-scheduler-s-parts-a-job-is-built-from).
+:::
+
 To add to the scope the factory opens rather than to replace the factory — to seed an ambient tenant, say —
 use `q.ConfigureJobScope((scope, bundle, scheduler) => …)`.
 

@@ -60,6 +60,12 @@ inside a scope of its own, so the job can take its dependencies through its cons
 application does. A ramification that does still hold is that it makes no sense to keep state in fields on the job
 class — the instance is gone when the fire ends, so nothing in it is preserved between executions.
 
+One thing a registered job may *not* take by constructor is a part that belongs to one scheduler —
+`IScheduler`, `ISchedulerFactory`, `IJobStore`, `IThreadPool` or `IOptions<QuartzSchedulerOptions>`. The
+container builds the job and knows nothing about which scheduler is firing it, so startup refuses such a
+constructor. The scheduler running the fire is `context.Scheduler`; see
+[which scheduler's parts a job is built from](../multi-tenancy.md#which-scheduler-s-parts-a-job-is-built-from).
+
 You may now be wanting to ask "how can I provide properties/configuration for a Job instance?" and "how can I
 keep track of a job's state between executions?" The answer to these questions are the same: the key is the `JobDataMap`,
 which is part of the JobDetail object.

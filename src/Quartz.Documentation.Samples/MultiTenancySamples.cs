@@ -117,6 +117,24 @@ public static class MultiTenancySamples
 
     #endregion
 
+    public static void JobConstructedWithItsSchedulersParts(IHostApplicationBuilder builder)
+    {
+        #region sample_tenancy_job_built_by_its_scheduler
+
+        builder.Services.AddQuartz("acme", q =>
+        {
+            // A job the container builds may not take a scheduler's parts by constructor - startup
+            // refuses one that does. The job that genuinely has to be given them is built here instead,
+            // where the scheduler's key is known.
+            q.AddJobType<ArchiveJob>(provider =>
+                new ArchiveJob(provider.GetRequiredKeyedService<ISchedulerFactory>("acme")));
+
+            q.AddJob<ArchiveJob>(j => j.WithIdentity("archive"));
+        });
+
+        #endregion
+    }
+
     public static void PluginNamedByProperties(IHostApplicationBuilder builder)
     {
         #region sample_tenancy_plugin_by_properties
@@ -335,6 +353,12 @@ public interface IExportSink;
 
 /// <inheritdoc cref="NightlyReportJob" />
 public sealed class ExportJob(IExportSink sink) : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
+
+/// <inheritdoc cref="NightlyReportJob" />
+public sealed class ArchiveJob(ISchedulerFactory schedulerFactory) : IJob
 {
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 }
