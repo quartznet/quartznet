@@ -72,10 +72,7 @@ internal sealed class SharedDatabaseValidator
             // A diagnostic must never be the reason a scheduler fails to start. The one thing below that
             // can throw is a job store of somebody else's answering for its connection details, and a
             // provider that refuses to say could not have been compared with anything anyway.
-            logger.LogDebug(
-                e,
-                "The shared-database check could not read what database scheduler '{SchedulerName}' talks to.",
-                schedulerName);
+            logger.SharedDatabaseCheckUnavailable(schedulerName, e);
         }
     }
 
@@ -120,13 +117,7 @@ internal sealed class SharedDatabaseValidator
 
         foreach (Arrangement other in disagreeing)
         {
-            logger.LogWarning(
-                "Scheduler '{SchedulerName}' (data source '{DataSource}', table prefix '{TablePrefix}') and scheduler "
-                + "'{OtherSchedulerName}' (data source '{OtherDataSource}', table prefix '{OtherTablePrefix}') use the same "
-                + "database with different table prefixes, so neither can see the other's rows. Schedulers sharing a database "
-                + "are normally told apart by SCHED_NAME and share one table prefix; separate table sets are legal, and if that "
-                + "is what you meant this warning is expected. If it is not, the scheduler with the wrong prefix starts cleanly, "
-                + "passes schema validation against the tables it was pointed at, and never sees its own data.",
+            logger.SchedulersShareDatabaseWithDifferentPrefixes(
                 arrangement.SchedulerName,
                 arrangement.DataSource,
                 arrangement.TablePrefix,
