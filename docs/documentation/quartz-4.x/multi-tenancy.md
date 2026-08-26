@@ -591,24 +591,43 @@ when it is constructed, `IJobExecutionContextAccessor` below is neither.
 
 ### Which scheduler's parts a job is built from
 
-Two jobs on the same named scheduler can be handed different collaborators, and which one you get turns
-on whether the *container* knows the job type.
+A **registered** job is built by the *container*, and the container resolves constructor parameters
+**unkeyed** — it knows nothing about which scheduler is firing the job. A job on scheduler `acme` taking
+`IScheduler`, `ISchedulerFactory`, `IJobStore`, `IThreadPool` or `IOptions<QuartzSchedulerOptions>`
+would therefore be handed the *default* scheduler's, and in a container holding only named schedulers
+there would be no unkeyed registration to hand it at all.
 
-- **A job type the container holds is built by the container.** `AddJob<T>` registers the type with
-  `TryAddScoped`, so the job is resolved as an ordinary scoped service and its constructor dependencies
-  are resolved **unkeyed**. A job on scheduler `acme` that injects `ISchedulerFactory`, `IJobStore`,
-  `IThreadPool` or `IOptions<QuartzSchedulerOptions>` therefore gets the *default* scheduler's — and in
-  a container holding only named schedulers there is no unkeyed registration to get, so the job cannot
-  be constructed at all: reported when the container is validated, or at the first fire in a container
-  that does not validate.
-- **A job type the container does not hold is activated by the job factory**, through the
-  scheduler-scoped provider, and its dependencies resolve to *its own* scheduler's parts. That is any
-  job the container was never told about: one scheduled at runtime with `ScheduleJob(jobDetail, …)`,
-  and one named only by an XML or JSON schedule, which nothing describes to the container.
+So **a registered job may not take a scheduler's parts by constructor, and startup says so.**
+`AddJob<T>`, `AddJob(type, …)`, `ScheduleJob<T>` and `AddJobType<T>` each record the job type against
+the scheduler they were called on, and validating that scheduler's options walks the public
+constructors of the type the container would build:
 
-That the two differ is the point worth carrying away, because nothing about the job says which path it
-is on. **Do not inject a scheduler's own parts into a job.** A job that needs the scheduler running it
-takes `IJobExecutionContext.Scheduler`, which is that scheduler under either path:
+```text
+Job type ArchiveJob is registered on scheduler 'acme', and its constructor takes ISchedulerFactory
+schedulerFactory — a part that belongs to one scheduler. A registered job type is built by the
+container, which resolves constructor parameters without a scheduler's service key: what the job is
+handed is the unkeyed registration — the default scheduler's — whichever scheduler the job belongs to,
+and in a container holding only named schedulers there is no unkeyed registration to hand it. Read the
+scheduler running the job from IJobExecutionContext.Scheduler, take IJobExecutionContextAccessor for
+the firing it is part of, or register the job with AddJobType<ArchiveJob>(provider => ...) and resolve
+the part by key inside that factory.
+```
+
+Every public constructor is examined, not the one the container would pick: which one that is depends on
+what else the container holds — a constructor is only chosen when every parameter of it can be
+resolved — so a job whose clean constructor is picked today is picked differently the moment an
+unrelated registration appears. `TimeProvider` is the deliberate exception to the list: a scheduler
+given no clock of its own inherits the container's, and injecting a clock is what the rest of Quartz
+asks you to do.
+
+**A job type the container does not hold is unaffected**, and is not examined. It is activated by the
+job factory, through the scheduler-scoped provider, and its dependencies resolve to *its own*
+scheduler's parts — that is any job the container was never told about: one scheduled at runtime with
+`ScheduleJob(jobDetail, …)`, and one named only by an XML or JSON schedule.
+
+There are three ways to write the job instead, and the first covers nearly every case. **The scheduler
+running the fire is `IJobExecutionContext.Scheduler`**, which is that scheduler whichever path built the
+job:
 
 <!-- snippet: sample_tenancy_job_reads_its_scheduler -->
 ```csharp
@@ -628,9 +647,27 @@ public sealed class RotateTenantKeysJob : IJob
 ```
 <!-- endSnippet -->
 
-and a service the job calls into reads the firing from [`IJobExecutionContextAccessor`](#reading-the-firing-from-anywhere-in-it).
-Where the job genuinely has to be *constructed* with something of its scheduler's, register it with
-`AddJobType<T>(factory)` and resolve that by key inside the factory.
+**Code the context is not handed** — a scoped service, a repository three calls below `Execute` — reads
+the firing from [`IJobExecutionContextAccessor`](#reading-the-firing-from-anywhere-in-it).
+
+**A job that genuinely has to be *constructed* with something of its scheduler's** is registered with a
+factory of its own, which resolves that part by key. A registration built by a factory is not examined,
+because the factory is where the key goes:
+
+<!-- snippet: sample_tenancy_job_built_by_its_scheduler -->
+```csharp
+builder.Services.AddQuartz("acme", q =>
+{
+    // A job the container builds may not take a scheduler's parts by constructor - startup
+    // refuses one that does. The job that genuinely has to be given them is built here instead,
+    // where the scheduler's key is known.
+    q.AddJobType<ArchiveJob>(provider =>
+        new ArchiveJob(provider.GetRequiredKeyedService<ISchedulerFactory>("acme")));
+
+    q.AddJob<ArchiveJob>(j => j.WithIdentity("archive"));
+});
+```
+<!-- endSnippet -->
 
 ### Reading the firing from anywhere in it
 

@@ -1334,13 +1334,26 @@ A job type that is an interface or an abstract class is not registered, since th
 construct it. Jobs named by an XML or JSON schedule are not registered either — nothing describes them
 to the container — so those still fail at fire time if their dependencies are missing.
 
-One case changes shape rather than merely failing earlier. A job that injects one of a *named*
-scheduler's own parts — `ISchedulerFactory`, `IJobStore`, `IThreadPool` — used to be activated through
-that scheduler's view of the container and was handed its parts. It is now resolved from the container
-like any other service, which resolves those unkeyed: with a default scheduler present it gets the
-default scheduler's, and with only named schedulers it fails validation. Take the scheduler from
-`IJobExecutionContext.Scheduler`, which is the scheduler that is actually running the job, or register
-the job with `AddJobType<T>(factory)` — below — and resolve what it needs by key inside the factory.
+**A registered job may not take a scheduler's own parts by constructor.** `IScheduler`,
+`ISchedulerFactory`, `IJobStore`, `IThreadPool` and `IOptions<QuartzSchedulerOptions>` belong to one
+scheduler. A job that injected one of them used to be activated through its scheduler's view of the
+container and was handed that scheduler's; a registered job is now resolved from the container like any
+other service, which resolves them unkeyed — the default scheduler's, or nothing at all in a container
+holding only named schedulers. Rather than leave a job silently holding another scheduler's
+collaborators, the constructor is refused when the host starts, with a message naming the job and the
+parameter:
+
+```text
+Job type ArchiveJob is registered on scheduler 'acme', and its constructor takes ISchedulerFactory
+schedulerFactory — a part that belongs to one scheduler. …
+```
+
+Take the scheduler from `IJobExecutionContext.Scheduler`, which is the scheduler actually running the
+job; take `IJobExecutionContextAccessor` in code the context is not handed to; or, where the job really
+has to be *constructed* with something of its scheduler's, register it with `AddJobType<T>(factory)` —
+below — and resolve that part by key inside the factory, which is not examined. A job type the container
+does not hold is unaffected: it is still activated by the job factory and still receives its own
+scheduler's parts.
 
 ### `AddJobType` gives one scheduler its own build of a job type
 
@@ -7957,6 +7970,7 @@ Parameters and behavior are unchanged:
 | `Quartz.Impl.DelegatingJobStore` added | Forwards every `IJobStore` member to a wrapped store, each one `virtual`, so a decorating store overrides only what it changes — see [`DelegatingJobStore` decorates a store](#delegatingjobstore-decorates-a-store) |
 | `HostnameInstanceIdGenerator` is `HostNameInstanceIdGenerator` | Casing matched to `HostNameBasedIdGenerator`. The type is internal; a `quartz.scheduler.instanceIdGenerator.type` still naming the old spelling resolves, with a warning |
 | `AddJob<T>` and `ScheduleJob<T>` register the job type | Scoped, with `TryAdd`, so an unresolvable job fails `ValidateOnBuild` instead of at fire time — see [`AddJob` registers the job with the container](#addjob-registers-the-job-with-the-container) |
+| A registered job's constructor may not take a scheduler's parts | `IScheduler`, `ISchedulerFactory`, `IJobStore`, `IThreadPool` and `IOptions<QuartzSchedulerOptions>` belong to one scheduler, and the container resolves them unkeyed, so a registered job taking one is refused when the host starts rather than handed the default scheduler's. Read the scheduler from `IJobExecutionContext.Scheduler`, or register the job with `AddJobType<T>(factory)` and resolve the part by key there — see [`AddJob` registers the job with the container](#addjob-registers-the-job-with-the-container) |
 | The `JobKey`-taking `AddJob` overloads removed | Identity is set inside the configurator with `WithIdentity` — see [One shape per registration method](#one-shape-per-registration-method) |
 | `IServiceCollectionQuartzConfigurator` is `IQuartzBuilder` | And the `AddQuartz` overloads taking an `(configurator, IServiceProvider)` callback are gone; use the `(IServiceProvider, configurator)` shape of `AddJob` / `AddTrigger` / `ScheduleJob` |
 | DI `AddCalendar` takes `AddCalendarOptions` | The two adjacent bools are gone, and `calendarName` is `name` |
