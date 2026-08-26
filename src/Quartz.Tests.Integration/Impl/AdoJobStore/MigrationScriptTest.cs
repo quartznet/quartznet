@@ -67,6 +67,12 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// pinned to a preferred node, all fired, read back and shut down cleanly. That exercises the columns
 /// the migrations added rather than merely observing that they exist.
 /// </para>
+/// <para>
+/// <c>FreshInstallHonoursDropSwitch</c> covers the other end: every fresh-install script destroys an
+/// existing Quartz schema before it recreates one, and every script can be told not to. Each dialect
+/// says so in its own idiom -- a variable on all of them but SQLite, which has none and so delimits
+/// the block to delete instead -- and the case works the switch both ways against real data.
+/// </para>
 /// </remarks>
 [Category("migrations")]
 public class MigrationScriptTest
@@ -78,6 +84,9 @@ public class MigrationScriptTest
 
     /// <summary>Schema built by 3.16 + the 4.0 upgrade alone, which is what most databases will do.</summary>
     private const string DirectPrefix = "QRTZD_";
+
+    /// <summary>Throwaway schema the drop-switch cases build, fill and then have the script destroy.</summary>
+    private const string DropSwitchPrefix = "QRTZS_";
 
     /// <summary>Migrations that apply on top of the 3.16 baseline, in the order they must run.</summary>
     private static readonly (string Version, string Name)[] SteppedChain =
@@ -244,6 +253,191 @@ public class MigrationScriptTest
         await BuildMigratedSchemaAsync(connection, "firebird", DirectPrefix, DirectChain, assertRerunnable: false);
         await AssertSchemaMatchesAsync(connection, "firebird", DirectPrefix);
         await MigratedSchemaWorkload.RunAsync(connection, "firebird", connectionString, DirectPrefix);
+    }
+
+    [Test]
+    [Category("db-sqlite")]
+    public Task SqliteFreshInstallHonoursDropSwitch()
+    {
+        return WithSqliteAsync((connection, _) => AssertDropSwitchHonouredAsync(connection, "sqlite"));
+    }
+
+    [Test]
+    [Category("db-sqlserver")]
+    public async Task SqlServerFreshInstallHonoursDropSwitch()
+    {
+        await using SqlConnection connection = new SqlConnection(RequireConnectionString("MSSQL_CONNECTION_STRING"));
+        await connection.OpenAsync();
+
+        await AssertDropSwitchHonouredAsync(connection, "sqlServer");
+    }
+
+    [Test]
+    [Category("db-postgres")]
+    public async Task PostgreSqlFreshInstallHonoursDropSwitch()
+    {
+        await using NpgsqlConnection connection = new NpgsqlConnection(RequireConnectionString("PG_CONNECTION_STRING"));
+        await connection.OpenAsync();
+
+        await AssertDropSwitchHonouredAsync(connection, "postgres");
+    }
+
+    [Test]
+    [Category("db-mysql")]
+    public async Task MySqlFreshInstallHonoursDropSwitch()
+    {
+        await using MySqlConnection connection = new MySqlConnection(RequireConnectionString("MYSQL_CONNECTION_STRING"));
+        await connection.OpenAsync();
+
+        await AssertDropSwitchHonouredAsync(connection, "mysql_innodb");
+    }
+
+    [Test]
+    [Category("db-oracle")]
+    public async Task OracleFreshInstallHonoursDropSwitch()
+    {
+        await using OracleConnection connection = new OracleConnection(RequireConnectionString("ORACLE_CONNECTION_STRING"));
+        await connection.OpenAsync();
+
+        await AssertDropSwitchHonouredAsync(connection, "oracle");
+    }
+
+    [Test]
+    [Category("db-firebird")]
+    public async Task FirebirdFreshInstallHonoursDropSwitch()
+    {
+        await using FbConnection connection = new FbConnection(RequireConnectionString("FIREBIRD_CONNECTION_STRING"));
+        await connection.OpenAsync();
+
+        await AssertDropSwitchHonouredAsync(connection, "firebird");
+    }
+
+    /// <summary>
+    /// Builds a schema from the fresh-install script exactly as it ships, puts a row in it, and runs
+    /// the script's teardown twice: once with the drop switched off, which has to leave the row
+    /// alone, and once as it ships, which has to take the whole schema with it.
+    /// </summary>
+    private static async Task AssertDropSwitchHonouredAsync(DbConnection connection, string dialect)
+    {
+        string script = Rewrite(FreshInstallScript(dialect), DropSwitchPrefix);
+
+        await ExecuteScriptAsync(connection, script, dialect);
+        await InsertJobDetailAsync(connection, dialect, DropSwitchPrefix);
+
+        // What a reader who followed the header sentence ends up running.
+        await ExecuteScriptAsync(connection, Teardown(script, dialect, drop: false), dialect);
+
+        long survivors = await CountJobDetailsAsync(connection, DropSwitchPrefix);
+        survivors.Should().Be(1, $"the {dialect} script's teardown has to do nothing at all once the drop is switched off, and -1 means it took the table too");
+
+        // The teardown as it ships, which is what the switch exists to be able to decline.
+        await ExecuteScriptAsync(connection, Teardown(script, dialect, drop: true), dialect);
+
+        SchemaSnapshot afterDrop = await SchemaSnapshot.ReadAsync(connection, dialect, DropSwitchPrefix);
+        afterDrop.Tables.Should().BeEmpty($"the {dialect} script drops an existing schema by default, so the switch left on has to remove every table");
+    }
+
+    /// <summary>
+    /// The part of a fresh-install script that runs before the first CREATE TABLE: the switch, and
+    /// the drops it guards. Running that alone is the only way to observe the switch, because the
+    /// CREATE statements after it fail against the schema a declined drop deliberately left standing.
+    /// </summary>
+    private static string Teardown(string script, string dialect, bool drop)
+    {
+        string[] lines = script.Replace("\r\n", "\n").Split('\n');
+
+        int firstCreate = Array.FindIndex(lines, l => l.TrimStart().StartsWith("CREATE TABLE", StringComparison.OrdinalIgnoreCase));
+        firstCreate.Should().BePositive($"the {dialect} fresh-install script tears the old schema down before it creates the new one");
+
+        string teardown = string.Join('\n', lines[..firstCreate]);
+        return drop ? teardown : SwitchDropOff(teardown, dialect);
+    }
+
+    /// <summary>
+    /// Turns the drop off the way the dialect's own header sentence says to, so a script that stops
+    /// carrying the switch fails here rather than silently going untested.
+    /// </summary>
+    private static string SwitchDropOff(string teardown, string dialect)
+    {
+        if (dialect == "sqlite")
+        {
+            return RemoveDelimitedDropBlock(teardown);
+        }
+
+        (string on, string off) = dialect switch
+        {
+            "sqlServer" => ("@DropDb BIT = 1", "@DropDb BIT = 0"),
+            "postgres" => ("DropDb INT := 1", "DropDb INT := 0"),
+            "mysql_innodb" => ("SET @DropDb = 1", "SET @DropDb = 0"),
+            "oracle" => ("DropDb NUMBER := 1", "DropDb NUMBER := 0"),
+            "firebird" => ("DropDb INTEGER = 1", "DropDb INTEGER = 0"),
+            _ => throw new ArgumentOutOfRangeException(nameof(dialect), dialect, "no drop switch known for this dialect")
+        };
+
+        string switched = teardown.Replace(on, off, StringComparison.Ordinal);
+        switched.Should().NotBe(teardown, $"the {dialect} script has to declare '{on}', which is the variable its header tells the reader to set to 0");
+
+        return switched;
+    }
+
+    private const string DropBlockBegin = "BEGIN DROP TABLES";
+    private const string DropBlockEnd = "END DROP TABLES";
+
+    /// <summary>
+    /// SQLite has neither variables nor a statement-level IF, so its header tells the reader to
+    /// delete the drops rather than switch them off. This deletes them, which also pins that the
+    /// markers the header sends the reader looking for are still there.
+    /// </summary>
+    private static string RemoveDelimitedDropBlock(string teardown)
+    {
+        string[] lines = teardown.Replace("\r\n", "\n").Split('\n');
+
+        int begin = Array.FindIndex(lines, l => l.Contains(DropBlockBegin, StringComparison.Ordinal));
+        int end = Array.FindIndex(lines, l => l.Contains(DropBlockEnd, StringComparison.Ordinal));
+
+        begin.Should().BeGreaterThanOrEqualTo(0, $"the SQLite script's drops have to sit behind a '{DropBlockBegin}' marker, since deleting them is all a reader can do");
+        end.Should().BeGreaterThan(begin, $"the SQLite script's '{DropBlockEnd}' marker has to follow its '{DropBlockBegin}' one");
+
+        return string.Join('\n', lines[..begin].Concat(lines[(end + 1)..]));
+    }
+
+    /// <summary>One row for the drop to take away, or leave alone.</summary>
+    private static async Task InsertJobDetailAsync(DbConnection connection, string dialect, string prefix)
+    {
+        // The flag columns are a different type in every dialect, so their literals differ too.
+        (string yes, string no) = dialect switch
+        {
+            "postgres" => ("TRUE", "FALSE"),
+            "oracle" => ("'1'", "'0'"),
+            _ => ("1", "0")
+        };
+
+        await using DbCommand command = connection.CreateCommand();
+        command.CommandText =
+            $"INSERT INTO {prefix}JOB_DETAILS (SCHED_NAME, JOB_NAME, JOB_GROUP, JOB_CLASS_NAME, IS_DURABLE, IS_NONCONCURRENT, IS_UPDATE_DATA, REQUESTS_RECOVERY) "
+            + $"VALUES ('DropSwitchScheduler', 'survivor', 'DEFAULT', 'Quartz.Job.NoOpJob, Quartz', {yes}, {no}, {no}, {no})";
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Rows in the job-details table, or -1 if there is no such table any more. A drop that ran when
+    /// it was told not to takes the table with the row, and the count that reports that is a better
+    /// failure than the provider exception it would otherwise throw.
+    /// </summary>
+    private static async Task<long> CountJobDetailsAsync(DbConnection connection, string prefix)
+    {
+        await using DbCommand command = connection.CreateCommand();
+        command.CommandText = $"SELECT COUNT(*) FROM {prefix}JOB_DETAILS";
+
+        try
+        {
+            return Convert.ToInt64(await command.ExecuteScalarAsync());
+        }
+        catch (DbException)
+        {
+            return -1;
+        }
     }
 
     /// <summary>
@@ -669,11 +863,17 @@ public class MigrationScriptTest
         return PrepareForMigratedPrefix(script, dialect, prefix);
     }
 
+    /// <summary>The fresh-install script exactly as it ships, teardown included.</summary>
+    private static string FreshInstallScript(string dialect)
+    {
+        return File.ReadAllText(ResolveRepositoryFile("database", "tables", $"tables_{dialect}.sql"));
+    }
+
     private static string CurrentTableScript(string dialect)
     {
         // Used only where the test creates the fresh schema itself (SQLite); elsewhere the test
         // environment has already created it from this same file.
-        return StripDropStatements(File.ReadAllText(ResolveRepositoryFile("database", "tables", $"tables_{dialect}.sql")));
+        return StripDropStatements(FreshInstallScript(dialect));
     }
 
     private static string MigrationScript(string version, string name, string dialect, string prefix)
@@ -734,6 +934,7 @@ public class MigrationScriptTest
     {
         SteppedPrefix => "M_",
         DirectPrefix => "D_",
+        DropSwitchPrefix => "S_",
         _ => throw new ArgumentOutOfRangeException(nameof(prefix), prefix, "no SQLite trigger prefix for this table prefix")
     };
 

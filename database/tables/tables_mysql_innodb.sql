@@ -5,18 +5,22 @@
 # make sure you have UTF-8 collaction for best .NET interoperability
 # CREATE DATABASE quartznet CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-DROP TABLE IF EXISTS QRTZ_FIRED_TRIGGERS;
-DROP TABLE IF EXISTS QRTZ_PAUSED_TRIGGER_GRPS;
-DROP TABLE IF EXISTS QRTZ_PAUSED_JOB_GRPS;
-DROP TABLE IF EXISTS QRTZ_SCHEDULER_STATE;
-DROP TABLE IF EXISTS QRTZ_LOCKS;
-DROP TABLE IF EXISTS QRTZ_SIMPLE_TRIGGERS;
-DROP TABLE IF EXISTS QRTZ_SIMPROP_TRIGGERS;
-DROP TABLE IF EXISTS QRTZ_CRON_TRIGGERS;
-DROP TABLE IF EXISTS QRTZ_BLOB_TRIGGERS;
-DROP TABLE IF EXISTS QRTZ_TRIGGERS;
-DROP TABLE IF EXISTS QRTZ_JOB_DETAILS;
-DROP TABLE IF EXISTS QRTZ_CALENDARS;
+-- This initializes the database to pristine for Quartz, by first removing any existing Quartz tables
+-- and then recreating them from scratch.
+-- Should you only require it to create the tables, set @DropDb to 0.
+
+-- MySQL has no statement-level IF outside a stored program, so the switch chooses between the
+-- DROP and a no-op and the chosen statement is prepared and executed. The tables are dropped in
+-- one statement, children before parents, so the foreign keys do not stand in the way.
+
+SET @DropDb = 1; -- Set this to 0 to skip DROP statements, 1 to include them
+
+SET @DropQuartzTablesSql = IF(@DropDb = 1,
+  'DROP TABLE IF EXISTS QRTZ_FIRED_TRIGGERS, QRTZ_PAUSED_TRIGGER_GRPS, QRTZ_PAUSED_JOB_GRPS, QRTZ_SCHEDULER_STATE, QRTZ_LOCKS, QRTZ_SIMPLE_TRIGGERS, QRTZ_SIMPROP_TRIGGERS, QRTZ_CRON_TRIGGERS, QRTZ_BLOB_TRIGGERS, QRTZ_TRIGGERS, QRTZ_JOB_DETAILS, QRTZ_CALENDARS',
+  'DO 0');
+PREPARE DropQuartzTables FROM @DropQuartzTablesSql;
+EXECUTE DropQuartzTables;
+DEALLOCATE PREPARE DropQuartzTables;
 
 CREATE TABLE QRTZ_JOB_DETAILS(
 SCHED_NAME VARCHAR(120) NOT NULL,
