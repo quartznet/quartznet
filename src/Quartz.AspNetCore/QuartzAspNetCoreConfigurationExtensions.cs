@@ -280,7 +280,20 @@ public static class QuartzAspNetCoreConfigurationExtensions
         var allEndpoints = calendarEndpoints
             .Union(jobEndpoints)
             .Union(schedulerEndpoints)
-            .Union(triggerEndpoints);
+            .Union(triggerEndpoints)
+            .ToArray();
+
+        if (!string.IsNullOrWhiteSpace(options.SchedulerAuthorizationPolicy))
+        {
+            // Applied after the endpoints are built, so that every route added by any of the four groups
+            // is covered by the one rule: a route that carries {schedulerName} is authorized against that
+            // scheduler. The convention reads the pattern, so nothing here has to list which routes those
+            // are. The scheduler listing carries no such parameter and filters its own answer instead.
+            foreach (RouteHandlerBuilder endpoint in allEndpoints)
+            {
+                endpoint.RequireSchedulerAuthorization(options.SchedulerAuthorizationPolicy);
+            }
+        }
 
         return new QuartzApiConventionBuilder(allEndpoints);
     }

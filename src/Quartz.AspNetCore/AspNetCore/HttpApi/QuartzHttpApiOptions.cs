@@ -19,6 +19,8 @@
 
 #endregion
 
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Quartz;
@@ -52,6 +54,28 @@ public sealed class QuartzHttpApiOptions
     /// </summary>
     public bool IncludeStackTraceInProblemDetails { get; set; }
 
+    /// <summary>
+    /// The authorization policy every route that names a scheduler is held to, evaluated against a
+    /// <see cref="SchedulerResource" /> carrying that name. Null — the default — leaves the API as it was:
+    /// whatever <c>RequireAuthorization(…)</c> the application put on the mapped group, applied uniformly
+    /// to every scheduler.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Set it and each request is checked with
+    /// <c>IAuthorizationService.AuthorizeAsync(user, new SchedulerResource(name), policy)</c> before the
+    /// scheduler is looked up, so a caller who fails cannot tell "no such scheduler" from "not yours": a
+    /// refusal is <c>403</c> with problem details, and a <c>404</c> only ever answers a scheduler the
+    /// caller was allowed to ask about. The scheduler listing is filtered the same way.
+    /// </para>
+    /// <para>
+    /// The check is authorization, never authentication: an anonymous caller gets whatever the policy
+    /// says, which is a <c>403</c> when the policy refuses. Put <c>RequireAuthorization()</c> on the
+    /// mapped group as well to have an anonymous caller challenged with a <c>401</c> first.
+    /// </para>
+    /// </remarks>
+    public string? SchedulerAuthorizationPolicy { get; set; }
+
     internal string TrimmedApiPath => ApiPath.TrimEnd('/');
 
     /// <summary>
@@ -74,12 +98,35 @@ public sealed class QuartzHttpApiOptions
 /// </remarks>
 internal sealed class QuartzHttpApiOptionsValidator : IValidateOptions<QuartzHttpApiOptions>
 {
+    private readonly IServiceProviderIsService? registrations;
+
+    /// <param name="registrations">
+    /// What the container has, used to catch a per-scheduler policy with nothing to evaluate it. The
+    /// default DI container supplies this; a third-party one that does not leaves the check unmade, which
+    /// is why the parameter has a default rather than being required.
+    /// </param>
+    public QuartzHttpApiOptionsValidator(IServiceProviderIsService? registrations = null)
+    {
+        this.registrations = registrations;
+    }
+
     public ValidateOptionsResult Validate(string? name, QuartzHttpApiOptions options)
     {
         if (!QuartzHttpApiOptions.IsRoutableApiPath(options.ApiPath))
         {
             return ValidateOptionsResult.Fail(
                 $"{nameof(QuartzHttpApiOptions.ApiPath)} is required and must start with '/', was '{options.ApiPath}'.");
+        }
+
+        // A policy name with no IAuthorizationService behind it is a security setting that silently does
+        // nothing, which is worse than one that is missing: say so at startup rather than at the first
+        // request that would have been refused.
+        if (!string.IsNullOrWhiteSpace(options.SchedulerAuthorizationPolicy)
+            && registrations?.IsService(typeof(IAuthorizationService)) == false)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(QuartzHttpApiOptions.SchedulerAuthorizationPolicy)} is '{options.SchedulerAuthorizationPolicy}', "
+                + "but the container has no authorization services to evaluate it with - call services.AddAuthorization() and register that policy.");
         }
 
         return ValidateOptionsResult.Success;
