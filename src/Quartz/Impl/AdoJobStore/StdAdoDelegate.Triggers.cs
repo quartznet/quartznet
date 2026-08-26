@@ -283,7 +283,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerEndTime", GetDbDateTimeValue(trigger.EndTimeUtc));
         AddCommandParameter(cmd, "triggerCalendarName", trigger.CalendarName);
         AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstructionCode);
-        AddCommandParameter(cmd, "triggerJobJobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, "triggerJobJobDataMap", jobData, DbProvider.Metadata.BinaryParameterType);
 
         AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
 
@@ -320,7 +320,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        AddCommandParameter(cmd, "blob", buf, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, "blob", buf, DbProvider.Metadata.BinaryParameterType);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -437,7 +437,7 @@ public partial class StdAdoDelegate
 
         if (updateJobData)
         {
-            parameters.Add(new SqlStatementParameter("triggerJobJobDataMap", SerializeJobData(trigger.JobDataMap), DbProvider.Metadata.DbBinaryType));
+            parameters.Add(new SqlStatementParameter("triggerJobJobDataMap", SerializeJobData(trigger.JobDataMap), DbProvider.Metadata.BinaryParameterType));
         }
 
         parameters.Add(new SqlStatementParameter("triggerExecutionGroup", (object?) trigger.ExecutionGroup ?? DBNull.Value));
@@ -523,7 +523,7 @@ public partial class StdAdoDelegate
         byte[]? os = SerializeObject(trigger);
 
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "blob", os, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, "blob", os, DbProvider.Metadata.BinaryParameterType);
         AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 

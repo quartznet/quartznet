@@ -68,7 +68,7 @@ public class SqlServerDelegate : StdAdoDelegate
         }
 
         // varbinary support
-        if (size is null && dataType is not null && dataType.Equals(DbProvider.Metadata.DbBinaryType))
+        if (size is null && dataType is not null && dataType.Equals(DbProvider.Metadata.BinaryParameterType))
         {
             size = -1;
         }

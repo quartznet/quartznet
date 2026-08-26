@@ -16,7 +16,7 @@ public partial class StdAdoDelegate
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertCalendar));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "calendarName", calendarName);
-        AddCommandParameter(cmd, "calendar", baos, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, "calendar", baos, DbProvider.Metadata.BinaryParameterType);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -32,7 +32,7 @@ public partial class StdAdoDelegate
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateCalendar));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "calendar", baos, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, "calendar", baos, DbProvider.Metadata.BinaryParameterType);
         AddCommandParameter(cmd, "calendarName", calendarName);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);

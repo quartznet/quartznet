@@ -189,7 +189,7 @@ internal sealed class AdoUtil : IAdoUtil
     {
         if (dataType is not null)
         {
-            SetDataTypeToCommandParameter(param, dataType);
+            dbProvider.Metadata.ApplyParameterType(param, dataType);
         }
 
         if (size is not null)
@@ -269,11 +269,6 @@ internal sealed class AdoUtil : IAdoUtil
 
         builder.Append(commandText, copied, commandText.Length - copied);
         return builder.ToString();
-    }
-
-    private void SetDataTypeToCommandParameter(IDbDataParameter param, object parameterType)
-    {
-        dbProvider.Metadata.ParameterDbTypeSetter!.Invoke(param, parameterType);
     }
 
     /// <summary>
