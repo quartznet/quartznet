@@ -79,26 +79,56 @@ internal sealed class SchedulerState
     public IReadOnlyList<SchedulerHeaderDto> AvailableSchedulers { get; set; } = [];
 
     /// <summary>
-    /// Whether a scheduler exists under <paramref name="schedulerName" />, as the last listing reported
-    /// it. A name the listing does not carry reads as created, so a page that was pointed at a scheduler
-    /// by hand is not told it does not exist.
+    /// The scheduler the dashboard should be about when nothing has chosen one: the first that exists,
+    /// falling back to the first registration, and <see langword="null" /> when there are none.
     /// </summary>
-    public bool IsCreated(string? schedulerName)
+    /// <remarks>
+    /// A registration nothing has built has no pages to render, so opening on one would show its
+    /// not-created state everywhere while a running scheduler sat further down the list. It is still the
+    /// fallback, because a process whose only scheduler has not started is better described by that
+    /// scheduler than by nothing at all.
+    /// </remarks>
+    public string? DefaultSchedulerName
+    {
+        get
+        {
+            foreach (SchedulerHeaderDto scheduler in AvailableSchedulers)
+            {
+                if (scheduler.IsCreated)
+                {
+                    return scheduler.SchedulerName;
+                }
+            }
+
+            return AvailableSchedulers.Count > 0 ? AvailableSchedulers[0].SchedulerName : null;
+        }
+    }
+
+    /// <summary>
+    /// What the last listing said about <paramref name="schedulerName" />, or <see langword="null" />
+    /// when it said nothing about it.
+    /// </summary>
+    /// <remarks>
+    /// Null and <c>IsCreated: false</c> are different answers, which is why this returns the header
+    /// rather than a flag: a page pointed at a scheduler the listing does not carry must not be told the
+    /// scheduler does not exist, while one pointed at a registration nothing has built must.
+    /// </remarks>
+    public SchedulerHeaderDto? Find(string? schedulerName)
     {
         if (string.IsNullOrWhiteSpace(schedulerName))
         {
-            return false;
+            return null;
         }
 
         foreach (SchedulerHeaderDto scheduler in AvailableSchedulers)
         {
             if (string.Equals(scheduler.SchedulerName, schedulerName, StringComparison.OrdinalIgnoreCase))
             {
-                return scheduler.IsCreated;
+                return scheduler;
             }
         }
 
-        return true;
+        return null;
     }
 
     public string SelectedTimeZoneId

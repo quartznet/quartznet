@@ -110,7 +110,10 @@ in-memory store is never asked, because the answer would always be "one".
 Following a row makes that scheduler the active one and opens its Dashboard page, which is the same
 switch the header's scheduler picker makes. A registration nothing has built is not a link: there is no
 scheduler behind it for any page to show. The picker offers it too, greyed out, so that a tenant that
-failed to start is visible rather than looking as though it had never been registered.
+failed to start is visible rather than looking as though it had never been registered. Should such a
+registration end up being the active scheduler anyway — it is the only one there is, or the one that was
+running has just been shut down — the Dashboard page says it has not been created rather than reporting
+a scheduler it could not find.
 
 ## Hosting under a custom path
 

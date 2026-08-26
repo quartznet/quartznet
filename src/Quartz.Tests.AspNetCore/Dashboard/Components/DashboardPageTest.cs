@@ -167,6 +167,31 @@ public class DashboardPageTest
             "no scheduler selected is not a scheduler in some state, which is what Unknown means");
     }
 
+    /// <summary>
+    /// The page an operator lands on when the scheduler they picked is a registration nothing has built.
+    /// </summary>
+    /// <remarks>
+    /// The listing carries such a registration now, so it can be the active scheduler — after shutting
+    /// the only one down, or by following it from the Schedulers page. Every read this page makes would
+    /// answer "no such scheduler", which reads as a fault rather than as the state the listing already
+    /// reported.
+    /// </remarks>
+    [Test]
+    public void ASchedulerNothingHasBuiltSaysSoRatherThanReportingAFault()
+    {
+        context.SchedulerState.AvailableSchedulers = new List<SchedulerHeaderDto>
+        {
+            TestData.Dashboard.RegisteredSchedulerHeader("acme")
+        };
+        context.SchedulerState.ActiveSchedulerName = "acme";
+
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+
+        page.Markup.Should().Contain("registered but has not been created");
+        page.FindAll(".qz-stat-card").Should().BeEmpty("there is nothing to count");
+        A.CallTo(() => context.Api.GetScheduler("acme", A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
     private void GivenCounts(int jobs, int triggers, int errorTriggers, int executing)
     {
         A.CallTo(() => context.Api.GetJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))

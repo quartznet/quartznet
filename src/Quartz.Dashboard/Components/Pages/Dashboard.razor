@@ -21,6 +21,13 @@
     {
         <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
     }
+    else if (_schedulerIsNotCreated)
+    {
+        <p class="qz-muted">
+            This scheduler is registered but has not been created, so there is nothing to show for it yet.
+            <a href="@DashboardLink.To(Options.Value, "schedulers")">See every scheduler this process knows about</a>.
+        </p>
+    }
     else
     {
         <div class="qz-row">
@@ -101,6 +108,12 @@
     private int _errorTriggers;
     private int _nodes;
     private int _unhealthyNodes;
+
+    /// <summary>
+    /// Whether the active scheduler is a registration nothing has built, which the listing already said
+    /// and which every read on this page would otherwise report as a scheduler it could not find.
+    /// </summary>
+    private bool _schedulerIsNotCreated;
     private readonly List<DashboardActionLogEntry> _recentActions = [];
     private bool _showShutdownConfirm;
     private PeriodicTimer? _executingRefreshTimer;
@@ -137,12 +150,14 @@
         _isLoading = true;
         _error = null;
         _errorTriggers = 0;
+        _schedulerIsNotCreated = false;
 
         try
         {
             string? schedulerName = Scheduler.ActiveSchedulerName;
-            if (string.IsNullOrWhiteSpace(schedulerName))
+            if (string.IsNullOrWhiteSpace(schedulerName) || Scheduler.Find(schedulerName) is { IsCreated: false })
             {
+                _schedulerIsNotCreated = !string.IsNullOrWhiteSpace(schedulerName);
                 _schedulerStatus = SchedulerStatus.Unknown;
                 _totalJobs = 0;
                 _totalTriggers = 0;
@@ -350,17 +365,13 @@
         List<SchedulerHeaderDto> schedulers = await Api.GetSchedulers();
         Scheduler.AvailableSchedulers = schedulers.AsReadOnly();
 
-        List<string> names = [];
-        foreach (SchedulerHeaderDto scheduler in schedulers)
-        {
-            names.Add(scheduler.SchedulerName);
-        }
-
+        // The preferred scheduler has to still exist, not merely still be registered: shutting one down
+        // leaves its registration in the listing, and staying on it would leave the page reporting a
+        // scheduler nothing can read.
         string? nextActive = preferredSchedulerName;
-        if (string.IsNullOrWhiteSpace(nextActive) ||
-            !names.Contains(nextActive, StringComparer.OrdinalIgnoreCase))
+        if (Scheduler.Find(nextActive) is not { IsCreated: true })
         {
-            nextActive = names.Count > 0 ? names[0] : null;
+            nextActive = Scheduler.DefaultSchedulerName;
         }
 
         Scheduler.ActiveSchedulerName = nextActive;
