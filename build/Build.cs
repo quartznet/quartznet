@@ -276,6 +276,15 @@ partial class Build : FalloutBuild, ICompile, IPack
             string code = match.Groups[1].Value;
             string member = match.Groups[2].Value;
 
+            // "Assembly 'Quartz' produced trim warnings" - the one warning that names no member,
+            // reported when a whole assembly's warnings are collapsed into a single line. Nothing below
+            // could check what it stands for, so it fails here rather than passing as somebody else's.
+            if (code == "IL2104" && line.Contains("'Quartz'", StringComparison.Ordinal))
+            {
+                unrecorded.Add($"{code}: Quartz's warnings were collapsed into one line, so none of them was checked");
+                continue;
+            }
+
             if (!member.StartsWith("Quartz.", StringComparison.Ordinal))
             {
                 Log.Information("{What} reported {Code} against {Member}, which is not Quartz's to record", what, code, member);
