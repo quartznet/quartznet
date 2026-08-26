@@ -6,7 +6,16 @@ using System.Collections.Specialized;
 using System.Data.SQLite;
 using System.Diagnostics;
 
+using FirebirdSql.Data.FirebirdClient;
+
+using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
+
+using MySqlConnector;
+
+using Npgsql;
+
+using Oracle.ManagedDataAccess.Client;
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
@@ -32,14 +41,14 @@ public class AdoJobStoreSmokeTest
 
     [Test]
     [Category("db-sqlserver")]
-    [TestCaseSource(nameof(GetSerializerTypes))]
-    public Task TestSqlServer(string serializerType)
+    [TestCaseSource(nameof(GetSmokeTestCases))]
+    public Task TestSqlServer(string serializerType, ProviderMode providerMode)
     {
         var properties = new NameValueCollection
         {
             ["quartz.jobStore.driverDelegateType"] = typeof(Quartz.Impl.AdoJobStore.SqlServerDelegate).AssemblyQualifiedNameWithoutVersion()
         };
-        return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, properties);
+        return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, properties, providerMode: providerMode);
     }
 
     [Test]
@@ -58,30 +67,30 @@ public class AdoJobStoreSmokeTest
 
     [Test]
     [Category("db-postgres")]
-    [TestCaseSource(nameof(GetSerializerTypes))]
-    public Task TestPostgreSql(string serializerType)
+    [TestCaseSource(nameof(GetSmokeTestCases))]
+    public Task TestPostgreSql(string serializerType, ProviderMode providerMode)
     {
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz";
-        return RunAdoJobStoreTest("Npgsql", "PostgreSQL", serializerType, properties);
+        return RunAdoJobStoreTest("Npgsql", "PostgreSQL", serializerType, properties, providerMode: providerMode);
     }
 
     [Test]
     [Category("db-mysql")]
-    [TestCaseSource(nameof(GetSerializerTypes))]
-    public Task TestMySql(string serializerType)
+    [TestCaseSource(nameof(GetSmokeTestCases))]
+    public Task TestMySql(string serializerType, ProviderMode providerMode)
     {
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-        return RunAdoJobStoreTest("MySqlConnector", "MySQL", serializerType, properties);
+        return RunAdoJobStoreTest("MySqlConnector", "MySQL", serializerType, properties, providerMode: providerMode);
     }
 
     [Test]
     [Category("db-sqlite")]
-    [TestCaseSource(nameof(GetSerializerTypes))]
-    public async Task TestSQLiteMicrosoft(string serializerType)
+    [TestCaseSource(nameof(GetSmokeTestCases))]
+    public async Task TestSQLiteMicrosoft(string serializerType, ProviderMode providerMode)
     {
-        var dbFilename = $"test-sqlite-ms-{serializerType}.db";
+        var dbFilename = $"test-sqlite-ms-{serializerType}-{providerMode}.db";
         dbConnectionStrings["SQLite-Microsoft"] = $"Data Source={dbFilename};";
 
         if (File.Exists(dbFilename))
@@ -102,7 +111,52 @@ public class AdoJobStoreSmokeTest
 
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
-        await RunAdoJobStoreTest("SQLite-Microsoft", "SQLite-Microsoft", serializerType, properties, clustered: false);
+        await RunAdoJobStoreTest("SQLite-Microsoft", "SQLite-Microsoft", serializerType, properties, clustered: false, providerMode: providerMode);
+    }
+
+    /// <summary>
+    /// Registers the same database through the driver's own factory, which is the registration a
+    /// trimmed application makes: nothing here names a type for Quartz to resolve.
+    /// </summary>
+    /// <remarks>
+    /// Oracle is the one that takes more than a factory, and the two things it takes are exactly what
+    /// the name path reads off <c>OracleCommand</c> and <c>OracleParameter</c> by reflection. Without
+    /// the first, every statement binds by position; without the second, a job data map over two
+    /// kilobytes does not fit in an <c>OracleDbType.Raw</c> parameter, which is what
+    /// <see cref="System.Data.DbType.Binary" /> means to ODP.NET.
+    /// </remarks>
+    private static void UseDriverFactory(IPersistentStoreBuilder store, string dbProvider, string connectionString)
+    {
+        switch (dbProvider)
+        {
+            case "SqlServer":
+                store.UseSqlServer(SqlClientFactory.Instance, connectionString);
+                break;
+            case "Npgsql":
+                store.UsePostgres(NpgsqlFactory.Instance, connectionString);
+                break;
+            case "MySqlConnector":
+                store.UseMySqlConnector(MySqlConnectorFactory.Instance, connectionString);
+                break;
+            case "SQLite-Microsoft":
+                store.UseSqlite(SqliteFactory.Instance, connectionString);
+                break;
+            case "SQLite":
+                store.UseSystemDataSqlite(SQLiteFactory.Instance, connectionString);
+                break;
+            case "Firebird":
+                store.UseFirebird(FirebirdClientFactory.Instance, connectionString);
+                break;
+            case "OracleODPManaged":
+                store.UseOracle(OracleClientFactory.Instance, connectionString, options =>
+                {
+                    options.ConfigureCommand = command => ((OracleCommand) command).BindByName = true;
+                    options.ConfigureBinaryParameter = parameter => ((OracleParameter) parameter).OracleDbType = OracleDbType.Blob;
+                });
+                break;
+            default:
+                throw new ArgumentException($"No factory registration for provider '{dbProvider}'", nameof(dbProvider));
+        }
     }
 
     private static string LoadSqliteTableScript()
@@ -116,30 +170,30 @@ public class AdoJobStoreSmokeTest
 
     [Test]
     [Category("db-firebird")]
-    [TestCaseSource(nameof(GetSerializerTypes))]
-    public Task TestFirebird(string serializerType)
+    [TestCaseSource(nameof(GetSmokeTestCases))]
+    public Task TestFirebird(string serializerType, ProviderMode providerMode)
     {
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.FirebirdDelegate, Quartz";
-        return RunAdoJobStoreTest("Firebird", "Firebird", serializerType, properties, clustered: false);
+        return RunAdoJobStoreTest("Firebird", "Firebird", serializerType, properties, clustered: false, providerMode: providerMode);
     }
 
     [Test]
     [Category("db-oracle")]
-    [TestCaseSource(nameof(GetSerializerTypes))]
-    public Task TestOracleODPManaged(string serializerType)
+    [TestCaseSource(nameof(GetSmokeTestCases))]
+    public Task TestOracleODPManaged(string serializerType, ProviderMode providerMode)
     {
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-        return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, properties);
+        return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, properties, providerMode: providerMode);
     }
 
     [Test]
     [Category("db-sqlite")]
-    [TestCaseSource(nameof(GetSerializerTypes))]
-    public async Task TestSQLite(string serializerType)
+    [TestCaseSource(nameof(GetSmokeTestCases))]
+    public async Task TestSQLite(string serializerType, ProviderMode providerMode)
     {
-        var dbFilename = $"test-sqlite-{serializerType}.db";
+        var dbFilename = $"test-sqlite-{serializerType}-{providerMode}.db";
         dbConnectionStrings["SQLite"] = $"Data Source={dbFilename};Version=3;";
 
         while (File.Exists(dbFilename))
@@ -162,10 +216,41 @@ public class AdoJobStoreSmokeTest
 
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
-        await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false);
+        await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false, providerMode: providerMode);
     }
 
     public static string[] GetSerializerTypes() => ["stj", "newtonsoft"];
+
+    /// <summary>
+    /// How the driver is reached: by the name Quartz resolves its types from, or through the
+    /// <see cref="System.Data.Common.DbProviderFactory" /> the driver ships.
+    /// </summary>
+    public enum ProviderMode
+    {
+        /// <summary>The provider name, which resolves the driver's types with <c>Type.GetType</c>.</summary>
+        Name,
+
+        /// <summary>The driver's own factory, which names no type — what a trimmed application uses.</summary>
+        Factory,
+    }
+
+    /// <summary>
+    /// Every dialect runs both ways round, and both serializers.
+    /// </summary>
+    /// <remarks>
+    /// Not the full cross product. The serializer decides what goes into a blob and the provider decides
+    /// how the blob is bound, so the two axes do not interact; crossing them would double the container
+    /// time of every database leg to re-prove the serializer against a second way of making a command.
+    /// </remarks>
+    public static IEnumerable<TestCaseData> GetSmokeTestCases()
+    {
+        foreach (string serializerType in GetSerializerTypes())
+        {
+            yield return new TestCaseData(serializerType, ProviderMode.Name);
+        }
+
+        yield return new TestCaseData(TestConstants.DefaultSerializerType, ProviderMode.Factory);
+    }
 
     private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
     {
@@ -177,10 +262,11 @@ public class AdoJobStoreSmokeTest
         string connectionStringId,
         string serializerType,
         NameValueCollection extraProperties,
-        bool clustered = true)
+        bool clustered = true,
+        ProviderMode providerMode = ProviderMode.Name)
     {
-        string schedulerInstanceId = $"instance_{dbProvider}_{connectionStringId}_{serializerType}_{Guid.NewGuid():N}".Replace('-', '_');
-        string schedulerName = $"TestScheduler_{dbProvider}_{connectionStringId}_{serializerType}".Replace('-', '_');
+        string schedulerInstanceId = $"instance_{dbProvider}_{connectionStringId}_{serializerType}_{providerMode}_{Guid.NewGuid():N}".Replace('-', '_');
+        string schedulerName = $"TestScheduler_{dbProvider}_{connectionStringId}_{serializerType}_{providerMode}".Replace('-', '_');
         QuartzSchedulerBuilder config = QuartzSchedulerBuilder.Create();
         config.ConfigureScheduler(o =>
         {
@@ -206,7 +292,14 @@ public class AdoJobStoreSmokeTest
                 });
             }
 
-            store.UseGenericDatabase(dbProvider, GetConnectionString(connectionStringId));
+            if (providerMode == ProviderMode.Factory)
+            {
+                UseDriverFactory(store, dbProvider, GetConnectionString(connectionStringId));
+            }
+            else
+            {
+                store.UseGenericDatabase(dbProvider, GetConnectionString(connectionStringId));
+            }
 
             // Some databases need their own dialect delegate, which the test supplies by name.
             var driverDelegateType = extraProperties?["quartz.jobStore.driverDelegateType"];
@@ -316,7 +409,7 @@ public class AdoJobStoreSmokeTest
     [Test]
     [Explicit]
     [Category("db-sqlserver")]
-    [TestCaseSource(nameof(GetSerializerTypes))]
+    [TestCaseSource(nameof(GetSmokeTestCases))]
     public async Task TestSqlServerStress(string serializerType)
     {
         NameValueCollection properties = new NameValueCollection();

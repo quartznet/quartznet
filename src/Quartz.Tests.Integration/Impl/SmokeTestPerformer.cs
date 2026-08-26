@@ -436,6 +436,7 @@ public class SmokeTestPerformer
                 await TestKeySetDeletes(scheduler);
                 await TestMatchers(scheduler);
                 await TestGetTriggerStateExecutingWhileJobRuns(scheduler);
+                await TestLargeJobData(scheduler);
             }
         }
         finally
@@ -456,6 +457,67 @@ public class SmokeTestPerformer
     /// is dialect-sensitive: the answer comes from each delete's affected-row count, which is the one
     /// thing every provider spells its own way.
     /// </remarks>
+    /// <summary>
+    /// A job data map far larger than what a driver binds a blob with by default, on the job and on a
+    /// trigger, written and read back against whichever dialect this run is driving.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the case where how a binary parameter is bound stops being invisible. SQL Server infers a
+    /// <c>varbinary</c> size from the value unless told otherwise, and anything over 8000 bytes has to be
+    /// <c>varbinary(max)</c>; ODP.NET reads <see cref="System.Data.DbType.Binary"/> as
+    /// <c>OracleDbType.Raw</c>, which holds 2000 bytes in SQL and 32767 in PL/SQL, so a map this size
+    /// needs <c>OracleDbType.Blob</c>. Both are things a driver description says, and a description
+    /// reached through a <c>DbProviderFactory</c> says them without naming a type.
+    /// </para>
+    /// <para>
+    /// 32 KB rather than the 64 KB the issue asked for, because MySQL's shipped <c>JOB_DATA</c> column is
+    /// a <c>BLOB</c> and holds 65535 bytes: a 64 KB map plus its JSON overhead does not fit there on any
+    /// schema Quartz ships. 32 KB clears every threshold that decides how the parameter is bound.
+    /// </para>
+    /// </remarks>
+    private async Task TestLargeJobData(IScheduler scheduler)
+    {
+        const int size = 32 * 1024;
+        string payload = string.Create(size, size, static (span, _) =>
+        {
+            for (int i = 0; i < span.Length; i++)
+            {
+                span[i] = (char) ('a' + i % 26);
+            }
+        });
+
+        var jobKey = new JobKey("largeJobData", "blobs");
+        var triggerKey = new TriggerKey("largeJobData", "blobs");
+
+        var job = JobBuilder.Create<NoOpJob>()
+            .WithIdentity(jobKey)
+            .StoreDurably()
+            .UsingJobData("payload", payload)
+            .Build();
+
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartAt(DateTimeOffset.UtcNow.AddYears(10))
+            .UsingJobData("payload", payload)
+            .Build();
+
+        await scheduler.ScheduleJob(job, [trigger], new ScheduleJobOptions { Replace = true });
+
+        var storedJob = await scheduler.GetJobDetail(jobKey);
+        storedJob.JobDataMap.GetString("payload").Should().Be(payload,
+            "a job data map is written as one binary parameter, and how big a value that parameter accepts "
+            + "is decided by the driver description rather than by the column");
+
+        var storedTrigger = await scheduler.GetTrigger(triggerKey);
+        storedTrigger.JobDataMap.GetString("payload").Should().Be(payload,
+            "a trigger's map is written through the batched update path, which mints its parameters a "
+            + "second way");
+
+        await scheduler.DeleteJob(jobKey);
+    }
+
     private async Task TestKeySetDeletes(IScheduler scheduler)
     {
         await scheduler.Clear();
