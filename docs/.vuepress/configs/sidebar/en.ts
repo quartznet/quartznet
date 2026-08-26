@@ -125,6 +125,7 @@ export const sidebarEn: SidebarConfig = [
           "/documentation/quartz-4.x/multi-tenancy",
           "/documentation/faq",
           "/documentation/best-practices",
+          "/documentation/quartz-4.x/operations",
           "/documentation/tenancy-patterns",
           "/documentation/quartz-4.x/db/",
           "/documentation/database/schema-changes",

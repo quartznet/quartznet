@@ -53,9 +53,12 @@ Quartz.NET 3.x probes for `MISFIRE_ORIG_FIRE_TIME`, `EXECUTION_GROUP`, `PREFERRE
 turns the corresponding feature off — which is why those migrations are optional on 3.x.
 
 **4.x removed those probes** and assumes all four columns exist. It also adds a table 3.x never
-had, `QRTZ_PAUSED_JOB_GRPS`, and validates its whole schema at startup. So even a 3.x database
-that took every optional migration going will not work against 4.x until [4.0](#version-4-0) has
-been applied.
+had, `QRTZ_PAUSED_JOB_GRPS`, and checks at startup that every table it needs is queryable — so a
+database missing that table is refused there and then. So even a 3.x database that took every
+optional migration going will not work against 4.x until [4.0](#version-4-0) has been applied.
+
+The startup check is table-level, not column-level: a database that gained the table but none of
+the columns starts and then fails on the first statement that names one. Run the whole script.
 
 ---
 
