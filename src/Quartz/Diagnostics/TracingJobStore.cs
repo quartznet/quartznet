@@ -99,7 +99,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Job(job.Key).Trigger(trigger.Key).Start();
-        return Complete(operation, () => InnerJobStore.ScheduleJob(job, trigger, cancellationToken));
+        return Complete(operation, (InnerJobStore, job, trigger, cancellationToken),
+            static s => s.InnerJobStore.ScheduleJob(s.job, s.trigger, s.cancellationToken));
     }
 
     public override ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default)
@@ -111,7 +112,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Job(job.Key).Start();
-        return Complete(operation, () => InnerJobStore.AddJob(job, replace, cancellationToken));
+        return Complete(operation, (InnerJobStore, job, replace, cancellationToken),
+            static s => s.InnerJobStore.AddJob(s.job, s.replace, s.cancellationToken));
     }
 
     public override ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
@@ -123,7 +125,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.ScheduleJobs(triggersAndJobs, replace, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggersAndJobs, replace, cancellationToken),
+            static s => s.InnerJobStore.ScheduleJobs(s.triggersAndJobs, s.replace, s.cancellationToken));
     }
 
     public override ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default)
@@ -135,7 +138,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Trigger(trigger.Key).Start();
-        return Complete(operation, () => InnerJobStore.AddTrigger(trigger, replace, cancellationToken));
+        return Complete(operation, (InnerJobStore, trigger, replace, cancellationToken),
+            static s => s.InnerJobStore.AddTrigger(s.trigger, s.replace, s.cancellationToken));
     }
 
     public override ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)
@@ -147,7 +151,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.AddCalendar(calendarName, calendar, options, cancellationToken));
+        return Complete(operation, (InnerJobStore, calendarName, calendar, options, cancellationToken),
+            static s => s.InnerJobStore.AddCalendar(s.calendarName, s.calendar, s.options, s.cancellationToken));
     }
 
     public override ValueTask Clear(CancellationToken cancellationToken = default)
@@ -159,7 +164,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.Clear(cancellationToken));
+        return Complete(operation, (InnerJobStore, cancellationToken),
+            static s => s.InnerJobStore.Clear(s.cancellationToken));
     }
 
     public override ValueTask PauseAll(CancellationToken cancellationToken = default)
@@ -171,7 +177,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.PauseAll(cancellationToken));
+        return Complete(operation, (InnerJobStore, cancellationToken),
+            static s => s.InnerJobStore.PauseAll(s.cancellationToken));
     }
 
     public override ValueTask ResumeAll(CancellationToken cancellationToken = default)
@@ -183,7 +190,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.ResumeAll(cancellationToken));
+        return Complete(operation, (InnerJobStore, cancellationToken),
+            static s => s.InnerJobStore.ResumeAll(s.cancellationToken));
     }
 
     public override ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
@@ -195,7 +203,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Trigger(trigger.Key).Start();
-        return Complete(operation, () => InnerJobStore.ReleaseAcquiredTrigger(trigger, cancellationToken));
+        return Complete(operation, (InnerJobStore, trigger, cancellationToken),
+            static s => s.InnerJobStore.ReleaseAcquiredTrigger(s.trigger, s.cancellationToken));
     }
 
     public override ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
@@ -207,7 +216,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Trigger(trigger.Key).Job(jobDetail.Key).Start();
-        return Complete(operation, () => InnerJobStore.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken));
+        return Complete(operation, (InnerJobStore, trigger, jobDetail, triggerInstructionCode, cancellationToken),
+            static s => s.InnerJobStore.TriggeredJobComplete(s.trigger, s.jobDetail, s.triggerInstructionCode, s.cancellationToken));
     }
 
     public override ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -219,7 +229,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Job(jobKey).Start();
-        return Complete(operation, () => InnerJobStore.DeleteJob(jobKey, cancellationToken));
+        return Complete(operation, (InnerJobStore, jobKey, cancellationToken),
+            static s => s.InnerJobStore.DeleteJob(s.jobKey, s.cancellationToken));
     }
 
     public override ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
@@ -231,7 +242,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.DeleteJobs(jobKeys, cancellationToken));
+        return Complete(operation, (InnerJobStore, jobKeys, cancellationToken),
+            static s => s.InnerJobStore.DeleteJobs(s.jobKeys, s.cancellationToken));
     }
 
     public override ValueTask<bool> DeleteTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
@@ -243,7 +255,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Trigger(triggerKey).Start();
-        return Complete(operation, () => InnerJobStore.DeleteTrigger(triggerKey, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggerKey, cancellationToken),
+            static s => s.InnerJobStore.DeleteTrigger(s.triggerKey, s.cancellationToken));
     }
 
     public override ValueTask<List<TriggerKey>> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
@@ -255,7 +268,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.DeleteTriggers(triggerKeys, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggerKeys, cancellationToken),
+            static s => s.InnerJobStore.DeleteTriggers(s.triggerKeys, s.cancellationToken));
     }
 
     public override ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
@@ -267,7 +281,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.DeleteCalendar(calendarName, cancellationToken));
+        return Complete(operation, (InnerJobStore, calendarName, cancellationToken),
+            static s => s.InnerJobStore.DeleteCalendar(s.calendarName, s.cancellationToken));
     }
 
     public override ValueTask<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger trigger, CancellationToken cancellationToken = default)
@@ -279,7 +294,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Trigger(triggerKey).Start();
-        return Complete(operation, () => InnerJobStore.ReplaceTrigger(triggerKey, trigger, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggerKey, trigger, cancellationToken),
+            static s => s.InnerJobStore.ReplaceTrigger(s.triggerKey, s.trigger, s.cancellationToken));
     }
 
     public override ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
@@ -291,7 +307,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Trigger(triggerKey).Start();
-        return Complete(operation, () => InnerJobStore.UpdateTriggerDetails(triggerKey, update, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggerKey, update, cancellationToken),
+            static s => s.InnerJobStore.UpdateTriggerDetails(s.triggerKey, s.update, s.cancellationToken));
     }
 
     public override ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
@@ -303,7 +320,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Trigger(triggerKey).Start();
-        return Complete(operation, () => InnerJobStore.ResetTriggerFromErrorState(triggerKey, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggerKey, cancellationToken),
+            static s => s.InnerJobStore.ResetTriggerFromErrorState(s.triggerKey, s.cancellationToken));
     }
 
     public override ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
@@ -315,7 +333,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.ResetTriggersFromErrorState(triggerKeys, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggerKeys, cancellationToken),
+            static s => s.InnerJobStore.ResetTriggersFromErrorState(s.triggerKeys, s.cancellationToken));
     }
 
     public override ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
@@ -327,7 +346,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Trigger(triggerKey).Start();
-        return Complete(operation, () => InnerJobStore.PauseTrigger(triggerKey, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggerKey, cancellationToken),
+            static s => s.InnerJobStore.PauseTrigger(s.triggerKey, s.cancellationToken));
     }
 
     public override ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
@@ -339,7 +359,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.PauseTriggers(matcher, cancellationToken));
+        return Complete(operation, (InnerJobStore, matcher, cancellationToken),
+            static s => s.InnerJobStore.PauseTriggers(s.matcher, s.cancellationToken));
     }
 
     public override ValueTask<List<TriggerKey>> PauseTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
@@ -351,7 +372,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.PauseTriggers(triggerKeys, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggerKeys, cancellationToken),
+            static s => s.InnerJobStore.PauseTriggers(s.triggerKeys, s.cancellationToken));
     }
 
     public override ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -363,7 +385,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Job(jobKey).Start();
-        return Complete(operation, () => InnerJobStore.PauseJob(jobKey, cancellationToken));
+        return Complete(operation, (InnerJobStore, jobKey, cancellationToken),
+            static s => s.InnerJobStore.PauseJob(s.jobKey, s.cancellationToken));
     }
 
     public override ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
@@ -375,7 +398,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.PauseJobs(matcher, cancellationToken));
+        return Complete(operation, (InnerJobStore, matcher, cancellationToken),
+            static s => s.InnerJobStore.PauseJobs(s.matcher, s.cancellationToken));
     }
 
     public override ValueTask<List<JobKey>> PauseJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
@@ -387,7 +411,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.PauseJobs(jobKeys, cancellationToken));
+        return Complete(operation, (InnerJobStore, jobKeys, cancellationToken),
+            static s => s.InnerJobStore.PauseJobs(s.jobKeys, s.cancellationToken));
     }
 
     public override ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
@@ -399,7 +424,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Trigger(triggerKey).Start();
-        return Complete(operation, () => InnerJobStore.ResumeTrigger(triggerKey, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggerKey, cancellationToken),
+            static s => s.InnerJobStore.ResumeTrigger(s.triggerKey, s.cancellationToken));
     }
 
     public override ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
@@ -411,7 +437,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.ResumeTriggers(matcher, cancellationToken));
+        return Complete(operation, (InnerJobStore, matcher, cancellationToken),
+            static s => s.InnerJobStore.ResumeTriggers(s.matcher, s.cancellationToken));
     }
 
     public override ValueTask<List<TriggerKey>> ResumeTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
@@ -423,7 +450,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.ResumeTriggers(triggerKeys, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggerKeys, cancellationToken),
+            static s => s.InnerJobStore.ResumeTriggers(s.triggerKeys, s.cancellationToken));
     }
 
     public override ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -435,7 +463,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Job(jobKey).Start();
-        return Complete(operation, () => InnerJobStore.ResumeJob(jobKey, cancellationToken));
+        return Complete(operation, (InnerJobStore, jobKey, cancellationToken),
+            static s => s.InnerJobStore.ResumeJob(s.jobKey, s.cancellationToken));
     }
 
     public override ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
@@ -447,7 +476,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.ResumeJobs(matcher, cancellationToken));
+        return Complete(operation, (InnerJobStore, matcher, cancellationToken),
+            static s => s.InnerJobStore.ResumeJobs(s.matcher, s.cancellationToken));
     }
 
     public override ValueTask<List<JobKey>> ResumeJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
@@ -459,7 +489,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Start();
-        return Complete(operation, () => InnerJobStore.ResumeJobs(jobKeys, cancellationToken));
+        return Complete(operation, (InnerJobStore, jobKeys, cancellationToken),
+            static s => s.InnerJobStore.ResumeJobs(s.jobKeys, s.cancellationToken));
     }
 
     public override ValueTask<List<IOperableTrigger>> AcquireNextTriggers(TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
@@ -471,7 +502,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Tag(ActivityTags.BatchSize, request.MaxCount).Start();
-        return CompleteAcquisition(operation, () => InnerJobStore.AcquireNextTriggers(request, cancellationToken));
+        return CompleteAcquisition(operation, (InnerJobStore, request, cancellationToken),
+            static s => s.InnerJobStore.AcquireNextTriggers(s.request, s.cancellationToken));
     }
 
     public override ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
@@ -483,7 +515,8 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
 
         operation.Tag(ActivityTags.TriggerCount, triggers.Count).Start();
-        return Complete(operation, () => InnerJobStore.TriggersFired(triggers, cancellationToken));
+        return Complete(operation, (InnerJobStore, triggers, cancellationToken),
+            static s => s.InnerJobStore.TriggersFired(s.triggers, s.cancellationToken));
     }
 
     /// <summary>
@@ -518,20 +551,27 @@ internal sealed class TracingJobStore : DelegatingJobStore
     /// Runs the store call and closes the operation, whichever way the call ends.
     /// </summary>
     /// <remarks>
-    /// The call arrives as a delegate rather than as an already-started <see cref="ValueTask" /> because
-    /// a store is allowed to throw before it returns one — <c>AcquireNextTriggers</c> validates its
-    /// request argument in a synchronous prologue, and any store may. Invoking it as an argument would
-    /// let that throw past the <see langword="finally" /> below, leaving an activity started, never
-    /// stopped, and installed as <see cref="Activity.Current" /> for the rest of the flow. The delegate
-    /// is allocated only on the recording path, where an <see cref="Activity" /> has just been allocated
-    /// anyway.
+    /// <para>
+    /// The call is deferred rather than invoked as an argument because a store is allowed to throw
+    /// before it returns a <see cref="ValueTask" /> — <c>AcquireNextTriggers</c> validates its request in
+    /// a synchronous prologue, and any store may. An argument-position call would let that throw past
+    /// the <see langword="finally" /> below, leaving an activity started, never stopped, and installed
+    /// as <see cref="Activity.Current" /> for the rest of the asynchronous flow.
+    /// </para>
+    /// <para>
+    /// The delegate is <see langword="static" /> and the arguments travel beside it as a value tuple,
+    /// which is what keeps the guard in every override free: a lambda that captured a parameter would
+    /// have its display class allocated on entry to the override, before the <c>IsRecording</c> check
+    /// had a chance to return — forty bytes per store call on a scheduler nobody is watching. A static
+    /// lambda captures nothing and is cached once per call site.
+    /// </para>
     /// </remarks>
-    private static async ValueTask Complete(StoreOperation operation, Func<ValueTask> call)
+    private static async ValueTask Complete<TState>(StoreOperation operation, TState state, Func<TState, ValueTask> call)
     {
         Exception? failure = null;
         try
         {
-            await call().ConfigureAwait(false);
+            await call(state).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -544,13 +584,13 @@ internal sealed class TracingJobStore : DelegatingJobStore
         }
     }
 
-    /// <inheritdoc cref="Complete(StoreOperation, Func{ValueTask})" />
-    private static async ValueTask<T> Complete<T>(StoreOperation operation, Func<ValueTask<T>> call)
+    /// <inheritdoc cref="Complete{TState}(StoreOperation, TState, Func{TState, ValueTask})" />
+    private static async ValueTask<TResult> Complete<TState, TResult>(StoreOperation operation, TState state, Func<TState, ValueTask<TResult>> call)
     {
         Exception? failure = null;
         try
         {
-            return await call().ConfigureAwait(false);
+            return await call(state).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -566,14 +606,15 @@ internal sealed class TracingJobStore : DelegatingJobStore
     /// <summary>
     /// The one operation whose enrichment is only knowable once the store has answered.
     /// </summary>
-    private static async ValueTask<List<IOperableTrigger>> CompleteAcquisition(
+    private static async ValueTask<List<IOperableTrigger>> CompleteAcquisition<TState>(
         StoreOperation operation,
-        Func<ValueTask<List<IOperableTrigger>>> call)
+        TState state,
+        Func<TState, ValueTask<List<IOperableTrigger>>> call)
     {
         Exception? failure = null;
         try
         {
-            List<IOperableTrigger> acquired = await call().ConfigureAwait(false);
+            List<IOperableTrigger> acquired = await call(state).ConfigureAwait(false);
 
             // How many of the batch size the store could actually fill, which is the number that says
             // whether a scheduler is idle or starved.
