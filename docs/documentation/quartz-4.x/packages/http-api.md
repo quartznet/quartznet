@@ -70,7 +70,7 @@ validated against.
 
 ## Endpoint groups
 
-- **Schedulers**: list schedulers, read metadata/context, start, stand-by, shutdown, clear, pause-all, resume-all
+- **Schedulers**: list schedulers, read metadata/context, list cluster nodes, start, stand-by, shutdown, clear, pause-all, resume-all
 - **Jobs**: query jobs, fetch details by key, check existence, list fire instances, pause/resume, trigger, interrupt, add, delete
 - **Triggers**: query triggers, fetch by key, read state, pause/resume, reset from error state, schedule/unschedule/reschedule
 - **Calendars**: query names, get details, add/replace, delete
@@ -299,6 +299,46 @@ calendar listings. Both shapes are gone; every listing returns the paged envelop
 `GET {ApiPath}/schedulers/{name}/triggers/groups/paused` was removed — use
 `GET {ApiPath}/schedulers/{name}/triggers/groups?paused=true`.
 :::
+
+## Cluster nodes
+
+`GET {ApiPath}/schedulers/{name}/nodes` answers with the scheduler's nodes — the node that handled the
+request first, then the rest by instance id. It is not paged: a cluster is a handful of nodes, not a
+data set.
+
+```json
+[
+  {
+    "instanceId": "web-01",
+    "lastCheckInUtc": "2026-08-26T09:14:57+00:00",
+    "checkInInterval": "00:00:15",
+    "state": "Alive",
+    "isCurrentNode": true
+  },
+  {
+    "instanceId": "web-02",
+    "lastCheckInUtc": "2026-08-26T09:09:12+00:00",
+    "checkInInterval": "00:00:15",
+    "state": "Failed",
+    "isCurrentNode": false
+  }
+]
+```
+
+`state` is `Alive`, `Overdue` or `Failed`, and is decided by the same predicate the store's recovery
+sweep applies — a node reported `Failed` is a node whose in-flight work the cluster is about to take
+over, after which it stops being listed. `Overdue` means a missed check-in and nothing more.
+
+`checkInInterval` is a `TimeSpan` like every other duration here, and it is the interval *that* node
+was configured with rather than the reader's. Both times are `null` when the store keeps no check-in
+history — an in-memory store, or a persistent one with clustering switched off — which is what a
+single-node answer looks like: one node, `isCurrentNode: true`, `Alive`, and no times. `null` is not
+zero, so a reader must not fall back to `DateTimeOffset.MinValue` here.
+
+The verdicts are what the answering node believes, read off its own clock, so on a cluster with skewed
+clocks two nodes can disagree. Join the listing to
+`GET {ApiPath}/schedulers/{name}/jobs/fire-instances` on `schedulerInstanceId` to see what each node is
+running.
 
 ## Pause and resume report what they did
 

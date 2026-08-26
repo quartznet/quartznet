@@ -176,7 +176,8 @@ are public for exactly this.
 
 ### Queries
 
-The six `Query…` members are abstract, and three rules keep them consistent with the shipped stores:
+The six paged `Query…` members are abstract, and three rules keep them consistent with the shipped
+stores:
 
 - **Order by group, then name, ordinal.** Fire instances add fire instance id as a third key, because
   one trigger can have several firings in flight and group plus name would not order them.
@@ -187,6 +188,23 @@ The six `Query…` members are abstract, and three rules keep them consistent wi
 `QueryFireInstances` answers for the whole cluster if the store keeps firings durably, and for its own
 process otherwise, which is the whole of an in-memory store's world. `FireInstance.JobKey` is `null`
 while a firing is only `Acquired` — the job is not loaded until it starts.
+
+### Cluster nodes
+
+`QueryClusterNodes(ct)` lists the scheduler nodes the store knows about, as `ClusterNode`s. It is not
+paged — a cluster is a handful of nodes, not a data set — and two rules bind it:
+
+- **The current node is always in the list, first, and is the only one with `IsCurrentNode = true`.**
+  It is listed whether or not the store has a record of it yet. The rest follow by instance id, ordinal.
+- **A store that keeps no membership answers with that one node**, `ClusterNodeState.Alive`, with
+  `LastCheckInUtc` and `CheckInInterval` both `null`. That is the honest answer for a store that cannot
+  cluster, and it means a caller never has to branch on `Clustered` before asking.
+
+A store that *does* keep membership reports every node it has a record of, including ones that are dead
+but not yet swept, and decides `State` with **the same predicate its own failover pass uses** — write
+that once and call it from both, so the listing can never disagree with the recovery it predicts.
+`Overdue` is a missed check-in and nothing more; `Failed` is the point at which the store takes the
+node's work over.
 
 ### Bulk members
 
