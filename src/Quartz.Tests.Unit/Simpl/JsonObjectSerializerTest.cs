@@ -411,6 +411,59 @@ public class JsonObjectSerializerTest
         await VerifyCreatedJson(trigger);
     }
 
+    /// <summary>
+    /// The RRULE trigger goes through the same four writer/reader pairings as the other four, so a
+    /// blob one serializer wrote is proved readable by the other rather than only by its own author.
+    /// </summary>
+    [Test]
+    public async Task SerializeRecurrenceTrigger()
+    {
+        var timeProvider = CreateFakeTimeProvider();
+
+        var trigger = (IOperableTrigger) TriggerBuilder.Create(timeProvider)
+            .WithRecurrenceSchedule("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR", builder => builder
+                .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Tokyo Standard Time"))
+                .WithMisfireInstruction(RecurrenceTriggerMisfireInstruction.DoNothing)
+            )
+            .WithIdentity("RecurrenceTriggerKey", "RecurrenceTriggerGroup")
+            .ForJob("RecurrenceJobKey", "RecurrenceJobGroup")
+            .WithDescription("RecurrenceTrigger description")
+            .WithCalendarName("SomeCalendar")
+            .UsingJobData("TestKey", "TestValue")
+            .StartAt(timeProvider.GetUtcNow())
+            .EndAt(timeProvider.GetUtcNow().AddDays(30))
+            .WithPriority(TriggerConstants.DefaultPriority + 3)
+            .Build();
+
+        SetTimeProvider(timeProvider, trigger);
+
+        trigger.Triggered(new BaseCalendar());
+        trigger.Triggered(new BaseCalendar());
+        trigger.Triggered(new BaseCalendar());
+        trigger.Triggered(new BaseCalendar());
+
+        CompareSerialization(
+            trigger,
+            (deserialized, original) =>
+            {
+                using (new AssertionScope())
+                {
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
+
+                    var restored = (RecurrenceTriggerImpl) deserialized;
+                    restored.RecurrenceRule.Should().Be(((RecurrenceTriggerImpl) original).RecurrenceRule,
+                        "the rule is the whole schedule - a trigger that loses it fires on nothing");
+                    restored.TimeZone.Should().Be(((RecurrenceTriggerImpl) original).TimeZone,
+                        "the rule is evaluated in this zone, so a lost zone silently reschedules the job");
+                    restored.TimesTriggered.Should().Be(((RecurrenceTriggerImpl) original).TimesTriggered);
+                }
+            }
+        );
+
+        await VerifyCreatedJson(trigger);
+    }
+
     [Test]
     public async Task SerializeSimpleTrigger()
     {
@@ -658,11 +711,17 @@ public class JsonSerializationTestCalendar : BaseCalendar
 
 public class JsonSerializationTestTrigger : SimpleTriggerImpl
 {
+    /// <summary>
+    /// The name this trigger's payloads carry, which is what a reader without its serializer looks up
+    /// and fails to find.
+    /// </summary>
+    public const string Discriminator = "TestTrigger";
+
     public int CustomProperty { get; set; }
 
     public sealed class SystemTextJsonSerializer : Serialization.SystemTextJson.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
     {
-        public override string TriggerTypeName => "TestTrigger";
+        public override string TriggerTypeName => Discriminator;
 
         public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, StjJsonSerializerOptions options)
         {
@@ -701,7 +760,7 @@ public class JsonSerializationTestTrigger : SimpleTriggerImpl
 
     public sealed class NewtonsoftSerializer : Serialization.Newtonsoft.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
     {
-        public override string TriggerTypeName => "TestTrigger";
+        public override string TriggerTypeName => Discriminator;
 
         public override IScheduleBuilder CreateScheduleBuilder(JObject jsonElement)
         {
