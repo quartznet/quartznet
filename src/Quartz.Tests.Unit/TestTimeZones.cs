@@ -46,6 +46,20 @@ internal static class TestTimeZones
     public static TimeZoneInfo CentralEuropean { get; } = TZConvert.GetTimeZoneInfo("Central European Standard Time");
 
     /// <summary>
+    /// Europe/Helsinki: EET/EEST, +02:00 in winter and +03:00 in summer, with the EU transition at
+    /// 01:00 UTC - which is 03:00 local in spring (03:00 becomes 04:00, so 03:30 is invalid) and
+    /// 04:00 local in autumn (04:00 becomes 03:00, so 03:30 is ambiguous). Spring forward
+    /// 2024-03-31, fall back 2024-10-27.
+    /// </summary>
+    /// <remarks>
+    /// Windows names the whole EET/EEST group "FLE Standard Time", which resolves to Europe/Kyiv on
+    /// a system carrying IANA data. Helsinki and Kyiv share the EU rules, so the transitions
+    /// asserted against this zone are the same instants either way - and the Assume helpers say so
+    /// out loud, so a zone database that ever disagreed would skip the test rather than fail it.
+    /// </remarks>
+    public static TimeZoneInfo Helsinki { get; } = TZConvert.GetTimeZoneInfo("FLE Standard Time");
+
+    /// <summary>
     /// America/Santiago: southern hemisphere and the transition happens at midnight, so on
     /// spring-forward day the date's own 00:00 does not exist (2019-09-08, 00:30 invalid) and on
     /// fall-back day the repeated hour crosses backwards over the date boundary
