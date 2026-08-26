@@ -13,6 +13,12 @@
     <EmbeddedResource Include="**\TestData\*" />
     <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
     <Compile Include="..\Quartz.Tests.Unit\TestJobStores.cs" />
+    <!--
+      The zones and walk helpers the daylight saving time tests are written against. Shared rather
+      than copied so that both projects state a transition premise the same way, and so a zone that
+      moves is corrected in one place.
+    -->
+    <Compile Include="..\Quartz.Tests.Unit\TestTimeZones.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -28,6 +34,7 @@
     <PackageReference Include="MELT" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Data.SQLite" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="MySqlConnector" />
     <PackageReference Include="NUnit" />
@@ -44,6 +51,7 @@
     <PackageReference Include="Testcontainers.Oracle" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Testcontainers.Redis" />
+    <PackageReference Include="TimeZoneConverter" />
     <PackageReference Include="NUnit3TestAdapter" />
   </ItemGroup>
 
