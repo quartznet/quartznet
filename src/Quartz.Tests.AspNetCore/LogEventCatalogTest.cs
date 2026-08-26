@@ -2,7 +2,7 @@ using System.Reflection;
 
 using Microsoft.Extensions.Logging;
 
-namespace Quartz.Tests.Unit;
+namespace Quartz.Tests.AspNetCore;
 
 /// <summary>
 /// The catalogue of log events a package raises: every <c>[LoggerMessage]</c> method, its event id,
@@ -10,20 +10,14 @@ namespace Quartz.Tests.Unit;
 /// </summary>
 /// <remarks>
 /// <para>
-/// An event id is what an operator filters and alerts on, and a message template is what a
-/// structured-logging consumer matches. Both are contract once shipped, and neither shows up in the
-/// public API baseline, because the generated classes are internal. The snapshot is what makes adding
-/// an event, renumbering one, or rewording a message a reviewed diff instead of an invisible one.
+/// The companion test in <c>Quartz.Tests.Unit</c> covers the packages that do not need ASP.NET Core to
+/// reference, and explains what the catalogue is for. This one covers <c>Quartz.AspNetCore</c>, and
+/// holds the range that package draws from — each test owns the ranges for the assemblies it snapshots,
+/// so no range is written down twice and neither copy can go stale against the other.
 /// </para>
 /// <para>
-/// Ids are allocated in ranges, one set per package, so two packages loaded into the same process
-/// never disagree about what an id means. The ranges live in <see cref="Ranges" />; a package may only
-/// use its own.
-/// </para>
-/// <para>
-/// <c>Quartz.AspNetCore</c> is covered by the test of the same name in <c>Quartz.Tests.AspNetCore</c>,
-/// which is where its dependencies already live, and which holds the 9000-9099 range it draws from.
-/// Between the two, every packable project that logs has a catalogue.
+/// <c>Quartz.Dashboard</c> is not here: it raises no events at all. It is still in
+/// <c>LogCallSiteTest.Converted</c>, which is what says it may not start raising them the plain way.
 /// </para>
 /// </remarks>
 public class LogEventCatalogTest
@@ -31,32 +25,19 @@ public class LogEventCatalogTest
     /// <summary>
     /// Who owns which event ids. Every id an assembly raises must fall inside a range recorded here
     /// against that assembly, which is also what keeps it out of another package's reserved range.
+    /// 1000-8999 belong to the packages the companion test in <c>Quartz.Tests.Unit</c> covers.
     /// </summary>
     private static readonly EventIdRange[] Ranges =
     [
-        new("Quartz", 1000, 1999, "scheduler core"),
-        new("Quartz", 2000, 2999, "in-memory store"),
-        new("Quartz", 3000, 3499, "ADO.NET store"),
-        new("Quartz", 3500, 3599, "clustering"),
-        new("Quartz", 3600, 3699, "misfire handling"),
-        new("Quartz", 3700, 3799, "lock handlers"),
-        new("Quartz", 4000, 4999, "configuration, dependency injection and hosting"),
-        new("Quartz", 5000, 5999, "serialization, type loading, triggers, calendars and utilities"),
-        new("Quartz.Plugins", 6000, 6999, "plugins"),
-        new("Quartz.Jobs", 7000, 7999, "jobs"),
-        new("Quartz.Extensions.Redis", 8000, 8999, "Redis"),
+        new("Quartz.AspNetCore", 9000, 9099, "HTTP API"),
     ];
 
     /// <summary>
-    /// The assemblies whose catalogue is snapshotted. A package joins this list on the day its
-    /// <c>Log*</c> calls become <c>[LoggerMessage]</c> methods — one line, and a snapshot of its own.
+    /// The assemblies whose catalogue is snapshotted.
     /// </summary>
     private static readonly Assembly[] Catalogued =
     [
-        typeof(global::Quartz.IScheduler).Assembly,
-        typeof(global::Quartz.Plugins.Management.ShutdownHookPlugin).Assembly,
-        typeof(global::Quartz.Jobs.DirectoryScanJob).Assembly,
-        typeof(global::Quartz.RedisLockHandlerConfigurationExtensions).Assembly,
+        typeof(global::Quartz.QuartzAspNetCoreConfigurationExtensions).Assembly,
     ];
 
     private static IEnumerable<TestCaseData> Assemblies()
@@ -109,7 +90,7 @@ public class LogEventCatalogTest
         {
             foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.DeclaredOnly))
             {
-                LoggerMessageAttribute attribute = method.GetCustomAttribute<LoggerMessageAttribute>();
+                LoggerMessageAttribute? attribute = method.GetCustomAttribute<LoggerMessageAttribute>();
                 if (attribute is null)
                 {
                     continue;

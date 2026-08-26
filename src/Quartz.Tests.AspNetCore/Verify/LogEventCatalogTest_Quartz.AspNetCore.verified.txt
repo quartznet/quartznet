@@ -1,0 +1,10 @@
+﻿9000  Debug  HttpApiLog.BadHttpRequest
+    "BadHttpRequestException thrown"
+9001  Debug  HttpApiLog.RequestDeserializationFailed
+    "Failed to deserialize request"
+9002  Debug  HttpApiLog.NotFound
+    "NotFoundException thrown"
+9003  Warning  HttpApiLog.SchedulerExceptionHandlingRequest
+    "SchedulerException thrown when handling api request to url {Url}"
+9004  Error  HttpApiLog.ExceptionHandlingRequest
+    "Exception thrown when handling api request to url {Url}"
