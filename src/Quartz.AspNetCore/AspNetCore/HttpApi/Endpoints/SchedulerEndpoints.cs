@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.HttpApiContract;
@@ -59,29 +60,43 @@ internal static class SchedulerEndpoints
     /// Lists every scheduler the container knows about, ordered by name.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The registrations rather than the repository: a repository holds the schedulers something has
     /// already built, so a tenant nobody has asked for was invisible here — and the caller could not tell
     /// that from "no such tenant". Such an entry is listed with a null status, and asking for it does not
     /// build it. The repository is still read, for the instance id of the schedulers that do exist.
+    /// </para>
+    /// <para>
+    /// This route names no scheduler, so the endpoint filter has nothing to check and the listing filters
+    /// itself: with <see cref="QuartzHttpApiOptions.SchedulerAuthorizationPolicy" /> set, a caller is told
+    /// about the schedulers they may act on and no others.
+    /// </para>
     /// </remarks>
     [ProducesResponseType(typeof(SchedulerHeaderDto[]), StatusCodes.Status200OK)]
     private static async Task<IResult> GetAllSchedulers(
         EndpointHelper endpointHelper,
+        HttpContext httpContext,
+        IOptions<QuartzHttpApiOptions> apiOptions,
         ISchedulerRegistry schedulerRegistry,
         ISchedulerRepository schedulerRepository,
         CancellationToken cancellationToken = default)
     {
         List<SchedulerRegistration> registrations = await schedulerRegistry.QuerySchedulers(cancellationToken).ConfigureAwait(false);
+        string? policyName = apiOptions.Value.SchedulerAuthorizationPolicy;
 
-        SchedulerHeaderDto[] result = new SchedulerHeaderDto[registrations.Count];
-        for (int i = 0; i < registrations.Count; i++)
+        List<SchedulerHeaderDto> result = new(registrations.Count);
+        foreach (SchedulerRegistration registration in registrations)
         {
-            SchedulerRegistration registration = registrations[i];
+            if (!await SchedulerAuthorization.IsAuthorized(httpContext, policyName, registration.Name, cancellationToken).ConfigureAwait(false))
+            {
+                continue;
+            }
+
             IScheduler? scheduler = registration.IsCreated ? schedulerRepository.Lookup(registration.Name) : null;
-            result[i] = SchedulerHeaderDto.Create(registration, scheduler);
+            result.Add(SchedulerHeaderDto.Create(registration, scheduler));
         }
 
-        return endpointHelper.JsonResponse(result);
+        return endpointHelper.JsonResponse(result.ToArray());
     }
 
     [ProducesResponseType(typeof(SchedulerDto), StatusCodes.Status200OK)]
