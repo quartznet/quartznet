@@ -46,17 +46,17 @@ internal sealed class QuartzDashboardHub : Hub<IQuartzDashboardHubClient>
     public async Task JoinScheduler(string schedulerName)
     {
         ClaimsPrincipal user = Context.User ?? Anonymous;
-        if (!await authorization.IsAuthorized(user, schedulerName).ConfigureAwait(false))
+        if (!await authorization.IsAuthorized(user, schedulerName, Context.ConnectionAborted).ConfigureAwait(false))
         {
             throw new HubException($"Not authorized for scheduler {schedulerName}");
         }
 
-        await Groups.AddToGroupAsync(Context.ConnectionId, schedulerName).ConfigureAwait(false);
+        await Groups.AddToGroupAsync(Context.ConnectionId, schedulerName, Context.ConnectionAborted).ConfigureAwait(false);
     }
 
     public Task LeaveScheduler(string schedulerName)
     {
-        return Groups.RemoveFromGroupAsync(Context.ConnectionId, schedulerName);
+        return Groups.RemoveFromGroupAsync(Context.ConnectionId, schedulerName, Context.ConnectionAborted);
     }
 
     /// <summary>

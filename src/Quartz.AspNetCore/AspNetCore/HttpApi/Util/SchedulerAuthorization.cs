@@ -59,21 +59,15 @@ internal static class SchedulerAuthorization
 
     private static bool NamesAScheduler(RoutePattern pattern)
     {
-        foreach (RoutePatternParameterPart parameter in pattern.Parameters)
-        {
-            if (string.Equals(parameter.Name, SchedulerNameRouteValue, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return pattern.Parameters.Any(parameter => string.Equals(parameter.Name, SchedulerNameRouteValue, StringComparison.Ordinal));
     }
 
     private static async Task Authorize(HttpContext context, string policyName, RequestDelegate next)
     {
+        // The request's own token: a caller who has gone away is not one to evaluate a policy for, and
+        // every endpoint behind this filter already abandons its work the same way.
         if (context.Request.RouteValues[SchedulerNameRouteValue] is string schedulerName
-            && !await IsAuthorized(context, policyName, schedulerName).ConfigureAwait(false))
+            && !await IsAuthorized(context, policyName, schedulerName, context.RequestAborted).ConfigureAwait(false))
         {
             await Forbidden(schedulerName).ExecuteAsync(context).ConfigureAwait(false);
             return;
