@@ -6,6 +6,23 @@
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!--
+      Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431).
+      Without IsTrimmable a trimmer keeps this assembly whole and collapses whatever it cannot follow into
+      one IL2104, so an application publishing trimmed learned nothing about the package; with it, the
+      warning is the reflective call site.
+
+      Ten warnings when the analyzers were first turned on here, two now. Eight of them were the client
+      serializing and deserializing the wire contract through JsonSerializerOptions alone; the contract
+      has been source-generated since #3400, so the client asks the options for the JsonTypeInfo and
+      passes it, which is the overload that carries neither attribute. That is the whole of the package's
+      IL3050: there is none left, and the single-file analyzer found nothing. The two that remain are a
+      job type named as a string in an HTTP response, recorded in TrimAnalysisBaseline.cs beside this file.
+    -->
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>

@@ -22,6 +22,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 using Quartz.HttpApiContract;
 using Quartz.Impl.AdoJobStore;
@@ -30,6 +31,31 @@ namespace Quartz;
 
 internal static class HttpClientExtensions
 {
+    /// <summary>
+    /// The metadata for one body of the wire contract, asked of the options rather than discovered by
+    /// reflecting over <typeparamref name="T" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every body this file sends or reads is a contract type, and <c>HttpApiJsonContext</c> — which
+    /// <c>ConfigureWireFormat</c> puts in front of whatever resolver the options already had — states all
+    /// of them. So the answer comes from generated metadata, and passing it to
+    /// <see cref="HttpClientJsonExtensions" /> binds the overloads that carry neither
+    /// <c>RequiresUnreferencedCode</c> nor <c>RequiresDynamicCode</c>: what a trimmed or native AOT
+    /// application publishes over is the same code path a reflecting one runs.
+    /// </para>
+    /// <para>
+    /// The open half of the contract still goes through Quartz's converters, because a generated
+    /// <see cref="JsonTypeInfo" /> for a type the options carry a converter for is metadata that defers
+    /// to that converter — an <see cref="ITrigger" /> or an <see cref="ICalendar" /> reaches the registry
+    /// either way.
+    /// </para>
+    /// </remarks>
+    private static JsonTypeInfo<T> WireFormatOf<T>(JsonSerializerOptions serializerOptions)
+    {
+        return (JsonTypeInfo<T>) serializerOptions.GetTypeInfo(typeof(T));
+    }
+
     public static async ValueTask<TResponse> Get<TResponse>(
         this HttpClient client,
         string requestUri,
@@ -75,7 +101,7 @@ internal static class HttpClientExtensions
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
-        using var response = await client.PostAsJsonAsync(requestUri, value, serializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await client.PostAsJsonAsync(requestUri, value, WireFormatOf<TRequest>(serializerOptions), cancellationToken).ConfigureAwait(false);
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -98,7 +124,7 @@ internal static class HttpClientExtensions
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
-        using var response = await client.PostAsJsonAsync(requestUri, value, serializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await client.PostAsJsonAsync(requestUri, value, WireFormatOf<TRequest>(serializerOptions), cancellationToken).ConfigureAwait(false);
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
 
         return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
@@ -141,7 +167,7 @@ internal static class HttpClientExtensions
 
         try
         {
-            problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetailsDto>(serializerOptions, cancellationToken).ConfigureAwait(false);
+            problemDetails = await response.Content.ReadFromJsonAsync(WireFormatOf<ProblemDetailsDto>(serializerOptions), cancellationToken).ConfigureAwait(false);
         }
         catch
         {
@@ -204,7 +230,7 @@ internal static class HttpClientExtensions
 
     private static async Task<T> ReadOrThrow<T>(this HttpContent content, JsonSerializerOptions serializerOptions, CancellationToken cancellationToken)
     {
-        var result = await content.ReadFromJsonAsync<T>(serializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await content.ReadFromJsonAsync(WireFormatOf<T>(serializerOptions), cancellationToken).ConfigureAwait(false);
         return result ?? throw new HttpClientException("Could not deserialize response");
     }
 }
