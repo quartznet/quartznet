@@ -1,0 +1,410 @@
+﻿1000  Information  CoreLog.JobFactorySet
+    "JobFactory set to: {Value}"
+1001  Information  CoreLog.SchedulerCreated
+    "Quartz Scheduler created"
+1002  Information  CoreLog.SchedulerStarted
+    "Scheduler {SchedulerIdentifier} started."
+1003  Error  CoreLog.DelayedStartFailed
+    "Unable to start scheduler after startup delay."
+1004  Information  CoreLog.SchedulerPaused
+    "Scheduler {SchedulerIdentifier} paused."
+1005  Information  CoreLog.SchedulerShuttingDown
+    "Scheduler {SchedulerIdentifier} shutting down."
+1006  Warning  CoreLog.GaveUpWaitingForRunningJobs
+    "Scheduler {SchedulerIdentifier} gave up waiting for its running jobs, which are still executing. Their job store updates may not complete, and the store is about to be shut down under them."
+1007  Information  CoreLog.SchedulerShutdownComplete
+    "Scheduler {SchedulerIdentifier} Shutdown complete."
+1008  Error  CoreLog.ListenerNotificationOfErrorFailed
+    "Error while notifying SchedulerListener of error"
+1009  Error  CoreLog.OriginalErrorForNotification
+    "  Original error (for notification) was: {Message}"
+1010  Error  CoreLog.ListenerNotificationOfUnscheduledJobFailed
+    "Error while notifying SchedulerListener of unscheduled job. Trigger={TriggerKey}"
+1011  Error  CoreLog.ListenerNotificationOfPausedGroupFailed
+    "Error while notifying SchedulerListener of paused group: {Group}"
+1012  Error  CoreLog.ListenerNotificationOfTriggerInErrorFailed
+    "Error while notifying SchedulerListener of trigger in error state. Trigger={TriggerKey}"
+1013  Error  CoreLog.ListenerNotificationOfJobTriggersInErrorFailed
+    "Error while notifying SchedulerListener of job triggers in error state. Job={JobKey}"
+1014  Error  CoreLog.ListenerNotificationOfPausedTriggerFailed
+    "Error while notifying SchedulerListener of paused trigger. Trigger={TriggerKey}"
+1015  Error  CoreLog.ListenerNotificationOfResumedTriggerFailed
+    "Error while notifying SchedulerListener of resumed trigger. Trigger={TriggerKey}"
+1016  Error  CoreLog.ListenerNotificationOfPausedJobFailed
+    "Error while notifying SchedulerListener of paused job. Job={JobKey}"
+1017  Error  CoreLog.ListenerNotificationOfResumedJobFailed
+    "Error while notifying SchedulerListener of resumed job: {JobKey}"
+1018  Error  CoreLog.ListenerNotificationOfResumedGroupFailed
+    "Error while notifying SchedulerListener of resumed group: {Group}"
+1019  Error  CoreLog.ListenerNotificationFailed
+    "Error while notifying SchedulerListener of {Action}"
+1030  Debug  CoreLog.TriggerBatchAcquired
+    "Batch acquisition of {TriggerCount} triggers"
+1031  Error  CoreLog.SchedulerThreadLoopFailed
+    "quartzSchedulerThreadLoop: RuntimeException {Message}"
+1032  Error  CoreLog.TriggerFireFailedWithDbException
+    "DbException while firing trigger {Trigger}"
+1033  Debug  CoreLog.ThreadPoolRefusedWorkDuringShutdown
+    "ThreadPool.TryRun() returned false due to scheduler shutdown, completing trigger"
+1034  Error  CoreLog.ThreadPoolRefusedWork
+    "ThreadPool.TryRun() returned false"
+1035  Error  CoreLog.TriggerFiringLoopFailed
+    "Runtime error occurred in main trigger firing loop."
+1036  Error  CoreLog.AcquiredTriggerReleaseFailed
+    "Error releasing acquired trigger '{TriggerKey}' {Context}"
+1050  Debug  CoreLog.JobExecuting
+    "Calling Execute on job {JobKey}"
+1051  Information  CoreLog.JobCancelled
+    "Job {JobDetailKey} was cancelled"
+1052  Error  CoreLog.JobThrewJobExecutionException
+    "Job {JobDetailKey} threw a JobExecutionException: "
+1053  Error  CoreLog.JobThrewUnhandledException
+    "Job {JobDetailKey} threw an unhandled Exception: "
+1054  Debug  CoreLog.TriggerInstructionDecided
+    "Trigger instruction : {InstructionCode}"
+1055  Debug  CoreLog.TriggerRefiring
+    "Rescheduling trigger to reexecute"
+1070  Information  CoreLog.SchedulerSignalerInitialized
+    "Initialized Scheduler Signaller of type: {Type}"
+1071  Error  CoreLog.ListenerNotificationOfMisfireFailed
+    "Error notifying listeners of trigger misfire."
+1080  Error  CoreLog.SchedulerError
+    "{Message} (scheduler: {SchedulerName})"
+1081  Error  CoreLog.SchedulerErrorForFire
+    "{Message} (scheduler: {SchedulerName}, trigger: {TriggerKey}, job: {JobKey}, fire instance: {FireInstanceId})"
+2000  Information  RAMJobStoreLog.StoreInitialized
+    "RAMJobStore initialized."
+2001  Warning  RAMJobStoreLog.TriggerSkippedJobMissing
+    "Skipping trigger {TriggerKey}: its job {JobKey} no longer exists"
+2002  Warning  RAMJobStoreLog.TriggerReferencesMissingCalendar
+    "Trigger {TriggerKey} references calendar '{CalendarName}', which does not exist - the fire was skipped and the trigger will not run until the calendar is added or the reference is cleared."
+2003  Debug  RAMJobStoreLog.TriggerDeleting
+    "Deleting trigger"
+2004  Debug  RAMJobStoreLog.TriggerDeletionCancelled
+    "Deleting cancelled - trigger still active"
+2005  Information  RAMJobStoreLog.TriggerSetToError
+    "Trigger {TriggerKey} set to ERROR state."
+2006  Information  RAMJobStoreLog.JobTriggersSetToError
+    "All triggers of Job {JobKey} set to ERROR state."
+3000  Information  AdoJobStoreLog.SqliteSemaphoreSubstituted
+    "Detected SQLite usage, changing to use SQLiteSemaphore for in-memory locking"
+3001  Information  AdoJobStoreLog.SqliteAcquireTriggersWithinLockForced
+    "With SQLite we need to set AcquireTriggersWithinLock to true, changing"
+3002  Information  AdoJobStoreLog.SqliteSerializableIsolationForced
+    "Detected usage of SQLiteDelegate - forcing transaction isolation level to 'Serializable'"
+3003  Information  AdoJobStoreLog.SqliteLockAllOperationsForced
+    "With SQLite all operations must be serialized, setting LockAllOperations to true"
+3004  Warning  AdoJobStoreLog.IsolationLevelIgnoredForEnlistedTransactions
+    "The configured transaction isolation level applies only to connections the job store opens itself: an operation running on a connection enlisted by the application uses that transaction's isolation level instead."
+3005  Information  AdoJobStoreLog.SqlServerLockSqlDefaulted
+    "Detected usage of SqlServerDelegate - defaulting 'selectWithLockSQL' to '{DefaultLockSql}'."
+3006  Information  AdoJobStoreLog.UsingDatabaseLocking
+    "Using db table-based data access locking (synchronization) via {LockHandlerType}."
+3007  Information  AdoJobStoreLog.UsingMonitorLocking
+    "Using thread monitor-based data access locking (synchronization) via {LockHandlerType}."
+3008  Warning  AdoJobStoreLog.RowLockStatementIgnoredBySqlite
+    "A row-lock statement is configured, but SQLite serializes callers in process rather than by locking a row, so the statement is ignored."
+3009  Warning  AdoJobStoreLog.RowLockStatementIgnoredBySuppliedHandler
+    "A row-lock statement is configured, but lock handler {LockHandlerType} was supplied rather than built by the job store, so the statement is ignored. Pass it to the handler's constructor, or remove the lock handler and let the store choose one."
+3010  Warning  AdoJobStoreLog.EnlistedTransactionsWithSqlite
+    "Accepting enlisted transactions with SQLite keeps in-process locking: SQLiteSemaphore releases the lock when the scheduling call returns, while the application transaction still holds the SQLite writer lock, so a concurrent scheduler operation can fail with 'database is locked' until that transaction completes. Keep enlisted transactions short, or use a database that supports row locking."
+3011  Warning  AdoJobStoreLog.EnlistedTransactionsWithInProcessLocking
+    "Accepting enlisted transactions with lock handler {LockHandlerType}, which does not lock in the database. Its locks are released before the application commits its transaction, so concurrent callers can act on scheduling data that is not visible to them yet."
+3012  Warning  AdoJobStoreLog.SqlServerCouldUseRowLocking
+    "Detected usage of SqlServerDelegate and UpdateRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access"
+3013  Warning  AdoJobStoreLog.SqlServerProviderWithoutSqlServerDelegate
+    "Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance"
+3014  Information  AdoJobStoreLog.SchemaValidated
+    "Successfully validated presence of {SchemaObjectCount} schema objects"
+3015  Error  AdoJobStoreLog.JobRecoveryFailed
+    "Failure occurred during job recovery: {ExceptionMessage}"
+3016  Warning  AdoJobStoreLog.DatabaseShutdownFailed
+    "Database connection Shutdown unsuccessful."
+3017  Error  AdoJobStoreLog.LockReleaseFailed
+    "Error returning lock: {ExceptionMessage}"
+3018  Information  AdoJobStoreLog.TriggersFreedFromAcquiredOrBlocked
+    "Freed {Count} triggers from 'acquired' / 'blocked' state."
+3019  Information  AdoJobStoreLog.RecoveringInProgressJobs
+    "Recovering {Count} jobs that were in-progress at the time of the last shut-down."
+3020  Information  AdoJobStoreLog.RecoveryComplete
+    "Recovery complete."
+3021  Information  AdoJobStoreLog.CompleteTriggersRemoved
+    "Removed  {Count} 'complete' triggers."
+3022  Information  AdoJobStoreLog.StaleFiredJobEntriesRemoved
+    "Removed {Count} stale fired job entries."
+3023  Error  AdoJobStoreLog.StaleAcquiredTriggerRecoveryFailed
+    "Error recovering stale acquired trigger '{TriggerKey}'"
+3024  Information  AdoJobStoreLog.StaleAcquiredTriggersRecovered
+    "Recovered {RecoveredCount} trigger(s) stuck in ACQUIRED state (stale threshold: {StaleThreshold})"
+3025  Information  AdoJobStoreLog.TriggerResetFromError
+    "Trigger {TriggerKey} reset from ERROR state to: {NewState}"
+3026  Error  AdoJobStoreLog.JobRetrievalFailed
+    "Error retrieving job, setting trigger state to ERROR."
+3027  Error  AdoJobStoreLog.TriggerErrorStateUpdateFailed
+    "Unable to set trigger state to ERROR."
+3028  Warning  AdoJobStoreLog.TriggerHasNoNextFireTime
+    "Trigger {TriggerKey} returned null on nextFireTime and yet still exists in DB!"
+3029  Error  AdoJobStoreLog.JobPersistenceExceptionCaught
+    "Caught job persistence exception: {ExceptionMessage}"
+3030  Error  AdoJobStoreLog.ExceptionCaught
+    "Caught exception: {ExceptionMessage}"
+3031  Information  AdoJobStoreLog.ConcurrentExecutionDeclined
+    "Not firing trigger {TriggerKey} for [DisallowConcurrentExecution] job {JobKey} - already executing on another node."
+3032  Warning  AdoJobStoreLog.TriggerReferencesMissingCalendar
+    "Trigger {TriggerKey} references calendar '{CalendarName}', which does not exist - the fire was skipped and the trigger will not run until the calendar is added or the reference is cleared."
+3033  Information  AdoJobStoreLog.TriggerSetToError
+    "Trigger {Trigger} set to ERROR state."
+3034  Information  AdoJobStoreLog.JobTriggersSetToError
+    "All triggers of Job {Job} set to ERROR state."
+3035  Information  AdoJobStoreLog.RollbackWithoutConnectionHolder
+    "ConnectionAndTransactionHolder passed to RollbackConnection was null, ignoring"
+3036  Debug  AdoJobStoreLog.CommitWithoutConnectionHolder
+    "ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring"
+3037  Error  AdoJobStoreLog.RetryInLocalTransactionLockFailed
+    "RetryExecuteInLocalTransactionLock: RuntimeException {ExceptionMessage}"
+3038  Warning  AdoJobStoreLog.TransientFailureInLocalTransactionLock
+    "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInLocalTransactionLock, will retry after {RetryInterval}"
+3100  Debug  AdoJobStoreLog.SqlPrepared
+    "Prepared SQL: {Sql}"
+3110  Error  AdoJobStoreLog.ConnectionCloseFailed
+    "Unexpected exception closing Connection.  This is often due to a Connection being returned after or during shutdown."
+3111  Debug  AdoJobStoreLog.ConnectionDisposeFailed
+    "Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown."
+3112  Debug  AdoJobStoreLog.RollbackSkippedTransactionDisconnected
+    "Rollback skipped - transaction is no longer connected, database will have aborted it"
+3113  Debug  AdoJobStoreLog.RollbackFailedTransiently
+    "Rollback failed due to transient error"
+3114  Error  AdoJobStoreLog.RollbackFailed
+    "Couldn't rollback ADO.NET connection. {ExceptionMessage}"
+3130  Information  AdoJobStoreLog.ExternalTransactionStoreInitialized
+    "ExternalTransactionJobStore initialized."
+3131  Warning  AdoJobStoreLog.ExternalTransactionStoreShutdownFailed
+    "Database connection shutdown unsuccessful."
+3140  Information  AdoJobStoreLog.LocalTransactionStoreInitialized
+    "LocalTransactionJobStore initialized."
+3150  Warning  AdoJobStoreLog.CalendarNotFound
+    "Couldn't find calendar with name '{CalendarName}'"
+3151  Debug  AdoJobStoreLog.JobDeleting
+    "Deleting job: {JobKey}"
+3152  Debug  AdoJobStoreLog.NoJobForTrigger
+    "No job for trigger '{TriggerKey}'"
+3153  Debug  AdoJobStoreLog.TriggerPersistenceDelegateAdded
+    "Adding TriggerPersistenceDelegate of type: {Type}"
+3154  Warning  AdoJobStoreLog.MisfiredTriggerHasNoTypeRow
+    "Misfired trigger '{TriggerKey}' has no {TriggerType} row and is skipped"
+3155  Warning  AdoJobStoreLog.BatchedStatementExecutionFailed
+    "Batched statement execution failed, retrying {StatementCount} statement(s) individually"
+3500  Warning  ClusterLog.TransientFailureInCheckIn
+    "Transient exception on attempt {Attempt} of {TotalAttempts} in DoCheckin, will retry after {RetryInterval}"
+3501  Warning  ClusterLog.RecoveredByAnotherInstance
+    "This scheduler instance ({InstanceId}) is still active but was recovered by another instance in the cluster.  This may cause inconsistent behavior."
+3502  Warning  ClusterLog.OrphanedFiredTriggersFound
+    "Found orphaned fired triggers for instance: {SchedulerInstanceId}"
+3503  Warning  ClusterLog.FailedInstancesDetected
+    "ClusterManager: detected {Count} failed or restarted instances."
+3504  Information  ClusterLog.ScanningFailedInstance
+    "ClusterManager: Scanning for instance {SchedulerInstanceId}'s failed in-progress jobs."
+3505  Information  ClusterLog.RecoveryDeferred
+    "ClusterManager: Deferring recovery of [DisallowConcurrentExecution] job {JobKey} (fired trigger {FireInstanceId}) — may still be executing on instance {SchedulerInstanceId}."
+3506  Warning  ClusterLog.FailedJobNoLongerExists
+    "ClusterManager: failed job {JobKey} no longer exists, cannot schedule recovery."
+3507  Warning  ClusterLog.AcquiredTriggersFreed
+    "ClusterManager: ......Freed {Count} acquired trigger(s)."
+3508  Warning  ClusterLog.CompleteTriggersDeleted
+    "ClusterManager: ......Deleted {Count} complete triggers(s)."
+3509  Warning  ClusterLog.RecoverableJobsScheduled
+    "ClusterManager: ......Scheduled {Count} recoverable job(s) for recovery."
+3510  Warning  ClusterLog.OtherFailedJobsCleanedUp
+    "ClusterManager: ......Cleaned-up {Count} other failed job(s)."
+3511  Warning  ClusterLog.ExecutingJobRecoveriesDeferred
+    "ClusterManager: ......Deferred recovery of {Count} executing [DisallowConcurrentExecution] job(s)."
+3512  Information  ClusterLog.AutoPinnedTriggersReleased
+    "ClusterManager: Released {Count} auto-pinned trigger(s) from dead node '{InstanceId}' for re-acquisition."
+3513  Debug  ClusterLog.CheckInComplete
+    "Check-in complete."
+3514  Error  ClusterLog.ClusterManagementFailed
+    "Error managing cluster: {ExceptionMessage}"
+3600  Information  MisfireLog.HandlingFirstMisfiredTriggers
+    "Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed."
+3601  Information  MisfireLog.HandlingMisfiredTriggers
+    "Handling {Count} trigger(s) that missed their scheduled fire-time."
+3602  Debug  MisfireLog.NoMisfiredTriggers
+    "Found 0 triggers that missed their scheduled fire-time."
+3603  Error  MisfireLog.MisfireUpdatePreparationFailed
+    "Error preparing misfire update for trigger: '{TriggerKey}'"
+3604  Error  MisfireLog.MisfiredTriggerUpdateFailed
+    "Error updating {Count} misfired trigger(s)"
+3605  Debug  MisfireLog.MisfiredTriggersCounted
+    "Found {MisfireCount} triggers that missed their scheduled fire-time."
+3606  Debug  MisfireLog.ScanningForMisfires
+    "Scanning for misfires..."
+3607  Error  MisfireLog.MisfireHandlingFailed
+    "Error handling misfires: {ExceptionMessage}"
+3700  Debug  LockHandlerLog.LockDesired
+    "Lock '{LockName}' is desired by: {RequestorId}"
+3701  Debug  LockHandlerLog.LockGiven
+    "Lock '{LockName}' given to: {RequestorId}"
+3702  Debug  LockHandlerLog.LockAlreadyHeld
+    "Lock '{LockName}' Is already owned by: {RequestorId}"
+3703  Debug  LockHandlerLog.LockReturned
+    "Lock '{LockName}' returned by: {RequestorId}"
+3704  Warning  LockHandlerLog.LockReturnedByNonOwner
+    "Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!"
+3705  Warning  LockHandlerLog.WrongfulReturnerStack
+    "stack-trace of wrongful returner: {Stacktrace}"
+3706  Debug  LockHandlerLog.LockBeingObtained
+    "Lock '{LockName}' is being obtained: {RequestorId}"
+3707  Debug  LockHandlerLog.LockRowInsertingForThread
+    "Inserting new lock row for lock: '{LockName}' being obtained by thread: {RequestorId}"
+3708  Debug  LockHandlerLog.LockNotObtainedWithRetryNote
+    "Lock '{LockName}' was not obtained by: {RequestorId}{RetryMessage}"
+3709  Debug  LockHandlerLog.LockAlreadyOwnedByOther
+    "Lock '{LockName}' already owned by: {RequestorId} -- but not owner!"
+3710  Debug  LockHandlerLog.WrongfulReturnerStackDebug
+    "stack-trace of wrongful returner: {StackTrace}"
+3711  Debug  LockHandlerLog.LockNotObtained
+    "Lock '{LockName}' was not obtained by: {RequestorId}"
+3712  Debug  LockHandlerLog.LockReentrantAcquisition
+    "Lock '{LockName}' reentrant acquisition by: {RequestorId} (count: {LockCount})"
+3713  Debug  LockHandlerLog.LockReentrantRelease
+    "Lock '{LockName}' reentrant release by: {RequestorId} (remaining: {LockCount})"
+3714  Debug  LockHandlerLog.LockNotObtainedWillRetry
+    "Lock '{LockName}' was not obtained by: {RequestorId} - will try again."
+3715  Debug  LockHandlerLog.LockRowInserting
+    "Inserting new lock row for lock: '{LockName}' being obtained: {RequestorId}"
+4000  Debug  ConfigurationLog.SharedDatabaseCheckUnavailable
+    "The shared-database check could not read what database scheduler '{SchedulerName}' talks to."
+4001  Warning  ConfigurationLog.SchedulersShareDatabaseWithDifferentPrefixes
+    "Scheduler '{SchedulerName}' (data source '{DataSource}', table prefix '{TablePrefix}') and scheduler '{OtherSchedulerName}' (data source '{OtherDataSource}', table prefix '{OtherTablePrefix}') use the same database with different table prefixes, so neither can see the other's rows. Schedulers sharing a database are normally told apart by SCHED_NAME and share one table prefix; separate table sets are legal, and if that is what you meant this warning is expected. If it is not, the scheduler with the wrong prefix starts cleanly, passes schema validation against the tables it was pointed at, and never sees its own data."
+4002  Information  ConfigurationLog.SchedulerInitialized
+    "Quartz Scheduler {Version} - '{SchedulerName}' with instanceId '{SchedulerInstanceId}' initialized"
+4003  Information  ConfigurationLog.UsingThreadPool
+    "Using thread pool '{ThreadPoolType}', size: {ThreadPoolSize}"
+4004  Information  ConfigurationLog.UsingJobStore
+    "Using job store '{JobStoreType}', supports persistence: {SupportsPersistence}, clustered: {Clustered}"
+4005  Error  ConfigurationLog.InstanceIdGenerationFailed
+    "Couldn't generate instance id"
+4006  Error  ConfigurationLog.ShutdownAfterInstantiationFailureFailed
+    "Got another exception while shutting down after instantiation exception"
+4007  Information  ConfigurationLog.HostNameShortened
+    "Host name '{HostName}' was too long, shortened to '{Newname}'"
+4008  Warning  ConfigurationLog.JobReturnAfterFailedCreationFailed
+    "Failed to return a job after its creation failed; the original error follows"
+4009  Warning  ConfigurationLog.JobPropertyNotSet
+    "{Problem}"
+4010  Debug  ConfigurationLog.ProducingJobInstance
+    "Producing instance of Job '{JobKey}', class={JobFullName}"
+4011  Debug  ConfigurationLog.TaskSchedulingThreadPoolConfigured
+    "TaskSchedulingThreadPool configured with max concurrency of {MaxConcurrency} and TaskScheduler {SchedulerName}."
+4012  Error  ConfigurationLog.ThreadPoolTaskFaulted
+    "A task handed to the thread pool faulted."
+4013  Debug  ConfigurationLog.ThreadPoolShuttingDown
+    "Shutting down threadpool..."
+4014  Debug  ConfigurationLog.ThreadPoolDrained
+    "No executing jobs remaining, all threads stopped."
+4015  Debug  ConfigurationLog.ThreadPoolDraining
+    "Draining threadpool..."
+4016  Debug  ConfigurationLog.ThreadPoolDrainGivenUp
+    "Gave up waiting for the thread pool to drain; work is still running."
+4017  Debug  ConfigurationLog.ThreadPoolClosedToNewWork
+    "Thread pool closed to new work with {RunningTaskCount} running tasks remaining."
+4018  Debug  ConfigurationLog.ThreadPoolShutdownComplete
+    "Shutdown of threadpool complete."
+4019  Debug  ConfigurationLog.ZeroSizeThreadPoolShutdownComplete
+    "Shutdown complete"
+5000  Information  XmlSchedulingLog.ParsingFile
+    "Parsing XML file: {FileName} with systemId: {SystemId}"
+5001  Information  XmlSchedulingLog.ParsingStream
+    "Parsing XML from stream with systemId: {SystemId}"
+5002  Debug  XmlSchedulingLog.FoundDeleteJobGroupCommands
+    "Found {JobGroupCount} delete job group commands."
+5003  Debug  XmlSchedulingLog.FoundDeleteTriggerGroupCommands
+    "Found {TriggerGroupDeleteCount}delete trigger group commands."
+5004  Debug  XmlSchedulingLog.FoundDeleteJobCommands
+    "Found {JobsToDeleteCount} delete job commands."
+5005  Debug  XmlSchedulingLog.FoundDeleteTriggerCommands
+    "Found {TriggersToDelete} delete trigger commands."
+5006  Debug  XmlSchedulingLog.OverwriteExistingDataSpecified
+    "Directive 'overwrite-existing-data' specified as: {Overwrite}"
+5007  Debug  XmlSchedulingLog.IgnoreDuplicatesSpecified
+    "Directive 'ignore-duplicates' specified as: {IgnoreDuplicates}"
+5008  Debug  XmlSchedulingLog.ScheduleTriggerRelativeSpecified
+    "Directive 'schedule-trigger-relative-to-replaced-trigger' specified as: {ScheduleRelative}"
+5009  Debug  XmlSchedulingLog.OverwriteExistingDataDefaulted
+    "Directive 'overwrite-existing-data' not specified, defaulting to {Overwrite}"
+5010  Debug  XmlSchedulingLog.IgnoreDuplicatesDefaulted
+    "Directive 'ignore-duplicates' not specified, defaulting to {IgnoreDuplicates}"
+5011  Debug  XmlSchedulingLog.ScheduleTriggerRelativeDefaulted
+    "Directive 'schedule-trigger-relative-to-replaced-trigger' not specified, defaulting to {ScheduleTriggerRelativeToReplacedTrigger}"
+5012  Debug  XmlSchedulingLog.FoundJobDefinitions
+    "Found {Count} job definitions."
+5013  Debug  XmlSchedulingLog.ParsedJobDefinition
+    "Parsed job definition: {JobDetail}"
+5014  Debug  XmlSchedulingLog.FoundTriggerDefinitions
+    "Found {TriggerCount} trigger definitions."
+5015  Debug  XmlSchedulingLog.ParsedTriggerDefinition
+    "Parsed trigger definition: {Trigger}"
+5016  Warning  XmlSchedulingLog.SchemaValidationUnavailable
+    "Unable to validate XML with schema: {Message}"
+5017  Warning  XmlSchedulingLog.SchemaValidationWarning
+    "{ValidationMessage}"
+5018  Information  XmlSchedulingLog.AddingJobsAndTriggers
+    "Adding {JobCount} jobs, {TriggerCount} triggers"
+5019  Information  XmlSchedulingLog.RemovingJob
+    "Removing job: {JobKey}"
+5020  Information  XmlSchedulingLog.NotOverwritingExistingJob
+    "Not overwriting existing job: {JobKey}"
+5021  Information  XmlSchedulingLog.ReplacingJob
+    "Replacing job: {JobKey}"
+5022  Information  XmlSchedulingLog.AddingJob
+    "Adding job: {JobKey}"
+5023  Debug  XmlSchedulingLog.ReschedulingJob
+    "Rescheduling job: {JobKey} with updated trigger: {TriggerKey}"
+5024  Information  XmlSchedulingLog.NotOverwritingExistingTriggerByKey
+    "Not overwriting existing trigger: {Key}"
+5025  Debug  XmlSchedulingLog.SchedulingJob
+    "Scheduling job: {JobKey} with trigger: {TriggerKey}"
+5026  Debug  XmlSchedulingLog.TriggerAlreadyExistedWillReschedule
+    "Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed.  This is likely due to a race condition between multiple instances in the cluster.  Will try to reschedule instead."
+5027  Debug  XmlSchedulingLog.TriggerAlreadyExistedWillRescheduleJob
+    "Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed. This is likely due to a race condition between multiple instances in the cluster. Will try to reschedule instead."
+5028  Information  XmlSchedulingLog.NotOverwritingExistingTrigger
+    "Not overwriting existing trigger: {JobKey}"
+5029  Warning  XmlSchedulingLog.DuplicatelyNamedTrigger
+    "Possibly duplicately named ({TriggerKey}) trigger in configuration, this can be caused by not having a fixed job key for targeted jobs"
+5030  Debug  XmlSchedulingLog.UsingRelativeScheduling
+    "Using relative scheduling for trigger with key {TriggerKey}"
+5031  Information  XmlSchedulingLog.DeletingAllJobsInAllGroups
+    "Deleting all jobs in ALL groups."
+5032  Information  XmlSchedulingLog.DeletingAllJobsInGroup
+    "Deleting all jobs in group: {Group}"
+5033  Information  XmlSchedulingLog.DeletingAllTriggersInAllGroups
+    "Deleting all triggers in ALL groups."
+5034  Information  XmlSchedulingLog.DeletingAllTriggersInGroup
+    "Deleting all triggers in group: {Group}"
+5035  Information  XmlSchedulingLog.DeletingJob
+    "Deleting job: {Key}"
+5036  Information  XmlSchedulingLog.DeletingTrigger
+    "Deleting trigger: {Key}"
+5100  Warning  UtilityLog.MisfireInstructionFromAnotherFamily
+    "Misfire instruction '{MisfireInstruction}' is not one of the {Family} trigger names. It resolves to code {Code}, which for this trigger means {Policy}; spell it '{Canonical}'"
+5101  Error  UtilityLog.TimeZoneAliasNotFound
+    "Could not find time zone using alias id {AliasId}"
+5102  Warning  UtilityLog.TypeFoundUnderNewName
+    "Type '{OldName}' was found as '{NewName}'; the type moved in Quartz 4.0. Update the configuration, as this fallback will not last forever."
+5103  Warning  UtilityLog.UnrecognizedCronMisfirePolicy
+    "Unrecognized misfire policy {MisfireInstruction}. Derived builder will use the default cron trigger behavior (FireOnceNow)"
+5104  Error  UtilityLog.ListenerRaisedException
+    "Listener {ListenerName} - method {MethodName} raised an exception: {ExceptionMessage}"
+5105  Error  UtilityLog.SchedulerListenerRaisedException
+    "Listener method {MethodName} raised an exception: {ExceptionMessage}"
+5106  Information  UtilityLog.ChainingToJob
+    "Job '{JobKey}' will now chain to Job '{Job}'"
+5107  Error  UtilityLog.ChainingToJobFailed
+    "Error encountered during chaining to Job '{Job}'"
+5108  Warning  UtilityLog.FilePathResolutionDenied
+    "Unable to resolve file path '{FileName}' due to security exception, probably running under medium trust"
+5109  Warning  UtilityLog.EnvironmentVariableReadDenied
+    "Unable to read environment variable '{Key}' due to security exception, probably running under medium trust"
+5110  Warning  UtilityLog.EnvironmentVariablesReadDenied
+    "Unable to read environment variables due to security exception, probably running under medium trust"
