@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 
+using Quartz.Configuration;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore.Common;
@@ -67,7 +68,7 @@ internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
             NameValueCollection props = pp.GetPropertyGroup(propertyGroupName + "." + providerName, true);
             DbMetadata metadata = new DbMetadata();
 
-            ObjectUtils.SetObjectProperties(metadata, props);
+            PropertyBinder.SetObjectProperties(metadata, props);
             metadata.Validate();
 
             return metadata;

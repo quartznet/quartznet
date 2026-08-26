@@ -8060,7 +8060,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Logging.Logger` (delegate) | Removed with LibLog | `ILogger` — see [Logging](#logging) |
 | `Quartz.Logging.LogLevel` | Removed with LibLog | `Microsoft.Extensions.Logging.LogLevel` — see [Logging](#logging) |
 | `Quartz.Util.ObjectExtensions` | Internal | No replacement — see [Other Breaking Changes](#other-breaking-changes) |
-| `Quartz.Util.ObjectUtils` | Internal | No replacement; it set properties reflectively from strings, which typed options removed the need for — see [Code-first configuration is typed](#code-first-configuration-is-typed) |
+| `Quartz.Util.ObjectUtils` | Removed | No replacement; it set properties reflectively from strings, which typed options removed the need for — see [Code-first configuration is typed](#code-first-configuration-is-typed) |
 | `Quartz.SchedulerBuilder.PersistentStoreOptions` | Removed | `IPersistentStoreBuilder`, through `UsePersistentStore(configure)` |
 | `Quartz.PropertiesHolder` | Removed | Typed options — see [Removed](#removed) |
 | `Quartz.Util.PropertiesParser` | Internal | No replacement; `QuartzPropertyBridge` is the only reader of flat `quartz.*` keys now — see [Flat keys still work](#flat-keys-still-work) |

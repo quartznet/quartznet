@@ -32,7 +32,7 @@ namespace Quartz.Impl;
 
 /// <summary>
 /// A JobFactory that instantiates the Job instance (using the default no-arg
-/// constructor, or more specifically: <see cref="ObjectUtils.InstantiateType{T}" />), and
+/// constructor, or more specifically: <see cref="TypeActivator.Instantiate{T}" />), and
 /// then attempts to set all values from the <see cref="IJobExecutionContext" />'s merged
 /// <see cref="JobDataMap" /> onto properties of the job.
 /// </summary>
@@ -299,7 +299,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
             }
 
             var goodValue = paramType == typeof(TimeSpan)
-                ? ObjectUtils.GetTimeSpanValueForProperty(prop, o)
+                ? ValueConverter.GetTimeSpanValueForProperty(prop, o)
                 : ConvertValueIfNecessary(paramType, o);
 
             prop.GetSetMethod()!.Invoke(job, [goodValue]);
@@ -330,9 +330,16 @@ public class PropertySettingJobFactory : SimpleJobFactory
         }
     }
 
+    /// <summary>
+    /// Coerces a <see cref="JobDataMap" /> value into the type the job's property takes.
+    /// </summary>
+    /// <remarks>
+    /// The seam a derived factory overrides to convert a value some other way. It is deliberately the
+    /// only thing between the map and the property, so an override sees every value the factory binds.
+    /// </remarks>
     protected virtual object? ConvertValueIfNecessary(Type requiredType, object? newValue)
     {
-        return ObjectUtils.ConvertValueIfNecessary(requiredType, newValue);
+        return ValueConverter.ConvertValueIfNecessary(requiredType, newValue);
     }
 
     private void HandleError(string message, Exception? e = null)

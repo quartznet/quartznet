@@ -879,7 +879,7 @@ internal static class QuartzPropertyBridge
 
         if (properties.Count > 0)
         {
-            ObjectUtils.SetObjectProperties(target, properties);
+            PropertyBinder.SetObjectProperties(target, properties);
         }
     }
 

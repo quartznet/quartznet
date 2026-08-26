@@ -225,7 +225,7 @@ internal static class JobDataExpression
         object? converted;
         try
         {
-            converted = ObjectUtils.ConvertValueIfNecessary(propertyType, value);
+            converted = ValueConverter.ConvertValueIfNecessary(propertyType, value);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -256,7 +256,7 @@ internal static class JobDataExpression
     {
         try
         {
-            return Equals(ObjectUtils.ConvertValueIfNecessary(value.GetType(), converted), value);
+            return Equals(ValueConverter.ConvertValueIfNecessary(value.GetType(), converted), value);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

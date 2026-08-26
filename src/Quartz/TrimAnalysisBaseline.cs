@@ -116,6 +116,12 @@ using System.Diagnostics.CodeAnalysis;
 // so a trimmed application is told; the job_scheduling_data XML loader left this file that way. What
 // remains is Quartz reading its own configuration and its own tables, on paths that reach AddQuartz or
 // an interface Quartz does not own both sides of, and so cannot carry the attribute themselves.
+//
+// The four IL2026 entries in this group are the same warning at four call sites, and since #3432 it names
+// what it is: Quartz.Configuration.PropertyBinder.SetObjectProperties, which is the one place in Quartz
+// that writes a property whose name is a string. None of the four can go - each of these types is reached
+// from AddQuartz, so none may carry [RequiresUnreferencedCode] itself - but the seam they cross is now a
+// named API that declares the requirement rather than an anonymous helper that had it waived here.
 
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.SimpleTypeLoader", Justification = "The default ITypeLoader exists to resolve a configured type name; that is its contract.")]
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.JobType", Justification = "A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver.")]
@@ -140,9 +146,14 @@ using System.Diagnostics.CodeAnalysis;
 // PropertyInfo.PropertyType or as a setter's parameter type. The framework annotates neither, and could
 // not — so there is no [DynamicallyAccessedMembers] chain to build, and the callers that would have to
 // carry [RequiresUnreferencedCode] instead are the default job factory and everything that runs a job.
+//
+// Both entries were on Quartz.Util.ObjectUtils until #3432 dissolved it. What binds a property by name
+// is Quartz.Configuration.PropertyBinder now, and it is [RequiresUnreferencedCode] on every member, so
+// it appears nowhere in this file — the two below are the coercion the fire path shares with it, which
+// is the only part of the old type that could not say so for itself.
 
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "TypeDescriptor.GetConverter is how a value becomes a property's value, and the property's type is not annotatable.")]
-[assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Util.ObjectUtils", Justification = "The default for a missing value is Activator.CreateInstance of the target type, which is only ever reached for a value type.")]
+[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Util.ValueConverter", Justification = "TypeDescriptor.GetConverter is how a value becomes a property's value, and the property's type is not annotatable: it arrives as PropertyInfo.PropertyType, which the framework does not annotate and could not.")]
+[assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Util.ValueConverter", Justification = "The default for a missing value is Activator.CreateInstance of the target type, reached only when that type is a value type - and the type is the same unannotatable PropertyInfo.PropertyType the entry above is about.")]
 
 // --- Duck-typed exception inspection ------------------------------------------------------------------
 // Whether a database error is worth retrying lives in provider-specific properties (SqlException.Number,

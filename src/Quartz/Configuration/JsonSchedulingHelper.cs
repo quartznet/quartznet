@@ -481,7 +481,7 @@ internal static class JsonSchedulingHelper
             && !string.IsNullOrWhiteSpace(typeName))
         {
             var type = Type.GetType(typeName, throwOnError: true)!;
-            typeLoader = ObjectUtils.InstantiateType<ITypeLoader>(type);
+            typeLoader = TypeActivator.Instantiate<ITypeLoader>(type);
         }
         else
         {
