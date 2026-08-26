@@ -282,37 +282,34 @@ public abstract partial class AdoJobStoreBase
         return false;
     }
 
-    protected async ValueTask<bool> UpdateMisfiredTrigger(
+    protected ValueTask<bool> UpdateMisfiredTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         StoredTriggerState newStateIfNotComplete,
         bool forceState,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var trig = (await GetTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))!;
-
-            DateTimeOffset misfireTime = timeProvider.GetUtcNow();
-            if (MisfireThreshold > TimeSpan.Zero)
+        return Guarded(
+            async () =>
             {
-                misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
-            }
+                var trig = (await GetTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))!;
 
-            if (trig.NextFireTimeUtc.GetValueOrDefault() > misfireTime)
-            {
-                return false;
-            }
+                DateTimeOffset misfireTime = timeProvider.GetUtcNow();
+                if (MisfireThreshold > TimeSpan.Zero)
+                {
+                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
+                }
 
-            await DoUpdateOfMisfiredTriggerOptimized(conn, trig, newStateIfNotComplete, cancellationToken).ConfigureAwait(false);
+                if (trig.NextFireTimeUtc.GetValueOrDefault() > misfireTime)
+                {
+                    return false;
+                }
 
-            return true;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException($"Couldn't update misfired trigger '{triggerKey}': {e.Message}", e);
-            return false;
-        }
+                await DoUpdateOfMisfiredTriggerOptimized(conn, trig, newStateIfNotComplete, cancellationToken).ConfigureAwait(false);
+
+                return true;
+            },
+            $"update misfired trigger '{triggerKey}'");
     }
 
     private async ValueTask DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trig,

@@ -1014,6 +1014,39 @@ public class AdoJobStoreBaseTest
             return AddTrigger(conn, newTrigger, job, replace, StoredTriggerState.Waiting, false, false, CancellationToken.None);
         }
 
+        internal ValueTask CallAddJob(ConnectionAndTransactionHolder conn, IJobDetail job, bool replace)
+        {
+            return AddJob(conn, job, replace, CancellationToken.None);
+        }
+
+        internal ValueTask<IJobDetail> CallGetJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        {
+            return GetJob(conn, jobKey, CancellationToken.None);
+        }
+
+        internal ValueTask<bool> CallJobExists(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        {
+            return Exists(conn, jobKey, CancellationToken.None);
+        }
+
+        internal ValueTask<bool> CallTriggerExists(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        {
+            return Exists(conn, triggerKey, CancellationToken.None);
+        }
+
+        internal ValueTask<bool> CallUpdateTriggerDetails(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            TriggerDetailsUpdate update)
+        {
+            return UpdateTriggerDetails(conn, triggerKey, update, CancellationToken.None);
+        }
+
+        internal ValueTask CallRecoverJobs(ConnectionAndTransactionHolder conn)
+        {
+            return RecoverJobs(conn, CancellationToken.None);
+        }
+
         internal ValueTask<int> CallRecoverStaleAcquiredTriggers(ConnectionAndTransactionHolder conn)
         {
             return RecoverStaleAcquiredTriggers(conn, CancellationToken.None);

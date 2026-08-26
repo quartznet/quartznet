@@ -396,6 +396,100 @@ public abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
+    /// Runs one piece of store work, and reports its failure as a <see cref="JobPersistenceException" />
+    /// that says what the store was trying to do.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every operation owes its caller that much: a provider exception reaching
+    /// <see cref="Extensibility.IJobStore" /> names the statement the database refused and nothing at all
+    /// about the scheduling operation that asked for it. This is where the two are put together — once,
+    /// rather than in the fifty copies of the same three lines that used to surround every delegate call.
+    /// </para>
+    /// <para>
+    /// An <see cref="ObjectAlreadyExistsException" /> leaves as itself. It is the one failure this store
+    /// raises on purpose and callers catch by type, so hiding it inside
+    /// <see cref="Exception.InnerException" /> would take the answer away.
+    /// </para>
+    /// </remarks>
+    /// <param name="operation">The work to run.</param>
+    /// <param name="description">
+    /// What that work was, as the tail of "Couldn't …": a verb phrase naming the operation and, where
+    /// there is one, its subject — <c>pause trigger 'group.name'</c>.
+    /// </param>
+    /// <param name="reason">
+    /// Asked to explain a failure that is about the stored bytes rather than about the database, and
+    /// appended to <paramref name="description" /> when it has an answer.
+    /// </param>
+    /// <param name="wrapPersistenceFailures">
+    /// Whether a <see cref="JobPersistenceException" /> the work raised itself is wrapped in this
+    /// operation's message as well. It is everywhere but the two operations that were written to let
+    /// their own diagnostics through unprefixed.
+    /// </param>
+    private static async ValueTask<T> Guarded<T>(
+        Func<ValueTask<T>> operation,
+        string description,
+        Func<Exception, string?>? reason = null,
+        bool wrapPersistenceFailures = true)
+    {
+        try
+        {
+            return await operation().ConfigureAwait(false);
+        }
+        catch (Exception e) when (ShouldWrap(e, wrapPersistenceFailures))
+        {
+            Throw.JobPersistenceException("Couldn't " + description + reason?.Invoke(e) + ": " + e.Message, e);
+            return default;
+        }
+    }
+
+    /// <inheritdoc cref="Guarded{T}(Func{ValueTask{T}}, string, Func{Exception, string}, bool)" />
+    private static async ValueTask Guarded(
+        Func<ValueTask> operation,
+        string description,
+        Func<Exception, string?>? reason = null,
+        bool wrapPersistenceFailures = true)
+    {
+        try
+        {
+            await operation().ConfigureAwait(false);
+        }
+        catch (Exception e) when (ShouldWrap(e, wrapPersistenceFailures))
+        {
+            Throw.JobPersistenceException("Couldn't " + description + reason?.Invoke(e) + ": " + e.Message, e);
+        }
+    }
+
+    /// <summary>
+    /// Whether <see cref="Guarded{T}(Func{ValueTask{T}}, string, Func{Exception, string}, bool)" /> takes
+    /// this failure over, or lets it pass as the answer it already is.
+    /// </summary>
+    private static bool ShouldWrap(Exception failure, bool wrapPersistenceFailures)
+    {
+        // ObjectAlreadyExistsException is itself a JobPersistenceException, so the first test also
+        // settles it for the operations that wrap persistence failures.
+        return failure is not ObjectAlreadyExistsException
+               && (wrapPersistenceFailures || failure is not JobPersistenceException);
+    }
+
+    /// <summary>
+    /// Why reading a stored object failed, when the failure is about the bytes in the row rather than
+    /// about the database that handed them over.
+    /// </summary>
+    private static string? ReadFailureReason(Exception failure) => failure switch
+    {
+        TypeLoadException => " because a required type was not found",
+        IOException => " because the BLOB couldn't be deserialized",
+        _ => null,
+    };
+
+    /// <inheritdoc cref="ReadFailureReason" />
+    private static string? WriteFailureReason(Exception failure)
+    {
+        return failure is IOException ? " because the BLOB couldn't be serialized" : null;
+    }
+
+    /// <summary>
     /// Execute the given callback in a transaction, taking no lock.
     /// </summary>
     /// <remarks>

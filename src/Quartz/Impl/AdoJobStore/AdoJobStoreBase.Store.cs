@@ -71,40 +71,33 @@ public abstract partial class AdoJobStoreBase
         bool replace,
         CancellationToken cancellationToken = default)
     {
+        // Outside the guard below, so that a failure to read the row is reported as the read it was
+        // rather than as a failure to store.
         bool existingJob = await JobExists(conn, newJob.Key, cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (existingJob)
+
+        // ObjectAlreadyExistsException is the one failure this method raises on purpose, and the one a
+        // caller catches by type to tell "already there" from "the store broke"; Guarded leaves it as
+        // itself.
+        await Guarded(
+            async () =>
             {
-                if (!replace)
+                if (existingJob)
                 {
-                    Throw.ObjectAlreadyExistsException(newJob);
+                    if (!replace)
+                    {
+                        Throw.ObjectAlreadyExistsException(newJob);
+                    }
+                    if (await Delegate.UpdateJobDetail(conn, newJob, cancellationToken).ConfigureAwait(false) > 0)
+                    {
+                        return;
+                    }
                 }
-                if (await Delegate.UpdateJobDetail(conn, newJob, cancellationToken).ConfigureAwait(false) > 0)
+                if (await Delegate.InsertJobDetail(conn, newJob, cancellationToken).ConfigureAwait(false) < 1)
                 {
-                    return;
+                    throw new JobPersistenceException("Couldn't store job. Insert failed.");
                 }
-            }
-            if (await Delegate.InsertJobDetail(conn, newJob, cancellationToken).ConfigureAwait(false) < 1)
-            {
-                throw new JobPersistenceException("Couldn't store job. Insert failed.");
-            }
-        }
-        catch (ObjectAlreadyExistsException)
-        {
-            // The one exception this method raises on purpose, and the one a caller catches by type
-            // to tell "already there" from "the store broke". Re-wrapping it as a plain
-            // JobPersistenceException would hide the answer inside InnerException.
-            throw;
-        }
-        catch (IOException e)
-        {
-            Throw.JobPersistenceException("Couldn't store job: " + e.Message, e);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't store job: " + e.Message, e);
-        }
+            },
+            "store job").ConfigureAwait(false);
     }
 
     /// <summary>
@@ -149,51 +142,48 @@ public abstract partial class AdoJobStoreBase
             Throw.ObjectAlreadyExistsException(newTrigger);
         }
 
-        try
-        {
-            if (!forceState)
+        await Guarded(
+            async () =>
             {
-                state = await ApplyPausedTriggerGroupState(conn, newTrigger.Key.Group, state, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (job is null)
-            {
-                job = await GetJob(conn, newTrigger.JobKey, cancellationToken).ConfigureAwait(false);
-            }
-            if (job is null)
-            {
-                Throw.JobPersistenceException($"The job ({newTrigger.JobKey}) referenced by the trigger does not exist.");
-            }
-            if (job.ConcurrentExecutionDisallowed && !recovering)
-            {
-                state = await CheckBlockedState(conn, job.Key, state, cancellationToken).ConfigureAwait(false);
-            }
-            if (existingTrigger)
-            {
-                // Preserve PreviousFireTimeUtc from the existing trigger when replacing,
-                // so that context.PreviousFireTimeUtc is not lost on application restart (#1834)
-                if (newTrigger.PreviousFireTimeUtc is null)
+                if (!forceState)
                 {
-                    IOperableTrigger? existingTrig = await Delegate.SelectTrigger(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
-                    var prevFireTime = existingTrig?.PreviousFireTimeUtc;
-                    if (prevFireTime is not null)
-                    {
-                        newTrigger.PreviousFireTimeUtc = prevFireTime;
-                    }
+                    state = await ApplyPausedTriggerGroupState(conn, newTrigger.Key.Group, state, cancellationToken).ConfigureAwait(false);
                 }
 
-                await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await Delegate.InsertTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
-            }
-        }
-        catch (Exception e)
-        {
-            string message = $"Couldn't store trigger '{newTrigger.Key}' for '{newTrigger.JobKey}' job: {e.Message}";
-            Throw.JobPersistenceException(message, e);
-        }
+                if (job is null)
+                {
+                    job = await GetJob(conn, newTrigger.JobKey, cancellationToken).ConfigureAwait(false);
+                }
+                if (job is null)
+                {
+                    Throw.JobPersistenceException($"The job ({newTrigger.JobKey}) referenced by the trigger does not exist.");
+                }
+                if (job.ConcurrentExecutionDisallowed && !recovering)
+                {
+                    state = await CheckBlockedState(conn, job.Key, state, cancellationToken).ConfigureAwait(false);
+                }
+                if (existingTrigger)
+                {
+                    // Preserve PreviousFireTimeUtc from the existing trigger when replacing,
+                    // so that context.PreviousFireTimeUtc is not lost on application restart (#1834)
+                    if (newTrigger.PreviousFireTimeUtc is null)
+                    {
+                        IOperableTrigger? existingTrig = await Delegate.SelectTrigger(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
+                        var prevFireTime = existingTrig?.PreviousFireTimeUtc;
+                        if (prevFireTime is not null)
+                        {
+                            newTrigger.PreviousFireTimeUtc = prevFireTime;
+                        }
+                    }
+
+                    await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Delegate.InsertTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
+                }
+            },
+            $"store trigger '{newTrigger.Key}' for '{newTrigger.JobKey}' job").ConfigureAwait(false);
     }
 
     /// <summary>
@@ -216,28 +206,25 @@ public abstract partial class AdoJobStoreBase
         return ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteJob(conn, jobKey, true, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<bool> DeleteJob(
+    protected ValueTask<bool> DeleteJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         bool activeDeleteSafe,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            var jobTriggers = await Delegate.SelectTriggerKeysForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-
-            foreach (TriggerKey jobTrigger in jobTriggers)
+        return Guarded(
+            async () =>
             {
-                await DeleteTriggerAndChildren(conn, jobTrigger, cancellationToken).ConfigureAwait(false);
-            }
+                var jobTriggers = await Delegate.SelectTriggerKeysForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
 
-            return await DeleteJobAndChildren(conn, jobKey, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't remove job: " + e.Message, e);
-            return default;
-        }
+                foreach (TriggerKey jobTrigger in jobTriggers)
+                {
+                    await DeleteTriggerAndChildren(conn, jobTrigger, cancellationToken).ConfigureAwait(false);
+                }
+
+                return await DeleteJobAndChildren(conn, jobKey, cancellationToken).ConfigureAwait(false);
+            },
+            "remove job");
     }
 
     /// <summary>
@@ -400,45 +387,41 @@ public abstract partial class AdoJobStoreBase
         return DeleteTrigger(conn, triggerKey, null, cancellationToken);
     }
 
-    protected async ValueTask<bool> DeleteTrigger(
+    protected ValueTask<bool> DeleteTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         IJobDetail? job,
         CancellationToken cancellationToken = default)
     {
-        bool removedTrigger;
-        try
-        {
-            // this must be called before we delete the trigger, obviously
-            // we use fault tolerant type loading as we only want to delete things
-            if (job is null)
+        return Guarded(
+            async () =>
             {
-                job = await Delegate.SelectJobForTrigger(conn, triggerKey, new NullJobTypeLoader(), loadJobType: false, cancellationToken).ConfigureAwait(false);
-            }
-
-            removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-
-            if (null != job && !job.Durable)
-            {
-                int numTriggers = await Delegate.CountTriggersForJob(conn, job.Key, cancellationToken).ConfigureAwait(false);
-                if (numTriggers == 0)
+                // this must be called before we delete the trigger, obviously
+                // we use fault tolerant type loading as we only want to delete things
+                if (job is null)
                 {
-                    // Don't call DeleteJob() because we don't want to check for
-                    // triggers again.
-                    if (await DeleteJobAndChildren(conn, job.Key, cancellationToken).ConfigureAwait(false))
+                    job = await Delegate.SelectJobForTrigger(conn, triggerKey, new NullJobTypeLoader(), loadJobType: false, cancellationToken).ConfigureAwait(false);
+                }
+
+                bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+
+                if (null != job && !job.Durable)
+                {
+                    int numTriggers = await Delegate.CountTriggersForJob(conn, job.Key, cancellationToken).ConfigureAwait(false);
+                    if (numTriggers == 0)
                     {
-                        await schedSignaler.NotifySchedulerListenersJobDeleted(job.Key, cancellationToken).ConfigureAwait(false);
+                        // Don't call DeleteJob() because we don't want to check for
+                        // triggers again.
+                        if (await DeleteJobAndChildren(conn, job.Key, cancellationToken).ConfigureAwait(false))
+                        {
+                            await schedSignaler.NotifySchedulerListenersJobDeleted(job.Key, cancellationToken).ConfigureAwait(false);
+                        }
                     }
                 }
-            }
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
-            return default;
-        }
 
-        return removedTrigger;
+                return removedTrigger;
+            },
+            "remove trigger");
     }
 
     private sealed class NullJobTypeLoader : ITypeLoader
@@ -460,38 +443,37 @@ public abstract partial class AdoJobStoreBase
             cancellationToken);
     }
 
-    protected async ValueTask<bool> ReplaceTrigger(
+    protected ValueTask<bool> ReplaceTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         IOperableTrigger newTrigger,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            // this must be called before we delete the trigger, obviously
-            var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoader, loadJobType: true, cancellationToken).ConfigureAwait(false);
-
-            if (job is null)
+        // "replace trigger", where this used to say "remove trigger": the message was a copy of
+        // DeleteTrigger's, and named an operation the caller never asked for.
+        return Guarded(
+            async () =>
             {
-                return false;
-            }
+                // this must be called before we delete the trigger, obviously
+                var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoader, loadJobType: true, cancellationToken).ConfigureAwait(false);
 
-            if (!newTrigger.JobKey.Equals(job.Key))
-            {
-                Throw.JobPersistenceException("New trigger is not related to the same job as the old trigger.");
-            }
+                if (job is null)
+                {
+                    return false;
+                }
 
-            bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                if (!newTrigger.JobKey.Equals(job.Key))
+                {
+                    Throw.JobPersistenceException("New trigger is not related to the same job as the old trigger.");
+                }
 
-            await AddTrigger(conn, newTrigger, job, false, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
+                bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            return removedTrigger;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
-            return default;
-        }
+                await AddTrigger(conn, newTrigger, job, false, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
+
+                return removedTrigger;
+            },
+            "replace trigger");
     }
 
     /// <inheritdoc />
@@ -506,102 +488,103 @@ public abstract partial class AdoJobStoreBase
             cancellationToken);
     }
 
-    protected async ValueTask<bool> UpdateTriggerDetails(
+    protected ValueTask<bool> UpdateTriggerDetails(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         TriggerDetailsUpdate update,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            IOperableTrigger? existing = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            if (existing is null)
+        // The update's own refusals — an unknown calendar, a misfire instruction from another family,
+        // a job that is gone — are already specific about the trigger they are about, so they travel
+        // as themselves rather than behind a second "couldn't update" the caller has to read through.
+        return Guarded(
+            async () =>
             {
-                return false;
-            }
-
-            if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
-                && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode
-                && !update.HasExecutionGroup)
-            {
-                return true;
-            }
-
-            update.EnsureMisfireInstructionMatchesFamily(existing, triggerKey);
-
-            if (update.HasCalendarName && update.CalendarName is not null)
-            {
-                bool calExists = await CalendarExists(conn, update.CalendarName, cancellationToken).ConfigureAwait(false);
-                if (!calExists)
+                IOperableTrigger? existing = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                if (existing is null)
                 {
-                    Throw.JobPersistenceException($"Calendar '{update.CalendarName}' does not exist.");
+                    return false;
                 }
-            }
 
-            if (update.HasDescription)
-            {
-                existing.Description = update.Description;
-            }
+                if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
+                    && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode
+                    && !update.HasExecutionGroup)
+                {
+                    return true;
+                }
 
-            if (update.HasPriority)
-            {
-                existing.Priority = update.Priority;
-            }
+                update.EnsureMisfireInstructionMatchesFamily(existing, triggerKey);
 
-            if (update.HasJobDataMap)
-            {
-                JobDataMap newMap = update.JobDataMap is { Count: > 0 }
-                    ? new JobDataMap((IDictionary<string, object?>) update.JobDataMap)
-                    : new JobDataMap();
+                if (update.HasCalendarName && update.CalendarName is not null)
+                {
+                    bool calExists = await CalendarExists(conn, update.CalendarName, cancellationToken).ConfigureAwait(false);
+                    if (!calExists)
+                    {
+                        Throw.JobPersistenceException($"Calendar '{update.CalendarName}' does not exist.");
+                    }
+                }
 
-                // Force dirty flag so Delegate.UpdateTrigger writes the BLOB
-                newMap[SchedulerConstants.ForceJobDataMapDirty] = true;
-                newMap.Remove(SchedulerConstants.ForceJobDataMapDirty);
+                if (update.HasDescription)
+                {
+                    existing.Description = update.Description;
+                }
 
-                existing.JobDataMap = newMap;
-            }
+                if (update.HasPriority)
+                {
+                    existing.Priority = update.Priority;
+                }
 
-            if (update.HasCalendarName)
-            {
-                existing.CalendarName = update.CalendarName;
-            }
+                if (update.HasJobDataMap)
+                {
+                    JobDataMap newMap = update.JobDataMap is { Count: > 0 }
+                        ? new JobDataMap((IDictionary<string, object?>) update.JobDataMap)
+                        : new JobDataMap();
 
-            if (update.HasMisfireInstruction)
-            {
-                existing.MisfireInstructionCode = update.MisfireInstructionCode;
-            }
+                    // Force dirty flag so Delegate.UpdateTrigger writes the BLOB
+                    newMap[SchedulerConstants.ForceJobDataMapDirty] = true;
+                    newMap.Remove(SchedulerConstants.ForceJobDataMapDirty);
 
-            if (update.HasPreferredNode)
-            {
-                // Setting the property marks the pin dirty, so the subsequent store writes the
-                // preferred node columns.
-                existing.PreferredNode = update.PreferredNode;
-            }
+                    existing.JobDataMap = newMap;
+                }
 
-            if (update.HasExecutionGroup)
-            {
-                // EXECUTION_GROUP is part of the generic trigger UPDATE below, so nothing more is
-                // needed to persist it.
-                existing.ExecutionGroup = update.ExecutionGroup;
-            }
+                if (update.HasCalendarName)
+                {
+                    existing.CalendarName = update.CalendarName;
+                }
 
-            StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoader, loadJobType: true, cancellationToken).ConfigureAwait(false);
+                if (update.HasMisfireInstruction)
+                {
+                    existing.MisfireInstructionCode = update.MisfireInstructionCode;
+                }
 
-            if (job is null)
-            {
-                Throw.JobPersistenceException($"The job referenced by trigger '{triggerKey}' does not exist.");
-            }
+                if (update.HasPreferredNode)
+                {
+                    // Setting the property marks the pin dirty, so the subsequent store writes the
+                    // preferred node columns.
+                    existing.PreferredNode = update.PreferredNode;
+                }
 
-            await Delegate.UpdateTrigger(conn, existing, state, job!, cancellationToken).ConfigureAwait(false);
+                if (update.HasExecutionGroup)
+                {
+                    // EXECUTION_GROUP is part of the generic trigger UPDATE below, so nothing more is
+                    // needed to persist it.
+                    existing.ExecutionGroup = update.ExecutionGroup;
+                }
 
-            return true;
-        }
-        catch (Exception e) when (e is not JobPersistenceException)
-        {
-            Throw.JobPersistenceException($"Couldn't update trigger details for '{triggerKey}': {e.Message}", e);
-            return default;
-        }
+                StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoader, loadJobType: true, cancellationToken).ConfigureAwait(false);
+
+                if (job is null)
+                {
+                    Throw.JobPersistenceException($"The job referenced by trigger '{triggerKey}' does not exist.");
+                }
+
+                await Delegate.UpdateTrigger(conn, existing, state, job!, cancellationToken).ConfigureAwait(false);
+
+                return true;
+            },
+            $"update trigger details for '{triggerKey}'",
+            wrapPersistenceFailures: false);
     }
 
     /// <summary>
@@ -630,72 +613,62 @@ public abstract partial class AdoJobStoreBase
             cancellationToken).ConfigureAwait(false);
     }
 
-    protected async ValueTask AddCalendar(
+    protected ValueTask AddCalendar(
         ConnectionAndTransactionHolder conn,
         string calendarName,
         ICalendar calendar,
         AddCalendarOptions options,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            bool existingCal = await CalendarExists(conn, calendarName, cancellationToken).ConfigureAwait(false);
-            if (existingCal && !options.Replace)
+        // The ObjectAlreadyExistsException raised below is documented on the member and leaves as
+        // itself; Guarded is what keeps it out of an InnerException.
+        return Guarded(
+            async () =>
             {
-                Throw.ObjectAlreadyExistsException("Calendar with name '" + calendarName + "' already exists.");
-            }
-
-            if (existingCal)
-            {
-                if (await Delegate.UpdateCalendar(conn, calendarName, calendar, cancellationToken).ConfigureAwait(false) < 1)
+                bool existingCal = await CalendarExists(conn, calendarName, cancellationToken).ConfigureAwait(false);
+                if (existingCal && !options.Replace)
                 {
-                    Throw.JobPersistenceException("Couldn't store calendar.  Update failed.");
+                    Throw.ObjectAlreadyExistsException("Calendar with name '" + calendarName + "' already exists.");
                 }
 
-                if (options.UpdateTriggers)
+                if (existingCal)
                 {
-                    var triggers = await Delegate.SelectTriggersForCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false);
-
-                    foreach (IOperableTrigger trigger in triggers)
+                    if (await Delegate.UpdateCalendar(conn, calendarName, calendar, cancellationToken).ConfigureAwait(false) < 1)
                     {
-                        trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
-                        StoredTriggerState triggerState = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                        if (triggerState == StoredTriggerState.Deleted)
+                        Throw.JobPersistenceException("Couldn't store calendar.  Update failed.");
+                    }
+
+                    if (options.UpdateTriggers)
+                    {
+                        var triggers = await Delegate.SelectTriggersForCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false);
+
+                        foreach (IOperableTrigger trigger in triggers)
                         {
-                            continue;
+                            trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
+                            StoredTriggerState triggerState = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                            if (triggerState == StoredTriggerState.Deleted)
+                            {
+                                continue;
+                            }
+                            await AddTrigger(conn, trigger, null, true, triggerState, true, false, cancellationToken).ConfigureAwait(false);
                         }
-                        await AddTrigger(conn, trigger, null, true, triggerState, true, false, cancellationToken).ConfigureAwait(false);
                     }
                 }
-            }
-            else
-            {
-                if (await Delegate.InsertCalendar(conn, calendarName, calendar, cancellationToken).ConfigureAwait(false) < 1)
+                else
                 {
-                    Throw.JobPersistenceException("Couldn't store calendar.  Insert failed.");
+                    if (await Delegate.InsertCalendar(conn, calendarName, calendar, cancellationToken).ConfigureAwait(false) < 1)
+                    {
+                        Throw.JobPersistenceException("Couldn't store calendar.  Insert failed.");
+                    }
                 }
-            }
 
-            if (!Clustered)
-            {
-                calendarCache[calendarName] = calendar; // lazy-cache
-            }
-        }
-        catch (ObjectAlreadyExistsException)
-        {
-            // Raised above on purpose, and documented on the member, so it leaves as itself rather
-            // than as a plain JobPersistenceException with the answer buried in InnerException.
-            throw;
-        }
-        catch (IOException e)
-        {
-            Throw.JobPersistenceException(
-                "Couldn't store calendar because the BLOB couldn't be serialized: " + e.Message, e);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't store calendar: " + e.Message, e);
-        }
+                if (!Clustered)
+                {
+                    calendarCache[calendarName] = calendar; // lazy-cache
+                }
+            },
+            "store calendar",
+            WriteFailureReason);
     }
 
     /// <summary>
@@ -719,30 +692,27 @@ public abstract partial class AdoJobStoreBase
         return ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteCalendar(conn, calendarName, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<bool> DeleteCalendar(
+    protected ValueTask<bool> DeleteCalendar(
         ConnectionAndTransactionHolder conn,
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            if (await Delegate.CalendarIsReferenced(conn, calendarName, cancellationToken).ConfigureAwait(false))
+        return Guarded(
+            async () =>
             {
-                Throw.JobPersistenceException("Calendar cannot be removed if it is referenced by a trigger!");
-            }
+                if (await Delegate.CalendarIsReferenced(conn, calendarName, cancellationToken).ConfigureAwait(false))
+                {
+                    Throw.JobPersistenceException("Calendar cannot be removed if it is referenced by a trigger!");
+                }
 
-            if (!Clustered)
-            {
-                calendarCache.Remove(calendarName);
-            }
+                if (!Clustered)
+                {
+                    calendarCache.Remove(calendarName);
+                }
 
-            return await Delegate.DeleteCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false) > 0;
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't remove calendar: " + e.Message, e);
-            return default;
-        }
+                return await Delegate.DeleteCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false) > 0;
+            },
+            "remove calendar");
     }
 
     /// <summary>
@@ -756,17 +726,12 @@ public abstract partial class AdoJobStoreBase
         await ExecuteInLock(SchedulerLock.TriggerAccess, conn => Clear(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
-    protected async ValueTask Clear(
+    protected ValueTask Clear(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            await Delegate.ClearData(conn, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Error clearing scheduling data: " + e.Message, e);
-        }
+        return Guarded(
+            () => Delegate.ClearData(conn, cancellationToken),
+            "clear scheduling data");
     }
 }
