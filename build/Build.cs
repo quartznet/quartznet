@@ -403,6 +403,45 @@ partial class Build : FalloutBuild, ICompile, IPack
             });
         });
 
+    /// <summary>
+    /// Executes every benchmark once and fails the leg when one of them does not run to completion.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>Quartz.Benchmark</c> is in the solution, so <c>Compile</c> has always caught a benchmark that
+    /// stopped compiling; nothing caught one that compiled and threw. Issue #3439 is that gap, and the
+    /// first run of this target found it: every case in <c>SchedulerBenchmark</c> had been failing on a
+    /// scheduler it could no longer configure. This is a liveness check on the harness — nothing is
+    /// measured, published or compared, and no build fails over a number.
+    /// </para>
+    /// <para>
+    /// What the run covers, and the two categories it leaves out, is decided in the benchmark project
+    /// behind <c>--smoke</c> rather than by a list of names here: a benchmark written later is in it
+    /// without anybody remembering to add it, which is the property that makes this worth running.
+    /// <c>src/Quartz.Benchmark/Program.cs</c> and <c>BenchmarkCategories</c> say the rest.
+    /// </para>
+    /// <para>
+    /// Release whatever the rest of the build is configured as, because BenchmarkDotNet refuses a
+    /// non-optimized assembly and a smoke run of one would prove nothing. It runs after the unit tests
+    /// rather than beside them: both want the machine, and the tests are the ones whose failure is worth
+    /// reading first.
+    /// </para>
+    /// </remarks>
+    Target BenchmarkSmoke => _ => _
+        .DependsOn<ICompile>()
+        .After(UnitTest)
+        .Before<IPack>()
+        .Executes(() =>
+        {
+            var solution = ((IHasSolution) this).Solution;
+
+            DotNetRun(s => s
+                .SetProjectFile(solution.AllProjects.First(x => x.Name == "Quartz.Benchmark"))
+                .SetConfiguration(Configuration.Release)
+                .SetApplicationArguments("--smoke")
+            );
+        });
+
     static readonly string[] DatabaseCategories =
         ["db-postgres", "db-sqlserver", "db-mysql", "db-oracle", "db-firebird", "db-sqlite", "db-redis"];
 

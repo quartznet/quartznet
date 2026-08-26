@@ -20,7 +20,11 @@ using Quartz.Build;
     // workflow covers. macOS is included rather than assumed: the runner image ships the Xcode command
     // line tools ILCompiler links with, so there is nothing to install, and if that stops being true the
     // leg says so out loud rather than the claim going unchecked on a third platform.
-    InvokedTargets = [nameof(VerifyMigrations), nameof(ICompile.Compile), nameof(UnitTest), nameof(PublishTrimmed), nameof(PublishAot)],
+    //
+    // BenchmarkSmoke is on this workflow alone. Every change reaches main through a pull request, so
+    // this is where a broken benchmark is caught while somebody is still looking; the push and release
+    // legs have ten-minute budgets and nothing to do with the benchmarks.
+    InvokedTargets = [nameof(VerifyMigrations), nameof(ICompile.Compile), nameof(UnitTest), nameof(BenchmarkSmoke), nameof(PublishTrimmed), nameof(PublishAot)],
     CacheKeyFiles = [],
     // Generating native code is minutes rather than seconds, and it happens after everything else here.
     TimeoutMinutes = 20,

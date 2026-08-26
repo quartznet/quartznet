@@ -25,6 +25,7 @@
       "type": "string",
       "enum": [
         "ApiDoc",
+        "BenchmarkSmoke",
         "Clean",
         "Compile",
         "DocsBuild",
