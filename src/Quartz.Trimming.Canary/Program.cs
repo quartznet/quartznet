@@ -54,6 +54,13 @@ namespace Quartz.Trimming.Canary;
 /// only says a job did not fire — but the store is what the whole track was working towards, and it is
 /// the half that a compile can substitute for least.
 /// </para>
+/// <para>
+/// Last, <see cref="BindingCheck" /> builds a scheduler out of an <see cref="Microsoft.Extensions.Configuration.IConfiguration" />
+/// and reads every bound value back. That one is here for the same reason as the rest, and it is the
+/// only check whose failure needs the <em>native</em> leg rather than the trimmed one: built against
+/// the reflection binder this repository used to have, it passes trimmed and fails natively, with
+/// three of its values silently arriving as defaults.
+/// </para>
 /// </remarks>
 internal static class Program
 {
@@ -89,13 +96,18 @@ internal static class Program
             failures.Add(storeFailure);
         }
 
+        if (await BindingCheck.Run().ConfigureAwait(false) is { } bindingFailure)
+        {
+            failures.Add(bindingFailure);
+        }
+
         foreach (string failure in failures)
         {
             Console.WriteLine(failure);
         }
 
         Console.WriteLine(failures.Count == 0
-            ? "Quartz.Trimming.Canary: the store format round-trips, and a persistent store schedules, fires and reads back."
+            ? "Quartz.Trimming.Canary: the store format round-trips, a persistent store schedules, fires and reads back, and configuration binds."
             : $"Quartz.Trimming.Canary: {failures.Count} check(s) failed.");
 
         return failures.Count == 0 ? 0 : 1;
