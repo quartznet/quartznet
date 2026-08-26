@@ -211,8 +211,13 @@ public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
         //apply the timezone
         timeStampUtc = TimeZones.ConvertTime(timeStampUtc, TimeZone);
 
-        // Get timestamp for 00:00:00, in the correct timezone offset
-        DateTimeOffset day = new DateTimeOffset(timeStampUtc.Date, timeStampUtc.Offset);
+        // The first instant of the local day, resolved in the zone: a day does not always begin at
+        // midnight, and the offset it begins at is not always the offset the queried instant
+        // carries. Each further day is reached by naming the next local date and resolving that,
+        // because adding a day to a DateTimeOffset keeps the old offset and so drifts by the
+        // transition delta the moment the walk crosses one.
+        DateOnly date = DateOnly.FromDateTime(timeStampUtc.Date);
+        DateTimeOffset day = TimeZones.StartOfLocalDay(date, TimeZone);
 
         if (!IsDateTimeExcluded(day, checkBaseCalendar: true))
         {
@@ -222,7 +227,8 @@ public sealed class AnnualCalendar : BaseCalendar, IEquatable<AnnualCalendar>
 
         while (IsDateTimeExcluded(day, checkBaseCalendar: true))
         {
-            day = day.AddDays(1);
+            date = date.AddDays(1);
+            day = TimeZones.StartOfLocalDay(date, TimeZone);
         }
 
         return day;

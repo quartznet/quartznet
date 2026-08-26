@@ -232,6 +232,24 @@ public static class TimeZones
     }
 
     /// <summary>
+    /// The first instant of the given local date in the given zone, carrying that zone's offset.
+    /// Local midnight is resolved with <see cref="ResolveLocal" />, so a date whose own midnight
+    /// falls in a spring-forward gap begins at the end of that gap, and a date whose midnight
+    /// happens twice begins at the first of the two.
+    /// </summary>
+    /// <remarks>
+    /// Building a day boundary as <c>new DateTimeOffset(local.Date, local.Offset)</c> - midnight at
+    /// the offset that some other instant of the day happens to carry - lands on the wrong instant
+    /// whenever the offset the date starts at is not the offset of the instant that named it, which
+    /// is every transition day: an hour out in a zone that moves its clocks at midnight, and on the
+    /// day before or the day after in a zone that moves them later.
+    /// </remarks>
+    internal static DateTimeOffset StartOfLocalDay(DateOnly date, TimeZoneInfo timeZoneInfo)
+    {
+        return ConvertTime(ResolveLocal(date.ToDateTime(TimeOnly.MinValue), timeZoneInfo), timeZoneInfo);
+    }
+
+    /// <summary>
     /// Determines the wall-clock window that occurs twice around a fall-back transition. Returns
     /// false when the given time is not ambiguous. On success <paramref name="windowStart"/> is the
     /// first ambiguous wall-clock minute (pairing it with the standard offset yields the transition

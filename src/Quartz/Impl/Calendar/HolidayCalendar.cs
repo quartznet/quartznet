@@ -177,17 +177,19 @@ public sealed class HolidayCalendar : BaseCalendar, IEquatable<HolidayCalendar>
         //apply the timezone
         timeUtc = TimeZones.ConvertTime(timeUtc, TimeZone);
 
-        // Get timestamp for 00:00:00, with the correct timezone offset
-        DateTimeOffset day = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
+        // The first instant of the local day the query lands in, resolved in the zone: a day does
+        // not always begin at midnight, and the offset it begins at is not always the offset the
+        // queried instant carries. Each further day is reached by naming the next local date and
+        // resolving that, because adding a day to a DateTimeOffset keeps the old offset and so
+        // drifts by the transition delta the moment the walk crosses one.
+        DateOnly date = DateOnly.FromDateTime(timeUtc.Date);
+        DateTimeOffset day = TimeZones.StartOfLocalDay(date, TimeZone);
+
         while (!IsTimeIncludedThisCalendar(day) || !base.IsTimeIncluded(timeUtc))
         {
-            day = day.AddDays(1);
-            timeUtc = timeUtc.AddDays(1);
-            //ensure earliest value is assigned to return value
-            if (day < timeUtc)
-            {
-                timeUtc = day;
-            }
+            date = date.AddDays(1);
+            day = TimeZones.StartOfLocalDay(date, TimeZone);
+            timeUtc = day;
         }
 
         return timeUtc;
