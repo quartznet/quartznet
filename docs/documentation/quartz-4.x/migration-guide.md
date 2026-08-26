@@ -6005,9 +6005,11 @@ dashboard's contract needed a name for it, and it is what
 `Running`: the in-process client used to call it `"Started"` while the HTTP-backed client called the same
 state `"Running"`, and code that matched on either string now matches on the enum.
 
-The dashboard hub's `SchedulerStateDto` follows: it is `(string SchedulerName, SchedulerStatus Status)`
-rather than `(string SchedulerName, string State)`, and it is pushed once per state the scheduler
-arrives in. `SchedulerStarting` pushes nothing, being an event rather than a state.
+The dashboard hub's `SchedulerStateDto` follows: it is
+`(string SchedulerName, string SchedulerInstanceId, SchedulerStatus Status)` rather than
+`(string SchedulerName, string State)`, and it is pushed once per state the scheduler arrives in.
+`SchedulerStarting` pushes nothing, being an event rather than a state. The instance id is new in
+alpha.3 — see [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from).
 
 ### A trigger is an `ITrigger`, a calendar is an `ICalendar`
 
@@ -6067,6 +6069,42 @@ endpoint no Quartz HTTP API serves — and it is designed in
 
 `QuartzHttpApiOptions.ApiPath`, which is where the HTTP API itself is served, is unaffected: it is a
 different option on a different type, and `AddQuartzHttpApi` still reads it.
+
+## History and live events say which node they came from
+
+A cluster is one scheduler running in several processes. Each node keeps its own history of its own
+executions and pushes its own live events, and neither said which node it was — so the History page
+could not attribute a row to a machine and the Live Logs view could not tell a local event from a
+peer's. Both feeds carry the node now, and the history is bounded by age as well as by count.
+
+| 4.0 preview | 4.0 |
+|---|---|
+| `DashboardHistoryEntry(SchedulerName, JobGroup, …)` | `DashboardHistoryEntry(SchedulerName, SchedulerInstanceId, JobGroup, …)` |
+| — | `DashboardMisfireEntry(SchedulerName, SchedulerInstanceId, TriggerGroup, TriggerName, JobKeyDto? JobKey, MisfiredAtUtc, DateTimeOffset? ScheduledFireTimeUtc)` (new) |
+| — | `DashboardMisfireQuery : PagedQuery`, with `SchedulerName`, `SchedulerInstanceId` and `TriggerFilter` (new) |
+| `DashboardHistoryQuery` | gained `string? SchedulerInstanceId` — null lists every node's |
+| `IDashboardHistoryStore` | gained `AddMisfire`, `GetMisfires(DashboardMisfireQuery)` and `CountMisfires(name, since)` |
+| `IQuartzApiClient` | gained `GetMisfires(DashboardMisfireQuery)` → `PagedResult<DashboardMisfireEntry>?` |
+| `QuartzDashboardOptions` | gained `TimeSpan HistoryRetention` (24 hours) and `int HistoryMaxEntriesPerScheduler` (2000) |
+| `DashboardHistoryPlugin(IServiceProvider)` | `DashboardHistoryPlugin(IServiceProvider, TimeProvider)`, and it implements `ITriggerListener` as well as `IJobListener` |
+| `SchedulerStateDto(SchedulerName, Status)` | `SchedulerStateDto(SchedulerName, SchedulerInstanceId, Status)` |
+| `SchedulerErrorDto(SchedulerName, Message, …)` | `SchedulerErrorDto(SchedulerName, SchedulerInstanceId, Message, …)` |
+| `JobEventDto(JobKey, …)`, `JobExecutionResultDto(JobKey, …)`, `TriggerEventDto(TriggerKey, …)` | each leads with `string SchedulerInstanceId` |
+| `IQuartzDashboardHubClient.TriggerPaused(TriggerKeyDto)` / `TriggerResumed` | take `TriggerLifecycleDto(SchedulerInstanceId, TriggerKey)` |
+| `IQuartzDashboardHubClient.JobPaused(JobKeyDto)` / `JobResumed` | take `JobLifecycleDto(SchedulerInstanceId, JobKey)` |
+
+**`IDashboardHistoryStore` is public and is the documented persistence seam, so the three new members
+are a breaking change for anyone who implemented it.** A store that only records executions can throw
+`NotSupportedException` from the misfire members; the History page reports a data source that answers
+`null` for misfires by omitting the section rather than by failing.
+
+A pause and a resume get a payload of their own rather than growing `JobKeyDto` / `TriggerKeyDto`:
+those are keys, `IQuartzApiClient` uses them everywhere, and a key does not belong to a node.
+
+The two new options are what bounds the shipped in-memory store. It was bounded by count alone, which
+says nothing about a scheduler that has gone quiet — it keeps whatever it last recorded, so its page
+shows executions from an arbitrary distance in the past. The window is measured on the scheduler's
+`TimeProvider` and applied when history is read as well as when it is written.
 
 ## `CheckExists` is `Exists`
 
@@ -7764,6 +7802,7 @@ Parameters and behavior are unchanged:
 | `StdAdoConstants` group and fired-trigger statements were split | `SqlDeletePausedTriggerGroup`, `SqlSelectTriggerGroupsFiltered`, `SqlUpdateTriggerGroupStateFromState` and `SqlUpdateTriggerGroupStateFromStates` are `…Equals` / `…Like` pairs, and the FIRED_TRIGGERS statements are one `SqlSelectFiredTriggers` / `SqlDeleteFiredTriggers` base plus `SqlFiredTrigger*Predicate` fragments. The type is internal |
 | `IDashboardAuthorizationFilter` and `QuartzDashboardOptions.AuthorizationFilter` removed | Nothing ever invoked the filter, so setting it bought a false sense of security. Use `AuthorizationPolicy`, which is enforced |
 | `IDashboardHistoryStore` is asynchronous | `ValueTask Add`, `ValueTask<PagedResult<DashboardHistoryEntry>> GetPage(DashboardHistoryQuery)`, so a store can talk to a database. `SearchFilter.DebounceMilliseconds` is a `TimeSpan Debounce`, and `InProcessQuartzApiClient` is internal — resolve `IQuartzApiClient` |
+| `IDashboardHistoryStore` carries the misfire feed | `AddMisfire`, `GetMisfires(DashboardMisfireQuery)` and `CountMisfires(name, since)` are new members on the interface, so **an application with its own store has to implement three more** — see [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from) |
 | `IQuartzApiClient` speaks Quartz's vocabulary | See [The dashboard's client speaks one currency](#the-dashboard-s-client-speaks-one-currency) |
 | The dashboard's HTTP-backed API client is gone | `QuartzApiClient` was never registered; the dashboard renders the schedulers in its own process, and `QuartzDashboardOptions.BaseUrl` and `.ApiPath` went with it — see [The dashboard reads the schedulers in its own process](#the-dashboard-reads-the-schedulers-in-its-own-process) |
 | Serializers outside a scheduler read a container-wide registry | Because the serializer maps are per-serializer, the HTTP API and `Quartz.HttpClient` read a `SystemTextJsonSerializerRegistry` registered in the container. Register it as a singleton to make a custom serializer visible to them. The dashboard no longer registers one of its own: it passes triggers and calendars through as themselves |

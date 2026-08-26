@@ -87,6 +87,19 @@ public static class DashboardSamples
         #endregion
     }
 
+    public static void HistoryBounds(IServiceCollection services)
+    {
+        #region sample_dashboard_history_bounds
+
+        services.AddQuartzDashboard(options =>
+        {
+            options.HistoryRetention = TimeSpan.FromHours(6);
+            options.HistoryMaxEntriesPerScheduler = 500;
+        });
+
+        #endregion
+    }
+
     public static void AuthorizationPolicy(WebApplicationBuilder builder)
     {
         #region sample_dashboard_authorization_policy

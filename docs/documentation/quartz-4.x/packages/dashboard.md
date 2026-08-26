@@ -59,7 +59,7 @@ the dashboard needs it: the pages read the schedulers in this process directly.
 
 ## Options
 
-`AddQuartzDashboard(options => …)` takes three settings, and none of them points the dashboard at a
+`AddQuartzDashboard(options => …)` takes five settings, and none of them points the dashboard at a
 scheduler — **the dashboard renders the schedulers registered in its own application**, reading them
 through the `IQuartzApiClient` in the container rather than over a network.
 
@@ -68,6 +68,11 @@ through the `IQuartzApiClient` in the container rather than over a network.
 | `DashboardPath` | `/quartz` | The base path the UI is served from — see [Hosting under a custom path](#hosting-under-a-custom-path) |
 | `AuthorizationPolicy` | none | The policy applied to the dashboard pages, hub, circuit and assets — see [Policy and role-based authorization](#policy-and-role-based-authorization) |
 | `ReadOnly` | `false` | Hides every mutating action: no pause, resume, trigger-now, reschedule, unschedule or delete |
+| `HistoryRetention` | 24 hours | How far back the dashboard's own history store keeps executions and misfires — see [Execution history and misfires](#execution-history-and-misfires) |
+| `HistoryMaxEntriesPerScheduler` | `2000` | How many executions and how many misfires it keeps per scheduler, oldest dropped first |
+
+Both history bounds are rejected at startup if they are not positive: a window of zero forgets every
+execution the moment it is recorded, which looks exactly like a history plugin that was never installed.
 
 ::: tip Pointing a dashboard at another process
 There is no option for it. `AddQuartzDashboard` registers its client with `TryAdd`, so an application
@@ -159,10 +164,46 @@ In earlier releases the Blazor circuit stayed at the site root; with a custom `D
 A custom dashboard path is **not** supported when integrating into an existing Blazor application with `MapQuartzDashboard(blazor)`; the dashboard page routes are fixed at `/quartz` in that mode and startup fails with a descriptive exception if a custom path is configured. There is no `MapQuartzDashboard(blazor, pattern)` overload for the same reason.
 :::
 
-## Enabling history plugin
+## Execution history and misfires
 
-To populate execution history and make related views useful, add the Quartz history plugins to the
-scheduler:
+`AddQuartzDashboard()` installs the history plugin itself, so the **History** page at `/quartz/history`
+is populated without anything further being written. Each row carries the node that ran it, so a
+clustered scheduler's history is readable rather than an undifferentiated stream, and the page's node
+filter narrows the listing — and the figures on its stat cards, whose titles then say which node they
+cover — to one machine.
+
+Beneath the executions the page lists **misfires**: firings the scheduler missed. Nothing ran, so they
+never appear in the execution history however long a reader stares at it; each row names the trigger,
+the job it points at, the node that noticed, the firing that was missed and when it was noticed.
+
+The store `AddQuartzDashboard` registers is per-process and in-memory, bounded both by age
+(`HistoryRetention`, 24 hours) and by count (`HistoryMaxEntriesPerScheduler`, 2000 of each feed per
+scheduler):
+
+<!-- snippet: sample_dashboard_history_bounds -->
+```csharp
+services.AddQuartzDashboard(options =>
+{
+    options.HistoryRetention = TimeSpan.FromHours(6);
+    options.HistoryMaxEntriesPerScheduler = 500;
+});
+```
+<!-- endSnippet -->
+
+The age bound is what a count alone cannot supply: a scheduler that has gone quiet keeps whatever it
+last recorded, so its page shows executions from an arbitrary distance in the past with nothing to say
+how old they are. The window is measured on the scheduler's `TimeProvider`, and it applies when history
+is read as well as when it is written — otherwise a scheduler that never writes again never forgets.
+
+To keep history somewhere that survives a restart, register your own `IDashboardHistoryStore` before
+calling `AddQuartzDashboard` (its registration is a `TryAdd`). Both feeds carry `SchedulerInstanceId`,
+which is what makes one store shared by a whole cluster readable. It carries the `CountMisfires(name,
+since)` count-over-a-window a summary needs, so an implementation backed by a database can answer that
+with one `COUNT(*)` rather than by loading rows it would throw away.
+
+### Enabling the history plugins
+
+For history written to your application's log as well, add the Quartz history plugins to the scheduler:
 
 <!-- snippet: sample_dashboard_history_plugins -->
 ```csharp
@@ -229,7 +270,7 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 - **Many local schedulers in one host:** dashboard scheduler selector supports multiple registered schedulers; use clear scheduler names and environment-specific grouping.
 - **Reverse proxy and Blazor Server:** enable WebSocket/SignalR forwarding and sticky sessions where required by your hosting stack. The Blazor circuit connects to `/_blazor` (or `{DashboardPath}/_blazor` when a custom `DashboardPath` is configured).
 - **Split operator experiences:** expose a read-only dashboard instance (`ReadOnly = true`) for observers, and a separate write-enabled dashboard for operators.
-- **Operational retention:** dashboard history is plugin-fed operational history; configure plugin + external retention/reporting if you need long-term analytics.
+- **Operational retention:** the built-in history store is per-process and in-memory, bounded by `HistoryRetention` and `HistoryMaxEntriesPerScheduler`. Every node of a cluster therefore keeps its own; the rows name the node they came from, so registering a shared `IDashboardHistoryStore` gives one page over the whole fleet. Configure external retention/reporting if you need long-term analytics.
 
 ## Features
 
@@ -246,9 +287,14 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
   its last check-in in the selected time zone and as a relative time, its check-in interval, and how
   many firings it is holding and running; the node answering is marked, and a scheduler whose job store
   is not clustered says so rather than showing an empty table
+- Execution history at `/quartz/history` — one row per execution with the node that ran it, filterable
+  by job, by trigger and by node, with the page's stat cards saying which scope their figures cover; and
+  a misfires section listing the firings the scheduler missed. Bounded by age as well as by count — see
+  [Execution history and misfires](#execution-history-and-misfires)
 - Live event/log stream for scheduler activity, fed by plugins `AddQuartzDashboard` installs on every
   scheduler in the container — so a named scheduler streams its own events, each plugin instance
-  initialized with the name of the scheduler it belongs to
+  initialized with the name of the scheduler it belongs to. Every event names the node that raised it,
+  and the page says which node its own process is
 - Pause, resume, trigger-now, and unschedule/delete actions (when not in read-only mode)
 - Trigger detail cron reschedule and job detail trigger-with-overrides actions
 - Calendar create/replace (cron calendar), details, and delete actions
@@ -318,6 +364,6 @@ This property tells the .NET SDK to include the Blazor framework scripts (`_fram
 ## Current limitations
 
 - Live views are near-real-time polling/streaming and are not guaranteed to be lossless event storage
-- No built-in persistence UI for historical analytics; plugin-backed history is operational/log oriented
+- No built-in persistence UI for historical analytics; the shipped history store is in-memory and per-process, so history does not survive a restart and one node cannot show another's unless you register a shared `IDashboardHistoryStore`. A database-backed one ships with 4.1 ([#3387](https://github.com/quartznet/quartznet/issues/3387))
 - Advanced management remains intentionally scoped; rich typed editors are currently focused on cron calendars/triggers and operational overrides
 - UX is optimized for Quartz APIs and scheduler operations, not full workflow/business process visualization
