@@ -100,7 +100,7 @@ public static class QuartzBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        TryRegisterJobType(builder.Services, typeof(T));
+        TryRegisterJobType(builder, typeof(T));
 
         SchedulerContent.Register(builder.Services, builder.SchedulerName, serviceProvider =>
             new SchedulerContent().Add(
@@ -145,7 +145,7 @@ public static class QuartzBuilderExtensions
             Throw.ArgumentException("jobType must implement the IJob interface", nameof(jobType));
         }
 
-        TryRegisterJobType(builder.Services, jobType);
+        TryRegisterJobType(builder, jobType);
 
         SchedulerContent.Register(builder.Services, builder.SchedulerName, serviceProvider =>
             new SchedulerContent().Add(
@@ -261,7 +261,7 @@ public static class QuartzBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(trigger);
 
-        TryRegisterJobType(builder.Services, typeof(T));
+        TryRegisterJobType(builder, typeof(T));
 
         // One registration carrying both, because the job's key may be derived from the trigger's: built
         // as two independent registrations they could not agree on it.
@@ -398,6 +398,7 @@ public static class QuartzBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         builder.Services.Add(Describe(builder, typeof(TJob), lifetime, implementationType: typeof(TImplementation)));
+        RegisteredJobTypes.For(builder.Services).Add(builder.SchedulerName, typeof(TJob));
         return builder;
     }
 
@@ -431,7 +432,11 @@ public static class QuartzBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(implementationFactory);
 
+        // Recorded like any other job-type registration even though a job built by a factory has no
+        // constructor to check: what it says is that this scheduler builds TJob its own way, which is
+        // what makes an AddJob<TJob> registration of the same type stop being the one that would be used.
         builder.Services.Add(Describe(builder, typeof(TJob), lifetime, factory: provider => implementationFactory(provider)));
+        RegisteredJobTypes.For(builder.Services).Add(builder.SchedulerName, typeof(TJob));
         return builder;
     }
 
@@ -496,9 +501,15 @@ public static class QuartzBuilderExtensions
     /// It is a <c>TryAdd</c>, so a registration the application made itself — with its own lifetime,
     /// factory or implementation type — is kept, and adding the same job twice is harmless.
     /// </para>
+    /// <para>
+    /// Being registered is also what makes the job the container's to build rather than the job
+    /// factory's to activate, so the scheduler is recorded as having been given it and
+    /// <see cref="RegisteredJobConstructorValidator"/> checks at startup that its constructor asks for
+    /// nothing that belongs to one scheduler.
+    /// </para>
     /// </remarks>
     private static void TryRegisterJobType(
-        IServiceCollection services,
+        IQuartzBuilder builder,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] Type jobType)
     {
         // A job named by an interface or an abstract type is one the container could not construct
@@ -509,7 +520,8 @@ public static class QuartzBuilderExtensions
             return;
         }
 
-        services.TryAddScoped(jobType);
+        builder.Services.TryAddScoped(jobType);
+        RegisteredJobTypes.For(builder.Services).Add(builder.SchedulerName, jobType);
     }
 
     /// <summary>
