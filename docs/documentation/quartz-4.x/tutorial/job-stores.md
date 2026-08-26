@@ -48,6 +48,7 @@ However, the performance draw-back is not terribly bad, especially if you build 
 
 To use AdoJobStore, you must first create a set of database tables for Quartz.NET to use.
 You can find table-creation SQL scripts in the "[database/tables](https://github.com/quartznet/quartznet/tree/main/database/tables)" directory of the Quartz.NET distribution.
+Each script drops an existing Quartz schema before recreating it, so read its header first — it says how to decline that if you are running it against a database you care about.
 If there is not already a script for your database type, just look at one of the existing ones, and modify it in any way necessary for your DB.
 One thing to note is that in these scripts, all the the tables start with the prefix `QRTZ_`
 (such as the tables `QRTZ_TRIGGERS`, and `QRTZ_JOB_DETAIL`). This prefix can actually be anything you'd like, as long as you inform AdoJobStore
