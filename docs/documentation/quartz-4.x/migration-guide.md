@@ -2416,8 +2416,11 @@ Every scheduler also now publishes them at all — configuring the meter used to
 
 | Instrument | Type | Unit | Tags |
 |---|---|---|---|
-| `quartz.job.execution.duration` | `Histogram<double>` | `s` | `quartz.scheduler.name`, `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group`, `quartz.job.name`, **+ `error.type`** when the execution failed |
-| `quartz.job.execution.active` | `UpDownCounter<long>` | `{job}` | the five identity attributes |
+| `quartz.job.execution.duration` | `Histogram<double>` | `s` | `quartz.scheduler.name`, `quartz.scheduler.id`, `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group`, `quartz.job.name`, `quartz.execution.group` when the trigger names one, **+ `error.type`** when the execution failed |
+| `quartz.job.execution.active` | `UpDownCounter<long>` | `{job}` | the same identity attributes |
+
+Five more instruments cover misfires, acquisition, cluster check-in and recovery, and store round
+trips; the [observability page](packages/opentelemetry-integration.md#metrics) has the whole set.
 
 ### Old and new telemetry names
 
@@ -2437,6 +2440,9 @@ Every scheduler also now publishes them at all — configuring the meter used to
 | `fire.instance.id` | `quartz.fire.instance.id` | Span attribute |
 | `jobstore.trigger.count` | `quartz.jobstore.trigger.count` | Job store span attribute |
 | `jobstore.batch.size` | `quartz.jobstore.batch.size` | Job store span attribute |
+| *(none)* | `quartz.execution.group` | New in 4.0. On the execution span and both execution instruments, and only when the trigger names a group |
+| *(none)* | `quartz.jobstore.operation` | New in 4.0. Which store operation a `quartz.jobstore.operation.duration` measurement is about |
+| *(none)* | `quartz.cluster.recovered.instance.id` | New in 4.0. The failed node a `quartz.cluster.recovery.trigger` measurement is about — not the node reporting it, which is `quartz.scheduler.id` |
 | `scheduling.quartz.exception_type` | `error.type` | The one attribute that is *not* namespaced, and its value changed too — see below |
 | `Quartz.Job.Vetoed` | `Quartz.Job.Veto` | Span name for a vetoed fire. `Quartz.Job.Execute` and the 28 `Quartz.JobStore.*` span names are unchanged |
 
@@ -2482,6 +2488,13 @@ scheduler where it stored one in total, and a query that aggregated across every
 (`sum without (quartz_scheduler_name)` in Prometheus, or the equivalent grouping in whatever reads
 these). One extra series per scheduler is the whole of the increase; the tag's values are the scheduler
 names an application configured, which is a fixed, small set.
+
+**And with `quartz.scheduler.id`.** A cluster is several schedulers sharing one name, so the name alone
+answers "which application" and never "which node" — and the id was on spans only, which is where the
+4.0 story stopped in the alphas. Every measurement carries both now, so a slow node, a node that stopped
+firing, or a node whose check-ins are taking longer than the rest can be seen without a trace. It is the
+same cardinality trade: one series per node where there was one per scheduler, and the values are the
+instance ids in the cluster.
 
 The instruments themselves are also created through the container's `IMeterFactory` when it has one,
 which every application on the generic host does. The meter used to be a process-wide static, so two
@@ -7835,6 +7848,9 @@ Parameters and behavior are unchanged:
 | `quartz.job.execution.duration` records **seconds**, not milliseconds | A histogram's default bucket boundaries assume seconds, so every execution over ten seconds landed in the top bucket. A chart with a hard-coded millisecond axis reads 1000× low until it is changed — see [Job execution metrics](#job-execution-metrics) |
 | `quartz.job.execution.active` is an `UpDownCounter<long>`, unit `{job}` | It was a `Counter<long>` receiving the `-1` that ends an execution, which an exporter aggregating a monotonic sum may drop; `ea` is not a UCUM unit — see [Job execution metrics](#job-execution-metrics) |
 | Every job execution measurement is tagged with `quartz.scheduler.name` | A process can run several schedulers, whose measurements used to arrive as one series. One series per scheduler where there was one in total: a query that aggregated across everything needs to say so — see [Job execution metrics](#job-execution-metrics) |
+| Every measurement is tagged with `quartz.scheduler.id` too | A cluster is several schedulers sharing one name, so the name alone never answered *which node*. The id was a span attribute only. One series per node where there was one per scheduler — see [Job execution metrics](#job-execution-metrics) |
+| `quartz.execution.group` on the execution span and the execution measurements | The bucket a thread limit is applied per, so a saturated group can be seen in the signals rather than inferred. A trigger that names no group carries no such attribute at all, rather than an empty one |
+| `ActivityTags.ExecutionGroup`, `.JobStoreOperation`, `.RecoveredInstanceId` added | The three new attribute names, as constants beside the ones that were already there |
 | The meter is built from the container's `IMeterFactory` | It was a process-wide static, so two containers in one process shared one set of instruments and `MetricCollector` could not see them. The meter's name and what an exporter subscribes to are unchanged, and an application that never calls `AddMetrics()` still gets a meter — see [Job execution metrics](#job-execution-metrics) |
 | `scheduling.quartz.exception_type` is `error.type`, naming the exception the job threw | The tag was added to a copy of the tag list and discarded, so the counter said only that something failed — and the type it named was the `JobExecutionException` the run shell wraps everything in. It is OpenTelemetry's conventional name now — the one attribute Quartz does not namespace — it is on the duration histogram and the execution's span, and a query matching the old name or expecting the old value has to be rewritten — see [Job execution metrics](#job-execution-metrics) |
 | `Quartz.Diagnostics.QuartzInstrumentation` publishes the `ActivitySource` and `Meter` names | `AddSource("Quartz")` / `AddMeter("Quartz")` were the only strings on the instrumentation surface with no constant behind them. Both values are still `"Quartz"`, so existing wiring keeps working; `InstrumentationOptions` is gone with the change — see [Job execution metrics](#job-execution-metrics) |
