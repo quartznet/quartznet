@@ -7,6 +7,7 @@
 @implements IAsyncDisposable
 @inject NavigationManager Navigation
 @inject SchedulerState Scheduler
+@inject IQuartzApiClient Api
 @inject IOptions<QuartzDashboardOptions> Options
 @inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
 @inject IDashboardLiveConnectionFactory LiveConnections
@@ -30,7 +31,10 @@
 
         @if (!string.IsNullOrWhiteSpace(_joinedScheduler))
         {
-            <span class="qz-muted">Listening to: @_joinedScheduler</span>
+            @* The scheduler names the group; the node names the process this page is rendered by. In a
+               cluster that group is fed by every node running that scheduler, so a reader has to be able
+               to tell an event from here apart from an event from a peer. *@
+            <span class="qz-muted">Listening to: @_joinedScheduler@(string.IsNullOrWhiteSpace(_thisNode) ? "" : " · this node is " + _thisNode)</span>
         }
     </div>
 
@@ -76,6 +80,7 @@
                 <li class="qz-live-event qz-live-@liveEvent.Category">
                     <span class="qz-live-time"><TimeAgo Timestamp="@liveEvent.Timestamp" /></span>
                     <span class="qz-live-type">@liveEvent.EventType</span>
+                    <span class="qz-live-node" title="Node">@(liveEvent.SchedulerInstanceId ?? "—")</span>
                     <span class="qz-live-description">@liveEvent.Description</span>
                 </li>
             }
@@ -105,6 +110,12 @@
     private IDashboardLiveConnection? _connection;
     private string? _error;
     private string? _joinedScheduler;
+
+    /// <summary>
+    /// The instance id of the scheduler this page's own process is running, or null when it could not be
+    /// read. The toolbar names it so that an event from a peer is distinguishable from a local one.
+    /// </summary>
+    private string? _thisNode;
     private bool _isConnecting;
     private PeriodicTimer? _connectionMonitorTimer;
     private CancellationTokenSource? _connectionMonitorCancellation;
@@ -268,13 +279,32 @@
         {
             await _connection.Invoke("JoinScheduler", schedulerName);
             _joinedScheduler = schedulerName;
+            _thisNode = await ReadThisNodeAsync(schedulerName);
+        }
+    }
+
+    /// <summary>
+    /// The instance id of the scheduler in this process, read the way every other page reads a
+    /// scheduler's facts. A data source that cannot answer leaves the toolbar saying nothing about the
+    /// node rather than failing the page.
+    /// </summary>
+    private async Task<string?> ReadThisNodeAsync(string schedulerName)
+    {
+        try
+        {
+            SchedulerDetailDto detail = await Api.GetScheduler(schedulerName);
+            return detail.SchedulerInstanceId;
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
     private Task AddEventAsync(string eventType, string category, object? payload)
     {
         string description = BuildDescription(eventType, payload);
-        LiveEventItem item = new(DateTimeOffset.UtcNow, eventType, category, description);
+        LiveEventItem item = new(DateTimeOffset.UtcNow, eventType, category, ReadSchedulerInstanceId(payload), description);
 
         _events.Insert(0, item);
         if (_events.Count > 100)
@@ -335,6 +365,32 @@
         }
     }
 
+    /// <summary>
+    /// The node an event came from, read out of the payload the hub serialized.
+    /// </summary>
+    /// <remarks>
+    /// Every payload carries it, but the page receives them as JSON rather than as the records they were
+    /// sent as — deserializing eleven shapes to read one member of each would be the same answer at
+    /// eleven times the cost. Both spellings are tried because the member name is subject to whatever
+    /// naming policy the host's SignalR JSON protocol is configured with.
+    /// </remarks>
+    private static string? ReadSchedulerInstanceId(object? payload)
+    {
+        if (payload is not System.Text.Json.JsonElement element
+            || element.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!element.TryGetProperty("schedulerInstanceId", out System.Text.Json.JsonElement node)
+            && !element.TryGetProperty("SchedulerInstanceId", out node))
+        {
+            return null;
+        }
+
+        return node.ValueKind == System.Text.Json.JsonValueKind.String ? node.GetString() : null;
+    }
+
     private static string BuildDescription(string eventType, object? payload)
     {
         if (payload is null)
@@ -369,5 +425,10 @@
         }
     }
 
-    private sealed record LiveEventItem(DateTimeOffset Timestamp, string EventType, string Category, string Description);
+    private sealed record LiveEventItem(
+        DateTimeOffset Timestamp,
+        string EventType,
+        string Category,
+        string? SchedulerInstanceId,
+        string Description);
 }

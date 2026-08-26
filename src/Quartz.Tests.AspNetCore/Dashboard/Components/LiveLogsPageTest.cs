@@ -42,6 +42,43 @@ public class LiveLogsPageTest
             "a connection that joined nothing receives nothing");
         page.Markup.Should().Contain("● Connected");
         page.Markup.Should().Contain("Listening to: " + TestData.SchedulerName);
+        page.Markup.Should().Contain("this node is " + TestData.SchedulerInstanceId,
+            "the group is fed by every node running that scheduler, so the page has to say which of "
+            + "them its own process is");
+    }
+
+    [Test]
+    public void AnEventSaysWhichNodeRaisedIt()
+    {
+        IRenderedComponent<LiveLogs> page = context.Render<LiveLogs>();
+
+        page.InvokeAsync(() => context.LiveConnections.Current.Push("JobExecuted", Payload("node-b"))).Wait();
+
+        page.TextOfAll(".qz-live-node").Should().Equal(["node-b"],
+            "one browser watching a clustered scheduler sees every node's events at once");
+    }
+
+    [Test]
+    public void AnEventFromAHubThatNamesNoNodeIsStillListed()
+    {
+        IRenderedComponent<LiveLogs> page = context.Render<LiveLogs>();
+
+        page.InvokeAsync(() => context.LiveConnections.Current.Push("JobExecuted", "reports.nightly")).Wait();
+
+        page.TextOfAll(".qz-live-node").Should().Equal(["—"],
+            "an event whose payload says nothing about a node is a gap in the row, not a dropped event");
+    }
+
+    /// <summary>
+    /// A payload as the hub puts it on the wire: JSON, which is what the page reads the node out of.
+    /// </summary>
+    private static System.Text.Json.JsonElement Payload(string schedulerInstanceId)
+    {
+        return System.Text.Json.JsonSerializer.SerializeToElement(new
+        {
+            schedulerInstanceId,
+            jobKey = new { group = "reports", name = "nightly" }
+        });
     }
 
     [Test]

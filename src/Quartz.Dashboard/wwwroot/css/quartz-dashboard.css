@@ -1633,7 +1633,7 @@
 
 .qz-live-event {
     display: grid;
-    grid-template-columns: 90px max-content minmax(0, 1fr);
+    grid-template-columns: 90px max-content max-content minmax(0, 1fr);
     align-items: center;
     gap: var(--qz-space-sm);
     padding: var(--qz-space-sm) var(--qz-space-md);
@@ -1656,6 +1656,17 @@
 
 .qz-live-type {
     font-weight: var(--qz-font-weight-semibold);
+    white-space: nowrap;
+}
+
+/* Which node raised the event. In a cluster one browser sees every node's events at once. */
+.qz-live-node {
+    color: var(--qz-color-text-muted);
+    font-family: var(--qz-font-mono);
+    font-size: var(--qz-font-size-xs);
+    max-width: 16ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
