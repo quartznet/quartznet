@@ -965,6 +965,60 @@ public abstract class JobStoreContractTest
         (await Store.GetCalendar("holidays")).Should().BeNull();
     }
 
+    /// <summary>
+    /// Replacing a calendar and asking for its triggers to be updated moves the next fire time of a
+    /// trigger the new calendar has just excluded, and leaves the trigger's state alone.
+    /// </summary>
+    /// <remarks>
+    /// The state half is asserted against a fake elsewhere; what only a real store can show is the
+    /// other half — that the recomputed fire time was written back and comes out of a fresh read.
+    /// The two go together on purpose: a store that recomputed and forgot to persist, and one that
+    /// persisted and resumed a paused trigger while doing it, are both wrong in ways the other
+    /// assertion would miss.
+    /// </remarks>
+    [Test]
+    public async Task ReplacingACalendarRecomputesWhenTheTriggersThatObserveItFireNext()
+    {
+        // Midday next June, so nothing here is anywhere near "now" and no misfire logic is in play.
+        DateTimeOffset excludedDay = new DateTimeOffset(DateTimeOffset.UtcNow.Year + 1, 6, 15, 12, 0, 0, TimeSpan.Zero);
+
+        // UTC, so that which day the calendar thinks the fire time falls on does not depend on where
+        // the test runs. The zone survives storage as the calendar's own time zone id.
+        AnnualCalendar open = new AnnualCalendar { TimeZone = TimeZoneInfo.Utc };
+        await Store.AddCalendar("business-days", open);
+
+        IJobDetail job = CreateJob("recomputed", JobGroupA);
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("recomputed", TriggerGroupA)
+            .ForJob(job.Key)
+            .WithCalendarName("business-days")
+            .StartAt(excludedDay)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromDays(1)).RepeatForever())
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(open);
+
+        await Store.ScheduleJob(job, trigger);
+
+        // Paused, so that "the state is unchanged" is a claim with something to prove: a resumed
+        // trigger and an untouched one are indistinguishable when the trigger was waiting to begin with.
+        (await Store.PauseTrigger(trigger.Key)).Should().BeTrue();
+
+        (await Store.GetTrigger(trigger.Key)).NextFireTimeUtc.Should().Be(excludedDay,
+            "the calendar excludes nothing yet, so the trigger fires when it was told to");
+
+        AnnualCalendar closed = new AnnualCalendar { TimeZone = TimeZoneInfo.Utc };
+        closed.AddExcludedDay(new MonthDay(excludedDay.Month, excludedDay.Day));
+
+        await Store.AddCalendar("business-days", closed, new AddCalendarOptions { Replace = true, UpdateTriggers = true });
+
+        (await Store.GetTrigger(trigger.Key)).NextFireTimeUtc.Should().Be(excludedDay.AddDays(1),
+            "the replacement excludes the day the trigger was going to fire on, and asking for the "
+            + "triggers to be updated is what moves it on to the next day it may fire");
+
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
+            "recomputing when a trigger fires next is not a reason to start firing it");
+    }
+
     [Test]
     public async Task ACalendarATriggerReferencesCannotBeDeleted()
     {
