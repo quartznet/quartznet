@@ -274,17 +274,27 @@ namespace Quartz.Dashboard.Services
     }
     public sealed class SchedulerDetailDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerDetailDto>
     {
-        public SchedulerDetailDto(string SchedulerInstanceId, string SchedulerName, Quartz.SchedulerStatus Status) { }
+        public SchedulerDetailDto(string SchedulerInstanceId, string SchedulerName, Quartz.SchedulerStatus Status, bool Clustered, bool Persistent, string JobStoreTypeName, string ThreadPoolTypeName, int ThreadPoolSize, System.DateTimeOffset? RunningSince, int JobsExecuted, string Version) { }
+        public bool Clustered { get; init; }
+        public string JobStoreTypeName { get; init; }
+        public int JobsExecuted { get; init; }
+        public bool Persistent { get; init; }
+        public System.DateTimeOffset? RunningSince { get; init; }
         public string SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
         public Quartz.SchedulerStatus Status { get; init; }
+        public int ThreadPoolSize { get; init; }
+        public string ThreadPoolTypeName { get; init; }
+        public string Version { get; init; }
     }
     public sealed class SchedulerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerHeaderDto>
     {
-        public SchedulerHeaderDto(string SchedulerName, string SchedulerInstanceId, Quartz.SchedulerStatus Status) { }
-        public string SchedulerInstanceId { get; init; }
+        public SchedulerHeaderDto(string SchedulerName, string? SchedulerInstanceId, Quartz.SchedulerStatus? Status, Quartz.SchedulerOrigin Origin) { }
+        public bool IsCreated { get; }
+        public Quartz.SchedulerOrigin Origin { get; init; }
+        public string? SchedulerInstanceId { get; init; }
         public string SchedulerName { get; init; }
-        public Quartz.SchedulerStatus Status { get; init; }
+        public Quartz.SchedulerStatus? Status { get; init; }
     }
     public sealed class TriggerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.TriggerHeaderDto>
     {

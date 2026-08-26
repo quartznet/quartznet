@@ -43,8 +43,22 @@ namespace Quartz.Dashboard.Services;
 /// </remarks>
 public interface IQuartzApiClient
 {
+    /// <summary>
+    /// Returns every scheduler the container knows about, ordered by name — the registrations included,
+    /// so a scheduler nothing has built yet is listed with a null <see cref="SchedulerHeaderDto.Status" />
+    /// rather than being invisible.
+    /// </summary>
+    /// <remarks>
+    /// Nothing is created by asking. That is why the listing is the registrations rather than the
+    /// repository: an operator enumerating tenants must not start every one of them.
+    /// </remarks>
     ValueTask<List<SchedulerHeaderDto>> GetSchedulers(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Returns one scheduler with the metadata it was built with. Only a scheduler that exists can
+    /// answer; a registration nothing has built is reported by <see cref="GetSchedulers" /> and has no
+    /// detail to read.
+    /// </summary>
     ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default);
 
     ValueTask StartScheduler(string schedulerName, CancellationToken cancellationToken = default);
@@ -230,9 +244,74 @@ public sealed record DashboardHistoryQuery : PagedQuery
     public string? TriggerFilter { get; init; }
 }
 
-public sealed record SchedulerHeaderDto(string SchedulerName, string SchedulerInstanceId, SchedulerStatus Status);
+/// <summary>
+/// One scheduler the container knows about, whether or not anything has built it.
+/// </summary>
+/// <remarks>
+/// <see cref="Status" /> and <see cref="SchedulerInstanceId" /> are null for a registration nothing has
+/// created: there is no scheduler to ask, and listing the registrations must not build one. The rest of
+/// what a built scheduler is made of arrives with <see cref="SchedulerDetailDto" />, which is a read per
+/// scheduler rather than part of the listing.
+/// </remarks>
+/// <param name="SchedulerName">The scheduler's name, spelled as it was registered.</param>
+/// <param name="SchedulerInstanceId">
+/// The instance id of the scheduler behind this registration, or <see langword="null" /> when nothing
+/// has built one.
+/// </param>
+/// <param name="Status">
+/// What state the scheduler is in, or <see langword="null" /> when no scheduler exists under this name.
+/// </param>
+/// <param name="Origin">Where the scheduler came from.</param>
+public sealed record SchedulerHeaderDto(
+    string SchedulerName,
+    string? SchedulerInstanceId,
+    SchedulerStatus? Status,
+    SchedulerOrigin Origin)
+{
+    /// <summary>
+    /// Whether a scheduler exists under this name, which is what decides whether the rest of the
+    /// dashboard has anything to show for it.
+    /// </summary>
+    public bool IsCreated => Status is not null;
+}
 
-public sealed record SchedulerDetailDto(string SchedulerInstanceId, string SchedulerName, SchedulerStatus Status);
+/// <summary>
+/// One scheduler and what it is made of: its identity, its state, and the settings and capabilities
+/// <see cref="SchedulerMetadata" /> reports.
+/// </summary>
+/// <remarks>
+/// The metadata is on the detail rather than on <see cref="SchedulerHeaderDto" /> because reading it is
+/// a call per scheduler — over HTTP for a remote one — while the listing must stay one call.
+/// </remarks>
+/// <param name="SchedulerInstanceId">The scheduler's instance id.</param>
+/// <param name="SchedulerName">The scheduler's name.</param>
+/// <param name="Status">Where the scheduler is in its lifecycle.</param>
+/// <param name="Clustered">
+/// Whether the job store is clustered. This is the answer to "is this scheduler part of a cluster";
+/// the node listing cannot be, because a clustered store whose only node has not finished its first
+/// check-in looks exactly like a store that keeps no check-in state at all.
+/// </param>
+/// <param name="Persistent">Whether the job store survives a restart.</param>
+/// <param name="JobStoreTypeName">The job store's type name, without its assembly version.</param>
+/// <param name="ThreadPoolTypeName">The thread pool's type name, without its assembly version.</param>
+/// <param name="ThreadPoolSize">How many threads the pool has.</param>
+/// <param name="RunningSince">
+/// When the scheduler started, or <see langword="null" /> when it has not been started.
+/// </param>
+/// <param name="JobsExecuted">How many jobs this node has executed since it started.</param>
+/// <param name="Version">The version of Quartz that is running.</param>
+public sealed record SchedulerDetailDto(
+    string SchedulerInstanceId,
+    string SchedulerName,
+    SchedulerStatus Status,
+    bool Clustered,
+    bool Persistent,
+    string JobStoreTypeName,
+    string ThreadPoolTypeName,
+    int ThreadPoolSize,
+    DateTimeOffset? RunningSince,
+    int JobsExecuted,
+    string Version);
 
 public sealed record JobKeyDto(string Group, string Name);
 

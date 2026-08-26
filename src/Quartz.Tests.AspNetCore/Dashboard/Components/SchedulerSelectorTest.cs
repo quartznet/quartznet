@@ -83,6 +83,43 @@ public class SchedulerSelectorTest
             "there is no status to show, and Unknown would claim there is a scheduler in some state");
     }
 
+    /// <summary>
+    /// A registration nothing has built is a tenant the container knows about, so the picker offers it —
+    /// greyed out, because there is nothing behind it to show.
+    /// </summary>
+    /// <remarks>
+    /// It used to be omitted, the listing being the repository's. An operator looking for a tenant that
+    /// had failed to start found no trace of it and no way to tell that from "never registered".
+    /// </remarks>
+    [Test]
+    public void ARegistrationNothingHasBuiltIsOfferedGreyedOutRatherThanOmitted()
+    {
+        GivenSchedulers(TestData.Dashboard.SchedulerHeader("core"), TestData.Dashboard.RegisteredSchedulerHeader("acme"));
+
+        IRenderedComponent<SchedulerSelector> selector = context.Render<SchedulerSelector>();
+
+        selector.TextOfAll("option").Should().Equal(["core", "acme (not created)"]);
+        selector.FindAll("option")[1].HasAttribute("disabled").Should().BeTrue(
+            "there is no scheduler behind the name, so selecting it would only produce an error");
+        context.SchedulerState.ActiveSchedulerName.Should().Be("core",
+            "the dashboard opens on a scheduler that exists when there is one");
+    }
+
+    [Test]
+    public void ASchedulerThatHasNotBeenBuiltShowsTheNotCreatedStateRatherThanAnError()
+    {
+        GivenSchedulers(TestData.Dashboard.RegisteredSchedulerHeader("acme"));
+
+        IRenderedComponent<SchedulerSelector> selector = context.Render<SchedulerSelector>();
+
+        context.SchedulerState.ActiveSchedulerName.Should().Be("acme",
+            "it is the only registration there is, so it is what the dashboard is about");
+        selector.Markup.Should().Contain("Not created",
+            "the listing already said no scheduler exists under this name, so asking for one and "
+            + "reporting the refusal would dress a known state up as a fault");
+        A.CallTo(() => context.Api.GetScheduler("acme", A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
     [Test]
     public void WhileTheSchedulersAreBeingFetchedThePickerSaysSo()
     {
@@ -100,10 +137,22 @@ public class SchedulerSelectorTest
         foreach ((string name, SchedulerStatus status) in schedulers)
         {
             headers.Add(TestData.Dashboard.SchedulerHeader(name, status));
-            A.CallTo(() => context.Api.GetScheduler(name, A<CancellationToken>._))
-                .Returns(TestData.Dashboard.SchedulerDetail(status, name));
         }
 
-        A.CallTo(() => context.Api.GetSchedulers(A<CancellationToken>._)).Returns(headers);
+        GivenSchedulers(headers.ToArray());
+    }
+
+    private void GivenSchedulers(params SchedulerHeaderDto[] schedulers)
+    {
+        foreach (SchedulerHeaderDto scheduler in schedulers)
+        {
+            if (scheduler.Status is { } status)
+            {
+                A.CallTo(() => context.Api.GetScheduler(scheduler.SchedulerName, A<CancellationToken>._))
+                    .Returns(TestData.Dashboard.SchedulerDetail(status, scheduler.SchedulerName));
+            }
+        }
+
+        A.CallTo(() => context.Api.GetSchedulers(A<CancellationToken>._)).Returns(schedulers.ToList());
     }
 }

@@ -17,6 +17,7 @@ public class DashboardRouteTableTest
     [TestCase("triggers", typeof(Pages.Triggers))]
     [TestCase("calendars", typeof(Pages.Calendars))]
     [TestCase("executing", typeof(Pages.CurrentlyExecuting))]
+    [TestCase("schedulers", typeof(Pages.Schedulers))]
     [TestCase("cluster", typeof(Pages.Cluster))]
     [TestCase("history", typeof(Pages.History))]
     [TestCase("history?page=2&job=x", typeof(Pages.History))]

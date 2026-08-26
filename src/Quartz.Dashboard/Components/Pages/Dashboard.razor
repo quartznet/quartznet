@@ -347,14 +347,14 @@
 
     private async Task RefreshSchedulersAsync(string? preferredSchedulerName)
     {
-        IReadOnlyList<SchedulerHeaderDto> schedulers = await Api.GetSchedulers();
+        List<SchedulerHeaderDto> schedulers = await Api.GetSchedulers();
+        Scheduler.AvailableSchedulers = schedulers.AsReadOnly();
+
         List<string> names = [];
         foreach (SchedulerHeaderDto scheduler in schedulers)
         {
             names.Add(scheduler.SchedulerName);
         }
-
-        Scheduler.AvailableSchedulers = names.AsReadOnly();
 
         string? nextActive = preferredSchedulerName;
         if (string.IsNullOrWhiteSpace(nextActive) ||

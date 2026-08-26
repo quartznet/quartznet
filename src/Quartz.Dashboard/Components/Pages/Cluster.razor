@@ -23,7 +23,7 @@
         <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
     }
 
-    @if (IsSingleNodeWithoutClusterState)
+    @if (_isClustered == false)
     {
         <p class="qz-muted">
             This scheduler is not clustered: its job store keeps no check-in state, so the only node is this one.
@@ -102,12 +102,16 @@
     private DateTimeOffset? _lastUpdatedAt;
 
     /// <summary>
-    /// A store that keeps no check-in history reports exactly one node — itself — with no times, which
-    /// is what a non-clustered scheduler looks like from here. There is no separate "clustered" flag to
-    /// read: the node list is the answer, and this is the shape it takes.
+    /// Whether the scheduler's job store is clustered, as the scheduler itself reports it, or null while
+    /// nothing has been read.
     /// </summary>
-    private bool IsSingleNodeWithoutClusterState =>
-        _nodes.Count == 1 && _nodes[0].IsCurrentNode && _nodes[0].LastCheckInUtc is null;
+    /// <remarks>
+    /// This used to be inferred from the node list — one node, current, with no check-in history — which
+    /// is the shape a store that keeps no cluster state takes. It is also the shape a clustered store
+    /// takes for the first check-in interval after a node starts, so the page told an operator their
+    /// brand new cluster was not one. The scheduler's metadata is the answer, and it is never ambiguous.
+    /// </remarks>
+    private bool? _isClustered;
 
     protected override async Task OnInitializedAsync()
     {
@@ -188,9 +192,13 @@
             _firingsByNode.Clear();
             _firingCountsArePartial = false;
             _firingsCounted = 0;
+            _isClustered = null;
 
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {
+                SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName);
+                _isClustered = scheduler.Clustered;
+
                 _nodes.AddRange(await Api.GetClusterNodes(schedulerName));
 
                 // Both states, because the two columns are what a node is holding and what it is

@@ -68,6 +68,7 @@ public static class QuartzDashboardServiceCollectionExtensions
         // application that registers its own IQuartzApiClient first is the one that answers.
         services.TryAddScoped<IQuartzApiClient>(static provider => new InProcessQuartzApiClient(
             provider.GetRequiredService<ISchedulerRepository>(),
+            provider.GetRequiredService<ISchedulerRegistry>(),
             provider.GetRequiredService<IOptions<QuartzDashboardOptions>>(),
             provider.GetRequiredService<IDashboardHistoryStore>()));
         services.TryAddScoped<SchedulerState>();
