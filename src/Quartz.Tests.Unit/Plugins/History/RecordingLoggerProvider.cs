@@ -25,7 +25,7 @@ internal sealed class RecordingLoggerProvider : ILoggerProvider
             Exception exception,
             Func<TState, Exception, string> formatter)
         {
-            provider.Entries.Add(new LogEntry(logLevel, formatter(state, exception), exception));
+            provider.Entries.Add(new LogEntry(logLevel, eventId, formatter(state, exception), exception));
         }
     }
 }
@@ -33,12 +33,14 @@ internal sealed class RecordingLoggerProvider : ILoggerProvider
 internal sealed class LogEntry
 {
     public LogLevel Level { get; }
+    public EventId EventId { get; }
     public string Message { get; }
     public Exception Exception { get; }
 
-    public LogEntry(LogLevel level, string message, Exception exception)
+    public LogEntry(LogLevel level, EventId eventId, string message, Exception exception)
     {
         Level = level;
+        EventId = eventId;
         Message = message;
         Exception = exception;
     }

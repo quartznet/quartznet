@@ -99,4 +99,41 @@ public class LoggingTriggerHistoryPluginTest
 
         loggerProvider.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Information);
     }
+
+    [Test]
+    public async Task ConfiguredMessagesAreRenderedVerbatimAndCarryAnEventIdOfTheirOwn()
+    {
+        plugin.TriggerFiredMessage = "fired {1}.{0} for {6}.{5}";
+        plugin.TriggerMisfiredMessage = "misfired {1}.{0} for {6}.{5}";
+        plugin.TriggerCompleteMessage = "completed {1}.{0} with {9}";
+
+        IOperableTrigger t = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("triggerName", "triggerGroup")
+            .WithSchedule(SimpleScheduleBuilder.Create())
+            .Build();
+
+        t.JobKey = new JobKey("jobName", "jobGroup");
+
+        IJobExecutionContext ctx = new JobExecutionContextImpl(
+            null,
+            TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t),
+            null);
+
+        await plugin.TriggerFired(t, ctx);
+        await plugin.TriggerMisfired(A.Fake<IScheduler>(), t);
+        await plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
+
+        (int EventId, string Message)[] expected =
+        [
+            (6010, "fired triggerGroup.triggerName for jobGroup.jobName"),
+            (6011, "misfired triggerGroup.triggerName for jobGroup.jobName"),
+            (6012, "completed triggerGroup.triggerName with RE-EXECUTE JOB"),
+        ];
+
+        loggerProvider.Entries.Select(x => (EventId: x.EventId.Id, x.Message)).Should().Equal(
+            expected,
+            "the template is the user's and is formatted here, so passing the result through a degenerate "
+            + "\"{Message}\" event has to leave the text a sink renders exactly as it was - and the three "
+            + "occurrences have to stay separately filterable, which is what an id per occurrence buys");
+    }
 }

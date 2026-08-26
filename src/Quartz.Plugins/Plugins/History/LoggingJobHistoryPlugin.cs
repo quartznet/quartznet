@@ -365,7 +365,7 @@ public sealed class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             context.RefireCount
         ];
 
-        WriteInformation(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
+        logger.JobToBeFired(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
         return default;
     }
 
@@ -403,7 +403,7 @@ public sealed class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
                 errMsg
             ];
 
-            WriteWarning(string.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
+            logger.JobFailed(string.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
         }
         else
         {
@@ -419,7 +419,7 @@ public sealed class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
                 trigger.PreviousFireTimeUtc, trigger.NextFireTimeUtc, context.RefireCount, result
             ];
 
-            WriteInformation(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
+            logger.JobSucceeded(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
         }
         return default;
     }
@@ -454,21 +454,7 @@ public sealed class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             context.RefireCount
         ];
 
-        WriteInformation(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
+        logger.JobVetoed(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
         return default;
-    }
-
-    private void WriteInformation(string message)
-    {
-#pragma warning disable CA2254
-        logger.LogInformation(message);
-#pragma warning restore CA2254
-    }
-
-    private void WriteWarning(string message, Exception ex)
-    {
-#pragma warning disable CA2254
-        logger.LogWarning(ex, message);
-#pragma warning restore CA2254
     }
 }

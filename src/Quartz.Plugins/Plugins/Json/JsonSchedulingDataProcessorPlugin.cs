@@ -88,7 +88,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         Name = pluginName;
         Scheduler = scheduler;
 
-        logger.LogInformation("Registering Quartz JSON Job Initialization Plug-in");
+        logger.PluginRegistered();
 
         var tokens = FileNames
             .Split([FileNameDelimiter], StringSplitOptions.RemoveEmptyEntries)
@@ -138,7 +138,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
                         job.JobDataMap[FileScanJob.FileScanListenerName] = PluginName + '_' + Name;
 
                         await Scheduler.ScheduleJob(job, trig, cancellationToken).ConfigureAwait(false);
-                        logger.LogDebug("Scheduled file scan job for data file: {FileName}, at interval: {ScanInterval}", jobFile.FileName, ScanInterval);
+                        logger.FileScanJobScheduled(jobFile.FileName, ScanInterval);
                     }
 
                     await ProcessFile(jobFile, cancellationToken).ConfigureAwait(false);
@@ -148,7 +148,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         catch (SchedulerException ex)
         {
             if (FailOnSchedulingError) throw;
-            logger.LogError(ex, "Error starting background-task for watching JSON jobs file");
+            logger.FileWatchStartFailed(ex);
         }
         finally
         {
@@ -210,7 +210,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
             var message = "Could not schedule jobs and triggers from JSON file " + jobFile.FileName + ": " + e.Message;
             var schedulerException = new SchedulerException(message, e);
 
-            logger.LogError(e, "Could not schedule jobs and triggers from JSON file {FileName}", jobFile.FileName);
+            logger.FileProcessingFailed(jobFile.FileName, e);
 
             // No keys: the file names many jobs and triggers, and the failure is the file rather than
             // any one of them.
@@ -229,7 +229,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error while notifying SchedulerListener of error");
+                    logger.ListenerNotificationOfErrorFailed(ex);
                 }
             }
 
@@ -275,7 +275,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
                 if (f is null)
                 {
                     if (plugin.FailOnFileNotFound) throw new SchedulerException("File named '" + FileName + "' does not exist.");
-                    else plugin.logger.LogWarning("File named '{FileName}' does not exist", FileName);
+                    else plugin.logger.FileNotFound(FileName);
                 }
                 else
                 {
@@ -288,7 +288,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
             finally
             {
                 try { f?.Dispose(); }
-                catch (IOException ioe) { plugin.logger.LogWarning(ioe, "Error closing jobs file {FileName}", FileName); }
+                catch (IOException ioe) { plugin.logger.FileCloseFailed(FileName, ioe); }
             }
 
             return Task.CompletedTask;

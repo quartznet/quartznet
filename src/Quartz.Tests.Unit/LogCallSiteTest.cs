@@ -14,7 +14,7 @@ namespace Quartz.Tests.Unit;
 /// for — the same job <c>SourceEncodingTest</c> does for byte-order marks.
 /// </para>
 /// <para>
-/// Only <c>src/Quartz/</c> is covered so far. <c>Quartz.Plugins</c>, <c>Quartz.Jobs</c> and
+/// <c>src/Quartz/</c> and <c>src/Quartz.Plugins/</c> are covered so far. <c>Quartz.Jobs</c> and
 /// <c>Quartz.Extensions.Redis</c> join <see cref="Converted" /> as their own conversions land (#3414);
 /// tests, examples and the documentation samples are deliberately never covered, because a plain call
 /// is the right thing to write in all three.
@@ -25,7 +25,7 @@ public class LogCallSiteTest
     /// <summary>
     /// The projects whose logging has been converted, relative to the repository root.
     /// </summary>
-    private static readonly string[] Converted = ["src/Quartz"];
+    private static readonly string[] Converted = ["src/Quartz", "src/Quartz.Plugins"];
 
     /// <summary>
     /// Build output and tool caches, which hold the generator's own output among other things.
@@ -33,11 +33,21 @@ public class LogCallSiteTest
     private static readonly string[] NotSearched = ["bin", "obj", "node_modules", "TestResults", ".vs"];
 
     /// <summary>
-    /// Call sites that may keep a plain call, each with the reason it is allowed one. Empty, and
-    /// meant to stay that way — an entry here is a promise that the site has been looked at, not a
-    /// place to put one that has not.
+    /// Call sites that may keep a plain call, each with the reason it is allowed one. An entry here is
+    /// a promise that the site has been looked at, not a place to put one that has not.
     /// </summary>
-    private static readonly (string Path, string Reason)[] Allowed = [];
+    private static readonly (string Path, string Reason)[] Allowed =
+    [
+        ("src/Quartz.Plugins/Plugins/History/StructuredLoggingJobHistoryPlugin.cs",
+            "the message template is the user's, configured at run time, and its placeholders are named "
+            + "- the whole point of this plugin is that a structured sink receives them as properties. A "
+            + "[LoggerMessage] template is fixed at compile time, and rendering the template here first "
+            + "would flatten exactly what the plugin exists to preserve. Every call is already behind an "
+            + "IsEnabled check"),
+        ("src/Quartz.Plugins/Plugins/History/StructuredLoggingTriggerHistoryPlugin.cs",
+            "same as StructuredLoggingJobHistoryPlugin: the configured template's named placeholders are "
+            + "the plugin's reason to exist, and they cannot survive a compile-time template"),
+    ];
 
     /// <summary>
     /// The generated classes themselves, whose whole job is to hold the logging.
@@ -88,6 +98,29 @@ public class LogCallSiteTest
             + "Add the event to the *Log class beside the caller, taking the next id in that area's range, "
             + "and call it. A site that genuinely cannot go through one belongs in this test's allow-list, "
             + "with the reason written down");
+    }
+
+    /// <summary>
+    /// An allow-list entry stops being a considered exception the moment its file stops making a plain
+    /// call: from then on it is a hole nobody decided to leave open, and the next plain call written into
+    /// that file walks straight through it.
+    /// </summary>
+    [Test]
+    public void AllowListCarriesNoEntryThatHasServedItsPurpose()
+    {
+        DirectoryInfo root = RepositoryRoot.Find();
+
+        foreach ((string path, string reason) in Allowed)
+        {
+            FileInfo file = new(Path.Combine(root.FullName, path.Replace('/', Path.DirectorySeparatorChar)));
+
+            file.Exists.Should().BeTrue(
+                $"the allow-list excuses {path}, so that has to be a file this repository still has");
+
+            PlainLogCall.IsMatch(File.ReadAllText(file.FullName)).Should().BeTrue(
+                $"{path} is on the allow-list because {reason}. It no longer calls ILogger directly, so the "
+                + "entry excuses nothing and should be deleted before it starts excusing something else");
+        }
     }
 
     private static IEnumerable<FileInfo> Discover(DirectoryInfo directory)
