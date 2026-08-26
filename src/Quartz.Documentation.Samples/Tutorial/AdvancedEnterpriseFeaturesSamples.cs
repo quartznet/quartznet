@@ -49,6 +49,50 @@ public static class AdvancedEnterpriseFeaturesSamples
         #endregion
     }
 
+    public static async Task SeeingTheCluster(IScheduler scheduler)
+    {
+        #region sample_advanced_cluster_nodes
+
+        List<ClusterNode> nodes = await scheduler.QueryClusterNodes();
+
+        foreach (ClusterNode node in nodes)
+        {
+            string marker = node.IsCurrentNode ? " (this node)" : "";
+            Console.WriteLine($"{node.InstanceId}{marker}: {node.State}, last check-in {node.LastCheckInUtc:u}");
+        }
+
+        // The verdicts come from the same predicate the failover sweep applies, so a node reported
+        // Failed is one whose in-flight work the cluster is about to take over.
+        List<ClusterNode> failed = nodes.FindAll(node => node.State == ClusterNodeState.Failed);
+
+        #endregion
+
+        _ = failed;
+    }
+
+    public static async Task WhatEachNodeIsRunning(IScheduler scheduler)
+    {
+        #region sample_advanced_cluster_node_firings
+
+        List<ClusterNode> nodes = await scheduler.QueryClusterNodes();
+        PagedResult<FireInstance> firings = await scheduler.QueryFireInstances(new FireInstanceQuery
+        {
+            // both states: what a node is holding is as interesting as what it is running, and a
+            // reservation left behind by a dead node is what recovery is about to clear
+            State = null
+        });
+
+        foreach (ClusterNode node in nodes)
+        {
+            int running = firings.Items.Count(firing =>
+                firing.SchedulerInstanceId == node.InstanceId && firing.State == FireInstanceState.Executing);
+
+            Console.WriteLine($"{node.InstanceId} ({node.State}) is running {running} job(s)");
+        }
+
+        #endregion
+    }
+
     public static void BatchAcquisition(IServiceCollection services)
     {
         services.AddQuartz(q =>

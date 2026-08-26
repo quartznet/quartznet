@@ -133,3 +133,65 @@ schedule with second-level precision is a behaviour change, not a tuning knob.
 `MaxBatchSize` may not exceed the thread pool's `MaxConcurrency`, and is rejected at startup if it does:
 triggers acquired beyond the number of threads available to run them are held by this node, unfireable
 by any other, until the pool drains.
+
+## Seeing the cluster
+
+`QRTZ_SCHEDULER_STATE` is where the check-ins land, and `IScheduler.QueryClusterNodes()` is how to read
+it without writing SQL:
+
+<!-- snippet: sample_advanced_cluster_nodes -->
+```csharp
+List<ClusterNode> nodes = await scheduler.QueryClusterNodes();
+
+foreach (ClusterNode node in nodes)
+{
+    string marker = node.IsCurrentNode ? " (this node)" : "";
+    Console.WriteLine($"{node.InstanceId}{marker}: {node.State}, last check-in {node.LastCheckInUtc:u}");
+}
+
+// The verdicts come from the same predicate the failover sweep applies, so a node reported
+// Failed is one whose in-flight work the cluster is about to take over.
+List<ClusterNode> failed = nodes.FindAll(node => node.State == ClusterNodeState.Failed);
+```
+<!-- endSnippet -->
+
+Each `ClusterNode` carries the node's `InstanceId`, its `LastCheckInUtc`, the `CheckInInterval` that
+node was configured with, whether it `IsCurrentNode`, and a `State` of `Alive`, `Overdue` or `Failed`.
+The list is the node answering first, then the rest by instance id, and the node answering is always in
+it — even before its first check-in has written a row.
+
+The verdict is decided by the same predicate the failover sweep uses, so the listing and the recovery
+it predicts cannot disagree: `Failed` means the next check-in pass will take this node's work over and
+delete its row, which is why a corpse is reported for a while and then disappears. `Overdue` is a missed
+check-in and nothing more; nothing is recovered from an overdue node. The verdicts are what *this* node
+believes, read off its own clock — which is another reason the clocks have to agree.
+
+A scheduler that is not clustered answers with the one node it is, `Alive`, and both times `null`:
+there is no check-in history because there is nobody to keep one for. That is the honest answer rather
+than an empty list, so a caller need not branch on whether clustering is on.
+
+To see what each node is doing, join the listing to `QueryFireInstances` on `SchedulerInstanceId`:
+
+<!-- snippet: sample_advanced_cluster_node_firings -->
+```csharp
+List<ClusterNode> nodes = await scheduler.QueryClusterNodes();
+PagedResult<FireInstance> firings = await scheduler.QueryFireInstances(new FireInstanceQuery
+{
+    // both states: what a node is holding is as interesting as what it is running, and a
+    // reservation left behind by a dead node is what recovery is about to clear
+    State = null
+});
+
+foreach (ClusterNode node in nodes)
+{
+    int running = firings.Items.Count(firing =>
+        firing.SchedulerInstanceId == node.InstanceId && firing.State == FireInstanceState.Executing);
+
+    Console.WriteLine($"{node.InstanceId} ({node.State}) is running {running} job(s)");
+}
+```
+<!-- endSnippet -->
+
+The same listing is behind `GET /schedulers/{name}/nodes` in the
+[HTTP API](../packages/http-api.md#cluster-nodes) and the Cluster page of the
+[dashboard](../packages/dashboard.md).

@@ -263,7 +263,11 @@ PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery
 that leaves it unset gets the same page size the server would have chosen.
 
 `QueryFireInstances` works the same way and is how a remote console shows what is running — across the
-whole cluster, since the listing is store-backed.
+whole cluster, since the listing is store-backed. `QueryClusterNodes` is its companion and takes no
+query at all: it reads `GET …/schedulers/{name}/nodes` and answers with the nodes themselves, the one
+that served the request first. "Current node" therefore means current on the *server*, not on the
+client — the client has no identity in the cluster — so the order arrives as the server chose it and is
+not re-sorted here.
 
 Bulk fetch posts the keys back:
 

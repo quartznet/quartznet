@@ -3537,6 +3537,7 @@ already have them.
 * **Paged, projected job store queries** — list and count jobs, triggers, groups and calendars a page at a time, with the metadata a listing needs already in the row (see [Job store listings became queries](#job-store-listings-became-queries))
 * **Bulk fetch by key** — `GetJobDetails(keys)` and `GetTriggers(keys)` turn a page of keys into one round trip, over ADO.NET and over HTTP alike (see [Job store listings became queries](#job-store-listings-became-queries))
 * **Fire instances are a listing** — `QueryFireInstances` answers what is running as a paged, projected query that a persistent store answers for the whole cluster, where `GetCurrentlyExecutingJobs` could only speak for this process (see [What is running is a listing, not a list of contexts](#what-is-running-is-a-listing-not-a-list-of-contexts))
+* **The nodes of a cluster can be listed** — `QueryClusterNodes` reports every node the store knows about, with the same `Alive`/`Overdue`/`Failed` verdict the failover sweep decides recovery by. On 3.x nothing in the product read `QRTZ_SCHEDULER_STATE`, so "which of my four nodes is alive" was a question answered by hand-written SQL (see [The nodes of a cluster are a listing](#the-nodes-of-a-cluster-are-a-listing))
 * **Job data by property name** — bind job data to the job property it is meant for instead of spelling its key (see [Job data can name the property](#job-data-can-name-the-property))
 * **`TriggerState.Executing`** — tell whether a trigger's job is running, across the whole cluster (see [Executing is a trigger state](#executing-is-a-trigger-state))
 * **`JobInstantiationException`** — a job that could not be built names the trigger, the job and the fire instance instead of only interpolating the job key into a message (see [Instantiation failures name the trigger](#instantiation-failures-name-the-trigger))
@@ -3919,8 +3920,10 @@ The scheduler body's `statistics` object gained `localExecutingJobs`, mirroring 
 
 ### If you implement `IJobStore`
 
-Two members. `QueryFireInstances(FireInstanceQuery, CancellationToken)` is the listing, abstract like the
-rest of the query family. And `Initialize` now takes a `SchedulerIdentity`:
+Three members. `QueryFireInstances(FireInstanceQuery, CancellationToken)` is the listing, abstract like
+the rest of the query family; `QueryClusterNodes(CancellationToken)` is the node listing described in
+[The nodes of a cluster are a listing](#the-nodes-of-a-cluster-are-a-listing). And `Initialize` now
+takes a `SchedulerIdentity`:
 
 ```diff
 - ValueTask Initialize(CancellationToken cancellationToken = default);
@@ -3946,6 +3949,42 @@ rest unrecovered.
 `QRTZ_FIRED_TRIGGERS.EXECUTION_GROUP` is now live: written by the fired-trigger insert and update, read
 back into `FireInstance.ExecutionGroup`. **No schema change** — the column has shipped on every dialect
 since 3.18 — but rows written by an earlier 4.0 preview hold `NULL`.
+
+## The nodes of a cluster are a listing
+
+Nothing in 3.x read `QRTZ_SCHEDULER_STATE`. The table was written on every check-in and swept by the
+failover pass, and that was the whole of it: an operator asking which of four nodes was alive ran SQL by
+hand, because `SchedulerMetadata.JobStoreClustered` — a `bool` saying clustering is *on* — was the only
+cluster fact the API exposed.
+
+```csharp
+List<ClusterNode> nodes = await scheduler.QueryClusterNodes();
+```
+
+`ClusterNode` is `InstanceId`, `LastCheckInUtc`, `CheckInInterval`, a `ClusterNodeState` of `Alive`,
+`Overdue` or `Failed`, and `IsCurrentNode`. The node answering is first, always present — even before
+its first check-in has written a row — and the only one whose `IsCurrentNode` is `true`; the rest follow
+by instance id. The state is decided by the same predicate the recovery sweep applies, so the listing
+and the failover it predicts cannot disagree, and the two times are `null` rather than zero when the
+store keeps no check-in history. **`null` is not the epoch**: a reader that falls back to
+`DateTimeOffset.MinValue` will draw a node that has been dead since year one.
+
+A scheduler that is not clustered answers with the one node it is, `Alive` and with no times, rather
+than with an empty list, so a caller need not branch on whether clustering is on. See
+[Seeing the cluster](tutorial/advanced-enterprise-features.md#seeing-the-cluster).
+
+`SchedulerStateRecord` is unchanged and stays the ADO.NET store's own row shape, the way
+`FiredTriggerRecord` sits beside `FireInstance`; `ClusterNode` is the store-neutral projection.
+
+| Where | What is new |
+|---|---|
+| `IScheduler` | `ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)` — implement it if you have an `IScheduler` of your own; `DelegatingScheduler` forwards it for you |
+| `IJobStore` | `ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)` — a plain member, so a store of your own must implement it. A store with no cluster state answers with one node: itself, `Alive`, both times `null` |
+| HTTP API | `GET {ApiPath}/schedulers/{name}/nodes`, unpaged, and `HttpScheduler.QueryClusterNodes` reads it (see [Cluster nodes](packages/http-api.md#cluster-nodes)) |
+| Dashboard | `IQuartzApiClient.GetClusterNodes(name, CancellationToken)`, and a **Cluster** page at `/quartz/cluster` |
+
+Neither member touches the schema, and neither writes anything: `QueryClusterNodes` is a read of the
+rows the check-in loop already keeps.
 
 ## An unset execution group can be the trigger's group
 
@@ -5900,6 +5939,7 @@ already had `JobKeyDto` and `TriggerKeyDto`. Now it says what Quartz says:
 | `GetHistory(JobHistoryQueryDto)` → `JobHistoryPageDto` (a `JsonElement`) | `GetHistory(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>?` |
 | `GetCurrentlyExecutingJobs(name)` → `List<CurrentlyExecutingJobDto>` | `GetFireInstances(name, DashboardFireInstanceQuery)` → `PagedResult<FireInstanceDto>`, following `IScheduler` — see [What is running is a listing, not a list of contexts](#what-is-running-is-a-listing-not-a-list-of-contexts) |
 | `CurrentlyExecutingJobDto` | `FireInstanceDto`: `FireInstanceId` is non-null and leads, `JobKey` is nullable (an acquired firing has no job loaded yet), and `SchedulerInstanceId`, `FireInstanceState State` and `ScheduledFireTimeUtc` are new |
+| — | `GetClusterNodes(name)` → `List<ClusterNodeDto>` (new), behind the **Cluster** page — see [The nodes of a cluster are a listing](#the-nodes-of-a-cluster-are-a-listing) |
 | `IsJobGroupPaused(name, group)` → `bool` | `GetJobGroups(name)` → `List<JobGroupDto>`, each carrying `Name` and `Paused`; one call answers for every group instead of one |
 | `ExecutionLimitsDto(IReadOnlyDictionary<string, int?> Limits)` | `ExecutionLimitsDto(Dictionary<string, DashboardExecutionLimit> Limits)` — concrete out, as everywhere else, and each entry carries the limit's [scope](#an-execution-limit-can-be-cluster-wide) as well as its number |
 | `IDashboardHistoryStore.GetPage(name, page, pageSize, jobFilter, triggerFilter)` → `DashboardHistoryPage` | `GetPage(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>` |

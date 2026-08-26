@@ -216,6 +216,10 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 - Job details and trigger details pages
 - Currently executing jobs view — cluster-wide with a persistent job store, showing which node owns each
   execution, and interrupting the one execution a row names rather than every execution of its job
+- Cluster view at `/quartz/cluster` — one row per node with its state (`Alive`, `Overdue`, `Failed`),
+  its last check-in in the selected time zone and as a relative time, its check-in interval, and how
+  many firings it is holding and running; the node answering is marked, and a scheduler whose store
+  keeps no cluster state says so rather than showing an empty table
 - Live event/log stream for scheduler activity, fed by plugins `AddQuartzDashboard` installs on every
   scheduler in the container — so a named scheduler streams its own events, each plugin instance
   initialized with the name of the scheduler it belongs to
