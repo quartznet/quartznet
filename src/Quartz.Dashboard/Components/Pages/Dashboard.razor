@@ -44,6 +44,9 @@
             <StatCard Title="Total Triggers" Value="@_totalTriggers.ToString()" Icon="⏱️" Color="info" />
             <StatCard Title="Currently Executing" Value="@_currentlyExecuting.ToString()" Icon="▶" Color="success" />
             <StatCard Title="Error Triggers" Value="@_errorTriggers.ToString()" Icon="⚠" Color="error" />
+            <a class="qz-stat-card-link" href="@DashboardLink.To(Options.Value, "cluster")">
+                <StatCard Title="Nodes" Value="@NodesStatValue" Icon="🖧" Color="@NodesStatColor" />
+            </a>
         </div>
 
         <section class="qz-section">
@@ -96,11 +99,23 @@
     private int _totalTriggers;
     private int _currentlyExecuting;
     private int _errorTriggers;
+    private int _nodes;
+    private int _unhealthyNodes;
     private readonly List<DashboardActionLogEntry> _recentActions = [];
     private bool _showShutdownConfirm;
     private PeriodicTimer? _executingRefreshTimer;
     private CancellationTokenSource? _executingRefreshCancellation;
     private bool IsReadOnly => Options.Value.ReadOnly;
+
+    /// <summary>
+    /// The node count, with the number that are not <see cref="ClusterNodeState.Alive" /> beside it
+    /// when there are any — a cluster of four is only news when one of them has stopped checking in.
+    /// </summary>
+    private string NodesStatValue => _unhealthyNodes == 0
+        ? _nodes.ToString()
+        : $"{_nodes} ({_unhealthyNodes} overdue/failed)";
+
+    private string NodesStatColor => _unhealthyNodes == 0 ? "info" : "error";
 
     protected override async Task OnInitializedAsync()
     {
@@ -132,6 +147,8 @@
                 _totalJobs = 0;
                 _totalTriggers = 0;
                 _currentlyExecuting = 0;
+                _nodes = 0;
+                _unhealthyNodes = 0;
                 _recentActions.Clear();
                 return;
             }
@@ -145,10 +162,14 @@
             PagedResult<TriggerHeaderDto> errorTriggers = await Api.GetTriggers(schedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Error });
             PagedResult<FireInstanceDto> executing = await Api.GetFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 });
 
+            List<ClusterNodeDto> nodes = await Api.GetClusterNodes(schedulerName);
+
             _totalJobs = jobs.TotalCount ?? 0;
             _totalTriggers = triggers.TotalCount ?? 0;
             _currentlyExecuting = executing.TotalCount ?? 0;
             _errorTriggers = errorTriggers.TotalCount ?? 0;
+            _nodes = nodes.Count;
+            _unhealthyNodes = nodes.Count(node => node.State != ClusterNodeState.Alive);
 
             RefreshRecentActions(schedulerName);
         }

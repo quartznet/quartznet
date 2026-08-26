@@ -245,6 +245,25 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new PagedResult<FireInstanceDto>(items, page.HasMore, page.TotalCount ?? items.Count);
     }
 
+    public async ValueTask<List<ClusterNodeDto>> GetClusterNodes(string schedulerName, CancellationToken cancellationToken = default)
+    {
+        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
+        List<ClusterNode> nodes = await scheduler.QueryClusterNodes(cancellationToken).ConfigureAwait(false);
+
+        List<ClusterNodeDto> items = new(nodes.Count);
+        foreach (ClusterNode node in nodes)
+        {
+            items.Add(new ClusterNodeDto(
+                InstanceId: node.InstanceId,
+                LastCheckInUtc: node.LastCheckInUtc,
+                CheckInInterval: node.CheckInInterval,
+                State: node.State,
+                IsCurrentNode: node.IsCurrentNode));
+        }
+
+        return items;
+    }
+
     public ValueTask<bool> PauseJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         EnsureWritable();

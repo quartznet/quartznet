@@ -123,6 +123,15 @@ namespace Quartz.Dashboard.Services
         public bool Replace { get; init; }
         public bool? StoreNonDurableWhileAwaitingScheduling { get; init; }
     }
+    public sealed class ClusterNodeDto : System.IEquatable<Quartz.Dashboard.Services.ClusterNodeDto>
+    {
+        public ClusterNodeDto(string InstanceId, System.DateTimeOffset? LastCheckInUtc, System.TimeSpan? CheckInInterval, Quartz.ClusterNodeState State, bool IsCurrentNode) { }
+        public System.TimeSpan? CheckInInterval { get; init; }
+        public string InstanceId { get; init; }
+        public bool IsCurrentNode { get; init; }
+        public System.DateTimeOffset? LastCheckInUtc { get; init; }
+        public Quartz.ClusterNodeState State { get; init; }
+    }
     public readonly struct DashboardExecutionLimit : System.IEquatable<Quartz.Dashboard.Services.DashboardExecutionLimit>
     {
         public DashboardExecutionLimit(int? MaxConcurrent, Quartz.ExecutionLimitScope Scope) { }
@@ -196,6 +205,7 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask DeleteJob(string schedulerName, Quartz.Dashboard.Services.JobKeyDto jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.ICalendar> GetCalendar(string schedulerName, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> GetCalendarNames(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.ClusterNodeDto>> GetClusterNodes(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.FireInstanceDto>> GetFireInstances(string schedulerName, Quartz.Dashboard.Services.DashboardFireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.Dashboard.Services.DashboardHistoryEntry>?> GetHistory(Quartz.Dashboard.Services.DashboardHistoryQuery query, System.Threading.CancellationToken cancellationToken = default);

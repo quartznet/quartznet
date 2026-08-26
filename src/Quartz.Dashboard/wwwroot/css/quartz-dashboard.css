@@ -599,6 +599,14 @@
     color: var(--qz-color-info);
 }
 
+/* A stat card that is also a link to the page it summarises: the anchor carries no styling of its
+   own, so the card inside it looks the same as one that is not a link. */
+.qz-stat-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
 .qz-stat-card-info {
     --qz-stat-accent: var(--qz-color-info);
     --qz-stat-accent-bg: var(--qz-color-info-bg);
