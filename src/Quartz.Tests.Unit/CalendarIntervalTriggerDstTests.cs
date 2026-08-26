@@ -157,6 +157,95 @@ public class CalendarIntervalTriggerDstTests
     }
 
     /// <summary>
+    /// The spring-forward counterpart of <see cref="PreserveHour_FallBack_FiresOnceAtScheduledLocalHour" />,
+    /// which the fall-back grid above covers and nothing covered here until now: on a day the scheduled
+    /// wall clock does not have, the trigger crawls forward a minute at a time to the first instant the
+    /// day does have, and the occurrence after that is back at the scheduled wall clock under the new
+    /// (daylight) offset.
+    /// </summary>
+    [TestCase(IntervalUnit.Day, "2024-03-08 02:30 -05:00", "2024-03-12 00:00 -04:00", "2024-03-11 02:30 -04:00")]
+    [TestCase(IntervalUnit.Week, "2024-03-03 02:30 -05:00", "2024-03-18 00:00 -04:00", "2024-03-17 02:30 -04:00")]
+    [TestCase(IntervalUnit.Month, "2024-02-10 02:30 -05:00", "2024-04-11 00:00 -04:00", "2024-04-10 02:30 -04:00")]
+    [TestCase(IntervalUnit.Year, "2023-03-10 02:30 -05:00", "2025-03-11 00:00 -04:00", "2025-03-10 02:30 -04:00")]
+    public void PreserveHour_SpringForward_CrawlsToTheFirstMinuteTheDayHas(
+        IntervalUnit unit,
+        string start,
+        string untilExclusive,
+        string followingOccurrence)
+    {
+        TimeZoneInfo zone = TestTimeZones.Eastern;
+        TestTimeZones.AssumeInvalidLocalTime(zone, new DateTime(2024, 3, 10, 2, 30, 0));
+
+        // each start is chosen so that one occurrence lands on the spring-forward day 2024-03-10:
+        // daily from two days before, weekly from the previous Sunday, monthly/yearly from the same
+        // day-of-month one period earlier. All of them are on -05:00, the pre-transition offset.
+        CalendarIntervalTriggerImpl trigger = CreateTrigger(
+            zone,
+            unit,
+            interval: 1,
+            TestTimeZones.Local(start),
+            preserveHourOfDay: true,
+            skipDayIfHourDoesNotExist: false);
+
+        List<DateTimeOffset> fires = WalkFrom(trigger, TestTimeZones.Local(start), TestTimeZones.Local(untilExclusive));
+
+        List<DateTimeOffset> onTransitionDay = fires
+            .Where(fireTime => TimeZoneInfo.ConvertTime(fireTime, zone).Date == new DateTime(2024, 3, 10))
+            .ToList();
+
+        // 02:30 does not exist on 2024-03-10, so the trigger crawls forward minute by minute and lands
+        // on 03:00, the first wall clock the day actually has.
+        onTransitionDay.Should().Equal(TestTimeZones.Local("2024-03-10 03:00 -04:00"));
+
+        int transitionIndex = fires.IndexOf(onTransitionDay[0]);
+        fires.Should().HaveCountGreaterThan(transitionIndex + 1, "the walk window must extend past the transition day");
+
+        DateTimeOffset next = fires[transitionIndex + 1];
+        next.Should().Be(TestTimeZones.Local(followingOccurrence));
+
+        DateTimeOffset nextLocal = TimeZoneInfo.ConvertTime(next, zone);
+        nextLocal.TimeOfDay.Should().Be(new TimeSpan(2, 30, 0),
+            "the crawl applies to the transition day alone; the scheduled wall-clock time is preserved after it");
+        nextLocal.Offset.Should().Be(TimeSpan.FromHours(-4), "the zone is on daylight time after the spring forward");
+    }
+
+    /// <summary>
+    /// The flag that the fall-back grid proves is a no-op is exactly what this direction is for: with
+    /// <c>SkipDayIfHourDoesNotExist</c> set, the day whose scheduled wall clock does not exist produces
+    /// no fire at all, and the schedule resumes at the next period.
+    /// </summary>
+    [TestCase(IntervalUnit.Day, "2024-03-08 02:30 -05:00", "2024-03-12 00:00 -04:00", "2024-03-11 02:30 -04:00")]
+    [TestCase(IntervalUnit.Week, "2024-03-03 02:30 -05:00", "2024-03-18 00:00 -04:00", "2024-03-17 02:30 -04:00")]
+    [TestCase(IntervalUnit.Month, "2024-02-10 02:30 -05:00", "2024-04-11 00:00 -04:00", "2024-04-10 02:30 -04:00")]
+    [TestCase(IntervalUnit.Year, "2023-03-10 02:30 -05:00", "2025-03-11 00:00 -04:00", "2025-03-10 02:30 -04:00")]
+    public void PreserveHour_SkipDayFlag_SpringForward_DropsTheDay(
+        IntervalUnit unit,
+        string start,
+        string untilExclusive,
+        string followingOccurrence)
+    {
+        TimeZoneInfo zone = TestTimeZones.Eastern;
+        TestTimeZones.AssumeInvalidLocalTime(zone, new DateTime(2024, 3, 10, 2, 30, 0));
+
+        CalendarIntervalTriggerImpl trigger = CreateTrigger(
+            zone,
+            unit,
+            interval: 1,
+            TestTimeZones.Local(start),
+            preserveHourOfDay: true,
+            skipDayIfHourDoesNotExist: true);
+
+        List<DateTimeOffset> fires = WalkFrom(trigger, TestTimeZones.Local(start), TestTimeZones.Local(untilExclusive));
+
+        fires.Should().NotContain(
+            fireTime => TimeZoneInfo.ConvertTime(fireTime, zone).Date == new DateTime(2024, 3, 10),
+            "the flag says to skip a day whose scheduled hour does not exist rather than to crawl past the gap");
+
+        fires[^1].Should().Be(TestTimeZones.Local(followingOccurrence),
+            "the schedule resumes at its next period, at the scheduled wall clock under the daylight offset");
+    }
+
+    /// <summary>
     /// Sub-day units are pure elapsed-time arithmetic off the start instant, so a DST transition is
     /// simply not visible to them: the spacing between consecutive fires stays exactly the configured
     /// interval in both directions, and the repeated hour shows up only as a 25 hour local day.
@@ -407,6 +496,48 @@ public class CalendarIntervalTriggerDstTests
             TestTimeZones.Local("2024-04-09 01:30 +10:00"));
 
         AssertConstantUtcSpacing(sydneyFires, TimeSpan.FromHours(24));
+    }
+
+    /// <summary>
+    /// PINNED DELIBERATELY - the default configuration in a zone whose delta is not a whole hour.
+    ///
+    /// The drift the test above pins is a drift of exactly the transition delta, not of an hour: on
+    /// Lord Howe Island a daily schedule left at the default <c>PreserveHourOfDayAcrossDaylightSavings
+    /// = false</c> slides by the thirty minutes the island's clocks move, in whichever direction they
+    /// move. Consecutive fires stay exactly 24 hours apart in UTC either way, which is the property
+    /// that produces the drift.
+    /// </summary>
+    [TestCase("2024-10-04 02:01 +10:30", "2024-10-09 00:00 +11:00", "2024-10-06 02:31 +11:00", "2024-10-07 02:31 +11:00")]
+    [TestCase("2024-04-05 02:01 +11:00", "2024-04-10 00:00 +10:30", "2024-04-07 01:31 +10:30", "2024-04-08 01:31 +10:30")]
+    public void NoPreserveHour_LordHoweHalfHourDelta_DriftsByTheHalfHour(
+        string start,
+        string untilExclusive,
+        string transitionDayFire,
+        string dayAfterFire)
+    {
+        TimeZoneInfo zone = TestTimeZones.LordHowe;
+        TestTimeZones.AssumeInvalidLocalTime(zone, new DateTime(2024, 10, 6, 2, 15, 0));
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, new DateTime(2024, 4, 7, 1, 45, 0));
+
+        CalendarIntervalTriggerImpl trigger = CreateTrigger(
+            zone,
+            IntervalUnit.Day,
+            interval: 1,
+            TestTimeZones.Local(start),
+            preserveHourOfDay: false,
+            skipDayIfHourDoesNotExist: false);
+
+        List<DateTimeOffset> fires = WalkFrom(trigger, TestTimeZones.Local(start), TestTimeZones.Local(untilExclusive));
+
+        fires.Should().Contain(TestTimeZones.Local(transitionDayFire),
+            "the fire on the transition day itself is 24 UTC hours after the one before it, so it reads half an hour off the scheduled wall clock");
+        fires.Should().Contain(TestTimeZones.Local(dayAfterFire),
+            "and the drifted wall-clock time is what the schedule keeps from then on");
+
+        AssertConstantUtcSpacing(fires, TimeSpan.FromHours(24));
+
+        fires.Should().OnlyContain(fireTime => fireTime.UtcDateTime.TimeOfDay == TestTimeZones.Local(start).UtcDateTime.TimeOfDay,
+            "the whole run sits on the same UTC time of day, which is exactly why the wall clock moves");
     }
 
     /// <summary>
