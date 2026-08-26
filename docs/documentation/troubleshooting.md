@@ -22,11 +22,11 @@ This guide covers common issues users encounter with Quartz.NET and how to diagn
 
 2. **Database connectivity issues** — Transient database errors during trigger acquisition can leave the scheduler unable to pick up new triggers.
    * Check your database connection string and connection pool configuration.
-   * Ensure your connection pool size is at least thread count + 3 (see [Best Practices](best-practices.md)).
+   * Ensure your connection pool size is at least thread count + 3 (see [Best Practices](best-practices.md#the-connection-pool-is-the-thread-pool-plus-three)).
    * Review database server logs for connection timeouts or deadlocks.
 
 3. **Unhandled exceptions in listeners** — An exception thrown from a `IJobListener`, `ITriggerListener`, or `ISchedulerListener` can disrupt the scheduling cycle.
-   * Always wrap listener code in try-catch blocks (see [Best Practices](best-practices.md#listeners-triggerlistener-joblistener-schedulerlistener)).
+   * Always wrap listener code in try-catch blocks (see [Best Practices](best-practices.md#listeners-run-in-the-middle-of-everything)).
 
 **Diagnosis Steps:**
 
@@ -163,7 +163,7 @@ WHERE JOB_CLASS_NAME = 'OldNamespace.OldClassName, OldAssembly';
 3. **Lock contention** — Multiple scheduler instances competing for the same rows.
    * Two schedulers share a name (`Scheduler:InstanceName`, or `quartz.scheduler.instanceName`) only when
      they are meant to be one cluster, and then clustering has to be enabled on both.
-   * Never point multiple non-clustered schedulers at the same database tables (see [Best Practices](best-practices.md#ado-net-jobstore)).
+   * Never point multiple non-clustered schedulers at the same database tables (see [Best Practices](best-practices.md#one-name-per-cluster-one-id-per-node)).
 
 ### Datasource Configuration Example
 
@@ -229,4 +229,4 @@ Jobs should check `IJobExecutionContext.CancellationToken` to respond to shutdow
 | `JobPersistenceException` | Database error during job store operation | Check database connectivity, connection pool size, and query timeouts |
 | `SchedulerException: Scheduler has been shutdown` | Calling scheduler methods after `Shutdown()` | Ensure your application lifecycle correctly manages the scheduler |
 | `TypeLoadException` on job execution | Job class not found — possibly renamed or moved | Update `JOB_CLASS_NAME` in `QRTZ_JOB_DETAILS` (see [Job Deserialization Failures](#job-deserialization-failures-after-refactoring)) |
-| `JobExecutionException` | Unhandled exception inside `IJob.Execute()` | Add try-catch in your job's Execute method (see [Best Practices](best-practices.md#throwing-exceptions)) |
+| `JobExecutionException` | Unhandled exception inside `IJob.Execute()` | Add try-catch in your job's Execute method (see [Best Practices](best-practices.md#what-happens-when-a-job-throws)) |
