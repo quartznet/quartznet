@@ -57,16 +57,24 @@ menu entry leads straight to the code behind it.
 
 ### Example 13 needs a database
 
-It is the only one that does. Any SQL Server with the Quartz schema in it will do — one way to get one:
+It is the only one that does, and it has no default connection string — a connection string carries a
+credential, and this repository keeps credentials out of its source. Set `QUARTZ_EXAMPLES_SQLSERVER`,
+and with it unset the example says so and stops.
+
+Any SQL Server with the Quartz schema in it will do. One way to get one:
 
 ```shell
-docker run -d -p 1433:1433 -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='Quartz!DockerP4ss' \
+docker run -d -p 1433:1433 -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD='<a strong password>' \
   mcr.microsoft.com/mssql/server:2022-latest
 ```
 
 then create a `quartznet` database and run `database/tables/tables_sqlserver.sql` against it — the
-script opens with `USE [enter_db_name_here]`, so put the database's name there first. That is what the
-default connection string expects; `QUARTZ_EXAMPLES_SQLSERVER` points somewhere else.
+script opens with `USE [enter_db_name_here]`, so put the database's name there first. Then point the
+example at it:
+
+```shell
+export QUARTZ_EXAMPLES_SQLSERVER='Server=localhost;Database=quartznet;User Id=sa;Password=<the password you chose>;TrustServerCertificate=true;'
+```
 
 Run the example in two terminals to see a cluster of two. Each node prints what it is running and what
 it believes about the others; kill one and the survivor reports it `Failed` and re-runs the jobs it was
