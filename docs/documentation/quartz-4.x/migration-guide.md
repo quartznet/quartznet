@@ -3843,10 +3843,13 @@ needs the same annotation:
       => q.ScheduleJob<TJob>(t => t.StartNow());
 ```
 
-`Quartz` is also marked `IsTrimmable` now, which changes what a trimmed publish tells you about it. On
-3.x the assembly is not marked, so ILLink collapses everything it finds in Quartz into one
-`IL2104: Assembly 'Quartz' produced trim warnings`. On 4.0 you get the individual warnings instead —
-around fifty of them, at the reflective call sites listed in `src/Quartz/TrimAnalysisBaseline.cs`.
+`Quartz` is also marked `IsTrimmable` now, which changes what a trimmed publish tells you about it.
+Under `TrimMode=full` the assembly is member-trimmed either way; what the mark changes is the reporting.
+With `TrimmerSingleWarn` on, which is the default, an assembly's trim-analysis warnings collapse into one
+`IL2104: Assembly 'Quartz' produced trim warnings`, and `IsTrimmable` exempts exactly its `IL2026`s from
+that collapse. So on 4.0 you see every `[RequiresUnreferencedCode]` call site individually, and
+`<TrimmerSingleWarn>false</TrimmerSingleWarn>` shows the rest — around fifty in all, at the reflective
+call sites listed in `src/Quartz/TrimAnalysisBaseline.cs`.
 
 That is not a regression: the same reflection was there before and the same code could break under
 trimming; you can now see which parts. None of those warnings is suppressed in the shipped assembly,
@@ -3876,7 +3879,8 @@ of the track is [#3341](https://github.com/quartznet/quartznet/issues/3341).
 application that adds any plugin to a trimmed publish gets one `IL2104` per unmarked assembly and no
 detail; on 4.0, `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.HttpClient`, `Quartz.AspNetCore`,
 `Quartz.Extensions.Redis` and `Quartz.Plugins.TimeZoneConverter` are marked trimmable and report their
-individual call sites — between none and two each, all of them a job type spelled as a string. No public
+individual call sites — between none and two each, all of them a job type spelled as a string, and all of
+them an `IL2026`, which is the code `IsTrimmable` exempts from the collapse. No public
 member of any of them gained `[RequiresUnreferencedCode]` or `[DynamicallyAccessedMembers]`, so nothing
 you call changes shape. `Quartz.Serialization.Newtonsoft` and `Quartz.Dashboard` say the opposite
 deliberately, in their csproj and in their nuget.org readme: Json.NET's contract is reflection, and
