@@ -7,6 +7,7 @@
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject ToastService Toasts
 @inject DashboardActionLogService ActionLog
@@ -503,7 +504,12 @@
 
     private async Task RefreshSchedulersAsync(string? preferredSchedulerName)
     {
-        List<SchedulerHeaderDto> schedulers = await Api.GetSchedulers();
+        List<SchedulerHeaderDto> registered = await Api.GetSchedulers();
+
+        // Filtered like every other listing the dashboard writes into SchedulerState. This one decides
+        // which scheduler the page moves to next, so an unfiltered list here would hand a visitor a
+        // scheduler they may not see - and the read below would go straight to it.
+        List<SchedulerHeaderDto> schedulers = await Authorization.Filter(registered);
         Scheduler.AvailableSchedulers = schedulers.AsReadOnly();
 
         // The preferred scheduler has to still exist, not merely still be registered: shutting one down

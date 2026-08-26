@@ -9,6 +9,8 @@ using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Services;
 using Quartz.Tests.AspNetCore.Support;
 
+using DashboardPage = Quartz.Dashboard.Components.Pages.Dashboard;
+
 namespace Quartz.Tests.AspNetCore.Dashboard.Components;
 
 /// <summary>
@@ -159,6 +161,43 @@ public class SchedulerAuthorizationTest
         page.Markup.Should().Contain("acme");
         page.Markup.Should().NotContain("globex",
             "the fleet view is where an operator counts tenants, so it must not count somebody else's");
+        A.CallTo(() => context.Api.GetScheduler("globex", A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    /// <summary>
+    /// The overview re-reads the scheduler listing after an action and moves to another scheduler when the
+    /// one it acted on is gone — a shutdown leaves its registration behind with nothing to read. The
+    /// scheduler it moves to has to be one the visitor may see.
+    /// </summary>
+    /// <remarks>
+    /// This listing is the third the dashboard writes into <c>SchedulerState</c>, and the only one that
+    /// then picks the active scheduler itself. Unfiltered it would hand a visitor somebody else's tenant
+    /// and read it on the next line, without the page frame ever getting a say.
+    /// </remarks>
+    [Test]
+    public void AnActionThatMovesTheOverviewOffItsSchedulerMovesItToOneTheVisitorMaySee()
+    {
+        GivenSchedulers("acme", "globex");
+        context.WithSchedulerPolicy("acme");
+        context.SchedulerState.ActiveSchedulerName = "acme";
+
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+
+        // What the listing says once the action has been carried out: the scheduler it acted on is a
+        // registration with nothing behind it, and the only scheduler still running is the foreign one.
+        A.CallTo(() => context.Api.GetSchedulers(A<CancellationToken>._)).Returns(new List<SchedulerHeaderDto>
+        {
+            TestData.Dashboard.RegisteredSchedulerHeader("acme"),
+            TestData.Dashboard.SchedulerHeader("globex")
+        });
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Standby").Click();
+
+        context.SchedulerState.ActiveSchedulerName.Should().Be("acme",
+            "the visitor passes for no other scheduler, so there is nowhere else for the page to go");
+        context.SchedulerState.AvailableSchedulers.Select(scheduler => scheduler.SchedulerName).Should().Equal(["acme"],
+            "the refreshed listing is filtered like every other one, so the picker is not repopulated with "
+            + "schedulers the visitor may not see");
         A.CallTo(() => context.Api.GetScheduler("globex", A<CancellationToken>._)).MustNotHaveHappened();
     }
 
