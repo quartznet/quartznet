@@ -44,7 +44,7 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
         this.schedThread = schedThread;
         this.logger = logger;
 
-        logger.LogInformation("Initialized Scheduler Signaller of type: {Type}", GetType());
+        logger.SchedulerSignalerInitialized(GetType());
     }
 
 
@@ -63,7 +63,7 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
         }
         catch (SchedulerException se)
         {
-            logger.LogError(se, "Error notifying listeners of trigger misfire.");
+            logger.ListenerNotificationOfMisfireFailed(se);
 
             // The trigger travels with the failure: a listener that throws on one trigger's misfire
             // should not leave the report saying only that some misfire notification failed.

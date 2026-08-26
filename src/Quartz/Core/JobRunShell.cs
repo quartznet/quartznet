@@ -208,7 +208,7 @@ internal sealed class JobRunShell
 
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
-                    logger.LogDebug("Calling Execute on job {JobKey}", jobDetail.Key);
+                    logger.JobExecuting(jobDetail.Key);
                 }
 
                 TimeProvider timeProvider = qs.resources.TimeProvider;
@@ -228,19 +228,19 @@ internal sealed class JobRunShell
                 catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
                 {
                     endTimestamp = timeProvider.GetTimestamp();
-                    logger.LogInformation("Job {JobDetailKey} was cancelled", jobDetail.Key);
+                    logger.JobCancelled(jobDetail.Key);
                 }
                 catch (JobExecutionException jee)
                 {
                     endTimestamp = timeProvider.GetTimestamp();
                     jee.JobDetail = jobDetail;
                     jobExEx = jee;
-                    logger.LogError(jee, "Job {JobDetailKey} threw a JobExecutionException: ", jobDetail.Key);
+                    logger.JobThrewJobExecutionException(jobDetail.Key, jee);
                 }
                 catch (Exception e)
                 {
                     endTimestamp = timeProvider.GetTimestamp();
-                    logger.LogError(e, "Job {JobDetailKey} threw an unhandled Exception: ", jobDetail.Key);
+                    logger.JobThrewUnhandledException(jobDetail.Key, e);
                     SchedulerException se = new JobExecutionProcessException(context, e);
                     await qs.NotifySchedulerListenersError(
                         ErrorFor(context, $"Job {context.JobDetail.Key} threw an exception.", se),
@@ -263,7 +263,7 @@ internal sealed class JobRunShell
                     instructionCode = trigger.ExecutionComplete(context, jobExEx);
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug("Trigger instruction : {InstructionCode}", instructionCode);
+                        logger.TriggerInstructionDecided(instructionCode);
                     }
                 }
                 catch (Exception e)
@@ -281,7 +281,7 @@ internal sealed class JobRunShell
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug("Rescheduling trigger to reexecute");
+                        logger.TriggerRefiring();
                     }
                     context.IncrementRefireCount();
                     continue;

@@ -31,22 +31,20 @@ internal sealed class ErrorLogger : ISchedulerListener
         // the scheduler had lost them rather than never having had them.
         if (error.TriggerKey is null && error.JobKey is null && error.FireInstanceId is null)
         {
-            logger.LogError(
-                error.Exception,
-                "{Message} (scheduler: {SchedulerName})",
+            logger.SchedulerError(
                 error.Message,
-                scheduler.SchedulerName);
+                scheduler.SchedulerName,
+                error.Exception);
         }
         else
         {
-            logger.LogError(
-                error.Exception,
-                "{Message} (scheduler: {SchedulerName}, trigger: {TriggerKey}, job: {JobKey}, fire instance: {FireInstanceId})",
+            logger.SchedulerErrorForFire(
                 error.Message,
                 scheduler.SchedulerName,
                 error.TriggerKey,
                 error.JobKey,
-                error.FireInstanceId);
+                error.FireInstanceId,
+                error.Exception);
         }
 
         return default;
