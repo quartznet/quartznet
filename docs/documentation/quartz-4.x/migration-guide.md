@@ -3760,12 +3760,12 @@ suppressed in the shipped assembly, deliberately — suppressing them would hide
 Configuration by flat `quartz.*` keys, jobs named as strings (`job_scheduling_data` XML, a persisted
 `JOB_CLASS_NAME`), and `JobDataMap` values bound onto job properties are the paths that need reflection;
 an application that configures in code, references its job types statically and keeps job data to
-primitives exercises far less of it. A **persistent job store** publishes trimmed, given a registered
-`DbDataSource` to reach its provider through (a `TrimMode=full` publish does not keep a connection type
-that is only named by string): the default
-System.Text.Json serializer carries a source-generated contract for every blob a store writes, and a
-custom trigger or calendar type is answered by the registry it was registered with. The one thing left
-open is a job-data value of a type of your own, which the registry is handed metadata for through
+primitives exercises far less of it. A **persistent job store** publishes trimmed, and publishes native
+AOT, when it is told how to reach its driver without naming one — `UseSqlServer(SqlClientFactory.Instance,
+connectionString)`, or a registered `DbDataSource`: the default System.Text.Json serializer carries a
+source-generated contract for every blob a store writes, and a custom trigger or calendar type is
+answered by the registry it was registered with. The one thing left open is a job-data value of a type
+of your own, which the registry is handed metadata for through
 `SystemTextJsonSerializerRegistry.AddTypeInfoResolver` — see
 [Trimming](tutorial/more-about-jobs.md#trimming) for the shape of that. Progress is tracked on
 [#3341](https://github.com/quartznet/quartznet/issues/3341).
@@ -7740,6 +7740,13 @@ Parameters and behavior are unchanged:
 | `UseSQLite` is `UseSystemDataSqlite`, `UseMicrosoftSQLite` is `UseSqlite` | **The short name changed meaning** — see [The SQLite extension methods swapped names](#the-sqlite-extension-methods-swapped-names) |
 | `UseDataSourceConnectionProvider()` removed | `DataSourceOptions.UseRegisteredDataSource`, which is what it set |
 | `AddDataSourceProvider()` removed | Its other half. It registered `DataSourceDbProvider` in the container for `UseDataSourceConnectionProvider()` to name; `UseRegisteredDataSource` builds the provider itself from the registered `DbDataSource` — see [`AddDataSourceProvider()` went with it](#adddatasourceprovider-went-with-it) |
+| Every `Use<Db>` gained a `(DbProviderFactory factory, string connectionString)` overload | `UseSqlServer(SqlClientFactory.Instance, connectionString)` and its siblings reach the driver through the factory it ships, so no type is resolved from a string and none is constructed by reflection. This is the registration a `PublishTrimmed` or `PublishAot` application uses; it takes the connection string directly, so `ConnectionStringName` does not apply to it — see [Naming a driver, or handing over its factory](configuration/reference.md#naming-a-driver-or-handing-over-its-factory) |
+| `UseOracle(factory, connectionString, configureCommand, configureBinaryParameter)` | Oracle is the one shipped driver that needs more than a factory: ODP.NET binds by position unless `OracleCommand.BindByName` is set, and reads `DbType.Binary` as `OracleDbType.Raw`, which holds two kilobytes of a job data map. Naming the driver instead says both for you |
+| `UseGenericDatabase(factory, connectionString, DbMetadata)` | A driver Quartz ships no description for, reached through its own factory and described in code. No provider name, because the description arrived rather than being looked up |
+| `DbMetadata` gained `ConfigureCommand` and `ConfigureBinaryParameter` | The two things the name path reaches by reflecting over `CommandType` and `ParameterType`, said as lambdas by the application that references the driver. Every `Type` on `DbMetadata` is optional now: a description behind a factory or a `DbDataSource` names none, and a binary parameter with neither a seam nor a described parameter type binds as `DbType.Binary` |
+| The `Use<Db>` overloads that take a name carry `[RequiresUnreferencedCode]` | Including `UseGenericDatabase(provider, …)`. The warning surfaces inside your `UsePersistentStore` callback and names the two ways out; it does not reach `AddQuartz`, so an application on the in-memory store is told nothing |
+| `ProviderFactoryDbProvider` added | The `IDbProvider` those overloads register, public so that `UseConnectionProvider(_ => new ProviderFactoryDbProvider(metadata, factory, connectionString))` can build one over a factory no overload knows about |
+| The Oracle driver description says `DbBinaryTypeName = "Blob"` | It named no binary type, so ODP.NET inferred `Raw` from the `byte[]` and capped a job data map at 2000 bytes in SQL. Both ways of reaching Oracle now write a `BLOB` |
 | `QuartzOptions.SchedulerName`, `.SchedulerId`, `.MisfireThreshold` removed | Each duplicated a typed option — see [`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings) |
 | Job execution metrics are published by every scheduler | The meters were configured only by `StdSchedulerFactory`, so a scheduler registered with `AddQuartz` published none |
 | **Every instrument and attribute was renamed, and two instruments were dropped** | `scheduling.quartz.*` became `quartz.job.execution.*`, unprefixed attributes became `quartz.*`, and the two counters gave way to the histogram's own count. Every dashboard, alert and recording rule keyed on the old names breaks — the [old → new table](#old-and-new-telemetry-names) is the complete mapping |

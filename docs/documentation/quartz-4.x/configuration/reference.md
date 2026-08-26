@@ -205,6 +205,65 @@ Where the connection comes from is the data source's own setting, so to connect 
 `DbDataSource` registered in the container rather than a connection string of Quartz's own, say
 `store.UseSqlServer(db => db.UseRegisteredDataSource = true)`.
 
+#### Naming a driver, or handing over its factory
+
+Both spellings above name the driver: `SqlServer` names a description that says which connection,
+command and parameter types to instantiate, and Quartz resolves those types from strings, because it
+references no driver package. That is how it has always worked and it is what most applications want.
+
+A **trimmed or native AOT** application cannot rely on it. The trimmer does not follow a type name, so
+it removes what the name pointed at, and the registration fails while the container is being built with
+`Cannot instantiate type which has no empty constructor`. Every method above therefore also takes the
+`DbProviderFactory` the driver ships:
+
+<!-- Not a compiled sample: the driver factories below come from packages this repository's samples
+     project does not reference, and naming the real ones is the point. -->
+
+```csharp
+store.UseSqlServer(SqlClientFactory.Instance, connectionString);
+store.UsePostgres(NpgsqlFactory.Instance, connectionString);
+store.UseMySqlConnector(MySqlConnectorFactory.Instance, connectionString);
+store.UseSqlite(SqliteFactory.Instance, connectionString);
+store.UseSystemDataSqlite(SQLiteFactory.Instance, connectionString);
+store.UseFirebird(FirebirdClientFactory.Instance, connectionString);
+store.UseMySql(MySqlClientFactory.Instance, connectionString);
+```
+
+A factory hands back an instance of every type the store uses — a connection, and the connection makes
+the command, and the command makes its parameters — so nothing is named and nothing is constructed by
+reflection. The provider name is still chosen for you, because it decides how the driver spells a
+parameter, but only the half of its description that names no type is read.
+
+Which to use:
+
+| Registration | When |
+|---|---|
+| `Use<Db>(connectionString)` | The ordinary case. Carries `[RequiresUnreferencedCode]`, so a trimmed publish reports it. |
+| `Use<Db>(factory, connectionString)` | Publishing `PublishTrimmed` or `PublishAot`, or anywhere you would rather not have a type resolved from a string. |
+| `db.UseRegisteredDataSource = true` | A `DbDataSource` in the container already carries the connection details — pooling, type mappers, logging. Equally free of type names. |
+
+Oracle is the one driver that needs more than a factory, because Quartz reaches two things on its own
+types by reflection and a factory names neither. Both are said in code, by the application, which does
+reference the driver:
+
+<!-- Not a compiled sample, for the same reason as the one above. -->
+
+```csharp
+store.UseOracle(
+    OracleClientFactory.Instance,
+    connectionString,
+    configureCommand: command => ((OracleCommand) command).BindByName = true,
+    configureBinaryParameter: parameter => ((OracleParameter) parameter).OracleDbType = OracleDbType.Blob);
+```
+
+Without the first, ODP.NET binds every statement's parameters by position and the store reads the wrong
+columns. Without the second, a job data map larger than two kilobytes will not go in, because
+`DbType.Binary` means `OracleDbType.Raw` to that driver and not `Blob`. Naming the driver instead of
+handing over its factory says both of these for you.
+
+The factory overloads take the connection string directly, so `ConnectionStringName` does not apply to
+them; read the connection string from `IConfiguration` where you have it and pass it in.
+
 #### Describing a driver Quartz does not know
 
 The provider name each method passes — `SqlServer`, `Npgsql` and so on — names a description of an
@@ -234,6 +293,28 @@ store.UseGenericDatabase("MyDatabase", connectionString, () => new DbMetadata
 
 There is a four-argument overload taking a `DataSourceOptions` callback instead of a connection string,
 for a driver described in code that also uses a named connection string.
+
+A driver reached through its own factory is described the same way, and needs no provider name at all —
+there is nothing left to look a description up by:
+
+<!-- Not a compiled sample: `MyFactory` stands in for a driver's own `DbProviderFactory`. -->
+
+```csharp
+store.UseGenericDatabase(MyFactory.Instance, connectionString, new DbMetadata
+{
+    ProductName = "My Database",
+    ParameterNamePrefix = "@",
+    UseParameterNamePrefixInParameterCollection = true,
+    BindByName = true,
+    ConfigureBinaryParameter = parameter => ((MyParameter) parameter).MyDbType = MyDbType.Blob,
+});
+```
+
+`ConfigureCommand` and `ConfigureBinaryParameter` are the two typed seams on `DbMetadata`: they say what
+the name path would otherwise reach by reflecting over `CommandType` and `ParameterType`, and they are
+how a description that names no type stays complete. Either may be left unset — a binary parameter with
+neither a seam nor a described parameter type is bound as `DbType.Binary`, which every driver that ships
+a factory maps for itself.
 
 A description is a registration in the container rather than process-wide state, so two containers in one
 process no longer have to agree on what a provider name means. Within one container a provider name means

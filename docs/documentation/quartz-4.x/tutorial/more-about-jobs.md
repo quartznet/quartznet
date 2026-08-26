@@ -498,14 +498,25 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 added, behind Quartz's own contract and in front of reflection. With reflection on it changes nothing,
 so it is safe to configure unconditionally.
 
-**The provider's connection type is the one thing a `TrimMode=full` publish still has to be told
-about.** An ADO.NET store resolves its provider's `DbConnection` type from the driver description by
-name, and the trimmer does not follow a name: `UseSqlite(connectionString)` published `TrimMode=full`
-fails while the container is being built, with `Cannot instantiate type which has no empty constructor`.
-Either register a `DbDataSource` in the container and set `UseRegisteredDataSource`, as
-[Job stores](job-stores.md) describes, or root the provider assembly with
-`<TrimmerRootAssembly Include="Microsoft.Data.Sqlite" />`. Making the store need neither is the open
-step on [#3341](https://github.com/quartznet/quartznet/issues/3341).
+**Hand the store the driver's factory rather than its name.** Naming a database —
+`UseSqlite(connectionString)` — resolves the driver's connection, command and parameter types from
+strings, and the trimmer does not follow a string: published `TrimMode=full`, that registration used to
+fail while the container was still being built, with `Cannot instantiate type which has no empty
+constructor`. Every `Use<Db>` therefore takes the `DbProviderFactory` the driver ships instead, and that
+overload names nothing:
+
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseSqlite(SqliteFactory.Instance, connectionString);
+}));
+```
+
+The factory hands back an instance of every type the store uses — a connection, and the connection
+makes the command, and the command makes its parameters. Registering a `DbDataSource` in the container
+does the same job and is just as safe; the overloads that take a name carry `[RequiresUnreferencedCode]`
+so that a trimmed publish tells you which registration you are on. Neither a `TrimmerRootAssembly` nor
+any other rooting is needed for either.
 
 ::: warning Turning reflection back on is not a way round anything
 `<JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>` looks
@@ -538,11 +549,14 @@ executes and disposes job instances, applies flat `quartz.*` keys from `appsetti
 down cleanly on Ctrl+C with `WaitForJobsToComplete` honoured. Job types named as types, listeners and
 the DI graph all survive.
 
-**The store serializer runs too.** A native AOT publish is a trimmed publish, so it switches the same
-reflection off, and the source-generated contract described above is what answers instead. The
+**A persistent store runs too, natively.** A native AOT publish is a trimmed publish, so it switches the
+same reflection off, and the source-generated contract described above is what answers instead. The
 repository's `Quartz.Trimming.Canary` round-trips every blob a job store writes — every trigger, every
-calendar including a chained one, a `JobDataMap`, a `NameValueCollection` and a `CronExpression` —
-out of a fully trimmed publish on every build, and out of a native AOT publish when run by hand.
+calendar including a chained one, a `JobDataMap`, a `NameValueCollection` and a `CronExpression` — and
+then does it against a real database: it creates a SQLite file from the schema Quartz ships, registers
+it as `UseSqlite(SqliteFactory.Instance, …)`, schedules a job, waits for the job itself to report that
+it fired, and reads the job and the trigger back through `IScheduler`. That runs on every build, out of
+a fully trimmed publish and out of a native one, on Windows, Linux and macOS.
 
 **Publishing AOT reports Quartz's own warnings, and that is deliberate.** Quartz records its remaining
 reflective call sites in the repository rather than in the shipped assembly, so an
