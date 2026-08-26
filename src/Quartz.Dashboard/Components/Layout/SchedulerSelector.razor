@@ -64,22 +64,9 @@
 
             SchedulerState.AvailableSchedulers = schedulers.AsReadOnly();
 
-            if (SchedulerState.ActiveSchedulerName is null && schedulers.Count > 0)
+            if (SchedulerState.ActiveSchedulerName is null)
             {
-                // The first scheduler that exists, falling back to the first registration. A dashboard
-                // that opened on a tenant nothing has built would show its not-created state on every
-                // page while a running scheduler sat further down the list.
-                Quartz.Dashboard.Services.SchedulerHeaderDto? created = null;
-                foreach (Quartz.Dashboard.Services.SchedulerHeaderDto scheduler in schedulers)
-                {
-                    if (scheduler.IsCreated)
-                    {
-                        created = scheduler;
-                        break;
-                    }
-                }
-
-                SchedulerState.ActiveSchedulerName = (created ?? schedulers[0]).SchedulerName;
+                SchedulerState.ActiveSchedulerName = SchedulerState.DefaultSchedulerName;
             }
 
             await UpdateStatusAsync();
@@ -110,7 +97,7 @@
 
         // A registration nothing has built has no scheduler to ask, and asking would answer "no such
         // scheduler" — which reads as a fault rather than as the thing the listing already told us.
-        if (!SchedulerState.IsCreated(SchedulerState.ActiveSchedulerName))
+        if (SchedulerState.Find(SchedulerState.ActiveSchedulerName) is { IsCreated: false })
         {
             _statusLabel = "Not created";
             _schedulerStatus = null;
