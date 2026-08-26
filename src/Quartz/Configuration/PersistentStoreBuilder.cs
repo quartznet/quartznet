@@ -187,7 +187,7 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     private string? dataSourceName;
     private bool dataSourceConfigured;
 
-    public IPersistentStoreBuilder UseDataSourceName(string name)
+    public IPersistentStoreBuilder UseDataSource(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 

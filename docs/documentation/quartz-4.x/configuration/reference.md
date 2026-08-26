@@ -351,7 +351,7 @@ The same thing can be said as properties, which is the form 3.x used and which n
 
 A store's data source is named after the scheduler that owns it, or `quartz` for the default scheduler,
 so the name never has to be invented or kept in step by hand. Name one explicitly with
-`store.UseDataSourceName("reporting-db")` — before choosing the database, since the name is fixed once
+`store.UseDataSource("reporting-db")` — before choosing the database, since the name is fixed once
 the data source is configured — when two stores should read the same `Quartz:DataSource:<name>`
 settings, or when the settings live under a name of the application's choosing.
 
@@ -454,9 +454,10 @@ composite type registrations — is in play for Quartz's statements too.
 
 There are three entry points for a data source and they say different things.
 `UseDataSource(configure)` **defines** one — which driver, and how to reach the database — and the
-database methods above are shorthands for it. `UseDataSourceName(name)` **refers to** one by name,
-which is how a store picks up settings registered elsewhere, such as a `Quartz:DataSource:<name>`
-section. Where the connection itself comes from is `DataSourceOptions`' to say, not a fourth method's.
+database methods above are shorthands for it. `UseDataSource(name)` **refers to** one by name, which is
+how a store picks up settings registered elsewhere, such as a `Quartz:DataSource:<name>` section — one
+concept, so one name, told apart by whether it is handed a name or a callback. Where the connection
+itself comes from is `DataSourceOptions`' to say, not a fourth method's.
 
 #### Bringing your own connection provider
 

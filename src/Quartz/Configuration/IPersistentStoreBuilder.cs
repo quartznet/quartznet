@@ -51,9 +51,10 @@ public interface IPersistentStoreBuilder
     /// <para>
     /// This <em>refers to</em> a data source rather than defining one:
     /// <see cref="UseDataSource(Action{DataSourceOptions})"/> defines it, and the two are told apart by
-    /// that. The settings it names are the <see cref="DataSourceOptions"/> registered under this name —
-    /// from a <c>Quartz:DataSource:&lt;name&gt;</c> configuration section, say, or from another
-    /// scheduler that already configured it.
+    /// what they are given rather than by carrying different names. The settings it names are the
+    /// <see cref="DataSourceOptions"/> registered under this name — from a
+    /// <c>Quartz:DataSource:&lt;name&gt;</c> configuration section, say, or from another scheduler that
+    /// already configured it.
     /// </para>
     /// <para>
     /// The name defaults to the scheduler's name, or <c>quartz</c> for the default scheduler, so it never
@@ -66,7 +67,7 @@ public interface IPersistentStoreBuilder
     /// configured.
     /// </para>
     /// </remarks>
-    IPersistentStoreBuilder UseDataSourceName(string name);
+    IPersistentStoreBuilder UseDataSource(string name);
 
     /// <summary>
     /// Defines this store's data source: which ADO.NET driver, and how to reach the database.

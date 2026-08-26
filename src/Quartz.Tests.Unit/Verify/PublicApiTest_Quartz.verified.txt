@@ -573,7 +573,7 @@ namespace Quartz
         Quartz.IPersistentStoreBuilder UseConnectionProvider<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
             where T :  class, Quartz.Impl.AdoJobStore.Common.IDbProvider;
         Quartz.IPersistentStoreBuilder UseDataSource(System.Action<Quartz.DataSourceOptions> configure);
-        Quartz.IPersistentStoreBuilder UseDataSourceName(string name);
+        Quartz.IPersistentStoreBuilder UseDataSource(string name);
         Quartz.IPersistentStoreBuilder UseDriverDelegate<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
             where T :  class, Quartz.Impl.AdoJobStore.IDriverDelegate;
         Quartz.IPersistentStoreBuilder UseLockHandler(System.Func<System.IServiceProvider, Quartz.Impl.AdoJobStore.ISemaphore> factory);
