@@ -6,6 +6,20 @@
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!--
+      Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431).
+      Without IsTrimmable a trimmer keeps this assembly whole and collapses whatever it cannot follow into
+      one IL2104, so an application publishing trimmed learned nothing about the package; with it, the
+      warning is the reflective call site.
+
+      One is left, and it is the directory scan job's listener lookup - recorded in TrimAnalysisBaseline.cs
+      beside this file, which says why. Nothing else here reflects: the jobs are ordinary types the
+      container constructs.
+    -->
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>
