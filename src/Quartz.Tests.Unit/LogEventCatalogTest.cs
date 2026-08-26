@@ -49,6 +49,7 @@ public class LogEventCatalogTest
     private static readonly Assembly[] Catalogued =
     [
         typeof(global::Quartz.IScheduler).Assembly,
+        typeof(global::Quartz.Plugins.Management.ShutdownHookPlugin).Assembly,
     ];
 
     private static IEnumerable<TestCaseData> Assemblies()

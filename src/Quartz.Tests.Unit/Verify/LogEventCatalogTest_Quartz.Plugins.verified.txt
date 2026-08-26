@@ -1,0 +1,80 @@
+﻿6000  Information  HistoryPluginLog.JobToBeFired
+    "{Message}"
+6001  Information  HistoryPluginLog.JobSucceeded
+    "{Message}"
+6002  Warning  HistoryPluginLog.JobFailed
+    "{Message}"
+6003  Information  HistoryPluginLog.JobVetoed
+    "{Message}"
+6010  Information  HistoryPluginLog.TriggerFired
+    "{Message}"
+6011  Information  HistoryPluginLog.TriggerMisfired
+    "{Message}"
+6012  Information  HistoryPluginLog.TriggerCompleted
+    "{Message}"
+6200  Information  XmlSchedulingPluginLog.PluginRegistered
+    "Registering Quartz Job Initialization Plug-in."
+6201  Debug  XmlSchedulingPluginLog.FileScanJobScheduled
+    "Scheduled file scan job for data file: {FileName}, at interval: {ScanInterval}"
+6202  Error  XmlSchedulingPluginLog.FileWatchStartFailed
+    "Error starting background-task for watching jobs file."
+6203  Error  XmlSchedulingPluginLog.ListenerNotificationOfErrorFailed
+    "Error while notifying SchedulerListener of error"
+6204  Error  XmlSchedulingPluginLog.OriginalErrorForNotification
+    "Original error while notifying scheduler listeners: {Message}"
+6205  Error  XmlSchedulingPluginLog.FileProcessingFailed
+    "Could not schedule jobs and triggers from file {FileName}: {Message}"
+6206  Warning  XmlSchedulingPluginLog.FileNotFound
+    "File named '{FileName}' does not exist."
+6207  Warning  XmlSchedulingPluginLog.FileCloseFailed
+    "Error closing jobs file {FileName}"
+6300  Information  JsonSchedulingPluginLog.ParsingFile
+    "Parsing JSON file: {FileName}"
+6301  Information  JsonSchedulingPluginLog.DeletingAllJobsInAllGroups
+    "Deleting all jobs in ALL groups"
+6302  Information  JsonSchedulingPluginLog.DeletingAllJobsInGroup
+    "Deleting all jobs in group: {Group}"
+6303  Information  JsonSchedulingPluginLog.DeletingAllTriggersInAllGroups
+    "Deleting all triggers in ALL groups"
+6304  Information  JsonSchedulingPluginLog.DeletingAllTriggersInGroup
+    "Deleting all triggers in group: {Group}"
+6305  Information  JsonSchedulingPluginLog.DeletingJob
+    "Deleting job: {JobKey}"
+6306  Information  JsonSchedulingPluginLog.DeletingTrigger
+    "Deleting trigger: {TriggerKey}"
+6320  Information  JsonSchedulingPluginLog.PluginRegistered
+    "Registering Quartz JSON Job Initialization Plug-in"
+6321  Debug  JsonSchedulingPluginLog.FileScanJobScheduled
+    "Scheduled file scan job for data file: {FileName}, at interval: {ScanInterval}"
+6322  Error  JsonSchedulingPluginLog.FileWatchStartFailed
+    "Error starting background-task for watching JSON jobs file"
+6323  Error  JsonSchedulingPluginLog.FileProcessingFailed
+    "Could not schedule jobs and triggers from JSON file {FileName}"
+6324  Error  JsonSchedulingPluginLog.ListenerNotificationOfErrorFailed
+    "Error while notifying SchedulerListener of error"
+6325  Warning  JsonSchedulingPluginLog.FileNotFound
+    "File named '{FileName}' does not exist"
+6326  Warning  JsonSchedulingPluginLog.FileCloseFailed
+    "Error closing jobs file {FileName}"
+6400  Information  InterruptPluginLog.PluginRegistered
+    "Registering Job Interrupt Monitor Plugin"
+6401  Warning  InterruptPluginLog.MaxRunTimeNotANumber
+    "Job data map value for {Key} is not a number of milliseconds, using the plugin default of {Delay} instead"
+6402  Debug  InterruptPluginLog.InterruptMonitorScheduled
+    "Job's Interrupt Monitor has been scheduled to interrupt with the delay: {Delay}"
+6403  Error  InterruptPluginLog.InterruptMonitorSchedulingFailed
+    "Error scheduling interrupt monitor {ErrorMessage}"
+6410  Information  InterruptPluginLog.JobInterrupted
+    "Interrupted Job as it ran more than the configured max time. Job Details [{JobName}:{JobGroup}], fire instance id {FireInstanceId}"
+6411  Debug  InterruptPluginLog.JobNoLongerRunning
+    "Job execution was no longer running, nothing to interrupt. Job Details [{JobName}:{JobGroup}], fire instance id {FireInstanceId}"
+6412  Error  InterruptPluginLog.JobInterruptFailed
+    "Error interrupting Job: {ExceptionMessage}"
+6413  Error  InterruptPluginLog.MonitorCancellationFailed
+    "Error cancelling monitor: {ExceptionMessage}"
+6500  Information  ManagementPluginLog.ShutdownHookRegistered
+    "Registering Quartz Shutdown hook '{PluginName}'"
+6501  Information  ManagementPluginLog.ShuttingDown
+    "Shutting down Quartz..."
+6502  Error  ManagementPluginLog.ShutdownFailed
+    "Error shutting down Quartz: {ErrorMessage}"

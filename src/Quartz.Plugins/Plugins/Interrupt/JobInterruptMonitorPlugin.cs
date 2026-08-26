@@ -92,16 +92,16 @@ public sealed class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlug
                 }
                 else if (context.MergedJobDataMap.ContainsKey(JobDataMapKeyMaxRunTime))
                 {
-                    logger.LogWarning("Job data map value for {Key} is not a number of milliseconds, using the plugin default of {Delay} instead", JobDataMapKeyMaxRunTime, jobDataDelay);
+                    logger.MaxRunTimeNotANumber(JobDataMapKeyMaxRunTime, jobDataDelay);
                 }
 
                 monitorPlugin.ScheduleJobInterruptMonitor(context.FireInstanceId, context.JobDetail.Key, jobDataDelay);
-                logger.LogDebug("Job's Interrupt Monitor has been scheduled to interrupt with the delay :{Delay}", jobDataDelay);
+                logger.InterruptMonitorScheduled(jobDataDelay);
             }
         }
         catch (SchedulerException e)
         {
-            logger.LogError(e, "Error scheduling interrupt monitor {ErrorMessage}", e.Message);
+            logger.InterruptMonitorSchedulingFailed(e.Message, e);
         }
 
         return default;
@@ -124,7 +124,7 @@ public sealed class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlug
 
     public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Registering Job Interrupt Monitor Plugin");
+        logger.PluginRegistered();
         this.name = pluginName;
 
         taskScheduler = new QueuedTaskScheduler(1, "JobInterruptMonitorPlugin");
@@ -198,11 +198,11 @@ public sealed class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlug
                 bool interrupted = await scheduler.InterruptFireInstance(FireInstanceId, cancellationTokenSource.Token).ConfigureAwait(false);
                 if (interrupted)
                 {
-                    logger.LogInformation("Interrupted Job as it ran more than the configured max time. Job Details [{JobName}:{JobGroup}], fire instance id {FireInstanceId}", jobKey.Name, jobKey.Group, FireInstanceId);
+                    logger.JobInterrupted(jobKey.Name, jobKey.Group, FireInstanceId);
                 }
                 else
                 {
-                    logger.LogDebug("Job execution was no longer running, nothing to interrupt. Job Details [{JobName}:{JobGroup}], fire instance id {FireInstanceId}", jobKey.Name, jobKey.Group, FireInstanceId);
+                    logger.JobNoLongerRunning(jobKey.Name, jobKey.Group, FireInstanceId);
                 }
             }
             catch (TaskCanceledException)
@@ -211,7 +211,7 @@ public sealed class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlug
             }
             catch (SchedulerException ex)
             {
-                logger.LogError(ex, "Error interrupting Job: {ExceptionMessage}", ex.Message);
+                logger.JobInterruptFailed(ex.Message, ex);
             }
             finally
             {
@@ -229,7 +229,7 @@ public sealed class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlug
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error cancelling monitor: {ExceptionMessage}", ex.Message);
+                logger.MonitorCancellationFailed(ex.Message, ex);
             }
         }
     }

@@ -134,7 +134,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
         Name = pluginName;
         Scheduler = scheduler;
 
-        logger.LogInformation("Registering Quartz Job Initialization Plug-in.");
+        logger.PluginRegistered();
 
         // Create JobFile objects
         var tokens = FileNames.Split(FileNameDelimiter).Select(x => x.TrimStart());
@@ -192,7 +192,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
                         job.JobDataMap[FileScanJob.FileScanListenerName] = JobInitializationPluginName + '_' + Name;
 
                         await Scheduler.ScheduleJob(job, trig, cancellationToken).ConfigureAwait(false);
-                        logger.LogDebug("Scheduled file scan job for data file: {FileName}, at interval: {ScanInterval}", jobFile.FileName, ScanInterval);
+                        logger.FileScanJobScheduled(jobFile.FileName, ScanInterval);
                     }
 
                     await ProcessFile(jobFile, cancellationToken).ConfigureAwait(false);
@@ -205,7 +205,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
             {
                 throw;
             }
-            logger.LogError(se, "Error starting background-task for watching jobs file.");
+            logger.FileWatchStartFailed(se);
         }
         finally
         {
@@ -297,8 +297,8 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error while notifying SchedulerListener of error");
-                logger.LogError(schedulerException, "Original error while notifying scheduler listeners: {Message}", message);
+                logger.ListenerNotificationOfErrorFailed(ex);
+                logger.OriginalErrorForNotification(message, schedulerException);
             }
         }
     }
@@ -335,7 +335,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
             var message = $"Could not schedule jobs and triggers from file {jobFile.FileName}: {e.Message}";
             var schedulerException = new SchedulerException(message, e);
 
-            logger.LogError(e, "Could not schedule jobs and triggers from file {FileName}: {Message}", jobFile.FileName, e.Message);
+            logger.FileProcessingFailed(jobFile.FileName, e.Message, e);
 
             await NotifySchedulerListenersOfError(message, schedulerException, cancellationToken).ConfigureAwait(false);
 
@@ -412,7 +412,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
                     }
                     else
                     {
-                        plugin.logger.LogWarning("File named '{FileName}' does not exist.", FileName);
+                        plugin.logger.FileNotFound(FileName);
                     }
                 }
                 else
@@ -433,7 +433,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
                 }
                 catch (IOException ioe)
                 {
-                    plugin.logger.LogWarning(ioe, "Error closing jobs file {FileName}", FileName);
+                    plugin.logger.FileCloseFailed(FileName, ioe);
                 }
             }
         }

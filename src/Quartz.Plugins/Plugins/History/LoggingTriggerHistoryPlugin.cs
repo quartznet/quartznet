@@ -321,7 +321,7 @@ public sealed class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerList
             context.RefireCount
         ];
 
-        WriteInformation(string.Format(CultureInfo.InvariantCulture, TriggerFiredMessage, args));
+        logger.TriggerFired(string.Format(CultureInfo.InvariantCulture, TriggerFiredMessage, args));
         return default;
     }
 
@@ -359,7 +359,7 @@ public sealed class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerList
             trigger.JobKey.Group
         ];
 
-        WriteInformation(string.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
+        logger.TriggerMisfired(string.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
         return default;
     }
 
@@ -421,7 +421,7 @@ public sealed class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerList
             instrCode
         ];
 
-        WriteInformation(string.Format(CultureInfo.InvariantCulture, TriggerCompleteMessage, args));
+        logger.TriggerCompleted(string.Format(CultureInfo.InvariantCulture, TriggerCompleteMessage, args));
         return default;
     }
 
@@ -444,12 +444,5 @@ public sealed class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerList
         CancellationToken cancellationToken = default)
     {
         return new ValueTask<bool>(false);
-    }
-
-    private void WriteInformation(string message)
-    {
-#pragma warning disable CA2254
-        logger.LogInformation(message);
-#pragma warning restore CA2254
     }
 }

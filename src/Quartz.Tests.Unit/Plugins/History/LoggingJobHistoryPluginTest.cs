@@ -84,6 +84,34 @@ public class LoggingJobHistoryPluginTest
         loggerProvider.Entries.Should().ContainSingle().Which.Level.Should().Be(LogLevel.Information);
     }
 
+    [Test]
+    public async Task ConfiguredMessagesAreRenderedVerbatimAndCarryAnEventIdOfTheirOwn()
+    {
+        plugin.JobToBeFiredMessage = "fired {1}.{0} by {4}.{3}";
+        plugin.JobSuccessMessage = "done {1}.{0}";
+        plugin.JobFailedMessage = "failed {1}.{0}: {8}";
+        plugin.JobWasVetoedMessage = "vetoed {1}.{0}";
+
+        await plugin.JobToBeExecuted(CreateJobExecutionContext());
+        await plugin.JobWasExecuted(CreateJobExecutionContext(), null);
+        await plugin.JobWasExecuted(CreateJobExecutionContext(), new JobExecutionException("boom"));
+        await plugin.JobExecutionVetoed(CreateJobExecutionContext());
+
+        (int EventId, string Message)[] expected =
+        [
+            (6000, "fired jobGroup.jobName by group.name"),
+            (6001, "done jobGroup.jobName"),
+            (6002, "failed jobGroup.jobName: boom"),
+            (6003, "vetoed jobGroup.jobName"),
+        ];
+
+        loggerProvider.Entries.Select(x => (EventId: x.EventId.Id, x.Message)).Should().Equal(
+            expected,
+            "the template is the user's and is formatted here, so passing the result through a degenerate "
+            + "\"{Message}\" event has to leave the text a sink renders exactly as it was - and the four "
+            + "occurrences have to stay separately filterable, which is what an id per occurrence buys");
+    }
+
     private static IJobExecutionContext CreateJobExecutionContext()
     {
         IOperableTrigger t = new SimpleTriggerImpl { Key = new TriggerKey("name", "group"), StartTimeUtc = TimeProvider.System.GetUtcNow() };
