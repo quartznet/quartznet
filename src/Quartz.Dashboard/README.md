@@ -50,8 +50,12 @@ members that nothing statically references. That is the framework's model rather
 package could resolve, and the Blazor packages themselves are not marked trimmable either.
 
 An application that publishes trimmed or native AOT therefore does so without the dashboard. `Quartz`,
-`Quartz.AspNetCore` and the HTTP API are trimmable, so a trimmed service can still be driven remotely —
-by the API, or by a dashboard hosted in a separate application.
+`Quartz.AspNetCore` and `Quartz.HttpClient` are trimmable, so a trimmed service can still be driven
+remotely over the HTTP API.
+
+Hosting the dashboard itself in another process is not something this package does today: the client it
+registers reads the schedulers in its own container. A supported remote dashboard is designed in
+[#3387](https://github.com/quartznet/quartznet/issues/3387).
 
 ## Documentation
 
