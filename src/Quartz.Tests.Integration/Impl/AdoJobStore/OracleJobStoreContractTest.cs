@@ -31,13 +31,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [Category("db-oracle")]
 public sealed class OracleJobStoreContractTest : AdoJobStoreContractTest
 {
-    protected override string DbProviderName => TestConstants.OracleProvider;
+    protected override string DbProviderName => DataSourceOptions.Providers.Oracle;
 
     protected override IDriverDelegate CreateDriverDelegate() => new OracleDelegate();
 
     protected override ValueTask<string> PrepareDatabase()
     {
         // The container and its schema are the assembly's, started once by TestAssemblySetup.
-        return new ValueTask<string>(TestConstants.OracleConnectionString);
+        return new ValueTask<string>(ContainerConnectionString("ORACLE_CONNECTION_STRING"));
     }
 }

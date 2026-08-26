@@ -90,6 +90,30 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
     protected abstract IDriverDelegate CreateDriverDelegate();
 
     /// <summary>
+    /// The connection string <see cref="TestcontainersDatabaseEnvironment" /> published for this
+    /// database when it started the container, read from the environment variable it publishes it in.
+    /// </summary>
+    /// <remarks>
+    /// Read rather than defaulted, and deliberately so. The older ADO fixtures each carry a
+    /// hard-coded localhost fallback, from when these databases were started by hand outside the test
+    /// run; a container is now the only supported way to get a <c>db-*</c> leg going, so a fallback
+    /// here would buy nothing and cost the one thing worth having — when the container fails to
+    /// start, this says so, instead of timing out against whatever else happens to be on localhost.
+    /// Not carrying credentials of its own is the other half of the point.
+    /// </remarks>
+    protected static string ContainerConnectionString(string variableName)
+    {
+        string connectionString = Environment.GetEnvironmentVariable(variableName);
+
+        connectionString.Should().NotBeNullOrWhiteSpace(
+            "{0} is set by the container this assembly starts, so an empty one means the container "
+            + "for this leg never started — run the fixture through its own QUARTZ_TEST_DATABASE leg",
+            variableName);
+
+        return connectionString;
+    }
+
+    /// <summary>
     /// Builds the store under test. Overridden by the fixture that runs the contract against
     /// <see cref="ExternalTransactionJobStore" />.
     /// </summary>

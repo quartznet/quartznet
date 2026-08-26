@@ -31,13 +31,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [Category("db-mysql")]
 public sealed class MySqlJobStoreContractTest : AdoJobStoreContractTest
 {
-    protected override string DbProviderName => TestConstants.MySqlProvider;
+    protected override string DbProviderName => DataSourceOptions.Providers.MySqlConnector;
 
     protected override IDriverDelegate CreateDriverDelegate() => new MySQLDelegate();
 
     protected override ValueTask<string> PrepareDatabase()
     {
         // The container and its schema are the assembly's, started once by TestAssemblySetup.
-        return new ValueTask<string>(TestConstants.MySqlConnectionString);
+        return new ValueTask<string>(ContainerConnectionString("MYSQL_CONNECTION_STRING"));
     }
 }
