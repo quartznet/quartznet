@@ -174,6 +174,12 @@ services.AddQuartz(q =>
 The periodically scanning of files for changes is not currently supported in a clustered environment.
 :::
 
+A file that declares the same job or trigger key — name **and** group — twice is rejected, whatever
+`<processing-directives>` it carries. `<overwrite-existing-data>` and `<ignore-duplicates>` say how
+the file relates to the scheduler, and neither can say anything about how the file relates to itself.
+The [ProcessingDirectives](../configuration/json.md#processingdirectives) section has the details; they
+apply to both formats.
+
 ### JsonSchedulingDataProcessorPlugin
 
 This plugin loads JSON file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. It is the JSON analog of `XmlSchedulingDataProcessorPlugin`.

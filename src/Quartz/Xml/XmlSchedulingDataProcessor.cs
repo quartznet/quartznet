@@ -59,6 +59,10 @@ internal class XmlSchedulingDataProcessor
     public const string QuartzXmlFileName = "quartz_jobs.xml";
     public const string QuartzXsdResourceName = "Quartz.Xml.job_scheduling_data_2_0.xsd";
 
+    private const string DirectivesDoNotApply =
+        "The ignore-duplicates and overwrite-existing-data directives describe how the file relates to "
+        + "the scheduler, so neither of them suppresses this.";
+
     // pre-processing commands
     private readonly List<string> jobGroupsToDelete = new List<string>();
     private readonly List<string> triggerGroupsToDelete = new List<string>();
@@ -68,6 +72,11 @@ internal class XmlSchedulingDataProcessor
     // scheduling commands
     private readonly List<IJobDetail> loadedJobs = new List<IJobDetail>();
     private readonly List<ITrigger> loadedTriggers = new List<ITrigger>();
+
+    // the keys accepted so far from the document being processed, so that a key declared twice in
+    // one document is caught before the second definition silently overwrites the first
+    private readonly HashSet<JobKey> loadedJobKeys = new HashSet<JobKey>();
+    private readonly HashSet<TriggerKey> loadedTriggerKeys = new HashSet<TriggerKey>();
 
     // directives
     private readonly List<Exception> validationExceptions = new List<Exception>();
@@ -211,6 +220,8 @@ internal class XmlSchedulingDataProcessor
 
         loadedJobs.Clear();
         loadedTriggers.Clear();
+        loadedJobKeys.Clear();
+        loadedTriggerKeys.Clear();
     }
 
     [RequiresUnreferencedCode("Register every job type with AddJob<T>() or reference it from JobBuilder.Create<T>(); a type named only by a string in job_scheduling_data XML is not guaranteed to survive trimming.")]
@@ -452,13 +463,45 @@ internal class XmlSchedulingDataProcessor
         }
     }
 
+    /// <summary>
+    /// Accepts a parsed job definition into the set that will be scheduled.
+    /// </summary>
+    /// <remarks>
+    /// Every loader funnels its jobs through here, so this is where a job key declared twice in one
+    /// document is caught; an override that does not call <c>base</c> gives that check up.
+    /// </remarks>
+    /// <exception cref="SchedulingDataValidationException">
+    /// The document being processed has already declared a job with this name and group.
+    /// </exception>
     protected virtual void AddJobToSchedule(IJobDetail job)
     {
+        if (!loadedJobKeys.Add(job.Key))
+        {
+            throw new SchedulingDataValidationException(
+                $"Job '{job.Key}' is defined more than once in the scheduling data. {DirectivesDoNotApply}");
+        }
+
         loadedJobs.Add(job);
     }
 
+    /// <summary>
+    /// Accepts a parsed trigger definition into the set that will be scheduled.
+    /// </summary>
+    /// <remarks>
+    /// Every loader funnels its triggers through here, so this is where a trigger key declared twice
+    /// in one document is caught; an override that does not call <c>base</c> gives that check up.
+    /// </remarks>
+    /// <exception cref="SchedulingDataValidationException">
+    /// The document being processed has already declared a trigger with this name and group.
+    /// </exception>
     protected virtual void AddTriggerToSchedule(IMutableTrigger trigger)
     {
+        if (!loadedTriggerKeys.Add(trigger.Key))
+        {
+            throw new SchedulingDataValidationException(
+                $"Trigger '{trigger.Key}' is defined more than once in the scheduling data. {DirectivesDoNotApply}");
+        }
+
         loadedTriggers.Add(trigger);
     }
 

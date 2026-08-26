@@ -358,3 +358,16 @@ Commands executed before scheduling. All fields are optional:
 | `OverwriteExistingData` | `true` | Replace existing jobs/triggers with the same identity. |
 | `IgnoreDuplicates` | `false` | When `OverwriteExistingData` is `false`, silently skip duplicates instead of erroring. |
 | `ScheduleTriggerRelativeToReplacedTrigger` | `false` | Adjust new trigger timing based on old trigger's last fire time. |
+
+::: warning Declaring one key twice in a file is an error
+Every directive above describes how the file relates to the scheduler. None of them describes how the
+file relates to itself, so none of them suppresses the error a file gets for declaring one job or
+trigger key — name **and** group — twice:
+
+```text
+Trigger 'DEFAULT.myTrigger' is defined more than once in the scheduling data.
+```
+
+The same holds for the XML format's `<overwrite-existing-data>` and `<ignore-duplicates>`. Before
+Quartz.NET 4, the last definition of a repeated key won and said so only at `Debug`.
+:::

@@ -268,6 +268,33 @@ public class JsonSchedulingDataProcessorTest
         act.Should().Throw<SchedulerConfigException>().WithMessage("*mutually exclusive*");
     }
 
+    /// <summary>
+    /// The guard lives in <c>XmlSchedulingDataProcessor.AddTriggerToSchedule</c>, the funnel this
+    /// processor's own parsing calls, so it is inherited rather than written twice.
+    /// </summary>
+    [Test]
+    public void TwoTriggersWithOneNameAndGroup_Throws()
+    {
+        string json = """
+        {
+            "Schedule": {
+                "Jobs": [{ "Name": "dupJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "Durable": true }],
+                "Triggers": [
+                    { "Name": "dupTrigger", "JobName": "dupJob", "Cron": { "Expression": "0/10 * * * * ?" } },
+                    { "Name": "dupTrigger", "JobName": "dupJob", "Cron": { "Expression": "0 0 12 * * ?" } }
+                ]
+            }
+        }
+        """;
+
+        JsonSchedulingDataProcessor processor = CreateProcessor();
+        Action act = () => processor.ProcessJsonContent(json);
+
+        act.Should().Throw<SchedulingDataValidationException>(
+                "the JSON loader inherits the XML processor's duplicate-key guard, so the flaw cannot be fixed on one side only")
+            .WithMessage("*Trigger 'DEFAULT.dupTrigger' is defined more than once in the scheduling data.*");
+    }
+
     [Test]
     public void NullJsonContent_Throws()
     {
