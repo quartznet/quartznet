@@ -61,6 +61,7 @@ public class DailyCalendar : BaseCalendar
     private const string InvalidMillis = "Invalid millis: ";
     private const string InvalidTimeRange = "Invalid time range: ";
     private const string Separator = " - ";
+    private const long OneMillis = 1;
     private const char Colon = ':';
 
     private const string TwoDigitFormat = "00";
@@ -74,7 +75,6 @@ public class DailyCalendar : BaseCalendar
     private int rangeEndingMinute;
     private int rangeEndingSecond;
     private int rangeEndingMillis;
-    private int precisionStepMillis = 1000;
 
     private DailyCalendar()
     {
@@ -441,29 +441,36 @@ public class DailyCalendar : BaseCalendar
         }
 
         //Before we start, apply the correct timezone offsets.
-        timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
+        return IsInsideTheOpenPartOfTheDay(TimeZoneUtil.ConvertTime(timeUtc, TimeZone));
+    }
 
-        DateTimeOffset startOfDayInMillis = GetStartOfDay(timeUtc);
-        DateTimeOffset endOfDayInMillis = GetEndOfDay(timeUtc);
-        DateTimeOffset timeRangeStartingTimeInMillis = GetTimeRangeStartingTimeUtc(timeUtc);
-        DateTimeOffset timeRangeEndingTimeInMillis = GetTimeRangeEndingTimeUtc(timeUtc);
+    /// <summary>
+    /// The calendar's own rule with no base calendar in it: whether the given instant, already
+    /// expressed in <see cref="BaseCalendar.TimeZone" />, reads as a wall clock this calendar
+    /// includes.
+    /// </summary>
+    /// <remarks>
+    /// Every value it compares against carries the same offset as <paramref name="timeInZone" />, so
+    /// every comparison it makes is a wall-clock one. That is what makes the window mean the same
+    /// thing on a day that is 23 or 25 hours long as it does on any other day: an hour of exclusion
+    /// as written can be no elapsed time at all, or two hours of it.
+    /// </remarks>
+    private bool IsInsideTheOpenPartOfTheDay(DateTimeOffset timeInZone)
+    {
+        DateTimeOffset startOfDayInMillis = GetStartOfDay(timeInZone);
+        DateTimeOffset endOfDayInMillis = GetEndOfDay(timeInZone);
+        DateTimeOffset timeRangeStartingTimeInMillis = GetTimeRangeStartingTimeUtc(timeInZone);
+        DateTimeOffset timeRangeEndingTimeInMillis = GetTimeRangeEndingTimeUtc(timeInZone);
         if (!InvertTimeRange)
         {
-            if (timeUtc >= startOfDayInMillis &&
-                timeUtc < timeRangeStartingTimeInMillis ||
-                timeUtc > timeRangeEndingTimeInMillis &&
-                timeUtc <= endOfDayInMillis)
-            {
-                return true;
-            }
-            return false;
+            return timeInZone >= startOfDayInMillis &&
+                   timeInZone < timeRangeStartingTimeInMillis ||
+                   timeInZone > timeRangeEndingTimeInMillis &&
+                   timeInZone <= endOfDayInMillis;
         }
-        if (timeUtc >= timeRangeStartingTimeInMillis &&
-            timeUtc <= timeRangeEndingTimeInMillis)
-        {
-            return true;
-        }
-        return false;
+
+        return timeInZone >= timeRangeStartingTimeInMillis &&
+               timeInZone <= timeRangeEndingTimeInMillis;
     }
 
     /// <summary>
@@ -471,77 +478,163 @@ public class DailyCalendar : BaseCalendar
     /// Calendar after the given time. Return the original value if timeStamp is
     /// included. Return 0 if all days are excluded.
     /// </summary>
+    /// <remarks>
+    /// The question is answered in <see cref="BaseCalendar.TimeZone" /> whatever offset it is asked
+    /// in, because the window is a wall-clock window of the calendar's own zone: the argument is
+    /// converted first, exactly as <see cref="IsTimeIncluded" /> converts it, and the day's edges are
+    /// named as wall-clock times on the local date and resolved back to instants there. Computing
+    /// them at the offset the argument happened to carry made the two methods disagree whenever those
+    /// offsets differed, and the walk then crept forward a step at a time through a stretch it had
+    /// already been told was excluded - minutes of spinning for an answer months out of place
+    /// (#3466).
+    /// </remarks>
     /// <param name="timeUtc"></param>
     /// <returns></returns>
     /// <seealso cref="ICalendar.GetNextIncludedTimeUtc"/>
     public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
     {
-        DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(precisionStepMillis);
+        DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(OneMillis);
 
         while (!IsTimeIncluded(nextIncludedTime))
         {
-            if (!InvertTimeRange)
+            DateTimeOffset candidate;
+            if (!IsInsideTheOpenPartOfTheDay(TimeZoneUtil.ConvertTime(nextIncludedTime, TimeZone)))
             {
-                //If the time is in a range excluded by this calendar, we can
-                // move to the end of the excluded time range and continue
-                // testing from there. Otherwise, if nextIncludedTime is
-                // excluded by the baseCalendar, ask it the next time it
-                // includes and begin testing from there. Failing this, add one
-                // millisecond and continue testing.
-                if (nextIncludedTime >=
-                    GetTimeRangeStartingTimeUtc(nextIncludedTime) &&
-                    nextIncludedTime <=
-                    GetTimeRangeEndingTimeUtc(nextIncludedTime))
-                {
-                    nextIncludedTime =
-                        GetTimeRangeEndingTimeUtc(nextIncludedTime).AddMilliseconds(precisionStepMillis);
-                }
-                else if (CalendarBase != null &&
-                         !CalendarBase.IsTimeIncluded(nextIncludedTime))
-                {
-                    nextIncludedTime =
-                        CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);
-                }
-                else
-                {
-                    nextIncludedTime = nextIncludedTime.AddMilliseconds(precisionStepMillis);
-                }
+                // The calendar's own window is what holds this time back, and the window's own edges
+                // say when it lets go, so jump there rather than testing what lies between.
+                candidate = NextTimeThisCalendarIncludes(nextIncludedTime);
+            }
+            else if (CalendarBase != null &&
+                     !CalendarBase.IsTimeIncluded(nextIncludedTime))
+            {
+                // The window is open and the base calendar is what holds the time back; it knows when
+                // it lets go, so ask it and carry on testing from there.
+                candidate = CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);
             }
             else
             {
-                //If the time is in a range excluded by this calendar, we can
-                // move to the end of the excluded time range and continue
-                // testing from there. Otherwise, if nextIncludedTime is
-                // excluded by the baseCalendar, ask it the next time it
-                // includes and begin testing from there. Failing this, add one
-                // millisecond and continue testing.
-                if (nextIncludedTime <
-                    GetTimeRangeStartingTimeUtc(nextIncludedTime))
-                {
-                    nextIncludedTime =
-                        GetTimeRangeStartingTimeUtc(nextIncludedTime);
-                }
-                else if (nextIncludedTime >
-                         GetTimeRangeEndingTimeUtc(nextIncludedTime))
-                {
-                    //(move to start of next day)
-                    nextIncludedTime = GetEndOfDay(nextIncludedTime);
-                    nextIncludedTime = nextIncludedTime.AddMilliseconds(precisionStepMillis);
-                }
-                else if (CalendarBase != null &&
-                         !CalendarBase.IsTimeIncluded(nextIncludedTime))
-                {
-                    nextIncludedTime =
-                        CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);
-                }
-                else
-                {
-                    nextIncludedTime = nextIncludedTime.AddMilliseconds(precisionStepMillis);
-                }
+                candidate = nextIncludedTime.AddMilliseconds(OneMillis);
             }
+
+            // Both jumps move forward by construction; the millisecond step is what keeps a base
+            // calendar that answers with a time of its own choosing from spinning the loop.
+            nextIncludedTime = candidate > nextIncludedTime
+                ? candidate
+                : nextIncludedTime.AddMilliseconds(OneMillis);
         }
 
         return nextIncludedTime;
+    }
+
+    /// <summary>
+    /// The first instant after <paramref name="time" /> that this calendar's own window rule
+    /// includes, with no base calendar in it.
+    /// </summary>
+    /// <remarks>
+    /// The answer is named rather than walked up to. While the zone's offset holds still the wall
+    /// clock only enters the open part of a day at an edge of it, so the edges of the local date the
+    /// query lands in - and of the date after it, once that one has no open time left - are the only
+    /// instants worth asking about. Each is checked against the rule before it is taken, so an edge
+    /// the zone makes meaningless drops out on its own, and the earliest survivor is the answer.
+    /// </remarks>
+    private DateTimeOffset NextTimeThisCalendarIncludes(DateTimeOffset time)
+    {
+        DateTime date = TimeZoneUtil.ConvertTime(time, TimeZone).Date;
+
+        while (true)
+        {
+            DateTimeOffset? included = FirstIncludedInstantOnLocalDate(date, time);
+            if (included != null)
+            {
+                return included.Value;
+            }
+
+            // A calendar whose window leaves no open time on any day never has an answer to give;
+            // the walk then runs out of dates, which is the end the millisecond walk came to as well.
+            date = date.AddDays(1);
+        }
+    }
+
+    /// <summary>
+    /// The first instant of the given local date that is both past <paramref name="after" /> and
+    /// inside the open part of the day, or <see langword="null" /> when that date has none.
+    /// </summary>
+    private DateTimeOffset? FirstIncludedInstantOnLocalDate(DateTime date, DateTimeOffset after)
+    {
+        TimeZoneInfo timeZone = TimeZone;
+
+        // The wall clock at which the day opens, and the one at which it closes again. An ordinary
+        // calendar opens a millisecond past the window's end; an inverted one opens at its start.
+        DateTime opens = InvertTimeRange
+            ? RangeStartOnLocalDate(date)
+            : RangeEndOnLocalDate(date).AddMilliseconds(OneMillis);
+
+        DateTime closes = InvertTimeRange
+            ? RangeEndOnLocalDate(date).AddMilliseconds(OneMillis)
+            : RangeStartOnLocalDate(date);
+
+        // The day's own first instant, which is neither always midnight nor always at the offset the
+        // rest of the day carries.
+        DateTimeOffset? earliest = EarliestIncluded(soFar: null, TimeZoneUtil.StartOfLocalDay(date, timeZone), after);
+
+        // The instant the day opens at: the first instant the clock reads that edge or later. One
+        // that happens twice resolves to the first of the two, that being the first instant the day
+        // is open at, and one that never happens at all - the edge fell in a spring-forward gap - to
+        // the instant the clocks moved.
+        earliest = EarliestIncluded(earliest, TimeZoneUtil.FirstInstantAtOrAfterLocal(opens, timeZone), after);
+
+        // ...and, when that wall clock happens twice, the second of the two, for a query that already
+        // stands past the first.
+        if (TimeZoneUtil.TryResolveSecondPass(opens, timeZone, out DateTimeOffset opensAgain))
+        {
+            earliest = EarliestIncluded(earliest, opensAgain, after);
+        }
+
+        // A fall-back does not merely repeat a wall clock, it takes the clock back into a part of the
+        // day that was already over. That happens exactly when the edge the day closes at is inside
+        // the repeated hour: the transition lands on the wall clock that hour began with, which is
+        // before the closing edge and so back inside the open part of the day.
+        if (TimeZoneUtil.TryGetAmbiguousWindow(closes, timeZone, out DateTime repeatedFrom, out _)
+            && TimeZoneUtil.TryResolveSecondPass(repeatedFrom, timeZone, out DateTimeOffset clockGoesBack))
+        {
+            earliest = EarliestIncluded(earliest, clockGoesBack, after);
+        }
+
+        return earliest;
+    }
+
+    /// <summary>
+    /// The earlier of <paramref name="soFar" /> and <paramref name="candidate" />, keeping only a
+    /// candidate that lies past <paramref name="after" /> and that the calendar's own rule includes.
+    /// </summary>
+    private DateTimeOffset? EarliestIncluded(DateTimeOffset? soFar, DateTimeOffset candidate, DateTimeOffset after)
+    {
+        if (candidate <= after || !IsInsideTheOpenPartOfTheDay(TimeZoneUtil.ConvertTime(candidate, TimeZone)))
+        {
+            return soFar;
+        }
+
+        return soFar == null || candidate < soFar.Value ? candidate : soFar;
+    }
+
+    /// <summary>
+    /// The wall clock at which the time range starts on the given local date.
+    /// </summary>
+    private DateTime RangeStartOnLocalDate(DateTime date)
+    {
+        return new DateTime(date.Year, date.Month, date.Day,
+            rangeStartingHourOfDay, rangeStartingMinute,
+            rangeStartingSecond, rangeStartingMillis, DateTimeKind.Unspecified);
+    }
+
+    /// <summary>
+    /// The wall clock at which the time range ends on the given local date.
+    /// </summary>
+    private DateTime RangeEndOnLocalDate(DateTime date)
+    {
+        return new DateTime(date.Year, date.Month, date.Day,
+            rangeEndingHourOfDay, rangeEndingMinute,
+            rangeEndingSecond, rangeEndingMillis, DateTimeKind.Unspecified);
     }
 
     public override ICalendar Clone()
@@ -558,15 +651,26 @@ public class DailyCalendar : BaseCalendar
     /// Returns the start time of the time range of the day
     /// specified in <paramref name="timeUtc" />.
     /// </summary>
+    /// <remarks>
+    /// The day is the local day of <see cref="BaseCalendar.TimeZone" />, so the argument is converted
+    /// into the zone before its date is read: asked in UTC about a calendar that keeps another zone's
+    /// hours, the answer is about the local date the instant falls in rather than the UTC one. The
+    /// value is a wall clock paired with the offset that instant carries, which is what makes it
+    /// comparable with the instant it was derived from; around a transition that offset need not be
+    /// the one the edge itself would be resolved at, and
+    /// <see cref="GetNextIncludedTimeUtc" />, which needs instants rather than comparands, resolves
+    /// the edges through the zone instead.
+    /// </remarks>
     /// <returns>
     ///     a DateTime representing the start time of the
     ///     time range for the specified date.
     /// </returns>
     public DateTimeOffset GetTimeRangeStartingTimeUtc(DateTimeOffset timeUtc)
     {
-        DateTimeOffset rangeStartingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
+        DateTimeOffset timeInZone = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
+        DateTimeOffset rangeStartingTime = new DateTimeOffset(timeInZone.Year, timeInZone.Month, timeInZone.Day,
             rangeStartingHourOfDay, rangeStartingMinute,
-            rangeStartingSecond, rangeStartingMillis, timeUtc.Offset);
+            rangeStartingSecond, rangeStartingMillis, timeInZone.Offset);
         return rangeStartingTime;
     }
 
@@ -574,15 +678,20 @@ public class DailyCalendar : BaseCalendar
     /// Returns the end time of the time range of the day
     /// specified in <paramref name="timeUtc" />
     /// </summary>
+    /// <remarks>
+    /// The day is the local day of <see cref="BaseCalendar.TimeZone" />; see
+    /// <see cref="GetTimeRangeStartingTimeUtc" />.
+    /// </remarks>
     /// <returns>
     /// A DateTime representing the end time of the
     /// time range for the specified date.
     /// </returns>
     public DateTimeOffset GetTimeRangeEndingTimeUtc(DateTimeOffset timeUtc)
     {
-        DateTimeOffset rangeEndingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
+        DateTimeOffset timeInZone = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
+        DateTimeOffset rangeEndingTime = new DateTimeOffset(timeInZone.Year, timeInZone.Month, timeInZone.Day,
             rangeEndingHourOfDay, rangeEndingMinute,
-            rangeEndingSecond, rangeEndingMillis, timeUtc.Offset);
+            rangeEndingSecond, rangeEndingMillis, timeInZone.Offset);
         return rangeEndingTime;
     }
 
@@ -760,22 +869,6 @@ public class DailyCalendar : BaseCalendar
         this.rangeEndingMinute = rangeEndingMinute;
         this.rangeEndingSecond = rangeEndingSecond;
         this.rangeEndingMillis = rangeEndingMillis;
-            
-        CalculationPrecisionStep();
-    }
-
-    private void CalculationPrecisionStep()
-    {
-        if (rangeStartingMillis != 0 || rangeEndingMillis != 0)
-        {
-            precisionStepMillis = 1;
-        }
-        else if (rangeStartingSecond != 0 || rangeEndingSecond != 0)
-        {
-            precisionStepMillis = 1000;
-        }
-        else 
-            precisionStepMillis = 60000;
     }
 
     /// <summary>
@@ -813,7 +906,14 @@ public class DailyCalendar : BaseCalendar
     /// <summary>
     /// Gets the start of day, practically zeroes time part.
     /// </summary>
-    /// <param name="time">The time.</param>
+    /// <remarks>
+    /// A wall-clock comparand, not an instant: it is midnight at whatever offset
+    /// <paramref name="time" /> carries, which is the day's first instant only on a day whose offset
+    /// never changes. That is all <see cref="IsInsideTheOpenPartOfTheDay" /> asks of it, since it
+    /// compares it with a value carrying that same offset. Code that needs the instant a local day
+    /// begins at uses <see cref="TimeZoneUtil.StartOfLocalDay" />.
+    /// </remarks>
+    /// <param name="time">The time, already expressed in the calendar's zone.</param>
     /// <returns></returns>
     private static DateTimeOffset GetStartOfDay(DateTimeOffset time)
     {
@@ -823,7 +923,10 @@ public class DailyCalendar : BaseCalendar
     /// <summary>
     /// Gets the end of day, practically sets time parts to maximum allowed values.
     /// </summary>
-    /// <param name="time">The time.</param>
+    /// <remarks>
+    /// A wall-clock comparand; see <see cref="GetStartOfDay" />.
+    /// </remarks>
+    /// <param name="time">The time, already expressed in the calendar's zone.</param>
     /// <returns></returns>
     private static DateTimeOffset GetEndOfDay(DateTimeOffset time)
     {

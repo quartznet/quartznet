@@ -194,6 +194,88 @@ public class TimeZoneUtilTest
         TimeZoneUtil.StartOfLocalDay(date.AddHours(13), zone).Should().Be(start, "only the date part of the argument is used");
     }
 
+    // A boundary inside a spring-forward gap is crossed the moment the clocks move, which is earlier
+    // than the instant ResolveLocal hands a trigger for the same wall clock. The second case is why
+    // the gap is walked from the whole minute: a boundary a millisecond into the gap is still crossed
+    // at the transition, not a millisecond after it.
+    [TestCase("Eastern", "2024-03-10 02:30", "2024-03-10 03:00")]
+    [TestCase("Eastern", "2024-03-10 02:30:00.001", "2024-03-10 03:00")]
+    [TestCase("LordHowe", "2019-10-06 02:15", "2019-10-06 02:30")]
+    [TestCase("Santiago", "2019-09-08 00:30", "2019-09-08 01:00")]
+    public void FirstInstantAtOrAfterLocal_InvalidLocalTime_IsTheInstantTheClocksMoved(string zoneKey, string invalidLocal, string expectedRenderedLocal)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime local = DateTime.Parse(invalidLocal, CultureInfo.InvariantCulture);
+        TestTimeZones.AssumeInvalidLocalTime(zone, local);
+
+        DateTimeOffset first = TimeZoneUtil.FirstInstantAtOrAfterLocal(local, zone);
+
+        TimeZoneInfo.ConvertTime(first, zone).DateTime
+            .Should().Be(DateTime.Parse(expectedRenderedLocal, CultureInfo.InvariantCulture),
+                "the clock reads the end of the gap the moment it passes a boundary inside it");
+
+        first.Should().BeBefore(TimeZoneUtil.ResolveLocal(local, zone),
+            "ResolveLocal answers a trigger's question - when does this wall clock happen - by shifting past the gap, which is later than the moment the clock passed the boundary");
+    }
+
+    [Test]
+    public void FirstInstantAtOrAfterLocal_LocalTimeThatExists_IsWhereResolveLocalPutsIt()
+    {
+        TimeZoneInfo zone = TestTimeZones.Eastern;
+
+        DateTime ambiguous = new DateTime(2024, 11, 3, 1, 30, 0);
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, ambiguous);
+        TimeZoneUtil.FirstInstantAtOrAfterLocal(ambiguous, zone).Should().Be(TimeZoneUtil.ResolveLocal(ambiguous, zone),
+            "a wall clock that happens twice is first read at the first of the two");
+
+        DateTime plain = new DateTime(2024, 6, 15, 12, 0, 0);
+        TimeZoneUtil.FirstInstantAtOrAfterLocal(plain, zone).Should().Be(TimeZoneUtil.ResolveLocal(plain, zone),
+            "and one that happens once is read then");
+    }
+
+    [TestCase("Eastern", "2024-11-03 01:30", "2024-11-03T06:30:00Z")]
+    [TestCase("Santiago", "2019-04-06 23:30", "2019-04-07T03:30:00Z")]
+    [TestCase("LordHowe", "2019-04-07 01:45", "2019-04-06T15:15:00Z")]
+    public void TryResolveSecondPass_AmbiguousLocalTime_IsTheOccurrenceAfterTheTransition(string zoneKey, string ambiguousLocal, string expectedUtc)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime local = DateTime.Parse(ambiguousLocal, CultureInfo.InvariantCulture);
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, local);
+
+        TimeZoneUtil.TryResolveSecondPass(local, zone, out DateTimeOffset second).Should().BeTrue();
+
+        second.Should().Be(DateTimeOffset.Parse(expectedUtc, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal));
+        second.Should().BeAfter(TimeZoneUtil.ResolveLocal(local, zone), "the second pass of a repeated wall clock comes after the first");
+        TimeZoneInfo.ConvertTime(second, zone).DateTime.Should().Be(local, "and it reads as the same wall clock");
+
+        TimeZoneUtil.TryResolveSecondPass(local.Date.AddHours(12), zone, out _).Should().BeFalse("noon is not ambiguous");
+    }
+
+    [TestCase("Eastern", "2024-11-03 01:30", "2024-11-03 01:00", "2024-11-03 02:00")]
+    [TestCase("CentralEuropean", "2018-10-28 02:30", "2018-10-28 02:00", "2018-10-28 03:00")]
+    [TestCase("LordHowe", "2019-04-07 01:45", "2019-04-07 01:30", "2019-04-07 02:00")]
+    [TestCase("Santiago", "2019-04-06 23:30", "2019-04-06 23:00", "2019-04-07 00:00")]
+    public void TryGetAmbiguousWindow_ReturnsWallClockWindow(string zoneKey, string ambiguousLocal, string expectedStart, string expectedEnd)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime local = DateTime.Parse(ambiguousLocal, CultureInfo.InvariantCulture);
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, local);
+
+        TimeZoneUtil.TryGetAmbiguousWindow(local, zone, out DateTime windowStart, out DateTime windowEnd).Should().BeTrue();
+
+        windowStart.Should().Be(DateTime.Parse(expectedStart, CultureInfo.InvariantCulture));
+        windowEnd.Should().Be(DateTime.Parse(expectedEnd, CultureInfo.InvariantCulture));
+
+        // pairing the window start with the standard (smaller) offset yields the transition instant,
+        // which renders in the zone as the window start itself - the first instant of the second pass
+        TimeSpan standardOffset = zone.GetAmbiguousTimeOffsets(local).Min();
+        DateTimeOffset transition = new DateTimeOffset(windowStart, standardOffset);
+        TimeZoneInfo.ConvertTime(transition, zone).DateTime.Should().Be(windowStart);
+
+        TimeZoneUtil.TryGetAmbiguousWindow(local.Date.AddHours(12), zone, out _, out _)
+            .Should().BeFalse("noon is not ambiguous");
+    }
+
     [Test]
     public void ResolveLocal_NegativeDaylightDeltaZone_DoesNotMoveBackwards()
     {

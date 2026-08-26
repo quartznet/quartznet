@@ -157,6 +157,96 @@ public static class TimeZoneUtil
     }
 
     /// <summary>
+    /// The first instant at which the zone's clock reads <paramref name="dateTime"/> or later.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A wall clock that exists resolves through <see cref="ResolveLocal"/>, so one that happens
+    /// twice answers with the first of the two. One that does not exist — it fell in a spring-forward
+    /// gap — is answered with the instant the clocks moved, that being the first instant the clock
+    /// reads past it. This is deliberately not what <see cref="ResolveLocal"/> alone says of an
+    /// in-gap time: a trigger asking when a wall clock happens is answered with the gap's end shifted
+    /// forward by the transition delta, whereas a boundary is crossed the moment the clock passes it.
+    /// </para>
+    /// <para>
+    /// The gap's end is walked to from the whole minute the given time falls in, because a zone
+    /// changes offset on a minute and walking from the time's own second would carry that second past
+    /// the transition.
+    /// </para>
+    /// </remarks>
+    internal static DateTimeOffset FirstInstantAtOrAfterLocal(DateTime dateTime, TimeZoneInfo timeZoneInfo)
+    {
+        if (!timeZoneInfo.IsInvalidTime(dateTime))
+        {
+            return ResolveLocal(dateTime, timeZoneInfo);
+        }
+
+        DateTime minute = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, dateTime.Minute, 0, dateTime.Kind);
+        return ResolveLocal(WalkToGapEnd(minute, timeZoneInfo), timeZoneInfo);
+    }
+
+    /// <summary>
+    /// The second of the two instants an ambiguous wall-clock time names — the one after the
+    /// fall-back transition. Returns false when the time is not ambiguous, so it also answers
+    /// "does this wall clock happen twice, and when is the second time".
+    /// </summary>
+    /// <remarks>
+    /// The second pass always carries the smaller of the two offsets: a clock that goes back is a
+    /// clock whose offset shrinks, whichever of the two periods the zone labels as its daylight one.
+    /// <see cref="ResolveLocal"/> resolves the same wall clock to the first of the two, which is
+    /// what a trigger wants; a caller that has already gone past the first pass wants this one.
+    /// </remarks>
+    internal static bool TryResolveSecondPass(DateTime dateTime, TimeZoneInfo timeZoneInfo, out DateTimeOffset instant)
+    {
+        if (!timeZoneInfo.IsAmbiguousTime(dateTime))
+        {
+            instant = default;
+            return false;
+        }
+
+        instant = new DateTimeOffset(dateTime, timeZoneInfo.GetAmbiguousTimeOffsets(dateTime).Min());
+        return true;
+    }
+
+    /// <summary>
+    /// Determines the wall-clock window that occurs twice around a fall-back transition. Returns
+    /// false when the given time is not ambiguous. On success <paramref name="windowStart"/> is the
+    /// first ambiguous wall-clock minute (pairing it with the standard offset yields the transition
+    /// instant, i.e. the first instant of the second pass) and <paramref name="windowEnd"/> is the
+    /// first wall-clock minute after the window. Boundaries are found by scanning a minute at a
+    /// time, which handles transition deltas that are not whole hours.
+    /// </summary>
+    internal static bool TryGetAmbiguousWindow(DateTime dateTime, TimeZoneInfo timeZoneInfo, out DateTime windowStart, out DateTime windowEnd)
+    {
+        if (!timeZoneInfo.IsAmbiguousTime(dateTime))
+        {
+            windowStart = default;
+            windowEnd = default;
+            return false;
+        }
+
+        DateTime minute = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, dateTime.Minute, 0, dateTime.Kind);
+
+        DateTime start = minute;
+        int guard = 0;
+        while (timeZoneInfo.IsAmbiguousTime(start.AddMinutes(-1)) && guard++ < MaxTransitionScanMinutes)
+        {
+            start = start.AddMinutes(-1);
+        }
+
+        DateTime end = minute;
+        guard = 0;
+        while (timeZoneInfo.IsAmbiguousTime(end) && guard++ < MaxTransitionScanMinutes)
+        {
+            end = end.AddMinutes(1);
+        }
+
+        windowStart = start;
+        windowEnd = end;
+        return true;
+    }
+
+    /// <summary>
     /// Walks forward from a wall-clock time inside a spring-forward gap to the first wall-clock
     /// time that exists in the given zone (the end of the gap). Returns the input unchanged when it
     /// is already valid.
