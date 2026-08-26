@@ -40,15 +40,14 @@ namespace Quartz.Tests.Integration.Impl;
 /// threshold" is an assignment rather than a wait.
 /// </para>
 /// <para>
-/// <b>Triggers keep the system clock, whichever store holds them.</b> Every schedule builder news up
-/// its trigger with <see cref="TimeProvider.System" /> — <c>TriggerBuilder.Create(clock)</c> hands its
-/// clock to the schedule builder, not to the trigger — and the ADO store rebuilds a trigger it reads
-/// through <c>TriggerBuilder.Create()</c>, which has no clock to hand it in the first place. So a fake
-/// clock decides only <em>whether</em> a store treats a trigger as misfired; <em>what</em>
-/// <c>UpdateAfterMisfire</c> then computes is on real time in both stores. That is why every schedule
-/// here is anchored half a period out (twelve hours either side of <c>anchor</c>): a "reschedule to the
-/// next slot" instant is then the same value however many milliseconds pass between the detached
-/// computation and the store's own, and a "fire now" instant is asserted to fall inside the pass.
+/// <b>A trigger reads the clock of whoever produced it, and these are all produced on the store's.</b>
+/// <c>TriggerBuilder.Create(clock)</c> hands its clock to the trigger it builds, and the ADO store
+/// hands its own to every trigger it materializes out of its rows, so <em>what</em>
+/// <c>UpdateAfterMisfire</c> computes is on the fake clock in both stores, not only <em>whether</em> a
+/// store treats a trigger as late. Nothing here reads real time, so every expected instant is exact —
+/// a "fire now" one included, since a <see cref="FakeTimeProvider" /> does not move unless the test
+/// moves it. Schedules are still anchored half a period out (twelve hours either side of
+/// <c>anchor</c>) so that no cell sits on a schedule boundary.
 /// </para>
 /// </remarks>
 [NonParallelizable]
@@ -121,10 +120,20 @@ public abstract class MisfireThroughAStoreTestBase
     }
 
     /// <summary>
-    /// The instant every schedule in a test is anchored on, and the value the store clocks reach once
-    /// the test has moved them. Real time, because that is the clock the triggers themselves read.
+    /// The instant every schedule in a test is anchored on, and the value both store clocks reach once
+    /// the test has advanced them.
     /// </summary>
+    /// <remarks>
+    /// Real time only as a seed: nothing reads the machine clock again after this, so a test is
+    /// deterministic relative to whatever instant it started from.
+    /// </remarks>
     protected static DateTimeOffset Anchor() => TimeProvider.System.GetUtcNow();
+
+    /// <summary>
+    /// A clock frozen where both stores' clocks stand once a test has advanced them, for a detached
+    /// copy that has to compute what a store computed but is built before either store exists.
+    /// </summary>
+    protected static FakeTimeProvider ClockAt(DateTimeOffset instant) => new FakeTimeProvider(instant);
 
     /// <summary>
     /// Both stores, in the order they are reported in: the in-memory one first, because a failure

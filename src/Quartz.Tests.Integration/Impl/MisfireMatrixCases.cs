@@ -54,11 +54,16 @@ public sealed class MisfireMatrixCase
     public string Instruction { get; init; }
 
     /// <summary>
-    /// Builds the trigger this cell is about, anchored on the instant the test froze. Called more than
-    /// once per test: once for the copy that is stored, and once for the detached copy that computes
-    /// what the store must arrive at.
+    /// Builds the trigger this cell is about, anchored on the instant the test froze and holding the
+    /// clock the store under test reads. Called more than once per test: once for the copy that is
+    /// stored, and once for the detached copy that computes what the store must arrive at.
     /// </summary>
-    public Func<DateTimeOffset, TriggerBuilder<IJob>> Trigger { get; init; }
+    /// <remarks>
+    /// The clock is the trigger's, not only the builder's: a trigger keeps the clock it was built with,
+    /// so a policy that reschedules to "now" resolves against the test's clock rather than the
+    /// machine's, on either store.
+    /// </remarks>
+    public Func<DateTimeOffset, TimeProvider, TriggerBuilder<IJob>> Trigger { get; init; }
 
     /// <summary>
     /// Whether this cell's instruction is the one that says a missed firing is not a misfire at all.
@@ -91,8 +96,7 @@ public sealed class MisfireMatrixCase
 /// <para>
 /// Every schedule has a period of one day and is anchored so that its missed firing sits half a day
 /// before the test's <c>anchor</c> and its next slot half a day after. Nothing here is within hours of
-/// a schedule boundary, which is what lets the expected instants be exact even though the triggers
-/// themselves compute on real time.
+/// a schedule boundary, so a cell reads as a schedule rather than as arithmetic on a boundary.
 /// </para>
 /// </remarks>
 public static class MisfireMatrixCases
@@ -116,7 +120,7 @@ public static class MisfireMatrixCases
                     is SimpleTriggerMisfireInstruction.NextWithExistingCount
                     or SimpleTriggerMisfireInstruction.NextWithRemainingCount
                     or SimpleTriggerMisfireInstruction.SmartPolicy,
-                Trigger = anchor => TriggerBuilder.Create()
+                Trigger = (anchor, clock) => TriggerBuilder.Create(clock)
                     .StartAt(anchor - HalfPeriod)
                     .WithSimpleSchedule(x => x
                         .WithInterval(Period)
@@ -134,7 +138,7 @@ public static class MisfireMatrixCases
                 // A one-shot trigger has no next slot to skip to, so the calendar loop is unreachable
                 // whatever the instruction: it runs out of fire times first.
                 ConsultsCalendar = false,
-                Trigger = anchor => TriggerBuilder.Create()
+                Trigger = (anchor, clock) => TriggerBuilder.Create(clock)
                     .StartAt(anchor - HalfPeriod)
                     .WithSimpleSchedule(x => x
                         .WithInterval(Period)
@@ -153,7 +157,7 @@ public static class MisfireMatrixCases
                 Instruction = instruction.ToString(),
                 IgnoresMisfires = instruction == CronTriggerMisfireInstruction.IgnoreMisfires,
                 ConsultsCalendar = instruction == CronTriggerMisfireInstruction.DoNothing,
-                Trigger = anchor => TriggerBuilder.Create()
+                Trigger = (anchor, clock) => TriggerBuilder.Create(clock)
                     .StartAt(anchor - HalfPeriod - Period)
                     .WithCronSchedule(DailyCronAt(anchor + HalfPeriod), x => x
                         .InTimeZone(TimeZoneInfo.Utc)
@@ -171,7 +175,7 @@ public static class MisfireMatrixCases
                 Instruction = instruction.ToString(),
                 IgnoresMisfires = instruction == CalendarIntervalTriggerMisfireInstruction.IgnoreMisfires,
                 ConsultsCalendar = instruction == CalendarIntervalTriggerMisfireInstruction.DoNothing,
-                Trigger = anchor => TriggerBuilder.Create()
+                Trigger = (anchor, clock) => TriggerBuilder.Create(clock)
                     .StartAt(anchor - HalfPeriod)
                     .WithCalendarIntervalSchedule(x => x
                         .WithInterval(1, IntervalUnit.Day)
@@ -190,7 +194,7 @@ public static class MisfireMatrixCases
                 Instruction = instruction.ToString(),
                 IgnoresMisfires = instruction == DailyTimeIntervalTriggerMisfireInstruction.IgnoreMisfires,
                 ConsultsCalendar = instruction == DailyTimeIntervalTriggerMisfireInstruction.DoNothing,
-                Trigger = anchor => TriggerBuilder.Create()
+                Trigger = (anchor, clock) => TriggerBuilder.Create(clock)
                     .StartAt(anchor - HalfPeriod - Period)
                     .WithDailyTimeIntervalSchedule(x => x
                         .StartingDailyAt(TimeOfDay(anchor + HalfPeriod))
@@ -211,7 +215,7 @@ public static class MisfireMatrixCases
                 Instruction = instruction.ToString(),
                 IgnoresMisfires = instruction == RecurrenceTriggerMisfireInstruction.IgnoreMisfires,
                 ConsultsCalendar = instruction == RecurrenceTriggerMisfireInstruction.DoNothing,
-                Trigger = anchor => TriggerBuilder.Create()
+                Trigger = (anchor, clock) => TriggerBuilder.Create(clock)
                     .StartAt(anchor - HalfPeriod)
                     .WithRecurrenceSchedule("FREQ=DAILY", x => x
                         .InTimeZone(TimeZoneInfo.Utc)

@@ -17,6 +17,8 @@
  */
 #endregion
 
+using Microsoft.Extensions.Time.Testing;
+
 using Quartz.Extensibility;
 using Quartz.Impl.Calendar;
 
@@ -47,9 +49,12 @@ public sealed class MisfireCalendarExclusionTest : MisfireThroughAStoreTestBase
         DateTimeOffset anchor = Anchor();
         DateTimeOffset scheduled = anchor - HalfPeriod;
 
+        // Where both stores' clocks stand when their pass runs, so one expectation answers for both.
+        FakeTimeProvider clock = ClockAt(anchor);
+
         // What the policy picks with nothing in its way. The calendar is then built to exclude exactly
         // that day, so the store has to move past it or the assertion below is not about a calendar.
-        MisfireExpectation withoutCalendar = MisfireExpectation.From(Detached(testCase, anchor, scheduled), calendar: null);
+        MisfireExpectation withoutCalendar = MisfireExpectation.From(Detached(testCase, anchor, clock, scheduled), calendar: null, clock);
 
         withoutCalendar.NextFireTimeUtc.Should().NotBeNull(
             "'{0}' has to have a slot to skip before there is anything for a calendar to exclude", testCase);
@@ -57,7 +62,7 @@ public sealed class MisfireCalendarExclusionTest : MisfireThroughAStoreTestBase
         HolidayCalendar calendar = new() { TimeZone = TimeZoneInfo.Utc };
         calendar.AddExcludedDay(DateOnly.FromDateTime(withoutCalendar.NextFireTimeUtc.Value.UtcDateTime));
 
-        MisfireExpectation expected = MisfireExpectation.From(Detached(testCase, anchor, scheduled), calendar);
+        MisfireExpectation expected = MisfireExpectation.From(Detached(testCase, anchor, clock, scheduled), calendar, clock);
 
         expected.NextFireTimeUtc.Should().NotBe(withoutCalendar.NextFireTimeUtc,
             "the calendar excludes the day '{0}' would otherwise land on, so a stored fire time equal to "
@@ -70,7 +75,7 @@ public sealed class MisfireCalendarExclusionTest : MisfireThroughAStoreTestBase
 
             await store.Store.AddCalendar(CalendarName, calendar);
 
-            IOperableTrigger trigger = (IOperableTrigger) testCase.Trigger(anchor)
+            IOperableTrigger trigger = (IOperableTrigger) testCase.Trigger(anchor, store.Clock)
                 .WithIdentity(triggerKey)
                 .ForJob(jobKey)
                 .WithCalendarName(CalendarName)
@@ -79,25 +84,27 @@ public sealed class MisfireCalendarExclusionTest : MisfireThroughAStoreTestBase
             await Store(store, Job(jobKey), trigger, scheduled, calendar);
             store.Clock.Advance(HalfPeriod);
 
-            DateTimeOffset passStarted = TimeProvider.System.GetUtcNow();
+            store.Clock.GetUtcNow().Should().Be(clock.GetUtcNow(),
+                "the expectation was computed on a clock frozen where this store's now stands, so the two "
+                + "have to be the same instant for it to answer for this store");
+
             await store.Sweep(scheduled - TimeSpan.FromTicks(1));
-            DateTimeOffset passFinished = TimeProvider.System.GetUtcNow();
 
             TriggerState state = await store.Store.GetTriggerState(triggerKey);
             IOperableTrigger readBack = await store.Store.GetTrigger(triggerKey);
 
             readBack.Should().NotBeNull("{0} must still hold '{1}' after a misfire pass", store.Name, testCase);
 
-            expected.AssertAgainst(store.Name, testCase + " with an excluded day", state, readBack.NextFireTimeUtc, passStarted, passFinished);
+            expected.AssertAgainst(store.Name, testCase + " with an excluded day", state, readBack.NextFireTimeUtc);
         }
     }
 
-    private static IOperableTrigger Detached(MisfireMatrixCase testCase, DateTimeOffset anchor, DateTimeOffset scheduled)
+    private static IOperableTrigger Detached(MisfireMatrixCase testCase, DateTimeOffset anchor, TimeProvider clock, DateTimeOffset scheduled)
     {
         TriggerKey triggerKey = new("calendar-detached", Group);
         JobKey jobKey = new("calendar-detached", Group);
 
-        IOperableTrigger trigger = (IOperableTrigger) testCase.Trigger(anchor)
+        IOperableTrigger trigger = (IOperableTrigger) testCase.Trigger(anchor, clock)
             .WithIdentity(triggerKey)
             .ForJob(jobKey)
             .Build();

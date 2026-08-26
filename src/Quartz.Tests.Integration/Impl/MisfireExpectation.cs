@@ -37,12 +37,12 @@ namespace Quartz.Tests.Integration.Impl;
 /// what makes it a parity assertion rather than two independent ones that happen to agree.
 /// </para>
 /// <para>
-/// The one outcome that cannot be an exact instant is "fire now": the policies that reschedule to now
-/// read the clock at the moment the store applies them, so the detached copy's value and the store's
-/// differ by however long the pass took. Those are asserted to fall inside the pass instead, which is
-/// tighter than a tolerance and says the same thing. The rule that sorts a "now" from a scheduled
-/// instant is <see cref="TriggerBase.FireNowMisfireDetectionThresholdMs" /> — the same one both stores
-/// use to decide whether a misfire earned a recorded original fire time.
+/// Every outcome is an exact instant, "fire now" included. The policies that reschedule to now read
+/// the trigger's own clock, and a trigger keeps the clock it was built with — so a detached copy built
+/// on the store's clock, which does not move on its own, computes the very instant the store's own copy
+/// does. The rule that sorts a "now" from a scheduled instant is
+/// <see cref="TriggerBase.FireNowMisfireDetectionThresholdMs" /> — the same one both stores use to
+/// decide whether a misfire earned a recorded original fire time.
 /// </para>
 /// </remarks>
 public sealed class MisfireExpectation
@@ -72,9 +72,16 @@ public sealed class MisfireExpectation
     /// Applies the misfire policy to <paramref name="detached" /> — a copy no store has ever seen —
     /// and captures what came out.
     /// </summary>
-    public static MisfireExpectation From(IOperableTrigger detached, ICalendar calendar)
+    /// <param name="detached">The copy to run the policy on. It must hold <paramref name="clock" />.</param>
+    /// <param name="calendar">The calendar the policy consults, or <see langword="null" />.</param>
+    /// <param name="clock">
+    /// The clock the copy reads, which is the store's. Taken rather than read off the trigger so that a
+    /// copy accidentally left on some other clock produces a wrong expectation here rather than a
+    /// self-consistent one.
+    /// </param>
+    public static MisfireExpectation From(IOperableTrigger detached, ICalendar calendar, TimeProvider clock)
     {
-        DateTimeOffset now = TimeProvider.System.GetUtcNow();
+        DateTimeOffset now = clock.GetUtcNow();
 
         detached.UpdateAfterMisfire(calendar);
 
@@ -92,15 +99,11 @@ public sealed class MisfireExpectation
     /// <param name="cell">What the case under test is, as it reads in a failure message.</param>
     /// <param name="state">The state the store reports.</param>
     /// <param name="actual">The next fire time read back out of the store.</param>
-    /// <param name="passStarted">Real time immediately before the store's misfire pass.</param>
-    /// <param name="passFinished">Real time immediately after it.</param>
     public void AssertAgainst(
         string storeName,
         string cell,
         TriggerState state,
-        DateTimeOffset? actual,
-        DateTimeOffset passStarted,
-        DateTimeOffset passFinished)
+        DateTimeOffset? actual)
     {
         state.Should().Be(State,
             "{0} must park '{1}' in the state its remaining fire times call for, and UpdateAfterMisfire left it {2}",
@@ -117,11 +120,10 @@ public sealed class MisfireExpectation
         if (firesNow)
         {
             actual.Should().NotBeNull("'{0}' reschedules to now, so {1} must have given it a fire time", cell, storeName);
-            actual.Value.Should().BeOnOrAfter(passStarted).And.BeOnOrBefore(passFinished,
-                "'{0}' reschedules to the moment the policy is applied, so {1} must have written an instant "
-                + "inside its own pass ({2} .. {3}) rather than {4}",
-                cell, storeName,
-                Format(passStarted), Format(passFinished), Format(actual.Value));
+            actual.Should().Be(nextFireTimeUtc,
+                "'{0}' reschedules to the store's own reading of now, which is {1} and does not move on its "
+                + "own — so {2} must have written that instant and not the machine's",
+                cell, Format(nextFireTimeUtc.Value), storeName);
             return;
         }
 
