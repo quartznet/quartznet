@@ -72,27 +72,21 @@ public class AdoJobStorePagingTest
     [Category("db-mysql")]
     public Task TestMySql()
     {
-        string connectionString = Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING")
-                                  ?? "Server = localhost; Database = quartznet; Uid = quartznet; Pwd = quartznet";
-        return RunPagingTest("MySqlConnector", connectionString, typeof(MySQLDelegate));
+        return RunPagingTest(TestConstants.MySqlProvider, TestConstants.MySqlConnectionString, typeof(MySQLDelegate));
     }
 
     [Test]
     [Category("db-firebird")]
     public Task TestFirebird()
     {
-        string connectionString = Environment.GetEnvironmentVariable("FIREBIRD_CONNECTION_STRING")
-                                  ?? "User=SYSDBA;Password=masterkey;Database=/firebird/data/quartz.fdb;DataSource=localhost;Port=3050;Dialect=3;Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
-        return RunPagingTest("Firebird", connectionString, typeof(FirebirdDelegate));
+        return RunPagingTest(TestConstants.FirebirdProvider, TestConstants.FirebirdConnectionString, typeof(FirebirdDelegate));
     }
 
     [Test]
     [Category("db-oracle")]
     public Task TestOracle()
     {
-        string connectionString = Environment.GetEnvironmentVariable("ORACLE_CONNECTION_STRING")
-                                  ?? "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=xe)));User Id=system;Password=oracle;";
-        return RunPagingTest("OracleODPManaged", connectionString, typeof(OracleDelegate));
+        return RunPagingTest(TestConstants.OracleProvider, TestConstants.OracleConnectionString, typeof(OracleDelegate));
     }
 
     [Test]

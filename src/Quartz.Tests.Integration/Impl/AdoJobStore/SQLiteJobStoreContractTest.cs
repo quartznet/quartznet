@@ -19,12 +19,6 @@
 
 #endregion
 
-using Microsoft.Data.Sqlite;
-
-using Quartz.Extensibility;
-using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.AdoJobStore.Common;
-
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
@@ -32,78 +26,12 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// file needs no container, so this runs wherever the in-memory fixture does — the point of the pair
 /// is that both stores answer the same assertions, and that only holds if both actually run.
 /// </summary>
+/// <remarks>
+/// No <c>db-*</c> category, so this runs in the <c>basic</c> leg: it is the one ADO dialect every
+/// pull request pays for, and the five that need a container carry a category apiece.
+/// </remarks>
 [TestFixture]
 [NonParallelizable]
-public sealed class SQLiteJobStoreContractTest : JobStoreContractTest
+public sealed class SQLiteJobStoreContractTest : SqliteFileJobStoreContractTest
 {
-    private const string DataSourceName = "job-store-contract-sqlite";
-    private const string SchedulerName = "JobStoreContractTest";
-    private const string InstanceId = "contract-instance";
-
-    private string dbFileName;
-
-    protected override string StoreInstanceId => InstanceId;
-
-    protected override async ValueTask<IJobStore> CreateStore()
-    {
-        dbFileName = $"test-store-contract-{Guid.NewGuid():N}.db";
-
-        await using (SqliteConnection connection = new SqliteConnection($"Data Source={dbFileName};"))
-        {
-            await connection.OpenAsync();
-            await using SqliteCommand command = new SqliteCommand(LoadSqliteTableScript(), connection);
-            await command.ExecuteNonQueryAsync();
-        }
-
-        // The store reads through the provider it is constructed with, so the test only has to build
-        // one.
-        IDbProvider dbProvider = new DbProvider("SQLite-Microsoft", $"Data Source={dbFileName};");
-
-        LocalTransactionJobStore store = new LocalTransactionJobStore(
-            TestJobStores.Signaler(),
-            TestJobStores.TypeLoader(),
-            TimeProvider.System,
-            TestJobStores.SchedulerOptions(SchedulerName, InstanceId),
-            TestJobStores.StoreOptions(DataSourceName),
-            TestJobStores.ClusteringOptions(),
-            TestJobStores.Serializer(),
-            dbProvider,
-            new SQLiteDelegate(),
-            TestJobStores.LockHandler());
-
-        await store.Initialize(new SchedulerIdentity { SchedulerName = SchedulerName, InstanceId = InstanceId });
-
-        // SchedulerStarted() is deliberately not called: it spawns the misfire handler, which would
-        // both race the tests that drive trigger state by hand and leave a foreground thread behind
-        // for every store this fixture builds.
-        return store;
-    }
-
-    protected override ValueTask DisposeStore()
-    {
-        SqliteConnection.ClearAllPools();
-
-        if (File.Exists(dbFileName))
-        {
-            try
-            {
-                File.Delete(dbFileName);
-            }
-            catch (IOException)
-            {
-                // the file is only test scratch space, leaving it behind is not worth failing over
-            }
-        }
-
-        return default;
-    }
-
-    private static string LoadSqliteTableScript()
-    {
-        string path = File.Exists("../../../../database/tables/tables_sqlite.sql")
-            ? "../../../../database/tables/tables_sqlite.sql"
-            : "../../../../../database/tables/tables_sqlite.sql";
-
-        return File.ReadAllText(path);
-    }
 }
