@@ -54,6 +54,12 @@ public class DelegatingJobStore : IJobStore
     /// </summary>
     protected IJobStore InnerJobStore => jobStore;
 
+    /// <summary>
+    /// The same thing <see cref="InnerJobStore" /> is, reachable from outside the inheritance chain so
+    /// that <see cref="JobStores.Unwrap" /> can walk a stack of decorators it did not build.
+    /// </summary>
+    internal IJobStore Inner => jobStore;
+
     public virtual bool SupportsPersistence => jobStore.SupportsPersistence;
 
     public virtual TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => jobStore.EstimatedTimeToReleaseAndAcquireTrigger;

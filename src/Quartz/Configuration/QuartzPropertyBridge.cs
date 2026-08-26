@@ -534,16 +534,20 @@ internal static class QuartzPropertyBridge
         RegisterConfigured<IJobStore>(services, schedulerName, (provider, key) =>
         {
             var jobStore = (IJobStore) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), jobStoreType);
-            if (jobStore is RAMJobStore ramJobStore)
+
+            // Through the decorators: quartz.jobStore.type can name one, and the settings below belong to
+            // the store that keeps the data rather than to whatever is wrapped around it.
+            IJobStore inner = JobStores.Unwrap(jobStore);
+            if (inner is RAMJobStore ramJobStore)
             {
                 ramJobStore.MisfireThreshold = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key).MisfireThreshold;
             }
-            else if (jobStore is not AdoJobStoreBase)
+            else if (inner is not AdoJobStoreBase)
             {
                 // A third-party store has no typed options, so its knobs still arrive as strings. The
                 // ADO store reads AdoJobStoreOptions in its constructor and needs none of this.
                 ApplyStringProperties(
-                    jobStore, provider, key,
+                    inner, provider, key,
                     LegacyPropertyKeys.JobStorePrefix,
                     LegacyPropertyKeys.JobStoreLockHandlerPrefix);
             }
