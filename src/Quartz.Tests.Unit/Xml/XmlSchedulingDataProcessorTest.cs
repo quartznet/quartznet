@@ -824,6 +824,181 @@ public class XmlSchedulingDataProcessorTest
     }
 
     // ---------------------------------------------------------------------------------------------
+    // Keys declared twice in one document
+    // ---------------------------------------------------------------------------------------------
+
+    [Test]
+    public async Task TwoTriggersWithOneNameAndGroupAreRejected()
+    {
+        TestProcessor processor = CreateProcessor();
+
+        Func<Task> act = async () => await processor.ProcessStream(ToStream(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <simple>
+                  <name>myTrigger</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <repeat-count>0</repeat-count>
+                  <repeat-interval>1000</repeat-interval>
+                </simple>
+              </trigger>
+              <trigger>
+                <simple>
+                  <name>myTrigger</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <repeat-count>5</repeat-count>
+                  <repeat-interval>2000</repeat-interval>
+                </simple>
+              </trigger>
+            </schedule>
+            """)), null);
+
+        (await act.Should().ThrowAsync<SchedulingDataValidationException>(
+                "the second definition otherwise overwrites the first and says so only at Debug"))
+            .WithMessage("*Trigger 'DEFAULT.myTrigger' is defined more than once in the scheduling data.*",
+                "the message has to name the key, or a large file gives the author nowhere to look");
+    }
+
+    [Test]
+    public async Task TwoTriggersWithOneNameInDifferentGroupsAreBothScheduled()
+    {
+        TestProcessor processor = await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <simple>
+                  <name>myTrigger</name>
+                  <group>groupA</group>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <repeat-count>0</repeat-count>
+                  <repeat-interval>1000</repeat-interval>
+                </simple>
+              </trigger>
+              <trigger>
+                <simple>
+                  <name>myTrigger</name>
+                  <group>groupB</group>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <repeat-count>0</repeat-count>
+                  <repeat-interval>1000</repeat-interval>
+                </simple>
+              </trigger>
+            </schedule>
+            """));
+
+        processor.Triggers.Select(x => x.Key).Should().BeEquivalentTo(
+            new[] { new TriggerKey("myTrigger", "groupA"), new TriggerKey("myTrigger", "groupB") },
+            "a trigger's identity is its name and its group, so these two are different triggers");
+    }
+
+    [Test]
+    public async Task TwoJobsWithOneNameAndGroupAreRejected()
+    {
+        TestProcessor processor = CreateProcessor();
+
+        Func<Task> act = async () => await processor.ProcessStream(ToStream(Document($"""
+            <schedule>
+              <job>
+                <name>myJob</name>
+                <job-type>{JobType}</job-type>
+              </job>
+              <job>
+                <name>myJob</name>
+                <job-type>{JobType}</job-type>
+              </job>
+            </schedule>
+            """)), null);
+
+        (await act.Should().ThrowAsync<SchedulingDataValidationException>(
+                "the second definition otherwise replaces the first without a word"))
+            .WithMessage("*Job 'DEFAULT.myJob' is defined more than once in the scheduling data.*",
+                "the message has to name the key, or a large file gives the author nowhere to look");
+    }
+
+    [Test]
+    public async Task TwoJobsWithOneNameInDifferentGroupsAreBothScheduled()
+    {
+        TestProcessor processor = await Process(Document($"""
+            <schedule>
+              <job>
+                <name>myJob</name>
+                <group>groupA</group>
+                <job-type>{JobType}</job-type>
+              </job>
+              <job>
+                <name>myJob</name>
+                <group>groupB</group>
+                <job-type>{JobType}</job-type>
+              </job>
+            </schedule>
+            """));
+
+        processor.Jobs.Select(x => x.Key).Should().BeEquivalentTo(
+            new[] { new JobKey("myJob", "groupA"), new JobKey("myJob", "groupB") },
+            "a job's identity is its name and its group, so these two are different jobs");
+    }
+
+    /// <summary>
+    /// <c>ignore-duplicates</c> and <c>overwrite-existing-data</c> say how the file relates to the
+    /// scheduler. Neither can express "declared twice in one document", so neither turns this off.
+    /// </summary>
+    [Test]
+    public async Task IgnoreDuplicatesDoesNotSuppressAKeyDeclaredTwice()
+    {
+        TestProcessor processor = CreateProcessor();
+
+        Func<Task> act = async () => await processor.ProcessStream(ToStream(Document($"""
+            <processing-directives>
+              <overwrite-existing-data>false</overwrite-existing-data>
+              <ignore-duplicates>true</ignore-duplicates>
+            </processing-directives>
+            <schedule>
+              <job>
+                <name>myJob</name>
+                <job-type>{JobType}</job-type>
+              </job>
+              <job>
+                <name>myJob</name>
+                <job-type>{JobType}</job-type>
+              </job>
+            </schedule>
+            """)), null);
+
+        (await act.Should().ThrowAsync<SchedulingDataValidationException>(
+                "the directives are about the file versus the scheduler, not the file versus itself"))
+            .WithMessage("*neither of them suppresses this*",
+                "the message has to say why the directive the author reached for did not help");
+    }
+
+    [Test]
+    public async Task KeysDeclaredInOneDocumentAreForgottenByTheNext()
+    {
+        TestProcessor processor = CreateProcessor();
+
+        string document = Document($"""
+            <schedule>
+              <job>
+                <name>myJob</name>
+                <job-type>{JobType}</job-type>
+              </job>
+            </schedule>
+            """);
+
+        await processor.ProcessStream(ToStream(document), null);
+
+        Func<Task> act = async () => await processor.ProcessStream(ToStream(document), null);
+
+        await act.Should().NotThrowAsync(
+            "the accepted keys are per document, and one instance processes every file the plugin is given");
+        processor.Jobs.Should().ContainSingle().Which.Key.Should().Be(new JobKey("myJob"));
+    }
+
+    // ---------------------------------------------------------------------------------------------
     // Pre-processing commands
     // ---------------------------------------------------------------------------------------------
 

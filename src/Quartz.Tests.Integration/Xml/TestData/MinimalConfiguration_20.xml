@@ -52,18 +52,6 @@
         <cron-expression>0/10 * * * * ?</cron-expression>
       </cron>
     </trigger>
-    <trigger>
-      <cron>
-        <name>cronName</name>
-        <group>cronGroup</group>
-        <job-name>jobName1</job-name>
-        <job-group>jobGroup1</job-group>
-        <start-time>
-          1982-06-28T18:15:00+02:00
-        </start-time>
-        <cron-expression>0/10 * * * * ?</cron-expression>
-      </cron>
-    </trigger>
 
 
   </schedule>

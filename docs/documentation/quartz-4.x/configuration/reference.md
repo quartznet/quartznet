@@ -470,6 +470,10 @@ registered in code, or declared in a file, already exist in the store under the 
 | `IgnoreDuplicates` | bool | `false` | With `OverwriteExistingData` off, a name that already exists is skipped instead of throwing. |
 | `ScheduleTriggerRelativeToReplacedTrigger` | bool | `false` | A replaced trigger's next fire time is computed from the old trigger's last fire time rather than from now. |
 
+All three are about a *file or registration versus the store*. None of them can say anything about one
+scheduling data file that declares the same job or trigger key twice, so none of them suppresses the
+error that file gets — see [ProcessingDirectives](json.md#processingdirectives).
+
 <!-- snippet: sample_reference_scheduling_options -->
 ```csharp
 services.Configure<QuartzOptions>(options => options.Scheduling.IgnoreDuplicates = true);
