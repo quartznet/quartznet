@@ -7,6 +7,38 @@
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <Authors>Lewis Zou, Marko Lahma, Quartz.NET</Authors>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!--
+      The request delegates are the compiler's job here, not RequestDelegateFactory's, and this property
+      has to come before the four below rather than after them. Turned on alone, the analyzers reported
+      116 warnings against this package, 114 of which were one thing: MapGet, MapPost and MapDelete take a
+      Delegate and say RequiresUnreferencedCode and RequiresDynamicCode, because binding its parameters
+      and writing its result is decided at run time by reflecting over the delegate. The generator decides
+      it at compile time instead, and ASP.NET Core ships it for exactly this reason - baselining those 114
+      would have recorded a warning the framework already has a fix for.
+
+      It intercepts all 57 Map* calls in Endpoints/: 4 in CalendarEndpoints, 20 in JobEndpoints, 13 in
+      SchedulerEndpoints and 20 in TriggerEndpoints, counted out of GeneratedRouteBuilderExtensions.g.cs
+      with EmitCompilerGeneratedFiles on and matched against the call sites in the source. Turning it off
+      is not quiet: with nothing suppressing them, the 114 come back as errors.
+    -->
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+    <!--
+      Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431).
+      Without IsTrimmable a trimmer keeps this assembly whole and collapses whatever it cannot follow into
+      one IL2104, so an application publishing trimmed learned nothing about the package; with it, the
+      warning is the reflective call site.
+
+      116 warnings when the analyzers were first turned on here, one now. The generator above took 114;
+      the last two were the API writing a response through JsonSerializerOptions alone, and the wire
+      contract has been source-generated since #3400, so EndpointHelper asks the options for the
+      JsonTypeInfo and passes it. This package therefore produces no IL3050 at all, and the single-file
+      analyzer found nothing. The one that is left is a job type named as a string in a request body,
+      recorded in TrimAnalysisBaseline.cs beside this file.
+    -->
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
   </PropertyGroup>
 
   <ItemGroup>

@@ -97,7 +97,7 @@ internal static class JobEndpoints
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             GroupMatcher<JobKey> matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
             JobQuery query = new()
@@ -128,7 +128,7 @@ internal static class JobEndpoints
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertKeysToFetch(request);
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             JobKey[] jobKeys = request.Select(x => x.AsJobKey()).ToArray();
             List<IJobDetail> jobDetails = await scheduler.GetJobDetails(jobKeys, cancellationToken).ConfigureAwait(false);
@@ -145,7 +145,7 @@ internal static class JobEndpoints
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var jobDetail = await scheduler.GetJobDetailOrThrow(jobName, jobGroup, cancellationToken).ConfigureAwait(false);
 
@@ -163,7 +163,7 @@ internal static class JobEndpoints
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var exists = await scheduler.Exists(new JobKey(jobName, jobGroup), cancellationToken).ConfigureAwait(false);
             return new ExistsResponse(exists);
@@ -179,7 +179,7 @@ internal static class JobEndpoints
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var triggers = await scheduler.GetTriggersOfJob(new JobKey(jobName, jobGroup), cancellationToken).ConfigureAwait(false);
             return triggers;
@@ -231,7 +231,7 @@ internal static class JobEndpoints
             }
         }
 
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             FireInstanceQuery query = new()
             {
@@ -268,7 +268,7 @@ internal static class JobEndpoints
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var applied = await scheduler.PauseJob(new JobKey(jobName, jobGroup), cancellationToken).ConfigureAwait(false);
             return new OperationAppliedResponse(applied);
@@ -286,7 +286,7 @@ internal static class JobEndpoints
         string? groupEquals = null,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
             var pausedGroups = await scheduler.PauseJobs(matcher, cancellationToken).ConfigureAwait(false);
@@ -303,7 +303,7 @@ internal static class JobEndpoints
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
             var paused = await scheduler.PauseJobs(jobKeys, cancellationToken).ConfigureAwait(false);
@@ -320,7 +320,7 @@ internal static class JobEndpoints
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var applied = await scheduler.ResumeJob(new JobKey(jobName, jobGroup), cancellationToken).ConfigureAwait(false);
             return new OperationAppliedResponse(applied);
@@ -338,7 +338,7 @@ internal static class JobEndpoints
         string? groupEquals = null,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
             var resumedGroups = await scheduler.ResumeJobs(matcher, cancellationToken).ConfigureAwait(false);
@@ -355,7 +355,7 @@ internal static class JobEndpoints
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
             var resumed = await scheduler.ResumeJobs(jobKeys, cancellationToken).ConfigureAwait(false);
@@ -385,7 +385,7 @@ internal static class JobEndpoints
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var interrupted = await scheduler.Interrupt(new JobKey(jobName, jobGroup), cancellationToken).ConfigureAwait(false);
             return new OperationAppliedResponse(interrupted);
@@ -400,7 +400,7 @@ internal static class JobEndpoints
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var interrupted = await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
             return new OperationAppliedResponse(interrupted);
@@ -416,7 +416,7 @@ internal static class JobEndpoints
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var jobFound = await scheduler.DeleteJob(new JobKey(jobName, jobGroup), cancellationToken).ConfigureAwait(false);
             return new OperationAppliedResponse(jobFound);
@@ -440,7 +440,7 @@ internal static class JobEndpoints
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertIsValid(request);
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
             var deleted = await scheduler.DeleteJobs(jobKeys, cancellationToken).ConfigureAwait(false);
@@ -459,7 +459,7 @@ internal static class JobEndpoints
         EndpointHelper.AssertIsValid(request);
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var newJob = request.Job.AsIJobDetail().JobDetail!;
+            IJobDetail newJob = RequestedJobDetail.From(request.Job);
             var options = new AddJobOptions
             {
                 Replace = request.Replace,
@@ -483,7 +483,7 @@ internal static class JobEndpoints
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             JobGroupQuery query = new()
             {
@@ -512,7 +512,7 @@ internal static class JobEndpoints
         string jobGroup,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             bool paused = await scheduler.IsJobGroupPaused(jobGroup, cancellationToken).ConfigureAwait(false);
             return new GroupPausedResponse(paused);

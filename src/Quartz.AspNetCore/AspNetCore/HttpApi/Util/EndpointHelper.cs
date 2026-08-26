@@ -1,4 +1,9 @@
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.Options;
 
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
@@ -8,12 +13,38 @@ namespace Quartz.AspNetCore.HttpApi.Util;
 
 internal sealed class EndpointHelper
 {
+    private readonly IOptions<JsonOptions> jsonOptions;
+
+    /// <summary>
+    /// Takes the application's HTTP JSON options, which <see cref="QuartzJsonOptionsSetup" /> has taught
+    /// the wire contract by the time they are read. The endpoints already receive this type as a
+    /// parameter, so writing a response through it costs no registration and no extra lookup.
+    /// </summary>
+    public EndpointHelper(IOptions<JsonOptions> jsonOptions)
+    {
+        this.jsonOptions = jsonOptions;
+    }
+
     /// <summary>
     /// The one place the API turns a response into JSON. Generic because every caller already has the
     /// static type in hand: erasing it to <see cref="object" /> binds the overload that has to rediscover
     /// the type at runtime, where this one carries it through to the serializer.
     /// </summary>
-    public static IResult JsonResponse<T>(T data) where T : notnull => Results.Json(data);
+    /// <remarks>
+    /// The metadata is asked for rather than left to be discovered. <c>HttpApiJsonContext</c> states every
+    /// body this API returns and sits in front of whatever resolver the options already had, so
+    /// <see cref="JsonSerializerOptions.GetTypeInfo" /> answers from generated metadata — and passing the
+    /// <see cref="JsonTypeInfo{T}" /> binds the <see cref="Results.Json{TValue}(TValue, JsonTypeInfo{TValue}, string, int?)" />
+    /// overload that carries neither <c>RequiresUnreferencedCode</c> nor <c>RequiresDynamicCode</c>. The
+    /// open half of the contract is unaffected: metadata generated for a type the options carry a
+    /// converter for defers to that converter, so an <see cref="ITrigger" /> or an <see cref="ICalendar" />
+    /// still goes out through Quartz's own.
+    /// </remarks>
+    public IResult JsonResponse<T>(T data) where T : notnull
+    {
+        JsonSerializerOptions serializerOptions = jsonOptions.Value.SerializerOptions;
+        return Results.Json(data, (JsonTypeInfo<T>) serializerOptions.GetTypeInfo(typeof(T)));
+    }
 
     public static GroupMatcher<T> GetGroupMatcher<T>(string? groupContains, string? groupEndsWith, string? groupStartsWith, string? groupEquals) where T : Key<T>
     {
@@ -181,7 +212,7 @@ internal sealed class EndpointHelper
         return await action(scheduler).ConfigureAwait(false);
     }
 
-    public static Task<IResult> ExecuteWithJsonResponse<T>(
+    public Task<IResult> ExecuteWithJsonResponse<T>(
         string schedulerName,
         ISchedulerRepository schedulerRepository,
         Func<IScheduler, Task<T>> action) where T : notnull
