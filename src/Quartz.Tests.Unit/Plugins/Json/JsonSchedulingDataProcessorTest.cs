@@ -312,6 +312,39 @@ public class JsonSchedulingDataProcessorTest
         processor.ParsedTriggers.Should().BeEmpty();
     }
 
+    /// <summary>
+    /// A schedule file is written by hand, so the reader has always allowed comments, a trailing comma
+    /// and whatever casing its author chose. Those three settings moved from a JsonSerializerOptions
+    /// instance onto the generated context's <c>[JsonSourceGenerationOptions]</c> when the file stopped
+    /// being read by reflection, and this is what says they moved rather than were dropped — a file like
+    /// the one below parses with none of them and fails with any one missing.
+    /// </summary>
+    [Test]
+    public void AHandWrittenFileKeepsItsComments_TrailingCommas_AndCasing()
+    {
+        var json = """
+        {
+            // the schedule this deployment runs
+            "schedule": {
+                "jobs": [{ "name": "handWritten", "jobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "durable": true, }],
+                /* one trigger for now */
+                "triggers": [{ "name": "handWrittenTrigger", "jobName": "handWritten", "simple": { "repeatCount": 0, "interval": "00:00:30" } }],
+            },
+        }
+        """;
+
+        var processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+
+        processor.ParsedJobs.Should().ContainSingle(
+            "camelCased property names are the ones a hand-written file most often uses, and the reader "
+            + "has always matched them case-insensitively")
+            .Which.Key.Name.Should().Be("handWritten");
+
+        ((ISimpleTrigger) processor.ParsedTriggers[0]).RepeatInterval.Should().Be(TimeSpan.FromSeconds(30),
+            "the trigger has to survive the comments and the trailing commas around it, not merely the job");
+    }
+
     [Test]
     public async Task DeleteInAllGroups_SkipsProtectedGroups()
     {

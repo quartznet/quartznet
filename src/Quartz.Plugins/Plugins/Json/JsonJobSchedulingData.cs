@@ -19,7 +19,33 @@
 
 #endregion
 
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace Quartz.Plugins.Json;
+
+/// <summary>
+/// The shape of <c>quartz_jobs.json</c> as metadata the compiler wrote, so that reading the file needs
+/// no reflection over the types below.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The three reader settings live here rather than on a <see cref="JsonSerializerOptions" /> instance,
+/// because they are the file format: a hand-written schedule file is allowed comments, a trailing comma
+/// and whatever casing its author chose, and that has been true of this plugin since it shipped.
+/// </para>
+/// <para>
+/// <see cref="JsonSourceGenerationMode.Metadata" /> because the plugin only ever reads. Nothing writes
+/// this shape, so the generated writers would be dead code.
+/// </para>
+/// </remarks>
+[JsonSourceGenerationOptions(
+    GenerationMode = JsonSourceGenerationMode.Metadata,
+    PropertyNameCaseInsensitive = true,
+    ReadCommentHandling = JsonCommentHandling.Skip,
+    AllowTrailingCommas = true)]
+[JsonSerializable(typeof(JsonJobSchedulingData))]
+internal sealed partial class JsonSchedulingDataContext : JsonSerializerContext;
 
 internal sealed class JsonJobSchedulingData
 {
