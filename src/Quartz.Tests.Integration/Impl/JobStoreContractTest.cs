@@ -23,6 +23,7 @@ using AwesomeAssertions.Execution;
 
 using Quartz.Extensibility;
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Integration.Impl;
 
@@ -714,6 +715,214 @@ public abstract class JobStoreContractTest
         };
 
         await replacing.Should().NotThrowAsync("replacing is what the flag asks for");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Round tripping every trigger type
+    //
+    // A store keeps a trigger, not a schedule it recognizes: whatever the caller set has to come
+    // back. The in-memory store passes this by construction, because it keeps the object. The
+    // ADO.NET store takes each trigger apart into columns and rebuilds it from them, and every
+    // dialect writes those columns itself — so a property no delegate persists, or one a dialect
+    // silently truncates, is invisible until somebody restarts a scheduler and finds the schedule
+    // changed underneath them.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// A trigger type, a trigger of that type with a non-default value in every property it has, and
+    /// the comparison that says the two are the same trigger.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The comparison travels with the case because it has to be written against the trigger's own
+    /// type, and because two defaults would otherwise make it assert nothing at all:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// <c>BeEquivalentTo</c> selects the members it compares from the expectation's *declared* type.
+    /// An expectation typed as <see cref="IOperableTrigger" /> compares the members that interface
+    /// declares and ignores <c>RepeatCount</c>, <c>CronExpressionString</c>, <c>DaysOfWeek</c> and
+    /// every other property this case exists to check. <c>PreferringRuntimeMemberTypes</c> does not
+    /// help — it governs nested members, not the root.
+    /// </item>
+    /// <item>
+    /// A type that overrides <see cref="object.Equals(object)" /> is compared *with* it rather than
+    /// member by member, and <see cref="TriggerBase" /> overrides it to mean "same key". Left alone,
+    /// the whole assertion reduces to comparing the key it just looked the trigger up by, so
+    /// <c>ComparingByMembers</c> is what makes this a round-trip test rather than a tautology.
+    /// </item>
+    /// </list>
+    /// </remarks>
+    public sealed record TriggerRoundTripCase(
+        string TriggerType,
+        Func<JobKey, IOperableTrigger> Build,
+        Action<IOperableTrigger, IOperableTrigger> AssertSameTrigger)
+    {
+        public override string ToString() => TriggerType;
+    }
+
+    /// <summary>
+    /// Builds a case whose comparison is written against <typeparamref name="T" />, which is what
+    /// makes <typeparamref name="T" />'s own properties part of the comparison.
+    /// </summary>
+    private static TriggerRoundTripCase RoundTripCase<T>(Func<JobKey, T> build) where T : TriggerBase
+    {
+        return new TriggerRoundTripCase(
+            typeof(T).Name,
+            jobKey => build(jobKey),
+            // Nothing is excluded, and that is the assertion: every property of these triggers was
+            // either set by the caller or computed from properties that were, so all of it has to
+            // survive storage. The computed ones (FinalFireTimeUtc, MayFireAgain) are functions of
+            // the persisted ones and so agree whenever those do.
+            (retrieved, expected) => retrieved.Should().BeEquivalentTo(
+                (T) expected,
+                options => options.ComparingByMembers<TriggerBase>()));
+    }
+
+    private const string RoundTripCalendarName = "round-trip";
+
+    /// <summary>
+    /// A zone that is neither UTC nor (on any plausible build machine) the local one, so that a
+    /// trigger carrying it is carrying something other than the default.
+    /// </summary>
+    private static TimeZoneInfo RoundTripTimeZone => TimeZones.FindById("Eastern Standard Time");
+
+    /// <summary>
+    /// Whole seconds and well into the future: a trigger whose fire times are meaningful only to the
+    /// second rounds a start time off, and one that is due while the test runs would be moved by
+    /// misfire handling rather than by the store.
+    /// </summary>
+    private static readonly DateTimeOffset RoundTripStart = new DateTimeOffset(2035, 3, 17, 4, 5, 6, TimeSpan.Zero);
+
+    private static readonly DateTimeOffset RoundTripEnd = new DateTimeOffset(2040, 11, 2, 7, 8, 9, TimeSpan.Zero);
+
+    /// <summary>
+    /// The properties every trigger has, all set away from their defaults.
+    /// </summary>
+    private static TriggerBuilder<IJob> RoundTripBuilder(JobKey jobKey)
+    {
+        return TriggerBuilder.Create()
+            .WithIdentity("round-trip", TriggerGroupA)
+            .ForJob(jobKey)
+            .WithDescription("every property set")
+            .WithPriority(TriggerConstants.DefaultPriority + 2)
+            .WithCalendarName(RoundTripCalendarName)
+            .WithExecutionGroup("reports")
+            .WithPreferredNode(PreferredNode.For("node-b"))
+            .StartAt(RoundTripStart)
+            .EndAt(RoundTripEnd)
+            // Strings only, deliberately: what a job data map does to a value of some other type is
+            // the serializer's contract, and asserting it here would make this a serializer test that
+            // happens to fail per dialect.
+            .UsingJobData("alpha", "one")
+            .UsingJobData("beta", "two");
+    }
+
+    public static IEnumerable<TriggerRoundTripCase> TriggerRoundTripCases()
+    {
+        yield return RoundTripCase(jobKey =>
+        {
+            SimpleTriggerImpl trigger = (SimpleTriggerImpl) RoundTripBuilder(jobKey)
+                .WithSimpleSchedule(x => x
+                    .WithInterval(TimeSpan.FromMinutes(17))
+                    .WithRepeatCount(9)
+                    .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount))
+                .Build();
+
+            trigger.TimesTriggered = 3;
+            return trigger;
+        });
+
+        yield return RoundTripCase(jobKey => (CronTriggerImpl) RoundTripBuilder(jobKey)
+            .WithCronSchedule("13 7 5 ? * MON-FRI", x => x
+                .InTimeZone(RoundTripTimeZone)
+                .WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing))
+            .Build());
+
+        yield return RoundTripCase(jobKey =>
+        {
+            DailyTimeIntervalTriggerImpl trigger = (DailyTimeIntervalTriggerImpl) RoundTripBuilder(jobKey)
+                .WithDailyTimeIntervalSchedule(x => x
+                    .WithInterval(23, IntervalUnit.Minute)
+                    .WithRepeatCount(11)
+                    .OnDaysOfTheWeek(DayOfWeek.Tuesday, DayOfWeek.Thursday, DayOfWeek.Saturday)
+                    .StartingDailyAt(new TimeOnly(3, 4, 5))
+                    .EndingDailyAt(new TimeOnly(21, 22, 23))
+                    .InTimeZone(RoundTripTimeZone)
+                    .WithMisfireInstruction(DailyTimeIntervalTriggerMisfireInstruction.DoNothing))
+                .Build();
+
+            trigger.TimesTriggered = 4;
+            return trigger;
+        });
+
+        yield return RoundTripCase(jobKey =>
+        {
+            CalendarIntervalTriggerImpl trigger = (CalendarIntervalTriggerImpl) RoundTripBuilder(jobKey)
+                .WithCalendarIntervalSchedule(x => x
+                    .WithInterval(3, IntervalUnit.Week)
+                    .InTimeZone(RoundTripTimeZone)
+                    .PreserveHourOfDayAcrossDaylightSavings(true)
+                    .SkipDayIfHourDoesNotExist(true)
+                    .WithMisfireInstruction(CalendarIntervalTriggerMisfireInstruction.DoNothing))
+                .Build();
+
+            trigger.TimesTriggered = 5;
+            return trigger;
+        });
+
+        yield return RoundTripCase(jobKey =>
+        {
+            RecurrenceTriggerImpl trigger = (RecurrenceTriggerImpl) RoundTripBuilder(jobKey)
+                .WithRecurrenceSchedule("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR", x => x
+                    .InTimeZone(RoundTripTimeZone)
+                    .WithMisfireInstruction(RecurrenceTriggerMisfireInstruction.DoNothing))
+                .Build();
+
+            trigger.TimesTriggered = 6;
+            return trigger;
+        });
+    }
+
+    /// <summary>
+    /// Guards the table: a trigger type that ships without a row here would round trip untested.
+    /// </summary>
+    [Test]
+    public void EveryShippedTriggerTypeHasARoundTripCase()
+    {
+        List<string> shipped = typeof(TriggerBase).Assembly.GetTypes()
+            .Where(x => x is { IsAbstract: false, IsPublic: true } && typeof(TriggerBase).IsAssignableFrom(x))
+            .Select(x => x.Name)
+            .ToList();
+
+        TriggerRoundTripCases().Select(x => x.TriggerType).Should().BeEquivalentTo(shipped,
+            "a trigger type whose properties nothing round trips is one a restart can silently reschedule");
+    }
+
+    [TestCaseSource(nameof(TriggerRoundTripCases))]
+    public async Task ATriggerComesBackOutOfTheStoreWithEveryPropertyItWentInWith(TriggerRoundTripCase testCase)
+    {
+        // A calendar that excludes nothing. The trigger names one, because the calendar name is one of
+        // the properties under test, and an empty calendar means the first fire time is the one the
+        // trigger would have computed without a calendar — so the expectation is the store's
+        // persistence rather than the store's arithmetic.
+        AnnualCalendar calendar = new AnnualCalendar();
+        await Store.AddCalendar(RoundTripCalendarName, calendar);
+
+        IJobDetail job = CreateJob("round-trip", JobGroupA);
+        IOperableTrigger expected = testCase.Build(job.Key);
+
+        expected.ComputeFirstFireTimeUtc(calendar).Should().NotBeNull(
+            "a trigger with no firing left ahead of it would round trip a null next fire time and prove nothing");
+
+        await Store.ScheduleJob(job, expected);
+
+        IOperableTrigger retrieved = await Store.GetTrigger(expected.Key);
+
+        retrieved.Should().BeOfType(expected.GetType(),
+            "the store hands back the trigger type it was given, not a schedule it approximated");
+
+        testCase.AssertSameTrigger(retrieved, expected);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
