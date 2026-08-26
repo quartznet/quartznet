@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 using Semver;
 
@@ -151,14 +153,11 @@ partial class Build : FalloutBuild, ICompile, IPack
     /// clean output directory rather than reusing an earlier run's.
     /// </para>
     /// <para>
-    /// Still no native AOT publish here after step 6, and the reason is a tooling one rather than a
-    /// scheduling one: ILCompiler takes no <c>--link-attributes</c>, so <c>ILLink.Suppressions.xml</c> —
-    /// which is what makes this leg green without silencing anything for consumers — cannot be handed to
-    /// it. An AOT publish of the worker therefore reports every recorded warning as an error, and the
-    /// only ways to quiet it are the two the issue has already refused: bake the suppressions into the
-    /// shipped assembly, or <c>NoWarn</c> the family and prove nothing. The canary applies no
-    /// suppressions at all, so it is the one project here that could carry a native AOT leg; whether it
-    /// should is a decision that belongs with <c>IsAotCompatible</c>, and both are still open.
+    /// The canary's own publish does not stop at the first recorded warning, and this leg checks the
+    /// warnings it reported instead — see <see cref="AssertOnlyRecordedTrimWarnings" />. Since the canary
+    /// grew a scheduler it reaches the reflection the baseline records, and a publish that fails on the
+    /// first line of it is a canary that never runs. The worker is unchanged: it applies
+    /// <c>ILLink.Suppressions.xml</c> the SDK's own way and still fails on anything outside it.
     /// </para>
     /// </remarks>
     Target PublishTrimmed => _ => _
@@ -181,18 +180,156 @@ partial class Build : FalloutBuild, ICompile, IPack
             AbsolutePath canaryDirectory = ArtifactsDirectory / "trim-canary";
             canaryDirectory.CreateOrCleanDirectory();
 
-            DotNetPublish(s => s
+            var output = DotNetPublish(s => s
                 .SetProject(solution.AllProjects.First(x => x.Name == "Quartz.Trimming.Canary"))
                 .SetConfiguration(configuration)
                 .SetRuntime(RuntimeInformation.RuntimeIdentifier)
                 .SetOutput(canaryDirectory)
             );
 
-            AbsolutePath canary = canaryDirectory / (IsRunningOnWindows ? "Quartz.Trimming.Canary.exe" : "Quartz.Trimming.Canary");
-            Log.Information("Running the trim canary: {Canary}", canary);
-
-            ProcessTasks.StartProcess(canary, logOutput: true).AssertZeroExitCode();
+            AssertOnlyRecordedTrimWarnings(output, "the trimmed canary publish");
+            RunCanary(canaryDirectory, "trim canary");
         });
+
+    /// <summary>
+    /// Publishes the canary as a native executable for the runner's own architecture and runs it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The artefact issue #3341 spent seven steps working towards. A native AOT publish is the only
+    /// build that has no runtime code generation to fall back on and no assemblies left to reflect over,
+    /// so a Quartz that runs a persistent job store out of one has been proven rather than argued: the
+    /// canary creates a SQLite database, schedules a job, waits to be told it fired, and reads the job
+    /// and the trigger back.
+    /// </para>
+    /// <para>
+    /// ILCompiler has no link-attributes option — a fact recorded on step 5 of the issue and rechecked
+    /// against <c>ilc --help</c> here — so <c>ILLink.Suppressions.xml</c> cannot be handed to it, and
+    /// the recorded reflection would otherwise fail this publish on its first line. Rather than bake the
+    /// suppressions into the shipped assembly or <c>NoWarn</c> the family and prove nothing — the two
+    /// answers the issue has already refused — the canary lets ILCompiler report, and this target reads
+    /// the report and applies the baseline itself.
+    /// </para>
+    /// </remarks>
+    Target PublishAot => _ => _
+        .After<ICompile>()
+        .Executes(() =>
+        {
+            var solution = ((IHasSolution) this).Solution;
+            var configuration = ((ICompile) this).Configuration;
+
+            AbsolutePath canaryDirectory = ArtifactsDirectory / "aot-canary";
+            canaryDirectory.CreateOrCleanDirectory();
+
+            var output = DotNetPublish(s => s
+                .SetProject(solution.AllProjects.First(x => x.Name == "Quartz.Trimming.Canary"))
+                .SetConfiguration(configuration)
+                .SetRuntime(RuntimeInformation.RuntimeIdentifier)
+                .SetProperty("PublishAot", true)
+                .SetOutput(canaryDirectory)
+            );
+
+            AssertOnlyRecordedTrimWarnings(output, "the native AOT canary publish");
+            RunCanary(canaryDirectory, "native AOT canary");
+        });
+
+    void RunCanary(AbsolutePath canaryDirectory, string what)
+    {
+        AbsolutePath canary = canaryDirectory / (IsRunningOnWindows ? "Quartz.Trimming.Canary.exe" : "Quartz.Trimming.Canary");
+        Log.Information("Running the {What}: {Canary}", what, canary);
+
+        ProcessTasks.StartProcess(canary, logOutput: true).AssertZeroExitCode();
+    }
+
+    /// <summary>
+    /// Fails when a publish reported a trim or AOT warning against a Quartz type that
+    /// <c>src/Quartz/ILLink.Suppressions.xml</c> does not record.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same baseline the worker's trimmed publish is given through the SDK, applied here by reading
+    /// it — which is the only way ILCompiler can be told, and, since the two tools have to agree, the way
+    /// both canary publishes are checked. A warning naming a type the file lists with that warning code
+    /// is expected and logged; a warning naming any other Quartz type fails the leg, which is what makes
+    /// this a baseline rather than a silence.
+    /// </para>
+    /// <para>
+    /// Warnings from assemblies that are not Quartz's are logged and left alone: what a driver package
+    /// says about its own trimmability is not this repository's to record, and the canary references one
+    /// on purpose.
+    /// </para>
+    /// </remarks>
+    void AssertOnlyRecordedTrimWarnings(IReadOnlyCollection<Output> output, string what)
+    {
+        var recorded = ReadTrimBaseline();
+        var unrecorded = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var line in output.Select(x => x.Text))
+        {
+            var match = Regex.Match(line, @"\b(IL\d{4})\b: ([^:(\s]+)", RegexOptions.None, TimeSpan.FromSeconds(5));
+            if (!match.Success || !seen.Add(match.Value))
+            {
+                continue;
+            }
+
+            string code = match.Groups[1].Value;
+            string member = match.Groups[2].Value;
+
+            if (!member.StartsWith("Quartz.", StringComparison.Ordinal))
+            {
+                Log.Information("{What} reported {Code} against {Member}, which is not Quartz's to record", what, code, member);
+                continue;
+            }
+
+            if (recorded.Any(entry => entry.Code == code && IsWithin(member, entry.Type)))
+            {
+                Log.Debug("{What} reported the recorded {Code} against {Member}", what, code, member);
+                continue;
+            }
+
+            unrecorded.Add($"{code}: {member}");
+        }
+
+        if (unrecorded.Count > 0)
+        {
+            Assert.Fail(
+                $"{what} reported {unrecorded.Count} trim warning(s) that src/Quartz/ILLink.Suppressions.xml does not record:"
+                + Environment.NewLine + string.Join(Environment.NewLine, unrecorded.Order(StringComparer.Ordinal))
+                + Environment.NewLine
+                + "Fix the reflection, or make the case for a new entry - see the header of src/Quartz/TrimAnalysisBaseline.cs.");
+        }
+
+        Log.Information("{What} reported nothing outside the recorded baseline", what);
+    }
+
+    /// <summary>
+    /// The (type, warning code) pairs recorded in the ILLink baseline, with the trailing <c>*</c> each
+    /// entry carries for compiler-generated companions stripped.
+    /// </summary>
+    IReadOnlyList<(string Type, string Code)> ReadTrimBaseline()
+    {
+        AbsolutePath baseline = SourceDirectory / "Quartz" / "ILLink.Suppressions.xml";
+        var recorded = XDocument.Load(baseline)
+            .Descendants("type")
+            .SelectMany(type => type.Descendants("attribute")
+                .Select(attribute => (
+                    Type: type.Attribute("fullname")!.Value.TrimEnd('*'),
+                    Code: attribute.Elements("argument").Skip(1).First().Value)))
+            .ToList();
+
+        Assert.NotEmpty(recorded, $"{baseline} records no trim warnings at all, so this check would pass anything");
+        return recorded;
+    }
+
+    /// <summary>
+    /// Whether a warning's member belongs to a recorded type — the type itself, or one of the closure
+    /// and state-machine types the compiler nests inside it.
+    /// </summary>
+    static bool IsWithin(string member, string type) =>
+        member.Length > type.Length
+        && member.StartsWith(type, StringComparison.Ordinal)
+        && member[type.Length] is '.' or '`' or '+' or '/' or '<';
 
     /// <summary>
     /// Pairs each named test project with every target framework it declares, rather than forcing one

@@ -16,9 +16,14 @@ using Quartz.Build;
     OnPullRequestIncludePaths = ["**/*"],
     OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"],
     PublishArtifacts = false,
-    InvokedTargets = [nameof(VerifyMigrations), nameof(ICompile.Compile), nameof(UnitTest), nameof(PublishTrimmed)],
+    // PublishAot publishes the trim canary as a native executable and runs it, on every image this
+    // workflow covers. macOS is included rather than assumed: the runner image ships the Xcode command
+    // line tools ILCompiler links with, so there is nothing to install, and if that stops being true the
+    // leg says so out loud rather than the claim going unchecked on a third platform.
+    InvokedTargets = [nameof(VerifyMigrations), nameof(ICompile.Compile), nameof(UnitTest), nameof(PublishTrimmed), nameof(PublishAot)],
     CacheKeyFiles = [],
-    TimeoutMinutes = 10,
+    // Generating native code is minutes rather than seconds, and it happens after everything else here.
+    TimeoutMinutes = 20,
     ConcurrencyCancelInProgress = true,
     ReadPermissions = [GitHubActionsPermissions.Contents]
 )]

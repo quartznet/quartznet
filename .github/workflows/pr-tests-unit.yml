@@ -39,7 +39,7 @@ jobs:
   windows-latest:
     name: windows-latest
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
@@ -48,12 +48,12 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: VerifyMigrations, Compile, UnitTest, PublishTrimmed'
-        run: dotnet fallout VerifyMigrations Compile UnitTest PublishTrimmed
+      - name: 'Run: VerifyMigrations, Compile, UnitTest, PublishTrimmed, PublishAot'
+        run: dotnet fallout VerifyMigrations Compile UnitTest PublishTrimmed PublishAot
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
@@ -62,12 +62,12 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: VerifyMigrations, Compile, UnitTest, PublishTrimmed'
-        run: dotnet fallout VerifyMigrations Compile UnitTest PublishTrimmed
+      - name: 'Run: VerifyMigrations, Compile, UnitTest, PublishTrimmed, PublishAot'
+        run: dotnet fallout VerifyMigrations Compile UnitTest PublishTrimmed PublishAot
   macos-latest:
     name: macos-latest
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
@@ -76,5 +76,5 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: VerifyMigrations, Compile, UnitTest, PublishTrimmed'
-        run: dotnet fallout VerifyMigrations Compile UnitTest PublishTrimmed
+      - name: 'Run: VerifyMigrations, Compile, UnitTest, PublishTrimmed, PublishAot'
+        run: dotnet fallout VerifyMigrations Compile UnitTest PublishTrimmed PublishAot
