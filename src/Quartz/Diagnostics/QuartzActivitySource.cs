@@ -42,6 +42,15 @@ internal static class QuartzActivitySource
         activity.AddTag(ActivityTags.TriggerName, context.Trigger.Key.Name);
         activity.AddTag(ActivityTags.JobGroup, context.JobDetail.Key.Group);
         activity.AddTag(ActivityTags.JobName, context.JobDetail.Key.Name);
+
+        // Only when the trigger names one. An execution group is what a thread limit is applied per, so
+        // it is the dimension "which bucket saturated" is asked in — but most triggers are in no group,
+        // and an empty attribute on all of them would be a dimension whose commonest value means "not
+        // applicable".
+        if (context.Trigger.ExecutionGroup is { } executionGroup)
+        {
+            activity.AddTag(ActivityTags.ExecutionGroup, executionGroup);
+        }
     }
 }
 

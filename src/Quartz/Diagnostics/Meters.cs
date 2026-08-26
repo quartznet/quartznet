@@ -68,11 +68,23 @@ internal sealed class Meters
             // Which scheduler ran the job. A process can hold several, and without this their measurements
             // are one series that no dashboard can separate again.
             { ActivityTags.SchedulerName, context.Scheduler.SchedulerName },
+            // And which node of it. A cluster is several schedulers sharing one name, so the name alone
+            // answers "which application" and never "which node" — the question every cluster incident
+            // starts with.
+            { ActivityTags.SchedulerId, context.Scheduler.SchedulerInstanceId },
             { ActivityTags.TriggerGroup, context.Trigger.Key.Group },
             { ActivityTags.TriggerName, context.Trigger.Key.Name },
             { ActivityTags.JobGroup, context.JobDetail.Key.Group },
             { ActivityTags.JobName, context.JobDetail.Key.Name },
         };
+
+        // Absent rather than empty when the trigger names no group: an execution group is the bucket a
+        // thread limit is applied per, and most triggers are in none, so an empty value on all of them
+        // would be a dimension whose commonest member means "not applicable".
+        if (context.Trigger.ExecutionGroup is { } executionGroup)
+        {
+            tagList.Add(ActivityTags.ExecutionGroup, executionGroup);
+        }
 
         jobExecuteInProgress.Add(1, tagList);
 

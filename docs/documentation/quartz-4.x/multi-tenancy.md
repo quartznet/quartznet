@@ -801,15 +801,16 @@ connection pool and a cluster check-in. That is fine for tens of tenants and not
 
 ## Observability
 
-Both signals carry the scheduler name, so per-tenant dashboards work under the scheduler-per-tenant
-model with no extra instrumentation:
+Both signals carry the scheduler name *and* the scheduler id, so per-tenant dashboards work under the
+scheduler-per-tenant model with no extra instrumentation — and a tenant running clustered can still be
+read one node at a time:
 
-- **Traces.** `quartz.scheduler.name` and `quartz.scheduler.id` are on every execution span, along with
-  `quartz.job.group`, `quartz.job.name`, `quartz.trigger.group`, `quartz.trigger.name` and
+- **Traces.** `quartz.scheduler.name` and `quartz.scheduler.id` are on every span, and the execution
+  span adds `quartz.job.group`, `quartz.job.name`, `quartz.trigger.group`, `quartz.trigger.name` and
   `quartz.fire.instance.id`.
-- **Metrics.** `quartz.job.execution.active` and `quartz.job.execution.duration` both carry
-  `quartz.scheduler.name`, `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group` and
-  `quartz.job.name`. (The scheduler *id* is on spans only.)
+- **Metrics.** `quartz.scheduler.name` and `quartz.scheduler.id` are on every measurement.
+  `quartz.job.execution.active` and `quartz.job.execution.duration` add `quartz.trigger.group`,
+  `quartz.trigger.name`, `quartz.job.group` and `quartz.job.name`.
 
 Under the group-per-tenant model, `quartz.trigger.group` and `quartz.job.group` **are** the tenant, so
 the same dashboards work by grouping on those instead. That is a good reason to make the group the raw

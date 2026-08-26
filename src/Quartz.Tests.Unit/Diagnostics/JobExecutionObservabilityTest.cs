@@ -71,6 +71,7 @@ public sealed class JobExecutionObservabilityTest
     private const string JobTypeTag = "quartz.job.type";
     private const string JobGroupTag = "quartz.job.group";
     private const string JobNameTag = "quartz.job.name";
+    private const string ExecutionGroupTag = "quartz.execution.group";
 
     private readonly List<RecordedMeasurement> measurements = [];
     private readonly List<Activity> stoppedActivities = [];
@@ -171,15 +172,52 @@ public sealed class JobExecutionObservabilityTest
         foreach (RecordedMeasurement measurement in published)
         {
             measurement.Tags.Should().Contain(new KeyValuePair<string, object>(SchedulerNameTag, execution.SchedulerName))
+                .And.Contain(new KeyValuePair<string, object>(SchedulerIdTag, execution.SchedulerInstanceId))
                 .And.Contain(new KeyValuePair<string, object>(TriggerGroupTag, execution.TriggerKey.Group))
                 .And.Contain(new KeyValuePair<string, object>(TriggerNameTag, execution.TriggerKey.Name))
                 .And.Contain(new KeyValuePair<string, object>(JobGroupTag, execution.JobKey.Group))
                 .And.Contain(new KeyValuePair<string, object>(JobNameTag, execution.JobKey.Name));
 
-            measurement.Tags.Should().HaveCount(5,
-                "an execution is identified by the scheduler that ran it, its trigger and its job, and "
-                + "nothing else is added to it");
+            measurement.Tags.Should().HaveCount(6,
+                "an execution is identified by the scheduler that ran it — name and node id both — its "
+                + "trigger and its job, and nothing else is added to it");
+
+            measurement.Tags.Should().NotContainKey(ExecutionGroupTag,
+                "this trigger names no execution group, and an attribute that is absent is not the same "
+                + "series as one that is present and empty");
         }
+    }
+
+    /// <summary>
+    /// The tag that tells two nodes of one cluster apart. Two schedulers sharing a name is what a cluster
+    /// <em>is</em>, so a measurement carrying only the name cannot answer which node made it.
+    /// </summary>
+    [Test]
+    public async Task ExecutionMeasurements_CarryTheSchedulerInstanceId()
+    {
+        Execution execution = await RunJob<SucceedingJob>();
+
+        MeasurementsFor(execution.JobKey).Should().NotBeEmpty().And.AllSatisfy(m =>
+            m.Tags.Should().ContainKey(SchedulerIdTag).WhoseValue.Should().Be(execution.SchedulerInstanceId,
+                "the id is what names the node, and it was on spans only — so two nodes of one cluster "
+                + "published measurements that no dashboard could separate again"));
+    }
+
+    /// <summary>
+    /// The execution group is a dimension only for the triggers that have one.
+    /// </summary>
+    [Test]
+    public async Task ExecutionSignals_CarryTheExecutionGroup_WhenTheTriggerNamesOne()
+    {
+        Execution execution = await RunJob<SucceedingJob>(executionGroup: "reports");
+
+        MeasurementsFor(execution.JobKey).Should().NotBeEmpty().And.AllSatisfy(m =>
+            m.Tags.Should().ContainKey(ExecutionGroupTag).WhoseValue.Should().Be("reports",
+                "an execution group is the bucket a thread limit is applied per, so it is the dimension "
+                + "'which bucket saturated' has to be asked in"));
+
+        ActivityFor(execution.JobKey).GetTagItem(ExecutionGroupTag).Should().Be("reports",
+            "the span and the measurements answer the same question the same way");
     }
 
     /// <summary>
@@ -196,8 +234,11 @@ public sealed class JobExecutionObservabilityTest
         ActivityTags.JobType.Should().Be(JobTypeTag);
         ActivityTags.JobGroup.Should().Be(JobGroupTag);
         ActivityTags.JobName.Should().Be(JobNameTag);
+        ActivityTags.ExecutionGroup.Should().Be(ExecutionGroupTag);
         ActivityTags.TriggerCount.Should().Be("quartz.jobstore.trigger.count");
         ActivityTags.BatchSize.Should().Be("quartz.jobstore.batch.size");
+        ActivityTags.JobStoreOperation.Should().Be("quartz.jobstore.operation");
+        ActivityTags.RecoveredInstanceId.Should().Be("quartz.cluster.recovered.instance.id");
     }
 
     /// <summary>
@@ -418,7 +459,7 @@ public sealed class JobExecutionObservabilityTest
     /// Builds a scheduler the way an application does, runs the job its trigger fires exactly once, and
     /// shuts everything down before returning — so an assertion never races the execution it is about.
     /// </summary>
-    private static async Task<Execution> RunJob<TJob>(bool veto = false) where TJob : IJob
+    private static async Task<Execution> RunJob<TJob>(bool veto = false, string executionGroup = null) where TJob : IJob
     {
         string id = Guid.NewGuid().ToString("N");
         JobKey jobKey = new($"job-{id}", $"job-group-{id}");
@@ -441,6 +482,7 @@ public sealed class JobExecutionObservabilityTest
             quartz.AddTrigger<TJob>(trigger => trigger
                 .ForJob(jobKey)
                 .WithIdentity(triggerKey)
+                .WithExecutionGroup(executionGroup)
                 .StartNow());
         });
 

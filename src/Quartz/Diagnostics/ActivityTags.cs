@@ -28,9 +28,36 @@ public static class ActivityTags
     public const string JobGroup = "quartz.job.group";
     public const string JobName = "quartz.job.name";
 
+    /// <summary>
+    /// The execution group a trigger belongs to, which is the bucket a thread limit is applied per.
+    /// </summary>
+    /// <remarks>
+    /// A trigger that names no execution group carries no such attribute at all rather than an empty
+    /// one: the two are the same series to a reader that treats a missing attribute as empty, and
+    /// different series to one that does not, and "there is no group" is not a group name.
+    /// </remarks>
+    public const string ExecutionGroup = "quartz.execution.group";
+
     // Job store operation tags
     public const string TriggerCount = "quartz.jobstore.trigger.count";
     public const string BatchSize = "quartz.jobstore.batch.size";
+
+    /// <summary>
+    /// Which store operation a measurement is about — one of the <see cref="OperationName.JobStore"/>
+    /// names, which is also what the operation's span is called.
+    /// </summary>
+    public const string JobStoreOperation = "quartz.jobstore.operation";
+
+    /// <summary>
+    /// The instance id of the cluster node whose work is being recovered, which is a node other than the
+    /// one reporting the measurement.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <see cref="SchedulerId"/>: every measurement carries that already, and it names
+    /// the node that made the measurement. A recovery is one node saying something about another, so the
+    /// two ids are two attributes.
+    /// </remarks>
+    public const string RecoveredInstanceId = "quartz.cluster.recovered.instance.id";
 }
 
 /// <summary>
