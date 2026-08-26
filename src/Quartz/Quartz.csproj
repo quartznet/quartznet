@@ -60,7 +60,7 @@
       counts the interceptions in the built assembly as well, because that is the only place the fact is
       recorded, and Quartz.Trimming.Canary binds a scheduler out of an IConfiguration and reads every
       value back — the reflection binder passes that check trimmed and fails it natively, dropping three
-      of its eight values without a word.
+      of its ten values without a word.
     -->
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>

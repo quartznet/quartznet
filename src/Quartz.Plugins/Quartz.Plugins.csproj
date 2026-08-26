@@ -8,9 +8,10 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <!--
       Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431).
-      Without IsTrimmable a trimmer keeps this assembly whole and collapses whatever it cannot follow into
-      one IL2104, so an application publishing trimmed learned nothing about the package; with it, the
-      warning is the reflective call site.
+      Under TrimMode=full every assembly is member-trimmed whether it is marked or not; what the mark
+      changes is what a publish reports. With TrimmerSingleWarn on, which is the default, an assembly's
+      trim-analysis warnings collapse into one IL2104, and IsTrimmable exempts exactly its IL2026s from
+      that collapse - which is what lets this package report its own reflective call site.
 
       Four warnings when the analyzers were first turned on here, two now, and neither of the two is a
       new one: the schedule-file plugins hand a job type spelled as text to the scheduler, which is what
