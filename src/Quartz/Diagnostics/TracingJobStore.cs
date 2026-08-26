@@ -32,8 +32,9 @@ namespace Quartz.Diagnostics;
 /// <remarks>
 /// <para>
 /// The spans this emits used to come from thirty-three call sites inside <c>AdoJobStoreBase</c>, which
-/// meant the in-memory store, the Redis store and any store an application wrote produced no store
-/// telemetry at all — and that the one store which did was carrying a concern that has nothing to do
+/// meant the in-memory store and any store outside this repository — a community package's, an
+/// application's own — produced no store telemetry at all, and that the one store which did was
+/// carrying a concern that has nothing to do
 /// with talking to a database. As a decorator it is the same spans for every store there is, and the
 /// enrichment the ADO store used to add by hand (the batch size it was asked for, the number of triggers
 /// it came back with) is derived here from the arguments and the results.
