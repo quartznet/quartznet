@@ -50,6 +50,21 @@ internal sealed class DashboardComponentContext : BunitContext
         Services.AddSingleton<ToastService>();
         Services.AddSingleton<DashboardActionLogService>();
 
+        // The reads whose answer is a shape rather than a number: a page and a limits snapshot. Every
+        // test that overrides one of these does so with its own A.CallTo, which wins; what these are for
+        // is the tests that are about something else, so that a component reading one gets an honest
+        // empty answer rather than whatever a dummy would have invented.
+        A.CallTo(() => Api.GetExecutionLimits(A<string>._, A<CancellationToken>._))
+            .Returns(new ExecutionLimitsDto([]));
+        A.CallTo(() => Api.GetFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<FireInstanceDto>([], HasMore: false, TotalCount: 0));
+        A.CallTo(() => Api.GetTriggerGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerGroupDto>([], HasMore: false, TotalCount: 0));
+        A.CallTo(() => Api.GetJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobGroupDto>([], HasMore: false, TotalCount: 0));
+        A.CallTo(() => Api.CountMisfires(A<string>._, A<DateTimeOffset>._, A<CancellationToken>._))
+            .Returns(0);
+
         SchedulerState = Services.GetRequiredService<SchedulerState>();
         SchedulerState.SelectedTimeZoneId = TimeZoneInfo.Utc.Id;
         Toasts = Services.GetRequiredService<ToastService>();

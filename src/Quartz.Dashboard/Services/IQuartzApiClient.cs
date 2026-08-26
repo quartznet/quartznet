@@ -78,7 +78,15 @@ public interface IQuartzApiClient
     /// </summary>
     ValueTask<PagedResult<JobKeyDto>> GetJobs(string schedulerName, DashboardJobQuery query, CancellationToken cancellationToken = default);
 
-    ValueTask<List<JobGroupDto>> GetJobGroups(string schedulerName, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Returns one page of job groups, ordered by name, each carrying whether it is paused.
+    /// </summary>
+    ValueTask<PagedResult<JobGroupDto>> GetJobGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns one page of trigger groups, ordered by name, each carrying whether it is paused.
+    /// </summary>
+    ValueTask<PagedResult<TriggerGroupDto>> GetTriggerGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default);
 
     ValueTask<JobDetailDto> GetJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
@@ -199,7 +207,46 @@ public interface IQuartzApiClient
     /// </summary>
     ValueTask<PagedResult<DashboardMisfireEntry>?> GetMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default);
 
-    ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Counts the misfires the scheduler has recorded since <paramref name="since" />, or
+    /// <see langword="null" /> when the data source keeps no misfire feed.
+    /// </summary>
+    /// <remarks>
+    /// A count rather than a page, because the overview's tile asks "how bad is it right now" and a
+    /// store keeping its history in a database can answer that without loading rows it would discard.
+    /// Null is not zero: a data source with no feed has not looked, and the tile says so rather than
+    /// reporting a clean bill of health it did not earn.
+    /// </remarks>
+    ValueTask<int?> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the execution limits the scheduler is running with, or
+    /// <see cref="ExecutionLimitsDto.CannotReport" /> when this data source cannot say.
+    /// </summary>
+    /// <remarks>
+    /// Never <see langword="null" />: a scheduler with nothing limited answers with an empty
+    /// <see cref="ExecutionLimitsDto.Limits" />, which is a different fact from a scheduler that cannot
+    /// report limits at all, and the overview says which of the two it is looking at.
+    /// </remarks>
+    ValueTask<ExecutionLimitsDto> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// One page of a group listing — job groups or trigger groups — optionally narrowed to the groups that
+/// are paused or to the ones that are not.
+/// </summary>
+public sealed record DashboardGroupQuery : PagedQuery
+{
+    /// <summary>
+    /// Limits the result by paused state: <see langword="true" /> for paused groups only,
+    /// <see langword="false" /> for unpaused only, <see langword="null" /> for every group.
+    /// </summary>
+    /// <remarks>
+    /// With <see cref="PagedQuery.Take" /> of zero this counts the paused groups, which the unfiltered
+    /// listing cannot be made to do: a group can be paused while it holds nothing, and the unfiltered
+    /// listing enumerates the groups that hold something.
+    /// </remarks>
+    public bool? Paused { get; init; }
 }
 
 /// <summary>
@@ -346,6 +393,8 @@ public sealed record JobKeyDto(string Group, string Name);
 
 public sealed record JobGroupDto(string Name, bool Paused);
 
+public sealed record TriggerGroupDto(string Name, bool Paused);
+
 public sealed record TriggerKeyDto(string Group, string Name);
 
 /// <summary>
@@ -426,10 +475,39 @@ public sealed record AddCalendarRequest(string CalendarName, ICalendar Calendar,
 public sealed record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNonDurableWhileAwaitingScheduling);
 
 /// <summary>
-/// The execution limits a scheduler is running with, keyed by a display-friendly group name.
+/// The execution limits a scheduler is running with, keyed by the spelling configuration and the HTTP
+/// API use for a group: <c>_</c> for the bucket of triggers that carry no execution group, <c>*</c> for
+/// the catch-all applied to groups with no limit of their own, and otherwise the group's name.
 /// </summary>
-/// <param name="Limits">Each group's limit, with the scope it is counted in.</param>
-public sealed record ExecutionLimitsDto(Dictionary<string, DashboardExecutionLimit> Limits);
+/// <remarks>
+/// The keys are the configuration spellings rather than display text because the overview joins them to
+/// what is in flight, and a firing carries a group name or nothing at all. Rendering
+/// <see cref="ExecutionGroupScope" />'s three cases as words is the panel's job.
+/// </remarks>
+/// <param name="Limits">Each group's limit, with the scope it is counted in. Empty when the scheduler
+/// limits nothing, which leaves every group unlimited.</param>
+/// <param name="UsesTriggerGroupWhenUnset">
+/// Whether a trigger that carries no execution group is limited as though it belonged to a group named
+/// after its own trigger group — <see cref="ExecutionLimits.UsesTriggerGroupWhenUnset" />. The overview
+/// applies the same derivation when it counts what is in flight, or its counts and the scheduler's
+/// would key the same firing differently.
+/// </param>
+/// <param name="CanReport">
+/// Whether the scheduler could answer at all. <see langword="false" /> is not "nothing is limited": it
+/// is "this scheduler does not implement execution limits", and the two must not be shown alike.
+/// </param>
+public sealed record ExecutionLimitsDto(
+    Dictionary<string, DashboardExecutionLimit> Limits,
+    bool UsesTriggerGroupWhenUnset = false,
+    bool CanReport = true)
+{
+    /// <summary>
+    /// The answer for a scheduler whose implementation refuses the question — an <see cref="IScheduler" />
+    /// of an application's own may throw <see cref="NotSupportedException" /> rather than implement
+    /// limits.
+    /// </summary>
+    public static ExecutionLimitsDto CannotReport { get; } = new([], UsesTriggerGroupWhenUnset: false, CanReport: false);
+}
 
 /// <summary>
 /// One group's limit as the dashboard reads it.

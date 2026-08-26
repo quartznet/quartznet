@@ -501,11 +501,84 @@ public class InProcessQuartzApiClientTest
             await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("paused"));
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
-            List<JobGroupDto> groups = await client.GetJobGroups(scheduler.SchedulerName);
+            PagedResult<JobGroupDto> groups = await client.GetJobGroups(scheduler.SchedulerName, new DashboardGroupQuery());
 
-            groups.Select(x => x.Name).Should().Contain(["paused", "running"], "every job group is listed");
-            groups.Single(x => x.Name == "paused").Paused.Should().BeTrue("the group was paused");
-            groups.Single(x => x.Name == "running").Paused.Should().BeFalse("the other group was not");
+            groups.Items.Select(x => x.Name).Should().Contain(["paused", "running"], "every job group is listed");
+            groups.Items.Single(x => x.Name == "paused").Paused.Should().BeTrue("the group was paused");
+            groups.Items.Single(x => x.Name == "running").Paused.Should().BeFalse("the other group was not");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// The paused-groups tile counts with the paused filter rather than by listing every group, and
+    /// <c>Take = 0</c> is what turns that filter into a count.
+    /// </summary>
+    /// <remarks>
+    /// The distinction is not academic: a group can be paused while it holds nothing, and the unfiltered
+    /// listing enumerates the groups that hold something, so tallying it would miss exactly the group an
+    /// operator most needs to be told about — one that was paused and then emptied.
+    /// </remarks>
+    [Test]
+    public async Task GroupListingsCountThePausedOnesWithoutListingThem()
+    {
+        IScheduler scheduler = await CreateScheduler("PausedGroupCountTest");
+        try
+        {
+            IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job1", "reports").StoreDurably().Build();
+            await scheduler.AddJob(job, new AddJobOptions { Replace = true });
+            await scheduler.ScheduleJob(TriggerBuilder.Create()
+                .WithIdentity("trigger1", "nightly")
+                .ForJob(job)
+                .WithCronSchedule("0 0 1 * * ?")
+                .Build());
+
+            await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("reports"));
+            await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("nightly"));
+            await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("empty-and-paused"));
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            PagedResult<TriggerGroupDto> pausedTriggerGroups = await client.GetTriggerGroups(
+                scheduler.SchedulerName,
+                new DashboardGroupQuery { Take = 0, Paused = true });
+            PagedResult<JobGroupDto> pausedJobGroups = await client.GetJobGroups(
+                scheduler.SchedulerName,
+                new DashboardGroupQuery { Take = 0, Paused = true });
+
+            pausedTriggerGroups.Items.Should().BeEmpty("Take = 0 is a count, not a page");
+            pausedTriggerGroups.TotalCount.Should().Be(2,
+                "a trigger group that was paused while empty is still paused, and only the filtered "
+                + "query reports it");
+            pausedJobGroups.TotalCount.Should().Be(1);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetTriggerGroupsReportsPausedStateInOneCall()
+    {
+        IScheduler scheduler = await CreateScheduler("GetTriggerGroupsTest");
+        try
+        {
+            IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job1", "jobs").StoreDurably().Build();
+            await scheduler.AddJob(job, new AddJobOptions { Replace = true });
+            await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("t1", "paused").ForJob(job).WithCronSchedule("0 0 1 * * ?").Build());
+            await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("t2", "running").ForJob(job).WithCronSchedule("0 0 2 * * ?").Build());
+            await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("paused"));
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            PagedResult<TriggerGroupDto> groups = await client.GetTriggerGroups(scheduler.SchedulerName, new DashboardGroupQuery());
+
+            groups.Items.Select(x => x.Name).Should().Contain(["paused", "running"], "every trigger group is listed");
+            groups.Items.Single(x => x.Name == "paused").Paused.Should().BeTrue("the group was paused");
+            groups.Items.Single(x => x.Name == "running").Paused.Should().BeFalse("the other group was not");
         }
         finally
         {
@@ -531,15 +604,16 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            ExecutionLimitsDto? limits = await client.GetExecutionLimits(scheduler.SchedulerName);
+            ExecutionLimitsDto limits = await client.GetExecutionLimits(scheduler.SchedulerName);
 
-            limits.Should().NotBeNull();
+            limits.CanReport.Should().BeTrue();
             limits.Limits.Should().BeEquivalentTo(new Dictionary<string, DashboardExecutionLimit>
             {
                 ["batch"] = new(2, ExecutionLimitScope.Node),
                 ["tenant-acme"] = new(8, ExecutionLimitScope.Cluster),
-                ["(default)"] = new(3, ExecutionLimitScope.Node),
-            });
+                ["_"] = new(3, ExecutionLimitScope.Node),
+            }, "the keys are the spellings configuration and the HTTP API use, which is what lets the "
+               + "overview join a firing's execution group to the limit governing it");
         }
         finally
         {
@@ -548,19 +622,88 @@ public class InProcessQuartzApiClientTest
     }
 
     [Test]
-    public async Task GetExecutionLimitsShouldBeNullWhenNothingIsLimited()
+    public async Task GetExecutionLimitsCarriesTheTriggerGroupDerivation()
+    {
+        IScheduler scheduler = await CreateScheduler("GetExecutionLimitsDerivationTest");
+        try
+        {
+            await scheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create()
+                .ForOtherGroups(4)
+                .UseTriggerGroupWhenUnset()
+                .Build());
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            ExecutionLimitsDto limits = await client.GetExecutionLimits(scheduler.SchedulerName);
+
+            limits.UsesTriggerGroupWhenUnset.Should().BeTrue(
+                "the overview has to apply the same derivation when it counts what is in flight, or its "
+                + "counts and the acquisition filter would key the same firing differently");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetExecutionLimitsIsEmptyRatherThanUnknownWhenNothingIsLimited()
     {
         IScheduler scheduler = await CreateScheduler("GetExecutionLimitsEmptyTest");
         try
         {
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            (await client.GetExecutionLimits(scheduler.SchedulerName)).Should().BeNull(
-                "a scheduler with no limits has nothing to show, which is not the same as showing zeros");
+            ExecutionLimitsDto limits = await client.GetExecutionLimits(scheduler.SchedulerName);
+
+            limits.Limits.Should().BeEmpty("nothing is limited");
+            limits.CanReport.Should().BeTrue(
+                "a scheduler that limits nothing has answered the question, and the overview says every "
+                + "group is unlimited rather than that it cannot tell");
         }
         finally
         {
             await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// A scheduler that refuses the question is a different answer from one that limits nothing, and the
+    /// client no longer flattens the two into a bare null.
+    /// </summary>
+    [Test]
+    public async Task GetExecutionLimitsSaysSoWhenTheSchedulerCannotReportThem()
+    {
+        IScheduler scheduler = await CreateScheduler("GetExecutionLimitsUnsupportedTest");
+        try
+        {
+            InProcessQuartzApiClient client = CreateClient(new LimitlessScheduler(scheduler));
+
+            ExecutionLimitsDto limits = await client.GetExecutionLimits(scheduler.SchedulerName);
+
+            limits.CanReport.Should().BeFalse(
+                "reporting a refusal as 'nothing is limited' would have the panel state a fact nobody "
+                + "established");
+            limits.Limits.Should().BeEmpty();
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// An <see cref="IScheduler" /> of an application's own that does not implement execution limits.
+    /// </summary>
+    private sealed class LimitlessScheduler : DelegatingScheduler
+    {
+        public LimitlessScheduler(IScheduler scheduler) : base(scheduler)
+        {
+        }
+
+        public override ValueTask<ExecutionLimits?> GetExecutionLimits(CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException("This scheduler does not implement execution limits.");
         }
     }
 
