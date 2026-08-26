@@ -1,0 +1,262 @@
+@page "/quartz/cluster"
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@using Quartz.Dashboard.Services
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+
+<div class="qz-page">
+    <div class="qz-page-header">
+        <h1>Cluster</h1>
+        <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Auto-refreshes every 5s</span>
+        <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Last updated: @FormatLastUpdated(_lastUpdatedAt)</span>
+    </div>
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+
+    @if (IsSingleNodeWithoutClusterState)
+    {
+        <p class="qz-muted">
+            This scheduler is not clustered: its job store keeps no check-in state, so the only node is this one.
+        </p>
+    }
+
+    <table class="qz-table">
+        <thead>
+            <tr>
+                <th>Node</th>
+                <th>State</th>
+                <th>Last check-in</th>
+                <th>Check-in interval</th>
+                <th>Acquired</th>
+                <th>Executing</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (_nodes.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="qz-muted">No nodes to show.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (ClusterNodeDto node in _nodes)
+                {
+                    <tr>
+                        <td>
+                            @node.InstanceId
+                            @if (node.IsCurrentNode)
+                            {
+                                <span class="qz-muted">&nbsp;(this node)</span>
+                            }
+                        </td>
+                        <td><StateIndicator State="@node.State.ToString()" /></td>
+                        <td>
+                            @if (node.LastCheckInUtc.HasValue)
+                            {
+                                @Scheduler.FormatInSelectedTimeZone(node.LastCheckInUtc, "u")
+                                <span class="qz-muted">&nbsp;(<TimeAgo Timestamp="node.LastCheckInUtc" />)</span>
+                            }
+                            else
+                            {
+                                <span class="qz-muted">&#8212;</span>
+                            }
+                        </td>
+                        <td>@FormatInterval(node.CheckInInterval)</td>
+                        <td>@AcquiredOn(node.InstanceId)</td>
+                        <td>@ExecutingOn(node.InstanceId)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+
+    @if (_firingCountsArePartial)
+    {
+        <p class="qz-muted">
+            The per-node counts are taken from the first @_firingsCounted firings; there are more in flight.
+        </p>
+    }
+</div>
+
+@code {
+    private readonly List<ClusterNodeDto> _nodes = [];
+    private readonly Dictionary<string, NodeFirings> _firingsByNode = new(StringComparer.Ordinal);
+    private bool _isLoading = true;
+    private bool _loadingInProgress;
+    private bool _firingCountsArePartial;
+    private int _firingsCounted;
+    private string? _error;
+    private PeriodicTimer? _refreshTimer;
+    private CancellationTokenSource? _refreshLoopCancellation;
+    private DateTimeOffset? _lastUpdatedAt;
+
+    /// <summary>
+    /// A store that keeps no check-in history reports exactly one node — itself — with no times, which
+    /// is what a non-clustered scheduler looks like from here. There is no separate "clustered" flag to
+    /// read: the node list is the answer, and this is the shape it takes.
+    /// </summary>
+    private bool IsSingleNodeWithoutClusterState =>
+        _nodes.Count == 1 && _nodes[0].IsCurrentNode && _nodes[0].LastCheckInUtc is null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        _refreshLoopCancellation = new CancellationTokenSource();
+        // Every tick is a database read on a persistent store, so this is deliberately slower than the
+        // one-second cadence of the executing-jobs page: a cluster's membership changes on the scale of
+        // its check-in interval, not of a job's duration.
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        _ = RunRefreshLoopAsync(_refreshLoopCancellation.Token);
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        if (_refreshTimer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            while (await _refreshTimer.WaitForNextTickAsync(cancellationToken))
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadDataAsync();
+                        StateHasChanged();
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    _error = ex.Message;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (_loadingInProgress)
+        {
+            return;
+        }
+
+        _loadingInProgress = true;
+        _error = null;
+
+        try
+        {
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            _nodes.Clear();
+            _firingsByNode.Clear();
+            _firingCountsArePartial = false;
+            _firingsCounted = 0;
+
+            if (!string.IsNullOrWhiteSpace(schedulerName))
+            {
+                _nodes.AddRange(await Api.GetClusterNodes(schedulerName));
+
+                // Both states, because the two columns are what a node is holding and what it is
+                // running: a reservation left behind by a node that died is exactly the thing an
+                // operator comes to this page to see.
+                PagedResult<FireInstanceDto> firings = await Api.GetFireInstances(
+                    schedulerName,
+                    new DashboardFireInstanceQuery { State = null });
+
+                foreach (FireInstanceDto firing in firings.Items)
+                {
+                    NodeFirings counts = _firingsByNode.TryGetValue(firing.SchedulerInstanceId, out NodeFirings existing)
+                        ? existing
+                        : default;
+
+                    _firingsByNode[firing.SchedulerInstanceId] = firing.State == FireInstanceState.Acquired
+                        ? counts with { Acquired = counts.Acquired + 1 }
+                        : counts with { Executing = counts.Executing + 1 };
+                }
+
+                _firingsCounted = firings.Items.Count;
+                _firingCountsArePartial = firings.HasMore;
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _lastUpdatedAt = DateTimeOffset.UtcNow;
+            _isLoading = false;
+            _loadingInProgress = false;
+        }
+    }
+
+    private int AcquiredOn(string instanceId)
+    {
+        return _firingsByNode.TryGetValue(instanceId, out NodeFirings counts) ? counts.Acquired : 0;
+    }
+
+    private int ExecutingOn(string instanceId)
+    {
+        return _firingsByNode.TryGetValue(instanceId, out NodeFirings counts) ? counts.Executing : 0;
+    }
+
+    private static string FormatInterval(TimeSpan? interval)
+    {
+        return interval.HasValue ? interval.Value.ToString(@"hh\:mm\:ss") : "—";
+    }
+
+    private string FormatLastUpdated(DateTimeOffset? lastUpdatedAt)
+    {
+        return Scheduler.FormatInSelectedTimeZone(lastUpdatedAt, "HH:mm:ss");
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _refreshLoopCancellation?.Cancel();
+        _refreshLoopCancellation?.Dispose();
+        _refreshTimer?.Dispose();
+    }
+
+    /// <summary>
+    /// What one node is holding and what it is running, as the firing listing reports it.
+    /// </summary>
+    private readonly record struct NodeFirings(int Acquired, int Executing);
+}

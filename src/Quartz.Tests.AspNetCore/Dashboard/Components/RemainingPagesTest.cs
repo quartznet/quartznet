@@ -176,7 +176,7 @@ public class RemainingPagesTest
         IRenderedComponent<NavMenu> menu = context.Render<NavMenu>();
 
         menu.FindAll("a").Select(link => link.GetAttribute("href")).Should()
-            .Equal(["quartz", "quartz/jobs", "quartz/triggers", "quartz/calendars", "quartz/executing", "quartz/history", "quartz/live", "quartz/actions"],
+            .Equal(["quartz", "quartz/jobs", "quartz/triggers", "quartz/calendars", "quartz/executing", "quartz/cluster", "quartz/history", "quartz/live", "quartz/actions"],
                 "the links are base-relative, so they survive an application path base as well as a "
                 + "custom dashboard path");
     }

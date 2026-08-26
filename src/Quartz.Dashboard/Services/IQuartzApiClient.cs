@@ -79,6 +79,16 @@ public interface IQuartzApiClient
     ValueTask<PagedResult<FireInstanceDto>> GetFireInstances(string schedulerName, DashboardFireInstanceQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Returns the scheduler's cluster nodes, the node that answered first. A scheduler that is not
+    /// clustered answers with the one node it is, with no check-in times.
+    /// </summary>
+    /// <remarks>
+    /// Joins to <see cref="GetFireInstances" /> on <see cref="FireInstanceDto.SchedulerInstanceId" />,
+    /// which is how the Cluster page counts what each node is running.
+    /// </remarks>
+    ValueTask<List<ClusterNodeDto>> GetClusterNodes(string schedulerName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Pauses the job. Returns <see langword="true" /> when the job existed and was paused,
     /// <see langword="false" /> when there was nothing to pause.
     /// </summary>
@@ -277,6 +287,21 @@ public sealed record FireInstanceDto(
     DateTimeOffset FireTimeUtc,
     DateTimeOffset? ScheduledFireTimeUtc,
     string? ExecutionGroup);
+
+/// <summary>
+/// One scheduler node, as the dashboard shows it.
+/// </summary>
+/// <remarks>
+/// <see cref="LastCheckInUtc" /> and <see cref="CheckInInterval" /> are null when the store keeps no
+/// check-in history, which is what a non-clustered scheduler looks like: one node, no times, and
+/// nothing to be late for.
+/// </remarks>
+public sealed record ClusterNodeDto(
+    string InstanceId,
+    DateTimeOffset? LastCheckInUtc,
+    TimeSpan? CheckInInterval,
+    ClusterNodeState State,
+    bool IsCurrentNode);
 
 /// <summary>
 /// A trigger to schedule, and the job it fires when that job is not already stored.

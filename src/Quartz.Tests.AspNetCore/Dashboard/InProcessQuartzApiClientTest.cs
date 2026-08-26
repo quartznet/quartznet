@@ -562,6 +562,36 @@ public class InProcessQuartzApiClientTest
         }
     }
 
+    /// <summary>
+    /// The node listing reaches the scheduler rather than being answered by the dashboard.
+    /// </summary>
+    /// <remarks>
+    /// In-process the scheduler here is backed by the in-memory store, so the honest answer is one node
+    /// with no check-in history — which is also the answer the Cluster page reads as "not clustered".
+    /// </remarks>
+    [Test]
+    public async Task ClusterNodesComeFromTheScheduler()
+    {
+        IScheduler scheduler = await CreateScheduler("ClusterNodesTest");
+        try
+        {
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            List<ClusterNodeDto> nodes = await client.GetClusterNodes(scheduler.SchedulerName);
+
+            ClusterNodeDto node = nodes.Should().ContainSingle().Subject;
+            node.InstanceId.Should().Be(scheduler.SchedulerInstanceId);
+            node.IsCurrentNode.Should().BeTrue();
+            node.State.Should().Be(ClusterNodeState.Alive);
+            node.LastCheckInUtc.Should().BeNull();
+            node.CheckInInterval.Should().BeNull();
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
     private static async Task<IScheduler> CreateScheduler(string testName)
     {
         NameValueCollection properties = new()

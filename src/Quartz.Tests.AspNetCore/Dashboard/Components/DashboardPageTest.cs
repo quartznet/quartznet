@@ -22,6 +22,7 @@ public class DashboardPageTest
         context = new DashboardComponentContext();
         context.WithScheduler();
         GivenCounts(jobs: 0, triggers: 0, errorTriggers: 0, executing: 0);
+        GivenNodes(Node(TestData.SchedulerInstanceId, ClusterNodeState.Alive));
     }
 
     [TearDown]
@@ -62,6 +63,41 @@ public class DashboardPageTest
                 A<DashboardJobQuery>.That.Matches(query => query.Take == 0),
                 A<CancellationToken>._))
             .MustHaveHappened();
+    }
+
+    /// <summary>
+    /// The Nodes tile counts what the cluster has, and says how much of it is not answering.
+    /// </summary>
+    /// <remarks>
+    /// A bare count is no news — a four-node cluster has four nodes on its best day and on its worst.
+    /// What an operator glances for is the second number, so it is in the tile's value rather than a
+    /// click away, and the tile turns red to earn the glance.
+    /// </remarks>
+    [Test]
+    public void TheNodesTileNamesTheNodesThatAreNotAnswering()
+    {
+        GivenNodes(
+            Node("node-a", ClusterNodeState.Alive),
+            Node("node-b", ClusterNodeState.Overdue),
+            Node("node-c", ClusterNodeState.Failed));
+
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+
+        page.StatCardValue("Nodes").Should().Be("3 (2 overdue/failed)");
+        page.Find(".qz-stat-card-link .qz-stat-card").ClassList.Should().Contain("qz-stat-card-error",
+            "a cluster with a node that stopped checking in is not an informational fact");
+    }
+
+    [Test]
+    public void TheNodesTileIsACountAloneWhenEveryNodeIsAlive()
+    {
+        GivenNodes(Node("node-a", ClusterNodeState.Alive), Node("node-b", ClusterNodeState.Alive));
+
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+
+        page.StatCardValue("Nodes").Should().Be("2", "a healthy cluster has nothing to qualify");
+        page.Find(".qz-stat-card-link").GetAttribute("href").Should().Be("quartz/cluster",
+            "the tile is the way to the page that explains it");
     }
 
     [Test]
@@ -143,5 +179,21 @@ public class DashboardPageTest
                     TotalCount: query.State == TriggerState.Error ? errorTriggers : triggers));
         A.CallTo(() => context.Api.GetFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<FireInstanceDto>([], HasMore: false, TotalCount: executing));
+    }
+
+    private void GivenNodes(params ClusterNodeDto[] nodes)
+    {
+        A.CallTo(() => context.Api.GetClusterNodes(A<string>._, A<CancellationToken>._))
+            .Returns(nodes.ToList());
+    }
+
+    private static ClusterNodeDto Node(string instanceId, ClusterNodeState state)
+    {
+        return new ClusterNodeDto(
+            instanceId,
+            TestData.Dashboard.FiredAt,
+            TimeSpan.FromSeconds(15),
+            state,
+            IsCurrentNode: instanceId == TestData.SchedulerInstanceId);
     }
 }

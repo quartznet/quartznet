@@ -25,7 +25,10 @@
                 return "error";
             }
 
-            if (normalized.Contains("pause") || normalized.Contains("standby") || normalized.Contains("blocked"))
+            // "overdue" is a cluster node that has missed a check-in: not a fault yet, but not healthy
+            // either, which is the same amber the paused states wear.
+            if (normalized.Contains("pause") || normalized.Contains("standby") || normalized.Contains("blocked")
+                || normalized.Contains("overdue"))
             {
                 return "paused";
             }
@@ -36,7 +39,10 @@
                 return "executing";
             }
 
-            if (normalized.Contains("normal") || normalized.Contains("running") || normalized.Contains("complete"))
+            // "alive" is a cluster node that is checking in, which is the healthy green the running
+            // states wear.
+            if (normalized.Contains("normal") || normalized.Contains("running") || normalized.Contains("complete")
+                || normalized.Contains("alive"))
             {
                 return "success";
             }
