@@ -58,6 +58,14 @@
     -->
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+
+    <!--
+      One ADO.NET driver, so that the trimming page can show the registration it is about with a real
+      factory — `UseSqlite(SqliteFactory.Instance, …)` rather than a `DbProviderFactory` parameter that
+      teaches nobody which one to pass. SQLite is the driver the repository already carries, for the
+      trim canary. Every other driver's factory is named exactly the same way.
+    -->
+    <PackageReference Include="Microsoft.Data.SQLite" />
   </ItemGroup>
 
   <ItemGroup>

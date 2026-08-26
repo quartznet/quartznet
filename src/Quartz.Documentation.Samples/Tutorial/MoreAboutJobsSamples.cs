@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Quartz.Documentation.Samples.Tutorial;
@@ -217,36 +215,7 @@ public static class MoreAboutJobsSamples
         #endregion
     }
 
-    public static void JobDataMetadataForATrimmedPublish(IServiceCollection services, string connectionString)
-    {
-        #region sample_more_about_jobs_trimmed_job_data_metadata
-
-        services.AddQuartz(q => q.UsePersistentStore(store =>
-        {
-            store.UseSqlServer(connectionString);
-            store.UseSystemTextJsonSerializer(registry => registry.AddTypeInfoResolver(ReportJobDataContext.Default));
-        }));
-
-        #endregion
-    }
 }
-
-#region sample_more_about_jobs_trimmed_job_data_context
-
-// A job data value type of this application's own, which no contract of Quartz's can name.
-public enum ReportFormat
-{
-    Csv,
-    Pdf
-}
-
-// The metadata the registry is handed. Only a trimmed or native AOT publish needs it: with reflection
-// on, the resolver chain still ends in reflection and this changes nothing.
-[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
-[JsonSerializable(typeof(ReportFormat))]
-internal sealed partial class ReportJobDataContext : JsonSerializerContext;
-
-#endregion
 
 #region sample_more_about_jobs_custom_job_detail
 

@@ -1406,8 +1406,8 @@ same of *your* code, which is the annotation doing its job:
 build, because a type resolved from a string cannot be proven reachable. So does the
 `job_scheduling_data` XML loader. Prefer the typed spelling, or root the type yourself with a
 [trimmer root descriptor](https://learn.microsoft.com/dotnet/core/deploying/trimming/trimming-options#root-descriptors).
-See [Trimming](tutorial/more-about-jobs.md#trimming) in the tutorial for what a trimmed application has
-to do.
+See [Publishing Trimmed and Native AOT](how-tos/trimming-and-native-aot.md) for what a trimmed
+application has to do.
 
 `DbMetadata.ConnectionType`, `.CommandType` and `.ParameterType` carry annotations too, saying what
 `DbProvider` does with each: constructs connections and commands, and reads the properties the metadata
@@ -3815,7 +3815,7 @@ driver without naming one — `UseSqlServer(SqlClientFactory.Instance, connectio
 blob a store writes, and a custom trigger or calendar type is answered by the registry it was registered
 with. The one thing left open is a job-data value of a type of your own, which the registry is handed
 metadata for through `SystemTextJsonSerializerRegistry.AddTypeInfoResolver` — see
-[Trimming](tutorial/more-about-jobs.md#trimming) for the shape of that.
+[Publishing Trimmed and Native AOT](how-tos/trimming-and-native-aot.md) for the shape of that.
 
 `Quartz` also declares **`IsAotCompatible`** on 4.0, which 3.x does not. What it claims is narrow and
 checkable: nothing Quartz does needs code generated at run time, so a native AOT publish reports no
@@ -3836,7 +3836,7 @@ member of any of them gained `[RequiresUnreferencedCode]` or `[DynamicallyAccess
 you call changes shape. `Quartz.Serialization.Newtonsoft` and `Quartz.Dashboard` say the opposite
 deliberately, in their csproj and in their nuget.org readme: Json.NET's contract is reflection, and
 Blazor Server binds components and their parameters by name. The table is in
-[Which packages say whether they can be trimmed](tutorial/more-about-jobs.md#which-packages-say-whether-they-can-be-trimmed).
+[Which packages say whether they can be trimmed](how-tos/trimming-and-native-aot.md#which-packages-say-whether-they-can-be-trimmed).
 
 ## Executing is a trigger state
 

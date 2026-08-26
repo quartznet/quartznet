@@ -70,4 +70,5 @@ await scheduler.Start();
 - [Quick start](https://www.quartz-scheduler.net/documentation/quartz-4.x/quick-start.html)
 - [Tutorial](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/)
 - [Configuration reference](https://www.quartz-scheduler.net/documentation/quartz-4.x/configuration/reference.html)
+- [Publishing trimmed and native AOT](https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/trimming-and-native-aot.html)
 - [Migrating from Quartz 3](https://www.quartz-scheduler.net/documentation/quartz-4.x/migration-guide.html)
