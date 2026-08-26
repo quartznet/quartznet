@@ -138,19 +138,19 @@ public class FileScanJob : IJob
 
         if (newTime is null)
         {
-            logger.LogWarning("File '{FileName}' does not exist.", fileName);
+            logger.FileDoesNotExist(fileName);
             return;
         }
 
         if (lastTime is not null && newTime != lastTime && newTime < maxAgeTime)
         {
             // notify call back...
-            logger.LogInformation("File '{FileName}' updated, notifying listener.", fileName);
+            logger.FileUpdated(fileName);
             await listener.FileUpdated(fileName, cancellationToken).ConfigureAwait(false);
         }
         else
         {
-            logger.LogDebug("File '{FileName}' unchanged.", fileName);
+            logger.FileUnchanged(fileName);
         }
 
         context.JobDetail.JobDataMap[LastModifiedTime] = newTime.Value;

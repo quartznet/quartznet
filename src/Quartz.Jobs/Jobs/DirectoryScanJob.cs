@@ -154,7 +154,7 @@ public class DirectoryScanJob : IJob
         {
             foreach (var fileInfo in updatedFiles)
             {
-                logger.LogInformation("Directory {DirectoryName} contents updated, notifying listener.", fileInfo.DirectoryName);
+                logger.DirectoryContentsUpdated(fileInfo.DirectoryName);
             }
 
             // notify call back...
@@ -176,7 +176,7 @@ public class DirectoryScanJob : IJob
         {
             foreach (var dir in model.DirectoriesToScan)
             {
-                logger.LogDebug("Directory '{Directory}' contents unchanged.", dir);
+                logger.DirectoryContentsUnchanged(dir);
             }
         }
     }
@@ -206,7 +206,7 @@ public class DirectoryScanJob : IJob
         DirectoryInfo dir = new DirectoryInfo(directoryName);
         if (!dir.Exists)
         {
-            logger.LogWarning("Directory '{DirectoryName}' does not exist.", directoryName);
+            logger.DirectoryDoesNotExist(directoryName);
             return new DirectoryScanResult([], [], []);
         }
 

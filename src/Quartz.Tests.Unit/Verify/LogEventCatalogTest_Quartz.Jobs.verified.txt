@@ -1,0 +1,28 @@
+﻿7000  Information  DirectoryScanJobLog.DirectoryContentsUpdated
+    "Directory {DirectoryName} contents updated, notifying listener."
+7001  Debug  DirectoryScanJobLog.DirectoryContentsUnchanged
+    "Directory '{Directory}' contents unchanged."
+7002  Warning  DirectoryScanJobLog.DirectoryDoesNotExist
+    "Directory '{DirectoryName}' does not exist."
+7010  Debug  DirectoryScanJobLog.SomeTypesNotLoaded
+    "Could not load some types from assembly {AssemblyName} while scanning for IDirectoryScanListener"
+7011  Debug  DirectoryScanJobLog.AssemblyNotLoaded
+    "Could not load assembly {AssemblyName} while scanning for IDirectoryScanListener"
+7100  Warning  FileScanJobLog.FileDoesNotExist
+    "File '{FileName}' does not exist."
+7101  Information  FileScanJobLog.FileUpdated
+    "File '{FileName}' updated, notifying listener."
+7102  Debug  FileScanJobLog.FileUnchanged
+    "File '{FileName}' unchanged."
+7200  Information  NativeJobLog.AboutToRun
+    "About to run {Command} {Temp}..."
+7201  Information  NativeJobLog.StandardOutputLine
+    "stdout>{Line}"
+7202  Warning  NativeJobLog.StandardErrorLine
+    "stderr>{Line}"
+7203  Error  NativeJobLog.StreamConsumptionFailed
+    "Error consuming {Type} stream of spawned process."
+7300  Warning  SendMailJobLog.CredentialsReadFromJobData
+    "SMTP credentials are being read from job data ('{UserNameKey}' / '{PasswordKey}'), which a persistent job store writes to the database and replicates to every node in the cluster. Register an ICredentialsByHost with the container instead."
+7301  Information  SendMailJobLog.SendingMessage
+    "Sending message {MailMessage}"

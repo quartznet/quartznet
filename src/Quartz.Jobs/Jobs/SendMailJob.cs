@@ -193,10 +193,7 @@ public class SendMailJob : IJob
         NetworkCredential? fromJobData = SendMailOptions.ReadJobDataCredentials(data);
         if (fromJobData is not null)
         {
-            logger.LogWarning(
-                "SMTP credentials are being read from job data ('{UserNameKey}' / '{PasswordKey}'), which a persistent job store writes to the database and replicates to every node in the cluster. Register an ICredentialsByHost with the container instead.",
-                PropertyUsername,
-                PropertyPassword);
+            logger.CredentialsReadFromJobData(PropertyUsername, PropertyPassword);
         }
 
         return fromJobData;
@@ -208,7 +205,7 @@ public class SendMailJob : IJob
     /// </summary>
     protected virtual async ValueTask Send(MailInfo mailInfo, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Sending message {MailMessage}", GetMessageDescription(mailInfo.MailMessage));
+        logger.SendingMessage(GetMessageDescription(mailInfo.MailMessage));
 
         using (var client = new SmtpClient(mailInfo.SmtpHost))
         {

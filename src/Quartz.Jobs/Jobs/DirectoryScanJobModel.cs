@@ -135,13 +135,13 @@ internal sealed class DirectoryScanJobModel
                         catch (ReflectionTypeLoadException ex)
                         {
                             // Some types in the assembly couldn't be loaded, but we can still use the ones that did load
-                            logger.LogDebug(ex, "Could not load some types from assembly {AssemblyName} while scanning for IDirectoryScanListener", assembly.FullName);
+                            logger.SomeTypesNotLoaded(assembly.FullName, ex);
                             return ex.Types.Where(t => t != null)!;
                         }
                         catch (Exception ex) when (ex is FileNotFoundException or BadImageFormatException or NotSupportedException)
                         {
                             // Assembly can't be loaded - skip it
-                            logger.LogDebug(ex, "Could not load assembly {AssemblyName} while scanning for IDirectoryScanListener", assembly.FullName);
+                            logger.AssemblyNotLoaded(assembly.FullName, ex);
                             return Array.Empty<Type>();
                         }
                     })
