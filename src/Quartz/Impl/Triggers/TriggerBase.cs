@@ -87,9 +87,32 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     private bool preferredNodeDirty;
 
     [NonSerialized]
-    private TimeProvider timeProvider;
+    private TimeProvider? timeProvider;
 
-    internal TimeProvider TimeProvider => timeProvider ?? TimeProvider.System;
+    /// <summary>
+    /// The clock every "now" this trigger reads comes from: the past-due clamp in
+    /// <see cref="ComputeFirstFireTimeUtc" />, and the whole of <see cref="UpdateAfterMisfire" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It arrives from whoever produced the trigger, and only from there:
+    /// <see cref="TriggerBuilder{TJob}.Build" /> hands over the clock its <c>Create</c> was given, and a
+    /// job store hands over the scheduler's clock to every trigger it materializes from its rows. A
+    /// trigger nobody handed a clock reads <see cref="System.TimeProvider.System" />, which is also what
+    /// a deserialized one starts out with — the field is <see cref="NonSerializedAttribute" />, so a
+    /// trigger out of a blob has no clock until the store that read it says otherwise.
+    /// </para>
+    /// <para>
+    /// Settable, but internal: a trigger's clock is a construction-or-store decision. Nothing outside
+    /// Quartz swaps the clock under a scheduled trigger, because the misfire decision and the misfire
+    /// arithmetic have to be made against the same reading.
+    /// </para>
+    /// </remarks>
+    internal TimeProvider TimeProvider
+    {
+        get => timeProvider ?? TimeProvider.System;
+        set => timeProvider = value;
+    }
 
     /// <summary>
     /// Stores the original NextFireTimeUtc before misfire handling changes it.
@@ -160,7 +183,10 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
 
     public TriggerBuilder<IJob> GetTriggerBuilder()
     {
-        return TriggerBuilder.Create()
+        // This trigger's own clock, so that rebuilding a trigger keeps the reading of "now" it was
+        // computing against - the past-due clamp in ComputeFirstFireTimeUtc runs on whatever the
+        // rebuilt trigger ends up holding.
+        return TriggerBuilder.Create(TimeProvider)
             .ForJob(JobKey)
             .WithCalendarName(CalendarName)
             .UsingJobData(JobDataMap)
@@ -430,7 +456,9 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     protected TriggerBase(TimeProvider? timeProvider = null)
 #pragma warning restore S5766
     {
-        this.timeProvider = timeProvider ?? TimeProvider.System;
+        // Left null when none was given, so the getter answers TimeProvider.System: a trigger that
+        // came back through deserialization is in exactly that state, and the two read alike.
+        this.timeProvider = timeProvider;
     }
 
     /// <summary>

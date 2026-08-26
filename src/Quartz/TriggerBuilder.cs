@@ -22,6 +22,7 @@ using System.Linq.Expressions;
 
 using Quartz.Extensibility;
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Util;
 
 namespace Quartz;
@@ -162,6 +163,16 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
         }
 
         IMutableTrigger trig = scheduleBuilder.Build();
+
+        // And hand the trigger itself the same clock. The schedule builder constructs it with no
+        // clock at all - it has no reason to know about one - so without this every "now" the built
+        // trigger reads (the past-due clamp in ComputeFirstFireTimeUtc, the whole of
+        // UpdateAfterMisfire) would be the machine's, whatever clock this builder was created with.
+        // A trigger from outside the shipped hierarchy is left alone; there is nothing to set on it.
+        if (trig is TriggerBase triggerBase)
+        {
+            triggerBase.TimeProvider = timeProvider;
+        }
 
         trig.CalendarName = calendarName;
         trig.Description = description;

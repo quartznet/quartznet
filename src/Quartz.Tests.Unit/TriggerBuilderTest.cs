@@ -1,4 +1,7 @@
+using Microsoft.Extensions.Time.Testing;
+
 using Quartz.Extensibility;
+using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Unit;
 
@@ -237,5 +240,98 @@ public class TriggerBuilderTest
             .Build();
 
         trigger.Should().BeAssignableTo<ICronTrigger>();
+    }
+
+    /// <summary>
+    /// Every schedule builder Quartz ships constructs its trigger with no clock at all - it has no
+    /// reason to know about one - so the trigger builder is what puts its own clock on the trigger
+    /// it hands back.
+    /// </summary>
+    [TestCaseSource(nameof(EveryShippedSchedule))]
+    public void TheBuiltTriggerHoldsTheBuildersClock(string _, IScheduleBuilder schedule)
+    {
+        FakeTimeProvider clock = new FakeTimeProvider(new DateTimeOffset(2024, 6, 15, 8, 0, 0, TimeSpan.Zero));
+
+        ITrigger trigger = TriggerBuilder.Create(clock)
+            .WithIdentity("clocked")
+            .WithSchedule(schedule)
+            .Build();
+
+        trigger.Should().BeAssignableTo<TriggerBase>()
+            .Which.TimeProvider.Should().BeSameAs(clock,
+                "every 'now' the trigger reads afterwards - the past-due clamp and the whole of UpdateAfterMisfire - "
+                + "has to be the clock the builder was created with, not the machine's");
+    }
+
+    /// <summary>
+    /// And a builder created without one leaves the trigger on the system clock, which is what
+    /// <c>TriggerBuilder.Create()</c> has always meant.
+    /// </summary>
+    [TestCaseSource(nameof(EveryShippedSchedule))]
+    public void ABuilderWithNoClockLeavesTheTriggerOnTheSystemClock(string _, IScheduleBuilder schedule)
+    {
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("unclocked")
+            .WithSchedule(schedule)
+            .Build();
+
+        trigger.Should().BeAssignableTo<TriggerBase>()
+            .Which.TimeProvider.Should().BeSameAs(TimeProvider.System,
+                "passing no clock is how a caller asks for the machine's");
+    }
+
+    /// <summary>
+    /// The clock survives a rebuild, so rescheduling a trigger read out of a store does not quietly
+    /// put it back on the machine's clock.
+    /// </summary>
+    [Test]
+    public void GetTriggerBuilder_CarriesTheTriggersClockIntoTheRebuiltTrigger()
+    {
+        FakeTimeProvider clock = new FakeTimeProvider(new DateTimeOffset(2024, 6, 15, 8, 0, 0, TimeSpan.Zero));
+
+        ITrigger original = TriggerBuilder.Create(clock)
+            .WithIdentity("rebuilt")
+            .WithCronSchedule("0 0 12 * * ?")
+            .Build();
+
+        ITrigger rebuilt = original.GetTriggerBuilder().Build();
+
+        rebuilt.Should().BeAssignableTo<TriggerBase>()
+            .Which.TimeProvider.Should().BeSameAs(clock,
+                "GetTriggerBuilder() rebuilds this trigger, and a rebuild of it is still it");
+    }
+
+    /// <summary>
+    /// The arithmetic, not just the field: a cron trigger whose first fire time is already past has it
+    /// clamped forward to "now", and on a 2024 clock that lands in 2024.
+    /// </summary>
+    [Test]
+    public void ACronTriggerScheduledOnAFakeClockComputesItsFirstFireTimeOnThatClock()
+    {
+        FakeTimeProvider clock = new FakeTimeProvider(new DateTimeOffset(2024, 6, 15, 8, 0, 0, TimeSpan.Zero));
+
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(clock)
+            .WithIdentity("noon-daily")
+            .StartAt(new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero))
+            .WithCronSchedule("0 0 12 * * ?", x => x.InTimeZone(TimeZoneInfo.Utc))
+            .Build();
+
+        DateTimeOffset? first = trigger.ComputeFirstFireTimeUtc(null);
+
+        first.Should().Be(new DateTimeOffset(2024, 6, 15, 12, 0, 0, TimeSpan.Zero),
+            "the start time is months past, so the first fire is clamped forward to the first noon after the "
+            + "builder's now - and the builder's now is 2024-06-15T08:00Z, not whenever this test happens to run");
+    }
+
+    /// <summary>
+    /// The five shipped schedules, each of which builds a different trigger implementation.
+    /// </summary>
+    private static IEnumerable<TestCaseData> EveryShippedSchedule()
+    {
+        yield return new TestCaseData("cron", CronScheduleBuilder.Create("0 0 12 * * ?"));
+        yield return new TestCaseData("simple", SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).RepeatForever());
+        yield return new TestCaseData("daily time interval", DailyTimeIntervalScheduleBuilder.Create().WithInterval(15, IntervalUnit.Minute));
+        yield return new TestCaseData("calendar interval", CalendarIntervalScheduleBuilder.Create().WithInterval(1, IntervalUnit.Day));
+        yield return new TestCaseData("recurrence", RecurrenceScheduleBuilder.Create("FREQ=DAILY"));
     }
 }
