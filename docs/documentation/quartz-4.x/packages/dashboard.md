@@ -59,7 +59,7 @@ the dashboard needs it: the pages read the schedulers in this process directly.
 
 ## Options
 
-`AddQuartzDashboard(options => …)` takes five settings, and none of them points the dashboard at a
+`AddQuartzDashboard(options => …)` takes six settings, and none of them points the dashboard at a
 scheduler — **the dashboard renders the schedulers registered in its own application**, reading them
 through the `IQuartzApiClient` in the container rather than over a network.
 
@@ -67,6 +67,7 @@ through the `IQuartzApiClient` in the container rather than over a network.
 |---|---|---|
 | `DashboardPath` | `/quartz` | The base path the UI is served from — see [Hosting under a custom path](#hosting-under-a-custom-path) |
 | `AuthorizationPolicy` | none | The policy applied to the dashboard pages, hub, circuit and assets — see [Policy and role-based authorization](#policy-and-role-based-authorization) |
+| `SchedulerAuthorizationPolicy` | none | The policy each *scheduler* is held to, evaluated against that scheduler — see [One scheduler at a time](#one-scheduler-at-a-time) |
 | `ReadOnly` | `false` | Hides every mutating action: no pause, resume, trigger-now, reschedule, unschedule or delete |
 | `HistoryRetention` | 24 hours | How far back the dashboard's own history store keeps executions and misfires — see [Execution history and misfires](#execution-history-and-misfires) |
 | `HistoryMaxEntriesPerScheduler` | `2000` | How many executions and how many misfires it keeps per scheduler, oldest dropped first |
@@ -308,6 +309,28 @@ Assets served by the host's `app.MapStaticAssets()` (the .NET 9/10 default) and 
 
 With a custom `DashboardPath` this caveat does not apply to the dashboard itself: the framework script and the dashboard static assets are then served under the dashboard path by dashboard-owned endpoints that carry the dashboard's authorization metadata.
 :::
+
+### One scheduler at a time
+
+`AuthorizationPolicy` decides who reaches the dashboard; it says nothing about *which* of the schedulers
+in the process they then see, and by default they see all of them. Name a policy in
+`SchedulerAuthorizationPolicy` and each scheduler is authorized on its own, evaluated as
+`IAuthorizationService.AuthorizeAsync(user, new SchedulerResource(name), policy)`:
+
+- the scheduler picker and the **Schedulers** page offer only the schedulers the visitor passes for;
+- a page opened on one they do not renders a *not authorized* frame, and reads nothing about that
+  scheduler — the page is never created, so no `IQuartzApiClient` call is made on their behalf;
+- the live-events hub refuses a connection's request to join that scheduler's group.
+
+The three policies compose rather than replace one another: `AuthorizationPolicy` decides who is in,
+`SchedulerAuthorizationPolicy` decides which schedulers they see, and `ReadOnly` decides what anyone may
+change. `QuartzHttpApiOptions.SchedulerAuthorizationPolicy` takes the same policy against the same
+resource, so one `AuthorizationHandler<TRequirement, SchedulerResource>` answers for the dashboard and the
+HTTP API together. The worked example is in
+[Multi-tenancy](../multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler).
+
+Leaving it unset is the behaviour every earlier release had: whoever passes `AuthorizationPolicy` sees
+every scheduler in the process.
 
 ### API key or custom authorization checks
 

@@ -376,6 +376,77 @@ builder.Services.AddQuartz("acme", q => q.AddQuartzHealthChecks(o => o.Tags.Add(
 
 Called on `IServiceCollection` instead, it checks the default scheduler only.
 
+### Authorizing a tenant on its own scheduler
+
+`QuartzHttpApiOptions.SchedulerAuthorizationPolicy` and `QuartzDashboardOptions.SchedulerAuthorizationPolicy`
+each name a policy that is evaluated once per request against the scheduler that request is for. Quartz
+supplies the resource — a `SchedulerResource` carrying the scheduler's name — and the application writes
+the handler. This is ASP.NET Core's own resource-based authorization rather than anything Quartz invented,
+so there is no callback type to implement and no claim name Quartz decides for you:
+
+<!-- snippet: sample_tenancy_scheduler_authorization_handler -->
+```csharp
+// What "may act on this scheduler" means is the application's to decide, so the requirement itself
+// says nothing and the handler says everything.
+public sealed class SchedulerOwnerRequirement : IAuthorizationRequirement;
+
+public sealed class SchedulerOwnerHandler : AuthorizationHandler<SchedulerOwnerRequirement, SchedulerResource>
+{
+    protected override Task HandleRequirementAsync(
+        AuthorizationHandlerContext context,
+        SchedulerOwnerRequirement requirement,
+        SchedulerResource resource)
+    {
+        string? tenant = context.User.FindFirst("tenant")?.Value;
+
+        // Scheduler names are compared ignoring case everywhere else in Quartz, so compare them that
+        // way here too - otherwise "Acme" and "acme" are the same scheduler and different tenants.
+        if (string.Equals(tenant, resource.SchedulerName, StringComparison.OrdinalIgnoreCase))
+        {
+            context.Succeed(requirement);
+        }
+
+        return Task.CompletedTask;
+    }
+}
+```
+<!-- endSnippet -->
+
+Register the policy, the handler, and the two options — one handler answers for both surfaces:
+
+<!-- snippet: sample_tenancy_scheduler_authorization -->
+```csharp
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy("SchedulerOwner", policy => policy.AddRequirements(new SchedulerOwnerRequirement()));
+
+builder.Services.AddSingleton<IAuthorizationHandler, SchedulerOwnerHandler>();
+
+// One policy, one handler, both surfaces: the API answers 403 for a scheduler the caller fails
+// for, and the dashboard offers them only the schedulers they pass for.
+builder.Services.AddQuartzHttpApi(options => options.SchedulerAuthorizationPolicy = "SchedulerOwner");
+builder.Services.AddQuartzDashboard(options => options.SchedulerAuthorizationPolicy = "SchedulerOwner");
+```
+<!-- endSnippet -->
+
+**On the HTTP API**, every route that carries `{schedulerName}` is checked before the scheduler is looked
+up, so a caller who fails is answered `403` with problem details and cannot tell "not yours" from "no such
+scheduler": a `404` only ever answers a name the caller was allowed to ask about. `GET {ApiPath}/schedulers`
+names no scheduler, so it filters itself — a tenant is told about its own schedulers and learns nothing
+about the others, registrations included. The check is authorization and never authentication: an
+anonymous caller gets whatever the policy says, which is a `403` when it refuses, so keep
+`RequireAuthorization()` on the mapped group if anonymous callers should be challenged with a `401` first.
+
+**On the dashboard**, the scheduler picker and the Schedulers page offer only the schedulers the visitor
+passes for; a page opened on one they do not renders a "not authorized" frame and reads nothing about that
+scheduler; and the live-events hub refuses to subscribe a connection to its group. It composes with what
+was already there: `AuthorizationPolicy` decides who reaches the dashboard at all, this decides which
+schedulers they see once they are in, and `ReadOnly` still decides what anyone may change.
+
+Null — the default — is the behaviour every earlier release had, so nothing changes for an application
+that does not set it. Setting it in a container with no authorization services fails at startup rather
+than quietly enforcing nothing; a policy name no `IAuthorizationPolicyProvider` knows fails the way it
+does everywhere else in ASP.NET Core, at the first request that names it.
+
 ## Group per tenant
 
 One scheduler; the tenant is the group half of every key.
@@ -742,13 +813,14 @@ calls. It is worth asking whether concurrency is what you actually meant: "at mo
 jobs at once" is usually the real requirement behind "100 an hour", and it is the one Quartz can enforce
 honestly.
 
-**HTTP API and dashboard authorization is per process, all or nothing.** One `MapQuartzHttpApi` serves
-every scheduler in the container, with the scheduler named in the route
-(`{apiPath}/schedulers/{schedulerName}/…`), and `RequireAuthorization(...)` applies uniformly to all of
-it. The dashboard has a single `AuthorizationPolicy` and a single `ReadOnly` flag. There is no
-per-scheduler policy and no scheduler-name claim check. If tenants must reach their own scheduler and
-not each other's, enforce that **outside** Quartz — a process per tenant, or a proxy or middleware that
-authorizes on the `{schedulerName}` route segment.
+**Read-only is per process, and there is no per-operation policy.** A tenant *can* be held to its own
+scheduler on both surfaces — see
+[Authorizing a tenant on its own scheduler](#authorizing-a-tenant-on-its-own-scheduler) — but what a
+tenant may *do* to the scheduler it reaches is still one setting for the whole process: the dashboard's
+`ReadOnly` flag. "acme may look, globex may act" is not something either surface expresses, and neither
+is "this tenant may pause but not delete". The resource-based shape leaves room for it — the policy is
+evaluated against a `SchedulerResource`, and an operation requirement could join it later without another
+option — but that is not built.
 
 **Tenants cannot be onboarded at runtime *through the DI path*.** Schedulers are registered against
 `IServiceCollection`, which is closed once the container is built, and the hosted service enumerates

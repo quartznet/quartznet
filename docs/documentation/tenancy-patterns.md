@@ -517,12 +517,17 @@ and resolves what it needs, by key if you like, inside `Execute` is the shape to
 Quartz.NET gives you partitioning, and isolation is your application's job — a tenant id read from
 the firing and threaded through every query, not a boundary the scheduler enforces.
 
-**Dashboard and HTTP API authorization is per process, all or nothing.** The dashboard has a single
-authorization policy and a single read-only flag on both versions, and 4.x's HTTP API serves every
-scheduler in the container behind one uniformly-applied policy, with the scheduler named in the route.
-There is no per-scheduler policy and no scheduler-name claim check. If tenants must reach their own
-scheduler and not each other's, enforce that outside Quartz.NET — a process per tenant, or middleware
-that authorizes on the scheduler-name route segment.
+**On 3.x, dashboard authorization is per process, all or nothing.** One policy, one read-only flag, no
+per-scheduler policy and no scheduler-name claim check. If 3.x tenants must reach their own scheduler and
+not each other's, enforce that outside Quartz.NET — a process per tenant, or middleware that authorizes on
+the scheduler-name route segment.
+
+4.x holds each caller to its own scheduler on both surfaces:
+`QuartzDashboardOptions.SchedulerAuthorizationPolicy` and `QuartzHttpApiOptions.SchedulerAuthorizationPolicy`
+name a policy evaluated per request against a `SchedulerResource` carrying the scheduler's name, so one
+`AuthorizationHandler<TRequirement, SchedulerResource>` covers every route and every page. What a caller
+may *do* to the scheduler it reaches is still process-wide — the dashboard's read-only flag — so
+"this tenant may look, that one may act" remains outside Quartz.NET on either version.
 
 **A shut-down scheduler cannot be restarted.** `Standby()` / `Start()` is the pause-and-resume pair.
 Shutdown is terminal: the scheduler refuses to start again and every other operation throws. You can

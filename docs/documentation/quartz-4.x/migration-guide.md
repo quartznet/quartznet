@@ -6230,6 +6230,36 @@ says nothing about a scheduler that has gone quiet — it keeps whatever it last
 shows executions from an arbitrary distance in the past. The window is measured on the scheduler's
 `TimeProvider` and applied when history is read as well as when it is written.
 
+## A scheduler can be authorized on its own name
+
+Both management surfaces served every scheduler in the process behind one uniformly applied policy, so a
+tenant who could reach one scheduler could reach all of them. Each now takes a policy of its own that is
+evaluated per request against the scheduler the request is for.
+
+| 4.0 preview | 4.0 |
+|---|---|
+| — | `Quartz.SchedulerResource(string SchedulerName)`, in `Quartz.AspNetCore` (new) |
+| — | `QuartzHttpApiOptions.SchedulerAuthorizationPolicy` (new, `null`) |
+| — | `QuartzDashboardOptions.SchedulerAuthorizationPolicy` (new, `null`) |
+
+Nothing is removed and nothing changes for an application that leaves them null: the API is still whatever
+`RequireAuthorization(…)` the application put on the mapped group, and the dashboard is still whatever
+`QuartzDashboardOptions.AuthorizationPolicy` says.
+
+Set one and Quartz asks
+`IAuthorizationService.AuthorizeAsync(user, new SchedulerResource(name), policy)` — ASP.NET Core's own
+resource-based authorization, so the application writes one
+`AuthorizationHandler<TRequirement, SchedulerResource>` and there is no Quartz callback type or claim-name
+convention to learn. The API answers `403` with problem details, decided before the scheduler is looked up
+so that a `404` only ever answers a name the caller was allowed to ask about, and filters
+`GET {ApiPath}/schedulers` to what the caller may act on. The dashboard filters its scheduler picker and
+its Schedulers page, renders a *not authorized* frame instead of a page for a scheduler the visitor fails
+for, and refuses the live-events hub group for it. Setting either option in a container with no
+authorization services is refused at startup.
+
+See [Authorizing a tenant on its own scheduler](multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler)
+for the handler and the registration.
+
 ## `CheckExists` is `Exists`
 
 Both overloads, on `IScheduler` and `IJobStore`:
