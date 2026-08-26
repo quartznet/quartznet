@@ -1,4 +1,5 @@
 @page "/quartz"
+@using System.Globalization
 @using Microsoft.Extensions.Options
 @using Quartz
 @using Quartz.Dashboard.Components.Shared
@@ -54,7 +55,42 @@
             <a class="qz-stat-card-link" href="@DashboardLink.To(Options.Value, "cluster")">
                 <StatCard Title="Nodes" Value="@NodesStatValue" Icon="🖧" Color="@NodesStatColor" />
             </a>
+            <StatCard Title="Paused Groups" Value="@PausedGroupsStatValue" Icon="⏸" Color="@PausedGroupsStatColor" />
+            @* No link: #3422 gave the dashboard a misfire feed but no page to show it on, and a tile
+               that goes nowhere is better than one that goes to a 404. *@
+            <StatCard Title="@MisfiresStatTitle" Value="@MisfiresStatValue" Icon="⏰" Color="@MisfiresStatColor" />
         </div>
+
+        <section class="qz-section">
+            <h2>Trigger states</h2>
+            <p class="qz-muted">
+                Every trigger the scheduler holds, by the state it is in. Each count is a link to the
+                triggers that make it up.
+            </p>
+            <table class="qz-table">
+                <thead>
+                    <tr>
+                        <th>State</th>
+                        <th>Triggers</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (TriggerState state in HistogramStates)
+                    {
+                        <tr>
+                            <td><StateIndicator State="@state.ToString()" /></td>
+                            <td>
+                                <a href="@TriggersInStateLink(state)">@CountInState(state)</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
+
+        <ExecutionGroups SchedulerName="@Scheduler.ActiveSchedulerName"
+                         Persistent="@_storeIsPersistent"
+                         Clustered="@_storeIsClustered" />
 
         <section class="qz-section">
             <h2>Recent admin actions</h2>
@@ -108,6 +144,34 @@
     private int _errorTriggers;
     private int _nodes;
     private int _unhealthyNodes;
+    private int _pausedTriggerGroups;
+    private int _pausedJobGroups;
+    private int? _misfires;
+    private bool _storeIsPersistent;
+    private bool _storeIsClustered;
+
+    /// <summary>
+    /// How many triggers are in each of the states the histogram breaks them down by.
+    /// </summary>
+    private readonly Dictionary<TriggerState, int> _triggersByState = [];
+
+    /// <summary>
+    /// The states the histogram counts, in the order it shows them.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="TriggerState.Executing" /> is not among them: the tile above already reports what is
+    /// running, and it counts firings rather than triggers, which is the more useful of the two numbers
+    /// and the one the Currently Executing page agrees with. <see cref="TriggerState.None" /> is what a
+    /// trigger that does not exist reports, so nothing can be in it.
+    /// </remarks>
+    private static readonly TriggerState[] HistogramStates =
+    [
+        TriggerState.Normal,
+        TriggerState.Paused,
+        TriggerState.Blocked,
+        TriggerState.Error,
+        TriggerState.Complete
+    ];
 
     /// <summary>
     /// Whether the active scheduler is a registration nothing has built, which the listing already said
@@ -129,6 +193,49 @@
         : $"{_nodes} ({_unhealthyNodes} overdue/failed)";
 
     private string NodesStatColor => _unhealthyNodes == 0 ? "info" : "error";
+
+    /// <summary>
+    /// The paused groups, both kinds in one tile: pausing a trigger group and pausing a job group are
+    /// different acts with the same consequence, and an operator hunting for why nothing is firing wants
+    /// to see both without knowing which was used.
+    /// </summary>
+    private string PausedGroupsStatValue => $"{_pausedTriggerGroups} trigger, {_pausedJobGroups} job";
+
+    private string PausedGroupsStatColor => _pausedTriggerGroups + _pausedJobGroups == 0 ? "info" : "warning";
+
+    /// <summary>
+    /// The window the misfire tile counts over: the history store's own retention, so the tile cannot
+    /// claim a day's worth of misfires from a store configured to remember an hour.
+    /// </summary>
+    private string MisfiresStatTitle
+    {
+        get
+        {
+            TimeSpan window = Options.Value.HistoryRetention;
+            string spelled = window.TotalHours >= 1
+                ? window.TotalHours.ToString("0.#", CultureInfo.InvariantCulture) + " h"
+                : window.TotalMinutes.ToString("0.#", CultureInfo.InvariantCulture) + " min";
+            return "Misfires (last " + spelled + ")";
+        }
+    }
+
+    /// <remarks>
+    /// A data source that keeps no misfire feed has not looked, which is a different fact from having
+    /// looked and found none — so it reads as a dash rather than as a clean bill of health.
+    /// </remarks>
+    private string MisfiresStatValue => _misfires?.ToString(CultureInfo.InvariantCulture) ?? "—";
+
+    private string MisfiresStatColor => _misfires > 0 ? "warning" : "info";
+
+    private int CountInState(TriggerState state)
+    {
+        return _triggersByState.TryGetValue(state, out int count) ? count : 0;
+    }
+
+    private string TriggersInStateLink(TriggerState state)
+    {
+        return DashboardLink.To(Options.Value, "triggers?state=" + state);
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -164,25 +271,59 @@
                 _currentlyExecuting = 0;
                 _nodes = 0;
                 _unhealthyNodes = 0;
+                _pausedTriggerGroups = 0;
+                _pausedJobGroups = 0;
+                _misfires = null;
+                _storeIsPersistent = false;
+                _storeIsClustered = false;
+                _triggersByState.Clear();
                 _recentActions.Clear();
                 return;
             }
 
             SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName);
             _schedulerStatus = scheduler.Status;
+            _storeIsPersistent = scheduler.Persistent;
+            _storeIsClustered = scheduler.Clustered;
 
             // Counting queries: Take = 0 fetches no items, only the exact totals the tiles show.
             PagedResult<JobKeyDto> jobs = await Api.GetJobs(schedulerName, new DashboardJobQuery { Take = 0 });
             PagedResult<TriggerHeaderDto> triggers = await Api.GetTriggers(schedulerName, new DashboardTriggerQuery { Take = 0 });
-            PagedResult<TriggerHeaderDto> errorTriggers = await Api.GetTriggers(schedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Error });
             PagedResult<FireInstanceDto> executing = await Api.GetFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 });
+
+            _triggersByState.Clear();
+            foreach (TriggerState state in HistogramStates)
+            {
+                PagedResult<TriggerHeaderDto> inState = await Api.GetTriggers(
+                    schedulerName,
+                    new DashboardTriggerQuery { Take = 0, State = state });
+                _triggersByState[state] = inState.TotalCount ?? 0;
+            }
+
+            // The paused groups are counted with the paused filter rather than by listing every group
+            // and tallying: a group can be paused while it holds nothing, and an unfiltered listing
+            // enumerates the groups that hold something.
+            PagedResult<TriggerGroupDto> pausedTriggerGroups = await Api.GetTriggerGroups(
+                schedulerName,
+                new DashboardGroupQuery { Take = 0, Paused = true });
+            PagedResult<JobGroupDto> pausedJobGroups = await Api.GetJobGroups(
+                schedulerName,
+                new DashboardGroupQuery { Take = 0, Paused = true });
+
+            // The store's own retention window, so the tile counts over exactly what the store still
+            // remembers rather than over a day it may already have forgotten.
+            _misfires = await Api.CountMisfires(
+                schedulerName,
+                DateTimeOffset.UtcNow - Options.Value.HistoryRetention);
 
             List<ClusterNodeDto> nodes = await Api.GetClusterNodes(schedulerName);
 
             _totalJobs = jobs.TotalCount ?? 0;
             _totalTriggers = triggers.TotalCount ?? 0;
             _currentlyExecuting = executing.TotalCount ?? 0;
-            _errorTriggers = errorTriggers.TotalCount ?? 0;
+            _errorTriggers = CountInState(TriggerState.Error);
+            _pausedTriggerGroups = pausedTriggerGroups.TotalCount ?? 0;
+            _pausedJobGroups = pausedJobGroups.TotalCount ?? 0;
             _nodes = nodes.Count;
             _unhealthyNodes = nodes.Count(node => node.State != ClusterNodeState.Alive);
 

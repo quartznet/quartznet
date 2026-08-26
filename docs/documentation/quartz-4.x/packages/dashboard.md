@@ -81,6 +81,56 @@ dashboard — with the authentication forwarding, execution limits and history s
 is designed in [#3387](https://github.com/quartznet/quartznet/issues/3387).
 :::
 
+## The overview
+
+The **Overview** page at `/quartz` is the one a scheduler is judged from. Beside the totals — jobs,
+triggers, firings in flight, triggers in error, nodes — it carries four breakdowns, because a total is
+rarely the thing that explains why work is not being done:
+
+- A **trigger-state histogram**: how many triggers are `Normal`, `Paused`, `Blocked`, `Error` and
+  `Complete`. Each count is a link to the Triggers page already narrowed to that state, which is also
+  what `/quartz/triggers?state=Paused` does for any state you name. The counts are counting queries, so
+  a scheduler with a hundred thousand triggers costs the same as one with ten.
+- A **paused-group** tile: how many trigger groups and how many job groups are paused. A group can be
+  paused while it holds nothing, and this counts such a group — which is exactly the one an operator
+  cannot find by looking at a listing.
+- A **misfire** tile: how many firings the scheduler missed inside the history store's retention window,
+  which the tile names — `Misfires (last 24 h)` at the default `HistoryRetention`, and whatever you
+  configured otherwise, so the label cannot promise a day a store set to remember an hour has already
+  forgotten. A data source that keeps no misfire feed shows a dash rather than a zero: it has not looked,
+  which is not the same as having looked and found none. See
+  [Execution history and misfires](#execution-history-and-misfires).
+- An **execution-group panel**: one row per [execution group](../tutorial/execution-groups.md), with the
+  limit that governs it, the scope that limit is counted in, what the group has in flight, and the
+  headroom left. It is described under [Execution groups](#execution-groups) below.
+
+## Execution groups
+
+The panel joins the limits the scheduler is running with — `IScheduler.GetExecutionLimits` — to the
+firings it has in flight, so that ceilings set in configuration are visible in the UI rather than only
+in the file that set them.
+
+- **Both firing states count.** A reservation holds a slot exactly as a running execution does, which is
+  what the acquisition filter counts against a limit; a panel that counted only the running ones would
+  show headroom the next acquisition cannot use.
+- **The counts are cluster-wide when the job store is persistent**, because the firing listing is: a
+  firing owned by another node is one of them. With an in-memory store they are this node's, and the
+  panel says which of the two you are looking at. Where a node-scoped limit is being compared against a
+  cluster-wide count — a clustered store — the panel says that too, since every node enforces its own
+  copy of such a limit.
+- **`other groups` is a rule, not a bucket.** The catch-all gives each group with no limit of its own an
+  allowance of its own rather than one shared between them, so it has nothing in flight against it. A
+  group governed by it says where its number came from. It never covers the ungrouped bucket, which is
+  the rule the scheduler applies.
+- **A derived group is labelled.** With
+  [`UseTriggerGroupWhenUnset`](../tutorial/execution-groups.md#letting-the-trigger-group-stand-in), a
+  trigger with no execution group is limited as though it belonged to a group named after its trigger
+  group; the panel resolves the key the same way and marks the row, so a group nobody typed is not a
+  puzzle.
+- **A scheduler that cannot report limits says so.** An `IQuartzApiClient` or `IScheduler` of your own
+  may not implement them; the panel then says it cannot tell rather than rendering as though nothing
+  were limited.
+
 ## The schedulers the dashboard covers
 
 `AddQuartzDashboard()` installs the dashboard's own two plugins — the live event feed and the execution
@@ -274,8 +324,15 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 
 ## Features
 
-- Scheduler overview and summary cards
-- Jobs and triggers listing with search and pagination
+- Scheduler overview and summary cards, with a trigger-state histogram (`Normal`, `Paused`, `Blocked`,
+  `Error`, `Complete`) whose counts link to the Triggers page narrowed to that state, a paused-group
+  tile counting paused trigger groups and job groups — a group paused while it holds nothing included —
+  and a misfire count over the history store's retention window, which the tile names
+- Execution-group panel on the overview — one row per group with its limit, the scope that limit is
+  counted in (`Node` or `Cluster`), what it has in flight and the headroom left; cluster-wide with a
+  persistent job store and per node otherwise, and it says which. See
+  [Execution groups](#execution-groups)
+- Jobs and triggers listing with search and pagination; `?state=` opens the trigger listing filtered
 - Job details and trigger details pages
 - Currently executing jobs view — cluster-wide with a persistent job store, showing which node owns each
   execution, and interrupting the one execution a row names rather than every execution of its job

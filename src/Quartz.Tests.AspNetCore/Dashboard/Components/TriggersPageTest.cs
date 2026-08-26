@@ -143,6 +143,50 @@ public class TriggersPageTest
             "an empty cell reads as a rendering fault; an em dash reads as 'no execution group'");
     }
 
+    /// <summary>
+    /// The overview's trigger-state histogram links here, so a state named in the query string has to
+    /// open the listing already narrowed to it.
+    /// </summary>
+    [Test]
+    public void AStateInTheQueryStringOpensTheListingNarrowedToIt()
+    {
+        GivenTriggers([
+            .. TestData.Dashboard.TriggerHeaders("nightly", 2, TriggerState.Paused),
+            .. TestData.Dashboard.TriggerHeaders("reports", 3, TriggerState.Normal, firstIndex: 10)
+        ]);
+        context.Navigate("/quartz/triggers?state=Paused");
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        A.CallTo(() => context.Api.GetTriggers(
+                TestData.SchedulerName,
+                A<DashboardTriggerQuery>.That.Matches(query => query.State == TriggerState.Paused),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+        page.TextOfAll("h2").Should().Equal(["nightly"], "only the paused triggers were asked for");
+        page.Markup.Should().Contain("Showing Paused triggers only",
+            "the buttons offer three of the states and the histogram links to five, so a filter none of "
+            + "them can show as selected has to be spelled out");
+    }
+
+    [Test]
+    public void AQueryStringNamingNoStateOpensTheUnfilteredListing()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 2));
+        context.Navigate("/quartz/triggers?state=not-a-state");
+
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        A.CallTo(() => context.Api.GetTriggers(
+                TestData.SchedulerName,
+                A<DashboardTriggerQuery>.That.Matches(query => query.State == null),
+                A<CancellationToken>._))
+            .MustHaveHappened();
+        page.TextOfAll("td.qz-col-state").Should().HaveCount(2,
+            "a query string is whatever the address bar holds, and a spelling nothing recognises is not "
+            + "a reason to show an error where a listing belongs");
+    }
+
     private void GivenTriggers(IReadOnlyList<TriggerHeaderDto> triggers)
     {
         A.CallTo(() => context.Api.GetTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))

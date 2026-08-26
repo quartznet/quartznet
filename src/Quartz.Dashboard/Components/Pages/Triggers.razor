@@ -19,6 +19,10 @@
         <button type="button" class="qz-button @GetStateFilterButtonClass(null)" @onclick="ShowAllStates">All states</button>
         <button type="button" class="qz-button @GetStateFilterButtonClass(TriggerState.Error)" @onclick="ShowErrorStateOnly">Error only</button>
         <button type="button" class="qz-button @GetStateFilterButtonClass(TriggerState.Executing)" @onclick="ShowExecutingStateOnly">Executing only</button>
+        @if (StateFilterIsUnbuttoned)
+        {
+            <span class="qz-muted">Showing @_stateFilter triggers only</span>
+        }
     </div>
 
     @if (_isLoading)
@@ -132,7 +136,27 @@
     private string _pendingTriggerKey = string.Empty;
     private TriggerState? _stateFilter;
 
+    /// <summary>
+    /// The state to open on, so that a count somewhere else can be a link to the triggers behind it —
+    /// the overview's trigger-state histogram is what asks for this.
+    /// </summary>
+    /// <remarks>
+    /// A string rather than a <see cref="TriggerState" /> because a query string is whatever the address
+    /// bar holds: a spelling that names no state opens the unfiltered listing rather than failing to
+    /// bind. The buttons are unaffected — they set the filter directly and never navigate.
+    /// </remarks>
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "state")]
+    public string? StateQuery { get; set; }
+
     private bool IsReadOnly => Options.Value.ReadOnly;
+
+    /// <summary>
+    /// Whether the active filter is a state the buttons cannot show as selected, which is what arriving
+    /// from a link is: the row offers all, error and executing, and the histogram links to five states.
+    /// </summary>
+    private bool StateFilterIsUnbuttoned =>
+        _stateFilter is not null and not TriggerState.Error and not TriggerState.Executing;
 
     private IEnumerable<IGrouping<string, TriggerHeaderDto>> GroupedTriggers => _triggers.GroupBy(trigger => trigger.Group);
 
@@ -150,6 +174,7 @@
     protected override async Task OnInitializedAsync()
     {
         Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        _stateFilter = Enum.TryParse(StateQuery, ignoreCase: true, out TriggerState requested) ? requested : null;
         await LoadDataAsync();
     }
 
