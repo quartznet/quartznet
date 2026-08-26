@@ -32,7 +32,8 @@ namespace Quartz.Trimming.Canary;
 
 /// <summary>
 /// Round-trips everything a persistent job store writes, out of a trimmed publish, through the ordinary
-/// <see cref="SystemTextJsonObjectSerializer" /> with no test seam of any kind.
+/// <see cref="SystemTextJsonObjectSerializer" /> with no test seam of any kind — and then runs a
+/// persistent store for real.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -47,12 +48,18 @@ namespace Quartz.Trimming.Canary;
 /// byte. That catches both halves at once — a shape that cannot be written, and a shape that comes back
 /// different — and it needs no equality implementation on the types involved.
 /// </para>
+/// <para>
+/// Then <see cref="StoreCheck" /> runs the same blobs through a real database. The serializer checks
+/// are still worth their place ahead of it — they name the payload that failed, where a store failure
+/// only says a job did not fire — but the store is what the whole track was working towards, and it is
+/// the half that a compile can substitute for least.
+/// </para>
 /// </remarks>
 internal static class Program
 {
     private static readonly DateTimeOffset StartTime = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-    public static int Main()
+    public static async Task<int> Main()
     {
         List<string> failures = [];
 
@@ -77,13 +84,18 @@ internal static class Program
             }
         }
 
+        if (await StoreCheck.Run().ConfigureAwait(false) is { } storeFailure)
+        {
+            failures.Add(storeFailure);
+        }
+
         foreach (string failure in failures)
         {
             Console.WriteLine(failure);
         }
 
         Console.WriteLine(failures.Count == 0
-            ? "Quartz.Trimming.Canary: the store format round-trips with reflection-based serialization off."
+            ? "Quartz.Trimming.Canary: the store format round-trips, and a persistent store schedules, fires and reads back."
             : $"Quartz.Trimming.Canary: {failures.Count} check(s) failed.");
 
         return failures.Count == 0 ? 0 : 1;

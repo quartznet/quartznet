@@ -11,19 +11,43 @@
 
   <!--
     The trim canary that runs. Quartz.Examples.Worker is published trimmed and never started, so it can
-    only prove the absence of a warning; this one starts, and proves that a persistent job store's
-    serializer still works when System.Text.Json's reflection fallback is gone. That distinction is not
-    academic — issue #3341's step 6 fixed a failure that produced no warning at all beyond the two
-    already recorded, and that a compile could not have found.
+    only prove the absence of a warning; this one starts, and proves that a persistent job store works
+    when the trimmer has been through it. That distinction is not academic — issue #3341's step 6 fixed a
+    serializer failure that produced no warning at all beyond the two already recorded, and step 7 found
+    the provider dying in a constructor for the same reason, and a compile could have found neither.
 
     No TrimmerRootAssembly here, deliberately. The worker roots Quartz so that the trim analyzer walks
     every path in it and any IL2xxx is reported; this project wants the opposite, an application trimmed
-    down to what it actually reaches, because that is the shape in which a missing JsonTypeInfo shows up.
+    down to what it actually reaches, because that is the shape in which a missing JsonTypeInfo or a
+    removed constructor shows up.
 
-    ILLink.Suppressions.xml is not applied either, and must not be needed: the store serializer's own
-    path is warning-free after step 6, so a warning here is news. It does not ship — see the header of
-    that file — so applying it would only hide something.
+    ILLink.Suppressions.xml is not applied either. Since the canary grew a scheduler it does reach the
+    recorded reflection — AddQuartz translates the legacy quartz.* keys, a job's type comes back out of
+    JOB_CLASS_NAME as a string — so those warnings are reported, read, and checked against that same file
+    by the PublishTrimmed and PublishAot targets, which fail on any warning it does not record. Applying
+    the file here instead would work for the trimmed publish and could not work for the native one at all,
+    because ILCompiler has no link-attributes option. One baseline, checked the one way that works for both.
   -->
+
+  <PropertyGroup>
+    <!--
+      Which is why the publish itself must not stop at the first recorded warning: a canary that does not
+      link is a canary that does not run, and running it is the whole point. TreatWarningsAsErrors stays
+      on for the compile; these two are the trimmer's and ILCompiler's own knobs for the same thing, and
+      build/Build.cs does the checking they would otherwise have done blindly.
+    -->
+    <ILLinkTreatWarningsAsErrors>false</ILLinkTreatWarningsAsErrors>
+    <IlcTreatWarningsAsErrors>false</IlcTreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SQLite" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The shipped schema, carried by the executable so it needs no repository beside it to run. -->
+    <EmbeddedResource Include="..\..\database\tables\tables_sqlite.sql" LogicalName="tables_sqlite.sql" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
