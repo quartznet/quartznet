@@ -14,8 +14,8 @@ namespace Quartz.Tests.Unit;
 /// for — the same job <c>SourceEncodingTest</c> does for byte-order marks.
 /// </para>
 /// <para>
-/// <c>src/Quartz/</c> and <c>src/Quartz.Plugins/</c> are covered so far. <c>Quartz.Jobs</c> and
-/// <c>Quartz.Extensions.Redis</c> join <see cref="Converted" /> as their own conversions land (#3414);
+/// <c>src/Quartz/</c>, <c>src/Quartz.Plugins/</c> and <c>src/Quartz.Jobs/</c> are covered so far.
+/// <c>Quartz.Extensions.Redis</c> joins <see cref="Converted" /> as its own conversion lands (#3414);
 /// tests, examples and the documentation samples are deliberately never covered, because a plain call
 /// is the right thing to write in all three.
 /// </para>
@@ -25,7 +25,12 @@ public class LogCallSiteTest
     /// <summary>
     /// The projects whose logging has been converted, relative to the repository root.
     /// </summary>
-    private static readonly string[] Converted = ["src/Quartz", "src/Quartz.Plugins"];
+    private static readonly string[] Converted =
+    [
+        "src/Quartz",
+        "src/Quartz.Jobs",
+        "src/Quartz.Plugins",
+    ];
 
     /// <summary>
     /// Build output and tool caches, which hold the generator's own output among other things.
