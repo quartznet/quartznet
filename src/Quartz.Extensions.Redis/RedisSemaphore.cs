@@ -158,7 +158,7 @@ public sealed class RedisSemaphore : ISemaphore
 
         if (isDebugEnabled)
         {
-            logger.LogDebug("Lock '{LockName}' is desired by: {RequestorId}", lockName, requestorId);
+            logger.LockDesired(lockName, requestorId);
         }
 
         var lockHandle = GetLock(lockKind);
@@ -167,7 +167,7 @@ public sealed class RedisSemaphore : ISemaphore
         {
             if (isDebugEnabled)
             {
-                logger.LogDebug("Lock '{LockName}' already owned by: {RequestorId}", lockName, requestorId);
+                logger.LockAlreadyOwned(lockName, requestorId);
             }
 
             return false;
@@ -175,7 +175,7 @@ public sealed class RedisSemaphore : ISemaphore
 
         if (isDebugEnabled)
         {
-            logger.LogDebug("Lock '{LockName}' is being obtained: {RequestorId}", lockName, requestorId);
+            logger.LockBeingObtained(lockName, requestorId);
         }
 
         try
@@ -186,7 +186,7 @@ public sealed class RedisSemaphore : ISemaphore
         {
             if (isDebugEnabled)
             {
-                logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId} - cancelled", lockName, requestorId);
+                logger.LockNotObtainedCancelled(lockName, requestorId);
             }
 
             return false;
@@ -210,7 +210,7 @@ public sealed class RedisSemaphore : ISemaphore
                 {
                     if (isDebugEnabled)
                     {
-                        logger.LogDebug("Lock '{LockName}' given to: {RequestorId}", lockName, requestorId);
+                        logger.LockGiven(lockName, requestorId);
                     }
 
                     return true;
@@ -225,7 +225,7 @@ public sealed class RedisSemaphore : ISemaphore
 
             if (isDebugEnabled)
             {
-                logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId} - cancelled", lockName, requestorId);
+                logger.LockNotObtainedCancelled(lockName, requestorId);
             }
 
             return false;
@@ -250,8 +250,8 @@ public sealed class RedisSemaphore : ISemaphore
         {
             if (logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockName, requestorId);
-                logger.LogWarning("stack-trace of wrongful returner: {StackTrace}", Environment.StackTrace);
+                logger.LockReturnedByNonOwner(lockName, requestorId);
+                logger.WrongfulReturnerStack(Environment.StackTrace);
             }
 
             return;
@@ -270,12 +270,12 @@ public sealed class RedisSemaphore : ISemaphore
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}", lockName, requestorId);
+                logger.LockReturned(lockName, requestorId);
             }
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to release Redis lock '{LockName}'", lockName);
+            logger.LockReleaseFailed(lockName, ex);
         }
         finally
         {
@@ -308,7 +308,7 @@ public sealed class RedisSemaphore : ISemaphore
                 return redis;
             }
 
-            logger.LogInformation("Connecting to Redis");
+            logger.ConnectingToRedis();
             redis = await ConnectionMultiplexer.ConnectAsync(RedisConfiguration).ConfigureAwait(false);
             return redis;
         }
