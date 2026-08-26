@@ -150,27 +150,52 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new PagedResult<JobKeyDto>(items, jobs.HasMore, jobs.TotalCount ?? items.Count);
     }
 
-    public async ValueTask<List<JobGroupDto>> GetJobGroups(string schedulerName, CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<JobGroupDto>> GetJobGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-
-        List<JobGroupDto> result = [];
-        JobGroupQuery query = new();
-        while (true)
+        JobGroupQuery storeQuery = new()
         {
-            PagedResult<JobGroup> groups = await scheduler.QueryJobGroups(query, cancellationToken).ConfigureAwait(false);
-            foreach (JobGroup group in groups.Items)
-            {
-                result.Add(new JobGroupDto(group.Name, group.Paused));
-            }
+            Paused = query.Paused,
+            Skip = query.Skip,
+            Take = query.Take,
+            IncludeTotalCount = true
+        };
 
-            if (!groups.HasMore)
-            {
-                return result;
-            }
+        PagedResult<JobGroup> groups = await scheduler.QueryJobGroups(storeQuery, cancellationToken).ConfigureAwait(false);
 
-            query = query with { Skip = query.Skip + groups.Items.Count };
+        List<JobGroupDto> items = new(groups.Items.Count);
+        foreach (JobGroup group in groups.Items)
+        {
+            items.Add(new JobGroupDto(group.Name, group.Paused));
         }
+
+        return new PagedResult<JobGroupDto>(items, groups.HasMore, groups.TotalCount ?? items.Count);
+    }
+
+    public async ValueTask<PagedResult<TriggerGroupDto>> GetTriggerGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
+        TriggerGroupQuery storeQuery = new()
+        {
+            Paused = query.Paused,
+            Skip = query.Skip,
+            Take = query.Take,
+            IncludeTotalCount = true
+        };
+
+        PagedResult<TriggerGroup> groups = await scheduler.QueryTriggerGroups(storeQuery, cancellationToken).ConfigureAwait(false);
+
+        List<TriggerGroupDto> items = new(groups.Items.Count);
+        foreach (TriggerGroup group in groups.Items)
+        {
+            items.Add(new TriggerGroupDto(group.Name, group.Paused));
+        }
+
+        return new PagedResult<TriggerGroupDto>(items, groups.HasMore, groups.TotalCount ?? items.Count);
     }
 
     public async ValueTask<JobDetailDto> GetJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
@@ -525,6 +550,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return await historyStore.GetMisfires(query, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<int?> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default)
+    {
+        return await historyStore.CountMisfires(schedulerName, since, cancellationToken).ConfigureAwait(false);
+    }
+
     private static GroupMatcher<TKey>? BuildGroupMatcher<TKey>(string? groupFilter) where TKey : Key<TKey>
     {
         return string.IsNullOrWhiteSpace(groupFilter) ? null : GroupMatcher<TKey>.GroupContains(groupFilter);
@@ -601,31 +631,39 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         }
     }
 
-    public async ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// A scheduler that limits nothing and a scheduler that cannot say are different answers, and the
+    /// overview shows them differently: the first has every group unlimited, the second has an execution
+    /// panel that can only say so. Both used to arrive here as a bare <see langword="null" />.
+    /// </remarks>
+    public async ValueTask<ExecutionLimitsDto> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
+
+        ExecutionLimits? limits;
         try
         {
-            ExecutionLimits? limits = await scheduler.GetExecutionLimits(cancellationToken).ConfigureAwait(false);
-            if (limits is null || limits.IsEmpty)
-            {
-                return null;
-            }
-
-            Dictionary<string, DashboardExecutionLimit> dict = new();
-            foreach (ExecutionGroupLimit limit in limits.Groups)
-            {
-                // Use display-friendly keys
-                string key = limit.Group.IsDefault ? "(default)" : limit.Group.ToConfigurationKey();
-                dict[key] = new DashboardExecutionLimit(limit.MaxConcurrent, limit.Scope);
-            }
-
-            return new ExecutionLimitsDto(dict);
+            limits = await scheduler.GetExecutionLimits(cancellationToken).ConfigureAwait(false);
         }
         catch (NotSupportedException)
         {
-            // Scheduler implementation doesn't support execution limits (e.g. HTTP proxy)
-            return null;
+            // Every scheduler Quartz ships implements this, HttpScheduler included — it reads the HTTP
+            // API's execution-limits endpoint. An IScheduler of an application's own need not, and
+            // reporting its refusal as "nothing is limited" would be a fabricated answer.
+            return ExecutionLimitsDto.CannotReport;
         }
+
+        // The configuration spellings, so that the overview can join a firing's execution group to the
+        // limit that governs it: "_" for the ungrouped bucket, "*" for the catch-all, else the name.
+        Dictionary<string, DashboardExecutionLimit> groups = new(StringComparer.Ordinal);
+        if (limits is not null)
+        {
+            foreach (ExecutionGroupLimit limit in limits.Groups)
+            {
+                groups[limit.Group.ToConfigurationKey()] = new DashboardExecutionLimit(limit.MaxConcurrent, limit.Scope);
+            }
+        }
+
+        return new ExecutionLimitsDto(groups, limits?.UsesTriggerGroupWhenUnset ?? false);
     }
 }

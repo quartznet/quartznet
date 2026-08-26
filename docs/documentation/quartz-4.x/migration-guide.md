@@ -4129,7 +4129,7 @@ misfire handling.
 | — | `TriggerAcquisitionCriteria.ClusterInFlight` |
 | — | `IDriverDelegate.SelectExecutionGroupsInFlight(conn, cancellationToken)` |
 | `ExecutionLimitsResponse` / `SetExecutionLimitsRequest` carrying `Dictionary<string, int?>` | carrying `Dictionary<string, ExecutionLimitDto>`, where the DTO is `(int? MaxConcurrent, ExecutionLimitScope Scope)` |
-| `ExecutionLimitsDto(Dictionary<string, int?> Limits)` (dashboard) | `ExecutionLimitsDto(Dictionary<string, DashboardExecutionLimit> Limits)` |
+| `ExecutionLimitsDto(Dictionary<string, int?> Limits)` (dashboard) | `ExecutionLimitsDto(Dictionary<string, DashboardExecutionLimit> Limits, bool UsesTriggerGroupWhenUnset = false, bool CanReport = true)` — see [The dashboard's client speaks one currency](#the-dashboard-s-client-speaks-one-currency) |
 
 If you implement `IDriverDelegate` from scratch rather than deriving from `StdAdoDelegate`, the new
 member is a compile break — deliberately, because returning "nothing in flight" from a stub would fail
@@ -6024,8 +6024,11 @@ already had `JobKeyDto` and `TriggerKeyDto`. Now it says what Quartz says:
 | `GetCurrentlyExecutingJobs(name)` → `List<CurrentlyExecutingJobDto>` | `GetFireInstances(name, DashboardFireInstanceQuery)` → `PagedResult<FireInstanceDto>`, following `IScheduler` — see [What is running is a listing, not a list of contexts](#what-is-running-is-a-listing-not-a-list-of-contexts) |
 | `CurrentlyExecutingJobDto` | `FireInstanceDto`: `FireInstanceId` is non-null and leads, `JobKey` is nullable (an acquired firing has no job loaded yet), and `SchedulerInstanceId`, `FireInstanceState State` and `ScheduledFireTimeUtc` are new |
 | — | `GetClusterNodes(name)` → `List<ClusterNodeDto>` (new), behind the **Cluster** page — see [The nodes of a cluster are a listing](#the-nodes-of-a-cluster-are-a-listing) |
-| `IsJobGroupPaused(name, group)` → `bool` | `GetJobGroups(name)` → `List<JobGroupDto>`, each carrying `Name` and `Paused`; one call answers for every group instead of one |
-| `ExecutionLimitsDto(IReadOnlyDictionary<string, int?> Limits)` | `ExecutionLimitsDto(Dictionary<string, DashboardExecutionLimit> Limits)` — concrete out, as everywhere else, and each entry carries the limit's [scope](#an-execution-limit-can-be-cluster-wide) as well as its number |
+| `IsJobGroupPaused(name, group)` → `bool` | `GetJobGroups(name, DashboardGroupQuery)` → `PagedResult<JobGroupDto>`, each carrying `Name` and `Paused`; one call answers for every group instead of one, and `Take = 0` with `Paused = true` counts the paused ones without listing them |
+| — | `GetTriggerGroups(name, DashboardGroupQuery)` → `PagedResult<TriggerGroupDto>` (new), the trigger-group twin of the above |
+| — | `CountMisfires(name, since)` → `int?` (new), null when the data source keeps no misfire feed — see [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from) |
+| `ExecutionLimitsDto(IReadOnlyDictionary<string, int?> Limits)` | `ExecutionLimitsDto(Dictionary<string, DashboardExecutionLimit> Limits, bool UsesTriggerGroupWhenUnset = false, bool CanReport = true)` — concrete out, as everywhere else; each entry carries the limit's [scope](#an-execution-limit-can-be-cluster-wide) as well as its number, and the keys are the spellings configuration and the HTTP API use (`_` for the ungrouped bucket, `*` for the catch-all) so that a firing can be joined to the limit governing it |
+| `GetExecutionLimits(name)` → `ExecutionLimitsDto?`, null both for "nothing is limited" and for "this scheduler cannot say" | → `ExecutionLimitsDto`, never null: nothing limited is an empty `Limits`, and a scheduler that cannot answer is `ExecutionLimitsDto.CannotReport`, whose `CanReport` is `false` |
 | `IDashboardHistoryStore.GetPage(name, page, pageSize, jobFilter, triggerFilter)` → `DashboardHistoryPage` | `GetPage(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>` |
 | `…Job(name, string group, string jobName)` — eight members | `…Job(name, JobKeyDto)` |
 | `…Trigger(name, string group, string triggerName)` — seven members | `…Trigger(name, TriggerKeyDto)` |
@@ -6122,7 +6125,7 @@ peer's. Both feeds carry the node now, and the history is bounded by age as well
 | — | `DashboardMisfireQuery : PagedQuery`, with `SchedulerName`, `SchedulerInstanceId` and `TriggerFilter` (new) |
 | `DashboardHistoryQuery` | gained `string? SchedulerInstanceId` — null lists every node's |
 | `IDashboardHistoryStore` | gained `AddMisfire`, `GetMisfires(DashboardMisfireQuery)` and `CountMisfires(name, since)` |
-| `IQuartzApiClient` | gained `GetMisfires(DashboardMisfireQuery)` → `PagedResult<DashboardMisfireEntry>?` |
+| `IQuartzApiClient` | gained `GetMisfires(DashboardMisfireQuery)` → `PagedResult<DashboardMisfireEntry>?` and `CountMisfires(name, since)` → `int?`, which is what the overview's misfire tile reads |
 | `QuartzDashboardOptions` | gained `TimeSpan HistoryRetention` (24 hours) and `int HistoryMaxEntriesPerScheduler` (2000) |
 | `DashboardHistoryPlugin(IServiceProvider)` | `DashboardHistoryPlugin(IServiceProvider, TimeProvider)`, and it implements `ITriggerListener` as well as `IJobListener` |
 | `SchedulerStateDto(SchedulerName, Status)` | `SchedulerStateDto(SchedulerName, SchedulerInstanceId, Status)` |

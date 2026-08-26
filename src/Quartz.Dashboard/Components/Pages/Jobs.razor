@@ -175,8 +175,10 @@
             _jobs.AddRange(page.Items);
             _totalJobs = totalCount;
 
-            List<JobGroupDto> groups = await Api.GetJobGroups(schedulerName);
-            foreach (JobGroupDto group in groups)
+            // Every group, because the page labels each of the ones its current page shows, and it
+            // cannot know which those are before it has them.
+            PagedResult<JobGroupDto> groups = await Api.GetJobGroups(schedulerName, new DashboardGroupQuery { Take = int.MaxValue });
+            foreach (JobGroupDto group in groups.Items)
             {
                 _groupStates[group.Name] = group.Paused ? "Paused" : "Normal";
             }

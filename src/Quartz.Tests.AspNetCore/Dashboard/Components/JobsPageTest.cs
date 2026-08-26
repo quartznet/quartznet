@@ -200,6 +200,7 @@ public class JobsPageTest
             dtos.Add(new JobGroupDto(name, paused));
         }
 
-        A.CallTo(() => context.Api.GetJobGroups(A<string>._, A<CancellationToken>._)).Returns(dtos);
+        A.CallTo(() => context.Api.GetJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+            .Returns(TestData.Dashboard.Page<JobGroupDto>(dtos));
     }
 }
