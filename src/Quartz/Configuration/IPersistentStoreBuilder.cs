@@ -35,13 +35,14 @@ public interface IPersistentStoreBuilder
     string SchedulerName { get; }
 
     /// <summary>
-    /// Configures the job store.
+    /// Configures the job store itself.
     /// </summary>
     /// <remarks>
     /// These are the same settings, under the same names, as the <c>Quartz:JobStore</c> configuration
-    /// section.
+    /// section. The name says which of the several things in scope here is being configured — the store,
+    /// rather than the scheduler around it or the data source under it.
     /// </remarks>
-    IPersistentStoreBuilder Configure(Action<AdoJobStoreOptions> configure);
+    IPersistentStoreBuilder ConfigureStore(Action<AdoJobStoreOptions> configure);
 
     /// <summary>
     /// Says which data source this store reads and writes through, by name.

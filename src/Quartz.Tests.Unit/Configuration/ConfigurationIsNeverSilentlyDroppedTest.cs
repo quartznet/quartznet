@@ -45,7 +45,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     {
         q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             RegisterStubProvider(store.Services, q.SchedulerName);
         });
     }
@@ -206,7 +206,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         {
             q.UsePersistentStore(store =>
             {
-                store.Configure(options =>
+                store.ConfigureStore(options =>
                 {
                     options.DataSource = "test";
                     options.TablePrefix = "REPORT_";
@@ -228,7 +228,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var services = new ServiceCollection();
         services.AddQuartz(q => q.UsePersistentStore(store =>
         {
-            store.Configure(options =>
+            store.ConfigureStore(options =>
             {
                 options.DataSource = "test";
                 options.UseDbLocks = true;
@@ -252,7 +252,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var services = new ServiceCollection();
         services.AddQuartz(q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             store.UseLockHandler<SimpleSemaphore>();
             RegisterStubProvider(store.Services, q.SchedulerName);
         }));
@@ -269,7 +269,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var services = new ServiceCollection();
         services.AddQuartz("reporting", q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             // Takes an IDbProvider, which for a named scheduler exists only under that scheduler's key.
             store.UseLockHandler<SelectForUpdateSemaphore>();
             RegisterStubProvider(store.Services, q.SchedulerName);
@@ -370,7 +370,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var services = new ServiceCollection();
         services.AddQuartz("reporting", q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             store.UseTriggerPersistenceDelegate<MarkedTriggerPersistenceDelegate>();
             RegisterStubProvider(store.Services, q.SchedulerName);
         }));
@@ -392,12 +392,12 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var services = new ServiceCollection();
         services.AddQuartz("a", q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             RegisterStubProvider(store.Services, q.SchedulerName);
         }));
         services.AddQuartz("b", q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             store.UseSerializer<CountingObjectSerializer>();
             RegisterStubProvider(store.Services, q.SchedulerName);
         }));
@@ -415,13 +415,13 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var services = new ServiceCollection();
         services.AddQuartz("a", q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             store.UseSystemTextJsonSerializer(json => json.AddTriggerSerializer<TriggerKnownToA>(new TriggerKnownToASerializer()));
             RegisterStubProvider(store.Services, q.SchedulerName);
         }));
         services.AddQuartz("b", q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             store.UseSystemTextJsonSerializer(json => json.AddTriggerSerializer<TriggerKnownToB>(new TriggerKnownToBSerializer()));
             RegisterStubProvider(store.Services, q.SchedulerName);
         }));
@@ -723,7 +723,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
                 ["quartz.jobStore.dataSource"] = "test",
                 ["quartz.dataSource.test.connectionProvider.type"] = typeof(CountingDbProvider).AssemblyQualifiedName,
             },
-            q => q.UsePersistentStore(store => store.Configure(options => options.DataSource = "test")));
+            q => q.UsePersistentStore(store => store.ConfigureStore(options => options.DataSource = "test")));
 
         using var provider = services.BuildServiceProvider();
 
@@ -740,7 +740,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             new NameValueCollection { ["quartz.jobStore.clusterCheckinInterval"] = "20000" },
             q => q.UsePersistentStore(store =>
             {
-                store.Configure(options => options.DataSource = "test");
+                store.ConfigureStore(options => options.DataSource = "test");
                 store.UseClustering();
                 RegisterStubProvider(store.Services, q.SchedulerName);
             }));

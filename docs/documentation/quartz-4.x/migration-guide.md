@@ -307,9 +307,9 @@ spelling, and binds directly.
 ### A setting stops wearing a verb
 
 `IPersistentStoreBuilder.AcceptEnlistedTransactions()` was exactly
-`Configure(options => options.AcceptEnlistedTransactions = true)` — one assignment, no side effect —
+`ConfigureStore(options => options.AcceptEnlistedTransactions = true)` — one assignment, no side effect —
 while the other nineteen `AdoJobStoreOptions` settings, `UseDbLocks` and `StoreJobDataAsStrings` among them,
-are set through `Configure` like everything else. A reader of the interface reasonably concluded that
+are set through `ConfigureStore` like everything else. A reader of the interface reasonably concluded that
 the settings with verbs were the important ones.
 
 ```diff
@@ -317,7 +317,7 @@ the settings with verbs were the important ones.
   {
       store.UsePostgres(connectionString);
 -     store.AcceptEnlistedTransactions();
-+     store.Configure(options => options.AcceptEnlistedTransactions = true);
++     store.ConfigureStore(options => options.AcceptEnlistedTransactions = true);
   });
 ```
 
@@ -338,7 +338,7 @@ verb: it genuinely does more than one assignment, setting `Enabled` on `Clusteri
   {
       store.UseSqlServer(connectionString);
 -     store.Configure(options => options.UseProperties = true);
-+     store.Configure(options => options.StoreJobDataAsStrings = true);
++     store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
   });
 
 - Matchers.Group<JobKey>(@operator: StringOperator.StartsWith, compareTo: "reports");
@@ -349,6 +349,38 @@ The flat key is unchanged: `quartz.jobStore.useProperties` still sets `StoreJobD
 `appsettings.json` the section entry follows the option, so `JobStore:UseProperties` becomes
 `JobStore:StoreJobDataAsStrings` — the old spelling still works, because every section is also flattened
 onto its `quartz.*` key and read there.
+
+### The persistent store builder says which thing it configures
+
+Three members of `IPersistentStoreBuilder` did not follow the conventions the rest of it set.
+
+| 4.0 preview | 4.0 |
+|---|---|
+| `store.Configure(options => …)` | `store.ConfigureStore(options => …)` |
+| `store.UseDataSourceName(name)` | `store.UseDataSource(name)` |
+| — | `store.UseDriverDelegate(factory)`, new |
+
+`Configure` was a bare verb inside a callback that already has `ConfigureScheduler` and
+`ConfigureOptions<TOptions>` in scope, so it said nothing about which of the things in reach it
+configured. `UseDataSourceName` and `UseDataSource` were two names for one concept, and naming a data
+source is the string overload of defining one. `UseDriverDelegate` was the only registration on the
+builder without a `Func<IServiceProvider, T>` overload — `UseConnectionProvider`, `UseSerializer`,
+`UseLockHandler` and `UseTriggerPersistenceDelegate` all had one — which made a dialect that needs
+anything from the container the one part of the store that could not be built from it.
+
+```diff
+  q.UsePersistentStore(store =>
+  {
+-     store.UseDataSourceName("reporting-db");
++     store.UseDataSource("reporting-db");
+      store.UseSqlServer(connectionString);
+-     store.Configure(options => options.TablePrefix = "RPT_QRTZ_");
++     store.ConfigureStore(options => options.TablePrefix = "RPT_QRTZ_");
+  });
+```
+
+No configuration key moved. `quartz.jobStore.*`, `Quartz:JobStore:*` and `quartz.jobStore.dataSource`
+all say what they said, so only code that calls these methods has anything to change.
 
 ### The hosted service's extension point is its four hooks
 
@@ -374,7 +406,7 @@ assignable on a live instance with nothing saying which wins or when. The compon
 | Component | Configure through |
 |---|---|
 | `RAMJobStore.MisfireThreshold` | `UseInMemoryStore(o => o.MisfireThreshold = …)` |
-| `AdoJobStoreBase.MisfireThreshold` | `UsePersistentStore(store => store.Configure(o => o.MisfireThreshold = …))` |
+| `AdoJobStoreBase.MisfireThreshold` | `UsePersistentStore(store => store.ConfigureStore(o => o.MisfireThreshold = …))` |
 | `TaskSchedulingThreadPool.MaxConcurrency`, `.Scheduler` | `UseDefaultThreadPool(maxConcurrency: …)`; both setters are `protected internal`, so a pool of your own can still set them |
 | `RedisSemaphore.RedisConfiguration`, `.KeyPrefix`, `.LockTimeToLive`, `.LockRetryInterval` | `UseRedisLockHandler(o => …)` |
 | The history plugins' message templates | `UseJobHistoryLogging(o => …)`, `UseTriggerHistoryLogging(o => …)`, and now `UseStructuredJobLogging(o => …)` / `UseStructuredTriggerLogging(o => …)` |
@@ -498,7 +530,7 @@ A scheduler has one job store and therefore one database, so there is no name to
 -     store.UseSqlServer("sql-server-01", connectionString);
 +     store.UseSqlServer(connectionString);
       store.UseSystemTextJsonSerializer();
-+     store.Configure(options => options.StoreJobDataAsStrings = true);
++     store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
   });
 ```
 
@@ -3651,7 +3683,7 @@ already have them.
 * **`JobInstantiationException`** — a job that could not be built names the trigger, the job and the fire instance instead of only interpolating the job key into a message (see [Instantiation failures name the trigger](#instantiation-failures-name-the-trigger))
 * **`ISchedulerListener.TriggerInError` / `TriggersInError`** — observe a trigger being moved to `TriggerState.Error`, including two ADO store transitions that reached nothing at all before (see [Triggers entering the error state are reported](#triggers-entering-the-error-state-are-reported))
 * **Every listener callback names its scheduler** — one listener can serve several schedulers in one host and still say which of them paused a trigger or failed, and `SchedulerError` carries the trigger, job and firing it was raised for. A listener still carrying a signature from 3.x or from alpha.1 is refused when it is registered, with a message naming the member, rather than being attached and never called (see [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling))
-* **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.Configure(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
+* **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.ConfigureStore(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
 * **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
 * **An `IJobDetail` of your own** — the interface no longer declares a member only Quartz can implement, so an application can supply its own job detail type and have `RAMJobStore` hand it back rather than quietly swapping it for Quartz's (see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own))
 * **Pause, resume and reset a set of keys in one call** — `PauseTriggers`, `ResumeTriggers`, `PauseJobs`, `ResumeJobs` and `ResetTriggersFromErrorState` take a key collection, do the whole set in one lock and one transaction, and answer with the keys they applied to (see [A set of keys pauses, resumes or resets in one call](#a-set-of-keys-pauses-resumes-or-resets-in-one-call))
@@ -4688,7 +4720,7 @@ guarantee the write landed before `Initialize` ran:
 ```diff
 - ((ExternalTransactionJobStore) store).OpenConnection = true;
 + services.AddQuartz(q => q.UsePersistentStore<ExternalTransactionJobStore>(store =>
-+     store.Configure(options => options.OpenConnection = true)));
++     store.ConfigureStore(options => options.OpenConnection = true)));
 ```
 
 ## Nine `Execute…Lock` overloads became four members
@@ -4759,7 +4791,7 @@ configuring goes where it always did in 4.0:
 
 ```diff
 - var store = new JobStoreTX(...) { Clustered = true, MaxTransientRetries = 5 };
-+ services.AddQuartz(q => q.UsePersistentStore(store => store.Configure(options =>
++ services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
 + {
 +     options.Clustered = true;
 +     options.MaxTransientRetries = 5;
@@ -4768,7 +4800,7 @@ configuring goes where it always did in 4.0:
 
 `MisfireThreshold` keeps a **public getter** on both `AdoJobStoreBase` and `RAMJobStore` — it is read on
 every misfire pass rather than only at startup, so a store that wraps one needs to see it — but its setter
-is `internal` like the rest. Set it on the options type: `UsePersistentStore(store => store.Configure(o =>
+is `internal` like the rest. Set it on the options type: `UsePersistentStore(store => store.ConfigureStore(o =>
 o.MisfireThreshold = …))`, or `UseInMemoryStore(o => o.MisfireThreshold = …)`.
 
 Two properties that nothing read are gone rather than made read-only: `DriverDelegateType` (the delegate is
@@ -5182,7 +5214,7 @@ wants, and which reads without blocking writers — was not expressible at all, 
 
 ```diff
 - store.Configure(options => options.TxIsolationLevelSerializable = true);
-+ store.Configure(options => options.TransactionIsolationLevel = IsolationLevel.Serializable);
++ store.ConfigureStore(options => options.TransactionIsolationLevel = IsolationLevel.Serializable);
 ```
 
 `quartz.jobStore.txIsolationLevelSerializable` is still read: `true` becomes `Serializable`, and `false`
@@ -7890,7 +7922,7 @@ Parameters and behavior are unchanged:
 | The vetoed-fire span is `Quartz.Job.Veto` | `OperationName.Job.Veto` read `"Quartz.Job.Vetoed"` — the constant's name and its value disagreed. `Quartz.Job.Execute` and the `Quartz.JobStore.*` span names are unchanged |
 | `XmlSchedulingOptions` and `JsonSchedulingOptions` merged | They were byte-for-byte identical and are now one type |
 | Constructing a scheduler no longer starts a thread | `QuartzScheduler` starts its scheduler thread from `Start()` rather than its constructor, so resolving the service graph, running a `ValidateOnBuild` pass or asserting on registrations no longer spins one up. The thread always started paused, so this changes when the thread exists, not when jobs run |
-| `IPersistentStoreBuilder.AcceptEnlistedTransactions()` | Never shipped; the setting is `Configure(o => o.AcceptEnlistedTransactions = true)`, like the other nineteen `AdoJobStoreOptions` settings — see [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction) |
+| `IPersistentStoreBuilder.AcceptEnlistedTransactions()` | Never shipped; the setting is `ConfigureStore(o => o.AcceptEnlistedTransactions = true)`, like the other nineteen `AdoJobStoreOptions` settings — see [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction) |
 | Group matchers translate to SQL correctly | `SelectTriggerGroups`, `DeletePausedTriggerGroup` and both `UpdateTriggerGroupStateFromOtherState(s)` members always built a `LIKE`, even for an equality matcher; they take the `=` path now, which is exact and index-friendly. `LIKE` patterns escape `%`, `_` and the escape character in the matcher's own text with an explicit `ESCAPE` clause, so a group literally named `50%` matches itself. The escape character is `!` rather than a backslash, because MySQL applies C-style escaping inside string literals and `ESCAPE '\'` is a syntax error there |
 | `StdAdoConstants` group and fired-trigger statements were split | `SqlDeletePausedTriggerGroup`, `SqlSelectTriggerGroupsFiltered`, `SqlUpdateTriggerGroupStateFromState` and `SqlUpdateTriggerGroupStateFromStates` are `…Equals` / `…Like` pairs, and the FIRED_TRIGGERS statements are one `SqlSelectFiredTriggers` / `SqlDeleteFiredTriggers` base plus `SqlFiredTrigger*Predicate` fragments. The type is internal |
 | `IDashboardAuthorizationFilter` and `QuartzDashboardOptions.AuthorizationFilter` removed | Nothing ever invoked the filter, so setting it bought a false sense of security. Use `AuthorizationPolicy`, which is enforced |

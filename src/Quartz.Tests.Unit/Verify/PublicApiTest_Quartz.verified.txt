@@ -567,7 +567,7 @@ namespace Quartz
     {
         string SchedulerName { get; }
         Microsoft.Extensions.DependencyInjection.IServiceCollection Services { get; }
-        Quartz.IPersistentStoreBuilder Configure(System.Action<Quartz.AdoJobStoreOptions> configure);
+        Quartz.IPersistentStoreBuilder ConfigureStore(System.Action<Quartz.AdoJobStoreOptions> configure);
         Quartz.IPersistentStoreBuilder UseClustering(System.Action<Quartz.ClusteringOptions>? configure = null);
         Quartz.IPersistentStoreBuilder UseConnectionProvider(System.Func<System.IServiceProvider, Quartz.Impl.AdoJobStore.Common.IDbProvider> factory);
         Quartz.IPersistentStoreBuilder UseConnectionProvider<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()

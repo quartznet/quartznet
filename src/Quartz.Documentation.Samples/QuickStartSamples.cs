@@ -33,7 +33,7 @@ public static class QuickStartSamples
                 // System.Text.Json is built in; the Newtonsoft one is a package away
                 store.UseSystemTextJsonSerializer();
 
-                store.Configure(options =>
+                store.ConfigureStore(options =>
                 {
                     // store job data as strings, which avoids surprises when a serialized
                     // type changes shape later

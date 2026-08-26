@@ -153,7 +153,7 @@ public sealed class SchedulerRepositoryIsolationTest
         services.AddLogging();
         services.AddQuartz(instanceName, q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = instanceName);
+            store.ConfigureStore(options => options.DataSource = instanceName);
             store.Services.AddKeyedSingleton<IDbProvider>(instanceName, new StubDbProvider());
         }));
         return services.BuildServiceProvider();

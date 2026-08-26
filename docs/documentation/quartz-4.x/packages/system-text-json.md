@@ -26,7 +26,7 @@ services.AddQuartz(q =>
 
         // it's generally recommended to stick with
         // string property keys and values when serializing
-        store.Configure(options => options.StoreJobDataAsStrings = true);
+        store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
 
         store.UseSystemTextJsonSerializer();
     });

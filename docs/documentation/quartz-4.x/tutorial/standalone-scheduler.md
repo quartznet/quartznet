@@ -234,7 +234,7 @@ await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
     {
         s.UseSqlServer(connectionString);
         s.UseClustering(c => c.CheckinInterval = TimeSpan.FromSeconds(10));
-        s.Configure(o => o.TablePrefix = "QRTZ_");
+        s.ConfigureStore(o => o.TablePrefix = "QRTZ_");
     })
     .Build();
 ```

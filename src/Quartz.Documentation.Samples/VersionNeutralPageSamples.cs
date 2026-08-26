@@ -93,7 +93,7 @@ public static class VersionNeutralPageSamples
                 s.UseSystemTextJsonSerializer();
                 s.UseSqlServer(connectionString);
 
-                s.Configure(options =>
+                s.ConfigureStore(options =>
                 {
                     // A pass handles at most this many triggers, then commits. Lower it when the
                     // sweep is timing out; the loop comes straight back for the rest.

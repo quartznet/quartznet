@@ -191,7 +191,7 @@ builder.Services.AddQuartz(q =>
         store.UseSqlServer(connectionString);
         store.UseSystemTextJsonSerializer();
 
-        store.Configure(options =>
+        store.ConfigureStore(options =>
         {
             options.TablePrefix = "QRTZ_";        // the default
             options.StoreJobDataAsStrings = true; // preferred, but not the default
@@ -208,7 +208,7 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-Settings of the store itself go through `store.Configure(...)`, which configures `AdoJobStoreOptions`; the
+Settings of the store itself go through `store.ConfigureStore(...)`, which configures `AdoJobStoreOptions`; the
 database call and the clustering call are the ones that hang off the builder. How duplicate scheduling data is
 treated is a setting of its own:
 

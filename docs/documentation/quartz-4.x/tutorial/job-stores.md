@@ -75,7 +75,7 @@ builder.Services.AddQuartz(q =>
         store.UseSqlServer("Server=localhost;Database=quartz;Trusted_Connection=True;Encrypt=False");
         store.UseSystemTextJsonSerializer();
 
-        store.Configure(options =>
+        store.ConfigureStore(options =>
         {
             options.TablePrefix = "QRTZ_";
             options.StoreJobDataAsStrings = true;
@@ -117,7 +117,7 @@ If your scheduler is very busy — nearly always executing as many jobs as the t
 maximum pool size of the data source to around `ThreadPool:MaxConcurrency` plus one. That is a setting of the
 ADO.NET connection string, not of Quartz.
 
-Every setting of the store is on `AdoJobStoreOptions`, reached through `store.Configure(...)` or bound from the
+Every setting of the store is on `AdoJobStoreOptions`, reached through `store.ConfigureStore(...)` or bound from the
 `Quartz:JobStore` configuration section; they are all tabulated in the
 [configuration reference](../configuration/reference.md#persistent-job-store).
 
@@ -134,7 +134,7 @@ This is the recommended configuration, because it greatly decreases the possibil
 
 <!-- snippet: sample_job_stores_store_job_data_as_strings -->
 ```csharp
-store.Configure(options => options.StoreJobDataAsStrings = true);
+store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
 ```
 <!-- endSnippet -->
 
@@ -177,7 +177,7 @@ builder.Services.AddQuartz(q =>
     q.UsePersistentStore(store =>
     {
         store.UsePostgres(connectionString);
-        store.Configure(options => options.AcceptEnlistedTransactions = true);
+        store.ConfigureStore(options => options.AcceptEnlistedTransactions = true);
     });
 });
 ```

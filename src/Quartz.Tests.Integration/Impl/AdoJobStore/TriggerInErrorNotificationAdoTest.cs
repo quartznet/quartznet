@@ -51,7 +51,7 @@ public sealed class TriggerInErrorNotificationAdoTest
         {
             store.UsePostgres(TestConstants.PostgresConnectionString);
             store.UseNewtonsoftJsonSerializer();
-            store.Configure(options => options.TablePrefix = SchedulerHelper.TablePrefix);
+            store.ConfigureStore(options => options.TablePrefix = SchedulerHelper.TablePrefix);
         });
 
         IScheduler scheduler = await builder.BuildScheduler();

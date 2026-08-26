@@ -277,7 +277,7 @@ public class AdoJobStoreSmokeTest
 
         config.UsePersistentStore(store =>
         {
-            store.Configure(o =>
+            store.ConfigureStore(o =>
             {
                 o.StoreJobDataAsStrings = false;
                 o.PerformSchemaValidation = true;

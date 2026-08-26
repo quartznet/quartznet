@@ -22,7 +22,7 @@ dotnet add package Quartz.Serialization.Newtonsoft
 builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 {
     store.UseSqlServer(connectionString);
-    store.Configure(options => options.StoreJobDataAsStrings = true);
+    store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
     store.UseNewtonsoftJsonSerializer();
 }));
 ```

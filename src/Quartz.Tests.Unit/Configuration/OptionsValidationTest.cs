@@ -103,7 +103,7 @@ public class OptionsValidationTest
     public void AMissingDataSourceOnAPersistentStoreFailsAtStartup()
     {
         var services = new ServiceCollection();
-        services.AddQuartz(q => q.UsePersistentStore(store => store.Configure(options => options.DataSource = "")));
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options => options.DataSource = "")));
 
         using var provider = services.BuildServiceProvider();
 
@@ -122,7 +122,7 @@ public class OptionsValidationTest
     public void ACommandTimeoutThatIsNotPositiveIsAConfigurationError(int seconds)
     {
         var services = new ServiceCollection();
-        services.AddQuartz(q => q.UsePersistentStore(store => store.Configure(options =>
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
         {
             options.DataSource = "test";
             options.CommandTimeout = TimeSpan.FromSeconds(seconds);
@@ -139,7 +139,7 @@ public class OptionsValidationTest
     public void ACommandTimeoutLeftUnsetIsFine()
     {
         var services = new ServiceCollection();
-        services.AddQuartz(q => q.UsePersistentStore(store => store.Configure(options => options.DataSource = "test")));
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options => options.DataSource = "test")));
 
         using var provider = services.BuildServiceProvider();
 
@@ -159,7 +159,7 @@ public class OptionsValidationTest
         var services = new ServiceCollection();
         services.AddQuartz(q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             store.UseClustering(clustering => clustering.Enabled = false);
         }));
 
@@ -176,7 +176,7 @@ public class OptionsValidationTest
         var services = new ServiceCollection();
         services.AddQuartz(q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             store.UseClustering(clustering => clustering.CheckinInterval = TimeSpan.FromSeconds(20));
         }));
 
@@ -196,11 +196,11 @@ public class OptionsValidationTest
         var services = new ServiceCollection();
         services.AddQuartz("clustered", q => q.UsePersistentStore(store =>
         {
-            store.Configure(options => options.DataSource = "test");
+            store.ConfigureStore(options => options.DataSource = "test");
             store.UseClustering();
         }));
         services.AddQuartz("solo", q => q.UsePersistentStore(store =>
-            store.Configure(options => options.DataSource = "test")));
+            store.ConfigureStore(options => options.DataSource = "test")));
 
         using var provider = services.BuildServiceProvider();
 

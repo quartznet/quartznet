@@ -154,7 +154,7 @@ public abstract class SharedDatabaseTenancyTestBase
             UseDatabase(store);
             // The same prefix on both, which is the supported arrangement: SCHED_NAME is what separates
             // the tenants, and a prefix is for separate table sets rather than for isolation.
-            store.Configure(options => options.TablePrefix = "QRTZ_");
+            store.ConfigureStore(options => options.TablePrefix = "QRTZ_");
         });
     }
 
