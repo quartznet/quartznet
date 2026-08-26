@@ -33,6 +33,11 @@ internal sealed class Meters
     private readonly Meter meter;
     private readonly UpDownCounter<long> jobExecuteInProgress;
     private readonly Histogram<double> jobExecuteDuration;
+    private readonly Counter<long> triggerMisfires;
+    private readonly Histogram<double> triggerAcquisitionDuration;
+    private readonly Counter<long> triggersAcquired;
+    private readonly Histogram<double> clusterCheckinDuration;
+    private readonly Counter<long> clusterRecoveredTriggers;
 
     public Meters(IMeterFactory? meterFactory)
     {
@@ -50,9 +55,137 @@ internal sealed class Meters
         // a duration is in seconds, so recording milliseconds piled every execution longer than ten
         // seconds into the last bucket, next to every other duration series in the application.
         jobExecuteDuration = meter.CreateHistogram<double>("quartz.job.execution.duration", "s", "Elapsed time spent executing a job");
+
+        // A misfire is a fire that was owed and did not happen on time, which is the number an operator
+        // wants an alert on. Counted once per trigger the scheduler is told misfired, wherever the store
+        // noticed it: the notification is what every store has in common.
+        triggerMisfires = meter.CreateCounter<long>("quartz.trigger.misfire", "{trigger}", "Number of trigger misfires the scheduler was notified of");
+
+        // How long the scheduling loop waits on its store for the next batch. This is the round trip the
+        // loop cannot overlap with anything, so it is what a slow or contended store shows up as.
+        triggerAcquisitionDuration = meter.CreateHistogram<double>("quartz.trigger.acquisition.duration", "s", "Elapsed time spent acquiring the next batch of triggers");
+
+        // And how many the round actually returned, which is what tells an idle scheduler apart from a
+        // saturated one at the same acquisition rate.
+        triggersAcquired = meter.CreateCounter<long>("quartz.trigger.acquired", "{trigger}", "Number of triggers acquired for firing");
+
+        // A check-in that slows down is how a cluster starts failing: the other nodes decide this one
+        // died once it stops arriving, and recover work it is still doing.
+        clusterCheckinDuration = meter.CreateHistogram<double>("quartz.cluster.checkin.duration", "s", "Elapsed time spent on a cluster check-in");
+
+        // What recovering a failed node cost, counted against the node that failed rather than the one
+        // doing the recovering.
+        clusterRecoveredTriggers = meter.CreateCounter<long>("quartz.cluster.recovery.trigger", "{trigger}", "Number of fired triggers recovered from a failed cluster node");
     }
 
     public static Meters Shared => shared.Value;
+
+    /// <summary>
+    /// Whether anything is collecting the acquisition instruments, so the scheduling loop can skip
+    /// timing the round when nothing would read the answer.
+    /// </summary>
+    internal bool TriggerAcquisitionEnabled => triggerAcquisitionDuration.Enabled || triggersAcquired.Enabled;
+
+    /// <summary>
+    /// Whether anything is collecting the check-in histogram, asked before the check-in is timed.
+    /// </summary>
+    internal bool ClusterCheckinEnabled => clusterCheckinDuration.Enabled;
+
+    /// <summary>
+    /// Whether anything is collecting the recovery counter.
+    /// </summary>
+    internal bool ClusterRecoveryEnabled => clusterRecoveredTriggers.Enabled;
+
+    /// <summary>
+    /// One trigger the scheduler was told had misfired.
+    /// </summary>
+    internal void TriggerMisfired(string schedulerName, string schedulerId, ITrigger trigger)
+    {
+        if (!triggerMisfires.Enabled)
+        {
+            return;
+        }
+
+        // The trigger's group but not its name: a misfire storm is a property of a group or of an
+        // execution group, and one series per trigger is a cardinality an alert cannot be built on.
+        TagList tags = new()
+        {
+            { ActivityTags.SchedulerName, schedulerName },
+            { ActivityTags.SchedulerId, schedulerId },
+            { ActivityTags.TriggerGroup, trigger.Key.Group },
+        };
+
+        if (trigger.ExecutionGroup is { } executionGroup)
+        {
+            tags.Add(ActivityTags.ExecutionGroup, executionGroup);
+        }
+
+        triggerMisfires.Add(1, tags);
+    }
+
+    /// <summary>
+    /// One round of the scheduling loop's acquisition, however many triggers it came back with.
+    /// </summary>
+    internal void TriggersAcquired(string schedulerName, string schedulerId, int count, TimeSpan duration)
+    {
+        TagList tags = new()
+        {
+            { ActivityTags.SchedulerName, schedulerName },
+            { ActivityTags.SchedulerId, schedulerId },
+        };
+
+        // Recorded even when the round came back empty: an acquisition that returns nothing still made
+        // the round trip, and leaving those out would report only the busy scheduler's latency.
+        triggerAcquisitionDuration.Record(duration.TotalSeconds, tags);
+
+        if (count > 0)
+        {
+            triggersAcquired.Add(count, tags);
+        }
+    }
+
+    /// <summary>
+    /// One cluster check-in, and what it failed with when it did.
+    /// </summary>
+    internal void ClusterCheckinCompleted(string schedulerName, string schedulerId, TimeSpan duration, Exception? exception)
+    {
+        TagList tags = new()
+        {
+            { ActivityTags.SchedulerName, schedulerName },
+            { ActivityTags.SchedulerId, schedulerId },
+        };
+
+        if (exception is not null)
+        {
+            tags.Add(ErrorType.TagName, ErrorType.Of(exception));
+        }
+
+        clusterCheckinDuration.Record(duration.TotalSeconds, tags);
+    }
+
+    /// <summary>
+    /// The fired-trigger rows recovered from one failed node.
+    /// </summary>
+    /// <remarks>
+    /// A counter's increment of <paramref name="count" /> is the same series as <paramref name="count" />
+    /// increments of one, so a whole node's recovery is one instrument write rather than one per row.
+    /// </remarks>
+    internal void ClusterTriggersRecovered(string schedulerName, string schedulerId, string recoveredInstanceId, long count)
+    {
+        if (count <= 0 || !clusterRecoveredTriggers.Enabled)
+        {
+            return;
+        }
+
+        clusterRecoveredTriggers.Add(count, new TagList
+        {
+            { ActivityTags.SchedulerName, schedulerName },
+            { ActivityTags.SchedulerId, schedulerId },
+            // Which node's work this was. quartz.scheduler.id above is the node that did the recovering,
+            // and a recovery is one node saying something about another.
+            { ActivityTags.RecoveredInstanceId, recoveredInstanceId },
+        });
+    }
 
     public Instrumentation StartJobExecute(IJobExecutionContext context)
     {

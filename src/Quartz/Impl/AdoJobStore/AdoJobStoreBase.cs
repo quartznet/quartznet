@@ -59,6 +59,18 @@ public abstract class AdoJobStoreBase : IJobStore
     private readonly ITriggerPersistenceDelegate[] triggerPersistenceDelegates;
 
     /// <summary>
+    /// The instruments this store's cluster check-in and recovery publish on.
+    /// </summary>
+    /// <remarks>
+    /// Assigned by the registration that resolves the store into a scheduler's resources, so that these
+    /// measurements land on the same container-scoped meter the execution instruments do. It cannot be a
+    /// constructor argument: <see cref="Diagnostics.Meters"/> is internal and this constructor is public,
+    /// and the store is built by five different registrations. A store constructed by hand keeps the
+    /// process-wide instruments, which is what a hand-built scheduler's execution metrics use too.
+    /// </remarks>
+    internal Meters Meters { get; set; } = Meters.Shared;
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="AdoJobStoreBase"/> class.
     /// </summary>
     protected AdoJobStoreBase(
@@ -4639,6 +4651,12 @@ public abstract class AdoJobStoreBase : IJobStore
             bool transStateOwner = false;
             bool recovered = false;
 
+            // Per attempt, not per call: an attempt is one round trip, and a failed one is worth seeing
+            // as a failed check-in of its own rather than folded into the retry that succeeded after it.
+            bool measureCheckin = Meters.ClusterCheckinEnabled;
+            long checkinStarted = measureCheckin ? timeProvider.GetTimestamp() : 0;
+            Exception? checkinFailure = null;
+
             ConnectionAndTransactionHolder conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -4685,6 +4703,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
             catch (JobPersistenceException jpe)
             {
+                checkinFailure = jpe;
                 await RollbackConnection(conn, jpe, cancellationToken).ConfigureAwait(false);
                 if (attempt < totalAttempts && IsTransient(jpe))
                 {
@@ -4699,17 +4718,34 @@ public abstract class AdoJobStoreBase : IJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId, SchedulerLock.TriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
                     try
                     {
-                        await ReleaseLock(requestorId, SchedulerLock.StateAccess, transStateOwner, cancellationToken).ConfigureAwait(false);
+                        await ReleaseLock(requestorId, SchedulerLock.TriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
                     }
                     finally
                     {
-                        await CleanupConnection(conn, cancellationToken).ConfigureAwait(false);
+                        try
+                        {
+                            await ReleaseLock(requestorId, SchedulerLock.StateAccess, transStateOwner, cancellationToken).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            await CleanupConnection(conn, cancellationToken).ConfigureAwait(false);
+                        }
+                    }
+                }
+                finally
+                {
+                    // Outermost, so the measurement covers the locks and the connection as well as the
+                    // work between them: a check-in that is slow because it waited on a lock is exactly
+                    // the check-in an operator is looking for.
+                    if (measureCheckin)
+                    {
+                        Meters.ClusterCheckinCompleted(
+                            InstanceName,
+                            InstanceId,
+                            timeProvider.GetElapsedTime(checkinStarted),
+                            checkinFailure);
                     }
                 }
             }
@@ -5011,6 +5047,15 @@ public abstract class AdoJobStoreBase : IJobStore
                             }
                         }
                     }
+
+                    // Every fired-trigger row this pass acted on: the three counters are the three arms of
+                    // one branch, so exactly one of them was raised per row that was not deferred, and a
+                    // deferred row is one this node decided not to recover.
+                    Meters.ClusterTriggersRecovered(
+                        InstanceName,
+                        InstanceId,
+                        rec.SchedulerInstanceId,
+                        acquiredCount + recoveredCount + otherCount);
 
                     if (acquiredCount > 0)
                     {
