@@ -1,6 +1,7 @@
 @using Quartz.Dashboard.Services
 @inject Quartz.Dashboard.Services.SchedulerState SchedulerState
 @inject Quartz.Dashboard.Services.IQuartzApiClient ApiClient
+@inject Quartz.Dashboard.Services.SchedulerAuthorization Authorization
 @implements IDisposable
 
 <div class="qz-scheduler-selector">
@@ -62,7 +63,9 @@
             System.Collections.Generic.List<Quartz.Dashboard.Services.SchedulerHeaderDto> schedulers =
                 await ApiClient.GetSchedulers();
 
-            SchedulerState.AvailableSchedulers = schedulers.AsReadOnly();
+            // Filtered before anything is offered: a name in this list is a name the visitor can select,
+            // and the one thing a per-scheduler policy has to prevent is reaching another tenant's.
+            SchedulerState.AvailableSchedulers = (await Authorization.Filter(schedulers)).AsReadOnly();
 
             if (SchedulerState.ActiveSchedulerName is null)
             {
@@ -100,6 +103,15 @@
         if (SchedulerState.Find(SchedulerState.ActiveSchedulerName) is { IsCreated: false })
         {
             _statusLabel = "Not created";
+            _schedulerStatus = null;
+            return;
+        }
+
+        // A scheduler the visitor may not see is not asked for its status either; the status read is the
+        // one call this component makes that is about a single scheduler rather than about the listing.
+        if (!await Authorization.IsAuthorized(SchedulerState.ActiveSchedulerName))
+        {
+            _statusLabel = "Not authorized";
             _schedulerStatus = null;
             return;
         }

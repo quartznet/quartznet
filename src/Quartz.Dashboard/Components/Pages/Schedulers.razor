@@ -5,6 +5,7 @@
 @using Quartz.Dashboard.Services
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject SchedulerAuthorization Authorization
 @inject IOptions<QuartzDashboardOptions> Options
 @inject NavigationManager Navigation
 
@@ -182,7 +183,10 @@
         {
             _rows.Clear();
 
-            List<SchedulerHeaderDto> schedulers = await Api.GetSchedulers();
+            // The fleet view is a listing like the picker's, and it is filtered like the picker's: a row
+            // here is a scheduler the visitor can click through to.
+            List<SchedulerHeaderDto> registered = await Api.GetSchedulers();
+            List<SchedulerHeaderDto> schedulers = await Authorization.Filter(registered);
             Scheduler.AvailableSchedulers = schedulers.AsReadOnly();
 
             foreach (SchedulerHeaderDto header in schedulers)

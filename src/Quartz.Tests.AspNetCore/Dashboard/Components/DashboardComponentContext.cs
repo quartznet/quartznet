@@ -2,12 +2,15 @@ using Bunit;
 
 using FakeItEasy;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Services;
+using Quartz.Tests.AspNetCore.Dashboard.Support;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.Dashboard.Components;
@@ -42,11 +45,20 @@ internal sealed class DashboardComponentContext : BunitContext
         // every page that lists one for a call no test is about.
         JSInterop.Mode = JSRuntimeMode.Loose;
 
+        // Nothing is authorized against until a test sets QuartzDashboardOptions.SchedulerAuthorizationPolicy:
+        // with it unset, SchedulerAuthorization answers "yes" without asking either of these, which is what
+        // keeps every test that is about something else unaffected.
+        AuthorizationService = new TestSchedulerAuthorizationService();
+        AuthenticationState = new TestAuthenticationStateProvider();
+
         Services.AddSingleton(Api);
         Services.AddSingleton<IDashboardLiveConnectionFactory>(LiveConnections);
         Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(Options));
         Services.AddSingleton(A.Fake<IHttpContextAccessor>());
+        Services.AddSingleton<IAuthorizationService>(AuthorizationService);
+        Services.AddSingleton<AuthenticationStateProvider>(AuthenticationState);
         Services.AddSingleton<SchedulerState>();
+        Services.AddSingleton<SchedulerAuthorization>();
         Services.AddSingleton<ToastService>();
         Services.AddSingleton<DashboardActionLogService>();
 
@@ -73,6 +85,10 @@ internal sealed class DashboardComponentContext : BunitContext
 
     public IQuartzApiClient Api { get; }
 
+    public TestSchedulerAuthorizationService AuthorizationService { get; }
+
+    public TestAuthenticationStateProvider AuthenticationState { get; }
+
     public FakeDashboardLiveConnectionFactory LiveConnections { get; }
 
     public QuartzDashboardOptions Options { get; }
@@ -98,6 +114,27 @@ internal sealed class DashboardComponentContext : BunitContext
     /// Where the browser is now, which is what a page writing its filters into the query string moves.
     /// </summary>
     public string CurrentUri => Services.GetRequiredService<NavigationManager>().Uri;
+
+    /// <summary>
+    /// Turns the per-scheduler policy on and says which schedulers the visitor passes for. Every other
+    /// scheduler is one they may not see.
+    /// </summary>
+    public DashboardComponentContext WithSchedulerPolicy(params string[] allowedSchedulers)
+    {
+        Options.SchedulerAuthorizationPolicy = SchedulerPolicyName;
+        foreach (string schedulerName in allowedSchedulers)
+        {
+            AuthorizationService.Allowed.Add(schedulerName);
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// The policy name <see cref="WithSchedulerPolicy" /> configures, which is what the dashboard is
+    /// expected to pass to <c>IAuthorizationService</c>.
+    /// </summary>
+    public const string SchedulerPolicyName = "SchedulerOwner";
 
     /// <summary>
     /// Points the pages at a scheduler that exists and is running, which is what all but the
