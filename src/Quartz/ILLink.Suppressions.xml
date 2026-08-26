@@ -9,14 +9,15 @@
   warning to silence. Removing an entry that looks unused because the analyzer is quiet about it fails
   the publish; verify against a clean `dotnet fallout PublishTrimmed`, not against the compile.
 
-  The other difference is that this file carries no IL3050, where TrimAnalysisBaseline.cs carries one.
-  That is not an omission. ILLink does not report IL3050 at all — dynamic code is ILCompiler's concern,
-  and ILCompiler cannot be handed this file: its command line offers a descriptor option and a
-  substitution option and no link-attributes option at all, and the SDK item below only ever reaches
-  ILLink. The only way to tell ILCompiler in the assembly would be to bake UnconditionalSuppressMessage
-  into it, which is exactly the lie the paragraph below refuses to tell. So a native AOT publish reports
-  every one of these against Quartz, and the CI leg that runs one reads the report instead of being
-  silenced — see the paragraph on ILCompiler further down.
+  Neither file carries an IL3050 any more — Quartz produces none, which is what let it claim
+  IsAotCompatible — but this one could not have carried one anyway. ILLink does not report IL3050 at
+  all: dynamic code is ILCompiler's concern, and ILCompiler cannot be handed this file, since its
+  command line offers a descriptor option and a substitution option and no link-attributes option at
+  all, and the SDK item below only ever reaches ILLink. The only way to tell ILCompiler in the assembly
+  would be to bake UnconditionalSuppressMessage into it, which is exactly the lie the paragraph below
+  refuses to tell. So a native AOT publish reports every one of these against Quartz, and the CI leg
+  that runs one reads the report instead of being silenced — see the paragraph on ILCompiler further
+  down.
 
   Two files are needed because the two tools cannot be told the same way. SuppressMessageAttribute is
   [Conditional("CODE_ANALYSIS")], so the C# baseline never reaches metadata and ILLink cannot see it;
@@ -172,14 +173,12 @@
       </attribute>
     </type>
 
-    <!-- Configuration binding -->
-    <type fullname="Quartz.Configuration.QuartzTypedOptions*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2026</argument>
-        <property name="Justification">Binding the quartz configuration section reflects over the options types; the source-generated binder is the fix.</property>
-      </attribute>
-    </type>
+    <!--
+      Configuration binding was the last group here and is gone rather than re-justified. Quartz.csproj
+      sets EnableConfigurationBindingGenerator, so the six Configure<TOptions>(name, section) calls in
+      QuartzTypedOptions are intercepted and bound by generated code; nothing reflects over an options
+      type any more. See TrimAnalysisBaseline.cs beside this file.
+    -->
 
   </assembly>
 </linker>

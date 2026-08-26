@@ -22,10 +22,11 @@
 using System.Diagnostics.CodeAnalysis;
 
 // The trim- and AOT-analysis warnings Quartz still produces (https://github.com/quartznet/quartznet/issues/3341).
-// It is a baseline, not an all-clear: none of these call sites is trim-safe, and the IL3050 ones are not
-// AOT-safe either. What the baseline buys is that a *new* one fails the build, because
-// TreatWarningsAsErrors makes an IL2xxx or an IL3xxx an error and nothing suppresses a warning that is
-// not listed here.
+// It is a baseline, not an all-clear: none of these call sites is trim-safe. There is no IL3050 left in
+// it, though, and that is not an accident of what has been looked at - Quartz needs no runtime code
+// generation anywhere, which is the whole of what IsAotCompatible in Quartz.csproj claims. What the
+// baseline buys is that a *new* warning of either kind fails the build, because TreatWarningsAsErrors
+// makes an IL2xxx or an IL3xxx an error and nothing suppresses a warning that is not listed here.
 //
 // Step 3 of that issue took the fire path out of this file. A job type that reached Quartz as a type -
 // JobBuilder.Create<T>(), OfType<T>(), AddJob<T>() - now carries [DynamicallyAccessedMembers] all the
@@ -68,6 +69,15 @@ using System.Diagnostics.CodeAnalysis;
 // call sites ask options.GetTypeInfo and pass the JsonTypeInfo - which is the overload that carries
 // neither attribute. Quartz.Trimming.Canary runs the round trip out of a trimmed publish, so the leg
 // proves the fix rather than the absence of a warning.
+//
+// Step 8 deleted the last two - the IL2026 and IL3050 on QuartzTypedOptions - and with them the last
+// IL3050 anywhere in Quartz, which is what let the package say IsAotCompatible. Their own justification
+// had named the fix, and it is EnableConfigurationBindingGenerator in Quartz.csproj: the compiler
+// intercepts the six Configure<TOptions>(name, section) calls and writes a binder for each options type,
+// so nothing reflects over one and nothing is generated at runtime. That entry, like step 6's, recorded
+// a warning a publish did more than warn about - the trim canary now binds a whole scheduler out of an
+// IConfiguration, and built against the reflection binder it passes trimmed and fails natively, with
+// MaxBatchSize, ShutdownJobInterruption and the whole scheduler context arriving as defaults.
 //
 // Adding an entry is the wrong first move. Reach for it only after establishing that the reflection is
 // genuinely unavoidable, and then say in the group comment why. The preferred fixes, in order:
@@ -140,12 +150,6 @@ using System.Diagnostics.CodeAnalysis;
 
 [assembly: SuppressMessage("Trimming", "IL2070", Scope = "type", Target = "T:Quartz.Impl.AdoJobStore.TransientErrorDetector", Justification = "Retry classification reads provider error codes off exception types Quartz deliberately does not reference.")]
 
-// --- Configuration binding ------------------------------------------------------------------------------
-// IServiceCollection.Configure<TOptions>(name, section) is RequiresUnreferencedCode and
-// RequiresDynamicCode both: the binder reflects over TOptions, and builds what it needs to set a
-// collection or a nullable property on it. The options types are ours and closed, so the
-// source-generated binder is the fix for both; that is a separate change from this baseline, and the
-// one entry here that a later step can expect to delete rather than argue for.
-
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.QuartzTypedOptions", Justification = "Binding the quartz configuration section reflects over the options types; the source-generated binder is the fix.")]
-[assembly: SuppressMessage("AOT", "IL3050", Scope = "type", Target = "T:Quartz.Configuration.QuartzTypedOptions", Justification = "Binding the quartz configuration section generates code for the options types; the source-generated binder is the fix.")]
+// Configuration binding was the last group in this file; step 8 above says where it went. Do not bring
+// it back by writing a Configure<TOptions>(section) call the generator cannot intercept, or an options
+// member it cannot bind - ConfigurationBindingIsSourceGeneratedTest holds both.
