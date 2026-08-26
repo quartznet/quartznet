@@ -290,17 +290,24 @@ property grid of its attributes, which is where `quartz.job.name`, `quartz.job.g
 sampler that records without collecting all data will not show them. A failed firing sets the span's status
 to error, attaches an exception event and tags it `error.type` with the exception the job threw.
 
-A persistent store adds one `Quartz.JobStore.*` span per operation —
-`Quartz.JobStore.AcquireNextTriggers`, `.TriggersFired`, `.ScheduleJob` and the rest. The in-memory store
-emits none of them, so a scheduler on `UseInMemoryStore` shows firings and nothing underneath.
+Underneath the firings sits one `Quartz.JobStore.*` span per store operation —
+`Quartz.JobStore.AcquireNextTriggers`, `.TriggersFired`, `.ScheduleJob` and the rest, all
+`ActivityKind.Client`. Whichever store the scheduler was built with produces them, in-memory included, so
+the acquisition round that preceded a firing is always there to select.
 
-**Metrics.** The `Quartz` meter appears in the Metrics page's selection pane with two instruments under it.
+**Metrics.** The `Quartz` meter appears in the Metrics page's selection pane.
 `quartz.job.execution.duration` is a histogram in **seconds**, which the dashboard charts as P50, P90 and
 P99; `quartz.job.execution.active` is an up-down counter of jobs currently running. Both carry
-`quartz.scheduler.name` and the four job and trigger identity attributes, and the histogram additionally
-carries `error.type` on a failed execution — so the failure rate is the part of the histogram's count that
-has that attribute, and it says which exception. The metric attributes are deliberately a smaller set than
-the span attributes: `quartz.fire.instance.id` is unique per firing and has no business on a time series.
+`quartz.scheduler.name`, `quartz.scheduler.id` and the four job and trigger identity attributes, and the
+histogram additionally carries `error.type` on a failed execution — so the failure rate is the part of the
+histogram's count that has that attribute, and it says which exception. The metric attributes are
+deliberately a smaller set than the span attributes: `quartz.fire.instance.id` is unique per firing and has
+no business on a time series.
+
+Beside them are `quartz.trigger.misfire`, `quartz.trigger.acquisition.duration`, `quartz.trigger.acquired`
+and `quartz.jobstore.operation.duration`, and — on a clustered persistent store —
+`quartz.cluster.checkin.duration` and `quartz.cluster.recovery.trigger`. Every one of them carries
+`quartz.scheduler.id`, so a dashboard filtered to one node reads that node alone.
 
 The full attribute and instrument tables are on the [Observability](../packages/opentelemetry-integration.md)
 page rather than repeated here.

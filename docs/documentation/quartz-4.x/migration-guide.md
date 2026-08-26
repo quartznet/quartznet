@@ -2426,6 +2426,12 @@ trips; the [observability page](packages/opentelemetry-integration.md#metrics) h
 
 | 3.x | 4.x | Notes |
 |---|---|---|
+| *(none)* | `quartz.trigger.misfire` | New in 4.0. A `Counter<long>` of firings that were owed and did not happen on time |
+| *(none)* | `quartz.trigger.acquisition.duration` | New in 4.0. A `Histogram<double>` of what the scheduling loop waits on its store for |
+| *(none)* | `quartz.trigger.acquired` | New in 4.0. A `Counter<long>` of what those rounds came back with |
+| *(none)* | `quartz.cluster.checkin.duration` | New in 4.0. A `Histogram<double>` of how long a cluster check-in takes, per attempt |
+| *(none)* | `quartz.cluster.recovery.trigger` | New in 4.0. A `Counter<long>` of fired-trigger rows recovered from a failed node |
+| *(none)* | `quartz.jobstore.operation.duration` | New in 4.0. A `Histogram<double>` of every round trip to the store, tagged with which operation |
 | `scheduling.quartz.execute` | *removed* | The histogram's own **count** is the number of executions: `sum(rate(quartz_job_execution_duration_count[5m]))` in Prometheus, or whatever your backend calls a histogram's count |
 | `scheduling.quartz.execute.errors` | *removed* | The **`error.type`-tagged subset** of the same count is the number of failures — and it now says *what* failed, which the counter never did |
 | `scheduling.quartz.execute.active` | `quartz.job.execution.active` | Also an `UpDownCounter<long>` now (was `Counter<long>`), unit `{job}` (was `ea`) |
@@ -2444,7 +2450,7 @@ trips; the [observability page](packages/opentelemetry-integration.md#metrics) h
 | *(none)* | `quartz.jobstore.operation` | New in 4.0. Which store operation a `quartz.jobstore.operation.duration` measurement is about |
 | *(none)* | `quartz.cluster.recovered.instance.id` | New in 4.0. The failed node a `quartz.cluster.recovery.trigger` measurement is about — not the node reporting it, which is `quartz.scheduler.id` |
 | `scheduling.quartz.exception_type` | `error.type` | The one attribute that is *not* namespaced, and its value changed too — see below |
-| `Quartz.Job.Vetoed` | `Quartz.Job.Veto` | Span name for a vetoed fire. `Quartz.Job.Execute` and the 28 `Quartz.JobStore.*` span names are unchanged |
+| `Quartz.Job.Vetoed` | `Quartz.Job.Veto` | Span name for a vetoed fire. `Quartz.Job.Execute` and the 29 `Quartz.JobStore.*` span names are unchanged — though every store emits the latter now, not only the ADO.NET one |
 
 Renaming a series is not something a backend can do for you: a Prometheus recording rule bridging the
 old name to the new one, or a dashboard variable, is the usual way to keep history readable across the
@@ -7799,6 +7805,9 @@ Parameters and behavior are unchanged:
 | Every measurement is tagged with `quartz.scheduler.id` too | A cluster is several schedulers sharing one name, so the name alone never answered *which node*. The id was a span attribute only. One series per node where there was one per scheduler — see [Job execution metrics](#job-execution-metrics) |
 | `quartz.execution.group` on the execution span and the execution measurements | The bucket a thread limit is applied per, so a saturated group can be seen in the signals rather than inferred. A trigger that names no group carries no such attribute at all, rather than an empty one |
 | `ActivityTags.ExecutionGroup`, `.JobStoreOperation`, `.RecoveredInstanceId` added | The three new attribute names, as constants beside the ones that were already there |
+| Five new instruments cover misfires, acquisition and the cluster | `quartz.trigger.misfire`, `quartz.trigger.acquisition.duration`, `quartz.trigger.acquired`, `quartz.cluster.checkin.duration`, `quartz.cluster.recovery.trigger` — none of those events produced any measurement before — see [the observability page](packages/opentelemetry-integration.md#metrics) |
+| `quartz.jobstore.operation.duration` measures every store round trip | Named by `quartz.jobstore.operation`, whose value is the same string the operation's span is called, and tagged with `error.type` when the call failed |
+| **Every store emits `Quartz.JobStore.*` spans, not only the ADO.NET one** | Store tracing was thirty-three call sites inside `AdoJobStoreBase`, so the in-memory store, the Redis store and a store of your own produced none. It is a decorator over `IJobStore` now, applied once by the registration that builds a scheduler's resources. The span names, kind and attributes are unchanged. A store the container builds is therefore not the object the scheduler holds — anything comparing `IJobStore` instances or type-testing one has to unwrap `Quartz.Impl.DelegatingJobStore` first, and `IScheduler.GetMetadata().JobStoreTypeName` still reports the inner store |
 | The meter is built from the container's `IMeterFactory` | It was a process-wide static, so two containers in one process shared one set of instruments and `MetricCollector` could not see them. The meter's name and what an exporter subscribes to are unchanged, and an application that never calls `AddMetrics()` still gets a meter — see [Job execution metrics](#job-execution-metrics) |
 | `scheduling.quartz.exception_type` is `error.type`, naming the exception the job threw | The tag was added to a copy of the tag list and discarded, so the counter said only that something failed — and the type it named was the `JobExecutionException` the run shell wraps everything in. It is OpenTelemetry's conventional name now — the one attribute Quartz does not namespace — it is on the duration histogram and the execution's span, and a query matching the old name or expecting the old value has to be rewritten — see [Job execution metrics](#job-execution-metrics) |
 | `Quartz.Diagnostics.QuartzInstrumentation` publishes the `ActivitySource` and `Meter` names | `AddSource("Quartz")` / `AddMeter("Quartz")` were the only strings on the instrumentation surface with no constant behind them. Both values are still `"Quartz"`, so existing wiring keeps working; `InstrumentationOptions` is gone with the change — see [Job execution metrics](#job-execution-metrics) |
