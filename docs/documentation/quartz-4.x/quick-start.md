@@ -305,4 +305,18 @@ says how to turn that off. Upgrading a schema created by an earlier version is a
 [Database Schema Changes](../database/schema-changes.md). What the tables hold is described in
 [Database](db/).
 
+## Something to run
+
+The repository carries a console tour: thirteen small programs, each of which schedules something,
+starts a scheduler and then waits while it fires, so the thing being taught happens in front of you.
+
+```shell
+git clone https://github.com/quartznet/quartznet.git
+cd quartznet
+dotnet run --project src/Quartz.Examples
+```
+
+Pick one from the menu, or name it — `-- 5` runs the misfire example. What each one shows is listed in
+[the tour's readme](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Examples/README.md).
+
 Now go have some fun exploring Quartz.NET. Continue with [the tutorial](tutorial/).

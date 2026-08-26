@@ -29,3 +29,8 @@ next: false
 
 The cron expression syntax the CronTriggers lesson builds on has its own page:
 [Cron Expression Reference](../cron-expressions.md).
+
+Several of these lessons have a runnable counterpart in the repository's
+[console tour](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Examples/README.md) —
+`dotnet run --project src/Quartz.Examples` — where simple triggers, cron triggers, job data, misfires,
+listeners, calendars and clustering each happen in a console while you watch.

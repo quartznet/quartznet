@@ -2327,7 +2327,8 @@ var loggerFactory = LoggerFactory.Create(builder =>
 LogProvider.SetLogProvider(loggerFactory);
 ```
 
-See the Quartz.Examples project for examples on setting up [Serilog](https://serilog.net/) and Microsoft.Logging with Quartz.
+The console tour's [`Logging.cs`](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Examples/Logging.cs)
+sets up [Serilog](https://serilog.net/), NLog and Microsoft.Logging behind Quartz, all three in one file.
 
 The example above is the standalone shape. **Under a host there is nothing to do**: `AddQuartz`
 registers the scheduler's parts in your container, and they are injected the host's `ILoggerFactory`
