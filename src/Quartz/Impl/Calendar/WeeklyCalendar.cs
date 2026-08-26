@@ -203,12 +203,18 @@ public sealed class WeeklyCalendar : BaseCalendar, IEquatable<WeeklyCalendar>
         //apply the timezone
         timeUtc = TimeZones.ConvertTime(timeUtc, TimeZone);
 
-        // Get timestamp for 00:00:00, in the correct timezone offset
-        DateTimeOffset d = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
+        // The first instant of the local day, resolved in the zone: a day does not always begin at
+        // midnight, and the offset it begins at is not always the offset the queried instant
+        // carries. Each further day is reached by naming the next local date and resolving that,
+        // because adding a day to a DateTimeOffset keeps the old offset and so drifts by the
+        // transition delta the moment the walk crosses one.
+        DateOnly date = DateOnly.FromDateTime(timeUtc.Date);
+        DateTimeOffset d = TimeZones.StartOfLocalDay(date, TimeZone);
 
         while (excludeDays.Contains(d.DayOfWeek))
         {
-            d = d.AddDays(1);
+            date = date.AddDays(1);
+            d = TimeZones.StartOfLocalDay(date, TimeZone);
         }
 
         return d;
