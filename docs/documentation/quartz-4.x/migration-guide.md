@@ -1230,7 +1230,7 @@ What is left says four different things:
 | Member | Role |
 |---|---|
 | `UseDataSource(configure)` | **defines** a data source — which driver, and how to reach the database. The database methods such as `UseSqlServer` are shorthands for it |
-| `UseDataSourceName(name)` | **refers to** a data source by name, picking up settings registered elsewhere, such as a `Quartz:DataSource:<name>` section |
+| `UseDataSource(name)` | **refers to** a data source by name, picking up settings registered elsewhere, such as a `Quartz:DataSource:<name>` section |
 | `DataSourceOptions.UseRegisteredDataSource` | takes connections from the container's unkeyed `DbDataSource`, instead of from a connection string |
 | `DataSourceOptions.DataSourceServiceKey` / `.DataSourceFactory` | the same, for a `DbDataSource` registered under a key of its own or built by the caller. Set from code — neither a service key nor a delegate is something a configuration binder can produce |
 | `UseConnectionProvider<T>()` / `UseConnectionProvider(factory)` | **replaces** the connection provider outright, for connections Quartz cannot describe. The code spelling of `quartz.dataSource.<name>.connectionProvider.type` |
