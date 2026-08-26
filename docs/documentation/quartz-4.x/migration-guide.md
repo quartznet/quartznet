@@ -2286,10 +2286,18 @@ Ids are allocated in ranges by area, and are stable from 4.0 onwards:
 | 6000–8999 | Reserved for `Quartz.Plugins`, `Quartz.Jobs` and `Quartz.Extensions.Redis`, which are converting to the same shape |
 
 Levels and message templates are otherwise **unchanged from 3.x**, so a log query that matched a
-message before still matches it. The one exception is `JobStoreSupport.LogWarnIfNonZero`, which wrote
-the cluster recovery counts at Information when the count was non-zero and at Debug when it was zero,
-whatever its name said: those six messages are Warning events now, raised only when the count is
-non-zero. If you filtered them at Information, filter them at Warning.
+message before still matches it. Two exceptions:
+
+* `JobStoreSupport.LogWarnIfNonZero` wrote the cluster recovery counts at Information when the count
+  was non-zero and at Debug when it was zero, whatever its name said. Those six messages are Warning
+  events now, raised only when the count is non-zero. If you filtered them at Information, filter them
+  at Warning.
+* Four messages carried a typo, corrected while their ids were new: `Removed  {Count} 'complete'
+  triggers.` lost a double space, `complete triggers(s)` became `complete trigger(s)`, `Found
+  {TriggerGroupDeleteCount}delete trigger group commands.` gained the missing space, and the message
+  about a trigger that already existed — spelled with double spaces in one place and single spaces in
+  the other — is one event with the single-space spelling. A query matching those on text needs
+  updating; one matching on event id does not, which is rather the point.
 
 ## The ambient logger factory stays ambient
 

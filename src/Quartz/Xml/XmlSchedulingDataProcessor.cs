@@ -869,7 +869,7 @@ internal class XmlSchedulingDataProcessor
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.TriggerAlreadyExistedWillRescheduleJob(trigger.Key, trigger.JobKey);
+                        logger.TriggerAlreadyExistedWillReschedule(trigger.Key, trigger.JobKey);
                     }
 
                     // Let's rescheduleJob one more time.

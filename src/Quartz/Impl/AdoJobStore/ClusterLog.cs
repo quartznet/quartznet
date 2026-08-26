@@ -68,7 +68,7 @@ internal static partial class ClusterLog
     [LoggerMessage(EventId = 3507, Level = LogLevel.Warning, Message = "ClusterManager: ......Freed {Count} acquired trigger(s).")]
     public static partial void AcquiredTriggersFreed(this ILogger logger, int count);
 
-    [LoggerMessage(EventId = 3508, Level = LogLevel.Warning, Message = "ClusterManager: ......Deleted {Count} complete triggers(s).")]
+    [LoggerMessage(EventId = 3508, Level = LogLevel.Warning, Message = "ClusterManager: ......Deleted {Count} complete trigger(s).")]
     public static partial void CompleteTriggersDeleted(this ILogger logger, int count);
 
     [LoggerMessage(EventId = 3509, Level = LogLevel.Warning, Message = "ClusterManager: ......Scheduled {Count} recoverable job(s) for recovery.")]

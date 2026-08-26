@@ -43,7 +43,7 @@ internal static partial class XmlSchedulingLog
     [LoggerMessage(EventId = 5002, Level = LogLevel.Debug, Message = "Found {JobGroupCount} delete job group commands.")]
     public static partial void FoundDeleteJobGroupCommands(this ILogger logger, int jobGroupCount);
 
-    [LoggerMessage(EventId = 5003, Level = LogLevel.Debug, Message = "Found {TriggerGroupDeleteCount}delete trigger group commands.")]
+    [LoggerMessage(EventId = 5003, Level = LogLevel.Debug, Message = "Found {TriggerGroupDeleteCount} delete trigger group commands.")]
     public static partial void FoundDeleteTriggerGroupCommands(this ILogger logger, int triggerGroupDeleteCount);
 
     [LoggerMessage(EventId = 5004, Level = LogLevel.Debug, Message = "Found {JobsToDeleteCount} delete job commands.")]
@@ -116,11 +116,13 @@ internal static partial class XmlSchedulingLog
     [LoggerMessage(EventId = 5025, Level = LogLevel.Debug, Message = "Scheduling job: {JobKey} with trigger: {TriggerKey}")]
     public static partial void SchedulingJob(this ILogger logger, JobKey jobKey, TriggerKey triggerKey);
 
-    [LoggerMessage(EventId = 5026, Level = LogLevel.Debug, Message = "Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed.  This is likely due to a race condition between multiple instances in the cluster.  Will try to reschedule instead.")]
+    /// <remarks>
+    /// Both places that add a trigger and find one already there raise this. They spelled the same
+    /// sentence with different spacing, which would have made it two events for one thing — 5027 is
+    /// deliberately never allocated.
+    /// </remarks>
+    [LoggerMessage(EventId = 5026, Level = LogLevel.Debug, Message = "Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed. This is likely due to a race condition between multiple instances in the cluster. Will try to reschedule instead.")]
     public static partial void TriggerAlreadyExistedWillReschedule(this ILogger logger, TriggerKey triggerKey, JobKey jobKey);
-
-    [LoggerMessage(EventId = 5027, Level = LogLevel.Debug, Message = "Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed. This is likely due to a race condition between multiple instances in the cluster. Will try to reschedule instead.")]
-    public static partial void TriggerAlreadyExistedWillRescheduleJob(this ILogger logger, TriggerKey triggerKey, JobKey jobKey);
 
     [LoggerMessage(EventId = 5028, Level = LogLevel.Information, Message = "Not overwriting existing trigger: {JobKey}")]
     public static partial void NotOverwritingExistingTrigger(this ILogger logger, TriggerKey jobKey);
