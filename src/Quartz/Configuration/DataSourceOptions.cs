@@ -1,3 +1,7 @@
+using System.Data.Common;
+
+using Quartz.Impl.AdoJobStore.Common;
+
 namespace Quartz;
 
 /// <summary>
@@ -62,6 +66,57 @@ public sealed class DataSourceOptions
     public string Provider { get; set; } = "";
 
     /// <summary>
+    /// The driver's own <see cref="DbProviderFactory"/> — normally its <c>Instance</c> singleton —
+    /// which Quartz asks for connections rather than constructing the types
+    /// <see cref="Provider"/> names.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the registration a trimmed or ahead-of-time-compiled application uses. Naming a driver
+    /// resolves its connection, command and parameter types with <c>Type.GetType</c>, which a trimmer
+    /// cannot see through, so it removes what those names point at; a factory hands back an instance of
+    /// each instead. <see cref="Provider"/> is still set — it decides how parameters are spelled — but
+    /// only the half of its description that names no type is read.
+    /// </para>
+    /// <para>
+    /// Settable from code only, since a configuration binder has no way to produce one:
+    /// <c>UseSqlServer(SqlClientFactory.Instance, connectionString)</c> and its siblings are how it is
+    /// normally set.
+    /// </para>
+    /// </remarks>
+    public DbProviderFactory? ProviderFactory { get; set; }
+
+    /// <summary>
+    /// The driver description, supplied in code rather than resolved from <see cref="Provider"/>.
+    /// </summary>
+    /// <remarks>
+    /// For a driver Quartz ships no description for and an application would rather describe than name:
+    /// <c>UseGenericDatabase(factory, connectionString, metadata)</c> sets this. Set, it is the
+    /// description, and <see cref="Provider"/> is not consulted — there is nothing left to look up.
+    /// </remarks>
+    public DbMetadata? ProviderMetadata { get; set; }
+
+    /// <summary>
+    /// Applied to every command Quartz mints for this data source.
+    /// </summary>
+    /// <remarks>
+    /// Copied onto the driver description as <see cref="DbMetadata.ConfigureCommand"/>, which says what
+    /// it is for. Oracle is the driver that needs it: it binds parameters by position unless
+    /// <c>OracleCommand.BindByName</c> is set, and Quartz cannot name <c>OracleCommand</c>.
+    /// </remarks>
+    public Action<DbCommand>? ConfigureCommand { get; set; }
+
+    /// <summary>
+    /// Applied to every parameter Quartz binds a blob to.
+    /// </summary>
+    /// <remarks>
+    /// Copied onto the driver description as <see cref="DbMetadata.ConfigureBinaryParameter"/>, which
+    /// says what it is for. Oracle is the driver that needs it: <see cref="System.Data.DbType.Binary"/>
+    /// means <c>OracleDbType.Raw</c> there, which caps a job data map at two kilobytes.
+    /// </remarks>
+    public Action<DbParameter>? ConfigureBinaryParameter { get; set; }
+
+    /// <summary>
     /// The connection string used to reach the database.
     /// </summary>
     /// <remarks>
@@ -113,5 +168,5 @@ public sealed class DataSourceOptions
     /// container's service provider. Like <see cref="DataSourceServiceKey"/> it is settable from code
     /// only.
     /// </remarks>
-    public Func<IServiceProvider, System.Data.Common.DbDataSource>? DataSourceFactory { get; set; }
+    public Func<IServiceProvider, DbDataSource>? DataSourceFactory { get; set; }
 }

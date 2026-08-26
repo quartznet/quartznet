@@ -23,6 +23,21 @@ internal sealed class FakeDataSource : DbDataSource
 }
 
 /// <summary>
+/// The factory a driver ships, made of nothing. It is what a registration passes instead of naming the
+/// driver's types, so it hands back the same fakes the description would have named.
+/// </summary>
+internal sealed class FakeDbProviderFactory : DbProviderFactory
+{
+    public static readonly FakeDbProviderFactory Instance = new();
+
+    public override DbConnection CreateConnection() => new FakeConnection();
+
+    public override DbCommand CreateCommand() => new FakeCommand();
+
+    public override DbParameter CreateParameter() => new FakeParameter();
+}
+
+/// <summary>
 /// A connection that counts the commands asked of it, which is all these tests look at.
 /// </summary>
 internal sealed class FakeConnection : DbConnection
