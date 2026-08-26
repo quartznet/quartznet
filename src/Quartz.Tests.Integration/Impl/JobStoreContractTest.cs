@@ -1876,6 +1876,130 @@ public abstract class JobStoreContractTest
     protected abstract string StoreInstanceId { get; }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Unblocking the triggers of a job that forbids concurrent execution
+    //
+    // A trigger blocked behind a running execution is out of the acquisition set and out of the
+    // misfire sweep's, so however late it gets while it waits, the completion that unblocks it is the
+    // first thing that can settle the debt - and it is where both stores settle it. A store that
+    // instead left the policy to the next acquisition would hand a caller a past-due fire time in the
+    // window between, which is the divergence #3463 reported.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task UnblockingAnOverdueTriggerAppliesItsMisfirePolicy()
+    {
+        // FireOnceNow: the missed firing is owed and is fired as soon as the scheduler gets to it, so
+        // the unblocked trigger comes back due now rather than due in the past.
+        BlockedTrigger blocked = await GivenAnOverdueTriggerBlockedBehindAFiring(
+            CronTriggerMisfireInstruction.FireAndProceed, endAt: null);
+
+        DateTimeOffset completionStarted = DateTimeOffset.UtcNow;
+        await Store.TriggeredJobComplete(blocked.Firing, blocked.Job, SchedulerInstruction.NoInstruction);
+        DateTimeOffset completionFinished = DateTimeOffset.UtcNow;
+
+        (await Store.GetTriggerState(blocked.Key)).Should().Be(TriggerState.Normal,
+            "the trigger has a firing left to do, so completing the execution that blocked it leaves it waiting");
+
+        IOperableTrigger readBack = await Store.GetTrigger(blocked.Key);
+
+        readBack.NextFireTimeUtc.Should().NotBeNull("a trigger that owes a firing has a fire time");
+        readBack.NextFireTimeUtc.Value.Should().BeOnOrAfter(completionStarted).And.BeOnOrBefore(completionFinished,
+            "FireOnceNow reschedules to the moment its policy is applied, and the policy is applied while "
+            + "TriggeredJobComplete is unblocking the trigger - a store that left it to the next acquisition "
+            + "would still be reporting the fire time the trigger missed");
+    }
+
+    [Test]
+    public async Task UnblockingATriggerWithNothingLeftToFireRemovesIt()
+    {
+        // DoNothing past the trigger's end time: the policy writes the missed firing off and looks for
+        // the next scheduled one, and the schedule has ended.
+        BlockedTrigger blocked = await GivenAnOverdueTriggerBlockedBehindAFiring(
+            CronTriggerMisfireInstruction.DoNothing, endAt: DateTimeOffset.UtcNow.AddMinutes(-30));
+
+        await Store.TriggeredJobComplete(blocked.Firing, blocked.Job, SchedulerInstruction.NoInstruction);
+
+        (await Store.GetTrigger(blocked.Key)).Should().BeNull(
+            "a trigger whose policy left it with nothing to fire is finished, and a store that kept it "
+            + "would go on handing callers a trigger that can never fire again");
+        (await Store.GetTriggerState(blocked.Key)).Should().Be(TriggerState.None,
+            "a trigger that is gone has no state");
+        (await Store.GetJob(blocked.Job.Key)).Should().NotBeNull(
+            "the job still has the trigger that was running, so removing the finished one must not take it");
+    }
+
+    /// <summary>
+    /// Fires one trigger of a job that forbids concurrent execution and leaves a second trigger of the
+    /// same job blocked behind it, long past its own fire time.
+    /// </summary>
+    /// <remarks>
+    /// The blocked trigger is stored after the first one has been acquired, so that it is the fan-out in
+    /// <see cref="IJobStore.TriggersFired" /> that blocks it rather than the store finding the job
+    /// already blocked as the trigger was added. Its fire time is written back by hand, because
+    /// <see cref="IOperableTrigger.ComputeFirstFireTimeUtc" /> advances a past-due schedule to its next
+    /// future slot: a trigger nobody got around to firing is what an hour in the past looks like.
+    /// </remarks>
+    private async Task<BlockedTrigger> GivenAnOverdueTriggerBlockedBehindAFiring(
+        CronTriggerMisfireInstruction instruction,
+        DateTimeOffset? endAt)
+    {
+        IJobDetail job = JobBuilder.Create<NonConcurrentContractTestJob>()
+            .WithIdentity("blocking", JobGroupA)
+            .Build();
+
+        IOperableTrigger running = CreateTrigger("running", TriggerGroupA, job.Key,
+            startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(job, running);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 1
+        });
+
+        IOperableTrigger firing = acquired.Should().ContainSingle(x => x.Key.Equals(running.Key),
+            "the trigger that does the blocking has to be handed over before it can fire").Subject;
+
+        TriggerKey blockedKey = new TriggerKey("blocked", TriggerGroupA);
+        DateTimeOffset overdue = DateTimeOffset.UtcNow.AddHours(-1);
+
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create()
+            .WithIdentity(blockedKey)
+            .ForJob(job.Key)
+            .StartAt(DateTimeOffset.UtcNow.AddHours(-2))
+            // Every second, so that "the next slot after now" exists whatever second the test runs in,
+            // and the end time is the only thing that can take it away.
+            .WithCronSchedule("* * * * * ?", x => x
+                .InTimeZone(TimeZoneInfo.Utc)
+                .WithMisfireInstruction(instruction));
+
+        if (endAt is not null)
+        {
+            builder = builder.EndAt(endAt);
+        }
+
+        IOperableTrigger blocked = (IOperableTrigger) builder.Build();
+        blocked.ComputeFirstFireTimeUtc(null);
+        blocked.NextFireTimeUtc = overdue;
+
+        await Store.AddTrigger(blocked, replace: false);
+
+        List<TriggerFiredResult> fired = await Store.TriggersFired([firing]);
+        fired.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull(
+            "the blocking execution has to actually start, or nothing is blocked");
+
+        (await Store.GetTriggerState(blockedKey)).Should().Be(TriggerState.Blocked,
+            "firing one trigger of a job that forbids concurrent execution blocks the rest of them");
+        (await Store.GetTrigger(blockedKey)).NextFireTimeUtc.Should().Be(overdue,
+            "the missed firing is still owed while the trigger is blocked: nothing sweeps a blocked trigger");
+
+        return new BlockedTrigger(blockedKey, job, firing);
+    }
+
+    /// <summary>The blocked trigger, the job blocking it, and the firing that has to complete to let it go.</summary>
+    private sealed record BlockedTrigger(TriggerKey Key, IJobDetail Job, IOperableTrigger Firing);
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Helpers
     //////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -2004,6 +2128,16 @@ public abstract class JobStoreContractTest
     /// A second job type, so that a test can tell two jobs apart by their type rather than their key.
     /// </summary>
     public sealed class OtherContractTestJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// A job that forbids concurrent execution, which is what makes a store block the rest of its
+    /// triggers while one of them is firing.
+    /// </summary>
+    [DisallowConcurrentExecution]
+    public sealed class NonConcurrentContractTestJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
