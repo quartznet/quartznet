@@ -26,6 +26,7 @@ using System.Runtime.Serialization;
 using FakeItEasy;
 
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -755,6 +756,146 @@ public class StdAdoDelegateTest
         var act = () => adoDelegate.Initialize(driverDelegateContext);
 
         act.Should().NotThrow("the registered set arrives typed, the same delegate twice included");
+    }
+
+    /// <summary>
+    /// A trigger materialized from its rows computes its misfires against the clock the store runs on,
+    /// whatever type of trigger it turns out to be. The store selects a misfired trigger by its own
+    /// <see cref="TimeProvider" />; if the trigger it hands back reads a different one, the recovery is
+    /// arithmetic on two clocks.
+    /// </summary>
+    [TestCaseSource(nameof(EveryTriggerTypeAStoreReadsBack))]
+    public async Task ATriggerReadBackCarriesTheStoresClock(string discriminator, IScheduleBuilder schedule)
+    {
+        FakeTimeProvider clock = new FakeTimeProvider(new DateTimeOffset(2024, 3, 31, 1, 15, 0, TimeSpan.Zero));
+
+        ITriggerPersistenceDelegate persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
+        A.CallTo(() => persistenceDelegate.ReadTriggerPropertyBundle(A<DbDataReader>._))
+            .Returns(new TriggerPropertyBundle(schedule));
+        A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>._, A<TriggerKey>._, A<CancellationToken>._))
+            .Returns(new ValueTask<TriggerPropertyBundle>(new TriggerPropertyBundle(schedule)));
+
+        StdAdoDelegate adoDelegate = new TestStdAdoDelegate(persistenceDelegate);
+        DbDataReader dataReader = InitializeForTriggerRead(adoDelegate, clock, out ConnectionAndTransactionHolder conn);
+        DescribeTriggerRow(dataReader, discriminator);
+
+        IOperableTrigger trigger = await adoDelegate.SelectTrigger(conn, new TriggerKey("read-back", "DEFAULT"));
+
+        trigger.Should().BeAssignableTo<TriggerBase>()
+            .Which.TimeProvider.Should().BeSameAs(clock,
+                "the store built this {0} trigger out of rows, so the only clock it can have is the store's",
+                discriminator);
+    }
+
+    /// <summary>
+    /// And a trigger that came out of BLOB_TRIGGERS, which is the one case where the store cannot have
+    /// built it: the clock does not serialize, so a deserialized trigger arrives on the system clock
+    /// and the store has to say otherwise.
+    /// </summary>
+    [Test]
+    public async Task ABlobTriggerReadBackCarriesTheStoresClock()
+    {
+        FakeTimeProvider clock = new FakeTimeProvider(new DateTimeOffset(2024, 3, 31, 1, 15, 0, TimeSpan.Zero));
+
+        // No clock, exactly as deserialization leaves one.
+        SimpleTriggerImpl deserialized = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("read-back", "DEFAULT"),
+            JobKey = new JobKey("testJob", "DEFAULT")
+        };
+
+        deserialized.TimeProvider.Should().BeSameAs(TimeProvider.System,
+            "the premise: a trigger nobody handed a clock reads the machine's");
+
+        StdAdoDelegate adoDelegate = new BlobTriggerOverrideDelegate(deserialized);
+        DbDataReader dataReader = InitializeForTriggerRead(adoDelegate, clock, out ConnectionAndTransactionHolder conn);
+        DescribeTriggerRow(dataReader, AdoConstants.TriggerTypeBlob);
+
+        IOperableTrigger trigger = await adoDelegate.SelectTrigger(conn, new TriggerKey("read-back", "DEFAULT"));
+
+        trigger.Should().BeSameAs(deserialized, "the blob path hands back the object it deserialized");
+        ((TriggerBase) trigger).TimeProvider.Should().BeSameAs(clock,
+            "the store is the only thing that can give a deserialized trigger a clock, and it has to");
+    }
+
+    /// <summary>
+    /// One row per trigger type a shipped persistence delegate handles, each with the schedule builder
+    /// that delegate returns for it — which is what decides the trigger implementation
+    /// <c>BuildTrigger</c> ends up with.
+    /// </summary>
+    private static IEnumerable<TestCaseData> EveryTriggerTypeAStoreReadsBack()
+    {
+        yield return new TestCaseData(AdoConstants.TriggerTypeCron, CronScheduleBuilder.Create("0 30 * * * ?"));
+        yield return new TestCaseData(AdoConstants.TriggerTypeSimple, SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).RepeatForever());
+        yield return new TestCaseData(AdoConstants.TriggerTypeCalendarInterval, CalendarIntervalScheduleBuilder.Create().WithInterval(1, IntervalUnit.Day));
+        yield return new TestCaseData(AdoConstants.TriggerTypeDailyTimeInterval, DailyTimeIntervalScheduleBuilder.Create().WithInterval(15, IntervalUnit.Minute));
+        yield return new TestCaseData(AdoConstants.TriggerTypeRecurrence, RecurrenceScheduleBuilder.Create("FREQ=DAILY"));
+    }
+
+    /// <summary>
+    /// Puts a delegate on a faked provider and initializes it with the given clock, handing back the
+    /// reader its statements will read from.
+    /// </summary>
+    private DbDataReader InitializeForTriggerRead(StdAdoDelegate adoDelegate, TimeProvider timeProvider, out ConnectionAndTransactionHolder conn)
+    {
+        IDbProvider dbProvider = A.Fake<IDbProvider>();
+        DbCommand command = (DbCommand) A.Fake<StubCommand>();
+        A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata());
+        A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
+
+        DbDataReader dataReader = FakeReader();
+        A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+            .WithReturnType<Task<DbDataReader>>()
+            .Returns(Task.FromResult(dataReader));
+        A.CallTo(command).Where(x => x.Method.Name == "get_DbParameterCollection")
+            .WithReturnType<DbParameterCollection>()
+            .Returns(new StubParameterCollection());
+        A.CallTo(command).Where(x => x.Method.Name == "CreateDbParameter")
+            .WithReturnType<DbParameter>()
+            .Returns(new SqlParameter());
+        A.CallTo(() => command.CommandText).Returns("");
+
+        adoDelegate.Initialize(new DriverDelegateContext
+        {
+            TablePrefix = "QRTZ_",
+            InstanceId = "TESTSCHED",
+            SchedulerName = "INSTANCE",
+            TypeLoader = new SimpleTypeLoader(),
+            UseProperties = false,
+            DbProvider = dbProvider,
+            ObjectSerializer = serializer,
+            TimeProvider = timeProvider
+        });
+
+        conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), A.Fake<DbTransaction>());
+        return dataReader;
+    }
+
+    /// <summary>
+    /// One TRIGGERS row of the given type, with nothing on it that the clock question depends on.
+    /// </summary>
+    private static void DescribeTriggerRow(DbDataReader dataReader, string discriminator)
+    {
+        A.CallTo(() => dataReader.ReadAsync(CancellationToken.None)).Returns(true);
+
+        A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(discriminator);
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobName]).Returns("testJob");
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("DEFAULT");
+        A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnCalendarName]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMisfireInstruction]).Returns(MisfireInstruction.SmartPolicy);
+        A.CallTo(() => dataReader[AdoConstants.ColumnPriority]).Returns(5);
+        A.CallTo(() => dataReader[AdoConstants.ColumnNextFireTime]).Returns(new DateTimeOffset(2024, 3, 31, 0, 30, 0, TimeSpan.Zero).UtcTicks);
+        A.CallTo(() => dataReader[AdoConstants.ColumnPreviousFireTime]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnStartTime]).Returns(new DateTimeOffset(2024, 3, 30, 0, 30, 0, TimeSpan.Zero).UtcTicks);
+        A.CallTo(() => dataReader[AdoConstants.ColumnEndTime]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMisfireOriginalFireTime]).Returns(DBNull.Value);
+
+        // The job data map column reads as absent, and so does the preferred-node auto-claim flag;
+        // both are read by literal ordinal, well below the ones FakeReader hands out.
+        A.CallTo(() => dataReader.IsDBNull(11)).Returns(true);
+        A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto)).Returns(20);
+        A.CallTo(() => dataReader.IsDBNull(20)).Returns(true);
     }
 
     /// <summary>

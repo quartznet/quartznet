@@ -162,11 +162,17 @@ public sealed class MisfireAcrossDstTransitionTest
     /// The same sweep against a database: one pass, the trigger back in waiting, and the value that
     /// survives a restart written into <c>NEXT_FIRE_TIME</c> rather than only onto an object.
     /// </summary>
-    [TestCase("SpringForward", MisfireInstruction.CronTrigger.FireOnceNow)]
-    [TestCase("SpringForward", MisfireInstruction.CronTrigger.DoNothing)]
-    [TestCase("FallBack", MisfireInstruction.CronTrigger.FireOnceNow)]
-    [TestCase("FallBack", MisfireInstruction.CronTrigger.DoNothing)]
-    public async Task OneSweepRecoversTheTriggerAndWritesTheColumn(string direction, int misfireInstruction)
+    /// <remarks>
+    /// The expected instants are the in-memory twin's, cell for cell. They can be: the trigger the
+    /// store rebuilds out of the row is handed the store's clock, so the two stores' misfire
+    /// arithmetic is the same arithmetic. Before that they were not — the rebuilt trigger read
+    /// <c>TimeProvider.System</c> and recovery landed on whenever the test happened to run.
+    /// </remarks>
+    [TestCase("SpringForward", MisfireInstruction.CronTrigger.FireOnceNow, "2024-03-31 04:15 +03:00")]
+    [TestCase("SpringForward", MisfireInstruction.CronTrigger.DoNothing, "2024-03-31 04:30 +03:00")]
+    [TestCase("FallBack", MisfireInstruction.CronTrigger.FireOnceNow, "2024-10-27 03:15 +02:00")]
+    [TestCase("FallBack", MisfireInstruction.CronTrigger.DoNothing, "2024-10-27 03:30 +02:00")]
+    public async Task OneSweepRecoversTheTriggerAndWritesTheColumn(string direction, int misfireInstruction, string expectedNextFireTime)
     {
         TimeZoneInfo zone = TestTimeZones.Helsinki;
         DstMisfire scenario = ResolveScenario(direction, zone);
@@ -203,25 +209,15 @@ public sealed class MisfireAcrossDstTransitionTest
         (await ReadNextFireTimeColumn(triggerKey)).Should().Be(recovered.NextFireTimeUtc,
             "NEXT_FIRE_TIME is what a restarted scheduler reads, so it is what recovery has to have written");
 
-        DateTimeOffset expected = ExpectedByTriggerArithmetic(triggerKey, job.Key, zone, clock, misfireInstruction, scenario);
         DateTimeOffset next = recovered.NextFireTimeUtc.Value;
 
-        if (next != expected)
-        {
-            Assert.Inconclusive(
-                $"Recovery did not compute against the store's clock. Stored NEXT_FIRE_TIME is {next:O} "
-                + $"(local {TimeZoneInfo.ConvertTime(next, zone):yyyy-MM-dd HH:mm zzz}); the same trigger holding the store's "
-                + $"clock computes {expected:O} (local {TimeZoneInfo.ConvertTime(expected, zone):yyyy-MM-dd HH:mm zzz}) for "
-                + $"misfire instruction {misfireInstruction} at a store 'now' of {scenario.SweepAt:O}. The store selects "
-                + "misfired triggers with its own TimeProvider, but the trigger it rebuilds from the row comes from "
-                + "TriggerBuilder.Create() with no clock, so UpdateAfterMisfire reads TimeProvider.System - the machine's wall "
-                + "clock - and the recovered fire time has nothing to do with the transition under test. The in-memory case "
-                + "above passes because that store keeps the trigger object it was handed, clock included.");
-        }
+        next.Should().Be(TestTimeZones.Local(expectedNextFireTime),
+            "the store's clock says {0:O}, and the trigger it rebuilt out of the row holds that same clock, so the "
+            + "{1} transition is accounted for exactly once - and to the same instant the in-memory twin lands on",
+            scenario.SweepAt, direction);
 
-        next.Should().Be(expected,
-            "the fire time recovery writes is the one the trigger's own misfire policy computes at the store's now, so the "
-            + "{0} transition is accounted for exactly once", direction);
+        next.Should().Be(ExpectedByTriggerArithmetic(triggerKey, job.Key, zone, clock, misfireInstruction, scenario),
+            "what recovery writes is what the trigger's own misfire policy computes - the store applies it, it does not invent one");
     }
 
     /// <summary>
@@ -298,10 +294,10 @@ public sealed class MisfireAcrossDstTransitionTest
         int misfireInstruction,
         DateTimeOffset missedFireTime)
     {
-        // Built by hand rather than through TriggerBuilder, because the builder does not hand the
-        // trigger the clock it was created with and every "now" a cron trigger reads - the past-due
-        // clamp in ComputeFirstFireTimeUtc, and the whole of UpdateAfterMisfire - would then be the
-        // machine's wall clock rather than this test's.
+        // Built by hand rather than through TriggerBuilder: the last step states NextFireTimeUtc,
+        // which only the implementation exposes. TriggerBuilder.Create(clock) would hand over the
+        // clock just as well, but this doubles as the oracle for what the store rebuilds, and an
+        // oracle that goes through the same builder the store does would move with it.
         CronTriggerImpl trigger = new CronTriggerImpl(clock)
         {
             Key = triggerKey,
