@@ -134,6 +134,25 @@ public class WireFormatSnapshotTest : WebApiTest
         await VerifyBody(body);
     }
 
+    /// <summary>
+    /// The scheduler listing, whose two shapes are the point of it: a scheduler that exists, and a
+    /// registration nothing has built.
+    /// </summary>
+    /// <remarks>
+    /// The test application registers a default scheduler and never builds it, so the second shape is
+    /// there without arranging anything — <c>status</c> and <c>schedulerInstanceId</c> both <c>null</c>,
+    /// rather than the entry being missing as it was before the listing read the registry. <c>origin</c>
+    /// goes out as its name, like every other enum on this wire.
+    /// </remarks>
+    [Test]
+    public async Task SchedulerListingBody()
+    {
+        A.CallTo(() => FakeScheduler.Status).Returns(SchedulerStatus.Running);
+
+        string body = await Get("schedulers");
+        await VerifyBody(body);
+    }
+
     [Test]
     public async Task SchedulerBody()
     {

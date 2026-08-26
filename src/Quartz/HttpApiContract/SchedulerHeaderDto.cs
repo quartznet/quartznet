@@ -21,12 +21,29 @@
 
 namespace Quartz.HttpApiContract;
 
-internal record SchedulerHeaderDto(string Name, string SchedulerInstanceId, SchedulerStatus Status)
+/// <summary>
+/// One scheduler in the listing: a registration, and the scheduler behind it when there is one.
+/// </summary>
+/// <remarks>
+/// <see cref="Status" /> and <see cref="SchedulerInstanceId" /> are <see langword="null" /> together,
+/// for a registration nothing has built. Listing the registrations is what lets an operator see a
+/// tenant that has not started; building one to fill the listing in would start every tenant an
+/// inventory touched.
+/// </remarks>
+internal record SchedulerHeaderDto(
+    string Name,
+    string? SchedulerInstanceId,
+    SchedulerStatus? Status,
+    SchedulerOrigin Origin)
 {
-    public static SchedulerHeaderDto Create(IScheduler scheduler)
+    public static SchedulerHeaderDto Create(SchedulerRegistration registration, IScheduler? scheduler)
     {
-        ArgumentNullException.ThrowIfNull(scheduler);
+        ArgumentNullException.ThrowIfNull(registration);
 
-        return new SchedulerHeaderDto(scheduler.SchedulerName, scheduler.SchedulerInstanceId, scheduler.Status);
+        return new SchedulerHeaderDto(
+            registration.Name,
+            scheduler?.SchedulerInstanceId,
+            registration.Status,
+            registration.Origin);
     }
 }

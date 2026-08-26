@@ -18,10 +18,11 @@ namespace Quartz.Tests.AspNetCore.HttpApi;
 /// </summary>
 /// <remarks>
 /// Both routes resolve through <see cref="ISchedulerRepository" />, which holds the schedulers something
-/// has already created and indexes them ignoring case. That is two separate statements in
-/// <c>multi-tenancy.md</c> — the "the dashboard and the HTTP API list the repository, not the registry"
-/// box, and the scheduler name being compared case-insensitively there while the container compares
-/// service keys ordinally — and neither had gone through the wire.
+/// has already created and indexes them ignoring case: a tenant nothing has built answers <c>404</c>,
+/// and one asked for under another casing resolves. The <em>listing</em> is the one read that does not
+/// go through the repository — it answers from <see cref="ISchedulerRegistry" />, so the tenant that is
+/// missing from the routes is present there, which is how a caller tells "not built yet" from "no such
+/// tenant".
 /// </remarks>
 [NonParallelizable]
 public sealed class TenantSchedulerRoutingTest
@@ -41,12 +42,12 @@ public sealed class TenantSchedulerRoutingTest
 
     /// <summary>
     /// The window <c>AddQuartzHostedService()</c> closes and everything else leaves open: the container
-    /// knows the tenant, nothing has built it, and the two views of "what schedulers are there" disagree
-    /// on purpose. The API answering <c>404</c> here is not "unknown name" — it is "nothing has built it
-    /// yet", and <see cref="ISchedulerRegistry" /> is the read that can tell the two apart.
+    /// knows the tenant and nothing has built it. Its routes answer <c>404</c> — not "unknown name" but
+    /// "nothing has built it yet" — while the listing carries it with a null status, which is the
+    /// difference <see cref="ISchedulerRegistry" /> exists to report and the API now passes on.
     /// </summary>
     [Test]
-    public async Task ATenantNothingHasBuiltIsMissingFromTheApiAndPresentInTheRegistry()
+    public async Task ATenantNothingHasBuiltIsListedWithoutAStatusAndItsRoutesAnswerNotFound()
     {
         WebApplicationFactory<Program> application = CreateApplication("acme");
 
@@ -58,8 +59,12 @@ public sealed class TenantSchedulerRoutingTest
             + "answering it by building one would make an operator's dashboard start every tenant it lists");
 
         SchedulerHeaderDto[] listed = await ReadSchedulers(client);
-        listed.Should().NotContain(x => x.Name == "acme",
-            "the listing reads the same repository the lookup does, so a tenant absent from one is absent from both");
+        SchedulerHeaderDto tenant = listed.Should().ContainSingle(x => x.Name == "acme",
+            "the listing reads the registry, so a tenant nothing has built is listed rather than being "
+            + "indistinguishable from a name that does not exist").Subject;
+        tenant.Status.Should().BeNull("null is what says the registration is there and nothing has built it");
+        tenant.SchedulerInstanceId.Should().BeNull("there is no scheduler to have an instance id");
+        tenant.Origin.Should().Be(SchedulerOrigin.Container);
 
         List<SchedulerRegistration> registrations =
             await application.Services.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();

@@ -55,15 +55,33 @@ internal static class SchedulerEndpoints
             .WithQuartzDefaults(nameof(ClearExecutionLimits), "Clear execution group limits");
     }
 
+    /// <summary>
+    /// Lists every scheduler the container knows about, ordered by name.
+    /// </summary>
+    /// <remarks>
+    /// The registrations rather than the repository: a repository holds the schedulers something has
+    /// already built, so a tenant nobody has asked for was invisible here — and the caller could not tell
+    /// that from "no such tenant". Such an entry is listed with a null status, and asking for it does not
+    /// build it. The repository is still read, for the instance id of the schedulers that do exist.
+    /// </remarks>
     [ProducesResponseType(typeof(SchedulerHeaderDto[]), StatusCodes.Status200OK)]
-    private static Task<IResult> GetAllSchedulers(
+    private static async Task<IResult> GetAllSchedulers(
         EndpointHelper endpointHelper,
+        ISchedulerRegistry schedulerRegistry,
         ISchedulerRepository schedulerRepository,
         CancellationToken cancellationToken = default)
     {
-        var schedulers = schedulerRepository.LookupAll();
-        var result = schedulers.Select(SchedulerHeaderDto.Create).ToArray();
-        return Task.FromResult(EndpointHelper.JsonResponse(result));
+        List<SchedulerRegistration> registrations = await schedulerRegistry.QuerySchedulers(cancellationToken).ConfigureAwait(false);
+
+        SchedulerHeaderDto[] result = new SchedulerHeaderDto[registrations.Count];
+        for (int i = 0; i < registrations.Count; i++)
+        {
+            SchedulerRegistration registration = registrations[i];
+            IScheduler? scheduler = registration.IsCreated ? schedulerRepository.Lookup(registration.Name) : null;
+            result[i] = SchedulerHeaderDto.Create(registration, scheduler);
+        }
+
+        return EndpointHelper.JsonResponse(result);
     }
 
     [ProducesResponseType(typeof(SchedulerDto), StatusCodes.Status200OK)]

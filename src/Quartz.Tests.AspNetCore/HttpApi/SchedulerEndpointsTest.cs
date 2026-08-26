@@ -17,11 +17,22 @@ namespace Quartz.Tests.AspNetCore.HttpApi;
 
 public class SchedulerEndpointsTest : WebApiTest
 {
+    /// <summary>
+    /// The listing is the registry's, so it carries both what has been built and what has only been
+    /// registered — and says which is which.
+    /// </summary>
+    /// <remarks>
+    /// The test application registers a default scheduler with <c>AddQuartz()</c> and never builds it,
+    /// which is exactly the case the old listing could not report: it read the repository, so a
+    /// registration nothing had resolved was indistinguishable from a name that did not exist.
+    /// </remarks>
     [Test]
-    public async Task GetAllSchedulersShouldWork()
+    public async Task GetAllSchedulersListsRegistrationsAndTheSchedulersBuiltFromThem()
     {
-        var secondFake = A.Fake<IScheduler>();
+        IScheduler secondFake = A.Fake<IScheduler>();
+        A.CallTo(() => secondFake.SchedulerName).Returns("SecondScheduler");
         A.CallTo(() => secondFake.SchedulerInstanceId).Returns("TEST_2_NON_CLUSTERED");
+        A.CallTo(() => secondFake.Status).Returns(SchedulerStatus.Standby);
         WebApplicationFactory.Services.GetRequiredService<ISchedulerRepository>().Bind(secondFake);
 
         // This endpoint is not used by HttpScheduler, so the reader is built here - off the same wire
@@ -33,9 +44,18 @@ public class SchedulerEndpointsTest : WebApiTest
         var result = await httpClient.Get<SchedulerHeaderDto[]>("schedulers", serializerOptions, CancellationToken.None);
         using (new AssertionScope())
         {
-            result.Length.Should().Be(2);
-            result.Should().ContainSingle(x => x.SchedulerInstanceId == TestData.SchedulerInstanceId);
-            result.Should().ContainSingle(x => x.SchedulerInstanceId == "TEST_2_NON_CLUSTERED");
+            SchedulerHeaderDto bound = result.Should().ContainSingle(x => x.Name == TestData.SchedulerName).Subject;
+            bound.SchedulerInstanceId.Should().Be(TestData.SchedulerInstanceId);
+            bound.Origin.Should().Be(SchedulerOrigin.Runtime, "a scheduler bound into the repository has no registration behind it");
+
+            SchedulerHeaderDto second = result.Should().ContainSingle(x => x.Name == "SecondScheduler").Subject;
+            second.SchedulerInstanceId.Should().Be("TEST_2_NON_CLUSTERED");
+            second.Status.Should().Be(SchedulerStatus.Standby);
+
+            SchedulerHeaderDto registered = result.Should().ContainSingle(x => x.Name == QuartzSchedulerOptions.DefaultInstanceName).Subject;
+            registered.Status.Should().BeNull("nothing has built the default scheduler, and listing it did not");
+            registered.SchedulerInstanceId.Should().BeNull("there is no scheduler to have an instance id");
+            registered.Origin.Should().Be(SchedulerOrigin.Container);
         }
     }
 
