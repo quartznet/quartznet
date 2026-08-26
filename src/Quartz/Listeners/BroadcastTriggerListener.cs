@@ -22,6 +22,7 @@
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
+using Quartz.Util;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -151,8 +152,7 @@ public sealed class BroadcastTriggerListener : ITriggerListener
             {
                 if (logger.IsEnabled(LogLevel.Error))
                 {
-                    logger.LogError(e, "Listener {ListenerName} - method {MethodName} raised an exception: {ExceptionMessage}",
-                        listener.Name, methodName, e.Message);
+                    logger.ListenerRaisedException(listener.Name, methodName, e.Message, e);
                 }
             }
         }

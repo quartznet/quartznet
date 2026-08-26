@@ -29,7 +29,7 @@ internal static class QuartzEnvironment
         catch (SecurityException)
         {
             var log = LogProvider.CreateLogger(nameof(QuartzEnvironment));
-            log.LogWarning("Unable to read environment variable '{Key}' due to security exception, probably running under medium trust", key);
+            log.EnvironmentVariableReadDenied(key);
         }
         return null;
     }
@@ -51,7 +51,7 @@ internal static class QuartzEnvironment
         catch (SecurityException)
         {
             var log = LogProvider.CreateLogger(nameof(QuartzEnvironment));
-            log.LogWarning("Unable to read environment variables due to security exception, probably running under medium trust");
+            log.EnvironmentVariablesReadDenied();
         }
         return retValue;
     }
