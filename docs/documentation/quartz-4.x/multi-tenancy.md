@@ -440,7 +440,10 @@ anonymous caller gets whatever the policy says, which is a `403` when it refuses
 passes for; a page opened on one they do not renders a "not authorized" frame and reads nothing about that
 scheduler; and the live-events hub refuses to subscribe a connection to its group. It composes with what
 was already there: `AuthorizationPolicy` decides who reaches the dashboard at all, this decides which
-schedulers they see once they are in, and `ReadOnly` still decides what anyone may change.
+schedulers they see once they are in, and `ReadOnly` still decides what anyone may change. That frame is
+the dashboard's own layout, so read
+[Standalone hosting is where this applies today](packages/dashboard.md#one-scheduler-at-a-time) before
+relying on it in an application that hosts the components under a layout of its own.
 
 Null — the default — is the behaviour every earlier release had, so nothing changes for an application
 that does not set it. Setting it in a container with no authorization services fails at startup rather
