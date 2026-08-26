@@ -40,29 +40,29 @@ internal sealed class ExceptionHandler
     {
         if (exception is BadHttpRequestException badHttpRequestException)
         {
-            logger.LogDebug(exception, "BadHttpRequestException thrown");
+            logger.BadHttpRequest(exception);
             return Problem(exception, GetMessageWithInnerExceptionMessage(exception), badHttpRequestException.StatusCode);
         }
 
         if (exception is JsonSerializationException)
         {
-            logger.LogDebug(exception, "Failed to deserialize request");
+            logger.RequestDeserializationFailed(exception);
             return Problem(exception, GetMessageWithInnerExceptionMessage(exception), StatusCodes.Status400BadRequest);
         }
 
         if (exception is NotFoundException)
         {
-            logger.LogDebug(exception, "NotFoundException thrown");
+            logger.NotFound(exception);
             return Problem(exception, GetMessageWithInnerExceptionMessage(exception), StatusCodes.Status404NotFound);
         }
 
         if (exception is SchedulerException)
         {
-            logger.LogWarning(exception, "SchedulerException thrown when handling api request to url {Url}", context.Request.GetDisplayUrl());
+            logger.SchedulerExceptionHandlingRequest(context.Request.GetDisplayUrl(), exception);
             return Problem(exception, exception.Message, StatusCodes.Status400BadRequest);
         }
 
-        logger.LogError(exception, "Exception thrown when handling api request to url {Url}", context.Request.GetDisplayUrl());
+        logger.ExceptionHandlingRequest(context.Request.GetDisplayUrl(), exception);
         return Problem(exception, exception.Message, StatusCodes.Status500InternalServerError, nameTheExceptionType: false);
     }
 
