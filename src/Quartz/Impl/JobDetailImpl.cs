@@ -65,10 +65,48 @@ internal sealed class JobTypeInformation
 
     private static JobTypeInformation Create([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type jobType)
     {
-        var concurrentExecutionDisallowed = ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute));
-        var persistJobDataAfterExecution = ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute));
+        var concurrentExecutionDisallowed = IsAttributePresentOnTypeOrItsInterfaces(jobType, typeof(DisallowConcurrentExecutionAttribute));
+        var persistJobDataAfterExecution = IsAttributePresentOnTypeOrItsInterfaces(jobType, typeof(PersistJobDataAfterExecutionAttribute));
 
         return new JobTypeInformation(concurrentExecutionDisallowed, persistJobDataAfterExecution);
+    }
+
+    /// <summary>
+    /// Whether the type, anything it inherits from, or any interface it implements carries the attribute.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The interfaces are walked because a job is allowed to inherit <see cref="DisallowConcurrentExecutionAttribute" />
+    /// from a contract rather than declaring it — a job that implements <c>INightlyReport</c> gets what
+    /// that interface says about concurrency. They are walked flat rather than recursively, because
+    /// <see cref="Type.GetInterfaces" /> already reports the ones an interface itself inherits; the
+    /// recursion asked the same question twice, and asking it once is what lets the requirement stop at
+    /// <see cref="DynamicallyAccessedMemberTypes.Interfaces" /> instead of travelling.
+    /// </para>
+    /// <para>
+    /// No annotation is needed on the attribute lookup itself: an attribute is part of the metadata of a
+    /// type that survives trimming at all, so the trimmer has nothing to preserve on its account. Only
+    /// <see cref="Type.GetInterfaces" /> asks for anything, and it asks for one flag.
+    /// </para>
+    /// </remarks>
+    private static bool IsAttributePresentOnTypeOrItsInterfaces(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type typeToExamine,
+        Type attributeType)
+    {
+        if (typeToExamine.GetCustomAttributes(attributeType, inherit: true).Length > 0)
+        {
+            return true;
+        }
+
+        foreach (var interfaceType in typeToExamine.GetInterfaces())
+        {
+            if (interfaceType.GetCustomAttributes(attributeType, inherit: true).Length > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public bool ConcurrentExecutionDisallowed { get; }
