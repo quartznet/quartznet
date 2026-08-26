@@ -57,7 +57,7 @@ internal sealed class DataSourceDbProvider : DbProvider
     internal DbCommand CreateCommand(DbConnection connection)
     {
         DbCommand command = connection.CreateCommand();
-        ApplyDriverCommandSettings(command);
+        Metadata.ApplyCommandSettings(command);
         return command;
     }
 }

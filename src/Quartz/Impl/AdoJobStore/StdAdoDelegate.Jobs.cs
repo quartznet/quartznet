@@ -30,7 +30,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
         AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
         AddCommandParameter(cmd, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
-        AddCommandParameter(cmd, "jobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, "jobDataMap", jobData, DbProvider.Metadata.BinaryParameterType);
         AddCommandParameter(cmd, "jobName", job.Key.Name);
         AddCommandParameter(cmd, "jobGroup", job.Key.Group);
 
@@ -129,7 +129,7 @@ public partial class StdAdoDelegate
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateJobData));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "jobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, "jobDataMap", jobData, DbProvider.Metadata.BinaryParameterType);
         AddCommandParameter(cmd, "jobName", job.Key.Name);
         AddCommandParameter(cmd, "jobGroup", job.Key.Group);
 
@@ -433,7 +433,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
         AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
         AddCommandParameter(cmd, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
-        AddCommandParameter(cmd, "jobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, "jobDataMap", jobData, DbProvider.Metadata.BinaryParameterType);
 
         var insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 

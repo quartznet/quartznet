@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Data;
+using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -34,15 +36,24 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// <para>
 /// An init-only record: a description is built once — with an object initializer, or copied with a
 /// <c>with</c> expression — and cannot drift afterwards. Everything on it is something you say about a
-/// driver. The two reflection lookups that description implies — <see cref="DbBinaryTypeName" />
-/// resolved against <see cref="ParameterDbType" />, and the property
-/// <see cref="ParameterDbTypePropertyName" /> names on <see cref="ParameterType" /> — are Quartz's
-/// own, and are internal.
+/// driver. The reflection lookups that description implies — <see cref="DbBinaryTypeName" /> resolved
+/// against <see cref="ParameterDbType" />, the property <see cref="ParameterDbTypePropertyName" />
+/// names on <see cref="ParameterType" />, and <c>BindByName</c> on <see cref="CommandType" /> — are
+/// Quartz's own, and are internal.
 /// </para>
 /// <para>
 /// They replace the old two-phase <c>Initialize()</c> that had to be remembered. A description that
-/// cannot work still fails where it is made rather than at the first binary parameter: both lookups
-/// are performed once, as the metadata is registered.
+/// cannot work still fails where it is made rather than at the first binary parameter: every lookup
+/// is performed once, as the metadata is registered.
+/// </para>
+/// <para>
+/// Every <c>Type</c> here is optional, because a description only needs them when Quartz has to
+/// <em>construct</em> the driver's objects — which is what <see cref="DbProvider" /> does and what a
+/// trimmed application cannot rely on. A description handed to <c>ProviderFactoryDbProvider</c> or
+/// <c>DataSourceDbProvider</c> gets its connections, commands and parameters from the factory or the
+/// data source, so it names no type at all; what is left is the driver's parameter naming, and the two
+/// typed seams below for a driver that needs a command or a binary parameter configured in a way
+/// Quartz cannot name.
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma</author>
@@ -155,6 +166,120 @@ public sealed record DbMetadata
     public bool UseParameterNamePrefixInParameterCollection { get; init; }
 
     /// <summary>
+    /// Applied to every command Quartz mints for this driver, in place of the reflective
+    /// <c>BindByName</c> probe.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Quartz sets <c>BindByName</c> on the managed Oracle driver's command by looking the property up
+    /// on <see cref="CommandType" />, because it cannot name <c>OracleCommand</c>. A description that
+    /// names no command type — one behind a <see cref="System.Data.Common.DbProviderFactory" /> or a
+    /// <see cref="System.Data.Common.DbDataSource" /> — has nothing to look the property up on, so it
+    /// says what to do instead: <c>command =&gt; ((OracleCommand) command).BindByName = true</c>, in
+    /// the application, which references the driver and can name the type.
+    /// </para>
+    /// <para>
+    /// Set, it wins: the reflective probe is not attempted at all, and <see cref="BindByName" /> is left
+    /// to the parameter naming it also governs.
+    /// </para>
+    /// </remarks>
+    public Action<DbCommand>? ConfigureCommand { get; init; }
+
+    /// <summary>
+    /// Applied to a parameter carrying a binary column, in place of writing
+    /// <see cref="DbBinaryTypeName" /> to the property <see cref="ParameterDbTypePropertyName" /> names.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The same reasoning as <see cref="ConfigureCommand" />, for the one parameter type Quartz asks for
+    /// by name. It matters most on Oracle, where <see cref="System.Data.DbType.Binary" /> means
+    /// <c>OracleDbType.Raw</c> and caps a job data map at two kilobytes:
+    /// <c>parameter =&gt; ((OracleParameter) parameter).OracleDbType = OracleDbType.Blob</c> is what an
+    /// application says instead.
+    /// </para>
+    /// <para>
+    /// Set, it wins over the reflective setter; with neither, a binary parameter is bound as plain
+    /// <see cref="System.Data.DbType.Binary" /> and the driver maps it.
+    /// </para>
+    /// </remarks>
+    public Action<DbParameter>? ConfigureBinaryParameter { get; init; }
+
+    /// <summary>
+    /// The value a binary column's parameter is bound with. The described
+    /// <see cref="DbBinaryTypeName" /> when there is one, and plain
+    /// <see cref="System.Data.DbType.Binary" /> otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Never <see langword="null" />, because it is also the marker that says "this parameter carries a
+    /// blob" — <c>SqlServerDelegate</c> reads it to bind <c>varbinary(max)</c> rather than let the
+    /// value's length decide, and <see cref="ApplyParameterType" /> reads it to decide whether
+    /// <see cref="ConfigureBinaryParameter" /> applies.
+    /// </remarks>
+    internal Enum BinaryParameterType => Derived.DbBinaryType ?? DbType.Binary;
+
+    /// <summary>
+    /// Applies the command settings this description carries, whichever way the command was minted.
+    /// </summary>
+    /// <remarks>
+    /// Only <c>BindByName</c> so far, which the managed Oracle driver needs in order to bind parameters
+    /// by name rather than by position. It is a property of the driver rather than of the command, so a
+    /// command that came from a connection needs it set just as much as one built by reflection.
+    /// </remarks>
+    internal void ApplyCommandSettings(DbCommand command)
+    {
+        if (ConfigureCommand is { } configure)
+        {
+            configure(command);
+            return;
+        }
+
+        Derived.BindByNameSetter?.Invoke(command, Derived.BindByNameValue);
+    }
+
+    /// <summary>
+    /// Applies a provider-specific parameter type to a parameter about to be bound.
+    /// </summary>
+    /// <remarks>
+    /// Most specific first: the typed seam for a binary parameter, then the described property on the
+    /// driver's own parameter type, then the framework's own <see cref="IDataParameter.DbType" /> —
+    /// which is all a description naming no types has, and is enough, because a driver that ships a
+    /// <see cref="System.Data.Common.DbProviderFactory" /> maps <see cref="System.Data.DbType" /> itself.
+    /// </remarks>
+    internal void ApplyParameterType(IDbDataParameter parameter, Enum dataType)
+    {
+        if (ConfigureBinaryParameter is { } configure && Equals(dataType, BinaryParameterType))
+        {
+            if (parameter is not DbParameter dbParameter)
+            {
+                Throw.InvalidOperationException(
+                    $"ConfigureBinaryParameter was given a {parameter.GetType().FullName}, which is not a DbParameter. "
+                    + "The seam exists to reach a driver's own parameter type, so it is only called for parameters the driver made.");
+                return;
+            }
+
+            configure(dbParameter);
+            return;
+        }
+
+        if (Derived.ParameterDbTypeSetter is { } setter)
+        {
+            setter.Invoke(parameter, dataType);
+            return;
+        }
+
+        if (dataType is DbType dbType)
+        {
+            parameter.DbType = dbType;
+            return;
+        }
+
+        Throw.InvalidOperationException(
+            $"The description of '{ProductName ?? "the driver"}' names no {nameof(ParameterType)}, so there is nowhere to "
+            + $"write the parameter type '{dataType.GetType().FullName}.{dataType}'. Describe the driver's parameter type, "
+            + $"or set {nameof(ConfigureBinaryParameter)}.");
+    }
+
+    /// <summary>
     /// Gets the name of the parameter which includes the parameter prefix for this
     /// database.
     /// </summary>
@@ -168,6 +293,13 @@ public sealed record DbMetadata
     /// Derives the computed members once so that a description that cannot work fails where the
     /// description is made rather than when the first binary parameter is bound.
     /// </summary>
+    /// <remarks>
+    /// A description that names no type is not one that cannot work: it is what a driver behind a
+    /// <see cref="System.Data.Common.DbProviderFactory" /> or a
+    /// <see cref="System.Data.Common.DbDataSource" /> looks like, and there is nothing to derive from
+    /// it. What is checked is that whatever the description <em>does</em> say hangs together — a binary
+    /// type name needs a parameter type to name it on.
+    /// </remarks>
     internal void Validate()
     {
         _ = Derived;
@@ -197,6 +329,22 @@ public sealed record DbMetadata
     {
         public DerivedMetadata(DbMetadata metadata)
         {
+            // Whether the driver's command supports setting BindByName directly, which the managed
+            // Oracle driver needs. Skipped when the description says what to do instead, and impossible
+            // when it names no command type - both of which leave the setter null and nothing to apply.
+            if (metadata.ConfigureCommand is null && metadata.CommandType is not null)
+            {
+                PropertyInfo? bindByName = metadata.CommandType.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
+                if (bindByName is not null && bindByName.PropertyType == typeof(bool) && bindByName.CanWrite)
+                {
+                    BindByNameSetter = MethodInvoker.Create(bindByName.GetSetMethod()!);
+
+                    // Boxed once. It never changes, and boxing it per command put an allocation under
+                    // every statement the store issues on Oracle.
+                    BindByNameValue = metadata.BindByName;
+                }
+            }
+
             if (metadata.DbBinaryTypeName is null)
             {
                 return;
@@ -224,5 +372,9 @@ public sealed record DbMetadata
         public PropertyInfo? ParameterDbTypeProperty { get; }
 
         public MethodInvoker? ParameterDbTypeSetter { get; }
+
+        public MethodInvoker? BindByNameSetter { get; }
+
+        public object? BindByNameValue { get; }
     }
 }

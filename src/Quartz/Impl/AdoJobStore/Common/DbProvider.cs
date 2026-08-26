@@ -30,22 +30,23 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// Concrete implementation of <see cref="IDbProvider" />.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A provider is described by its <see cref="DbMetadata"/>: the connection, command and parameter types
 /// to instantiate, the parameter prefix, and so on. Descriptions come from the container — the drivers
 /// Quartz ships descriptions for, plus anything the application registered — rather than from process-wide
 /// state, so two containers in one process no longer have to agree on what a provider name means.
+/// </para>
+/// <para>
+/// This is the provider that <em>constructs</em> the driver's objects, and so the one that needs their
+/// types. When the description resolved them from a name — which is what naming a built-in driver does
+/// — a trimmed application has no guarantee they survived, and the constructor below is where that
+/// shows up. A provider that needs no type at all is the one built over a
+/// <see cref="System.Data.Common.DbProviderFactory"/>, or the data source path.
+/// </para>
 /// </remarks>
 /// <author>Marko Lahma</author>
 public class DbProvider : IDbProvider
 {
-    private readonly MethodInvoker? commandBindByNamePropertySetter;
-
-    /// <summary>
-    /// The value <see cref="commandBindByNamePropertySetter" /> writes, boxed once. It never changes,
-    /// and boxing it per command put an allocation under every statement the store issues on Oracle.
-    /// </summary>
-    private readonly object? commandBindByNameValue;
-
     private readonly ConstructorInvoker connectionConstructor;
     private readonly ConstructorInvoker commandConstructor;
 
@@ -78,41 +79,33 @@ public class DbProvider : IDbProvider
         ConnectionString = connectionString;
         Metadata = metadata;
 
-        // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
-        var property = Metadata.CommandType?.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
-        if (property is not null && property.PropertyType == typeof(bool) && property.CanWrite)
+        // This is the provider that constructs the driver's own objects, so it is the one that cannot
+        // work without their types. Said here, naming the way out, rather than as a null reference from
+        // inside the reflection below.
+        if (metadata.ConnectionType is null || metadata.CommandType is null)
         {
-            commandBindByNamePropertySetter = MethodInvoker.Create(property.GetSetMethod()!);
-            commandBindByNameValue = Metadata.BindByName;
+            Throw.ArgumentException(
+                $"The description of '{metadata.ProductName ?? "the driver"}' names no "
+                + $"{(metadata.ConnectionType is null ? nameof(DbMetadata.ConnectionType) : nameof(DbMetadata.CommandType))}, "
+                + "so there is nothing for this provider to construct. Describe the driver's types, or reach the driver "
+                + "without naming them - pass a DbProviderFactory to the Use<Db> overload that takes one, or register a "
+                + "DbDataSource in the container.",
+                nameof(metadata));
         }
 
         // Invokers rather than the ConstructorInfo itself: every command and every connection the store
         // opens goes through these, and ConstructorInfo.Invoke walks its argument array and re-checks the
         // signature on each call.
-        connectionConstructor = ConstructorInvoker.Create(ObjectUtils.GetDefaultConstructor(Metadata.ConnectionType));
-        commandConstructor = ConstructorInvoker.Create(ObjectUtils.GetDefaultConstructor(Metadata.CommandType));
+        connectionConstructor = ConstructorInvoker.Create(ObjectUtils.GetDefaultConstructor(metadata.ConnectionType));
+        commandConstructor = ConstructorInvoker.Create(ObjectUtils.GetDefaultConstructor(metadata.CommandType));
     }
 
     /// <inheritdoc />
     public virtual DbCommand CreateCommand()
     {
         DbCommand command = (DbCommand) commandConstructor.Invoke();
-        ApplyDriverCommandSettings(command);
+        Metadata.ApplyCommandSettings(command);
         return command;
-    }
-
-    /// <summary>
-    /// Applies the command settings the driver description carries, whichever way the command was
-    /// minted.
-    /// </summary>
-    /// <remarks>
-    /// Only <c>BindByName</c> so far, which the managed Oracle driver needs in order to bind parameters
-    /// by name rather than by position. It is a property of the driver rather than of the command, so a
-    /// command that came from a connection needs it set just as much as one this class constructed.
-    /// </remarks>
-    private protected void ApplyDriverCommandSettings(DbCommand command)
-    {
-        commandBindByNamePropertySetter?.Invoke(command, commandBindByNameValue);
     }
 
     /// <inheritdoc />
