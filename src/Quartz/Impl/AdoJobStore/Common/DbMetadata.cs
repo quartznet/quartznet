@@ -215,7 +215,14 @@ public sealed record DbMetadata
     /// value's length decide, and <see cref="ApplyParameterType" /> reads it to decide whether
     /// <see cref="ConfigureBinaryParameter" /> applies.
     /// </remarks>
-    internal Enum BinaryParameterType => Derived.DbBinaryType ?? DbType.Binary;
+    internal Enum BinaryParameterType => Derived.DbBinaryType ?? binaryFallback;
+
+    /// <summary>
+    /// <see cref="System.Data.DbType.Binary" />, boxed once. It is read for every blob the store writes
+    /// and compared against for every parameter bound beside one, and an <see cref="Enum" /> returned
+    /// from a property boxes on each read.
+    /// </summary>
+    private static readonly Enum binaryFallback = DbType.Binary;
 
     /// <summary>
     /// Applies the command settings this description carries, whichever way the command was minted.
