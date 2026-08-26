@@ -2294,8 +2294,8 @@ Further information on configuring Microsoft.Logging can be found [at Microsoft 
 
 ### Every message carries an event id
 
-The `Quartz` and `Quartz.Plugins` packages log through source-generated `[LoggerMessage]` methods
-rather than `logger.LogInformation(…)` and its siblings. Two things follow. Nothing is formatted or
+Every shipped package logs through source-generated `[LoggerMessage]` methods rather than
+`logger.LogInformation(…)` and its siblings. Two things follow. Nothing is formatted or
 boxed when the level is off, including on the scheduling loop. And every message has a stable event id,
 so an operator can filter or alert on the event rather than on its text.
 
@@ -2316,10 +2316,12 @@ Ids are allocated in ranges by area, and are stable from 4.0 onwards:
 | 6300–6399 | The JSON scheduling data plugin and its processor |
 | 6400–6499 | The job interrupt monitor plugin |
 | 6500–6599 | The management plugins — the shutdown hook |
-| 7000–8999 | Reserved for `Quartz.Jobs` and `Quartz.Extensions.Redis`, which are converting to the same shape |
+| 7000–7399 | `Quartz.Jobs` — the directory scan job (7000–7099), the file scan job (7100–7199), the native job (7200–7299) and the send mail job (7300–7399) |
+| 8000–8099 | `Quartz.Extensions.Redis` — the Redis lock handler |
+| 9000–9099 | `Quartz.AspNetCore` — the HTTP API |
 
 Levels and message templates are otherwise **unchanged from 3.x**, so a log query that matched a
-message before still matches it. Two exceptions:
+message before still matches it. The exceptions:
 
 * `JobStoreSupport.LogWarnIfNonZero` wrote the cluster recovery counts at Information when the count
   was non-zero and at Debug when it was zero, whatever its name said. Those six messages are Warning
@@ -2334,6 +2336,12 @@ message before still matches it. Two exceptions:
 * One message in `Quartz.Plugins` carried a typo, corrected while its id was new: the interrupt
   monitor's `…scheduled to interrupt with the delay :{Delay}` had the space before the colon rather
   than after it.
+* `NativeJob` relayed each line of the spawned process's output through one template, `{Type}>{Line}`,
+  with `Type` holding `stdout` or `stderr`. It is now one event per stream — `stdout>{Line}` at
+  Information (7201) and `stderr>{Line}` at Warning (7202) — so the text a sink renders is unchanged
+  and which stream a line came from is an event id rather than a property. A structured sink that
+  indexed the `Type` property no longer receives one; filter on the id instead. The levels are the ones
+  the two streams already logged at.
 
 `LoggingJobHistoryPlugin` and `LoggingTriggerHistoryPlugin` are a special case, because the message
 they log is a template *you* configure — `JobSuccessMessage` and its siblings, with `{0}`-style
