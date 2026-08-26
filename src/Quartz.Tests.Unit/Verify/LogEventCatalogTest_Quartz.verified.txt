@@ -129,7 +129,7 @@
 3020  Information  AdoJobStoreLog.RecoveryComplete
     "Recovery complete."
 3021  Information  AdoJobStoreLog.CompleteTriggersRemoved
-    "Removed  {Count} 'complete' triggers."
+    "Removed {Count} 'complete' triggers."
 3022  Information  AdoJobStoreLog.StaleFiredJobEntriesRemoved
     "Removed {Count} stale fired job entries."
 3023  Error  AdoJobStoreLog.StaleAcquiredTriggerRecoveryFailed
@@ -211,7 +211,7 @@
 3507  Warning  ClusterLog.AcquiredTriggersFreed
     "ClusterManager: ......Freed {Count} acquired trigger(s)."
 3508  Warning  ClusterLog.CompleteTriggersDeleted
-    "ClusterManager: ......Deleted {Count} complete triggers(s)."
+    "ClusterManager: ......Deleted {Count} complete trigger(s)."
 3509  Warning  ClusterLog.RecoverableJobsScheduled
     "ClusterManager: ......Scheduled {Count} recoverable job(s) for recovery."
 3510  Warning  ClusterLog.OtherFailedJobsCleanedUp
@@ -319,7 +319,7 @@
 5002  Debug  XmlSchedulingLog.FoundDeleteJobGroupCommands
     "Found {JobGroupCount} delete job group commands."
 5003  Debug  XmlSchedulingLog.FoundDeleteTriggerGroupCommands
-    "Found {TriggerGroupDeleteCount}delete trigger group commands."
+    "Found {TriggerGroupDeleteCount} delete trigger group commands."
 5004  Debug  XmlSchedulingLog.FoundDeleteJobCommands
     "Found {JobsToDeleteCount} delete job commands."
 5005  Debug  XmlSchedulingLog.FoundDeleteTriggerCommands
@@ -365,8 +365,6 @@
 5025  Debug  XmlSchedulingLog.SchedulingJob
     "Scheduling job: {JobKey} with trigger: {TriggerKey}"
 5026  Debug  XmlSchedulingLog.TriggerAlreadyExistedWillReschedule
-    "Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed.  This is likely due to a race condition between multiple instances in the cluster.  Will try to reschedule instead."
-5027  Debug  XmlSchedulingLog.TriggerAlreadyExistedWillRescheduleJob
     "Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed. This is likely due to a race condition between multiple instances in the cluster. Will try to reschedule instead."
 5028  Information  XmlSchedulingLog.NotOverwritingExistingTrigger
     "Not overwriting existing trigger: {JobKey}"

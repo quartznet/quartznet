@@ -106,7 +106,7 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3020, Level = LogLevel.Information, Message = "Recovery complete.")]
     public static partial void RecoveryComplete(this ILogger logger);
 
-    [LoggerMessage(EventId = 3021, Level = LogLevel.Information, Message = "Removed  {Count} 'complete' triggers.")]
+    [LoggerMessage(EventId = 3021, Level = LogLevel.Information, Message = "Removed {Count} 'complete' triggers.")]
     public static partial void CompleteTriggersRemoved(this ILogger logger, int count);
 
     [LoggerMessage(EventId = 3022, Level = LogLevel.Information, Message = "Removed {Count} stale fired job entries.")]
