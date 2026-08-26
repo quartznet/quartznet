@@ -166,6 +166,34 @@ public class TimeZoneUtilTest
         TimeZoneUtil.WalkToGapEnd(alreadyValid, zone).Should().Be(alreadyValid, "a valid time is returned unchanged");
     }
 
+    // A local day does not always begin at midnight, and never at the offset some other instant of
+    // that day happens to carry: in Santiago the clocks move at midnight, so the spring-forward day
+    // begins at 01:00 and the day after the fall-back one begins an hour later than the arithmetic
+    // of the day before it says.
+    [TestCase("Santiago", "2019-09-08", "2019-09-08T04:00:00Z")]
+    [TestCase("Santiago", "2019-04-07", "2019-04-07T04:00:00Z")]
+    [TestCase("Santiago", "2019-06-15", "2019-06-15T04:00:00Z")]
+    [TestCase("Eastern", "2024-03-10", "2024-03-10T05:00:00Z")]
+    public void StartOfLocalDay_IsTheDaysOwnFirstInstant(string zoneKey, string localDate, string expectedUtc)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime date = DateTime.Parse(localDate, CultureInfo.InvariantCulture);
+
+        DateTimeOffset start = TimeZoneUtil.StartOfLocalDay(date, zone);
+
+        start.Should().Be(DateTimeOffset.Parse(expectedUtc, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
+            "the day's first instant is local midnight resolved in the zone, or the end of the gap where that midnight does not exist");
+
+        // A minute rather than a millisecond, because the exact instant a zone changes offset is not
+        // agreed on to the millisecond: Windows cannot express a rule at local midnight and writes
+        // 23:59:59.999 of the day before instead, so on Windows data Santiago's spring-forward day
+        // begins a millisecond earlier than IANA data says. A minute is clear of the disagreement.
+        TimeZoneInfo.ConvertTime(start.AddMinutes(-1), zone).Date.Should().Be(date.AddDays(-1),
+            "the minute before it belongs to the previous local day");
+
+        TimeZoneUtil.StartOfLocalDay(date.AddHours(13), zone).Should().Be(start, "only the date part of the argument is used");
+    }
+
     [Test]
     public void ResolveLocal_NegativeDaylightDeltaZone_DoesNotMoveBackwards()
     {

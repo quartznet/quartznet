@@ -138,6 +138,25 @@ public static class TimeZoneUtil
     }
 
     /// <summary>
+    /// The first instant of the given local date in the given zone, carrying that zone's offset.
+    /// Only the date part of <paramref name="date"/> is used. Local midnight is resolved with
+    /// <see cref="ResolveLocal"/>, so a date whose own midnight falls in a spring-forward gap begins
+    /// at the end of that gap, and a date whose midnight happens twice begins at the first of the two.
+    /// </summary>
+    /// <remarks>
+    /// Building a day boundary as <c>new DateTimeOffset(local.Date, local.Offset)</c> — midnight at
+    /// the offset that some other instant of the day happens to carry — lands on the wrong instant
+    /// whenever the offset the date starts at is not the offset of the instant that named it, which
+    /// is every transition day: an hour out in a zone that moves its clocks at midnight, and on the
+    /// day before or the day after in a zone that moves them later.
+    /// </remarks>
+    internal static DateTimeOffset StartOfLocalDay(DateTime date, TimeZoneInfo timeZoneInfo)
+    {
+        DateTime midnight = new DateTime(date.Year, date.Month, date.Day, 0, 0, 0, DateTimeKind.Unspecified);
+        return ConvertTime(ResolveLocal(midnight, timeZoneInfo), timeZoneInfo);
+    }
+
+    /// <summary>
     /// Walks forward from a wall-clock time inside a spring-forward gap to the first wall-clock
     /// time that exists in the given zone (the end of the gap). Returns the input unchanged when it
     /// is already valid.

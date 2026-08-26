@@ -227,10 +227,15 @@ public class MonthlyCalendar : BaseCalendar
         //apply the timezone
         timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
 
-        // Get timestamp for 00:00:00, in the correct timezone offset
-        DateTimeOffset newTimeStamp = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
+        // The first instant of the local day, resolved in the zone: a day does not always begin at
+        // midnight, and the offset it begins at is not always the offset the queried instant
+        // carries. Each further day is reached by naming the next local date and resolving that,
+        // because adding a day to a DateTimeOffset keeps the old offset and so drifts by the
+        // transition delta the moment the walk crosses one.
+        DateTime date = timeUtc.Date;
+        DateTimeOffset newTimeStamp = TimeZoneUtil.StartOfLocalDay(date, TimeZone);
 
-        int day = newTimeStamp.Day;
+        int day = date.Day;
 
         if (!IsDayExcluded(day))
         {
@@ -239,8 +244,9 @@ public class MonthlyCalendar : BaseCalendar
 
         while (IsDayExcluded(day))
         {
-            newTimeStamp = newTimeStamp.AddDays(1);
-            day = newTimeStamp.Day;
+            date = date.AddDays(1);
+            newTimeStamp = TimeZoneUtil.StartOfLocalDay(date, TimeZone);
+            day = date.Day;
         }
 
         return newTimeStamp;
