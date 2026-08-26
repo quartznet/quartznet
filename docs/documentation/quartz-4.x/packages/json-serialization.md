@@ -39,7 +39,7 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 
     // it's generally recommended to stick with
     // string property keys and values when serializing
-    store.Configure(options => options.StoreJobDataAsStrings = true);
+    store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
 
     store.UseNewtonsoftJsonSerializer();
 }));
@@ -54,7 +54,7 @@ await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
     .UsePersistentStore(store =>
     {
         store.UseGenericDatabase("MyProvider", "my connection string");
-        store.Configure(options => options.StoreJobDataAsStrings = true);
+        store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
         store.UseNewtonsoftJsonSerializer();
     })
     .Build();

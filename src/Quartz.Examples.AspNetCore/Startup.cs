@@ -261,7 +261,7 @@ public class Startup
                     // if needed, a custom strategy for handling connections is registered as
                     // IDbProvider in the container, the way CustomSqlServerConnectionProvider is above
                 });
-                s.Configure(options =>
+                s.ConfigureStore(options =>
                 {
                     options.PerformSchemaValidation = true; // default
                     options.UseProperties = true; // preferred, but not default

@@ -87,7 +87,7 @@ public class ClusteringJobsExecutionExample : IExample
                 // plus CheckinMisfireThreshold, 7.5 seconds each by default and both settable here
                 store.UseClustering();
                 store.UseSystemTextJsonSerializer();
-                store.Configure(options =>
+                store.ConfigureStore(options =>
                 {
                     options.StoreJobDataAsStrings = true;
                     options.MisfireThreshold = TimeSpan.FromSeconds(60);

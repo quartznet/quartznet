@@ -251,7 +251,7 @@ internal static class MigratedSchemaWorkload
 
         builder.UsePersistentStore(store =>
         {
-            store.Configure(o =>
+            store.ConfigureStore(o =>
             {
                 o.TablePrefix = tablePrefix;
 

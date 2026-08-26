@@ -39,7 +39,7 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
 
     private string OptionsName => schedulerKey ?? Microsoft.Extensions.Options.Options.DefaultName;
 
-    public IPersistentStoreBuilder Configure(Action<AdoJobStoreOptions> configure)
+    public IPersistentStoreBuilder ConfigureStore(Action<AdoJobStoreOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
         Services.Configure(OptionsName, configure);
@@ -55,7 +55,7 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         dataSourceConfigured = true;
         Services.Configure(DataSourceName, configure);
         Services.ValidateOnStart<DataSourceOptions>(DataSourceName);
-        Configure(options => options.DataSource = DataSourceName);
+        ConfigureStore(options => options.DataSource = DataSourceName);
 
         var name = DataSourceName;
         RegisterProvider(provider =>
@@ -145,7 +145,7 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         // The provider carries everything needed to reach the database, but the store still refuses to
         // start without a data source name. Name it after the scheduler, exactly as UseDataSource would,
         // so UseConnectionProvider on its own is a complete configuration.
-        return Configure(options => options.DataSource = DataSourceName);
+        return ConfigureStore(options => options.DataSource = DataSourceName);
     }
 
     /// <summary>
@@ -226,7 +226,7 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
 
         // Clustering has never worked without database locking, so enabling one enables the other
         // rather than leaving a configuration nobody meant to write.
-        return Configure(options => options.UseDbLocks = true);
+        return ConfigureStore(options => options.UseDbLocks = true);
     }
 
     public IPersistentStoreBuilder UseSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()

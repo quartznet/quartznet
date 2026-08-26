@@ -195,7 +195,7 @@ public sealed class SharedDatabaseValidatorTest
     {
         builder.UsePersistentStore(store =>
         {
-            store.Configure(options =>
+            store.ConfigureStore(options =>
             {
                 options.DataSource = "tenants";
                 options.TablePrefix = tablePrefix;

@@ -99,7 +99,7 @@ public static class OperationsSamples
                 store.UseSystemTextJsonSerializer();
                 store.UseClustering();
 
-                store.Configure(options =>
+                store.ConfigureStore(options =>
                 {
                     // Every statement the store issues, the lock handler's included. Left unset it is
                     // whatever the provider gives a new command, usually 30 seconds.

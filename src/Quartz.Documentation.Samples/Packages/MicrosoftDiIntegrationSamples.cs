@@ -100,7 +100,7 @@ public static class MicrosoftDiIntegrationSamples
                 store.UseSqlServer(connectionString);
                 store.UseSystemTextJsonSerializer();
 
-                store.Configure(options =>
+                store.ConfigureStore(options =>
                 {
                     options.TablePrefix = "QRTZ_";        // the default
                     options.StoreJobDataAsStrings = true; // preferred, but not the default

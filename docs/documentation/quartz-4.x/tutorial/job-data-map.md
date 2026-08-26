@@ -176,7 +176,7 @@ a serialized blob:
 q.UsePersistentStore(s =>
 {
     s.UseSqlServer(connectionString);
-    s.Configure(o => o.StoreJobDataAsStrings = true);
+    s.ConfigureStore(o => o.StoreJobDataAsStrings = true);
 });
 ```
 <!-- endSnippet -->

@@ -366,7 +366,7 @@ public sealed class SchedulerAcrossDstTransitionTest
             builder.UsePersistentStore(persistent =>
             {
                 persistent.UseSqlite(ConnectionString);
-                persistent.Configure(options =>
+                persistent.ConfigureStore(options =>
                 {
                     options.TablePrefix = TablePrefix;
                     options.MisfireThreshold = MisfireThreshold;

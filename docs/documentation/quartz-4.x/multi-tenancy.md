@@ -495,7 +495,7 @@ option, so two tenants can have entirely separate table *sets* in one database:
 builder.Services.AddQuartz("acme", q => q.UsePersistentStore(s =>
 {
     s.UseSqlServer(sharedConnectionString);
-    s.Configure(o => o.TablePrefix = "ACME_QRTZ_");
+    s.ConfigureStore(o => o.TablePrefix = "ACME_QRTZ_");
 }));
 ```
 <!-- endSnippet -->

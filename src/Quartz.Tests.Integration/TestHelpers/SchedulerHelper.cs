@@ -37,7 +37,7 @@ public class SchedulerHelper
         {
             UseDatabase(store, provider);
             store.UseNewtonsoftJsonSerializer();
-            store.Configure(options =>
+            store.ConfigureStore(options =>
             {
                 options.TablePrefix = TablePrefix;
                 configureStore?.Invoke(options);

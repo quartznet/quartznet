@@ -36,7 +36,7 @@ public static class JobStoresSamples
                 store.UseSqlServer("Server=localhost;Database=quartz;Trusted_Connection=True;Encrypt=False");
                 store.UseSystemTextJsonSerializer();
 
-                store.Configure(options =>
+                store.ConfigureStore(options =>
                 {
                     options.TablePrefix = "QRTZ_";
                     options.StoreJobDataAsStrings = true;
@@ -51,7 +51,7 @@ public static class JobStoresSamples
     {
         #region sample_job_stores_store_job_data_as_strings
 
-        store.Configure(options => options.StoreJobDataAsStrings = true);
+        store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
 
         #endregion
     }
@@ -65,7 +65,7 @@ public static class JobStoresSamples
             q.UsePersistentStore(store =>
             {
                 store.UsePostgres(connectionString);
-                store.Configure(options => options.AcceptEnlistedTransactions = true);
+                store.ConfigureStore(options => options.AcceptEnlistedTransactions = true);
             });
         });
 
