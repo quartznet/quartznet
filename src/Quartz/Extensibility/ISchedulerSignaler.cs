@@ -25,6 +25,16 @@ namespace Quartz.Extensibility;
 /// An interface to be used by <see cref="IJobStore" /> instances in order to
 /// communicate signals back to the <see cref="QuartzScheduler" />.
 /// </summary>
+/// <remarks>
+/// Every member here runs scheduler and listener code on the calling thread, and a listener is
+/// entitled to do what any other caller does: pause a trigger, reschedule one, ask the store a
+/// question. That call comes straight back into the store that signalled. A store whose lock is not
+/// re-entrant therefore has to release it first, or the listener deadlocks against the caller it is
+/// running on: <see cref="Quartz.Impl.RAMJobStore" /> collects what it owes while it holds its
+/// semaphore and raises it once the lock is gone, in the order it recorded it. A store holding a
+/// database lock is re-entrant for its own connection by construction, but what it announces from
+/// inside a transaction may still roll back, so it too prefers to notify after the commit.
+/// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public interface ISchedulerSignaler
