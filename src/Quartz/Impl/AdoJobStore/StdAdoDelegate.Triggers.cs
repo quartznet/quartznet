@@ -134,7 +134,7 @@ public partial class StdAdoDelegate
                     int priority = Convert.ToInt32(rs[AdoConstants.ColumnPriority], CultureInfo.InvariantCulture);
                     DateTimeOffset firedTime = GetDateTimeFromDbValue(rs[AdoConstants.ColumnFiredTime]) ?? DateTimeOffset.MinValue;
                     DateTimeOffset scheduledTime = GetDateTimeFromDbValue(rs[AdoConstants.ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
-                    SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl
+                    SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl(timeProvider)
                     {
                         Key = new TriggerKey("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture), SchedulerConstants.DefaultRecoveryGroup),
                         StartTimeUtc = scheduledTime,
@@ -1001,18 +1001,39 @@ public partial class StdAdoDelegate
     /// Applies the TRIGGERS row state onto a trigger deserialized from BLOB_TRIGGERS. The schedule
     /// itself came out of the blob, so there are no extended properties to apply in between.
     /// </summary>
-    private static void ApplyBlobTriggerRowState(IOperableTrigger trigger, TriggerRow row)
+    private void ApplyBlobTriggerRowState(IOperableTrigger trigger, TriggerRow row)
     {
+        ApplyStoreClock(trigger);
         ApplyTriggerFireState(trigger, row);
         ApplyTriggerRoutingState(trigger, row);
     }
 
     /// <summary>
+    /// Hands a materialized trigger the clock this store runs on, so that the misfire arithmetic the
+    /// store is about to ask it for is done against the same reading of "now" the store decided it
+    /// had misfired by.
+    /// </summary>
+    /// <remarks>
+    /// A trigger out of a blob carries no clock at all — the field does not serialize — and one out of
+    /// a schedule builder only carries whatever built it, which is this store only because
+    /// <see cref="BuildTrigger" /> creates the builder with the store's clock.
+    /// </remarks>
+    private void ApplyStoreClock(IOperableTrigger trigger)
+    {
+        if (trigger is TriggerBase triggerBase)
+        {
+            triggerBase.TimeProvider = timeProvider;
+        }
+    }
+
+    /// <summary>
     /// Builds a non-blob trigger from its TRIGGERS row and its type-specific extended properties.
     /// </summary>
-    private static IOperableTrigger BuildTrigger(TriggerKey triggerKey, TriggerRow row, TriggerPropertyBundle triggerProps)
+    private IOperableTrigger BuildTrigger(TriggerKey triggerKey, TriggerRow row, TriggerPropertyBundle triggerProps)
     {
-        var tb = TriggerBuilder.Create()
+        // The store's clock, not the machine's: TriggerBuilder gives it to the trigger it builds, so
+        // everything the trigger reads as "now" from here on is the scheduler's reading.
+        var tb = TriggerBuilder.Create(timeProvider)
             .WithDescription(row.Description)
             .WithPriority(row.Priority)
             .StartAt(row.StartTimeUtc)

@@ -4938,7 +4938,7 @@ public abstract class AdoJobStoreBase : IJobStore
                             // executed..
                             if (await JobExists(conn, jKey!, cancellationToken).ConfigureAwait(false))
                             {
-                                SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl
+                                SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl(timeProvider)
                                 {
                                     Key = new TriggerKey($"recover_{rec.SchedulerInstanceId}_{recoverIds++}", SchedulerConstants.DefaultRecoveryGroup),
                                     StartTimeUtc = ftRec.FireTimestamp,
