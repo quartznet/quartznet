@@ -311,6 +311,12 @@ internal sealed class BuiltInDbMetadataFactory : DbMetadataFactory
             ParameterDbType = LoadType("Oracle.ManagedDataAccess.Client.OracleDbType, Oracle.ManagedDataAccess"),
             ParameterDbTypePropertyName = "OracleDbType",
             ExceptionType = LoadType("Oracle.ManagedDataAccess.Client.OracleException, Oracle.ManagedDataAccess"),
+
+            // Said out loud rather than left to ODP.NET, which infers Raw from a byte[] - and a Raw
+            // parameter holds 2000 bytes in SQL and 32767 in PL/SQL, where the column is a BLOB. It is
+            // also what makes this driver behave the same whether it was named or handed over as a
+            // factory, since the factory path says the same thing with ConfigureBinaryParameter.
+            DbBinaryTypeName = "Blob",
         },
 
         _ => facts
