@@ -1,0 +1,424 @@
+@using System.Globalization
+@using Quartz
+@using Quartz.Dashboard.Services
+@implements IDisposable
+@inject IQuartzApiClient Api
+
+<section class="qz-section">
+    <h2>Execution groups</h2>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else if (!_limits.CanReport)
+    {
+        <p class="qz-muted">
+            This scheduler cannot report execution limits, so what each group may run is unknown here.
+        </p>
+    }
+    else if (_rows.Count == 0)
+    {
+        <p class="qz-muted">
+            No execution group is limited and nothing is in flight, so every trigger is free to fire.
+        </p>
+    }
+    else
+    {
+        <p class="qz-muted">@ScopeSentence</p>
+
+        <table class="qz-table">
+            <thead>
+                <tr>
+                    <th>Group</th>
+                    <th>Scope</th>
+                    <th>Limit</th>
+                    <th>In flight</th>
+                    <th>Headroom</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (GroupRow row in _rows)
+                {
+                    <tr>
+                        <td>
+                            @row.Label
+                            @if (row.IsDerived)
+                            {
+                                <span class="qz-muted">&nbsp;(from trigger group)</span>
+                            }
+                            @if (row.IsCatchAll)
+                            {
+                                <span class="qz-muted">&nbsp;(catch-all)</span>
+                            }
+                        </td>
+                        <td>@ScopeOf(row)</td>
+                        <td>
+                            @LimitOf(row)
+                            @if (row.LimitIsCatchAll)
+                            {
+                                <span class="qz-muted">&nbsp;(other groups)</span>
+                            }
+                        </td>
+                        <td>@InFlightOf(row)</td>
+                        <td>@HeadroomOf(row)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        @if (_hasCatchAllRow)
+        {
+            <p class="qz-muted">
+                <em>other groups</em> is the ceiling every group with no limit of its own gets, one
+                allowance each rather than one shared between them, so it counts nothing itself.
+            </p>
+        }
+
+        @if (_nodeScopedLimitsAreCountedClusterWide)
+        {
+            <p class="qz-muted">
+                A node-scoped limit is what one node may run, while the counts here are the whole
+                cluster's, so its headroom is smaller than what this node can still spend.
+            </p>
+        }
+
+        @if (_countsArePartial)
+        {
+            <p class="qz-muted">
+                The counts are taken from the first @_firingsCounted firings; there are more in flight.
+            </p>
+        }
+    }
+</section>
+
+@code {
+    /// <summary>
+    /// The panel joins what a scheduler allows — <c>IQuartzApiClient.GetExecutionLimits</c> — with what it
+    /// is running, so that the ceilings <c>execution-groups.md</c> teaches are visible somewhere other
+    /// than in the configuration file that set them.
+    /// </summary>
+    /// <remarks>
+    /// Both firing states are counted, because a reservation holds a slot exactly as a running execution
+    /// does: that is what the acquisition filter counts against a limit, and a panel that counted only
+    /// the running ones would show headroom the next acquisition cannot use.
+    /// </remarks>
+    private readonly List<GroupRow> _rows = [];
+
+    private ExecutionLimitsDto _limits = new([]);
+    private string? _error;
+    private bool _loadingInProgress;
+    private bool _countsArePartial;
+    private bool _hasCatchAllRow;
+    private bool _nodeScopedLimitsAreCountedClusterWide;
+    private int _firingsCounted;
+    private bool _hasLoaded;
+    private string? _loadedSchedulerName;
+    private PeriodicTimer? _refreshTimer;
+    private CancellationTokenSource? _refreshLoopCancellation;
+
+    [Parameter]
+    public string? SchedulerName { get; set; }
+
+    /// <summary>
+    /// Whether the scheduler's job store survives a restart, which is also what decides whose firings the
+    /// firing listing carries: a persistent store answers for the whole cluster, an in-memory one for
+    /// this node.
+    /// </summary>
+    [Parameter]
+    public bool Persistent { get; set; }
+
+    /// <summary>
+    /// Whether the store is clustered, which is the only case in which a node-scoped limit and a
+    /// cluster-wide count are different measurements.
+    /// </summary>
+    [Parameter]
+    public bool Clustered { get; set; }
+
+    private string ScopeSentence => Persistent
+        ? "Counted across the cluster: the job store is persistent, so a firing owned by any node is counted here."
+        : "Counted on this node: the job store keeps its firings in memory, so another node's work is not counted here.";
+
+    protected override void OnInitialized()
+    {
+        _refreshLoopCancellation = new CancellationTokenSource();
+        // Slower than the overview's executing count, for the reason the Cluster page is slower: every
+        // tick is two reads of a persistent store, and a limit changes on the scale of a deployment.
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+        _ = RunRefreshLoopAsync(_refreshLoopCancellation.Token);
+    }
+
+    /// <remarks>
+    /// Guarded on the scheduler rather than reloading on every parameter set: the overview re-renders
+    /// once a second to keep its executing count current, and each of those renders would otherwise be
+    /// two more reads of the store.
+    /// </remarks>
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_hasLoaded && string.Equals(_loadedSchedulerName, SchedulerName, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _hasLoaded = true;
+        _loadedSchedulerName = SchedulerName;
+        await LoadDataAsync();
+    }
+
+    private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        if (_refreshTimer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            while (await _refreshTimer.WaitForNextTickAsync(cancellationToken))
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadDataAsync();
+                        StateHasChanged();
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    _error = ex.Message;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (_loadingInProgress)
+        {
+            return;
+        }
+
+        _loadingInProgress = true;
+        _error = null;
+
+        try
+        {
+            _rows.Clear();
+            _limits = new ExecutionLimitsDto([]);
+            _countsArePartial = false;
+            _hasCatchAllRow = false;
+            _nodeScopedLimitsAreCountedClusterWide = false;
+            _firingsCounted = 0;
+
+            string? schedulerName = SchedulerName;
+            if (string.IsNullOrWhiteSpace(schedulerName))
+            {
+                return;
+            }
+
+            _limits = await Api.GetExecutionLimits(schedulerName);
+            if (!_limits.CanReport)
+            {
+                return;
+            }
+
+            // Both states, because a reservation holds a slot as surely as a running execution does.
+            PagedResult<FireInstanceDto> firings = await Api.GetFireInstances(
+                schedulerName,
+                new DashboardFireInstanceQuery { State = null });
+
+            _firingsCounted = firings.Items.Count;
+            _countsArePartial = firings.HasMore;
+            BuildRows(_limits, firings.Items);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loadingInProgress = false;
+        }
+    }
+
+    private void BuildRows(ExecutionLimitsDto limits, IReadOnlyList<FireInstanceDto> firings)
+    {
+        Dictionary<string, int> inFlight = new(StringComparer.Ordinal);
+        HashSet<string> derived = new(StringComparer.Ordinal);
+
+        foreach (FireInstanceDto firing in firings)
+        {
+            // The scheduler's own resolution, so the panel and the acquisition filter cannot key the
+            // same firing differently when UseTriggerGroupWhenUnset is on.
+            string key = AsConfigurationKey(ExecutionLimits.ResolveGroupKey(
+                firing.ExecutionGroup,
+                firing.TriggerKey.Group,
+                limits.UsesTriggerGroupWhenUnset));
+
+            inFlight[key] = inFlight.TryGetValue(key, out int count) ? count + 1 : 1;
+
+            if (firing.ExecutionGroup is null && key != ExecutionLimits.DefaultGroupAlias)
+            {
+                derived.Add(key);
+            }
+        }
+
+        HashSet<string> keys = new(limits.Limits.Keys, StringComparer.Ordinal);
+        keys.UnionWith(inFlight.Keys);
+
+        List<GroupRow> rows = [];
+        foreach (string key in keys)
+        {
+            DashboardExecutionLimit? limit = ResolveLimit(limits, key, out bool limitIsCatchAll);
+            bool isCatchAll = key == ExecutionLimits.OtherGroups;
+
+            rows.Add(new GroupRow(
+                Key: key,
+                Label: LabelFor(key),
+                IsCatchAll: isCatchAll,
+                IsDerived: derived.Contains(key),
+                Limit: limit,
+                LimitIsCatchAll: limitIsCatchAll,
+                InFlight: inFlight.TryGetValue(key, out int count) ? count : 0));
+        }
+
+        // Named groups first, alphabetically; then the ungrouped bucket, which is a group only in the
+        // sense that the limits give it a bucket; then the catch-all, which is a rule about the rest.
+        rows.Sort(static (left, right) =>
+        {
+            int byKind = SortKind(left).CompareTo(SortKind(right));
+            return byKind != 0 ? byKind : string.Compare(left.Label, right.Label, StringComparison.OrdinalIgnoreCase);
+        });
+
+        _rows.AddRange(rows);
+        _hasCatchAllRow = limits.Limits.ContainsKey(ExecutionLimits.OtherGroups);
+        _nodeScopedLimitsAreCountedClusterWide = Clustered
+            && rows.Exists(static row => row.Limit is { Scope: ExecutionLimitScope.Node });
+    }
+
+    private static int SortKind(GroupRow row)
+    {
+        if (row.IsCatchAll)
+        {
+            return 2;
+        }
+
+        return row.Key == ExecutionLimits.DefaultGroupAlias ? 1 : 0;
+    }
+
+    /// <summary>
+    /// The limit that governs one group: its own when it has one, otherwise the catch-all — which is for
+    /// named groups only and never for the ungrouped bucket, the same rule the scheduler applies.
+    /// </summary>
+    private static DashboardExecutionLimit? ResolveLimit(ExecutionLimitsDto limits, string key, out bool fromCatchAll)
+    {
+        fromCatchAll = false;
+
+        if (limits.Limits.TryGetValue(key, out DashboardExecutionLimit own))
+        {
+            return own;
+        }
+
+        if (key != ExecutionLimits.DefaultGroupAlias
+            && limits.Limits.TryGetValue(ExecutionLimits.OtherGroups, out DashboardExecutionLimit catchAll))
+        {
+            fromCatchAll = true;
+            return catchAll;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The limits arrive keyed the way configuration spells a group; a firing resolves to the key the
+    /// limits hold internally, where the ungrouped bucket is the empty string.
+    /// </summary>
+    private static string AsConfigurationKey(string storageKey)
+    {
+        return storageKey == ExecutionLimits.DefaultGroupKey ? ExecutionLimits.DefaultGroupAlias : storageKey;
+    }
+
+    private static string LabelFor(string key)
+    {
+        if (key == ExecutionLimits.OtherGroups)
+        {
+            return "other groups";
+        }
+
+        return key == ExecutionLimits.DefaultGroupAlias ? "(no execution group)" : key;
+    }
+
+    private static string ScopeOf(GroupRow row)
+    {
+        return row.Limit is { } limit ? limit.Scope.ToString() : "—";
+    }
+
+    private static string LimitOf(GroupRow row)
+    {
+        if (row.Limit is not { } limit || limit.MaxConcurrent is not int maxConcurrent)
+        {
+            return "Unlimited";
+        }
+
+        return maxConcurrent == 0
+            ? "0 (forbidden)"
+            : maxConcurrent.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string InFlightOf(GroupRow row)
+    {
+        return row.IsCatchAll ? "—" : row.InFlight.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string HeadroomOf(GroupRow row)
+    {
+        if (row.IsCatchAll)
+        {
+            return "—";
+        }
+
+        if (row.Limit is not { } limit || limit.MaxConcurrent is not int maxConcurrent)
+        {
+            return "Unlimited";
+        }
+
+        return Math.Max(0, maxConcurrent - row.InFlight).ToString(CultureInfo.InvariantCulture);
+    }
+
+    public void Dispose()
+    {
+        _refreshLoopCancellation?.Cancel();
+        _refreshLoopCancellation?.Dispose();
+        _refreshTimer?.Dispose();
+    }
+
+    /// <summary>
+    /// One row: an execution group, the limit that governs it, and what it has in flight.
+    /// </summary>
+    private sealed record GroupRow(
+        string Key,
+        string Label,
+        bool IsCatchAll,
+        bool IsDerived,
+        DashboardExecutionLimit? Limit,
+        bool LimitIsCatchAll,
+        int InFlight);
+}

@@ -412,6 +412,10 @@ RAMJobStore requires no schema changes.
 ## Dashboard
 
 The Quartz Dashboard shows execution group information:
+- The overview page carries an execution-group panel: one row per group with its limit, the scope that
+  limit is counted in, what it has in flight and the headroom left — cluster-wide when the job store is
+  persistent — which is where to look to see whether a ceiling set here is the thing holding work back
+  (see [Dashboard](../packages/dashboard.md#execution-groups))
 - Trigger list page displays an "Execution Group" column
 - Trigger detail page shows the execution group
 - Currently executing page shows which execution group each running job belongs to
