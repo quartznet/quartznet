@@ -1,4 +1,4 @@
-namespace Quartz.Examples.Example15;
+namespace Quartz.Examples.Example12;
 
 /// <summary>
 /// This is just a simple job that gets fired off many times

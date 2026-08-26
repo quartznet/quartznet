@@ -21,7 +21,7 @@
 
 using Quartz.Impl.Calendar;
 
-namespace Quartz.Examples.Example15;
+namespace Quartz.Examples.Example12;
 
 /// <summary>
 /// This example will demonstrate how configuration can be

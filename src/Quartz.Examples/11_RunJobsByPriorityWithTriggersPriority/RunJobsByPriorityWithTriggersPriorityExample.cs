@@ -19,7 +19,7 @@
 
 #endregion
 
-namespace Quartz.Examples.Example14;
+namespace Quartz.Examples.Example11;
 
 /// <summary>
 /// This example will demonstrate how Triggers are ordered by priority.

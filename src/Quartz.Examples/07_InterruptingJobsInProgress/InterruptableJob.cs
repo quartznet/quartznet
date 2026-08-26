@@ -22,12 +22,12 @@
 namespace Quartz.Examples.Example07;
 
 /// <summary>
-/// A dumb implementation of an InterruptableJob, for unit testing purposes.
+/// A job that spends a while working and notices when it is interrupted.
 /// </summary>
 /// <author>  <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 /// <author>Bill Kratzer</author>
 /// <author>Marko Lahma (.NET)</author>
-public class DumbInterruptableJob : IJob
+public class InterruptableJob : IJob
 {
     // job name
     private JobKey? jobKey;

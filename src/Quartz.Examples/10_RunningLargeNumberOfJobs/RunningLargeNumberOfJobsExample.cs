@@ -21,7 +21,7 @@
 
 using Quartz.Impl;
 
-namespace Quartz.Examples.Example11;
+namespace Quartz.Examples.Example10;
 
 /// <summary>
 /// This example will demonstrate how to run a large number
