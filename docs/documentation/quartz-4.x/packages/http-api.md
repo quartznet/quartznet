@@ -75,6 +75,45 @@ validated against.
 - **Triggers**: query triggers, fetch by key, read state, pause/resume, reset from error state, schedule/unschedule/reschedule
 - **Calendars**: query names, get details, add/replace, delete
 
+## The scheduler listing carries registrations
+
+`GET {ApiPath}/schedulers` answers with every scheduler the container knows about, ordered by name — the
+ones something has *registered* as well as the ones something has *built*. It is not paged: a process
+runs a handful of schedulers, not a data set.
+
+```json
+[
+  {
+    "name": "acme",
+    "schedulerInstanceId": null,
+    "status": null,
+    "origin": "Container"
+  },
+  {
+    "name": "core",
+    "schedulerInstanceId": "web-01",
+    "status": "Running",
+    "origin": "Container"
+  }
+]
+```
+
+`status` and `schedulerInstanceId` are `null` together, for a registration nothing has built: there is
+no scheduler to be in a state or to have an instance id, and listing it did not create one. That is the
+only way to tell "this tenant has not started" from "there is no such tenant" — the scheduler's own
+routes answer `404` for both.
+
+`origin` says where the scheduler came from: `Container` for one `AddQuartz()` or `AddQuartz(name, …)`
+registered, `Runtime` for one that is in the repository without a registration behind it — a scheduler
+bound by hand, or a remote one from `AddQuartzHttpClient`.
+
+::: warning Changed in 4.0.0-alpha.3
+This listing used to read `ISchedulerRepository`, so it carried only schedulers something had already
+created, and every entry had a status and an instance id. A reader that assumed both are present needs
+to handle `null`, and one that treated the listing as "the schedulers that are running" should now filter
+on `status`.
+:::
+
 ## Enums travel as names
 
 Every enum the API puts on the wire — a scheduler's `status`, a trigger's `state`, a trigger's
