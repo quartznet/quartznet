@@ -201,6 +201,13 @@ the database method or it is silently ignored.
 The delegate is constructed with `ActivatorUtilities`, so **constructor dependencies work** — take an
 `ILogger<MyDatabaseDelegate>` or anything else in the container.
 
+For a delegate that needs more than the container can supply — a constructor argument only the caller
+has, or a property set before it is handed over — `UseDriverDelegate(factory)` takes the delegate you
+built. The factory is given a provider that resolves this scheduler's own parts, which is what
+registering `IDriverDelegate` against `Services` would not do: a named scheduler resolves its delegate
+under its own key and would never see an unkeyed registration. `UseSerializer`, `UseLockHandler`,
+`UseConnectionProvider` and `UseTriggerPersistenceDelegate` all take a factory the same way.
+
 The legacy `quartz.jobStore.driverDelegateType` key still selects a delegate by type name, and stands
 on its own: an application that has moved store selection into code can still name its delegate in a
 configuration file.

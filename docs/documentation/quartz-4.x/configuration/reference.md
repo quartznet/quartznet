@@ -596,7 +596,7 @@ identically under `AddQuartz` and on a standalone `QuartzSchedulerBuilder`.
 | `UseTypeLoader<T>()` | how a type named by a string — a stored `JOB_CLASS_NAME`, a `.type` key — is resolved | resolution through the container's assemblies, with the 3.x namespace fallbacks |
 | `UseInstanceIdGenerator<T>()` | how `InstanceId` is derived when `GenerateInstanceId` is on | `SimpleInstanceIdGenerator`: host name plus a timestamp |
 | `UseJobStore<T>()`, `UseJobStore<T, TOptions>()` | the job store, for one that is neither of the two Quartz ships | the in-memory store |
-| `UseDriverDelegate<T>()` (on the persistent store builder) | the SQL dialect the ADO.NET store speaks | selected by the database method — `UseSqlServer` picks `SqlServerDelegate`, and so on |
+| `UseDriverDelegate<T>()`, `UseDriverDelegate(factory)` (on the persistent store builder) | the SQL dialect the ADO.NET store speaks | selected by the database method — `UseSqlServer` picks `SqlServerDelegate`, and so on |
 
 `UseTimeProvider` is the one to reach for in a test: a `FakeTimeProvider` makes `TriggerBuilder`,
 `GetFireTimeAfter` and misfire calculations see the time you set. It does not drive the scheduler's own
