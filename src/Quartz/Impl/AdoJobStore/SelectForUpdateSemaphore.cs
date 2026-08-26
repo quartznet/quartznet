@@ -151,7 +151,7 @@ public class SelectForUpdateSemaphore : DbSemaphore
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug("Lock '{LockName}' is being obtained: {RequestorId}", lockName, requestorId);
+                        logger.LockBeingObtained(lockName, requestorId);
                     }
 
                     found = await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
@@ -161,7 +161,7 @@ public class SelectForUpdateSemaphore : DbSemaphore
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug("Inserting new lock row for lock: '{LockName}' being obtained by thread: {RequestorId}", lockName, requestorId);
+                        logger.LockRowInsertingForThread(lockName, requestorId);
                     }
 
                     using DbCommand cmd2 = PrepareCommand(conn, expandedInsertSql);
@@ -197,7 +197,7 @@ public class SelectForUpdateSemaphore : DbSemaphore
 
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
-                    logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId}{RetryMessage}", lockName, requestorId, count < maxRetryLocal ? " - will try again." : "");
+                    logger.LockNotObtainedWithRetryNote(lockName, requestorId, count < maxRetryLocal ? " - will try again." : "");
                 }
 
                 if (count < maxRetryLocal)

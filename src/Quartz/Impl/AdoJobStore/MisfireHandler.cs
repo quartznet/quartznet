@@ -145,7 +145,7 @@ internal sealed class MisfireHandler
     {
         try
         {
-            logger.LogDebug("Scanning for misfires...");
+            logger.ScanningForMisfires();
 
             RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId, CancellationToken.None).ConfigureAwait(false);
             numFails = 0;
@@ -155,7 +155,7 @@ internal sealed class MisfireHandler
         {
             if (numFails % jobStoreSupport.RetryableActionErrorLogThreshold == 0)
             {
-                logger.LogError(e, "Error handling misfires: {ExceptionMessage}", e.Message);
+                logger.MisfireHandlingFailed(e.Message, e);
             }
             numFails++;
         }

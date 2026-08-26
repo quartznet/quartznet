@@ -73,7 +73,7 @@ public partial class StdAdoDelegate
 
         if (null == calendar)
         {
-            logger.LogWarning("Couldn't find calendar with name '{CalendarName}'", calendarName);
+            logger.CalendarNotFound(calendarName);
         }
 
         return calendar;

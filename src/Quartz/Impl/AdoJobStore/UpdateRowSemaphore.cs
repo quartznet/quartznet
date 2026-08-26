@@ -118,14 +118,14 @@ public class UpdateRowSemaphore : DbSemaphore
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId}", lockName, requestorId);
+                        logger.LockNotObtained(lockName, requestorId);
                     }
                 }
                 else
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId} - will try again.", lockName, requestorId);
+                        logger.LockNotObtainedWillRetry(lockName, requestorId);
                     }
 
                     await Task.Delay(RetryPeriod, TimeProvider, cancellationToken).ConfigureAwait(false);
@@ -151,7 +151,7 @@ public class UpdateRowSemaphore : DbSemaphore
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug("Lock '{LockName}' is being obtained: {RequestorId}", lockName, requestorId);
+            logger.LockBeingObtained(lockName, requestorId);
         }
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) >= 1;
     }
@@ -170,7 +170,7 @@ public class UpdateRowSemaphore : DbSemaphore
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug("Inserting new lock row for lock: '{LockName}' being obtained: {RequestorId}", lockName, requestorId);
+            logger.LockRowInserting(lockName, requestorId);
         }
 
         using var cmd = PrepareCommand(conn, sql);

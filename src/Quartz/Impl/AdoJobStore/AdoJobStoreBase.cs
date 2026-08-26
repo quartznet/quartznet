@@ -717,7 +717,7 @@ public abstract class AdoJobStoreBase : IJobStore
 
         if (Delegate is SQLiteDelegate && LockHandler is not SQLiteSemaphore)
         {
-            Logger.LogInformation("Detected SQLite usage, changing to use SQLiteSemaphore for in-memory locking");
+            Logger.SqliteSemaphoreSubstituted();
             LockHandler = new SQLiteSemaphore();
         }
 
@@ -729,19 +729,19 @@ public abstract class AdoJobStoreBase : IJobStore
             }
             if (!AcquireTriggersWithinLock)
             {
-                Logger.LogInformation("With SQLite we need to set AcquireTriggersWithinLock to true, changing");
+                Logger.SqliteAcquireTriggersWithinLockForced();
                 AcquireTriggersWithinLock = true;
             }
             if (TransactionIsolationLevel != IsolationLevel.Serializable)
             {
                 // Not a default but a requirement: concurrent SQLite transactions at a lower level fail
                 // with "database is locked", so an explicit lower level is overridden rather than kept.
-                Logger.LogInformation("Detected usage of SQLiteDelegate - forcing transaction isolation level to 'Serializable'");
+                Logger.SqliteSerializableIsolationForced();
                 TransactionIsolationLevel = IsolationLevel.Serializable;
             }
             if (!LockAllOperations)
             {
-                Logger.LogInformation("With SQLite all operations must be serialized, setting LockAllOperations to true");
+                Logger.SqliteLockAllOperationsForced();
                 LockAllOperations = true;
             }
         }
@@ -750,7 +750,7 @@ public abstract class AdoJobStoreBase : IJobStore
         // begun at whatever level the application chose, and cannot be changed after the fact.
         if (AcceptEnlistedTransactions && TransactionIsolationLevel is not null && Delegate is not SQLiteDelegate)
         {
-            Logger.LogWarning("The configured transaction isolation level applies only to connections the job store opens itself: an operation running on a connection enlisted by the application uses that transaction's isolation level instead.");
+            Logger.IsolationLevelIgnoredForEnlistedTransactions();
         }
 
         // If the user hasn't specified an explicit lock handler, then
@@ -779,7 +779,7 @@ public abstract class AdoJobStoreBase : IJobStore
                     if (SelectWithLockSql is null)
                     {
                         const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + AdoConstants.ColumnSchedulerName + " = @schedulerName AND LOCK_NAME = @lockName";
-                        Logger.LogInformation("Detected usage of SqlServerDelegate - defaulting 'selectWithLockSQL' to '{DefaultLockSql}'.", DefaultLockSql);
+                        Logger.SqlServerLockSqlDefaulted(DefaultLockSql);
                         SelectWithLockSql = DefaultLockSql;
                     }
                 }
@@ -793,12 +793,12 @@ public abstract class AdoJobStoreBase : IJobStore
                     LockHandler = new SelectForUpdateSemaphore(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
                 }
 
-                Logger.LogInformation("Using db table-based data access locking (synchronization) via {LockHandlerType}.", LockHandler.GetType().Name);
+                Logger.UsingDatabaseLocking(LockHandler.GetType().Name);
             }
             else
             {
                 LockHandler = new SimpleSemaphore();
-                Logger.LogInformation("Using thread monitor-based data access locking (synchronization) via {LockHandlerType}.", LockHandler.GetType().Name);
+                Logger.UsingMonitorLocking(LockHandler.GetType().Name);
             }
         }
         else
@@ -812,11 +812,11 @@ public abstract class AdoJobStoreBase : IJobStore
                 {
                     // SQLite arrives here with a handler the store installed rather than one the caller
                     // chose, so this is a property of the database rather than a configuration to undo.
-                    Logger.LogWarning("A row-lock statement is configured, but SQLite serializes callers in process rather than by locking a row, so the statement is ignored.");
+                    Logger.RowLockStatementIgnoredBySqlite();
                 }
                 else
                 {
-                    Logger.LogWarning("A row-lock statement is configured, but lock handler {LockHandlerType} was supplied rather than built by the job store, so the statement is ignored. Pass it to the handler's constructor, or remove the lock handler and let the store choose one.", LockHandler.GetType().Name);
+                    Logger.RowLockStatementIgnoredBySuppliedHandler(LockHandler.GetType().Name);
                 }
             }
 
@@ -828,18 +828,18 @@ public abstract class AdoJobStoreBase : IJobStore
                     // SQLite gets this handler unconditionally, before the upgrade to database locks
                     // can be applied, and it cannot be swapped for one - so this is a property of the
                     // combination rather than something to reconfigure away.
-                    Logger.LogWarning("Accepting enlisted transactions with SQLite keeps in-process locking: SQLiteSemaphore releases the lock when the scheduling call returns, while the application transaction still holds the SQLite writer lock, so a concurrent scheduler operation can fail with 'database is locked' until that transaction completes. Keep enlisted transactions short, or use a database that supports row locking.");
+                    Logger.EnlistedTransactionsWithSqlite();
                 }
                 else
                 {
-                    Logger.LogWarning("Accepting enlisted transactions with lock handler {LockHandlerType}, which does not lock in the database. Its locks are released before the application commits its transaction, so concurrent callers can act on scheduling data that is not visible to them yet.", LockHandler.GetType().Name);
+                    Logger.EnlistedTransactionsWithInProcessLocking(LockHandler.GetType().Name);
                 }
             }
 
             // be ready to give a friendly warning if SQL Server is used and sub-optimal locking
             if (LockHandler is UpdateRowSemaphore and not SqlServerMemoryOptimizedUpdateRowSemaphore && Delegate is SqlServerDelegate)
             {
-                Logger.LogWarning("Detected usage of SqlServerDelegate and UpdateRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access");
+                Logger.SqlServerCouldUseRowLocking();
             }
             // be ready to give a friendly warning if SQL Server provider and wrong delegate
             if (DbProvider.Metadata.ConnectionType?.Namespace is not null
@@ -847,7 +847,7 @@ public abstract class AdoJobStoreBase : IJobStore
                 && DbProvider.Metadata.ConnectionType.Name == "SqlConnection"
                 && !(Delegate is SqlServerDelegate))
             {
-                Logger.LogWarning("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
+                Logger.SqlServerProviderWithoutSqlServerDelegate();
             }
         }
 
@@ -872,7 +872,7 @@ public abstract class AdoJobStoreBase : IJobStore
             try
             {
                 var objectCount = await ExecuteWithoutLock<int>(conn => Delegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
-                Logger.LogInformation("Successfully validated presence of {SchemaObjectCount} schema objects", objectCount);
+                Logger.SchemaValidated(objectCount);
             }
             catch (Exception ex)
             {
@@ -921,7 +921,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
             catch (SchedulerException se)
             {
-                Logger.LogError(se, "Failure occurred during job recovery: {ExceptionMessage}", se.Message);
+                Logger.JobRecoveryFailed(se.Message, se);
                 Throw.SchedulerConfigException("Failure occurred during job recovery.", se);
             }
         }
@@ -976,7 +976,7 @@ public abstract class AdoJobStoreBase : IJobStore
         }
         catch (Exception sqle)
         {
-            Logger.LogWarning(sqle, "Database connection Shutdown unsuccessful.");
+            Logger.DatabaseShutdownFailed(sqle);
         }
     }
 
@@ -1001,7 +1001,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
             catch (LockException le)
             {
-                Logger.LogError(le, "Error returning lock: {ExceptionMessage}", le.Message);
+                Logger.LockReleaseFailed(le.Message, le);
             }
         }
     }
@@ -1033,14 +1033,14 @@ public abstract class AdoJobStoreBase : IJobStore
 
             rows += await Delegate.UpdateTriggerStatesFromOtherStates(conn, StoredTriggerState.Paused, [StoredTriggerState.PausedBlocked], cancellationToken).ConfigureAwait(false);
 
-            Logger.LogInformation("Freed {Count} triggers from 'acquired' / 'blocked' state.", rows);
+            Logger.TriggersFreedFromAcquiredOrBlocked(rows);
 
             // clean up misfired jobs
             await RecoverMisfiredJobs(conn, true, cancellationToken).ConfigureAwait(false);
 
             // recover jobs marked for recovery that were not fully executed
             var recoveringJobTriggers = await Delegate.SelectTriggersForRecoveringJobs(conn, cancellationToken).ConfigureAwait(false);
-            Logger.LogInformation("Recovering {Count} jobs that were in-progress at the time of the last shut-down.", recoveringJobTriggers.Count);
+            Logger.RecoveringInProgressJobs(recoveringJobTriggers.Count);
 
             foreach (IOperableTrigger trigger in recoveringJobTriggers)
             {
@@ -1050,7 +1050,7 @@ public abstract class AdoJobStoreBase : IJobStore
                     await AddTrigger(conn, trigger, null, false, StoredTriggerState.Waiting, false, true, cancellationToken).ConfigureAwait(false);
                 }
             }
-            Logger.LogInformation("Recovery complete.");
+            Logger.RecoveryComplete();
 
             // remove lingering 'complete' triggers...
             var triggersInState = await Delegate.SelectTriggersInState(conn, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
@@ -1058,11 +1058,11 @@ public abstract class AdoJobStoreBase : IJobStore
             {
                 await DeleteTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
             }
-            Logger.LogInformation("Removed  {Count} 'complete' triggers.", triggersInState.Count);
+            Logger.CompleteTriggersRemoved(triggersInState.Count);
 
             // clean up any fired trigger entries
             int n = await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery(), cancellationToken).ConfigureAwait(false);
-            Logger.LogInformation("Removed {Count} stale fired job entries.", n);
+            Logger.StaleFiredJobEntriesRemoved(n);
         }
         catch (JobPersistenceException)
         {
@@ -1097,22 +1097,18 @@ public abstract class AdoJobStoreBase : IJobStore
 
         if (hasMoreMisfiredTriggers)
         {
-            Logger.LogInformation(
-                "Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed.",
-                misfiredTriggers.Count);
+            Logger.HandlingFirstMisfiredTriggers(misfiredTriggers.Count);
         }
         else if (misfiredTriggers.Count > 0)
         {
-            Logger.LogInformation(
-                "Handling {Count} trigger(s) that missed their scheduled fire-time.", misfiredTriggers.Count);
+            Logger.HandlingMisfiredTriggers(misfiredTriggers.Count);
         }
         else
         {
             // A healthy scheduler takes this branch on every misfire scan, forever, so it is Debug -
             // "nothing happened" is not news. The branches above, where something did misfire, stay
             // at Information.
-            Logger.LogDebug(
-                "Found 0 triggers that missed their scheduled fire-time.");
+            Logger.NoMisfiredTriggers();
             return RecoverMisfiredJobsResult.NoOp;
         }
 
@@ -1131,7 +1127,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
             catch (Exception e)
             {
-                Logger.LogError(e, "Error preparing misfire update for trigger: '{TriggerKey}'", trig.Key);
+                Logger.MisfireUpdatePreparationFailed(trig.Key, e);
                 continue;
             }
 
@@ -1155,7 +1151,7 @@ public abstract class AdoJobStoreBase : IJobStore
         }
         catch (Exception e)
         {
-            Logger.LogError(e, "Error updating {Count} misfired trigger(s)", updates.Count);
+            Logger.MisfiredTriggerUpdateFailed(updates.Count, e);
             return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count, earliestNewTime);
         }
 
@@ -1262,14 +1258,14 @@ public abstract class AdoJobStoreBase : IJobStore
                 }
                 catch (Exception e)
                 {
-                    Logger.LogError(e, "Error recovering stale acquired trigger '{TriggerKey}'", rec.TriggerKey);
+                    Logger.StaleAcquiredTriggerRecoveryFailed(rec.TriggerKey, e);
                 }
             }
         }
 
         if (recoveredCount > 0)
         {
-            Logger.LogInformation("Recovered {RecoveredCount} trigger(s) stuck in ACQUIRED state (stale threshold: {StaleThreshold})", recoveredCount, staleThreshold);
+            Logger.StaleAcquiredTriggersRecovered(recoveredCount, staleThreshold);
         }
 
         return recoveredCount;
@@ -2294,7 +2290,7 @@ public abstract class AdoJobStoreBase : IJobStore
                 return false;
             }
 
-            Logger.LogInformation("Trigger {TriggerKey} reset from ERROR state to: {NewState}", triggerKey, newState);
+            Logger.TriggerResetFromError(triggerKey, newState);
             return true;
         }
         catch (Exception e)
@@ -3729,7 +3725,7 @@ public abstract class AdoJobStoreBase : IJobStore
                     {
                         try
                         {
-                            Logger.LogError(e, "Error retrieving job, setting trigger state to ERROR.");
+                            Logger.JobRetrievalFailed(e);
                             await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
 
                             // A trigger whose job type will not load stops firing here and is reported
@@ -3739,7 +3735,7 @@ public abstract class AdoJobStoreBase : IJobStore
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogError(ex, "Unable to set trigger state to ERROR.");
+                            Logger.TriggerErrorStateUpdateFailed(ex);
                         }
                         continue;
                     }
@@ -3775,7 +3771,7 @@ public abstract class AdoJobStoreBase : IJobStore
                     // able to be clean up by Quartz since we are not returning it to be processed.
                     if (nextFireTimeUtc is null)
                     {
-                        Logger.LogWarning("Trigger {TriggerKey} returned null on nextFireTime and yet still exists in DB!", nextTrigger.Key);
+                        Logger.TriggerHasNoNextFireTime(nextTrigger.Key);
                         continue;
                     }
 
@@ -3890,7 +3886,7 @@ public abstract class AdoJobStoreBase : IJobStore
                             {
                                 throw; // Let ExecuteInLocalTransactionLock retry the whole transaction
                             }
-                            Logger.LogError(jpe, "Caught job persistence exception: {ExceptionMessage}", jpe.Message);
+                            Logger.JobPersistenceExceptionCaught(jpe.Message, jpe);
                             result = TriggerFiredResult.Failed(jpe);
                         }
                         catch (Exception ex)
@@ -3900,7 +3896,7 @@ public abstract class AdoJobStoreBase : IJobStore
                                 // Wrap as JobPersistenceException so outer retry mechanism can handle it
                                 throw new JobPersistenceException("Transient error firing trigger: " + ex.Message, ex);
                             }
-                            Logger.LogError(ex, "Caught exception: {ExceptionMessage}", ex.Message);
+                            Logger.ExceptionCaught(ex.Message, ex);
                             result = TriggerFiredResult.Failed(ex);
                         }
 
@@ -3987,7 +3983,7 @@ public abstract class AdoJobStoreBase : IJobStore
         {
             try
             {
-                Logger.LogError(jpe, "Error retrieving job, setting trigger state to ERROR.");
+                Logger.JobRetrievalFailed(jpe);
                 await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
 
                 // Same as above: the trigger stops here and nothing else says so.
@@ -3995,7 +3991,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
             catch (Exception sqle)
             {
-                Logger.LogError(sqle, "Unable to set trigger state to ERROR.");
+                Logger.TriggerErrorStateUpdateFailed(sqle);
             }
             throw;
         }
@@ -4012,7 +4008,7 @@ public abstract class AdoJobStoreBase : IJobStore
                 bool alreadyExecuting = await Delegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
                 if (alreadyExecuting)
                 {
-                    Logger.LogInformation("Not firing trigger {TriggerKey} for [DisallowConcurrentExecution] job {JobKey} - already executing on another node.", trigger.Key, trigger.JobKey);
+                    Logger.ConcurrentExecutionDeclined(trigger.Key, trigger.JobKey);
                     return null;
                 }
             }
@@ -4027,7 +4023,7 @@ public abstract class AdoJobStoreBase : IJobStore
             calendar = await GetCalendar(conn, trigger.CalendarName, cancellationToken).ConfigureAwait(false);
             if (calendar is null)
             {
-                Logger.LogWarning("Trigger {TriggerKey} references calendar '{CalendarName}', which does not exist - the fire was skipped and the trigger will not run until the calendar is added or the reference is cleared.", trigger.Key, trigger.CalendarName);
+                Logger.TriggerReferencesMissingCalendar(trigger.Key, trigger.CalendarName);
                 return null;
             }
         }
@@ -4220,7 +4216,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
             else if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
             {
-                Logger.LogInformation("Trigger {Trigger} set to ERROR state.", trigger.Key);
+                Logger.TriggerSetToError(trigger.Key);
                 await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
@@ -4231,7 +4227,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
             else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
             {
-                Logger.LogInformation("All triggers of Job {Job} set to ERROR state.", trigger.JobKey);
+                Logger.JobTriggersSetToError(trigger.JobKey);
                 await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
@@ -4399,7 +4395,7 @@ public abstract class AdoJobStoreBase : IJobStore
 
                 if (Logger.IsEnabled(LogLevel.Debug))
                 {
-                    Logger.LogDebug("Found {MisfireCount} triggers that missed their scheduled fire-time.", misfireCount);
+                    Logger.MisfiredTriggersCounted(misfireCount);
                 }
 
                 if (misfireCount > 0)
@@ -4603,7 +4599,7 @@ public abstract class AdoJobStoreBase : IJobStore
                 await RollbackConnection(conn, jpe, cancellationToken).ConfigureAwait(false);
                 if (attempt < totalAttempts && IsTransient(jpe))
                 {
-                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in DoCheckin, will retry after {RetryInterval}", attempt, totalAttempts, TransientRetryInterval);
+                    Logger.TransientFailureInCheckIn(attempt, totalAttempts, TransientRetryInterval, jpe);
                 }
                 else
                 {
@@ -4684,10 +4680,7 @@ public abstract class AdoJobStoreBase : IJobStore
             if (!foundThisScheduler && !firstCheckIn)
             {
                 // TODO: revisit when handle self-failed-out impl'ed (see TODO in clusterCheckIn() below)
-                Logger.LogWarning(
-                    "This scheduler instance ({InstanceId}) is still " +
-                    "active but was recovered by another instance in the cluster.  " +
-                    "This may cause inconsistent behavior.", InstanceId);
+                Logger.RecoveredByAnotherInstance(InstanceId);
             }
 
             return failedInstances;
@@ -4729,7 +4722,7 @@ public abstract class AdoJobStoreBase : IJobStore
                 SchedulerStateRecord orphanedInstance = new(name, CheckinTimestamp: default, CheckinInterval: default);
                 orphanedInstances.Add(orphanedInstance);
 
-                Logger.LogWarning("Found orphaned fired triggers for instance: {SchedulerInstanceId}", orphanedInstance.SchedulerInstanceId);
+                Logger.OrphanedFiredTriggersFound(orphanedInstance.SchedulerInstanceId);
             }
         }
 
@@ -4777,13 +4770,12 @@ public abstract class AdoJobStoreBase : IJobStore
         {
             long recoverIds = timeProvider.GetTimestamp();
 
-            LogWarnIfNonZero(failedInstances.Count,
-                "ClusterManager: detected " + failedInstances.Count + " failed or restarted instances.");
+            Logger.FailedInstancesDetected(failedInstances.Count);
             try
             {
                 foreach (SchedulerStateRecord rec in failedInstances)
                 {
-                    Logger.LogInformation("ClusterManager: Scanning for instance {SchedulerInstanceId}'s failed in-progress jobs.", rec.SchedulerInstanceId);
+                    Logger.ScanningFailedInstance(rec.SchedulerInstanceId);
 
                     var firedTriggerRecs = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = rec.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
 
@@ -4832,10 +4824,7 @@ public abstract class AdoJobStoreBase : IJobStore
                             preservedFireInstanceIds ??= [];
                             preservedFireInstanceIds.Add(ftRec.FireInstanceId);
                             deferredCount++;
-                            Logger.LogInformation(
-                                "ClusterManager: Deferring recovery of [DisallowConcurrentExecution] job {JobKey} " +
-                                "(fired trigger {FireInstanceId}) — may still be executing on instance {SchedulerInstanceId}.",
-                                jKey, ftRec.FireInstanceId, rec.SchedulerInstanceId);
+                            Logger.RecoveryDeferred(jKey, ftRec.FireInstanceId, rec.SchedulerInstanceId);
                             continue;
                         }
 
@@ -4882,7 +4871,7 @@ public abstract class AdoJobStoreBase : IJobStore
                             }
                             else
                             {
-                                Logger.LogWarning("ClusterManager: failed job {JobKey} no longer exists, cannot schedule recovery.", jKey);
+                                Logger.FailedJobNoLongerExists(jKey);
                                 otherCount++;
                             }
                         }
@@ -4933,17 +4922,31 @@ public abstract class AdoJobStoreBase : IJobStore
                             }
                         }
                     }
-                    LogWarnIfNonZero(acquiredCount,
-                        "ClusterManager: ......Freed " + acquiredCount + " acquired trigger(s).");
-                    LogWarnIfNonZero(completeCount,
-                        "ClusterManager: ......Deleted " + completeCount + " complete triggers(s).");
-                    LogWarnIfNonZero(recoveredCount,
-                        "ClusterManager: ......Scheduled " + recoveredCount +
-                        " recoverable job(s) for recovery.");
-                    LogWarnIfNonZero(otherCount,
-                        "ClusterManager: ......Cleaned-up " + otherCount + " other failed job(s).");
-                    LogWarnIfNonZero(deferredCount,
-                        "ClusterManager: ......Deferred recovery of " + deferredCount + " executing [DisallowConcurrentExecution] job(s).");
+
+                    if (acquiredCount > 0)
+                    {
+                        Logger.AcquiredTriggersFreed(acquiredCount);
+                    }
+
+                    if (completeCount > 0)
+                    {
+                        Logger.CompleteTriggersDeleted(completeCount);
+                    }
+
+                    if (recoveredCount > 0)
+                    {
+                        Logger.RecoverableJobsScheduled(recoveredCount);
+                    }
+
+                    if (otherCount > 0)
+                    {
+                        Logger.OtherFailedJobsCleanedUp(otherCount);
+                    }
+
+                    if (deferredCount > 0)
+                    {
+                        Logger.ExecutingJobRecoveriesDeferred(deferredCount);
+                    }
 
                     if (rec.SchedulerInstanceId != InstanceId)
                     {
@@ -4966,7 +4969,7 @@ public abstract class AdoJobStoreBase : IJobStore
                                 conn, rec.SchedulerInstanceId, StdAdoConstants.AutoPinSentinel, cancellationToken).ConfigureAwait(false);
                             if (repinned > 0)
                             {
-                                Logger.LogInformation("ClusterManager: Released {Count} auto-pinned trigger(s) from dead node '{InstanceId}' for re-acquisition.", repinned, rec.SchedulerInstanceId);
+                                Logger.AutoPinnedTriggersReleased(repinned, rec.SchedulerInstanceId);
                             }
 
                             await Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
@@ -4979,20 +4982,6 @@ public abstract class AdoJobStoreBase : IJobStore
                 Throw.JobPersistenceException("Failure recovering jobs: " + e.Message, e);
             }
         }
-    }
-
-    private void LogWarnIfNonZero(int val, string warning)
-    {
-#pragma warning disable CA2254
-        if (val > 0)
-        {
-            Logger.LogInformation(warning);
-        }
-        else
-        {
-            Logger.LogDebug(warning);
-        }
-#pragma warning restore CA2254
     }
 
     /// <summary>
@@ -5046,7 +5035,7 @@ public abstract class AdoJobStoreBase : IJobStore
         if (cth is null)
         {
             // db might be down or similar
-            Logger.LogInformation("ConnectionAndTransactionHolder passed to RollbackConnection was null, ignoring");
+            Logger.RollbackWithoutConnectionHolder();
             return;
         }
 
@@ -5082,7 +5071,7 @@ public abstract class AdoJobStoreBase : IJobStore
     {
         if (cth is null)
         {
-            Logger.LogDebug("ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring");
+            Logger.CommitWithoutConnectionHolder();
             return;
         }
         await cth.Commit(openNewTransaction, cancellationToken).ConfigureAwait(false);
@@ -5201,7 +5190,7 @@ public abstract class AdoJobStoreBase : IJobStore
             }
             catch (Exception e)
             {
-                Logger.LogError(e, "RetryExecuteInLocalTransactionLock: RuntimeException {ExceptionMessage}", e.Message);
+                Logger.RetryInLocalTransactionLockFailed(e.Message, e);
             }
 
             // retry every N seconds (the db connection must be failed)
@@ -5345,7 +5334,7 @@ public abstract class AdoJobStoreBase : IJobStore
                 await RollbackConnection(conn, jpe, cancellationToken).ConfigureAwait(false);
                 if (attempt < totalAttempts && IsTransient(jpe))
                 {
-                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInLocalTransactionLock, will retry after {RetryInterval}", attempt, totalAttempts, TransientRetryInterval);
+                    Logger.TransientFailureInLocalTransactionLock(attempt, totalAttempts, TransientRetryInterval, jpe);
                 }
                 else
                 {

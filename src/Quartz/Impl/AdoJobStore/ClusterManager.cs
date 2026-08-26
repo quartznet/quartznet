@@ -80,13 +80,13 @@ internal sealed class ClusterManager
             res = await jobStoreSupport.DoCheckin(requestorId).ConfigureAwait(false);
 
             numFails = 0;
-            logger.LogDebug("Check-in complete.");
+            logger.CheckInComplete();
         }
         catch (Exception e)
         {
             if (numFails % jobStoreSupport.RetryableActionErrorLogThreshold == 0)
             {
-                logger.LogError(e, "Error managing cluster: {ExceptionMessage}", e.Message);
+                logger.ClusterManagementFailed(e.Message, e);
             }
             numFails++;
         }

@@ -68,7 +68,7 @@ public class LocalTransactionJobStore : AdoJobStoreBase
     public override async ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default)
     {
         await base.Initialize(identity, cancellationToken).ConfigureAwait(false);
-        Logger.LogInformation("LocalTransactionJobStore initialized.");
+        Logger.LocalTransactionStoreInitialized();
     }
 
     /// <summary>

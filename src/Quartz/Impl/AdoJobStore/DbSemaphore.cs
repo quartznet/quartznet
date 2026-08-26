@@ -135,7 +135,7 @@ public abstract class DbSemaphore : ISemaphore
         var isDebugEnabled = logger.IsEnabled(LogLevel.Debug);
         if (isDebugEnabled)
         {
-            logger.LogDebug("Lock '{LockName}' is desired by: {RequestorId}", lockName, requestorId);
+            logger.LockDesired(lockName, requestorId);
         }
 
         var key = new ThreadLockKey(requestorId, lockKind);
@@ -146,7 +146,7 @@ public abstract class DbSemaphore : ISemaphore
 
             if (isDebugEnabled)
             {
-                logger.LogDebug("Lock '{LockName}' given to: {RequestorId}", lockName, requestorId);
+                logger.LockGiven(lockName, requestorId);
             }
 
             return locks.TryAdd(key, null);
@@ -155,7 +155,7 @@ public abstract class DbSemaphore : ISemaphore
         {
             if (isDebugEnabled)
             {
-                logger.LogDebug("Lock '{LockName}' Is already owned by: {RequestorId}", lockName, requestorId);
+                logger.LockAlreadyHeld(lockName, requestorId);
             }
             return false;
         }
@@ -177,13 +177,13 @@ public abstract class DbSemaphore : ISemaphore
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}", lockKind.ToLockName(), requestorId);
+                logger.LockReturned(lockKind.ToLockName(), requestorId);
             }
         }
         else if (logger.IsEnabled(LogLevel.Warning))
         {
-            logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockKind.ToLockName(), requestorId);
-            logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}", Environment.StackTrace);
+            logger.LockReturnedByNonOwner(lockKind.ToLockName(), requestorId);
+            logger.WrongfulReturnerStack(Environment.StackTrace);
         }
 
         return default;

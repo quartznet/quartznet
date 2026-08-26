@@ -562,7 +562,7 @@ internal sealed class AdoUtil : IAdoUtil
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug("Prepared SQL: {Sql}", cmd.CommandText);
+            logger.SqlPrepared(cmd.CommandText);
         }
 
         return cmd;

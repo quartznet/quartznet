@@ -203,9 +203,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
         }
         catch (Exception e)
         {
-            logger.LogError(e,
-                "Unexpected exception closing Connection." +
-                "  This is often due to a Connection being returned after or during shutdown.");
+            logger.ConnectionCloseFailed(e);
         }
     }
 
@@ -279,7 +277,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
     /// </summary>
     private void LogDisposeFailure(Exception e)
     {
-        logger.LogDebug(e, "Exception disposing connection or transaction. This is often due to a connection being returned after or during shutdown.");
+        logger.ConnectionDisposeFailed(e);
     }
 
     internal DateTimeOffset? SignalSchedulingChangeOnTxCompletion
@@ -322,7 +320,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
                 // Transaction lost its connection - nothing to rollback, the database
                 // will have already aborted it. This commonly happens with transient
                 // connectivity issues (see https://github.com/quartznet/quartznet/issues/2290)
-                logger.LogDebug("Rollback skipped - transaction is no longer connected, database will have aborted it");
+                logger.RollbackSkippedTransactionDisconnected();
                 return;
             }
 
@@ -336,11 +334,11 @@ public sealed class ConnectionAndTransactionHolder : IDisposable, IAsyncDisposab
                 {
                     // original error was transient, ones we have in Azure, don't complain too much about it
                     // we will try again anyway
-                    logger.LogDebug("Rollback failed due to transient error");
+                    logger.RollbackFailedTransiently();
                 }
                 else
                 {
-                    logger.LogError(e, "Couldn't rollback ADO.NET connection. {ExceptionMessage}", e.Message);
+                    logger.RollbackFailed(e.Message, e);
                 }
             }
         }
