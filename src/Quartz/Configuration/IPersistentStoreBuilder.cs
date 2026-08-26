@@ -127,6 +127,15 @@ public interface IPersistentStoreBuilder
         where T : class, IDriverDelegate;
 
     /// <summary>
+    /// Uses a driver delegate the caller builds, for cases where it needs configuring first.
+    /// </summary>
+    /// <remarks>
+    /// As with <see cref="UseSerializer(Func{IServiceProvider, IObjectSerializer})"/>, this registers
+    /// under the scheduler's own key, which registering against <see cref="Services"/> would not.
+    /// </remarks>
+    IPersistentStoreBuilder UseDriverDelegate(Func<IServiceProvider, IDriverDelegate> factory);
+
+    /// <summary>
     /// Takes part in a cluster with every other scheduler sharing this database.
     /// </summary>
     /// <remarks>

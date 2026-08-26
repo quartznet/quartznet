@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
+using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Tests.Unit.Configuration;
 
@@ -14,6 +16,7 @@ namespace Quartz.Tests.Unit.Configuration;
 public sealed class PersistentStoreBuilderTest
 {
     private const string ConnectionString = "Server=nowhere;Database=quartz;";
+    private const string ReportingConnectionString = "Server=nowhere;Database=reporting;";
 
     [Test]
     public void UseDataSource_WithAName_IsWhatTheStoreReadsItsConnectionUnder()
@@ -77,5 +80,59 @@ public sealed class PersistentStoreBuilderTest
         provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get("quartz")
             .Provider.Should().Be("SqlServer",
                 "the two overloads are told apart by what they are handed, so neither may shadow the other");
+    }
+
+    [Test]
+    public void UseDriverDelegate_WithAFactory_RunsTheFactory()
+    {
+        var built = new CountingDriverDelegate();
+
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseDriverDelegate(_ => built);
+            store.UseSqlServer(ConnectionString);
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IDriverDelegate>().Should().BeSameAs(built,
+            "a dialect that needs building is the case the type-argument overload cannot serve");
+    }
+
+    [Test]
+    public void UseDriverDelegate_WithAFactory_IsGivenTheSchedulersOwnProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.UseSqlServer(ConnectionString)));
+        services.AddQuartz("reporting", q => q.UsePersistentStore(store =>
+        {
+            store.UseDriverDelegate(scoped => new CountingDriverDelegate
+            {
+                Provider = scoped.GetRequiredService<IDbProvider>(),
+            });
+            store.UseSqlServer(ReportingConnectionString);
+        }));
+
+        using var container = services.BuildServiceProvider();
+
+        container.GetRequiredKeyedService<IDriverDelegate>("reporting").Should().BeOfType<CountingDriverDelegate>()
+            .Which.Provider!.ConnectionString.Should().Be(ReportingConnectionString,
+                "the factory runs against a provider keyed to this scheduler, so a named scheduler's "
+                + "delegate is handed its own database rather than the default scheduler's");
+    }
+
+    [Test]
+    public void UseDriverDelegate_WithAFactory_RefusesNull()
+    {
+        var services = new ServiceCollection();
+        var act = () => services.AddQuartz(q => q.UsePersistentStore(store => store.UseDriverDelegate(factory: null!)));
+
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    private sealed class CountingDriverDelegate : StdAdoDelegate
+    {
+        public IDbProvider? Provider { get; init; }
     }
 }

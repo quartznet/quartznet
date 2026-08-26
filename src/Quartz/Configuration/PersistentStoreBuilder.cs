@@ -209,6 +209,13 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         return this;
     }
 
+    public IPersistentStoreBuilder UseDriverDelegate(Func<IServiceProvider, IDriverDelegate> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        RegisterScoped(factory);
+        return this;
+    }
+
     public IPersistentStoreBuilder UseClustering(Action<ClusteringOptions>? configure = null)
     {
         // Configured rather than assigned from a copy, so UseClustering() with no arguments turns
