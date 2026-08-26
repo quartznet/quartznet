@@ -38,6 +38,7 @@ internal sealed class Meters
     private readonly Counter<long> triggersAcquired;
     private readonly Histogram<double> clusterCheckinDuration;
     private readonly Counter<long> clusterRecoveredTriggers;
+    private readonly Histogram<double> jobStoreOperationDuration;
 
     public Meters(IMeterFactory? meterFactory)
     {
@@ -76,6 +77,11 @@ internal sealed class Meters
         // What recovering a failed node cost, counted against the node that failed rather than the one
         // doing the recovering.
         clusterRecoveredTriggers = meter.CreateCounter<long>("quartz.cluster.recovery.trigger", "{trigger}", "Number of fired triggers recovered from a failed cluster node");
+
+        // Every round trip a scheduler makes to its store, named by the operation. The histogram's own
+        // count is how many of each there were, and its error.type subset how many failed, so this one
+        // instrument answers rate, latency and failure for the whole store surface.
+        jobStoreOperationDuration = meter.CreateHistogram<double>("quartz.jobstore.operation.duration", "s", "Elapsed time spent on a job store operation");
     }
 
     public static Meters Shared => shared.Value;
@@ -95,6 +101,39 @@ internal sealed class Meters
     /// Whether anything is collecting the recovery counter.
     /// </summary>
     internal bool ClusterRecoveryEnabled => clusterRecoveredTriggers.Enabled;
+
+    /// <summary>
+    /// Whether anything is collecting the store-operation histogram. Asked once per store call, before
+    /// a timestamp is read, so that a scheduler nobody is watching pays a boolean per operation.
+    /// </summary>
+    internal bool JobStoreOperationEnabled => jobStoreOperationDuration.Enabled;
+
+    /// <summary>
+    /// One round trip to the job store, named by <c>operationName</c> — which is one of the
+    /// <see cref="OperationName.JobStore"/> names, and so the same string the operation's span is
+    /// called, so one value finds a slow operation in a trace and in a metric alike.
+    /// </summary>
+    internal void RecordJobStoreOperation(
+        string schedulerName,
+        string schedulerId,
+        string operationName,
+        TimeSpan duration,
+        Exception? exception)
+    {
+        TagList tags = new()
+        {
+            { ActivityTags.SchedulerName, schedulerName },
+            { ActivityTags.SchedulerId, schedulerId },
+            { ActivityTags.JobStoreOperation, operationName },
+        };
+
+        if (exception is not null)
+        {
+            tags.Add(ErrorType.TagName, ErrorType.Of(exception));
+        }
+
+        jobStoreOperationDuration.Record(duration.TotalSeconds, tags);
+    }
 
     /// <summary>
     /// One trigger the scheduler was told had misfired.

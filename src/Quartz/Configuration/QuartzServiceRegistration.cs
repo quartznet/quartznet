@@ -190,6 +190,7 @@ internal static class QuartzServiceRegistration
             var options = provider.GetSchedulerOptions<QuartzSchedulerOptions>(key);
             var instanceName = key as string ?? options.InstanceName;
             var meters = provider.GetRequiredService<Meters>();
+            var timeProvider = provider.GetSchedulerTimeProvider(key);
 
             var resources = new QuartzSchedulerResources
             {
@@ -199,11 +200,11 @@ internal static class QuartzServiceRegistration
                 MaxBatchSize = options.MaxBatchSize,
                 BatchTimeWindow = options.BatchTriggerAcquisitionFireAheadTimeWindow,
                 ShutdownJobInterruption = options.ShutdownJobInterruption,
-                TimeProvider = provider.GetSchedulerTimeProvider(key),
+                TimeProvider = timeProvider,
                 LoggerFactory = provider.GetSchedulerLoggerFactory(),
                 Meters = meters,
                 ThreadPool = provider.GetScheduler<IThreadPool>(key),
-                JobStore = Instrument(provider.GetScheduler<IJobStore>(key), meters),
+                JobStore = Instrument(provider.GetScheduler<IJobStore>(key), meters, timeProvider),
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
                 SchedulerRepository = provider.GetRequiredService<ISchedulerRepository>(),
             };
@@ -269,29 +270,33 @@ internal static class QuartzServiceRegistration
     }
 
     /// <summary>
-    /// Hands the store the container's instruments on its way into a scheduler's resources.
+    /// Wires a scheduler's store into the container's telemetry on its way into the resources.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The store's own measurements — the cluster check-in and the recovery of a failed node — belong on
-    /// the same meter the execution instruments do, so that an application collecting one collects them
-    /// all and two containers in one process keep theirs apart. They cannot arrive through the store's
-    /// constructor: <see cref="Meters"/> is internal and the constructor is public, and five different
-    /// registrations build the store. This is the one place all five arrive at, holding both.
+    /// Two things happen here, and this is the one place both can. The store's own measurements — the
+    /// cluster check-in and the recovery of a failed node — belong on the same meter the execution
+    /// instruments do, so that an application collecting one collects them all and two containers in one
+    /// process keep theirs apart. They cannot arrive through the store's constructor:
+    /// <see cref="Meters"/> is internal and the constructor is public, and five different registrations
+    /// build the store. The lookup goes through <see cref="JobStores.Unwrap" />, because an application
+    /// may have wrapped its store and the measurements belong to the one talking to the database.
     /// </para>
     /// <para>
-    /// Through <see cref="JobStores.Unwrap" />, because the application may have wrapped its store, and
-    /// the measurements belong to the store that talks to the database rather than to the wrapper.
+    /// And the store is wrapped for tracing — once, outermost, over whatever the application layered
+    /// underneath. Deliberately not a second <c>IJobStore</c> registration: keyed resolution and
+    /// <c>UseJobStore(instance)</c> go on meaning what they meant, and the decorator exists only for the
+    /// scheduler that is about to be built from these resources.
     /// </para>
     /// </remarks>
-    private static IJobStore Instrument(IJobStore jobStore, Meters meters)
+    private static TracingJobStore Instrument(IJobStore jobStore, Meters meters, TimeProvider timeProvider)
     {
         if (JobStores.Unwrap(jobStore) is AdoJobStoreBase persistent)
         {
             persistent.Meters = meters;
         }
 
-        return jobStore;
+        return new TracingJobStore(jobStore, meters, timeProvider);
     }
 
     /// <summary>
