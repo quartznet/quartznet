@@ -19,73 +19,84 @@
 
 #endregion
 
+using System.Data.Common;
+
 namespace Quartz.Examples.Example13;
 
 /// <summary>
-/// This example will demonstrate the clustering features of AdoJobStore.
+/// This example will demonstrate the clustering features of the ADO.NET job store.
 /// </summary>
 /// <remarks>
-///
 /// <para>
-/// All instances MUST use a different properties file, because their instance
-/// Ids must be different, however all other properties should be the same.
+/// A cluster is several scheduler instances sharing one database. This example is one node of one:
+/// run it in a second terminal and the two share the work, because they share an
+/// <c>InstanceName</c> and the tables it names. Kill one and the other recovers the jobs it was
+/// running, which is what <c>RequestRecovery()</c> asks for.
 /// </para>
-///
 /// <para>
-/// If you want it to clear out existing jobs & triggers, pass a command-line
-/// argument called "clearJobs".
+/// It needs a SQL Server with the Quartz schema in it. The DDL is
+/// <c>database/tables/tables_sqlserver.sql</c> in this repository, and the default connection string
+/// below expects a <c>quartznet</c> database on <c>localhost</c>; <c>src/Quartz.Examples/README.md</c>
+/// has the one-line docker command that produces one. Set <c>QUARTZ_EXAMPLES_SQLSERVER</c> to point
+/// somewhere else.
 /// </para>
-///
 /// <para>
-/// You should probably start with a "fresh" set of tables (assuming you may
-/// have some data lingering in it from other tests), since mixing data from a
-/// non-clustered setup with a clustered one can be bad.
-/// </para>
-///
-/// <para>
-/// Try killing one of the cluster instances while they are running, and see
-/// that the remaining instance(s) recover the in-progress jobs. Note that
-/// detection of the failure may take up to 15 or so seconds with the default
-/// settings.
-/// </para>
-///
-/// <para>
-/// Also try running it with/without the shutdown-hook plugin registered with
-/// the scheduler. (quartz.plugins.management.ShutdownHookPlugin).
-/// </para>
-///
-/// <para>
-/// <i>Note:</i> Never run clustering on separate machines, unless their
-/// clocks are synchronized using some form of time-sync service (daemon).
+/// <i>Note:</i> Never run clustering on separate machines, unless their clocks are synchronized using
+/// some form of time-sync service (daemon). A node decides that another has died by comparing its own
+/// clock with a check-in time the other one wrote.
 /// </para>
 /// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public class ClusteringJobsExecutionExample : IExample
 {
-    public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
+    /// <summary>
+    /// The connection string, which the same environment variable the integration tests read overrides.
+    /// </summary>
+    private static string ConnectionString =>
+        Environment.GetEnvironmentVariable("QUARTZ_EXAMPLES_SQLSERVER")
+        ?? Environment.GetEnvironmentVariable("MSSQL_CONNECTION_STRING")
+        ?? "Server=localhost;Database=quartznet;User Id=sa;Password=Quartz!DockerP4ss;TrustServerCertificate=true;";
+
+    /// <summary>
+    /// The group the jobs live in. Fixed rather than named after the node, because every node
+    /// schedules the same jobs and the point is that any of them may run any of them.
+    /// </summary>
+    private const string JobGroup = "cluster-demo";
+
+    public async ValueTask Run(CancellationToken cancellationToken = default)
     {
-        // First we must get a reference to a scheduler
+        Console.WriteLine("------- Initializing ----------------------");
+
         QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
 
         builder
             .ConfigureScheduler(options =>
             {
-                // every node in the cluster shares the instance name and needs its own instance id
-                options.InstanceId = "instance_one";
-                options.InstanceName = "TestScheduler";
+                // every node in the cluster shares the instance name: it is what makes them one cluster
+                options.InstanceName = "QuartzExamplesCluster";
+
+                // ...and each needs its own id. Generating one is the easy way to be sure; set
+                // InstanceId explicitly when something outside Quartz has to name the node.
+                options.GenerateInstanceId = true;
             })
             .UseDefaultThreadPool(maxConcurrency: 5)
             .UsePersistentStore(store =>
             {
-                store.UseSqlServer(TestConstants.SqlServerConnectionString);
+                store.UseSqlServer(ConnectionString);
 
                 // if running SQLite this would be UseSystemDataSqlite (System.Data.SQLite) or
                 // UseSqlite (Microsoft.Data.Sqlite), plus UseLockHandler<UpdateRowSemaphore>()
 
-                // the ~15 seconds it takes to notice a failed node is ClusteringOptions.CheckinInterval
-                // plus CheckinMisfireThreshold, 7.5 seconds each by default and both settable here
-                store.UseClustering();
+                store.UseClustering(cluster =>
+                {
+                    // how often this node says "still alive", and how long past a missed check-in
+                    // another node waits before taking its work over. 7.5 seconds each by default,
+                    // shortened here so that killing a node has a visible effect within the run.
+                    cluster.CheckinInterval = TimeSpan.FromSeconds(5);
+                    cluster.CheckinMisfireThreshold = TimeSpan.FromSeconds(5);
+                });
+
                 store.UseSystemTextJsonSerializer();
                 store.Configure(options =>
                 {
@@ -94,134 +105,98 @@ public class ClusteringJobsExecutionExample : IExample
                 });
             });
 
-        IScheduler scheduler = await builder.BuildScheduler();
-
-        if (inClearJobs)
+        IScheduler scheduler;
+        try
         {
-            Console.WriteLine("***** Deleting existing jobs/triggers *****");
-            await scheduler.Clear();
+            scheduler = await builder.BuildScheduler(cancellationToken);
+        }
+        catch (Exception ex) when (ex is SchedulerException or DbException)
+        {
+            Console.Error.WriteLine("Could not reach the database this example needs.");
+            Console.Error.WriteLine($"  connection string: {ConnectionString}");
+            Console.Error.WriteLine("  create a database and run database/tables/tables_sqlserver.sql against it,");
+            Console.Error.WriteLine("  or point QUARTZ_EXAMPLES_SQLSERVER somewhere else.");
+            Console.Error.WriteLine("  src/Quartz.Examples/README.md has a docker command that produces one.");
+            Console.Error.WriteLine(ex.Message);
+            return;
         }
 
-        Console.WriteLine("------- Initialization Complete -----------");
+        Console.WriteLine($"------- Initialization Complete ----------- this node is {scheduler.SchedulerInstanceId}");
 
-        if (inScheduleJobs)
-        {
-            Console.WriteLine("------- Scheduling Jobs ------------------");
+        Console.WriteLine("------- Scheduling Jobs ------------------");
 
-            string schedId = scheduler.SchedulerInstanceId;
+        // Every node schedules the same jobs into the same group, replacing what is already there. The
+        // first node to start puts them in; the rest find them and carry on. Which node then runs a
+        // given firing is the cluster's decision, and watching that decision is the point.
+        await Schedule<SimpleRecoveryJob>(scheduler, "job_1", TimeSpan.FromSeconds(10), cancellationToken);
+        await Schedule<SimpleRecoveryJob>(scheduler, "job_2", TimeSpan.FromSeconds(12), cancellationToken);
+        await Schedule<SimpleRecoveryStatefulJob>(scheduler, "job_3", TimeSpan.FromSeconds(14), cancellationToken);
 
-            int count = 1;
-
-            IJobDetail job = JobBuilder.Create<SimpleRecoveryJob>()
-                .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
-                .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
-                .Build();
-
-            ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                .WithIdentity("triger_" + count, schedId)
-                .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
-                .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
-                .Build();
-
-            Console.WriteLine("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.NextFireTimeUtc, trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds);
-
-            count++;
-
-            job = JobBuilder.Create<SimpleRecoveryJob>()
-                .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
-                .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
-                .Build();
-
-            trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                .WithIdentity("triger_" + count, schedId)
-                .StartAt(DateTimeOffset.UtcNow.AddSeconds(2))
-                .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
-                .Build();
-
-            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
-            await scheduler.ScheduleJob(job, trigger);
-
-            count++;
-
-            job = JobBuilder.Create<SimpleRecoveryStatefulJob>()
-                .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
-                .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
-                .Build();
-
-            trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                .WithIdentity("triger_" + count, schedId)
-                .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
-                .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(3)))
-                .Build();
-
-            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
-            await scheduler.ScheduleJob(job, trigger);
-
-            count++;
-
-            job = JobBuilder.Create<SimpleRecoveryJob>()
-                .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
-                .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
-                .Build();
-
-            trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                .WithIdentity("triger_" + count, schedId)
-                .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
-                .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(4)))
-                .Build();
-
-            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
-            await scheduler.ScheduleJob(job, trigger);
-
-            count++;
-
-            job = JobBuilder.Create<SimpleRecoveryJob>()
-                .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
-                .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
-                .Build();
-
-            trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                .WithIdentity("triger_" + count, schedId)
-                .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
-                .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromMilliseconds(4500)))
-                .Build();
-
-            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
-            await scheduler.ScheduleJob(job, trigger);
-        }
-
-        // jobs don't start firing until start() has been called...
         Console.WriteLine("------- Starting Scheduler ---------------");
-        await scheduler.Start();
+        await scheduler.Start(cancellationToken);
         Console.WriteLine("------- Started Scheduler ----------------");
 
-        Console.WriteLine("------- Waiting for one hour... ----------");
+        Console.WriteLine("------- Start this example again in another terminal to add a node,");
+        Console.WriteLine("------- then kill one of them and watch the other recover its jobs.");
+        Console.WriteLine("------- (Ctrl+C stops early)");
 
-        await Task.Delay(TimeSpan.FromHours(1));
+        try
+        {
+            // five minutes, which is long enough to start a second node and kill it again
+            DateTimeOffset until = TimeProvider.System.GetUtcNow().AddMinutes(5);
+
+            while (TimeProvider.System.GetUtcNow() < until)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(15), cancellationToken);
+                await ReportCluster(scheduler, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("------- Seen enough, shutting down -------");
+        }
 
         Console.WriteLine("------- Shutting Down --------------------");
-        await scheduler.Shutdown();
+        await scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
         Console.WriteLine("------- Shutdown Complete ----------------");
     }
 
-    public Task Run()
+    private static async ValueTask Schedule<TJob>(
+        IScheduler scheduler,
+        string name,
+        TimeSpan interval,
+        CancellationToken cancellationToken) where TJob : IJob
     {
-        bool clearJobs = true;
-        bool scheduleJobs = true;
-        /* TODO
-        for (int i = 0; i < args.Length; i++)
+        IJobDetail job = JobBuilder.Create<TJob>()
+            .WithIdentity(name, JobGroup)
+            // ask the cluster to re-run this job if the node running it dies mid-execution
+            .RequestRecovery()
+            .Build();
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity(name, JobGroup)
+            .StartAt(DateTimeOffset.UtcNow.AddSeconds(5))
+            .WithSimpleSchedule(x => x.WithInterval(interval).RepeatForever())
+            .Build();
+
+        await scheduler.ScheduleJob(job, [trigger], new ScheduleJobOptions { Replace = true }, cancellationToken);
+
+        Console.WriteLine($"{job.Key} every {interval.TotalSeconds:0} seconds, recoverable");
+    }
+
+    /// <summary>
+    /// What this node believes about the cluster, read off the check-in table.
+    /// </summary>
+    private static async ValueTask ReportCluster(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        List<ClusterNode> nodes = await scheduler.QueryClusterNodes(cancellationToken);
+
+        Console.WriteLine($"------- Cluster: {nodes.Count} node(s) -------------");
+
+        foreach (ClusterNode node in nodes)
         {
-            if (args[i].ToUpper().Equals("clearJobs".ToUpper()))
-            {
-                clearJobs = true;
-            }
-            else if (args[i].ToUpper().Equals("dontScheduleJobs".ToUpper()))
-            {
-                scheduleJobs = false;
-            }
+            string marker = node.IsCurrentNode ? " (this node)" : "";
+            Console.WriteLine($"        {node.InstanceId}{marker}: {node.State}, last check-in {node.LastCheckInUtc:HH:mm:ss}");
         }
-        */
-        ClusteringJobsExecutionExample example = new ClusteringJobsExecutionExample();
-        return example.Run(clearJobs, scheduleJobs);
     }
 }

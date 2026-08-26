@@ -19,226 +19,135 @@
 
 #endregion
 
-using Quartz.Impl;
-
 namespace Quartz.Examples.Example02;
 
 /// <summary>
 /// This example will demonstrate all of the basics of scheduling capabilities
 /// of Quartz using Simple Triggers <see cref="ISimpleTrigger"/>.
 /// </summary>
+/// <remarks>
+/// Every schedule here fires inside the minute the example runs for. A trigger due in five minutes
+/// would be just as valid, and there would be nothing to watch.
+/// </remarks>
 /// <author>Bill Kratzer</author>
 /// <author>Marko Lahma (.NET)</author>
 public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
 {
-    public virtual async Task Run()
+    public virtual async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("------- Initializing -------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler scheduler = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create(cancellationToken: cancellationToken);
 
         Console.WriteLine("------- Initialization Complete --------");
 
         Console.WriteLine("------- Scheduling Jobs ----------------");
 
-        // jobs can be scheduled before scheduler.start() has been called
+        // jobs can be scheduled before the scheduler has been started
 
-        // get a "nice round" time a few seconds in the future...
-        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(15);
+        // a few seconds in the future, so that everything below starts together
+        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(5);
 
-        // job1 will only fire once at date/time "timeSpan"
-        IJobDetail job = JobBuilder.Create<SimpleJob>()
+        // job1 fires exactly once, at startTime: no schedule builder means no repetition
+        IJobDetail job1 = JobBuilder.Create<SimpleJob>()
             .WithIdentity("job1", "group1")
             .Build();
 
-        ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
+        ISimpleTrigger trigger1 = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartAt(startTime)
             .Build();
 
-        // schedule it to run!
-        DateTimeOffset? ft = await scheduler.ScheduleJob(job, trigger);
-        Console.WriteLine(job.Key +
-                          " will run at: " + ft +
-                          " and repeat: " + trigger.RepeatCount +
-                          " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
+        Describe(job1.Key, trigger1, await scheduler.ScheduleJob(job1, trigger1, cancellationToken));
 
-        // job2 will only fire once at date/time "timeSpan"
-        job = JobBuilder.Create<SimpleJob>()
+        // job2 fires at startTime and then five more times, five seconds apart
+        IJobDetail job2 = JobBuilder.Create<SimpleJob>()
             .WithIdentity("job2", "group1")
             .Build();
 
-        trigger = (ISimpleTrigger) TriggerBuilder.Create()
+        ISimpleTrigger trigger2 = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger2", "group1")
             .StartAt(startTime)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).WithRepeatCount(5))
             .Build();
 
-        ft = await scheduler.ScheduleJob(job, trigger);
-        Console.WriteLine(job.Key +
-                          " will run at: " + ft +
-                          " and repeat: " + trigger.RepeatCount +
-                          " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
+        Describe(job2.Key, trigger2, await scheduler.ScheduleJob(job2, trigger2, cancellationToken));
 
-        // job3 will run 11 times (run once and repeat 10 more times)
-        // job3 will repeat every 10 seconds
-        job = JobBuilder.Create<SimpleJob>()
+        // job3 has two triggers of its own: one job, two schedules, and the job runs for both
+        IJobDetail job3 = JobBuilder.Create<SimpleJob>()
             .WithIdentity("job3", "group1")
             .Build();
 
-        trigger = (ISimpleTrigger) TriggerBuilder.Create()
+        ISimpleTrigger trigger3 = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger3", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(10))
-            .Build();
-
-        ft = await scheduler.ScheduleJob(job, trigger);
-        Console.WriteLine(job.Key +
-                          " will run at: " + ft +
-                          " and repeat: " + trigger.RepeatCount +
-                          " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
-
-        // the same job (job3) will be scheduled by a another trigger
-        // this time will only repeat twice at a 70 second interval
-
-        trigger = (ISimpleTrigger) TriggerBuilder.Create()
-            .WithIdentity("trigger3", "group2")
-            .StartAt(startTime)
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(2))
-            .ForJob(job)
             .Build();
 
-        ft = await scheduler.ScheduleJob(trigger);
-        Console.WriteLine(job.Key +
-                          " will [also] run at: " + ft +
-                          " and repeat: " + trigger.RepeatCount +
-                          " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
+        Describe(job3.Key, trigger3, await scheduler.ScheduleJob(job3, trigger3, cancellationToken));
 
-        // job4 will run 6 times (run once and repeat 5 more times)
-        // job4 will repeat every 10 seconds
-        job = JobBuilder.Create<SimpleJob>()
-            .WithIdentity("job4", "group1")
+        // the second one names the job it belongs to rather than carrying one
+        ISimpleTrigger trigger4 = (ISimpleTrigger) TriggerBuilder.Create()
+            .WithIdentity("trigger3", "group2")
+            .StartAt(startTime.AddSeconds(3))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(2))
+            .ForJob(job3)
             .Build();
 
-        trigger = (ISimpleTrigger) TriggerBuilder.Create()
-            .WithIdentity("trigger4", "group1")
-            .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(5))
-            .Build();
-
-        ft = await scheduler.ScheduleJob(job, trigger);
-        Console.WriteLine(job.Key +
-                          " will run at: " + ft +
-                          " and repeat: " + trigger.RepeatCount +
-                          " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
-
-        // job5 will run once, five minutes in the future
-        job = JobBuilder.Create<SimpleJob>()
-            .WithIdentity("job5", "group1")
-            .Build();
-
-        trigger = (ISimpleTrigger) TriggerBuilder.Create()
-            .WithIdentity("trigger5", "group1")
-            .StartAt(DateTimeOffset.UtcNow.AddMinutes(5))
-            .Build();
-
-        ft = await scheduler.ScheduleJob(job, trigger);
-        Console.WriteLine(job.Key +
-                          " will run at: " + ft +
-                          " and repeat: " + trigger.RepeatCount +
-                          " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
-
-        // job6 will run indefinitely, every 40 seconds
-        job = JobBuilder.Create<SimpleJob>()
-            .WithIdentity("job6", "group1")
-            .Build();
-
-        trigger = (ISimpleTrigger) TriggerBuilder.Create()
-            .WithIdentity("trigger6", "group1")
-            .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(40)).RepeatForever())
-            .Build();
-
-        ft = await scheduler.ScheduleJob(job, trigger);
-        Console.WriteLine(job.Key +
-                          " will run at: " + ft +
-                          " and repeat: " + trigger.RepeatCount +
-                          " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
+        Describe(job3.Key, trigger4, await scheduler.ScheduleJob(trigger4, cancellationToken));
 
         Console.WriteLine("------- Starting Scheduler ----------------");
 
-        // All of the jobs have been added to the scheduler, but none of the jobs
-        // will run until the scheduler has been started
-        await scheduler.Start();
+        // none of the above runs until this happens
+        await scheduler.Start(cancellationToken);
 
         Console.WriteLine("------- Started Scheduler -----------------");
 
-        // jobs can also be scheduled after start() has been called...
-        // job7 will repeat 20 times, repeat every five minutes
-        job = JobBuilder.Create<SimpleJob>()
-            .WithIdentity("job7", "group1")
-            .Build();
-
-        trigger = (ISimpleTrigger) TriggerBuilder.Create()
-            .WithIdentity("trigger7", "group1")
-            .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).WithRepeatCount(20))
-            .Build();
-
-        ft = await scheduler.ScheduleJob(job, trigger);
-        Console.WriteLine(job.Key +
-                          " will run at: " + ft +
-                          " and repeat: " + trigger.RepeatCount +
-                          " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
-
-        // jobs can be fired directly... (rather than waiting for a trigger)
-        job = JobBuilder.Create<SimpleJob>()
-            .WithIdentity("job8", "group1")
+        // a job with no trigger at all: durable, so the store keeps it, and fired by hand
+        IJobDetail job4 = JobBuilder.Create<SimpleJob>()
+            .WithIdentity("job4", "group1")
             .StoreDurably()
             .Build();
 
-        await scheduler.AddJob(job, new AddJobOptions { Replace = true });
+        await scheduler.AddJob(job4, new AddJobOptions { Replace = true }, cancellationToken);
 
-        Console.WriteLine("'Manually' triggering job8...");
-        await scheduler.TriggerJob(new JobKey("job8", "group1"));
+        Console.WriteLine("'Manually' triggering job4...");
+        await scheduler.TriggerJob(job4.Key, cancellationToken: cancellationToken);
 
-        Console.WriteLine("------- Waiting 30 seconds... --------------");
+        await Watching.For(TimeSpan.FromSeconds(25), "job1 once, job2 every five seconds, job3 from both of its triggers", cancellationToken);
 
-        try
-        {
-            // wait 30 seconds to show jobs
-            await Task.Delay(TimeSpan.FromSeconds(30));
-            // executing...
-        }
-        catch (ThreadInterruptedException)
-        {
-        }
-
-        // jobs can be re-scheduled...
-        // job 7 will run immediately and repeat 10 times for every second
+        // a trigger can be replaced while the scheduler runs, under the same key
         Console.WriteLine("------- Rescheduling... --------------------");
-        trigger = (ISimpleTrigger) TriggerBuilder.Create()
-            .WithIdentity("trigger7", "group1")
-            .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).WithRepeatCount(20))
+
+        ISimpleTrigger faster = (ISimpleTrigger) TriggerBuilder.Create()
+            .WithIdentity("trigger2", "group1")
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(3)).WithRepeatCount(5))
             .Build();
 
-        ft = await scheduler.RescheduleJob(trigger.Key, trigger);
-        Console.WriteLine("job7 rescheduled to run at: " + ft);
+        DateTimeOffset? rescheduled = await scheduler.RescheduleJob(faster.Key, faster, cancellationToken);
+        Console.WriteLine($"trigger2 rescheduled to run at: {rescheduled?.LocalDateTime:HH:mm:ss}, now every three seconds");
 
-        Console.WriteLine("------- Waiting five minutes... ------------");
-        // wait five minutes to show jobs
-        await Task.Delay(TimeSpan.FromMinutes(5));
-        // executing...
+        await Watching.For(TimeSpan.FromSeconds(25), "job2 on its new, faster schedule", cancellationToken);
 
         Console.WriteLine("------- Shutting Down ---------------------");
 
-        await scheduler.Shutdown(true);
+        await scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
 
         Console.WriteLine("------- Shutdown Complete -----------------");
 
         // display some stats about the schedule that just ran
-        SchedulerMetadata metadata = await scheduler.GetMetadata();
+        SchedulerMetadata metadata = await scheduler.GetMetadata(CancellationToken.None);
         Console.WriteLine($"Executed {metadata.JobsExecuted} jobs.");
+    }
+
+    private static void Describe(JobKey jobKey, ISimpleTrigger trigger, DateTimeOffset firstFireTime)
+    {
+        string repetition = trigger.RepeatCount == 0
+            ? "once"
+            : $"{trigger.RepeatCount} more times, every {trigger.RepeatInterval.TotalSeconds:0} seconds";
+
+        Console.WriteLine($"{jobKey} will run at {firstFireTime.LocalDateTime:HH:mm:ss} ({trigger.Key}), then {repetition}");
     }
 }

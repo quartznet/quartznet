@@ -35,9 +35,10 @@ public class HelloJob : IJob
     /// </summary>
     public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        // Say Hello to the World and display the date/time
-        var timestamp = DateTime.Now;
-        Console.WriteLine($"Hello World! - {timestamp:yyyy-MM-dd HH:mm:ss.fff}");
+        // FireTimeUtc is the scheduler's own answer to "what time is it", read off the TimeProvider it
+        // was built with. That is what a job asks - DateTime.Now would be a second clock, and a job
+        // that reads one cannot be tested against a fake one.
+        Console.WriteLine($"Hello World! - fired at {context.FireTimeUtc.LocalDateTime:HH:mm:ss.fff}");
         return default;
     }
 }

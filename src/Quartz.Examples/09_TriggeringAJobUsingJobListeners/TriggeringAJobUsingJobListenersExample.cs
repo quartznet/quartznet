@@ -19,8 +19,6 @@
 
 #endregion
 
-using Quartz.Impl;
-
 namespace Quartz.Examples.Example09;
 
 /// <summary>
@@ -31,54 +29,52 @@ namespace Quartz.Examples.Example09;
 /// <author>Marko Lahma (.NET)</author>
 public class TriggeringAJobUsingJobListenersExample : IExample
 {
-    public virtual async Task Run()
+    public virtual async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler scheduler = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create(cancellationToken: cancellationToken);
 
         Console.WriteLine("------- Initialization Complete -----------");
 
         Console.WriteLine("------- Scheduling Jobs -------------------");
 
-        // schedule a job to run immediately
+        // schedule a job to run a few seconds from now
         IJobDetail job = JobBuilder.Create<SimpleJob1>()
             .WithIdentity("job1")
             .Build();
 
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("trigger1")
-            .StartNow()
+            .StartAt(DateTimeOffset.UtcNow.AddSeconds(5))
             .Build();
 
-        // Set up the listener
+        // the matcher decides which jobs the listener hears about; without one it would hear about
+        // every job this scheduler runs
         IJobListener listener = new SimpleJob1Listener();
         IMatcher<JobKey> matcher = Matchers.Key(job.Key);
         scheduler.ListenerManager.AddJobListener(listener, matcher);
 
+        Console.WriteLine($"Listener '{listener.Name}' added for {job.Key}");
+
         // schedule the job to run
-        await scheduler.ScheduleJob(job, trigger);
+        DateTimeOffset firstFireTime = await scheduler.ScheduleJob(job, trigger, cancellationToken);
+        Console.WriteLine($"{job.Key} will run at {firstFireTime.LocalDateTime:HH:mm:ss}, once, and job2 follows from the listener");
 
-        // All of the jobs have been added to the scheduler, but none of the jobs
-        // will run until the scheduler has been started
+        // the job has been added to the scheduler, but it will not run
+        // until the scheduler has been started
         Console.WriteLine("------- Starting Scheduler ----------------");
-        await scheduler.Start();
+        await scheduler.Start(cancellationToken);
 
-        // wait 30 seconds:
-        // note:  nothing will run
-        Console.WriteLine("------- Waiting 30 seconds... --------------");
-
-        // wait 30 seconds to show jobs
-        await Task.Delay(TimeSpan.FromSeconds(30));
-        // executing...
+        await Watching.For(TimeSpan.FromSeconds(20), "job1 running once, and job2 running straight after it without a schedule of its own", cancellationToken);
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await scheduler.Shutdown(true);
+        await scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetadata metadata = await scheduler.GetMetadata();
+        SchedulerMetadata metadata = await scheduler.GetMetadata(CancellationToken.None);
         Console.WriteLine($"Executed {metadata.JobsExecuted} jobs.");
     }
 }

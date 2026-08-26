@@ -21,35 +21,30 @@
 
 namespace Quartz.Examples.Example09;
 
+/// <summary>
+/// A job listener that schedules <see cref="SimpleJob2" /> as soon as <see cref="SimpleJob1" /> has
+/// finished.
+/// </summary>
+/// <remarks>
+/// Every member of <see cref="IJobListener" /> has a default implementation, so a listener writes only
+/// the notification it has something to say about. This one wants <see cref="JobWasExecuted" /> and
+/// nothing else, so that is all there is here.
+/// </remarks>
 /// <author>wkratzer</author>
 /// <author>Marko Lahma (.NET)</author>
 public class SimpleJob1Listener : IJobListener
 {
+    // Name defaults to the type's name, which is right whenever a scheduler has one listener of a
+    // type. Named here because the name says what the listener is for.
     public virtual string Name => "job1_to_job2";
 
-    public virtual ValueTask JobToBeExecuted(
-        IJobExecutionContext inContext,
+    public virtual async ValueTask JobWasExecuted(
+        IJobExecutionContext context,
+        JobExecutionException? jobException,
         CancellationToken cancellationToken = default)
     {
-        Console.WriteLine("Job1Listener says: Job Is about to be executed.");
-        return default;
-    }
+        Console.WriteLine($"Job1Listener says: {context.JobDetail.Key} was executed, scheduling job2");
 
-    public virtual ValueTask JobExecutionVetoed(
-        IJobExecutionContext inContext,
-        CancellationToken canncellationToken = default)
-    {
-        Console.WriteLine("Job1Listener says: Job Execution was vetoed.");
-        return default;
-    }
-
-    public virtual async ValueTask JobWasExecuted(IJobExecutionContext inContext,
-        JobExecutionException? inException,
-        CancellationToken cancellationToken = default)
-    {
-        Console.WriteLine("Job1Listener says: Job was executed.");
-
-        // Simple job #2
         IJobDetail job2 = JobBuilder.Create<SimpleJob2>()
             .WithIdentity("job2")
             .Build();
@@ -61,13 +56,14 @@ public class SimpleJob1Listener : IJobListener
 
         try
         {
-            // schedule the job to run!
-            await inContext.Scheduler.ScheduleJob(job2, trigger, cancellationToken);
+            // the listener runs inside the scheduler, and schedules through the same scheduler the job
+            // it is listening to ran on
+            await context.Scheduler.ScheduleJob(job2, trigger, cancellationToken);
         }
         catch (SchedulerException e)
         {
             await Console.Error.WriteLineAsync("Unable to schedule job2!");
-            await Console.Error.WriteLineAsync(e.StackTrace);
+            await Console.Error.WriteLineAsync(e.ToString());
         }
     }
 }

@@ -33,10 +33,8 @@ public class SimpleJob : IJob
     /// </summary>
     public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        // This job simply prints out its job name and the
-        // date and time that it is running
-        JobKey jobKey = context.JobDetail.Key;
-        Console.WriteLine("SimpleJob says: {0} executing at {1:r}", jobKey, DateTime.Now);
+        // Which job ran, which trigger asked for it, and when the scheduler thinks that was
+        Console.WriteLine($"SimpleJob says: {context.JobDetail.Key} fired by {context.Trigger.Key} at {context.FireTimeUtc.LocalDateTime:HH:mm:ss}");
         return default;
     }
 }

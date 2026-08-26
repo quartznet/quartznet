@@ -19,32 +19,36 @@
 
 #endregion
 
-using Quartz.Impl;
-
 namespace Quartz.Examples.Example07;
 
 /// <summary>
 /// This example will demonstrate how to interrupt
 /// jobs after they have been scheduled/started.
 /// </summary>
+/// <remarks>
+/// The job would take twenty-four seconds if left alone. It is interrupted after seven, over and over,
+/// so what there is to watch is a job starting, working across several thread pool threads, and being
+/// cut short every time.
+/// </remarks>
 /// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 /// <author>Marko Lahma (.NET)</author>
 public class InterruptingJobsInProgressExample : IExample
 {
-    public virtual async Task Run()
+    private const int Interruptions = 6;
+
+    public virtual async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler scheduler = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create(cancellationToken: cancellationToken);
 
         Console.WriteLine("------- Initialization Complete -----------");
 
         Console.WriteLine("------- Scheduling Jobs -------------------");
 
-        // get a "nice round" time a few seconds in the future...
-
-        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(15);
+        // a few seconds in the future
+        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(5);
 
         IJobDetail job = JobBuilder.Create<InterruptableJob>()
             .WithIdentity("interruptableJob1", "group1")
@@ -53,38 +57,44 @@ public class InterruptingJobsInProgressExample : IExample
         ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
             .Build();
 
-        DateTimeOffset ft = await scheduler.ScheduleJob(job, trigger);
-        Console.WriteLine($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+        DateTimeOffset firstFireTime = await scheduler.ScheduleJob(job, trigger, cancellationToken);
+        Console.WriteLine($"{job.Key} will run at {firstFireTime.LocalDateTime:HH:mm:ss}, every {trigger.RepeatInterval.TotalSeconds:0} seconds, and takes {InterruptableJob.WorkSteps * 3} seconds each time");
 
         // start up the scheduler (jobs do not start to fire until
         // the scheduler has been started)
-        await scheduler.Start();
+        await scheduler.Start(cancellationToken);
         Console.WriteLine("------- Started Scheduler -----------------");
 
-        Console.WriteLine("------- Starting loop to interrupt job every 7 seconds ----------");
-        for (int i = 0; i < 50; i++)
+        Console.WriteLine($"------- Interrupting the job every 7 seconds, {Interruptions} times ----");
+        Console.WriteLine("------- (Ctrl+C stops early)");
+
+        try
         {
-            try
+            for (int i = 1; i <= Interruptions; i++)
             {
-                await Task.Delay(TimeSpan.FromSeconds(7));
-                // tell the scheduler to interrupt our job
-                await scheduler.Interrupt(job.Key);
+                await Task.Delay(TimeSpan.FromSeconds(7), cancellationToken);
+
+                // Interrupt cancels the token every executing instance of this job holds, and answers
+                // whether it found one to interrupt
+                bool interrupted = await scheduler.Interrupt(job.Key, cancellationToken);
+                Console.WriteLine($"------- Interrupt {i}/{Interruptions} of {job.Key}: {(interrupted ? "a job was running" : "nothing was running")}");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("------- Seen enough, shutting down -------");
         }
 
         Console.WriteLine("------- Shutting Down ---------------------");
 
-        await scheduler.Shutdown(true);
+        await scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
 
         Console.WriteLine("------- Shutdown Complete -----------------");
-        SchedulerMetadata metadata = await scheduler.GetMetadata();
+
+        SchedulerMetadata metadata = await scheduler.GetMetadata(CancellationToken.None);
         Console.WriteLine($"Executed {metadata.JobsExecuted} jobs.");
     }
 }

@@ -19,8 +19,6 @@
 
 #endregion
 
-using Quartz.Impl;
-
 namespace Quartz.Examples.Example05;
 
 /// <summary>
@@ -32,93 +30,90 @@ namespace Quartz.Examples.Example05;
 /// </summary>
 /// <remarks>
 /// <para>
-/// While the example is running, you should note that there are two triggers
-/// with identical schedules, firing identical jobs. The triggers "want" to fire
-/// every 3 seconds, but the jobs take 10 seconds to execute. Therefore, by the
-/// time the jobs complete their execution, the triggers have already "misfired"
-/// (unless the scheduler's "misfire threshold" has been set to more than 7
-/// seconds). You should see that one of the jobs has its misfire instruction
-/// set to <see cref="SimpleTriggerMisfireInstruction.NowWithExistingCount" />,
-/// which causes it to fire immediately, when the misfire is detected. The other
-/// trigger uses the default "smart policy" misfire instruction, which causes
-/// the trigger to advance to its next fire time (skipping those that it has
-/// missed) - so that it does not refire immediately, but rather at the next
-/// scheduled time.
+/// Two triggers, identical schedules, identical jobs. Both want to fire every three seconds and both
+/// jobs take ten, so both fall behind by seven seconds a cycle until the scheduler calls it a misfire.
+/// What they then do about it is the whole point:
+/// </para>
+/// <para>
+/// <c>trigger1</c> keeps the default smart policy, which advances it to its next scheduled time and
+/// drops the firings it missed. <c>trigger2</c> asks for
+/// <see cref="SimpleTriggerMisfireInstruction.NowWithExistingCount" />, which fires it immediately
+/// instead. Watch the two run at different rates from the first misfire onwards.
 /// </para>
 /// </remarks>
 /// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 /// <author>Marko Lahma (.NET)</author>
 public class SchedulingJobsSettingMisfireInstructionsExample : IExample
 {
-    public virtual async Task Run()
+    public virtual async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("------- Initializing -------------------");
 
-        // First we must get a reference to a scheduler
-        IScheduler scheduler = await ExampleScheduler.Create();
+        // A trigger is only "misfired" once it is later than the misfire threshold, which defaults to
+        // a minute. Five seconds instead, so that a job overrunning by seven counts as one straight
+        // away and the example has something to show inside a minute rather than inside ten.
+        IScheduler scheduler = await ExampleScheduler.Create(
+            misfireThreshold: TimeSpan.FromSeconds(5),
+            cancellationToken: cancellationToken);
 
         Console.WriteLine("------- Initialization Complete -----------");
 
         Console.WriteLine("------- Scheduling Jobs -----------");
 
-        // jobs can be scheduled before start() has been called
+        // a few seconds in the future, so both start together
+        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(5);
 
-        // get a "nice round" time a few seconds in the future...
-
-        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(15);
-
-        // statefulJob1 will run every three seconds
-        // (but it will delay for ten seconds)
-        IJobDetail job = JobBuilder.Create<StatefulDumbJob>()
-            .WithIdentity("statefulJob1", "group1")
-            .UsingJobData(StatefulDumbJob.ExecutionDelay, 10000L)
+        // job1 wants to run every three seconds, and takes ten
+        IJobDetail job1 = JobBuilder.Create<SlowJob>()
+            .WithIdentity("slowJob1", "group1")
+            .UsingJobData(SlowJob.ExecutionDelaySeconds, 10)
             .Build();
 
-        ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
+        ISimpleTrigger trigger1 = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartAt(startTime)
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(3)).RepeatForever())
+            // no misfire instruction: the smart policy, which for a repeat-forever simple trigger
+            // means "carry on from now, and forget the firings that were missed"
             .Build();
 
-        DateTimeOffset ft = await scheduler.ScheduleJob(job, trigger);
-        Console.WriteLine($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+        DateTimeOffset firstFireTime1 = await scheduler.ScheduleJob(job1, trigger1, cancellationToken);
+        Console.WriteLine($"{job1.Key} will run at {firstFireTime1.LocalDateTime:HH:mm:ss}, every {trigger1.RepeatInterval.TotalSeconds:0} seconds, smart misfire policy");
 
-        // statefulJob2 will run every three seconds
-        // (but it will delay for ten seconds - and therefore purposely misfire after a few iterations)
-        job = JobBuilder.Create<StatefulDumbJob>()
-            .WithIdentity("statefulJob2", "group1")
-            .UsingJobData(StatefulDumbJob.ExecutionDelay, 10000L)
+        // job2 is the same in every respect but one
+        IJobDetail job2 = JobBuilder.Create<SlowJob>()
+            .WithIdentity("slowJob2", "group1")
+            .UsingJobData(SlowJob.ExecutionDelaySeconds, 10)
             .Build();
 
-        trigger = (ISimpleTrigger) TriggerBuilder.Create()
+        ISimpleTrigger trigger2 = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger2", "group1")
             .StartAt(startTime)
             .WithSimpleSchedule(x => x
                 .WithInterval(TimeSpan.FromSeconds(3))
                 .RepeatForever()
-                .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount)) // set misfire instructions
+                .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount))
             .Build();
-        ft = await scheduler.ScheduleJob(job, trigger);
 
-        Console.WriteLine($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+        DateTimeOffset firstFireTime2 = await scheduler.ScheduleJob(job2, trigger2, cancellationToken);
+        Console.WriteLine($"{job2.Key} will run at {firstFireTime2.LocalDateTime:HH:mm:ss}, every {trigger2.RepeatInterval.TotalSeconds:0} seconds, misfires fire immediately");
 
         Console.WriteLine("------- Starting Scheduler ----------------");
 
-        // jobs don't start firing until start() has been called...
-        await scheduler.Start();
+        // jobs don't start firing until Start() has been called...
+        await scheduler.Start(cancellationToken);
 
         Console.WriteLine("------- Started Scheduler -----------------");
 
-        // sleep for ten minutes for triggers to file....
-        await Task.Delay(TimeSpan.FromMinutes(10));
+        await Watching.For(TimeSpan.FromSeconds(75), "the gap between 'due at' and 'started at' opening up, and the two triggers parting company", cancellationToken);
 
         Console.WriteLine("------- Shutting Down ---------------------");
 
-        await scheduler.Shutdown(true);
+        await scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
 
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetadata metadata = await scheduler.GetMetadata();
+        SchedulerMetadata metadata = await scheduler.GetMetadata(CancellationToken.None);
         Console.WriteLine($"Executed {metadata.JobsExecuted} jobs.");
     }
 }

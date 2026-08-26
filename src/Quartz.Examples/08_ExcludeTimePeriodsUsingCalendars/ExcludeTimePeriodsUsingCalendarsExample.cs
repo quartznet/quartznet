@@ -19,7 +19,6 @@
 
 #endregion
 
-using Quartz.Impl;
 using Quartz.Impl.Calendar;
 
 namespace Quartz.Examples.Example08;
@@ -29,81 +28,106 @@ namespace Quartz.Examples.Example08;
 /// to exclude periods of time when scheduling should not
 /// take place.
 /// </summary>
+/// <remarks>
+/// A calendar never schedules anything. It only says which times a trigger may not fire at, and the
+/// trigger skips to its next allowed time. Two of them here: one that blocks whole days, whose effect
+/// shows in the fire time printed before anything runs, and one that blocks half of every minute,
+/// whose effect is a job going quiet and coming back while the example runs.
+/// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public class ExcludeTimePeriodsUsingCalendarsExample : IExample
 {
-    public virtual async Task Run()
+    public virtual async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler scheduler = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create(cancellationToken: cancellationToken);
 
         Console.WriteLine("------- Initialization Complete -----------");
 
-        Console.WriteLine("------- Scheduling Jobs -------------------");
+        Console.WriteLine("------- Excluding whole days --------------");
 
-        // Add the holiday calendar to the schedule
+        // an AnnualCalendar blocks the same days every year: the holidays this business does not run on
         AnnualCalendar holidays = new AnnualCalendar();
+        holidays.AddExcludedDay(new MonthDay(7, 4)); // fourth of July
+        holidays.AddExcludedDay(new MonthDay(10, 31)); // halloween
+        holidays.AddExcludedDay(new MonthDay(12, 25)); // christmas
 
-        // fourth of July (July 4)
-        DateOnly fourthOfJuly = new DateOnly(DateTime.UtcNow.Year, 7, 4);
-        holidays.AddExcludedDay(MonthDay.From(fourthOfJuly));
+        await scheduler.AddCalendar("holidays", holidays, cancellationToken: cancellationToken);
 
-        // halloween (Oct 31)
-        DateOnly halloween = new DateOnly(DateTime.UtcNow.Year, 10, 31);
-        holidays.AddExcludedDay(MonthDay.From(halloween));
+        // an hourly job whose first firing would be on halloween at 10am, were halloween allowed
+        DateTimeOffset halloween = NextOccurrenceOf(month: 10, day: 31, hour: 10);
 
-        // christmas (Dec 25)
-        DateOnly christmas = new DateOnly(DateTime.UtcNow.Year, 12, 25);
-        holidays.AddExcludedDay(MonthDay.From(christmas));
-
-        // tell the schedule about our holiday calendar
-        await scheduler.AddCalendar("holidays", holidays);
-
-        // schedule a job to run hourly, starting on halloween
-        // at 10 am
-
-        DateTimeOffset runDate = DateBuilder.Create().InMonthOnDay(10, 31).AtHourMinuteAndSecond(0, 0, 10).Build();
-
-        IJobDetail job = JobBuilder.Create<SimpleJob>()
-            .WithIdentity("job1", "group1")
+        IJobDetail holidayJob = JobBuilder.Create<SimpleJob>()
+            .WithIdentity("holidayJob", "group1")
             .Build();
 
-        ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
-            .WithIdentity("trigger1", "group1")
-            .StartAt(runDate)
+        ITrigger holidayTrigger = TriggerBuilder.Create()
+            .WithIdentity("holidayTrigger", "group1")
+            .StartAt(halloween)
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .WithCalendarName("holidays")
             .Build();
 
-        // schedule the job and print the first run date
-        DateTimeOffset firstRunTime = await scheduler.ScheduleJob(job, trigger);
+        DateTimeOffset firstRunTime = await scheduler.ScheduleJob(holidayJob, holidayTrigger, cancellationToken);
 
-        // print out the first execution date.
-        // Note:  Since Halloween (Oct 31) is a holiday, then
-        // we will not run until the next day! (Nov 1)
-        Console.WriteLine($"{job.Key} will run at: {firstRunTime:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+        Console.WriteLine($"{holidayJob.Key} was scheduled to start at {halloween.LocalDateTime:yyyy-MM-dd HH:mm:ss}");
+        Console.WriteLine($"{holidayJob.Key} will actually start at {firstRunTime.LocalDateTime:yyyy-MM-dd HH:mm:ss} - the calendar pushed it past halloween");
 
-        // All of the jobs have been added to the scheduler, but none of the jobs
-        // will run until the scheduler has been started
+        Console.WriteLine("------- Excluding part of every minute ----");
+
+        // a CronCalendar blocks every time its expression matches - here, the first half of every minute
+        CronCalendar quietHalfMinute = new CronCalendar("0-29 * * * * ?");
+        await scheduler.AddCalendar("quiet-half-minute", quietHalfMinute, cancellationToken: cancellationToken);
+
+        IJobDetail chattyJob = JobBuilder.Create<SimpleJob>()
+            .WithIdentity("chattyJob", "group1")
+            .Build();
+
+        ITrigger chattyTrigger = TriggerBuilder.Create()
+            .WithIdentity("chattyTrigger", "group1")
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever())
+            .WithCalendarName("quiet-half-minute")
+            .Build();
+
+        await scheduler.ScheduleJob(chattyJob, chattyTrigger, cancellationToken);
+        Console.WriteLine($"{chattyJob.Key} asks to run every five seconds, and may only run when the seconds hand is past 30");
+
         Console.WriteLine("------- Starting Scheduler ----------------");
-        await scheduler.Start();
+        await scheduler.Start(cancellationToken);
 
-        // wait 30 seconds:
-        // note:  nothing will run
-        Console.WriteLine("------- Waiting 30 seconds... --------------");
+        await Watching.For(TimeSpan.FromSeconds(90), "chattyJob firing in the second half of each minute and nowhere else", cancellationToken);
 
-        // wait 30 seconds to show jobs
-        await Task.Delay(TimeSpan.FromSeconds(30));
-        // executing...
-
-        // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await scheduler.Shutdown(true);
+        await scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetadata metadata = await scheduler.GetMetadata();
+        SchedulerMetadata metadata = await scheduler.GetMetadata(CancellationToken.None);
         Console.WriteLine($"Executed {metadata.JobsExecuted} jobs.");
+    }
+
+    /// <summary>
+    /// The next time the given day of the year comes round, this year or the next.
+    /// </summary>
+    private static DateTimeOffset NextOccurrenceOf(int month, int day, int hour)
+    {
+        // TimeProvider rather than DateTimeOffset.Now, which is banned in this repository and worth
+        // avoiding in your own jobs for the same reason: a fake clock cannot reach it
+        DateTimeOffset now = TimeProvider.System.GetLocalNow();
+
+        DateTimeOffset thisYear = AtLocalTime(now.Year, month, day, hour);
+        return thisYear > now ? thisYear : AtLocalTime(now.Year + 1, month, day, hour);
+    }
+
+    /// <summary>
+    /// A wall-clock time in the local zone, carrying the offset in force on that date rather than the
+    /// one in force today - which are not the same either side of a daylight saving change.
+    /// </summary>
+    private static DateTimeOffset AtLocalTime(int year, int month, int day, int hour)
+    {
+        DateTime wallClock = new DateTime(year, month, day, hour, 0, 0, DateTimeKind.Unspecified);
+        return new DateTimeOffset(wallClock, TimeZoneInfo.Local.GetUtcOffset(wallClock));
     }
 }
