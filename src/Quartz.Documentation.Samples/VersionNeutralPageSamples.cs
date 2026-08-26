@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using Quartz.Extensibility;
 using Quartz.Listeners;
 
 namespace Quartz.Documentation.Samples;
@@ -77,6 +78,44 @@ public static class VersionNeutralPageSamples
         {
             options.WaitForJobsToComplete = true;
         });
+
+        #endregion
+    }
+
+    public static void MisfireSweep(IServiceCollection services, string connectionString)
+    {
+        services.AddQuartz(q =>
+        {
+            #region sample_troubleshooting_misfire_sweep
+
+            q.UsePersistentStore(s =>
+            {
+                s.UseSystemTextJsonSerializer();
+                s.UseSqlServer(connectionString);
+
+                s.Configure(options =>
+                {
+                    // A pass handles at most this many triggers, then commits. Lower it when the
+                    // sweep is timing out; the loop comes straight back for the rest.
+                    options.MaxMisfiresToHandleAtATime = 20;
+
+                    // How often the sweep runs. Defaults to MisfireThreshold.
+                    options.MisfireHandlerFrequency = TimeSpan.FromMinutes(1);
+
+                    // Applied to every statement the store issues, this one included.
+                    options.CommandTimeout = TimeSpan.FromSeconds(30);
+                });
+            });
+
+            #endregion
+        });
+    }
+
+    public static void RenamedJobTypes(IServiceCollection services)
+    {
+        #region sample_troubleshooting_type_loader
+
+        services.AddQuartz(q => q.UseTypeLoader<RenameAwareTypeLoader>());
 
         #endregion
     }
@@ -338,6 +377,40 @@ public sealed class JobName : IJob
 {
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 }
+
+#region sample_troubleshooting_type_loader_implementation
+
+/// <summary>
+/// Resolves the type names stored in JOB_CLASS_NAME, translating the ones that have since moved.
+/// </summary>
+public sealed class RenameAwareTypeLoader : ITypeLoader
+{
+    // Old assembly-qualified name as stored, new type. Keep an entry until every row that could
+    // carry the old name has been rewritten or has aged out.
+    private static readonly Dictionary<string, Type> renamed = new(StringComparer.Ordinal)
+    {
+        ["Acme.Jobs.NightlyReport, Acme.Jobs"] = typeof(NightlyRollupJob)
+    };
+
+    public Type? LoadType(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return null;
+        }
+
+        if (renamed.TryGetValue(name, out Type? moved))
+        {
+            return moved;
+        }
+
+        // A name that cannot be resolved must throw rather than return null: Quartz only asks when
+        // it already knows a type is required.
+        return Type.GetType(name, throwOnError: true);
+    }
+}
+
+#endregion
 
 public sealed class FaqJob : IJob
 {

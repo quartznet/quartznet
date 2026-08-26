@@ -4478,7 +4478,10 @@ internal class's XML comment.
 **Nothing changes in the database.** The columns still hold the same strings; the conversion happens at the
 delegate boundary, and `AdoConstants.State*` stays public because the strings are the schema contract
 (the string mapping, `StoredTriggerStates`, stays in `Quartz.Impl.AdoJobStore` with them). A 4.0
-scheduler reads and writes rows a 3.x one wrote, and the two can share a cluster.
+scheduler reads and writes rows a 3.x one wrote, so the two can share a cluster for the length of a
+rolling upgrade — under conditions that are about calendars and execution limits rather than trigger
+states, and that
+[Operating a Cluster](operations.md#a-mixed-3-x-and-4-0-window) sets out.
 
 | `AdoConstants` constant | Stored value | `StoredTriggerState` member |
 |---|---|---|

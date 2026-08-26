@@ -43,7 +43,8 @@ This guide covers common issues users encounter with Quartz.NET and how to diagn
 **Causes:**
 
 * The scheduler instance that acquired the trigger crashed or lost connectivity before it could fire.
-* Transient database errors during the fire-and-complete cycle.
+* Transient database errors during the fire-and-complete cycle — the reservation was written, and the
+  statement that would have fired it or released it did not run.
 
 **Diagnosis:**
 
@@ -58,10 +59,37 @@ SELECT * FROM QRTZ_FIRED_TRIGGERS
 WHERE STATE = 'ACQUIRED';
 ```
 
-**Resolution:**
+**Resolution: the store already does this.** `RecoverStaleAcquiredTriggers` runs on the persistent
+store's misfire loop — every `MisfireHandlerFrequency`, which defaults to the misfire threshold, one
+minute — on both versions, and whether or not the scheduler is clustered. For each of **this node's
+own** fired-trigger rows still in `ACQUIRED` state past the stale threshold, it puts the trigger back to
+`WAITING` (from `ACQUIRED` or `BLOCKED`, since a `[DisallowConcurrentExecution]` job's trigger may have
+moved on) and deletes the row. It is worth knowing about because it is easy to mistake for something
+having gone wrong: rows disappear on their own, a minute or two after they stopped moving.
 
-1. **Restart the scheduler** — On startup, Quartz performs misfire recovery and will re-evaluate stuck triggers based on their misfire instruction.
-2. **Manual recovery** — If a restart is not possible, you can update stuck triggers back to `WAITING` state:
+The stale threshold is derived rather than configured: it is **twice the misfire threshold, with a floor
+of two minutes**. The floor is what keeps it clear of normal acquisition, which takes at most one
+`IdleWaitTime` — 30 seconds by default — plus the time to fire. Widening `MisfireThreshold` widens this
+with it; there is no separate setting.
+
+Two things it deliberately does not do:
+
+* It only touches rows carrying **its own** instance id. A row left by a node that is gone is cleaned up
+  by cluster recovery once that node is declared failed, not by this sweep — see
+  [Operating a Cluster (4.x)](quartz-4.x/operations.md#when-a-peer-takes-over).
+* It does not touch rows in `EXECUTING` state. Those describe a job the node believes is running, and
+  the node is the authority on that.
+
+So the ordinary answer is to wait one sweep, and if nothing changes, to find out which instance id owns
+the rows. In 4.x, `IScheduler.QueryFireInstances(new FireInstanceQuery { State = null })` lists them
+without SQL, and `QueryClusterNodes()` says which of those instance ids still exist.
+
+**Resolution, as a fallback:**
+
+1. **Restart the scheduler.** A non-clustered scheduler frees every `ACQUIRED` and `BLOCKED` trigger and
+   deletes every fired-trigger row at startup. A clustered one does the same for its own rows on its
+   first check-in.
+2. **Manual recovery** — if a restart is not possible, put the stuck triggers back to `WAITING`:
 
 ```sql
 UPDATE QRTZ_TRIGGERS
@@ -71,7 +99,9 @@ WHERE TRIGGER_STATE = 'ACQUIRED'
 ```
 
 ::: warning
-Only perform manual database updates as a last resort. Prefer restarting the scheduler to let Quartz handle recovery properly.
+Only perform manual database updates as a last resort, and never against a running cluster: the row you
+edit may be one a node is about to fire, and the fired-trigger row that pairs with it is left behind.
+Prefer letting the sweep or a restart handle it.
 :::
 
 **Prevention:**
@@ -79,6 +109,89 @@ Only perform manual database updates as a last resort. Prefer restarting the sch
 * Ensure adequate database connection pool sizing.
 * Use clustered mode if running multiple scheduler instances — it includes automatic recovery for failed nodes.
 * Keep jobs short-running to minimize the window for failures.
+
+## The Misfire Sweep Times Out
+
+**Symptoms:** `JobPersistenceException` with an inner timeout from the misfire handler, repeating every
+minute; `Handling the first N triggers of M misfired triggers` in the log and never catching up; the
+scheduler otherwise alive but firing late.
+
+**Cause:** the sweep is doing too much work per pass for the time it is allowed, or the query that finds
+misfired triggers is scanning. Three settings and one index decide it.
+
+The sweep runs on every node, and each pass starts with a `COUNT` that takes no cluster-wide lock — the
+double-check that avoids paying for the lock when there is nothing to do. That count is
+`WHERE SCHED_NAME = ? AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME <= ? AND TRIGGER_STATE = ?`, which the
+4.x index `IDX_QRTZ_T_NFT_ST_MISFIRE` on `(SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE)`
+serves. A schema that predates the [3.20 index migration](database/schema-changes.md#version-3-20) has a
+different index shape, and on a large `QRTZ_TRIGGERS` this query is where a slow database first shows.
+
+<!-- snippet: sample_troubleshooting_misfire_sweep -->
+```csharp
+q.UsePersistentStore(s =>
+{
+    s.UseSystemTextJsonSerializer();
+    s.UseSqlServer(connectionString);
+
+    s.Configure(options =>
+    {
+        // A pass handles at most this many triggers, then commits. Lower it when the
+        // sweep is timing out; the loop comes straight back for the rest.
+        options.MaxMisfiresToHandleAtATime = 20;
+
+        // How often the sweep runs. Defaults to MisfireThreshold.
+        options.MisfireHandlerFrequency = TimeSpan.FromMinutes(1);
+
+        // Applied to every statement the store issues, this one included.
+        options.CommandTimeout = TimeSpan.FromSeconds(30);
+    });
+});
+```
+<!-- endSnippet -->
+
+**Resolution:**
+
+* **Apply the current index set.** [`migrations/3.20`](https://github.com/quartznet/quartznet/tree/main/database/migrations/3.20)
+  on 3.x, or section 5 of [`migrations/4.0`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0)
+  on 4.x. This is the fix that helps most and costs least.
+* **Lower `MaxMisfiresToHandleAtATime`** (default 20). It bounds one pass; the loop comes straight back
+  for the rest after a 50 ms pause, so a smaller number means more, shorter transactions rather than less
+  progress.
+* **Raise `CommandTimeout`** — `JobStore:CommandTimeout` in 4.x — if the statements are genuinely slow
+  rather than blocked. It applies to every statement the store issues, so raise it knowing that a node
+  waiting on the cluster-wide lock waits this long before it can fail and retry.
+* **Raise `MisfireThreshold`** if the schedule can tolerate more lateness. Fewer triggers cross the line,
+  so there is less to sweep.
+
+::: warning
+**A non-clustered scheduler's startup sweep is unbounded on purpose**, on both versions: it handles
+*every* misfired trigger in one pass, ignoring `MaxMisfiresToHandleAtATime`, so that a scheduler
+starting after a long outage is caught up before it begins firing. That is the pass most likely to time
+out on a large schedule, and lowering the batch size does not affect it — only the index and the timeout
+do. A clustered scheduler does no such pass: its startup work is the first cluster check-in, which
+recovers fired triggers rather than misfires, and the ordinary bounded sweep catches up afterwards.
+:::
+
+## Clock Skew Between Nodes
+
+**Symptoms:** jobs run twice; a node logs
+`This scheduler instance (…) is still active but was recovered by another instance in the cluster`;
+nodes flip between `Alive` and `Failed` in the cluster listing with no corresponding outage.
+
+**Cause:** clustered failure detection compares a timestamp one node wrote against another node's clock.
+A node whose clock runs ahead of a peer's by more than the slack in that comparison writes off a healthy
+peer, releases its acquired triggers and re-runs its recovery-requesting jobs — while it is still
+executing them.
+
+**Resolution:** run a time-synchronisation service on every node; that is the fix, and ordinary NTP is
+orders of magnitude inside the requirement. Where you cannot guarantee it — or cannot guarantee that the
+process gets CPU promptly, which produces the same symptom with a perfect clock — widen the window with
+`quartz.jobStore.clusterCheckinMisfireThreshold`.
+
+[Clocks in a cluster](best-practices.md#clocks-in-a-cluster) has the arithmetic, the size of the default
+window, and why a pause matters more than an inaccuracy. In 4.x,
+[Operating a Cluster (4.x)](quartz-4.x/operations.md#when-a-peer-takes-over) states the exact predicate, and
+`IScheduler.QueryClusterNodes()` shows what each node currently believes about the others.
 
 ## Misfire Handling
 
@@ -137,9 +250,11 @@ If triggers misfire frequently under normal operation, consider:
 
 **Cause:** The `QRTZ_JOB_DETAILS` table stores the full type name (including namespace and assembly) in the `JOB_CLASS_NAME` column. When the type moves, the stored reference no longer resolves.
 
-**Resolution:**
+The trigger for such a job goes to `ERROR` rather than firing, because the failure is in *building* the
+job rather than in running it — see
+[What the trigger states mean](best-practices.md#what-the-trigger-states-mean).
 
-Update the stored type name in the database:
+**Resolution — rewrite the stored name:**
 
 ```sql
 UPDATE QRTZ_JOB_DETAILS
@@ -147,11 +262,73 @@ SET JOB_CLASS_NAME = 'NewNamespace.NewClassName, NewAssembly'
 WHERE JOB_CLASS_NAME = 'OldNamespace.OldClassName, OldAssembly';
 ```
 
+Run it during the deployment that renames the type, and clear the affected triggers with
+`IScheduler.ResetTriggerFromErrorState` afterwards if any reached `ERROR` first.
+
+**Resolution — teach the scheduler the old name (4.x):**
+
+Every stored type name is resolved through `ITypeLoader`, which is a single method and a replaceable
+seam. An implementation that consults a rename table before falling back to `Type.GetType` makes the old
+name keep working without touching a row, which is what a rolling deployment needs: the nodes still
+running the old build write the old name while the new ones read it.
+
+<!-- snippet: sample_troubleshooting_type_loader_implementation -->
+```csharp
+/// <summary>
+/// Resolves the type names stored in JOB_CLASS_NAME, translating the ones that have since moved.
+/// </summary>
+public sealed class RenameAwareTypeLoader : ITypeLoader
+{
+    // Old assembly-qualified name as stored, new type. Keep an entry until every row that could
+    // carry the old name has been rewritten or has aged out.
+    private static readonly Dictionary<string, Type> renamed = new(StringComparer.Ordinal)
+    {
+        ["Acme.Jobs.NightlyReport, Acme.Jobs"] = typeof(NightlyRollupJob)
+    };
+
+    public Type? LoadType(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return null;
+        }
+
+        if (renamed.TryGetValue(name, out Type? moved))
+        {
+            return moved;
+        }
+
+        // A name that cannot be resolved must throw rather than return null: Quartz only asks when
+        // it already knows a type is required.
+        return Type.GetType(name, throwOnError: true);
+    }
+}
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_troubleshooting_type_loader -->
+```csharp
+services.AddQuartz(q => q.UseTypeLoader<RenameAwareTypeLoader>());
+```
+<!-- endSnippet -->
+
+An implementation must **throw** rather than return `null` for a name it cannot resolve — Quartz only
+asks when it already knows a type is required, so a `null` surfaces later with nothing left to point at.
+`null` is reserved for a null or empty name.
+
+The loader Quartz ships already does this for **Quartz's own** 3.x → 4.0 renames: it retries
+`Quartz.Spi.*` as `Quartz.Extensibility.*`, `Quartz.Simpl.*` as `Quartz.Impl.*`, `Quartz.Job.*` as
+`Quartz.Jobs.*`, `Quartz.Plugin.*` as `Quartz.Plugins.*`, `Quartz.Listener.*` as `Quartz.Listeners.*`,
+the job stores' old names (`JobStoreTX`, `JobStoreCMT`) and the assemblies that were merged into the
+core package, logging a warning each time so the configuration can be corrected. It knows nothing about
+your types, which is what the sample above is for.
+
 **Prevention:**
 
 * Keep job class names and namespaces stable across releases.
 * If you must rename, apply the database update as part of your deployment process.
-* Consider using the `JobType` abstraction introduced in Quartz 4.x for more flexible type resolution.
+* Name the type in one place — a `public static readonly JobKey` on the job class, and registration
+  through `AddJob<T>()` rather than a type-name string.
 
 ## Database Connection Issues
 
