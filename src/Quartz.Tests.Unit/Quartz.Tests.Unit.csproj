@@ -17,6 +17,12 @@
     <EmbeddedResource Include="Xml\TestData\*" />
     <Content Include="Xml\TestData\JobTypeNotFound.xml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Xml\TestData\InvalidCronExpression.xml" CopyToOutputDirectory="PreserveNewest" />
+
+    <!--
+      The shipped SQLite schema, so a test that needs a real store can create one without knowing where
+      the repository root is relative to wherever the test assembly was built.
+    -->
+    <EmbeddedResource Include="..\..\database\tables\tables_sqlite.sql" LogicalName="tables_sqlite.sql" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,6 +39,7 @@
     </PackageReference>
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Data.SQLite" />
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />

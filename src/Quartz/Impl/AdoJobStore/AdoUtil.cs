@@ -538,13 +538,18 @@ internal sealed class AdoUtil : IAdoUtil
 
     public DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
     {
-        // Only the data source path mints from the connection. Every other provider builds its command
-        // from the driver description, which is all there is to go on when Quartz owns the connection
-        // string -- and changing that for all providers would put a behaviour change under every
-        // statement the store issues, to fix a problem only the data source path has.
-        DbCommand cmd = dbProvider is DataSourceDbProvider dataSourceProvider
-            ? dataSourceProvider.CreateCommand(cth.Connection)
-            : dbProvider.CreateCommand();
+        // The two providers that were handed their connections mint from the connection: a command from
+        // a data source or a factory starts out attached to nothing, and would miss whatever the
+        // connection was configured with. A provider built from the driver description does not, because
+        // the description is all there is to go on when Quartz owns the connection string -- and changing
+        // that would put a behaviour change under every statement the store issues, to fix a problem
+        // those two have and it does not.
+        DbCommand cmd = dbProvider switch
+        {
+            DataSourceDbProvider dataSourceProvider => dataSourceProvider.CreateCommand(cth.Connection),
+            ProviderFactoryDbProvider factoryProvider => factoryProvider.CreateCommand(cth.Connection),
+            _ => dbProvider.CreateCommand(),
+        };
 
         cmd.CommandText = RewriteParameterNames(commandText);
 
