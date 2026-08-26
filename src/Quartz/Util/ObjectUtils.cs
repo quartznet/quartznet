@@ -298,46 +298,4 @@ internal static class ObjectUtils
                 return default;
         }
     }
-
-    /// <summary>
-    /// Whether the type, or anything it inherits from, carries the attribute.
-    /// </summary>
-    /// <remarks>
-    /// No annotation is needed on <paramref name="typeToExamine" />: an attribute is part of the
-    /// metadata of a type that survives trimming at all, so the trimmer has nothing to preserve on its
-    /// account.
-    /// </remarks>
-    public static bool IsAttributePresent(Type typeToExamine, Type attributeType)
-    {
-        return typeToExamine.GetCustomAttributes(attributeType, inherit: true).Length > 0;
-    }
-
-    /// <summary>
-    /// Whether the type, anything it inherits from, or any interface it implements carries the attribute.
-    /// </summary>
-    /// <remarks>
-    /// The interfaces are walked flat rather than recursively, because <see cref="Type.GetInterfaces" />
-    /// already reports the ones an interface itself inherits — the recursion asked the same question
-    /// twice, and asking it once is what lets the requirement stop at
-    /// <see cref="DynamicallyAccessedMemberTypes.Interfaces" /> instead of travelling.
-    /// </remarks>
-    public static bool IsAnyInterfaceAttributePresent(
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type typeToExamine,
-        Type attributeType)
-    {
-        if (IsAttributePresent(typeToExamine, attributeType))
-        {
-            return true;
-        }
-
-        foreach (var type in typeToExamine.GetInterfaces())
-        {
-            if (IsAttributePresent(type, attributeType))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }
