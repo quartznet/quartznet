@@ -59,7 +59,7 @@ public sealed class MisfireWhilePausedOrBlockedTest : MisfireThroughAStoreTestBa
             TriggerKey triggerKey = new("paused-" + Guid.NewGuid().ToString("N"), Group);
             JobKey jobKey = new(triggerKey.Name, Group);
 
-            IOperableTrigger trigger = (IOperableTrigger) testCase.Trigger(anchor)
+            IOperableTrigger trigger = (IOperableTrigger) testCase.Trigger(anchor, store.Clock)
                 .WithIdentity(triggerKey)
                 .ForJob(jobKey)
                 .Build();
@@ -87,25 +87,22 @@ public sealed class MisfireWhilePausedOrBlockedTest : MisfireThroughAStoreTestBa
                 await ado.MarkSchedulerRunning();
             }
 
-            IOperableTrigger detached = (IOperableTrigger) testCase.Trigger(anchor)
+            IOperableTrigger detached = (IOperableTrigger) testCase.Trigger(anchor, store.Clock)
                 .WithIdentity(triggerKey)
                 .ForJob(jobKey)
                 .Build();
             detached.ComputeFirstFireTimeUtc(null);
             detached.NextFireTimeUtc = scheduled;
 
-            DateTimeOffset passStarted = TimeProvider.System.GetUtcNow();
-            MisfireExpectation expected = MisfireExpectation.From(detached, calendar: null);
+            MisfireExpectation expected = MisfireExpectation.From(detached, calendar: null, store.Clock);
 
             (await store.Store.ResumeTrigger(triggerKey)).Should().BeTrue(
                 "{0} has to report that it resumed '{1}'", store.Name, testCase);
 
-            DateTimeOffset passFinished = TimeProvider.System.GetUtcNow();
-
             TriggerState state = await store.Store.GetTriggerState(triggerKey);
             IOperableTrigger readBack = await store.Store.GetTrigger(triggerKey);
 
-            expected.AssertAgainst(store.Name, testCase + " on resume", state, readBack.NextFireTimeUtc, passStarted, passFinished);
+            expected.AssertAgainst(store.Name, testCase + " on resume", state, readBack.NextFireTimeUtc);
         }
     }
 
@@ -144,21 +141,17 @@ public sealed class MisfireWhilePausedOrBlockedTest : MisfireThroughAStoreTestBa
             "RAMJobStore's unblocking returns the trigger to the acquisition set and nothing more, so the "
             + "missed firing is still on the books at this point");
 
-        IOperableTrigger detached = Detached(anchor, blocked.Key, blocked.Job.Key, scheduled);
+        IOperableTrigger detached = Detached(anchor, store.Clock, blocked.Key, blocked.Job.Key, scheduled);
 
-        DateTimeOffset passStarted = TimeProvider.System.GetUtcNow();
-        MisfireExpectation expected = MisfireExpectation.From(detached, calendar: null);
+        MisfireExpectation expected = MisfireExpectation.From(detached, calendar: null, store.Clock);
 
         await store.Sweep(scheduled - TimeSpan.FromTicks(1));
-        DateTimeOffset passFinished = TimeProvider.System.GetUtcNow();
 
         expected.AssertAgainst(
             store.Name,
             BlockedCase + " unblocked",
             await store.Store.GetTriggerState(blocked.Key),
-            (await store.Store.GetTrigger(blocked.Key)).NextFireTimeUtc,
-            passStarted,
-            passFinished);
+            (await store.Store.GetTrigger(blocked.Key)).NextFireTimeUtc);
     }
 
     /// <summary>
@@ -175,21 +168,17 @@ public sealed class MisfireWhilePausedOrBlockedTest : MisfireThroughAStoreTestBa
         MisfireStoreUnderTest store = await SqliteStore(anchor);
         BlockedTrigger blocked = await GivenATriggerBlockedPastItsThreshold(store, anchor);
 
-        IOperableTrigger detached = Detached(anchor, blocked.Key, blocked.Job.Key, scheduled);
+        IOperableTrigger detached = Detached(anchor, store.Clock, blocked.Key, blocked.Job.Key, scheduled);
 
-        DateTimeOffset passStarted = TimeProvider.System.GetUtcNow();
-        MisfireExpectation expected = MisfireExpectation.From(detached, calendar: null);
+        MisfireExpectation expected = MisfireExpectation.From(detached, calendar: null, store.Clock);
 
         await store.Store.TriggeredJobComplete(blocked.Firing, blocked.Job, SchedulerInstruction.NoInstruction);
-        DateTimeOffset passFinished = TimeProvider.System.GetUtcNow();
 
         expected.AssertAgainst(
             store.Name,
             BlockedCase + " unblocked",
             await store.Store.GetTriggerState(blocked.Key),
-            (await store.Store.GetTrigger(blocked.Key)).NextFireTimeUtc,
-            passStarted,
-            passFinished);
+            (await store.Store.GetTrigger(blocked.Key)).NextFireTimeUtc);
     }
 
     /// <summary>
@@ -230,7 +219,7 @@ public sealed class MisfireWhilePausedOrBlockedTest : MisfireThroughAStoreTestBa
         IJobDetail job = JobBuilder.Create<NonConcurrentMisfireTestJob>().WithIdentity(jobKey).Build();
 
         // Due exactly on the store's clock, so the trigger that does the blocking is not itself late.
-        IOperableTrigger running = (IOperableTrigger) TriggerBuilder.Create()
+        IOperableTrigger running = (IOperableTrigger) TriggerBuilder.Create(store.Clock)
             .WithIdentity("running-" + jobKey.Name, Group)
             .ForJob(jobKey)
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromDays(1)).RepeatForever())
@@ -247,7 +236,7 @@ public sealed class MisfireWhilePausedOrBlockedTest : MisfireThroughAStoreTestBa
         // Stored after the acquisition, so it is the fan-out in TriggersFired that blocks it rather than
         // the store having found the job already blocked when the trigger was added.
         TriggerKey blockedKey = new("blocked-" + jobKey.Name, Group);
-        IOperableTrigger blocked = (IOperableTrigger) BlockedCase.Trigger(anchor)
+        IOperableTrigger blocked = (IOperableTrigger) BlockedCase.Trigger(anchor, store.Clock)
             .WithIdentity(blockedKey)
             .ForJob(jobKey)
             .Build();
@@ -274,9 +263,9 @@ public sealed class MisfireWhilePausedOrBlockedTest : MisfireThroughAStoreTestBa
         return new BlockedTrigger(blockedKey, job, acquired[0]);
     }
 
-    private static IOperableTrigger Detached(DateTimeOffset anchor, TriggerKey triggerKey, JobKey jobKey, DateTimeOffset scheduled)
+    private static IOperableTrigger Detached(DateTimeOffset anchor, TimeProvider clock, TriggerKey triggerKey, JobKey jobKey, DateTimeOffset scheduled)
     {
-        IOperableTrigger detached = (IOperableTrigger) BlockedCase.Trigger(anchor)
+        IOperableTrigger detached = (IOperableTrigger) BlockedCase.Trigger(anchor, clock)
             .WithIdentity(triggerKey)
             .ForJob(jobKey)
             .Build();

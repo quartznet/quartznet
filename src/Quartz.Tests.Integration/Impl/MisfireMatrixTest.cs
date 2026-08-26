@@ -19,6 +19,8 @@
 
 using System.Globalization;
 
+using Microsoft.Extensions.Time.Testing;
+
 using Quartz.Extensibility;
 
 namespace Quartz.Tests.Integration.Impl;
@@ -88,6 +90,10 @@ public sealed class MisfireMatrixTest : MisfireThroughAStoreTestBase
         DateTimeOffset anchor = Anchor();
         DateTimeOffset scheduled = anchor - HalfPeriod;
 
+        // Where a store's clock stands when its pass runs. No store is built here; this walk is about
+        // what the cells resolve to, not about what a store does with them.
+        FakeTimeProvider clock = ClockAt(anchor);
+
         List<(MisfireMatrixCase Case, MisfireExpectation Expected)> outcomes = [];
 
         foreach (MisfireMatrixCase testCase in Cases())
@@ -95,13 +101,13 @@ public sealed class MisfireMatrixTest : MisfireThroughAStoreTestBase
             TriggerKey triggerKey = new("outcome", Group);
             JobKey jobKey = new("outcome", Group);
 
-            IOperableTrigger detached = Build(testCase, anchor, triggerKey, jobKey);
+            IOperableTrigger detached = Build(testCase, anchor, clock, triggerKey, jobKey);
             detached.ComputeFirstFireTimeUtc(null);
             detached.NextFireTimeUtc = scheduled;
 
             MisfireExpectation expected = testCase.IgnoresMisfires
                 ? MisfireExpectation.Untouched(scheduled)
-                : MisfireExpectation.From(detached, calendar: null);
+                : MisfireExpectation.From(detached, calendar: null, clock);
 
             outcomes.Add((testCase, expected));
             TestContext.Out.WriteLine($"{testCase} -> {expected}");
@@ -132,32 +138,31 @@ public sealed class MisfireMatrixTest : MisfireThroughAStoreTestBase
             TriggerKey triggerKey = new("matrix-" + Guid.NewGuid().ToString("N"), Group);
             JobKey jobKey = new(triggerKey.Name, Group);
 
-            await Store(store, Job(jobKey), Build(testCase, anchor, triggerKey, jobKey), scheduled);
+            await Store(store, Job(jobKey), Build(testCase, anchor, store.Clock, triggerKey, jobKey), scheduled);
 
             // The trigger's own scheduled time is where the clock started, so nothing was late until
             // here. Half a day is far past the one-minute threshold, and no wall clock moved for it.
             store.Clock.Advance(HalfPeriod);
 
-            // The copy the expectation comes from goes through the same two steps the stored one did,
-            // so the only difference between them is that this one never met a store.
-            IOperableTrigger detached = Build(testCase, anchor, triggerKey, jobKey);
+            // The copy the expectation comes from goes through the same two steps the stored one did
+            // and holds the same clock, so the only difference between them is that this one never met
+            // a store.
+            IOperableTrigger detached = Build(testCase, anchor, store.Clock, triggerKey, jobKey);
             detached.ComputeFirstFireTimeUtc(null);
             detached.NextFireTimeUtc = scheduled;
 
-            DateTimeOffset passStarted = TimeProvider.System.GetUtcNow();
             MisfireExpectation expected = testCase.IgnoresMisfires
                 ? MisfireExpectation.Untouched(scheduled)
-                : MisfireExpectation.From(detached, calendar: null);
+                : MisfireExpectation.From(detached, calendar: null, store.Clock);
 
             await store.Sweep(scheduled - TimeSpan.FromTicks(1));
-            DateTimeOffset passFinished = TimeProvider.System.GetUtcNow();
 
             TriggerState state = await store.Store.GetTriggerState(triggerKey);
             IOperableTrigger readBack = await store.Store.GetTrigger(triggerKey);
 
             readBack.Should().NotBeNull("{0} must still hold '{1}' after a misfire pass", store.Name, testCase);
 
-            expected.AssertAgainst(store.Name, testCase.ToString(), state, readBack.NextFireTimeUtc, passStarted, passFinished);
+            expected.AssertAgainst(store.Name, testCase.ToString(), state, readBack.NextFireTimeUtc);
         }
     }
 
@@ -179,7 +184,7 @@ public sealed class MisfireMatrixTest : MisfireThroughAStoreTestBase
             TriggerKey triggerKey = new("ignoring-" + Guid.NewGuid().ToString("N"), Group);
             JobKey jobKey = new(triggerKey.Name, Group);
 
-            await Store(store, Job(jobKey), Build(testCase, anchor, triggerKey, jobKey), scheduled);
+            await Store(store, Job(jobKey), Build(testCase, anchor, store.Clock, triggerKey, jobKey), scheduled);
             store.Clock.Advance(HalfPeriod);
 
             await store.Sweep(scheduled - TimeSpan.FromTicks(1));
@@ -329,9 +334,9 @@ public sealed class MisfireMatrixTest : MisfireThroughAStoreTestBase
 
     #endregion
 
-    private static IOperableTrigger Build(MisfireMatrixCase testCase, DateTimeOffset anchor, TriggerKey triggerKey, JobKey jobKey)
+    private static IOperableTrigger Build(MisfireMatrixCase testCase, DateTimeOffset anchor, TimeProvider clock, TriggerKey triggerKey, JobKey jobKey)
     {
-        return (IOperableTrigger) testCase.Trigger(anchor)
+        return (IOperableTrigger) testCase.Trigger(anchor, clock)
             .WithIdentity(triggerKey)
             .ForJob(jobKey)
             .Build();
