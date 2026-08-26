@@ -81,6 +81,21 @@ namespace Quartz
         public CalendarQuery() { }
         public Quartz.CalendarNameMatcher? Name { get; init; }
     }
+    public sealed class ClusterNode : System.IEquatable<Quartz.ClusterNode>
+    {
+        public ClusterNode(string InstanceId, System.DateTimeOffset? LastCheckInUtc, System.TimeSpan? CheckInInterval, Quartz.ClusterNodeState State, bool IsCurrentNode) { }
+        public System.TimeSpan? CheckInInterval { get; init; }
+        public string InstanceId { get; init; }
+        public bool IsCurrentNode { get; init; }
+        public System.DateTimeOffset? LastCheckInUtc { get; init; }
+        public Quartz.ClusterNodeState State { get; init; }
+    }
+    public enum ClusterNodeState
+    {
+        Alive = 0,
+        Overdue = 1,
+        Failed = 2,
+    }
     public sealed class ClusteringOptions
     {
         public ClusteringOptions() { }
@@ -677,6 +692,7 @@ namespace Quartz
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> PauseTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ClusterNode>> QueryClusterNodes(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.FireInstance>> QueryFireInstances(Quartz.FireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> QueryJobs(Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default);
@@ -1857,6 +1873,7 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> PauseTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ClusterNode>> QueryClusterNodes(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.FireInstance>> QueryFireInstances(Quartz.FireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> QueryJobs(Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default);
@@ -2196,6 +2213,8 @@ namespace Quartz.Impl.AdoJobStore
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> PauseTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ClusterNode>> QueryClusterNodes(System.Threading.CancellationToken cancellationToken = default) { }
+        protected System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ClusterNode>> QueryClusterNodes(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.FireInstance>> QueryFireInstances(Quartz.FireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.FireInstance>> QueryFireInstances(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.FireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3129,6 +3148,7 @@ namespace Quartz.Impl
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> PauseTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ClusterNode>> QueryClusterNodes(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.FireInstance>> QueryFireInstances(Quartz.FireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> QueryJobs(Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3191,6 +3211,7 @@ namespace Quartz.Impl
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> PauseTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ClusterNode>> QueryClusterNodes(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.FireInstance>> QueryFireInstances(Quartz.FireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> QueryJobs(Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3314,6 +3335,7 @@ namespace Quartz.Impl
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> PauseTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ClusterNode>> QueryClusterNodes(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.FireInstance>> QueryFireInstances(Quartz.FireInstanceQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> QueryJobs(Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default) { }

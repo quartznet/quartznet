@@ -76,6 +76,7 @@ internal static class HttpApiJson
         options.Converters.Add(new JsonStringEnumConverter<SchedulerStatus>());
         options.Converters.Add(new JsonStringEnumConverter<FireInstanceState>());
         options.Converters.Add(new JsonStringEnumConverter<ExecutionLimitScope>());
+        options.Converters.Add(new JsonStringEnumConverter<ClusterNodeState>());
 
         options.UseQuartzContract(HttpApiJsonContext.Default, registry);
 

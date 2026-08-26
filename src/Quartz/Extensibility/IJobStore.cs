@@ -412,6 +412,33 @@ public interface IJobStore
     ValueTask<PagedResult<FireInstance>> QueryFireInstances(FireInstanceQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Lists the scheduler nodes this store knows about, as <see cref="ClusterNode" />s: the current
+    /// node first, then the rest by instance id (ordinal).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The current node is always in the list, whether or not the store has a record of it yet, and it
+    /// is the only one whose <see cref="ClusterNode.IsCurrentNode" /> is <see langword="true" />. A
+    /// store that keeps no check-in history — the in-memory one, and a persistent one that is not
+    /// clustered — answers with that single node, <see cref="ClusterNodeState.Alive" /> and with no
+    /// times, because a lone node has nobody to be late for.
+    /// </para>
+    /// <para>
+    /// A clustered store reports every node it has a check-in record for, including nodes that are
+    /// dead but not yet swept, and decides <see cref="ClusterNode.State" /> with the same predicate its
+    /// recovery pass uses — so a node this listing calls
+    /// <see cref="ClusterNodeState.Failed" /> is a node whose work the cluster is about to take over,
+    /// rather than one that merely looks late to a second opinion.
+    /// </para>
+    /// <para>
+    /// Unpaged, because a cluster is a handful of nodes rather than a data set; the listing that does
+    /// need paging is <see cref="QueryFireInstances" />, which reports what each node is running.
+    /// </para>
+    /// </remarks>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves the given jobs in one round trip. Keys that do not exist are simply
     /// absent from the result.
     /// </summary>

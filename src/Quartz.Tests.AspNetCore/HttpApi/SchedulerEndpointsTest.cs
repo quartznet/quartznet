@@ -73,6 +73,35 @@ public class SchedulerEndpointsTest : WebApiTest
         });
     }
 
+    /// <summary>
+    /// The node listing round-trips whole: the verdict, both times, and the order the server chose.
+    /// </summary>
+    /// <remarks>
+    /// The order is contract rather than presentation — "current node first" is decided by the node that
+    /// answered, and a client that re-sorted would be asserting something about its own identity, which
+    /// it does not have. The node with no check-in history is here because null is not zero: a reader
+    /// that saw <c>0001-01-01</c> would draw a node that has been dead since the epoch.
+    /// </remarks>
+    [Test]
+    public async Task ClusterNodesRoundTripKeepEveryVerdictAndTheServersOrder()
+    {
+        A.CallTo(() => FakeScheduler.QueryClusterNodes(A<CancellationToken>._))
+            .Returns(new List<ClusterNode>
+            {
+                TestData.CurrentClusterNode,
+                TestData.FailedClusterNode,
+                TestData.ClusterNodeWithoutCheckIn
+            });
+
+        List<ClusterNode> nodes = await HttpScheduler.QueryClusterNodes();
+
+        nodes.Should().Equal([
+            TestData.CurrentClusterNode,
+            TestData.FailedClusterNode,
+            TestData.ClusterNodeWithoutCheckIn
+        ]);
+    }
+
     [Test]
     public async Task GetSchedulerDetailsShouldWork()
     {

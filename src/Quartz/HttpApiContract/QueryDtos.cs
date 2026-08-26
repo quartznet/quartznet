@@ -180,6 +180,46 @@ internal sealed record FireInstanceDto(
     }
 }
 
+/// <summary>
+/// One scheduler node on the wire.
+/// </summary>
+/// <remarks>
+/// The two times are absent — not zero — when the store keeps no check-in history, so a reader can tell
+/// "this node never checked in" from "this node checked in at the epoch". <see cref="CheckInInterval" />
+/// is a <see cref="TimeSpan" /> like every other duration the API carries.
+/// </remarks>
+internal sealed record ClusterNodeDto(
+    string InstanceId,
+    DateTimeOffset? LastCheckInUtc,
+    TimeSpan? CheckInInterval,
+    ClusterNodeState State,
+    bool IsCurrentNode)
+{
+    public static ClusterNodeDto Create(ClusterNode node)
+    {
+        ArgumentNullException.ThrowIfNull(node);
+
+        return new ClusterNodeDto(
+            InstanceId: node.InstanceId,
+            LastCheckInUtc: node.LastCheckInUtc,
+            CheckInInterval: node.CheckInInterval,
+            State: node.State,
+            IsCurrentNode: node.IsCurrentNode
+        );
+    }
+
+    public ClusterNode AsClusterNode()
+    {
+        return new ClusterNode(
+            InstanceId,
+            LastCheckInUtc,
+            CheckInInterval,
+            State,
+            IsCurrentNode
+        );
+    }
+}
+
 internal sealed record JobGroupDto(string Name, bool Paused)
 {
     public static JobGroupDto Create(JobGroup group)

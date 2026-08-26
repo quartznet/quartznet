@@ -53,6 +53,22 @@ public static class TestData
     /// </summary>
     public static readonly FireInstance AcquiredFireInstance;
 
+    /// <summary>
+    /// The node answering the query: checking in on schedule, and marked as the current one.
+    /// </summary>
+    public static readonly ClusterNode CurrentClusterNode;
+
+    /// <summary>
+    /// A peer that stopped checking in: the same members, a different verdict.
+    /// </summary>
+    public static readonly ClusterNode FailedClusterNode;
+
+    /// <summary>
+    /// A node whose store keeps no check-in history: both times absent, which is the shape a round trip
+    /// is most likely to mangle into zeros.
+    /// </summary>
+    public static readonly ClusterNode ClusterNodeWithoutCheckIn;
+
     static TestData()
     {
         Metadata = new SchedulerMetadata
@@ -246,6 +262,27 @@ public static class TestData
             FireTimeUtc: new DateTimeOffset(2024, 5, 6, 7, 8, 10, TimeSpan.Zero),
             ScheduledFireTimeUtc: null,
             ExecutionGroup: null);
+
+        CurrentClusterNode = new ClusterNode(
+            InstanceId: SchedulerInstanceId,
+            LastCheckInUtc: new DateTimeOffset(2024, 5, 6, 7, 8, 5, TimeSpan.Zero),
+            CheckInInterval: TimeSpan.FromSeconds(15),
+            State: ClusterNodeState.Alive,
+            IsCurrentNode: true);
+
+        FailedClusterNode = new ClusterNode(
+            InstanceId: "node-b",
+            LastCheckInUtc: new DateTimeOffset(2024, 5, 6, 7, 0, 0, TimeSpan.Zero),
+            CheckInInterval: TimeSpan.FromSeconds(15),
+            State: ClusterNodeState.Failed,
+            IsCurrentNode: false);
+
+        ClusterNodeWithoutCheckIn = new ClusterNode(
+            InstanceId: "node-c",
+            LastCheckInUtc: null,
+            CheckInInterval: null,
+            State: ClusterNodeState.Alive,
+            IsCurrentNode: false);
 
         ExecutingJobTwo = new JobExecutionContextImpl(
             scheduler: A.Fake<IScheduler>(),

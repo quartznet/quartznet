@@ -205,6 +205,11 @@ public class DelegatingJobStore : IJobStore
         return jobStore.QueryFireInstances(query, cancellationToken);
     }
 
+    public virtual ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
+    {
+        return jobStore.QueryClusterNodes(cancellationToken);
+    }
+
     public virtual ValueTask<List<IJobDetail>> GetJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         return jobStore.GetJobs(jobKeys, cancellationToken);

@@ -71,6 +71,7 @@ namespace Quartz.HttpApiContract;
 [JsonSerializable(typeof(AffectedGroupsResponse))]
 [JsonSerializable(typeof(AppliedJobKeysResponse))]
 [JsonSerializable(typeof(AppliedTriggerKeysResponse))]
+[JsonSerializable(typeof(ClusterNodeDto[]))]
 [JsonSerializable(typeof(ExecutionLimitsResponse))]
 [JsonSerializable(typeof(ExistsResponse))]
 [JsonSerializable(typeof(GroupPausedResponse))]

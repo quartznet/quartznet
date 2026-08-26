@@ -168,6 +168,23 @@ public sealed class HttpScheduler : IScheduler
         return new PagedResult<FireInstance>(result.Items.Select(x => x.AsFireInstance()).ToList(), result.HasMore, result.TotalCount);
     }
 
+    public async ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)
+    {
+        ClusterNodeDto[] result = await httpClient
+            .Get<ClusterNodeDto[]>($"{SchedulerEndpointUrl()}/nodes", jsonSerializerOptions, cancellationToken)
+            .ConfigureAwait(false);
+
+        // The server has already put the current node first, so the order travels rather than being
+        // recomputed here: "current" means current on the node that answered, not on the one reading.
+        List<ClusterNode> nodes = new(result.Length);
+        foreach (ClusterNodeDto node in result)
+        {
+            nodes.Add(node.AsClusterNode());
+        }
+
+        return nodes;
+    }
+
     public ValueTask Start(CancellationToken cancellationToken = default)
     {
         return httpClient.Post($"{SchedulerEndpointUrl()}/start", jsonSerializerOptions, cancellationToken);

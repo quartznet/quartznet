@@ -106,6 +106,25 @@ public class WireFormatSnapshotTest : WebApiTest
     }
 
     [Test]
+    public async Task ClusterNodesBody()
+    {
+        // Three shapes in one body: the node answering, a peer the cluster has given up on, and one
+        // whose store keeps no check-in history at all. The state goes out as its name, the interval as
+        // a TimeSpan like every other duration the API carries, and the absent times as nulls rather
+        // than as zeros or as missing properties.
+        A.CallTo(() => FakeScheduler.QueryClusterNodes(A<CancellationToken>._))
+            .Returns(new List<ClusterNode>
+            {
+                TestData.CurrentClusterNode,
+                TestData.FailedClusterNode,
+                TestData.ClusterNodeWithoutCheckIn
+            });
+
+        string body = await Get($"{SchedulerUrl}/nodes");
+        await VerifyBody(body);
+    }
+
+    [Test]
     public async Task TriggerStateBody()
     {
         TriggerKey triggerKey = TestData.Wire.CronTrigger.Key;

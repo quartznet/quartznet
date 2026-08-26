@@ -3,6 +3,8 @@ using System.Data.Common;
 using System.Globalization;
 using System.Reflection;
 
+using AwesomeAssertions.Execution;
+
 using FakeItEasy;
 
 using Microsoft.Extensions.Time.Testing;
@@ -1056,6 +1058,16 @@ public class AdoJobStoreBaseTest
         internal DateTimeOffset CallCalcFailedIfAfter(SchedulerStateRecord rec)
         {
             return CalcFailedIfAfter(rec);
+        }
+
+        /// <summary>
+        /// The connection-taking half of the node listing. The public entry point runs through
+        /// <see cref="ExecuteWithoutLock{T}" />, which this store stubs out to return <c>default</c>,
+        /// so a test that wants the rows classified has to hand the connection over itself.
+        /// </summary>
+        internal ValueTask<List<ClusterNode>> CallQueryClusterNodes(ConnectionAndTransactionHolder conn)
+        {
+            return QueryClusterNodes(conn, CancellationToken.None);
         }
 
         internal ValueTask<List<SchedulerStateRecord>> CallClusterCheckIn(ConnectionAndTransactionHolder conn)
@@ -2122,6 +2134,177 @@ public class AdoJobStoreBaseTest
 
         jobStoreSupport.LastCheckin.Should().Be(ClusterNow,
             "a failed scan still stamps the check-in, so the next CalcFailedIfAfter does not treat this node's own silence as elapsed time");
+    }
+
+    #endregion
+
+    #region QueryClusterNodes
+
+    /// <summary>
+    /// The three verdicts, on one stopped clock. This node is healthy, so
+    /// <see cref="AdoJobStoreBase.CalcFailedIfAfter" /> gives each row its own check-in interval plus
+    /// the 7.5s misfire threshold: 17.5s of silence before it is dead, and 10s before it is late.
+    /// </summary>
+    [Test]
+    public async Task QueryClusterNodes_ShouldClassifyEachRowWithTheSamePredicateRecoveryUses()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.LastCheckin = ClusterNow;
+        jobStoreSupport.SetFirstCheckIn(false);
+
+        GivenSchedulerStates(
+            new SchedulerStateRecord(OwnInstanceId, ClusterNow, CheckinInterval),
+            new SchedulerStateRecord("alive-node", ClusterNow - TimeSpan.FromSeconds(5), CheckinInterval),
+            new SchedulerStateRecord("overdue-node", ClusterNow - TimeSpan.FromSeconds(12), CheckinInterval),
+            new SchedulerStateRecord(DeadInstanceId, ClusterNow - TimeSpan.FromSeconds(60), CheckinInterval));
+
+        List<ClusterNode> nodes = await jobStoreSupport.CallQueryClusterNodes(conn);
+
+        using (new AssertionScope())
+        {
+            StateOf(nodes, "alive-node").Should().Be(ClusterNodeState.Alive,
+                "a node that checked in within its own interval is doing what a running node does");
+            StateOf(nodes, "overdue-node").Should().Be(ClusterNodeState.Overdue,
+                "a missed check-in is late, and only late: nothing of an overdue node's work is taken away");
+            StateOf(nodes, DeadInstanceId).Should().Be(ClusterNodeState.Failed,
+                "past CalcFailedIfAfter the recovery sweep takes this node's work over, so the listing must "
+                + "not report it as merely late");
+
+            // The listing is exactly what the sweep would act on, which is the point of sharing the
+            // predicate rather than writing a second one.
+            List<SchedulerStateRecord> failed = await jobStoreSupport.CallFindFailedInstances(conn);
+            failed.Select(x => x.SchedulerInstanceId).Should().Equal([DeadInstanceId],
+                "the listing and the recovery sweep read the same rows through the same predicate");
+        }
+    }
+
+    [Test]
+    public async Task QueryClusterNodes_ShouldCarryEachRowsCheckInTimeAndInterval()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.LastCheckin = ClusterNow;
+
+        DateTimeOffset checkedInAt = ClusterNow - TimeSpan.FromSeconds(3);
+        GivenSchedulerStates(new SchedulerStateRecord("other-node", checkedInAt, CheckinInterval));
+
+        List<ClusterNode> nodes = await jobStoreSupport.CallQueryClusterNodes(conn);
+
+        ClusterNode other = nodes.Should().ContainSingle(x => x.InstanceId == "other-node").Subject;
+        other.LastCheckInUtc.Should().Be(checkedInAt, "the row's own stamp is what an operator reads the age off");
+        other.CheckInInterval.Should().Be(CheckinInterval,
+            "the interval reported is the one that node undertook to keep, not the reader's own");
+        other.IsCurrentNode.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task QueryClusterNodes_ShouldListTheCurrentNodeFirstEvenBeforeItHasARow()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.LastCheckin = ClusterNow;
+
+        // No row for this node: it has not checked in yet, or another node swept it away.
+        GivenSchedulerStates(
+            new SchedulerStateRecord("zzz-node", ClusterNow, CheckinInterval),
+            new SchedulerStateRecord("aaa-node", ClusterNow, CheckinInterval));
+
+        List<ClusterNode> nodes = await jobStoreSupport.CallQueryClusterNodes(conn);
+
+        using (new AssertionScope())
+        {
+            nodes.Select(x => x.InstanceId).Should().Equal([OwnInstanceId, "aaa-node", "zzz-node"],
+                "the node asking is listed first whether or not the table has heard of it, and the rest "
+                + "ordinally, so the same cluster reads the same way on every refresh");
+
+            ClusterNode current = nodes[0];
+            current.IsCurrentNode.Should().BeTrue();
+            current.State.Should().Be(ClusterNodeState.Alive, "a node that is answering queries is running");
+            current.LastCheckInUtc.Should().BeNull("there is no row, so there is no check-in time to report");
+            nodes.Should().ContainSingle(x => x.IsCurrentNode, "exactly one row is the node that answered");
+        }
+    }
+
+    /// <summary>
+    /// This node's own row is judged by the same predicate as anyone else's, which is what stops a
+    /// stalled node reporting itself well.
+    /// </summary>
+    /// <remarks>
+    /// It comes out <see cref="ClusterNodeState.Overdue" /> rather than
+    /// <see cref="ClusterNodeState.Failed" />, and that is <see cref="AdoJobStoreBase.CalcFailedIfAfter" />
+    /// speaking rather than a special case: a node that has been silent for a minute grants every row —
+    /// its own included — that minute of grace, because the silence is evidence about this process
+    /// rather than about the cluster. The same leniency is what stops a stalled node recovering its
+    /// healthy peers out from under them.
+    /// </remarks>
+    [Test]
+    public async Task QueryClusterNodes_ShouldNotExemptTheCurrentNodeFromItsOwnVerdict()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        // This node last checked in a minute ago and has not managed one since.
+        jobStoreSupport.LastCheckin = ClusterNow - TimeSpan.FromSeconds(60);
+        GivenSchedulerStates(new SchedulerStateRecord(OwnInstanceId, ClusterNow - TimeSpan.FromSeconds(60), CheckinInterval));
+
+        List<ClusterNode> nodes = await jobStoreSupport.CallQueryClusterNodes(conn);
+
+        ClusterNode current = nodes.Should().ContainSingle().Subject;
+        current.IsCurrentNode.Should().BeTrue();
+        current.State.Should().Be(ClusterNodeState.Overdue,
+            "a node that has stopped checking in says so about itself rather than reporting Alive because "
+            + "it is the one answering");
+        current.LastCheckInUtc.Should().Be(ClusterNow - TimeSpan.FromSeconds(60),
+            "the row is this node's own, so its stamp is reported rather than replaced with nothing");
+    }
+
+    [Test]
+    public async Task QueryClusterNodes_ShouldWrapDelegateFailures()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        A.CallTo(() => driverDelegate.SelectSchedulerStateRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Throws(new InvalidOperationException("state table unavailable"));
+
+        Func<Task> act = async () => await jobStoreSupport.CallQueryClusterNodes(conn);
+
+        await act.Should().ThrowAsync<JobPersistenceException>()
+            .WithMessage("*cluster nodes*")
+            .WithInnerException<JobPersistenceException, InvalidOperationException>()
+            .WithMessage("state table unavailable");
+    }
+
+    [Test]
+    public async Task QueryClusterNodes_ShouldNotReadTheStateTableWhenTheStoreIsNotClustered()
+    {
+        // A store that is not clustered never runs the check-in loop, so SCHEDULER_STATE holds nothing
+        // of its own; reading it would answer with another scheduler's rows or with none at all.
+        TestAdoJobStoreBase store = new(clustered: false, timeProvider: new FakeTimeProvider(ClusterNow));
+        store.DirectDelegate = driverDelegate;
+
+        List<ClusterNode> nodes = await store.QueryClusterNodes();
+
+        ClusterNode node = nodes.Should().ContainSingle().Subject;
+        node.IsCurrentNode.Should().BeTrue();
+        node.State.Should().Be(ClusterNodeState.Alive);
+        node.LastCheckInUtc.Should().BeNull();
+        node.CheckInInterval.Should().BeNull();
+
+        A.CallTo(() => driverDelegate.SelectSchedulerStateRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    private static ClusterNodeState StateOf(List<ClusterNode> nodes, string instanceId)
+    {
+        return nodes.Should().ContainSingle(x => x.InstanceId == instanceId).Subject.State;
     }
 
     #endregion
