@@ -341,6 +341,11 @@ internal sealed class QuartzSchedulerThread
                             TimeWindow = qsRsrcs.BatchTimeWindow,
                             ExecutionLimits = availableLimits,
                         };
+                        // Zero when nothing is collecting the acquisition instruments, which is the signal
+                        // to skip the measurement rather than a timestamp of zero.
+                        bool measureAcquisition = qsRsrcs.Meters.TriggerAcquisitionEnabled;
+                        long acquisitionStarted = measureAcquisition ? qsRsrcs.TimeProvider.GetTimestamp() : 0;
+
                         // Copied on purpose, and IJobStore.AcquireNextTriggers says so: this loop removes
                         // entries below while it waits out the first trigger's fire time, and the store is
                         // allowed to hand back a list it still holds. The copy is around ten nanoseconds
@@ -348,6 +353,20 @@ internal sealed class QuartzSchedulerThread
                         // which is nothing beside the round trip a persistent store just made — and far
                         // less than a caller-owns rule would cost the stores nobody here can see (#3344).
                         triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(request, CancellationToken.None).ConfigureAwait(false));
+
+                        if (measureAcquisition)
+                        {
+                            // Only a round that came back. A failed acquisition leaves through one of the
+                            // catches below, where it is a store failure rather than an acquisition
+                            // latency, and folding the two together would make an unreachable database
+                            // look like a fast one.
+                            qsRsrcs.Meters.TriggersAcquired(
+                                qsRsrcs.Name,
+                                qsRsrcs.InstanceId,
+                                triggers.Count,
+                                qsRsrcs.TimeProvider.GetElapsedTime(acquisitionStarted));
+                        }
+
                         acquiresFailed = 0;
                         if (logger.IsEnabled(LogLevel.Debug))
                         {

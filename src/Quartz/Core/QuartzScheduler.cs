@@ -1944,6 +1944,12 @@ internal sealed class QuartzScheduler
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
+        // Counted here rather than in a store, because this is the one place every store's misfire
+        // handling arrives at: the in-memory store's own scan and the database store's misfire handler
+        // both signal through here. Before the listeners, and outside the "are there any" check below,
+        // so the count is of misfires rather than of misfires somebody was listening for.
+        resources.Meters.TriggerMisfired(resources.Name, resources.InstanceId, trigger);
+
         var listeners = ListenerManager.GetTriggerListeners();
 
         return listeners.Count == 0 ? default

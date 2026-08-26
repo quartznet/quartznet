@@ -189,6 +189,7 @@ internal static class QuartzServiceRegistration
         {
             var options = provider.GetSchedulerOptions<QuartzSchedulerOptions>(key);
             var instanceName = key as string ?? options.InstanceName;
+            var meters = provider.GetRequiredService<Meters>();
 
             var resources = new QuartzSchedulerResources
             {
@@ -200,9 +201,9 @@ internal static class QuartzServiceRegistration
                 ShutdownJobInterruption = options.ShutdownJobInterruption,
                 TimeProvider = provider.GetSchedulerTimeProvider(key),
                 LoggerFactory = provider.GetSchedulerLoggerFactory(),
-                Meters = provider.GetRequiredService<Meters>(),
+                Meters = meters,
                 ThreadPool = provider.GetScheduler<IThreadPool>(key),
-                JobStore = provider.GetScheduler<IJobStore>(key),
+                JobStore = Instrument(provider.GetScheduler<IJobStore>(key), meters),
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
                 SchedulerRepository = provider.GetRequiredService<ISchedulerRepository>(),
             };
@@ -265,6 +266,32 @@ internal static class QuartzServiceRegistration
         {
             services.TryAddKeyedSingleton(key, (provider, serviceKey) => factory(provider, serviceKey));
         }
+    }
+
+    /// <summary>
+    /// Hands the store the container's instruments on its way into a scheduler's resources.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The store's own measurements — the cluster check-in and the recovery of a failed node — belong on
+    /// the same meter the execution instruments do, so that an application collecting one collects them
+    /// all and two containers in one process keep theirs apart. They cannot arrive through the store's
+    /// constructor: <see cref="Meters"/> is internal and the constructor is public, and five different
+    /// registrations build the store. This is the one place all five arrive at, holding both.
+    /// </para>
+    /// <para>
+    /// Through <see cref="JobStores.Unwrap" />, because the application may have wrapped its store, and
+    /// the measurements belong to the store that talks to the database rather than to the wrapper.
+    /// </para>
+    /// </remarks>
+    private static IJobStore Instrument(IJobStore jobStore, Meters meters)
+    {
+        if (JobStores.Unwrap(jobStore) is AdoJobStoreBase persistent)
+        {
+            persistent.Meters = meters;
+        }
+
+        return jobStore;
     }
 
     /// <summary>
