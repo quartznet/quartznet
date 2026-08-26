@@ -24,6 +24,7 @@ using System.Data.Common;
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz;
 
@@ -205,7 +206,7 @@ public static class SchedulerEnlistmentExtensions
         // The job store builds its commands from its own configured provider, and assigning a
         // connection of a different provider's type to one of those commands throws a cast error deep
         // in the first statement, naming two identically-named connection types and nothing else.
-        var expected = adoJobStore.DbProvider.Metadata.ConnectionType;
+        var expected = adoJobStore.DbProvider.ExpectedConnectionType();
         if (expected is not null && !expected.IsInstanceOfType(connection))
         {
             throw new ArgumentException(

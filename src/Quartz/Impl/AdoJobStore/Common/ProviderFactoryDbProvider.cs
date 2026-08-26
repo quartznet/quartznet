@@ -119,6 +119,25 @@ public sealed class ProviderFactoryDbProvider : IDbProvider
         return command;
     }
 
+    /// <summary>
+    /// The type of connection the factory hands out, worked out by asking it for one.
+    /// </summary>
+    /// <remarks>
+    /// Read by the two checks that used to read <see cref="DbMetadata.ConnectionType"/> — see
+    /// <see cref="DbProviderConnections"/>. The connection is never opened and is not given a connection
+    /// string, so this asks nothing of the database and cannot fail on a connection string the driver
+    /// dislikes.
+    /// </remarks>
+    internal Type? ConnectionType => connectionType ??= SampleConnectionType();
+
+    private Type? connectionType;
+
+    private Type? SampleConnectionType()
+    {
+        using DbConnection? connection = factory.CreateConnection();
+        return connection?.GetType();
+    }
+
     /// <inheritdoc />
     public string ConnectionString { get; }
 
