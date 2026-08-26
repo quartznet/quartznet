@@ -247,6 +247,247 @@ public class CronExpressionBuilderTest
         }
     }
 
+    /// <summary>
+    /// The round trip that matters: what the builder was asked for is what the parser resolves the
+    /// built expression to. Everything above is a worked example checking the text the builder renders;
+    /// this checks that the text means what the call meant, over randomly drawn values in every field
+    /// and every shape - a single value, a list, a range that may run backwards, and a step.
+    /// </summary>
+    /// <remarks>
+    /// A builder that renders a token the parser reads as something else passes every ToString
+    /// assertion in this file and still schedules the wrong days. The expected sets here are this
+    /// test's own arithmetic rather than anything read back out of <see cref="CronExpression" />.
+    /// </remarks>
+    /// <param name="seed">Fixed, and named in the case, so a failure is reproducible.</param>
+    [TestCase(11)]
+    [TestCase(22)]
+    [TestCase(33)]
+    [TestCase(44)]
+    public void TestBuiltExpressionParsesBackToTheValuesTheBuilderWasGiven(int seed)
+    {
+        Random random = new Random(seed);
+
+        for (int iteration = 0; iteration < 100; iteration++)
+        {
+            CronExpressionBuilder builder = CronExpressionBuilder.Create();
+
+            HashSet<int> seconds = ConfigureField(random, 0, 59,
+                value => builder.WithSecond(value),
+                values => builder.WithSeconds(values),
+                (from, to) => builder.WithSecondRange(from, to),
+                (from, increment) => builder.WithSecondIncrements(from, increment));
+
+            HashSet<int> minutes = ConfigureField(random, 0, 59,
+                value => builder.WithMinute(value),
+                values => builder.WithMinutes(values),
+                (from, to) => builder.WithMinuteRange(from, to),
+                (from, increment) => builder.WithMinuteIncrements(from, increment));
+
+            HashSet<int> hours = ConfigureField(random, 0, 23,
+                value => builder.WithHour(value),
+                values => builder.WithHours(values),
+                (from, to) => builder.WithHourRange(from, to),
+                (from, increment) => builder.WithHourIncrements(from, increment));
+
+            HashSet<int> months = ConfigureField(random, 1, 12,
+                value => builder.WithMonth(value),
+                values => builder.WithMonths(values),
+                (from, to) => builder.WithMonthRange(from, to),
+                (from, increment) => builder.WithMonthIncrements(from, increment));
+
+            // The builder refuses to configure both day fields, exactly as the parser refuses to read both.
+            bool useDayOfWeek = random.Next(2) == 0;
+            HashSet<int> daysOfMonth = [];
+            HashSet<int> daysOfWeek = [];
+
+            if (useDayOfWeek)
+            {
+                daysOfWeek = ConfigureField(random, 1, 7,
+                    value => builder.WithDaysOfWeek(ToDayOfWeek(value)),
+                    values => builder.WithDaysOfWeek(values.Select(ToDayOfWeek).ToArray()),
+                    (from, to) => builder.WithDayOfWeekRange(ToDayOfWeek(from), ToDayOfWeek(to)),
+                    (from, increment) => builder.WithDayOfWeekIncrements(ToDayOfWeek(from), increment));
+            }
+            else
+            {
+                daysOfMonth = ConfigureField(random, 1, 31,
+                    value => builder.WithDayOfMonth(value),
+                    values => builder.WithDaysOfMonth(values),
+                    (from, to) => builder.WithDayOfMonthRange(from, to),
+                    (from, increment) => builder.WithDayOfMonthIncrements(from, increment));
+            }
+
+            int firstYear = random.Next(2030, 2041);
+            int lastYear = firstYear + random.Next(0, 6);
+            builder.WithYearRange(firstYear, lastYear);
+            HashSet<int> years = [];
+            for (int year = firstYear; year <= lastYear; year++)
+            {
+                years.Add(year);
+            }
+
+            string text = builder.ToString();
+
+            builder.Build().CronExpressionString.Should().Be(text,
+                "Build and ToString have to render the same expression, or one of them is a lie");
+
+            CronExpression parsed = new CronExpression(text);
+
+            parsed.GetSet(CronExpressionConstants.Second).Should().BeEquivalentTo(seconds, "expression '{0}'", text);
+            parsed.GetSet(CronExpressionConstants.Minute).Should().BeEquivalentTo(minutes, "expression '{0}'", text);
+            parsed.GetSet(CronExpressionConstants.Hour).Should().BeEquivalentTo(hours, "expression '{0}'", text);
+            parsed.GetSet(CronExpressionConstants.Month).Should().BeEquivalentTo(months, "expression '{0}'", text);
+            parsed.GetSet(CronExpressionConstants.Year).Should().BeEquivalentTo(years, "expression '{0}'", text);
+
+            if (useDayOfWeek)
+            {
+                parsed.GetSet(CronExpressionConstants.DayOfWeek).Should().BeEquivalentTo(daysOfWeek, "expression '{0}'", text);
+                parsed.GetSet(CronExpressionConstants.DayOfMonth).Should().Equal([CronExpressionConstants.NoSpec], "expression '{0}'", text);
+            }
+            else
+            {
+                parsed.GetSet(CronExpressionConstants.DayOfMonth).Should().BeEquivalentTo(daysOfMonth, "expression '{0}'", text);
+                parsed.GetSet(CronExpressionConstants.DayOfWeek).Should().Equal([CronExpressionConstants.NoSpec], "expression '{0}'", text);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The special day forms have no value set to compare, so the round trip for them is the day they
+    /// pick out of a month.
+    /// </summary>
+    [Test]
+    public void TestSpecialDayFormsParseBackToTheDayTheyName()
+    {
+        // March 2024: 31 days, the 31st is a Sunday, and the last Thursday is the 28th.
+        DateTimeOffset march = new DateTimeOffset(2024, 3, 1, 0, 0, 0, TimeSpan.Zero);
+
+        FirstFireAfter(CronExpressionBuilder.Create().WithSecond(0).WithMinute(0).WithHour(12).OnLastDayOfMonth(), march)
+            .Should().Be(new DateTimeOffset(2024, 3, 31, 12, 0, 0, TimeSpan.Zero));
+
+        FirstFireAfter(CronExpressionBuilder.Create().WithSecond(0).WithMinute(0).WithHour(12).OnNearestWeekdayOfMonth(16), march)
+            .Should().Be(new DateTimeOffset(2024, 3, 15, 12, 0, 0, TimeSpan.Zero), "the 16th is a Saturday, so the nearest weekday is the Friday before it");
+
+        FirstFireAfter(CronExpressionBuilder.Create().WithSecond(0).WithMinute(0).WithHour(12).OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 3), march)
+            .Should().Be(new DateTimeOffset(2024, 3, 15, 12, 0, 0, TimeSpan.Zero));
+
+        FirstFireAfter(CronExpressionBuilder.Create().WithSecond(0).WithMinute(0).WithHour(12).OnLastDayOfWeekOfMonth(DayOfWeek.Thursday), march)
+            .Should().Be(new DateTimeOffset(2024, 3, 28, 12, 0, 0, TimeSpan.Zero));
+
+        FirstFireAfter(CronExpressionBuilder.Create().WithSecond(0).WithMinute(0).WithHour(12).OnLastDayOfWeek(), march)
+            .Should().Be(new DateTimeOffset(2024, 3, 2, 12, 0, 0, TimeSpan.Zero), "'L' alone in the day-of-week field is Saturday");
+
+        FirstFireAfter(CronExpressionBuilder.Create().WithSecond(0).WithMinute(0).WithHour(12).OnWeekdays(), march)
+            .Should().Be(new DateTimeOffset(2024, 3, 1, 12, 0, 0, TimeSpan.Zero), "the 1st is a Friday");
+    }
+
+    /// <summary>
+    /// <c>MON/2</c> is a Quartz extension meaning every second week, and it is why
+    /// <see cref="CronExpressionBuilder.WithDayOfWeekIncrements" /> renders an explicit list instead of
+    /// the token its name suggests: the numeric <c>2/2</c> the builder means and the textual
+    /// <c>MON/2</c> the reader would guess are two different schedules.
+    /// </summary>
+    [Test]
+    public void TestTheBuilderNeverRendersTheTextualEveryNthWeekExtension()
+    {
+        CronExpressionBuilder builder = CronExpressionBuilder.Create()
+            .WithSecond(0).WithMinute(0).WithHour(12)
+            .WithDayOfWeekIncrements(DayOfWeek.Monday, 2);
+
+        builder.ToString().Should().NotContain("/", "a textual day-of-week step is read as every-second-week, not as a step through the week");
+
+        CronExpression everySecondWeek = new CronExpression("0 0 12 ? * MON/2", TimeZoneInfo.Utc);
+        CronExpression everySecondDayOfWeek = new CronExpression(builder.ToString(), TimeZoneInfo.Utc);
+
+        DateTimeOffset start = new DateTimeOffset(2024, 3, 1, 0, 0, 0, TimeSpan.Zero);
+
+        DateTimeOffset firstMonday = new DateTimeOffset(2024, 3, 11, 12, 0, 0, TimeSpan.Zero);
+        everySecondWeek.GetNextValidTimeAfter(start).Should().Be(firstMonday,
+            "the extension counts whole weeks from where the search starts, so it skips the Monday two days later");
+        everySecondWeek.GetNextValidTimeAfter(firstMonday).Should().Be(new DateTimeOffset(2024, 3, 25, 12, 0, 0, TimeSpan.Zero),
+            "and then a fortnight at a time");
+
+        everySecondDayOfWeek.GetNextValidTimeAfter(start).Should().Be(new DateTimeOffset(2024, 3, 1, 12, 0, 0, TimeSpan.Zero),
+            "what the builder means is MON,WED,FRI, which includes the Friday the window opens on");
+    }
+
+    private static DateTimeOffset? FirstFireAfter(CronExpressionBuilder builder, DateTimeOffset after)
+    {
+        return new CronExpression(builder.ToString(), TimeZoneInfo.Utc).GetNextValidTimeAfter(after);
+    }
+
+    private static DayOfWeek ToDayOfWeek(int quartzDayOfWeek) => (DayOfWeek) (quartzDayOfWeek - 1);
+
+    /// <summary>
+    /// Draws one of the four shapes a value field can take, configures the builder with it, and returns
+    /// the values it stands for.
+    /// </summary>
+    private static HashSet<int> ConfigureField(
+        Random random,
+        int min,
+        int max,
+        Action<int> single,
+        Action<int[]> list,
+        Action<int, int> range,
+        Action<int, int> increments)
+    {
+        int span = max - min + 1;
+
+        switch (random.Next(4))
+        {
+            case 0:
+            {
+                int value = random.Next(min, max + 1);
+                single(value);
+                return [value];
+            }
+
+            case 1:
+            {
+                HashSet<int> values = [];
+                int count = random.Next(1, 5);
+                for (int i = 0; i < count; i++)
+                {
+                    values.Add(random.Next(min, max + 1));
+                }
+
+                list(values.ToArray());
+                return values;
+            }
+
+            case 2:
+            {
+                int from = random.Next(min, max + 1);
+                int to = random.Next(min, max + 1);
+                range(from, to);
+
+                // A range that runs backwards wraps through the top of the field and carries on from its bottom.
+                HashSet<int> values = [];
+                for (int value = from; value <= (from <= to ? to : to + span); value++)
+                {
+                    values.Add(value > max ? value - span : value);
+                }
+
+                return values;
+            }
+
+            default:
+            {
+                int from = random.Next(min, max + 1);
+                int increment = random.Next(1, span);
+                increments(from, increment);
+
+                HashSet<int> values = [];
+                for (int value = from; value <= max; value += increment)
+                {
+                    values.Add(value);
+                }
+
+                return values;
+            }
+        }
+    }
+
     private static Action Invoking(Action<CronExpressionBuilder> action)
     {
         return () => action(CronExpressionBuilder.Create());
