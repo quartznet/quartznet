@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Diagnostics;
 
 using Quartz.Impl.Calendar;
 
@@ -369,19 +370,18 @@ public class CalendarDstTests
     }
 
     /// <summary>
-    /// A daily calendar was already right on these days, and this says why. It builds its day
-    /// boundaries at the queried instant's offset too, but compares them only with values carrying
-    /// that same offset, so every comparison it makes is a wall-clock one and stays correct whatever
-    /// the offset is. The window therefore lands where the wall clock says even on the day whose
-    /// midnight never happens, and on the day whose last hour happens twice it catches both passes.
+    /// A daily calendar's day boundary was already right on these days, and this says why. It builds
+    /// its day boundaries at the queried instant's offset too, but compares them only with values
+    /// carrying that same offset, so every comparison it makes is a wall-clock one and stays correct
+    /// whatever the offset is. The window therefore lands where the wall clock says even on the day
+    /// whose midnight never happens, and on the day whose last hour happens twice it catches both
+    /// passes.
     /// </summary>
     /// <remarks>
     /// These are <see cref="ICalendar.IsTimeIncluded" /> cases only.
-    /// <see cref="DailyCalendar.GetNextIncludedTimeUtc" /> computes its window and day boundaries in
-    /// the offset the <em>argument</em> carries rather than in the calendar's zone, so asking it in
-    /// UTC about a calendar in another zone walks a millisecond at a time and can step over an
-    /// included window entirely. That is a separate defect from the day boundary this fixture is
-    /// about, it predates it, and it is not fixed here.
+    /// <see cref="DailyCalendar.GetNextIncludedTimeUtc" /> had a defect of its own, which the cases
+    /// below this one are about: it computed the window and the day boundaries in the offset the
+    /// <em>argument</em> carried rather than in the calendar's zone (#3466).
     /// </remarks>
     [TestCase("SantiagoSpring", "01:00", "02:00", "2019-09-08T03:30:00Z", true)]
     [TestCase("SantiagoSpring", "01:00", "02:00", "2019-09-08T04:30:00Z", false)]
@@ -409,6 +409,239 @@ public class CalendarDstTests
         calendar.IsTimeIncluded(instant).Should().Be(expectedIncluded,
             "{0:O} reads as {1:yyyy-MM-dd HH:mm zzz} local and the excluded window is {2:HH:mm}-{3:HH:mm} of every local day",
             instant, TimeZoneInfo.ConvertTime(instant, zone), from, to);
+    }
+
+    /// <summary>
+    /// The other half of the daily calendar's contract, on the days where the wall clock and elapsed
+    /// time part company: the next included time is the first instant the window lets go of, and it
+    /// is the same instant however the question is phrased.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It was not (#3466). The window's edges were named on the date the <em>argument</em> fell on
+    /// and paired with the offset it carried, while <see cref="ICalendar.IsTimeIncluded" /> converted
+    /// into the calendar's zone first, so a question asked in UTC about a calendar keeping another
+    /// zone's hours was answered against a window an offset away from the one being tested. The walk
+    /// then fell through to its last resort, a millisecond at a time, and could step clean over an
+    /// included stretch on the way.
+    /// </para>
+    /// <para>
+    /// Each case states the answer it expects, and
+    /// <see cref="AssertDailyCalendarNextIncludedTime" /> holds it to the rest of the contract:
+    /// the answer is included, nothing between the question and the answer is, and asking in the
+    /// calendar's own zone rather than in UTC gives the same instant back.
+    /// </para>
+    /// </remarks>
+    // The reproduction from #3466: this one spun for some two and a half minutes and answered five
+    // months late, because 21:00-22:00 read as UTC is never 21:00-22:00 read in Santiago.
+    [TestCase("SantiagoFall", "21:00", "22:00", true, "2019-04-07T01:30:00Z", "2019-04-08T01:00:00Z")]
+    // The window's edges are inside the hour that happens twice, so the day opens twice as well: once
+    // on each pass, and a question standing in the second pass is answered from the second.
+    [TestCase("SantiagoFall", "23:00", "23:30", false, "2019-04-07T02:15:00Z", "2019-04-07T02:30:00.001Z")]
+    [TestCase("SantiagoFall", "23:00", "23:30", false, "2019-04-07T03:15:00Z", "2019-04-07T03:30:00.001Z")]
+    // A window that runs to the end of the local day opens again at the next local midnight, which on
+    // the 25 hour day is two hours further off than the wall clock makes it look...
+    [TestCase("SantiagoFall", "22:00", "23:59:59.999", false, "2019-04-07T01:30:00Z", "2019-04-07T04:00:00Z")]
+    // ...and on the 23 hour day is a midnight that never happens, so the day opens at the end of the
+    // gap instead.
+    [TestCase("SantiagoSpring", "22:00", "23:59:59.999", false, "2019-09-08T02:00:00Z", "2019-09-08T04:00:00Z")]
+    // An inverted window that begins at that same missing midnight is one instant wide: only its
+    // inclusive end survives the gap.
+    [TestCase("SantiagoSpring", "00:00", "01:00", true, "2019-09-07T20:00:00Z", "2019-09-08T04:00:00Z")]
+    // The clock going back does not only repeat an hour, it takes the day back to before the window
+    // opened, so the calendar lets go at the transition itself rather than at the window's end.
+    [TestCase("HelsinkiFall", "03:30", "04:30", false, "2024-10-27T00:40:00Z", "2024-10-27T01:00:00Z")]
+    [TestCase("HelsinkiFall", "03:00", "03:15", true, "2024-10-27T00:20:00Z", "2024-10-27T01:00:00Z")]
+    // An edge inside the spring-forward gap is no instant at all; the day turns over at the end of
+    // the gap, not an hour past it.
+    [TestCase("HelsinkiSpring", "02:30", "03:30", false, "2024-03-31T00:45:00Z", "2024-03-31T01:00:00Z")]
+    [TestCase("HelsinkiSpring", "03:30", "04:30", true, "2024-03-31T00:30:00Z", "2024-03-31T01:00:00Z")]
+    // The controls: the same calendars on a day whose clocks do not move.
+    [TestCase("Santiago", "21:00", "22:00", true, "2019-06-15T22:00:00Z", "2019-06-16T01:00:00Z")]
+    [TestCase("Helsinki", "03:30", "04:30", false, "2024-06-15T01:00:00Z", "2024-06-15T01:30:00.001Z")]
+    public void DailyCalendar_NextIncludedTime_IsTheFirstInstantTheWindowLetsGoOf(
+        string zoneKey,
+        string fromText,
+        string toText,
+        bool inverted,
+        string askedAtText,
+        string expectedText)
+    {
+        TimeZoneInfo zone = ZoneForCase(zoneKey);
+
+        DailyCalendar calendar = new DailyCalendar(
+            TimeOnly.Parse(fromText, System.Globalization.CultureInfo.InvariantCulture),
+            TimeOnly.Parse(toText, System.Globalization.CultureInfo.InvariantCulture))
+        {
+            InvertTimeRange = inverted,
+            TimeZone = zone
+        };
+
+        AssertDailyCalendarNextIncludedTime(calendar, zone, ParseUtc(askedAtText), ParseUtc(expectedText));
+    }
+
+    /// <summary>
+    /// Asked about an instant it already includes, a calendar answers with the very next millisecond
+    /// - there being nothing to wait for. The days these are asked on are the awkward ones, because
+    /// the shape of the answer must not depend on where in a transition the question lands.
+    /// </summary>
+    [TestCase("SantiagoFall", "21:00", "22:00", true, "2019-04-08T01:30:00Z")]
+    [TestCase("HelsinkiFall", "03:30", "04:30", false, "2024-10-27T03:00:00Z")]
+    [TestCase("SantiagoSpring", "22:00", "23:59:59.999", false, "2019-09-08T04:00:00Z")]
+    public void DailyCalendar_NextIncludedTime_WhenTheDayIsAlreadyOpen_IsTheNextMillisecond(
+        string zoneKey,
+        string fromText,
+        string toText,
+        bool inverted,
+        string askedAtText)
+    {
+        TimeZoneInfo zone = ZoneForCase(zoneKey);
+        DateTimeOffset askedAt = ParseUtc(askedAtText);
+
+        DailyCalendar calendar = new DailyCalendar(
+            TimeOnly.Parse(fromText, System.Globalization.CultureInfo.InvariantCulture),
+            TimeOnly.Parse(toText, System.Globalization.CultureInfo.InvariantCulture))
+        {
+            InvertTimeRange = inverted,
+            TimeZone = zone
+        };
+
+        calendar.IsTimeIncluded(askedAt).Should().BeTrue(
+            "the premise of the case: {0:O} reads as {1:yyyy-MM-dd HH:mm zzz} local, which this calendar includes",
+            askedAt, TimeZoneInfo.ConvertTime(askedAt, zone));
+
+        calendar.GetNextIncludedTimeUtc(askedAt).Should().Be(askedAt.AddMilliseconds(1),
+            "the next included time after an included instant is the one right after it");
+    }
+
+    /// <summary>
+    /// The measured symptom of #3466, which is what made it a bug worth a number rather than an
+    /// inaccuracy: the answer was not merely wrong, it was arrived at a millisecond at a time.
+    /// </summary>
+    /// <remarks>
+    /// Two bounds, because each says something the other does not. The call count is exact and does
+    /// not care how fast the machine is: a base calendar that includes everything is asked once per
+    /// pass of the loop, so counting its calls counts the passes. The elapsed time is what a user
+    /// noticed, and its bound is loose enough that only a walk could break it - the run this replaced
+    /// took about 150 seconds.
+    /// </remarks>
+    [Test]
+    public void DailyCalendar_NextIncludedTime_IsJumpedToRatherThanWalkedUpTo()
+    {
+        TimeZoneInfo zone = ZoneForTransitionDay("SantiagoFall");
+
+        CountingCalendar passes = new CountingCalendar();
+        DailyCalendar calendar = new DailyCalendar(new TimeOnly(21, 0), new TimeOnly(22, 0), passes)
+        {
+            InvertTimeRange = true,
+            TimeZone = zone
+        };
+
+        DateTimeOffset askedAt = ParseUtc("2019-04-07T01:30:00Z");
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        DateTimeOffset actual = calendar.GetNextIncludedTimeUtc(askedAt);
+        stopwatch.Stop();
+
+        actual.Should().Be(ParseUtc("2019-04-08T01:00:00Z"),
+            "the window is 21:00-22:00 in Santiago, and the first of those hours after {0:O} begins at {1:O}",
+            askedAt, ParseUtc("2019-04-08T01:00:00Z"));
+
+        passes.Calls.Should().BeLessThan(10,
+            "the answer is named from the window's own edges, where the walk it replaced tested every one of the 84.6 million milliseconds in between");
+
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(5),
+            "a bound no jump can miss and no millisecond walk can meet");
+    }
+
+    /// <summary>
+    /// A base calendar that includes every instant and counts the times it was asked. Attaching one
+    /// counts the passes <see cref="DailyCalendar.GetNextIncludedTimeUtc" /> makes without the
+    /// calendar having to carry a counter of its own, since the loop asks its base calendar once per
+    /// pass and this one never changes the answer.
+    /// </summary>
+    private sealed class CountingCalendar : BaseCalendar
+    {
+        public int Calls { get; private set; }
+
+        public override bool IsTimeIncluded(DateTimeOffset timeStampUtc)
+        {
+            Calls++;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Asserts the whole of the daily calendar's <c>GetNextIncludedTimeUtc</c> contract for one case:
+    /// the instant asked about is excluded, the answer is the expected one, the answer is included,
+    /// nothing between the two is, and the same question asked in the calendar's own zone rather than
+    /// in UTC is answered with the same instant.
+    /// </summary>
+    private static void AssertDailyCalendarNextIncludedTime(
+        DailyCalendar calendar,
+        TimeZoneInfo zone,
+        DateTimeOffset askedAt,
+        DateTimeOffset expected)
+    {
+        calendar.IsTimeIncluded(askedAt).Should().BeFalse(
+            "the premise of the case: {0:O} reads as {1:yyyy-MM-dd HH:mm:ss.fff zzz} local, which this calendar excludes",
+            askedAt, TimeZoneInfo.ConvertTime(askedAt, zone));
+
+        calendar.IsTimeIncluded(expected).Should().BeTrue(
+            "and {0:O}, which reads as {1:yyyy-MM-dd HH:mm:ss.fff zzz} local, is not excluded",
+            expected, TimeZoneInfo.ConvertTime(expected, zone));
+
+        // How close to the answer the walk may come. Usually the millisecond before it, but where the
+        // answer is the instant the clocks moved, only to the minute: the exact instant a zone
+        // changes offset is not agreed on to the millisecond, because Windows cannot express a rule
+        // at local midnight and writes 23:59:59.999 of the day before instead, which puts the end of
+        // Santiago's spring-forward gap a millisecond earlier there than on IANA data.
+        TimeSpan slack = zone.GetUtcOffset(expected) == zone.GetUtcOffset(expected.AddMinutes(-1))
+            ? TimeSpan.FromMilliseconds(1)
+            : TimeSpan.FromMinutes(1);
+
+        calendar.IsTimeIncluded(expected - slack).Should().BeFalse(
+            "and it is the first such instant - {0} earlier reads as {1:yyyy-MM-dd HH:mm:ss.fff zzz} local, which is still excluded",
+            slack, TimeZoneInfo.ConvertTime(expected - slack, zone));
+
+        AssertNothingIncludedBetween(calendar, zone, askedAt, expected - slack);
+
+        DateTimeOffset askedInUtc = calendar.GetNextIncludedTimeUtc(askedAt);
+        askedInUtc.Should().Be(expected,
+            "the next included time after an excluded instant is the first instant the calendar includes, and {0:O} reads as {1:yyyy-MM-dd HH:mm:ss.fff zzz} local (included={2})",
+            askedInUtc, TimeZoneInfo.ConvertTime(askedInUtc, zone), calendar.IsTimeIncluded(askedInUtc));
+
+        DateTimeOffset askedInZone = calendar.GetNextIncludedTimeUtc(TimeZoneInfo.ConvertTime(askedAt, zone));
+        askedInZone.Should().Be(expected,
+            "the same instant asked about in the calendar's own zone rather than in UTC is the same question, so it has the same answer");
+    }
+
+    /// <summary>
+    /// Walks the span between a question and its answer a second at a time, so that an answer which
+    /// stepped over an included stretch fails rather than passes. A second rather than a millisecond
+    /// because every window in this fixture opens and closes on a whole minute; how close to the
+    /// answer the walk comes is the caller's business.
+    /// </summary>
+    private static void AssertNothingIncludedBetween(ICalendar calendar, TimeZoneInfo zone, DateTimeOffset after, DateTimeOffset until)
+    {
+        (until - after).Should().BeLessThan(TimeSpan.FromDays(2),
+            "the scan below walks the whole span, so a case has to keep it short enough to walk");
+
+        DateTimeOffset? included = null;
+        for (DateTimeOffset instant = after.AddSeconds(1); instant <= until; instant = instant.AddSeconds(1))
+        {
+            if (calendar.IsTimeIncluded(instant))
+            {
+                included = instant;
+                break;
+            }
+        }
+
+        included.Should().BeNull(
+            "nothing between {0:O} and the answer {1:O} may be included, or the answer is not the first one; this instant reads as {2} local",
+            after,
+            until,
+            included is null ? "-" : TimeZoneInfo.ConvertTime(included.Value, zone).ToString("yyyy-MM-dd HH:mm:ss zzz", System.Globalization.CultureInfo.InvariantCulture));
     }
 
     /// <summary>
@@ -453,6 +686,18 @@ public class CalendarDstTests
             default:
                 throw new ArgumentOutOfRangeException(nameof(zoneKey), zoneKey, "unknown test zone");
         }
+    }
+
+    /// <summary>
+    /// The zone a case runs in, whether it names a transition day or a plain zone. A case grid that
+    /// mixes the two - a transition day and the ordinary day that controls it - names them the same
+    /// way and lets this tell them apart.
+    /// </summary>
+    private static TimeZoneInfo ZoneForCase(string key)
+    {
+        return key.EndsWith("Spring", StringComparison.Ordinal) || key.EndsWith("Fall", StringComparison.Ordinal)
+            ? ZoneForTransitionDay(key)
+            : ResolveZone(key);
     }
 
     /// <summary>
