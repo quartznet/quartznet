@@ -29,6 +29,18 @@ internal abstract class ListenerRegistration<
     private readonly Func<IServiceProvider, TListener>? listenerFactory;
     private readonly TListener? listenerInstance;
 
+    /// <summary>
+    /// Backing field for <see cref="ListenerType"/>, written out rather than left to the compiler.
+    /// </summary>
+    /// <remarks>
+    /// An auto-property's annotation does not reach its generated backing field, and ILCompiler checks
+    /// the field: a native AOT publish reported IL2078 here for a requirement that is satisfied at both
+    /// ends in the source. ILLink and the Roslyn analyzer are both quiet about it, so the native leg
+    /// added by issue #3429 is what found it.
+    /// </remarks>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+    private readonly Type listenerType;
+
     protected ListenerRegistration(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
         Type listenerType,
@@ -41,7 +53,7 @@ internal abstract class ListenerRegistration<
         // listener manager, at the latest.
         ListenerShape.Verify(listenerType, typeof(TListener));
 
-        ListenerType = listenerType;
+        this.listenerType = listenerType;
         this.listenerFactory = listenerFactory;
         this.listenerInstance = listenerInstance;
     }
@@ -54,7 +66,7 @@ internal abstract class ListenerRegistration<
     /// well return a subtype, so this is not an identity the listener can be found by.
     /// </remarks>
     [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
-    public Type ListenerType { get; }
+    public Type ListenerType => listenerType;
 
     /// <summary>
     /// Produces the listener, once there is a scheduler to attach it to.

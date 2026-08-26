@@ -34,6 +34,7 @@
         "Pack",
         "PackZip",
         "Publish",
+        "PublishAot",
         "PublishTrimmed",
         "Restore",
         "UnitTest",
