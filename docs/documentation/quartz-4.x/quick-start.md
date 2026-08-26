@@ -300,7 +300,8 @@ then create its tables and indexes.
 
 The DDL scripts are in
 [the Quartz.NET repository](https://github.com/quartznet/quartznet/tree/main/database/tables), one per
-database. Upgrading a schema created by an earlier version is a different script — see
+database. Each one drops an existing Quartz schema before it recreates it; the header of every script
+says how to turn that off. Upgrading a schema created by an earlier version is a different script — see
 [Database Schema Changes](../database/schema-changes.md). What the tables hold is described in
 [Database](db/).
 

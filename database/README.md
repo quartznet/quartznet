@@ -23,6 +23,13 @@ Run the one script matching your database from [`tables/`](tables). It creates t
 schema in full, including every column the migrations below add — a new database needs nothing
 from `migrations/`.
 
+**Every one of these scripts drops an existing Quartz schema before it recreates it**, so running
+one against a live database destroys what is in it. Each says at the top how to decline that: set
+the `DropDb` variable declared above the drops to `0` — `@DropDb` on SQL Server and MySQL — or, on
+SQLite, which has no variables, delete the block between the `BEGIN DROP TABLES` and
+`END DROP TABLES` markers. What is left then only creates tables, so run it on a database that has
+none: the `CREATE TABLE` statements are not guarded and fail against a schema that already exists.
+
 | Database | Script |
 |---|---|
 | SQL Server 2016+ | [`tables/tables_sqlServer.sql`](tables/tables_sqlServer.sql) |
