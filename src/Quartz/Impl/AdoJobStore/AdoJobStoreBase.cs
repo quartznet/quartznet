@@ -55,7 +55,6 @@ public abstract class AdoJobStoreBase : IJobStore
 
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
-    private readonly JobStoreActivityTracer activityTracer = new();
     private readonly ITriggerPersistenceDelegate[] triggerPersistenceDelegates;
 
     /// <summary>
@@ -878,8 +877,6 @@ public abstract class AdoJobStoreBase : IJobStore
             LoggerFactory = LoggerFactory,
         });
 
-        activityTracer.SetSchedulerContext(InstanceName, InstanceId);
-
         if (PerformSchemaValidation)
         {
             try
@@ -1421,21 +1418,12 @@ public abstract class AdoJobStoreBase : IJobStore
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
-            OperationName.JobStore.ScheduleJob,
-            () => ExecuteInLock<object?>(LockOnInsert ? SchedulerLock.TriggerAccess : null, async conn =>
-            {
-                await AddJob(conn, job, false, cancellationToken).ConfigureAwait(false);
-                await AddTrigger(conn, trigger, job, false, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
-                return null;
-            }, cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.JobGroup, job.Key.Group);
-                activity.SetTag(ActivityTags.JobName, job.Key.Name);
-                activity.SetTag(ActivityTags.TriggerGroup, trigger.Key.Group);
-                activity.SetTag(ActivityTags.TriggerName, trigger.Key.Name);
-            }).ConfigureAwait(false);
+        await ExecuteInLock<object?>(LockOnInsert ? SchedulerLock.TriggerAccess : null, async conn =>
+        {
+            await AddJob(conn, job, false, cancellationToken).ConfigureAwait(false);
+            await AddTrigger(conn, trigger, job, false, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
+            return null;
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1449,17 +1437,10 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
-            OperationName.JobStore.AddJob,
-            () => ExecuteInLock(
-                LockOnInsert || replace ? SchedulerLock.TriggerAccess : null,
-                conn => AddJob(conn, job, replace, cancellationToken),
-                cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.JobGroup, job.Key.Group);
-                activity.SetTag(ActivityTags.JobName, job.Key.Name);
-            }).ConfigureAwait(false);
+        await ExecuteInLock(
+            LockOnInsert || replace ? SchedulerLock.TriggerAccess : null,
+            conn => AddJob(conn, job, replace, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary> <para>
@@ -1543,17 +1524,10 @@ public abstract class AdoJobStoreBase : IJobStore
     /// </exception>
     public async ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
-            OperationName.JobStore.AddTrigger,
-            () => ExecuteInLock(
-                LockOnInsert || replace ? SchedulerLock.TriggerAccess : null,
-                conn => AddTrigger(conn, trigger, null, replace, StoredTriggerState.Waiting, false, false, cancellationToken),
-                cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.TriggerGroup, trigger.Key.Group);
-                activity.SetTag(ActivityTags.TriggerName, trigger.Key.Name);
-            }).ConfigureAwait(false);
+        await ExecuteInLock(
+            LockOnInsert || replace ? SchedulerLock.TriggerAccess : null,
+            conn => AddTrigger(conn, trigger, null, replace, StoredTriggerState.Waiting, false, false, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1701,14 +1675,7 @@ public abstract class AdoJobStoreBase : IJobStore
     /// </returns>
     public ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.DeleteJob,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteJob(conn, jobKey, true, cancellationToken), cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.JobGroup, jobKey.Group);
-                activity.SetTag(ActivityTags.JobName, jobKey.Name);
-            });
+        return ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteJob(conn, jobKey, true, cancellationToken), cancellationToken);
     }
 
     protected async ValueTask<bool> DeleteJob(
@@ -1751,22 +1718,20 @@ public abstract class AdoJobStoreBase : IJobStore
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.DeleteJobs,
-            () => ExecuteInLock(
-                SchedulerLock.TriggerAccess, async conn =>
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess, async conn =>
+            {
+                List<JobKey> deleted = new List<JobKey>(jobKeys.Count);
+                foreach (JobKey jobKey in jobKeys)
                 {
-                    List<JobKey> deleted = new List<JobKey>(jobKeys.Count);
-                    foreach (JobKey jobKey in jobKeys)
+                    if (await DeleteJob(conn, jobKey, true, cancellationToken).ConfigureAwait(false))
                     {
-                        if (await DeleteJob(conn, jobKey, true, cancellationToken).ConfigureAwait(false))
-                        {
-                            deleted.Add(jobKey);
-                        }
+                        deleted.Add(jobKey);
                     }
+                }
 
-                    return deleted;
-                }, cancellationToken));
+                return deleted;
+            }, cancellationToken);
     }
 
     /// <summary>
@@ -1780,44 +1745,40 @@ public abstract class AdoJobStoreBase : IJobStore
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.DeleteTriggers,
-            () => ExecuteInLock(
-                SchedulerLock.TriggerAccess,
-                async conn =>
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess,
+            async conn =>
+            {
+                List<TriggerKey> deleted = new List<TriggerKey>(triggerKeys.Count);
+                foreach (TriggerKey triggerKey in triggerKeys)
                 {
-                    List<TriggerKey> deleted = new List<TriggerKey>(triggerKeys.Count);
-                    foreach (TriggerKey triggerKey in triggerKeys)
+                    if (await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
                     {
-                        if (await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
-                        {
-                            deleted.Add(triggerKey);
-                        }
+                        deleted.Add(triggerKey);
                     }
+                }
 
-                    return deleted;
-                }, cancellationToken));
+                return deleted;
+            }, cancellationToken);
     }
 
     public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
-            OperationName.JobStore.ScheduleJobs,
-            () => ExecuteInLock(
-                LockOnInsert || replace ? SchedulerLock.TriggerAccess : null, async conn =>
+        await ExecuteInLock(
+            LockOnInsert || replace ? SchedulerLock.TriggerAccess : null, async conn =>
+            {
+                // TODO: make this more efficient with a true bulk operation...
+                foreach (var pair in triggersAndJobs)
                 {
-                    // TODO: make this more efficient with a true bulk operation...
-                    foreach (var pair in triggersAndJobs)
+                    var job = pair.Key;
+                    var triggers = pair.Value;
+                    await AddJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
+                    foreach (var trigger in triggers)
                     {
-                        var job = pair.Key;
-                        var triggers = pair.Value;
-                        await AddJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
-                        foreach (var trigger in triggers)
-                        {
-                            await AddTrigger(conn, trigger, job, replace, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
-                        }
+                        await AddTrigger(conn, trigger, job, replace, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
                     }
-                }, cancellationToken)).ConfigureAwait(false);
+                }
+            }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1929,17 +1890,10 @@ public abstract class AdoJobStoreBase : IJobStore
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.DeleteTrigger,
-            () => ExecuteInLock(
-                SchedulerLock.TriggerAccess,
-                conn => DeleteTrigger(conn, triggerKey, cancellationToken),
-                cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
-            });
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess,
+            conn => DeleteTrigger(conn, triggerKey, cancellationToken),
+            cancellationToken);
     }
 
     protected ValueTask<bool> DeleteTrigger(
@@ -2005,16 +1959,9 @@ public abstract class AdoJobStoreBase : IJobStore
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.ReplaceTrigger,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess,
-                conn => ReplaceTrigger(conn, triggerKey, trigger, cancellationToken),
-                cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
-            });
+        return ExecuteInLock(SchedulerLock.TriggerAccess,
+            conn => ReplaceTrigger(conn, triggerKey, trigger, cancellationToken),
+            cancellationToken);
     }
 
     protected async ValueTask<bool> ReplaceTrigger(
@@ -2057,17 +2004,10 @@ public abstract class AdoJobStoreBase : IJobStore
         TriggerDetailsUpdate update,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.UpdateTriggerDetails,
-            () => ExecuteInLock(
-                SchedulerLock.TriggerAccess,
-                conn => UpdateTriggerDetails(conn, triggerKey, update, cancellationToken),
-                cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
-            });
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess,
+            conn => UpdateTriggerDetails(conn, triggerKey, update, cancellationToken),
+            cancellationToken);
     }
 
     protected async ValueTask<bool> UpdateTriggerDetails(
@@ -2245,17 +2185,10 @@ public abstract class AdoJobStoreBase : IJobStore
 
     public async ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return await activityTracer.Trace(
-            OperationName.JobStore.ResetTriggerFromErrorState,
-            () => ExecuteInLock(
-                SchedulerLock.TriggerAccess,
-                conn => ResetTriggerFromErrorState(conn, triggerKey, cancellationToken),
-                cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
-            }).ConfigureAwait(false);
+        return await ExecuteInLock(
+            SchedulerLock.TriggerAccess,
+            conn => ResetTriggerFromErrorState(conn, triggerKey, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2265,21 +2198,19 @@ public abstract class AdoJobStoreBase : IJobStore
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.ResetTriggersFromErrorState,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        {
+            List<TriggerKey> reset = new List<TriggerKey>(triggerKeys.Count);
+            foreach (TriggerKey triggerKey in triggerKeys)
             {
-                List<TriggerKey> reset = new List<TriggerKey>(triggerKeys.Count);
-                foreach (TriggerKey triggerKey in triggerKeys)
+                if (await ResetTriggerFromErrorState(conn, triggerKey, cancellationToken).ConfigureAwait(false))
                 {
-                    if (await ResetTriggerFromErrorState(conn, triggerKey, cancellationToken).ConfigureAwait(false))
-                    {
-                        reset.Add(triggerKey);
-                    }
+                    reset.Add(triggerKey);
                 }
+            }
 
-                return reset;
-            }, cancellationToken));
+            return reset;
+        }, cancellationToken);
     }
 
     private async ValueTask<bool> ResetTriggerFromErrorState(
@@ -2333,12 +2264,10 @@ public abstract class AdoJobStoreBase : IJobStore
         AddCalendarOptions options = default,
         CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
-            OperationName.JobStore.AddCalendar,
-            () => ExecuteInLock(
-                LockOnInsert || options.UpdateTriggers ? SchedulerLock.TriggerAccess : null,
-                conn => AddCalendar(conn, calendarName, calendar, options, cancellationToken),
-                cancellationToken)).ConfigureAwait(false);
+        await ExecuteInLock(
+            LockOnInsert || options.UpdateTriggers ? SchedulerLock.TriggerAccess : null,
+            conn => AddCalendar(conn, calendarName, calendar, options, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
     }
 
     protected async ValueTask AddCalendar(
@@ -2443,9 +2372,7 @@ public abstract class AdoJobStoreBase : IJobStore
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.DeleteCalendar,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteCalendar(conn, calendarName, cancellationToken), cancellationToken));
+        return ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteCalendar(conn, calendarName, cancellationToken), cancellationToken);
     }
 
     protected async ValueTask<bool> DeleteCalendar(
@@ -2612,9 +2539,7 @@ public abstract class AdoJobStoreBase : IJobStore
     /// </remarks>
     public async ValueTask Clear(CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
-            OperationName.JobStore.Clear,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => Clear(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
+        await ExecuteInLock(SchedulerLock.TriggerAccess, conn => Clear(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     protected async ValueTask Clear(
@@ -2975,14 +2900,7 @@ public abstract class AdoJobStoreBase : IJobStore
     /// </summary>
     public async ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return await activityTracer.Trace(
-            OperationName.JobStore.PauseTrigger,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
-            }).ConfigureAwait(false);
+        return await ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2992,21 +2910,19 @@ public abstract class AdoJobStoreBase : IJobStore
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.PauseTriggers,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        {
+            List<TriggerKey> paused = new List<TriggerKey>(triggerKeys.Count);
+            foreach (TriggerKey triggerKey in triggerKeys)
             {
-                List<TriggerKey> paused = new List<TriggerKey>(triggerKeys.Count);
-                foreach (TriggerKey triggerKey in triggerKeys)
+                if (await PauseTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
                 {
-                    if (await PauseTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
-                    {
-                        paused.Add(triggerKey);
-                    }
+                    paused.Add(triggerKey);
                 }
+            }
 
-                return paused;
-            }, cancellationToken));
+            return paused;
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -3052,14 +2968,7 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <seealso cref="ResumeJob(JobKey,CancellationToken)" />
     public async ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return await activityTracer.Trace(
-            OperationName.JobStore.PauseJob,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseJob(conn, jobKey, cancellationToken), cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.JobGroup, jobKey.Group);
-                activity.SetTag(ActivityTags.JobName, jobKey.Name);
-            }).ConfigureAwait(false);
+        return await ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseJob(conn, jobKey, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -3069,21 +2978,19 @@ public abstract class AdoJobStoreBase : IJobStore
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.PauseJobs,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        {
+            List<JobKey> paused = new List<JobKey>(jobKeys.Count);
+            foreach (JobKey jobKey in jobKeys)
             {
-                List<JobKey> paused = new List<JobKey>(jobKeys.Count);
-                foreach (JobKey jobKey in jobKeys)
+                if (await PauseJob(conn, jobKey, cancellationToken).ConfigureAwait(false))
                 {
-                    if (await PauseJob(conn, jobKey, cancellationToken).ConfigureAwait(false))
-                    {
-                        paused.Add(jobKey);
-                    }
+                    paused.Add(jobKey);
                 }
+            }
 
-                return paused;
-            }, cancellationToken));
+            return paused;
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -3126,36 +3033,34 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <seealso cref="ResumeJobs(GroupMatcher{JobKey}, CancellationToken)" />
     public ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.PauseJobs,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        {
+            var groupNames = new HashSet<string>();
+            var jobNames = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
+
+            foreach (JobKey jobKey in jobNames)
             {
-                var groupNames = new HashSet<string>();
-                var jobNames = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
-
-                foreach (JobKey jobKey in jobNames)
+                var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
+                foreach (IOperableTrigger trigger in triggers)
                 {
-                    var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-                    foreach (IOperableTrigger trigger in triggers)
-                    {
-                        await PauseTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                    }
-                    groupNames.Add(jobKey.Group);
+                    await PauseTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                 }
+                groupNames.Add(jobKey.Group);
+            }
 
-                // An equality matcher names one group, so it pauses that group whether or not any job
-                // is in it yet. Anything else is a pattern, and only the groups it matched are
-                // recorded: a pattern is not a group, and a listing must never hand a caller back a
-                // name no job can belong to.
-                if (StringOperator.Equality.Equals(matcher.CompareWithOperator))
-                {
-                    groupNames.Add(matcher.CompareToValue);
-                }
+            // An equality matcher names one group, so it pauses that group whether or not any job
+            // is in it yet. Anything else is a pattern, and only the groups it matched are
+            // recorded: a pattern is not a group, and a listing must never hand a caller back a
+            // name no job can belong to.
+            if (StringOperator.Equality.Equals(matcher.CompareWithOperator))
+            {
+                groupNames.Add(matcher.CompareToValue);
+            }
 
-                await RecordPausedJobGroups(conn, groupNames, cancellationToken).ConfigureAwait(false);
+            await RecordPausedJobGroups(conn, groupNames, cancellationToken).ConfigureAwait(false);
 
-                return new List<string>(groupNames);
-            }, cancellationToken));
+            return new List<string>(groupNames);
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -3230,14 +3135,7 @@ public abstract class AdoJobStoreBase : IJobStore
 
     public async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return await activityTracer.Trace(
-            OperationName.JobStore.ResumeTrigger,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
-            }).ConfigureAwait(false);
+        return await ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -3247,21 +3145,19 @@ public abstract class AdoJobStoreBase : IJobStore
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.ResumeTriggers,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        {
+            List<TriggerKey> resumed = new List<TriggerKey>(triggerKeys.Count);
+            foreach (TriggerKey triggerKey in triggerKeys)
             {
-                List<TriggerKey> resumed = new List<TriggerKey>(triggerKeys.Count);
-                foreach (TriggerKey triggerKey in triggerKeys)
+                if (await ResumeTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
                 {
-                    if (await ResumeTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
-                    {
-                        resumed.Add(triggerKey);
-                    }
+                    resumed.Add(triggerKey);
                 }
+            }
 
-                return resumed;
-            }, cancellationToken));
+            return resumed;
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -3338,14 +3234,7 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <seealso cref="PauseJob(JobKey,CancellationToken)" />
     public async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return await activityTracer.Trace(
-            OperationName.JobStore.ResumeJob,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeJob(conn, jobKey, cancellationToken), cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.JobGroup, jobKey.Group);
-                activity.SetTag(ActivityTags.JobName, jobKey.Name);
-            }).ConfigureAwait(false);
+        return await ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeJob(conn, jobKey, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -3355,21 +3244,19 @@ public abstract class AdoJobStoreBase : IJobStore
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.ResumeJobs,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        {
+            List<JobKey> resumed = new List<JobKey>(jobKeys.Count);
+            foreach (JobKey jobKey in jobKeys)
             {
-                List<JobKey> resumed = new List<JobKey>(jobKeys.Count);
-                foreach (JobKey jobKey in jobKeys)
+                if (await ResumeJob(conn, jobKey, cancellationToken).ConfigureAwait(false))
                 {
-                    if (await ResumeJob(conn, jobKey, cancellationToken).ConfigureAwait(false))
-                    {
-                        resumed.Add(jobKey);
-                    }
+                    resumed.Add(jobKey);
                 }
+            }
 
-                return resumed;
-            }, cancellationToken));
+            return resumed;
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -3409,36 +3296,34 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <seealso cref="PauseJobs(GroupMatcher{JobKey}, CancellationToken)" />
     public ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.ResumeJobs,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
+        {
+            // Forget the pause of every group the matcher selects, whatever operator it carries —
+            // a prefix pause recorded a row per matched group, so a resume that only understood
+            // equality would leave them paused forever.
+            try
             {
-                // Forget the pause of every group the matcher selects, whatever operator it carries —
-                // a prefix pause recorded a row per matched group, so a resume that only understood
-                // equality would leave them paused forever.
-                try
-                {
-                    await Delegate.DeletePausedJobGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception e)
-                {
-                    Throw.JobPersistenceException("Couldn't resume job groups: " + e.Message, e);
-                }
+                await Delegate.DeletePausedJobGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                Throw.JobPersistenceException("Couldn't resume job groups: " + e.Message, e);
+            }
 
-                var jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
-                var groupNames = new HashSet<string>();
+            var jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
+            var groupNames = new HashSet<string>();
 
-                foreach (JobKey jobKey in jobKeys)
+            foreach (JobKey jobKey in jobKeys)
+            {
+                var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
+                foreach (IOperableTrigger trigger in triggers)
                 {
-                    var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-                    foreach (IOperableTrigger trigger in triggers)
-                    {
-                        await ResumeTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                    }
-                    groupNames.Add(jobKey.Group);
+                    await ResumeTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                 }
-                return groupNames.ToList();
-            }, cancellationToken));
+                groupNames.Add(jobKey.Group);
+            }
+            return groupNames.ToList();
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -3449,12 +3334,10 @@ public abstract class AdoJobStoreBase : IJobStore
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.PauseTriggers,
-            () => ExecuteInLock(
-                SchedulerLock.TriggerAccess,
-                conn => PauseTriggerGroup(conn, matcher, cancellationToken),
-                cancellationToken));
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess,
+            conn => PauseTriggerGroup(conn, matcher, cancellationToken),
+            cancellationToken);
     }
 
     /// <summary>
@@ -3500,11 +3383,9 @@ public abstract class AdoJobStoreBase : IJobStore
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.ResumeTriggers,
-            () => ExecuteInLock(
-                SchedulerLock.TriggerAccess, conn => ResumeTriggers(conn, matcher, cancellationToken),
-                cancellationToken));
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess, conn => ResumeTriggers(conn, matcher, cancellationToken),
+            cancellationToken);
     }
 
     /// <summary>
@@ -3544,9 +3425,7 @@ public abstract class AdoJobStoreBase : IJobStore
 
     public async ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
-            OperationName.JobStore.PauseAll,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
+        await ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -3593,9 +3472,7 @@ public abstract class AdoJobStoreBase : IJobStore
     /// <seealso cref="PauseAll(CancellationToken)" />
     public async ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
-            OperationName.JobStore.ResumeAll,
-            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
+        await ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -3659,38 +3536,35 @@ public abstract class AdoJobStoreBase : IJobStore
             lockKind = null;
         }
 
-        return activityTracer.Trace(
-            OperationName.JobStore.AcquireNextTriggers,
-            () => ExecuteInLocalTransactionLock(
-                lockKind,
-                conn => AcquireNextTrigger(conn, request, cancellationToken),
-                async (conn, result) =>
+        return ExecuteInLocalTransactionLock(
+            lockKind,
+            conn => AcquireNextTrigger(conn, request, cancellationToken),
+            async (conn, result) =>
+            {
+                try
                 {
-                    try
+                    var acquired = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken).ConfigureAwait(false);
+                    var fireInstanceIds = new HashSet<string>();
+                    foreach (FiredTriggerRecord ft in acquired)
                     {
-                        var acquired = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken).ConfigureAwait(false);
-                        var fireInstanceIds = new HashSet<string>();
-                        foreach (FiredTriggerRecord ft in acquired)
-                        {
-                            fireInstanceIds.Add(ft.FireInstanceId!);
-                        }
-                        foreach (IOperableTrigger tr in result)
-                        {
-                            if (fireInstanceIds.Contains(tr.FireInstanceId))
-                            {
-                                return true;
-                            }
-                        }
-                        return false;
+                        fireInstanceIds.Add(ft.FireInstanceId!);
                     }
-                    catch (Exception e)
+                    foreach (IOperableTrigger tr in result)
                     {
-                        Throw.JobPersistenceException("error validating trigger acquisition", e);
-                        return default;
+                        if (fireInstanceIds.Contains(tr.FireInstanceId))
+                        {
+                            return true;
+                        }
                     }
-                },
-                cancellationToken: cancellationToken),
-            activity => activity.SetTag(ActivityTags.BatchSize, request.MaxCount));
+                    return false;
+                }
+                catch (Exception e)
+                {
+                    Throw.JobPersistenceException("error validating trigger acquisition", e);
+                    return default;
+                }
+            },
+            cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -3931,17 +3805,10 @@ public abstract class AdoJobStoreBase : IJobStore
     /// </summary>
     public async ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
-            OperationName.JobStore.ReleaseAcquiredTrigger,
-            () => RetryExecuteInLocalTransactionLock(
-                SchedulerLock.TriggerAccess,
-                conn => ReleaseAcquiredTrigger(conn, trigger, cancellationToken),
-                cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.TriggerGroup, trigger.Key.Group);
-                activity.SetTag(ActivityTags.TriggerName, trigger.Key.Name);
-            }).ConfigureAwait(false);
+        await RetryExecuteInLocalTransactionLock(
+            SchedulerLock.TriggerAccess,
+            conn => ReleaseAcquiredTrigger(conn, trigger, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
     }
 
     protected async ValueTask ReleaseAcquiredTrigger(
@@ -3963,84 +3830,81 @@ public abstract class AdoJobStoreBase : IJobStore
 
     public ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
     {
-        return activityTracer.Trace(
-            OperationName.JobStore.TriggersFired,
-            () => ExecuteInLocalTransactionLock(
-                SchedulerLock.TriggerAccess,
-                async conn =>
+        return ExecuteInLocalTransactionLock(
+            SchedulerLock.TriggerAccess,
+            async conn =>
+            {
+                List<TriggerFiredResult> results = new(triggers.Count);
+
+                foreach (IOperableTrigger trigger in triggers)
                 {
-                    List<TriggerFiredResult> results = new(triggers.Count);
-
-                    foreach (IOperableTrigger trigger in triggers)
-                    {
-                        TriggerFiredResult result;
-                        try
-                        {
-                            // Clone so that trigger.Triggered() mutation doesn't affect retries
-                            var triggerCopy = (IOperableTrigger) trigger.Clone();
-                            var bundle = await TriggerFired(conn, triggerCopy, cancellationToken).ConfigureAwait(false);
-                            result = bundle is null ? TriggerFiredResult.NotFired : TriggerFiredResult.Fired(bundle);
-                        }
-                        catch (JobPersistenceException jpe)
-                        {
-                            if (IsTransient(jpe))
-                            {
-                                throw; // Let ExecuteInLocalTransactionLock retry the whole transaction
-                            }
-                            Logger.JobPersistenceExceptionCaught(jpe.Message, jpe);
-                            result = TriggerFiredResult.Failed(jpe);
-                        }
-                        catch (Exception ex)
-                        {
-                            if (IsTransient(ex))
-                            {
-                                // Wrap as JobPersistenceException so outer retry mechanism can handle it
-                                throw new JobPersistenceException("Transient error firing trigger: " + ex.Message, ex);
-                            }
-                            Logger.ExceptionCaught(ex.Message, ex);
-                            result = TriggerFiredResult.Failed(ex);
-                        }
-
-                        results.Add(result);
-                    }
-
-                    return results;
-                },
-                async (conn, result) =>
-                {
+                    TriggerFiredResult result;
                     try
                     {
-                        var acquired = await Delegate
-                            .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken)
-                            .ConfigureAwait(false);
-                        var executingTriggers = new HashSet<string>();
-                        foreach (FiredTriggerRecord ft in acquired)
-                        {
-                            if (ft.FireInstanceState == StoredTriggerState.Executing)
-                            {
-                                executingTriggers.Add(ft.FireInstanceId);
-                            }
-                        }
-
-                        foreach (TriggerFiredResult tr in result)
-                        {
-                            if (tr.TriggerFiredBundle is not null &&
-                                executingTriggers.Contains(tr.TriggerFiredBundle.Trigger.FireInstanceId))
-                            {
-                                return true;
-                            }
-                        }
-
-                        return false;
+                        // Clone so that trigger.Triggered() mutation doesn't affect retries
+                        var triggerCopy = (IOperableTrigger) trigger.Clone();
+                        var bundle = await TriggerFired(conn, triggerCopy, cancellationToken).ConfigureAwait(false);
+                        result = bundle is null ? TriggerFiredResult.NotFired : TriggerFiredResult.Fired(bundle);
                     }
-                    catch (Exception e)
+                    catch (JobPersistenceException jpe)
                     {
-                        Throw.JobPersistenceException("error validating trigger acquisition", e);
-                        return default;
+                        if (IsTransient(jpe))
+                        {
+                            throw; // Let ExecuteInLocalTransactionLock retry the whole transaction
+                        }
+                        Logger.JobPersistenceExceptionCaught(jpe.Message, jpe);
+                        result = TriggerFiredResult.Failed(jpe);
                     }
-                },
-                cancellationToken: cancellationToken),
-            activity => activity.SetTag(ActivityTags.TriggerCount, triggers.Count));
+                    catch (Exception ex)
+                    {
+                        if (IsTransient(ex))
+                        {
+                            // Wrap as JobPersistenceException so outer retry mechanism can handle it
+                            throw new JobPersistenceException("Transient error firing trigger: " + ex.Message, ex);
+                        }
+                        Logger.ExceptionCaught(ex.Message, ex);
+                        result = TriggerFiredResult.Failed(ex);
+                    }
+
+                    results.Add(result);
+                }
+
+                return results;
+            },
+            async (conn, result) =>
+            {
+                try
+                {
+                    var acquired = await Delegate
+                        .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken)
+                        .ConfigureAwait(false);
+                    var executingTriggers = new HashSet<string>();
+                    foreach (FiredTriggerRecord ft in acquired)
+                    {
+                        if (ft.FireInstanceState == StoredTriggerState.Executing)
+                        {
+                            executingTriggers.Add(ft.FireInstanceId);
+                        }
+                    }
+
+                    foreach (TriggerFiredResult tr in result)
+                    {
+                        if (tr.TriggerFiredBundle is not null &&
+                            executingTriggers.Contains(tr.TriggerFiredBundle.Trigger.FireInstanceId))
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+                catch (Exception e)
+                {
+                    Throw.JobPersistenceException("error validating trigger acquisition", e);
+                    return default;
+                }
+            },
+            cancellationToken: cancellationToken);
     }
 
     protected async ValueTask<TriggerFiredBundle?> TriggerFired(
@@ -4257,19 +4121,10 @@ public abstract class AdoJobStoreBase : IJobStore
         // leaving the fired trigger uncleaned and its DisallowConcurrentExecution siblings blocked.
         using var suppression = AmbientConnection.Suppress();
 
-        await activityTracer.Trace(
-            OperationName.JobStore.TriggeredJobComplete,
-            () => RetryExecuteInLocalTransactionLock(
-                SchedulerLock.TriggerAccess,
-                conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstructionCode, cancellationToken),
-                cancellationToken),
-            activity =>
-            {
-                activity.SetTag(ActivityTags.TriggerGroup, trigger.Key.Group);
-                activity.SetTag(ActivityTags.TriggerName, trigger.Key.Name);
-                activity.SetTag(ActivityTags.JobGroup, jobDetail.Key.Group);
-                activity.SetTag(ActivityTags.JobName, jobDetail.Key.Name);
-            }).ConfigureAwait(false);
+        await RetryExecuteInLocalTransactionLock(
+            SchedulerLock.TriggerAccess,
+            conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstructionCode, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
 
         // Deliberately after the transaction, and only if it committed: these run listener code, which
         // has no business executing inside the store's transaction or seeing a state that may roll back.

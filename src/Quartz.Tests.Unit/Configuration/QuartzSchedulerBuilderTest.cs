@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
 using Quartz.Core;
+using Quartz.Diagnostics;
 using Quartz.Impl;
 using Quartz.Extensibility;
 
@@ -227,7 +228,14 @@ public class QuartzSchedulerBuilderTest
 
         reportingStore.Should().NotBeSameAs(defaultStore, "each scheduler must own its job store, otherwise they share trigger state");
         reportingResources.Name.Should().Be("reporting", "the service key doubles as the scheduler's instance name");
-        reportingResources.JobStore.Should().BeSameAs(reportingStore, "resources must be assembled from the same scheduler's keyed parts");
+
+        reportingResources.JobStore.Should().BeOfType<TracingJobStore>(
+            "the store a scheduler is built with is wrapped for tracing, once and outermost, so that "
+            + "every store emits the same spans rather than only the ADO one");
+
+        JobStores.Unwrap(reportingResources.JobStore).Should().BeSameAs(reportingStore,
+            "resources must be assembled from the same scheduler's keyed parts — the tracing layer is a "
+            + "wrapper over that registration and never a second one");
     }
 
     [Test]
