@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 using Microsoft.Extensions.Logging;
@@ -47,6 +48,12 @@ namespace Quartz.Plugins.History;
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
+[SuppressMessage("Performance", "CA1848:Use the LoggerMessage delegates", Justification =
+    "The template is the user's, configured at run time, and its named placeholders are what a structured sink "
+    + "resolves into properties - which is the whole reason this plugin exists. A [LoggerMessage] template is "
+    + "fixed at compile time, and rendering this one first would flatten exactly what is being preserved. Every "
+    + "call is already behind an IsEnabled check, so the allocation CA1848 exists to avoid is already avoided. "
+    + "LogCallSiteTest.Allowed records the same decision from the source side.")]
 public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 {
     private readonly ILogger<StructuredLoggingJobHistoryPlugin> logger;

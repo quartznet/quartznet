@@ -96,39 +96,11 @@ public class PackageReadmeTest
     }
 
     public static IEnumerable<TestCaseData> PackableProjects() =>
-        FindPackableProjects().Select(x => new TestCaseData(x).SetArgDisplayNames(x.Directory!.Name));
+        ShippedProjects.Find().Select(x => new TestCaseData(x).SetArgDisplayNames(x.Directory!.Name));
 
     public static IEnumerable<TestCaseData> PackageReadmes() =>
-        FindPackableProjects()
+        ShippedProjects.Find()
             .Select(x => new FileInfo(Path.Combine(x.DirectoryName!, ReadmeFileName)))
             .Where(x => x.Exists)
             .Select(x => new TestCaseData(x).SetArgDisplayNames(x.Directory!.Name));
-
-    /// <summary>
-    /// Every project under <c>src</c> that produces a package. <c>Directory.Build.props</c> turns packing
-    /// on for the repository, so the packable ones are the ones that have not turned it back off.
-    /// </summary>
-    /// <remarks>
-    /// Only the project file at the top of each project directory. A recursive search would also find the
-    /// projects BenchmarkDotNet generates under <c>bin</c>, which are packable by default and would fail
-    /// every assertion here on a machine that has run the benchmarks.
-    /// </remarks>
-    private static List<FileInfo> FindPackableProjects()
-    {
-        List<FileInfo> projects = RepositoryRoot.Find()
-            .GetDirectories("src")
-            .Single()
-            .GetDirectories()
-            .SelectMany(x => x.GetFiles("*.csproj", SearchOption.TopDirectoryOnly))
-            .Where(x => !IsOptedOut(x))
-            .OrderBy(x => x.Name, StringComparer.Ordinal)
-            .ToList();
-
-        projects.Should().NotBeEmpty("the packable projects are found by walking the repository, and that walk must reach them");
-        return projects;
-    }
-
-    private static bool IsOptedOut(FileInfo project) => XDocument.Load(project.FullName)
-        .Descendants("IsPackable")
-        .Any(x => string.Equals(x.Value.Trim(), "false", StringComparison.OrdinalIgnoreCase));
 }
