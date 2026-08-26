@@ -558,17 +558,29 @@ it as `UseSqlite(SqliteFactory.Instance, …)`, schedules a job, waits for the j
 it fired, and reads the job and the trigger back through `IScheduler`. That runs on every build, out of
 a fully trimmed publish and out of a native one, on Windows, Linux and macOS.
 
-**Publishing AOT reports Quartz's own warnings, and that is deliberate.** Quartz records its remaining
-reflective call sites in the repository rather than in the shipped assembly, so an
-`UnconditionalSuppressMessage` never hides them from you. Expect `IL2xxx` for the string-named
-configuration paths described above, and `IL3050` for one more: **configuration binding**.
-`Configure<TOptions>(name, section)` binds the `Quartz` section by reflecting over the options types;
-configuring in code with `AddQuartz(q => …)` rather than from `appsettings.json` avoids it.
+**Configuration binds without reflecting over anything.** The `Quartz` section reaches
+`QuartzSchedulerOptions` and its siblings through a binder the compiler wrote, not through
+`ConfigurationBinder`'s reflection, so an application configured from `appsettings.json` is as
+ahead-of-time-safe as one configured in code. That is what closed the last `IL3050` in the package —
+and it was more than a warning: built against the reflection binder, the repository's canary publishes
+natively and comes up with `MaxBatchSize`, `ShutdownJobInterruption` and the whole scheduler context at
+their defaults, silently. Nothing is asked of you to get the generated binder; it is how the package
+was built.
 
-That warning is not on the fire path of any scheduler, so an application that configures in code
-publishes AOT with warnings it can read and dismiss. The `Quartz` package still does not declare
-`IsAotCompatible` — the remaining warnings are what that claim would have to answer for, and the
-question is tracked on [issue #3341](https://github.com/quartznet/quartznet/issues/3341).
+**The `Quartz` package declares `IsAotCompatible`.** What that claims is that nothing Quartz does needs
+code generated at run time, which the build checks rather than asserts: `Quartz` compiles with the
+trim, AOT and single-file analyzers on and warnings as errors, and the canary is published by
+ILCompiler and run on every pull request.
+
+What it does not claim is that no `IL2xxx` remains. Publishing your application AOT still reports the
+string-named paths described above against Quartz — a job type named as text, the `JOB_CLASS_NAME`
+column an ADO.NET store reads back, the `quartz.plugin.*` and `quartz.*.listener.*` keys, and the
+provider error codes `TransientErrorDetector` reads off exception types Quartz does not reference. Each
+is either an API that says `[RequiresUnreferencedCode]`, so avoiding it is a compile-time decision, or
+a path only a configuration style reaches. Quartz records them in the repository rather than in the
+shipped assembly, so an `UnconditionalSuppressMessage` never hides them from you — you see what your
+own application's closure reaches, and none of it stops a scheduler from starting, firing and shutting
+down out of a native executable.
 
 ## JobExecutionException
 

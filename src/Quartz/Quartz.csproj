@@ -5,15 +5,48 @@
     <TargetFramework>net10.0</TargetFramework>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!--
+      The claim, and what it is worth. IsAotCompatible turns on IsTrimmable and the trim, AOT and
+      single-file analyzers, and every one of them was already on here: issue #3341 turned them on step
+      by step so the warnings could be counted before the claim was made, rather than the other way
+      round. What the property adds is the statement, so the four properties below are spelled out
+      beside it rather than left implied — a reader can see what is claimed without knowing what the
+      SDK does with one flag.
+
+      Quartz produces no IL3050 at all. The last pair belonged to the options binder and went away with
+      EnableConfigurationBindingGenerator below, which makes the compiler write the binding code for
+      QuartzSchedulerOptions and its five siblings instead of reflecting over them at startup.
+
+      What an application publishing native AOT still sees reported against Quartz is trimming, not
+      dynamic code, and all of it is one habit: a type or a member named by a string. Each is either an
+      API that says [RequiresUnreferencedCode] out loud, so avoiding it is a compile-time decision, or a
+      path only a configuration style reaches:
+
+        - ITypeLoader / SimpleTypeLoader, and JobType(string) — a job type spelled as text. The typed
+          forms (JobBuilder.Create<T>(), OfType<T>(), AddJob<T>()) carry [DynamicallyAccessedMembers]
+          the whole way instead and warn about nothing.
+        - The persisted JOB_CLASS_NAME column, which StdAdoDelegate resolves when it reads a job back.
+          Unavoidable for a persistent store, and the reason the trim canary runs one: the type has to
+          survive trimming, which for an application's own job types it does.
+        - The quartz.plugin.* and quartz.*.listener.* property paths, and the leftover quartz.* keys the
+          property bridge applies by name. An application that configures in code reaches none of them —
+          which is what makes AddQuartz itself trimmable, and is held by a test.
+        - TransientErrorDetector, which decides whether a database error is worth retrying by reading
+          provider error codes off exception types Quartz deliberately does not reference.
+
+      Every one of those is recorded in TrimAnalysisBaseline.cs and mirrored in ILLink.Suppressions.xml,
+      neither of which ships — so a consumer is told about them, and a native AOT publish of Quartz
+      reports exactly that set and nothing else, which build/Build.cs checks on every pull request by
+      publishing Quartz.Trimming.Canary natively and running a whole SQLite store out of it.
+
+      Where the claim ends up: on SDK 10.0.400 the property writes
+      [AssemblyMetadata("IsAotCompatible", "True")] into the assembly and nothing at all into the
+      nuspec, which was checked by packing rather than assumed. So nuget.org shows nothing for it, and
+      the audience is the analyzers and a reader of this file.
+    -->
+    <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-    <!--
-      IsAotCompatible would turn these two on as well, and it is deliberately not set yet - issue
-      #3430 is where that is decided. What stood in the way was the options binder, which needed a
-      trimmer it could not satisfy and code generated at run time both; the generator below took the
-      pair away, and Quartz produces no IL3050 at all now. So what is left to judge is the IL2xxx
-      recorded in TrimAnalysisBaseline.cs - the string-named contracts - and nothing else.
-    -->
     <EnableAotAnalyzer>true</EnableAotAnalyzer>
     <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
     <!--
