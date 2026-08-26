@@ -418,208 +418,22 @@ vary the data of a detail of your own, and `Clone()` to copy one.
 
 ## Trimming
 
-The `Quartz` package is marked trimmable, so an application published with `PublishTrimmed` can cut
-away what it does not use. A job type is only kept if something the trimmer can see points at it, and
-that is the one thing an application has to get right.
+The `Quartz` package is marked `IsTrimmable` and declares `IsAotCompatible`, so an application can
+publish with `PublishTrimmed` or `PublishAot` and get an executable that starts without a runtime
+installed. A scheduler over the in-memory store needs nothing from you to do it, and a scheduler over a
+__persistent__ store needs two things: the database registered by handing over the driver's
+`DbProviderFactory` rather than naming it, and job-data value types of your own declared to the
+serializer. The repository publishes a scheduler both ways and runs it — over a real SQLite store — on
+Windows, Linux and macOS on every pull request.
 
-**Name job types as types.** `JobBuilder.Create<TJob>()`, `OfType<TJob>()`, `AddJob<TJob>()` and
-`AddJobType<TJob>()` all declare what Quartz reflects over on a job — its public constructors, its
-public properties and the interfaces it implements — so the trimmer keeps exactly those:
-
-```csharp
-builder.AddJob<SendEmailJob>(j => j.WithIdentity("send-email"));
-```
-
-**An API that takes a type name says so.** The ones that accept a name instead of a type carry
-`[RequiresUnreferencedCode]`, so publishing trimmed reports them:
-
-```csharp
-// IL2026: a type named only by a string is not guaranteed to survive trimming
-IJobDetail detail = JobBuilder.Create().OfType("Acme.Jobs.SendEmailJob, Acme.Jobs").Build();
-```
-
-That is `JobBuilder<TJob>.OfType(string)`, the `JobType(string)` constructor and the explicit cast from
-`string`. Prefer the typed spelling; where you cannot, tell the trimmer to keep the type anyway with a
-[trimmer root descriptor](https://learn.microsoft.com/dotnet/core/deploying/trimming/trimming-options#root-descriptors).
-
-**Three places name job types by string whatever you do**, and each needs the job type registered or
-rooted:
-
-- an ADO.NET job store, because a stored job's type is the `JOB_CLASS_NAME` column;
-- `job_scheduling_data` XML, whose loader is `[RequiresUnreferencedCode]` for that reason;
-- the flat `quartz.*` configuration keys, which name plugins, listeners and job stores by string, and
-  set their properties by name.
-
-Registering every job type with `AddJob<TJob>()` or `AddJobType<TJob>()` covers the first of those:
-those calls are what the trimmer follows, and the store then finds the type it needs.
-
-### A persistent store under trimming
-
-`PublishTrimmed` sets `System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault` to false. An
-application that keeps its schedule in memory never notices; one with a **persistent job store** writes
-every trigger, calendar and `JobDataMap` through `IObjectSerializer`, and so depends on what
-`System.Text.Json` can still resolve.
-
-The default System.Text.Json serializer carries a source-generated contract for everything Quartz
-itself writes, so **the built-in shapes need nothing from you**: every trigger type, every calendar
-type, `CronExpression`, the `NameValueCollection` written under `useProperties`, and a `JobDataMap`
-holding a `string`, `bool`, `char`, `int`, `long`, `float`, `double`, `decimal`, `DateTime`,
-`DateTimeOffset`, `TimeSpan`, `Guid` or a `Dictionary<string, string>` — which is to say every type
-`DataMapExtensions` declares an accessor for. A **custom trigger or calendar type** needs nothing
-either: `AddTriggerSerializer<TTrigger>` and `AddCalendarSerializer<TCalendar>` know the type, so the
-registry answers for it.
-
-What is left open is a job-data value of a type of your own — an enum, or anything else you put in the
-map. With reflection off there is no metadata for it, and the write fails naming it. Hand the registry
-your own generated context:
-
-<!-- snippet: sample_more_about_jobs_trimmed_job_data_context -->
-```csharp
-// A job data value type of this application's own, which no contract of Quartz's can name.
-public enum ReportFormat
-{
-    Csv,
-    Pdf
-}
-
-// The metadata the registry is handed. Only a trimmed or native AOT publish needs it: with reflection
-// on, the resolver chain still ends in reflection and this changes nothing.
-[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
-[JsonSerializable(typeof(ReportFormat))]
-internal sealed partial class ReportJobDataContext : JsonSerializerContext;
-```
-<!-- endSnippet -->
-
-<!-- snippet: sample_more_about_jobs_trimmed_job_data_metadata -->
-```csharp
-services.AddQuartz(q => q.UsePersistentStore(store =>
-{
-    store.UseSqlServer(connectionString);
-    store.UseSystemTextJsonSerializer(registry => registry.AddTypeInfoResolver(ReportJobDataContext.Default));
-}));
-```
-<!-- endSnippet -->
-
-`AddTypeInfoResolver` can be called more than once, and resolvers are asked in the order they were
-added, behind Quartz's own contract and in front of reflection. With reflection on it changes nothing,
-so it is safe to configure unconditionally.
-
-**Hand the store the driver's factory rather than its name.** Naming a database —
-`UseSqlite(connectionString)` — resolves the driver's connection, command and parameter types from
-strings, and the trimmer does not follow a string: published `TrimMode=full`, that registration used to
-fail while the container was still being built, with `Cannot instantiate type which has no empty
-constructor`. Every `Use<Db>` therefore takes the `DbProviderFactory` the driver ships instead, and that
-overload names nothing:
-
-```csharp
-services.AddQuartz(q => q.UsePersistentStore(store =>
-{
-    store.UseSqlite(SqliteFactory.Instance, connectionString);
-}));
-```
-
-The factory hands back an instance of every type the store uses — a connection, and the connection
-makes the command, and the command makes its parameters. Registering a `DbDataSource` in the container
-does the same job and is just as safe; the overloads that take a name carry `[RequiresUnreferencedCode]`
-so that a trimmed publish tells you which registration you are on. Neither a `TrimmerRootAssembly` nor
-any other rooting is needed for either.
-
-::: warning Turning reflection back on is not a way round anything
-`<JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>` looks
-like an escape hatch and is not one: the trimmer has already removed what reflection would have needed,
-and what remains fails later and less clearly. In one console application the same write came back as
-`FileNotFoundException: Could not load file or assembly 'System.Private.Uri'`, under `TrimMode=partial`
-as much as `full`; a larger application keeps more and fails elsewhere. Reflection over a trimmed
-assembly is unsupported, not merely unreliable.
-
-The `Quartz.Serialization.Newtonsoft` serializer is reflection by nature and has no source-generated
-form to fall back on, so an application that publishes trimmed uses the System.Text.Json one.
-:::
-
-## Native AOT
-
-Everything above applies to `PublishAot` as well — it is a trimmed publish with an ahead-of-time
-compiler behind it — and native AOT adds one question of its own: what needs code to be *generated* at
-run time, which an AOT application has no way to do. Quartz builds with the AOT analyzer on, so those
-call sites are known rather than guessed at.
-
-**A scheduler over the in-memory store runs.** The worker example publishes and runs as a single native
-executable, with no runtime installed:
-
-```shell
-dotnet publish src/Quartz.Examples.Worker -c Release -r linux-x64 -p:PublishAot=true
-```
-
-It starts, initialises `RAMJobStore`, fires both its simple and its daily-time-interval trigger,
-executes and disposes job instances, applies flat `quartz.*` keys from `appsettings.json`, and shuts
-down cleanly on Ctrl+C with `WaitForJobsToComplete` honoured. Job types named as types, listeners and
-the DI graph all survive.
-
-**A persistent store runs too, natively.** A native AOT publish is a trimmed publish, so it switches the
-same reflection off, and the source-generated contract described above is what answers instead. The
-repository's `Quartz.Trimming.Canary` round-trips every blob a job store writes — every trigger, every
-calendar including a chained one, a `JobDataMap`, a `NameValueCollection` and a `CronExpression` — and
-then does it against a real database: it creates a SQLite file from the schema Quartz ships, registers
-it as `UseSqlite(SqliteFactory.Instance, …)`, schedules a job, waits for the job itself to report that
-it fired, and reads the job and the trigger back through `IScheduler`. That runs on every build, out of
-a fully trimmed publish and out of a native one, on Windows, Linux and macOS.
-
-**Configuration binds without reflecting over anything.** The `Quartz` section reaches
-`QuartzSchedulerOptions` and its siblings through a binder the compiler wrote, not through
-`ConfigurationBinder`'s reflection, so an application configured from `appsettings.json` is as
-ahead-of-time-safe as one configured in code. That is what closed the last `IL3050` in the package —
-and it was more than a warning: built against the reflection binder, the repository's canary publishes
-natively and comes up with `MaxBatchSize`, `ShutdownJobInterruption` and the whole scheduler context at
-their defaults, silently. Nothing is asked of you to get the generated binder; it is how the package
-was built.
-
-**The `Quartz` package declares `IsAotCompatible`.** What that claims is that nothing Quartz does needs
-code generated at run time, which the build checks rather than asserts: `Quartz` compiles with the
-trim, AOT and single-file analyzers on and warnings as errors, and the canary is published by
-ILCompiler and run on every pull request.
-
-What it does not claim is that no `IL2xxx` remains. Publishing your application AOT still reports the
-string-named paths described above against Quartz — a job type named as text, the `JOB_CLASS_NAME`
-column an ADO.NET store reads back, the `quartz.plugin.*` and `quartz.*.listener.*` keys, and the
-provider error codes `TransientErrorDetector` reads off exception types Quartz does not reference. Each
-is either an API that says `[RequiresUnreferencedCode]`, so avoiding it is a compile-time decision, or
-a path only a configuration style reaches. Quartz records them in the repository rather than in the
-shipped assembly, so an `UnconditionalSuppressMessage` never hides them from you — you see what your
-own application's closure reaches, and none of it stops a scheduler from starting, firing and shutting
-down out of a native executable.
-
-### Which packages say whether they can be trimmed
-
-Every shipped package answers the question, because an unmarked assembly is not a "no" — it is silence.
-A trimmer keeps an unmarked assembly whole and collapses everything it cannot reason about into a single
-`IL2104: Assembly 'X' produced trim warnings`, which tells you nothing about what is at risk.
-
-| Package | Trimmable | What a trimmed publish reports against it |
-|---|---|---|
-| `Quartz` | yes, and `IsAotCompatible` | the string-named paths described above |
-| `Quartz.Jobs` | yes | one: `DirectoryScanJob` finds the listener named in its job data by walking the loaded assemblies for a type of that name |
-| `Quartz.Plugins` | yes | two: the XML and JSON schedule-file plugins name each job's type as text, which is what the file format is for |
-| `Quartz.HttpClient` | yes | one: a job read back over HTTP carries its type as a name |
-| `Quartz.AspNetCore` | yes | one: a job posted to the HTTP API names its type as a string |
-| `Quartz.Extensions.Redis` | yes | nothing |
-| `Quartz.Plugins.TimeZoneConverter` | yes | nothing |
-| `Quartz.Serialization.Newtonsoft` | **no** | Json.NET decides what a type looks like by reflecting over it, and has no source-generated form to move to |
-| `Quartz.Dashboard` | **no** | Blazor Server sets a component's `[Parameter]` properties by name and finds page components by type; that is the framework's model, not something the package can resolve |
-
-None of the trimmable ones needs anything of your application beyond what the sections above ask for:
-name job types as types, and register a job whose type a store or a request will later name as a string.
-Each records its remaining warnings in a `TrimAnalysisBaseline.cs` in the repository rather than in the
-shipped assembly, so you still see every one of them against your own build.
-
-The two that say **no** say it in their csproj and in their nuget.org readme, so it reads as a decision
-rather than an oversight. An application that publishes trimmed uses the System.Text.Json serializer
-built into `Quartz`, and drives its schedulers through the HTTP API rather than the dashboard — both of
-which are trimmable.
-
-`IsAotCompatible` is declared by `Quartz` alone for now, and it is a narrower claim than trimmability:
-that nothing needs code generated at run time. None of the other packages reports an `IL3050` either,
-so the claim would hold for the trimmable ones as well; making it is tracked on
-[#3341](https://github.com/quartznet/quartznet/issues/3341) rather than assumed here.
+What the claim does not cover is the one thing a scheduler cannot give up: a job type that arrives as a
+string. The `JOB_CLASS_NAME` column an ADO.NET store reads back, a schedule file, an HTTP request body
+and the flat `quartz.*` keys all name types as text, and a trimmer cannot follow a string. Each of them
+is either an API that says `[RequiresUnreferencedCode]` or a path only one configuration style reaches,
+none of them is suppressed in the shipped assembly, and registering your job types with `AddJob<TJob>()`
+answers the common case. __[Publishing Trimmed and Native AOT](../how-tos/trimming-and-native-aot.md)__
+is the how-to: what each package claims, what a publish still reports and how to read it, and the
+recipe in full.
 
 ## JobExecutionException
 

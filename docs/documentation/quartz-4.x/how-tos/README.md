@@ -15,6 +15,7 @@ Short, task-shaped recipes. Each page answers one question; the
 * [Multiple Triggers](multiple-triggers.md) — drive one job from several triggers, and give each its own data
 * [Job Template](job-template.md) — the recommended skeleton for a job class
 * [Running Quartz under Aspire](aspire.md) — telemetry, health and the database, wired to an AppHost
+* [Publishing Trimmed and Native AOT](trimming-and-native-aot.md) — what each package claims, what still warns, and what to do about it
 
 Extending Quartz — the four seams the `Quartz.Impl.AdoJobStore` types exist for:
 
