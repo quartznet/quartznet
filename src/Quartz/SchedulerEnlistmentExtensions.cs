@@ -184,7 +184,9 @@ public static class SchedulerEnlistmentExtensions
             return unwrapped.SchedulerName;
         }
 
-        IJobStore jobStore = local.scheduler.resources.JobStore;
+        // Through the store's decorators for the same reason as the scheduler's, and there is always at
+        // least one: every store a container builds is wrapped for tracing.
+        IJobStore jobStore = JobStores.Unwrap(local.scheduler.resources.JobStore);
 
         if (jobStore is not AdoJobStoreBase adoJobStore)
         {

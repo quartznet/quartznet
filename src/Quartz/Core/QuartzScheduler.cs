@@ -156,8 +156,14 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// Gets the job store class.
     /// </summary>
+    /// <remarks>
+    /// The store that keeps the data, not whatever is wrapped around it. Every store a container builds
+    /// carries at least a tracing decorator, and this type name is what <see cref="SchedulerMetadata" />
+    /// reports, what the dashboard shows and what the startup log line says — none of which is answered
+    /// by naming a decorator.
+    /// </remarks>
     /// <value>The job store class.</value>
-    public Type JobStoreType => resources.JobStore.GetType();
+    public Type JobStoreType => JobStores.Unwrap(resources.JobStore).GetType();
 
     /// <summary>
     /// Gets the thread pool class.

@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 
@@ -78,7 +79,9 @@ internal sealed class SharedDatabaseValidator
 
     private void Record(string schedulerName, IJobStore jobStore)
     {
-        if (jobStore is not AdoJobStoreBase store)
+        // Through the decorators, because the question is which database this scheduler talks to and a
+        // wrapper talks to none of its own.
+        if (JobStores.Unwrap(jobStore) is not AdoJobStoreBase store)
         {
             return;
         }
