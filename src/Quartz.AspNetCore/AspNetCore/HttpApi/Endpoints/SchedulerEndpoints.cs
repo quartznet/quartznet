@@ -81,7 +81,7 @@ internal static class SchedulerEndpoints
             result[i] = SchedulerHeaderDto.Create(registration, scheduler);
         }
 
-        return EndpointHelper.JsonResponse(result);
+        return endpointHelper.JsonResponse(result);
     }
 
     [ProducesResponseType(typeof(SchedulerDto), StatusCodes.Status200OK)]
@@ -91,7 +91,7 @@ internal static class SchedulerEndpoints
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var metadata = await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false);
             var result = SchedulerDto.Create(scheduler, metadata);
@@ -106,7 +106,7 @@ internal static class SchedulerEndpoints
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler =>
         {
             var context = scheduler.Context;
             var result = SchedulerContextDto.Create(context);
@@ -205,7 +205,7 @@ internal static class SchedulerEndpoints
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             List<ClusterNode> nodes = await scheduler.QueryClusterNodes(cancellationToken).ConfigureAwait(false);
 
@@ -226,7 +226,7 @@ internal static class SchedulerEndpoints
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             ExecutionLimits? limits = await scheduler.GetExecutionLimits(cancellationToken).ConfigureAwait(false);
             Dictionary<string, ExecutionLimitDto>? dict = null;

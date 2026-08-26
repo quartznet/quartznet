@@ -43,7 +43,7 @@ internal static class CalendarEndpoints
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             CalendarQuery query = new()
             {
@@ -71,7 +71,7 @@ internal static class CalendarEndpoints
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var calendar = await scheduler.GetCalendarOrThrow(calendarName, cancellationToken).ConfigureAwait(false);
             return calendar;
@@ -107,7 +107,7 @@ internal static class CalendarEndpoints
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var calendarFound = await scheduler.DeleteCalendar(calendarName, cancellationToken).ConfigureAwait(false);
             return new OperationAppliedResponse(calendarFound);
