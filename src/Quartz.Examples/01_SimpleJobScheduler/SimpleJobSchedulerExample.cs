@@ -19,8 +19,6 @@
 
 #endregion
 
-using Quartz.Impl;
-
 namespace Quartz.Examples.Example01;
 
 /// <summary>
@@ -31,18 +29,17 @@ namespace Quartz.Examples.Example01;
 /// <author>Marko Lahma (.NET)</author>
 public class SimpleJobSchedulerExample : IExample
 {
-    public virtual async Task Run()
+    public virtual async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler scheduler = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create(cancellationToken: cancellationToken);
 
         Console.WriteLine("------- Initialization Complete -----------");
 
-
-        // a minute from now
-        DateTimeOffset runTime = DateTimeOffset.UtcNow.AddMinutes(1);
+        // ten seconds from now, which is long enough to read the rest of this before it happens
+        DateTimeOffset runTime = DateTimeOffset.UtcNow.AddSeconds(10);
 
         Console.WriteLine("------- Scheduling Job  -------------------");
 
@@ -51,31 +48,29 @@ public class SimpleJobSchedulerExample : IExample
             .WithIdentity("job1", "group1")
             .Build();
 
-        // Trigger the job to run on the next round minute
+        // Trigger the job to run once, at that time
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartAt(runTime)
             .Build();
 
         // Tell quartz to schedule the job using our trigger
-        await scheduler.ScheduleJob(job, trigger);
-        Console.WriteLine($"{job.Key} will run at: {runTime:r}");
+        await scheduler.ScheduleJob(job, trigger, cancellationToken);
+        Console.WriteLine($"{job.Key} will run at: {runTime.LocalDateTime:HH:mm:ss}");
 
         // Start up the scheduler (nothing can actually run until the
         // scheduler has been started)
-        await scheduler.Start();
+        await scheduler.Start(cancellationToken);
         Console.WriteLine("------- Started Scheduler -----------------");
 
-        // wait long enough so that the scheduler as an opportunity to
-        // run the job!
-        Console.WriteLine("------- Waiting 65 seconds... -------------");
+        await Watching.For(TimeSpan.FromSeconds(20), "job1 greeting the world, once, ten seconds in", cancellationToken);
 
-        // wait 65 seconds to show jobs
-        await Task.Delay(TimeSpan.FromSeconds(65));
-
-        // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await scheduler.Shutdown(true);
+
+        // CancellationToken.None, not the token: a Ctrl+C ends the watching, and the scheduler still
+        // gets to stop in an orderly way afterwards. Handing it a cancelled token would abandon that.
+        await scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
+
         Console.WriteLine("------- Shutdown Complete -----------------");
     }
 }

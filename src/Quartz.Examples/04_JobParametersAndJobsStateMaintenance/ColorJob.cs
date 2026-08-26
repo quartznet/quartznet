@@ -35,9 +35,8 @@ public class ColorJob : IJob
     public const string FavoriteColor = "favorite color";
     public const string ExecutionCount = "count";
 
-    // Since Quartz will re-instantiate a class every time it
-    // gets executed, members non-static member variables can
-    // not be used to maintain state!
+    // Since Quartz builds a fresh instance of the job for every firing, a field cannot carry state
+    // from one firing to the next. Watch this one stay at 1 while the map's count climbs.
     private int counter = 1;
 
     /// <summary>
@@ -47,29 +46,25 @@ public class ColorJob : IJob
     /// </summary>
     public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        // This job simply prints out its job name and the
-        // date and time that it is running
         JobKey jobKey = context.JobDetail.Key;
 
         // Grab and print passed parameters
         JobDataMap data = context.JobDetail.JobDataMap;
-        var favoriteColor = data.GetString(FavoriteColor);
+        string? favoriteColor = data.GetString(FavoriteColor);
         int count = data.GetInt(ExecutionCount);
-        Console.WriteLine(
-            "ColorJob: {0} executing at {1:r}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}",
-            jobKey, DateTime.Now,
-            favoriteColor,
-            count, counter);
 
-        // increment the count and store it back into the
-        // job map so that job state can be properly maintained
+        Console.WriteLine(
+            $"ColorJob: {jobKey} fired at {context.FireTimeUtc.LocalDateTime:HH:mm:ss}, favorite color {favoriteColor}, "
+            + $"count from the map {count}, count from a field {counter}");
+
+        // increment the count and store it back into the job map. [PersistJobDataAfterExecution] is
+        // what makes the store keep it, so the next firing reads what this one wrote.
         count++;
         data[ExecutionCount] = count;
 
-        // Increment the local member variable
-        // This serves no real purpose since job state can not
-        // be maintained via member variables!
+        // and the field, which starts again from 1 every time
         counter++;
+
         return default;
     }
 }

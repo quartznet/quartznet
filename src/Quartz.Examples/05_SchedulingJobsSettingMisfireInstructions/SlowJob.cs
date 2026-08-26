@@ -22,16 +22,21 @@
 namespace Quartz.Examples.Example05;
 
 /// <summary>
-/// A dumb implementation of Job, for unit testing purposes.
+/// A job that takes far longer to run than the interval its trigger asks for, which is what makes
+/// its trigger misfire.
 /// </summary>
+/// <remarks>
+/// <see cref="DisallowConcurrentExecutionAttribute" /> is what turns "slow" into "late": a second
+/// firing cannot start beside the first, so it waits, and while it waits it falls behind.
+/// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [PersistJobDataAfterExecution]
 [DisallowConcurrentExecution]
-public class StatefulDumbJob : IJob
+public class SlowJob : IJob
 {
     public const string NumExecutions = "NumExecutions";
-    public const string ExecutionDelay = "ExecutionDelay";
+    public const string ExecutionDelaySeconds = "ExecutionDelaySeconds";
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -39,28 +44,21 @@ public class StatefulDumbJob : IJob
     /// </summary>
     public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        Console.WriteLine("---{0} executing.[{1:r}]", context.JobDetail.Key, DateTime.Now);
-
         JobDataMap map = context.JobDetail.JobDataMap;
 
-        int executeCount = 0;
-        if (map.ContainsKey(NumExecutions))
-        {
-            executeCount = map.GetInt(NumExecutions);
-        }
-
-        executeCount++;
-
+        int executeCount = map.TryGetInt(NumExecutions, out int previous) ? previous + 1 : 1;
         map[NumExecutions] = executeCount;
 
-        int delay = 5;
-        if (map.ContainsKey(ExecutionDelay))
-        {
-            delay = map.GetInt(ExecutionDelay);
-        }
+        int delaySeconds = map.TryGetInt(ExecutionDelaySeconds, out int configured) ? configured : 10;
 
-        await Task.Delay(delay, cancellationToken);
+        // ScheduledFireTimeUtc is when the trigger wanted this firing; FireTimeUtc is when it got it.
+        // The gap between them is how late the trigger is running, and it grows every cycle.
+        Console.WriteLine(
+            $"---{context.JobDetail.Key} run #{executeCount} due at {context.ScheduledFireTimeUtc?.LocalDateTime:HH:mm:ss}, "
+            + $"started at {context.FireTimeUtc.LocalDateTime:HH:mm:ss}, will take {delaySeconds} seconds");
 
-        Console.WriteLine("  -{0} complete ({1}).", context.JobDetail.Key, executeCount);
+        await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+
+        Console.WriteLine($"  -{context.JobDetail.Key} run #{executeCount} complete");
     }
 }

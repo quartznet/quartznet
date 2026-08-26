@@ -22,15 +22,28 @@
 namespace Quartz.Examples.Example07;
 
 /// <summary>
-/// A job that spends a while working and notices when it is interrupted.
+/// A job that spends a while working, and notices when it is interrupted.
 /// </summary>
+/// <remarks>
+/// <para>
+/// The token this job is handed is the interrupt. <see cref="IScheduler.Interrupt(JobKey, CancellationToken)" />
+/// cancels it, and everything the job is awaiting on it unblocks at once. A job that ignores the token
+/// cannot be interrupted at all - it runs to its own end, whatever the scheduler was asked for.
+/// </para>
+/// <para>
+/// It is the same token as <see cref="IJobExecutionContext.CancellationToken" />, passed as a parameter
+/// so that the compiler's CA2016 can point at every await that forgot to forward it.
+/// </para>
+/// </remarks>
 /// <author>  <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 /// <author>Bill Kratzer</author>
 /// <author>Marko Lahma (.NET)</author>
 public class InterruptableJob : IJob
 {
-    // job name
-    private JobKey? jobKey;
+    /// <summary>
+    /// Three seconds of "work" each, so a job left alone runs for twenty-four seconds.
+    /// </summary>
+    public const int WorkSteps = 8;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -38,31 +51,30 @@ public class InterruptableJob : IJob
     /// </summary>
     public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        jobKey = context.JobDetail.Key;
-        Console.WriteLine("---- {0} executing at {1:r}", jobKey, DateTime.Now);
+        JobKey jobKey = context.JobDetail.Key;
+        Console.WriteLine($"---- {jobKey} started at {context.FireTimeUtc.LocalDateTime:HH:mm:ss} on thread {Environment.CurrentManagedThreadId}");
 
         try
         {
-            // main job loop...
-            // do some work... in this example we are 'simulating' work by sleeping...
-
-            for (int i = 0; i < 4; i++)
+            // main job loop... in this example we are 'simulating' work by sleeping
+            for (int i = 1; i <= WorkSteps; i++)
             {
-                // hand the token to everything you await, and the wait itself becomes
-                // interruptible - without it, an interrupt would not be noticed until this
-                // ten second sleep finished on its own
-                await Task.Delay(10 * 1000, cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
+
+                // an await is a suspension, not a thread: the continuation runs on whatever pool
+                // thread is free, which is usually not the one the job started on
+                Console.WriteLine($"---- {jobKey} still working, now on thread {Environment.CurrentManagedThreadId} ({i}/{WorkSteps})");
             }
         }
         catch (OperationCanceledException)
         {
-            Console.WriteLine("--- {0}  -- Interrupted... bailing out!", jobKey);
+            Console.WriteLine($"--- {jobKey}  -- Interrupted... bailing out!");
             // could also choose to throw a JobExecutionException if that made for sense
             // based on the particular job's responsibilities/behaviors
         }
         finally
         {
-            Console.WriteLine("---- {0} completed at {1:r}", jobKey, DateTime.Now);
+            Console.WriteLine($"---- {jobKey} finished at {TimeProvider.System.GetLocalNow():HH:mm:ss}");
         }
     }
 }

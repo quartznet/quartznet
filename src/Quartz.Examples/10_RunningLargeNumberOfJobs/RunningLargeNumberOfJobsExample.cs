@@ -19,73 +19,74 @@
 
 #endregion
 
-using Quartz.Impl;
-
 namespace Quartz.Examples.Example10;
 
 /// <summary>
 /// This example will demonstrate how to run a large number
 /// of jobs.
 /// </summary>
+/// <remarks>
+/// Five hundred jobs, each doing up to a second of pretend work, fired within ten seconds of each
+/// other. The thread pool is what decides how fast they get through: fifty at a time here, against
+/// the ten the other examples use.
+/// </remarks>
 /// <author>James House, Bill Kratzer</author>
 /// <author>Marko Lahma (.NET)</author>
 public class RunningLargeNumberOfJobsExample : IExample
 {
     private const int NumberOfJobs = 500;
+    private const int MaxConcurrency = 50;
 
-    public virtual async Task Run()
+    public virtual async ValueTask Run(CancellationToken cancellationToken = default)
     {
         // First we must get a reference to a scheduler
-        IScheduler scheduler = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create(
+            maxConcurrency: MaxConcurrency,
+            cancellationToken: cancellationToken);
 
         Console.WriteLine("------- Initialization Complete -----------");
 
-        Console.WriteLine("------- Scheduling Jobs -------------------");
+        Console.WriteLine($"------- Scheduling {NumberOfJobs} Jobs ---------------");
 
-        Random r = new Random();
-        // schedule 500 jobs to run
+        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(5);
+
         for (int count = 1; count <= NumberOfJobs; count++)
         {
             IJobDetail job = JobBuilder
                 .Create<SimpleJob>()
                 .WithIdentity("job" + count, "group_1")
                 .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
+                .UsingJobData(SimpleJob.DelayMilliseconds, Random.Shared.Next(1000))
                 .Build();
-
-            // tell the job to delay some small amount... to simulate work...
-            long timeDelay = (long) (r.NextDouble() * 2500);
-            job.JobDataMap[SimpleJob.DelayTime] = timeDelay;
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("trigger_" + count, "group_1")
-                .StartAt(DateTimeOffset.UtcNow.AddMilliseconds(10000 + count * 100)) // space fire times a small bit
+                .StartAt(startTime.AddMilliseconds(count * 20)) // space fire times a small bit
                 .Build();
 
-            await scheduler.ScheduleJob(job, trigger);
-            if (count % 25 == 0)
+            await scheduler.ScheduleJob(job, trigger, cancellationToken);
+
+            if (count % 100 == 0)
             {
-                Console.WriteLine("...scheduled " + count + " jobs");
+                Console.WriteLine($"...scheduled {count} jobs");
             }
         }
 
         Console.WriteLine("------- Starting Scheduler ----------------");
 
         // start the schedule
-        await scheduler.Start();
+        await scheduler.Start(cancellationToken);
 
         Console.WriteLine("------- Started Scheduler -----------------");
 
-        Console.WriteLine("------- Waiting five minutes... -----------");
-
-        // wait five minutes to give our jobs a chance to run
-        await Task.Delay(TimeSpan.FromMinutes(5));
+        await Watching.For(TimeSpan.FromSeconds(45), $"{MaxConcurrency} threads working through {NumberOfJobs} jobs", cancellationToken);
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await scheduler.Shutdown(true);
+        await scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetadata metadata = await scheduler.GetMetadata();
-        Console.WriteLine("Executed " + metadata.JobsExecuted + " jobs.");
+        SchedulerMetadata metadata = await scheduler.GetMetadata(CancellationToken.None);
+        Console.WriteLine($"Executed {metadata.JobsExecuted} of {NumberOfJobs} jobs.");
     }
 }

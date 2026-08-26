@@ -24,22 +24,23 @@ namespace Quartz.Examples.Example11;
 /// <summary>
 /// This example will demonstrate how Triggers are ordered by priority.
 /// </summary>
+/// <remarks>
+/// Priority only decides between triggers that are due at the same instant, and only when there is
+/// something to decide - a thread pool of one, here, so that the three cannot simply all run at once.
+/// Once their repeats fall at different times, priority stops mattering.
+/// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public class RunJobsByPriorityWithTriggersPriorityExample : IExample
 {
-    public async Task Run()
+    public async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("------- Initializing ----------------------");
 
-        // First we must get a reference to a scheduler
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-
-        builder.ConfigureScheduler(options => options.InstanceName = "PriorityExampleScheduler")
-            // Set thread count to 1 to force Triggers scheduled for the same time to
-            // to be ordered by priority.
-            .UseDefaultThreadPool(maxConcurrency: 1);
-
-        IScheduler scheduler = await builder.BuildScheduler();
+        // Thread count of one forces triggers scheduled for the same time to be ordered by priority
+        IScheduler scheduler = await ExampleScheduler.Create(
+            "PriorityExampleScheduler",
+            maxConcurrency: 1,
+            cancellationToken: cancellationToken);
 
         Console.WriteLine("------- Initialization Complete -----------");
 
@@ -91,24 +92,20 @@ public class RunJobsByPriorityWithTriggersPriorityExample : IExample
             .Build();
 
         // Tell quartz to schedule the job using our trigger
-        await scheduler.ScheduleJob(job, trigger1);
-        await scheduler.ScheduleJob(trigger2);
-        await scheduler.ScheduleJob(trigger3);
+        await scheduler.ScheduleJob(job, trigger1, cancellationToken);
+        await scheduler.ScheduleJob(trigger2, cancellationToken);
+        await scheduler.ScheduleJob(trigger3, cancellationToken);
 
         // Start up the scheduler (nothing can actually run until the
         // scheduler has been started)
-        await scheduler.Start();
+        await scheduler.Start(cancellationToken);
         Console.WriteLine("------- Started Scheduler -----------------");
 
-        // wait long enough so that the scheduler as an opportunity to
-        // fire the triggers
-        Console.WriteLine("------- Waiting 30 seconds... -------------");
-
-        await Task.Delay(TimeSpan.FromSeconds(30));
+        await Watching.For(TimeSpan.FromSeconds(30), "the first three firings in priority order 10, 5, 1 - and the last three in schedule order", cancellationToken);
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await scheduler.Shutdown(true);
+        await scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
         Console.WriteLine("------- Shutdown Complete -----------------");
     }
 }

@@ -22,7 +22,8 @@
 namespace Quartz.Examples.Example13;
 
 /// <summary>
-/// A dumb implementation of Job, for unit testing purposes.
+/// A job that takes long enough to be caught mid-execution when its node is killed, and says which
+/// node is running it.
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
@@ -38,33 +39,20 @@ public class SimpleRecoveryJob : IJob
     public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobKey jobKey = context.JobDetail.Key;
+        string node = context.Scheduler.SchedulerInstanceId;
 
-        // if the job is recovering print a message
-        if (context.Recovering)
-        {
-            Console.WriteLine("SimpleRecoveryJob: {0} RECOVERING at {1:r}", jobKey, DateTime.Now);
-        }
-        else
-        {
-            Console.WriteLine("SimpleRecoveryJob: {0} starting at {1:r}", jobKey, DateTime.Now);
-        }
+        // Recovering means this firing is a second attempt: the node that was running it died, and
+        // this node picked the work up because the job asked for RequestRecovery()
+        string what = context.Recovering ? "RECOVERING" : "starting";
+        Console.WriteLine($"SimpleRecoveryJob: {jobKey} {what} on {node} at {context.FireTimeUtc.LocalDateTime:HH:mm:ss}");
 
-        // delay for ten seconds
+        // long enough that killing this process mid-run leaves work for another node to recover
         await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
 
         JobDataMap data = context.JobDetail.JobDataMap;
-        int count;
-        if (data.ContainsKey(Count))
-        {
-            count = data.GetInt(Count);
-        }
-        else
-        {
-            count = 0;
-        }
-        count++;
+        int count = data.TryGetInt(Count, out int previous) ? previous + 1 : 1;
         data[Count] = count;
 
-        Console.WriteLine("SimpleRecoveryJob: {0} done at {1:r}\n Execution #{2}", jobKey, DateTime.Now, count);
+        Console.WriteLine($"SimpleRecoveryJob: {jobKey} done on {node}, execution #{count}");
     }
 }

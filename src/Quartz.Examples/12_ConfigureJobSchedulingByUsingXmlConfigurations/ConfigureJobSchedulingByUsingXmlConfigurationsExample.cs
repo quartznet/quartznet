@@ -27,19 +27,25 @@ namespace Quartz.Examples.Example12;
 /// This example will demonstrate how configuration can be
 /// done using an XML file.
 /// </summary>
+/// <remarks>
+/// The scheduler is handed no jobs and no triggers in code. It is handed a plugin that reads them out
+/// of <c>quartz_jobs.xml</c>, and rescans that file while it runs - so the schedule can be changed by
+/// editing a file, without stopping anything. Edit the file the example prints, and watch it happen.
+/// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
 {
-    public async Task Run()
+    public async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("------- Initializing ----------------------");
 
-        // First we must get a reference to a scheduler
+        // This example configures its own scheduler rather than using the shared one, because the
+        // plugins are the thing it is about
         QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
 
         builder.ConfigureScheduler(options => options.InstanceName = "XmlConfiguredInstance")
             .UseDefaultThreadPool(maxConcurrency: 5)
-            // job initialization plugin handles our xml reading, without it defaults are used
+            // the job initialization plugin handles our xml reading; without it, defaults are used
             .UseXmlSchedulingConfiguration(x =>
             {
                 x.Files.Add("~/quartz_jobs.xml");
@@ -47,33 +53,40 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
                 x.FailOnFileNotFound = true;
                 // this is not the default
                 x.FailOnSchedulingError = true;
-            });
+                // and neither is this: zero means "read it once", anything else means "keep looking"
+                x.ScanInterval = TimeSpan.FromSeconds(10);
+            })
+            // every job about to run and every job that finished, logged by a plugin rather than by
+            // anything the jobs themselves do
+            .UseJobHistoryLogging();
 
-        IScheduler scheduler = await builder.BuildScheduler();
+        IScheduler scheduler = await builder.BuildScheduler(cancellationToken);
 
-        // we need to add calendars manually, lets create a silly sample calendar
+        // calendars are not part of the XML schedule, so this one is added in code
         DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(0, 1), new TimeOnly(23, 59));
         dailyCalendar.InvertTimeRange = true;
-        await scheduler.AddCalendar("cal1", dailyCalendar);
+        await scheduler.AddCalendar("cal1", dailyCalendar, cancellationToken: cancellationToken);
 
         Console.WriteLine("------- Initialization Complete -----------");
 
-        // all jobs and triggers are now in scheduler
+        // all jobs and triggers are now in the scheduler, having come out of the file
+        string file = Path.Combine(AppContext.BaseDirectory, "quartz_jobs.xml");
+        Console.WriteLine($"------- Watching {file}");
+        Console.WriteLine("------- Edit it while this runs - change repeat-interval, add a trigger - and the schedule follows");
 
         // Start up the scheduler (nothing can actually run until the
         // scheduler has been started)
-        await scheduler.Start();
+        await scheduler.Start(cancellationToken);
         Console.WriteLine("------- Started Scheduler -----------------");
 
-        // wait long enough so that the scheduler as an opportunity to
-        // fire the triggers
-        Console.WriteLine("------- Waiting 30 seconds... -------------");
-
-        await Task.Delay(30 * 1000);
+        await Watching.For(TimeSpan.FromSeconds(60), "jobName1 running on the schedule the file gave it, and the history plugin logging every firing", cancellationToken);
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await scheduler.Shutdown(true);
+        await scheduler.Shutdown(waitForJobsToComplete: true, CancellationToken.None);
         Console.WriteLine("------- Shutdown Complete -----------------");
+
+        SchedulerMetadata metadata = await scheduler.GetMetadata(CancellationToken.None);
+        Console.WriteLine($"Executed {metadata.JobsExecuted} jobs.");
     }
 }

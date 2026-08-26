@@ -1,20 +1,20 @@
 #region License
 
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -29,7 +29,7 @@ namespace Quartz.Examples.Example10;
 public class SimpleJob : IJob
 {
     // job parameter
-    public const string DelayTime = "delay time";
+    public const string DelayMilliseconds = "delay milliseconds";
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a
@@ -38,17 +38,14 @@ public class SimpleJob : IJob
     /// </summary>
     public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        // This job simply prints out its job name and the
-        // date and time that it is running
         JobKey jobKey = context.JobDetail.Key;
 
-        Console.WriteLine("Executing job: {0} executing at {1:r}", jobKey, DateTime.Now);
+        Console.WriteLine($"Executing {jobKey} at {context.FireTimeUtc.LocalDateTime:HH:mm:ss.fff}");
 
-        // wait for a period of time
-        long delayTime = context.JobDetail.JobDataMap.GetLong(DelayTime);
+        // pretend to do some work, for as long as this job was told to
+        int delay = context.JobDetail.JobDataMap.GetInt(DelayMilliseconds);
+        await Task.Delay(TimeSpan.FromMilliseconds(delay), cancellationToken);
 
-        await Task.Delay(new TimeSpan(10000 * delayTime), context.CancellationToken);
-
-        Console.WriteLine("Finished Executing job: {0} at {1:r}", jobKey, DateTime.Now);
+        Console.WriteLine($"Finished {jobKey} after {delay} ms");
     }
 }

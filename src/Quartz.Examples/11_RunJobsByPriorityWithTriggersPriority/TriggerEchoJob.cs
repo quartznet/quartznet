@@ -31,20 +31,12 @@ public class TriggerEchoJob : IJob
     /// <summary>
     /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
     /// fires that is associated with the <see cref="IJob"/>.
-    /// <para>
-    /// The implementation may wish to set a  result object on the
-    /// JobExecutionContext before this method exits.  The result itself
-    /// is meaningless to Quartz, but may be informative to
-    /// <see cref="IJobListener"/>s or
-    /// <see cref="ITriggerListener"/>s that are watching the job's
-    /// execution.
-    /// </para>
-    /// 	<param name="context">The execution context.</param>
     /// </summary>
-    /// <param name="context"></param>
+    /// <param name="context">The execution context.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
-        Console.WriteLine("TRIGGER: " + context.Trigger.Key);
+        Console.WriteLine($"TRIGGER: {context.Trigger.Key} (priority {context.Trigger.Priority}) at {context.FireTimeUtc.LocalDateTime:HH:mm:ss}");
         return default;
     }
 }
