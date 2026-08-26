@@ -271,9 +271,14 @@ internal sealed class DataSourceOptionsValidator : IValidateOptions<DataSourceOp
         List<string>? failures = null;
         var described = string.IsNullOrEmpty(name) ? "data source" : $"data source '{name}'";
 
-        if (string.IsNullOrWhiteSpace(options.Provider))
+        // The provider name exists to look a driver description up. An application that handed the
+        // description over has nothing left to look up, and naming a provider it never registered would
+        // only be a name that has to match itself.
+        if (string.IsNullOrWhiteSpace(options.Provider) && options.ProviderMetadata is null)
         {
-            (failures ??= []).Add($"{nameof(DataSourceOptions.Provider)} must be specified for {described}.");
+            (failures ??= []).Add(
+                $"{nameof(DataSourceOptions.Provider)} must be specified for {described}, unless " +
+                $"{nameof(DataSourceOptions.ProviderMetadata)} describes the driver instead.");
         }
 
         // A DbDataSource carries its own connection details, so Quartz needs none — however the data

@@ -299,11 +299,15 @@ namespace Quartz
     public sealed class DataSourceOptions
     {
         public DataSourceOptions() { }
+        public System.Action<System.Data.Common.DbParameter>? ConfigureBinaryParameter { get; set; }
+        public System.Action<System.Data.Common.DbCommand>? ConfigureCommand { get; set; }
         public string? ConnectionString { get; set; }
         public string? ConnectionStringName { get; set; }
         public System.Func<System.IServiceProvider, System.Data.Common.DbDataSource>? DataSourceFactory { get; set; }
         public object? DataSourceServiceKey { get; set; }
         public string Provider { get; set; }
+        public System.Data.Common.DbProviderFactory? ProviderFactory { get; set; }
+        public Quartz.Impl.AdoJobStore.Common.DbMetadata? ProviderMetadata { get; set; }
         public bool UseRegisteredDataSource { get; set; }
         public static class Providers
         {
@@ -1135,24 +1139,34 @@ namespace Quartz
     {
         public static Quartz.IPersistentStoreBuilder UseFirebird(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseFirebird(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseFirebird(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString, Quartz.Impl.AdoJobStore.Common.DbMetadata metadata) { }
         public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, System.Action<Quartz.DataSourceOptions> configureDataSource, System.Func<Quartz.Impl.AdoJobStore.Common.DbMetadata> describeMetadata) { }
         public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, string connectionString, System.Func<Quartz.Impl.AdoJobStore.Common.DbMetadata> describeMetadata) { }
         public static Quartz.IPersistentStoreBuilder UseMySql(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseMySql(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseMySql(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseMySqlConnector(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseMySqlConnector(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseMySqlConnector(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseOracle(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseOracle(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseOracle(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseOracle(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UsePostgres(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UsePostgres(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UsePostgres(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseSqlServer(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseSqlServer(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseSqlServer(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseSqlite(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseSqlite(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseSqlite(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseSystemDataSqlite(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseSystemDataSqlite(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseSystemDataSqlite(this Quartz.IPersistentStoreBuilder builder, System.Data.Common.DbProviderFactory factory, string connectionString) { }
     }
     public readonly struct PreferredNode : System.IEquatable<Quartz.PreferredNode>
     {
