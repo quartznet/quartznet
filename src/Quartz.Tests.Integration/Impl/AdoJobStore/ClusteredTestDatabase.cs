@@ -4,6 +4,8 @@ using Microsoft.Data.SqlClient;
 
 using Npgsql;
 
+using Quartz.Impl.AdoJobStore;
+
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
@@ -52,6 +54,13 @@ public abstract class ClusteredTestDatabase
     public abstract string DriverDelegateType { get; }
 
     /// <summary>
+    /// This engine's driver delegate, for a fixture that constructs a job store directly instead of
+    /// through configuration. <see cref="DriverDelegateType"/> is a name for the property bridge to
+    /// resolve, which is no use to a caller holding a constructor.
+    /// </summary>
+    public abstract IDriverDelegate CreateDriverDelegate();
+
+    /// <summary>
     /// Opens a connection of this engine's own type, for the fixtures' direct SQL. Test SQL is written
     /// in unquoted upper case, which SQL Server matches case-insensitively and PostgreSQL folds to the
     /// lower-case identifiers its scripts create, so the statements themselves stay dialect-neutral.
@@ -68,6 +77,8 @@ public abstract class ClusteredTestDatabase
 
         public override string DriverDelegateType => "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz";
 
+        public override IDriverDelegate CreateDriverDelegate() => new PostgreSQLDelegate();
+
         public override DbConnection CreateConnection() => new NpgsqlConnection(ConnectionString);
     }
 
@@ -78,6 +89,8 @@ public abstract class ClusteredTestDatabase
         public override string ConnectionString => TestConstants.SqlServerConnectionString;
 
         public override string DriverDelegateType => "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+
+        public override IDriverDelegate CreateDriverDelegate() => new SqlServerDelegate();
 
         public override DbConnection CreateConnection() => new SqlConnection(ConnectionString);
     }
