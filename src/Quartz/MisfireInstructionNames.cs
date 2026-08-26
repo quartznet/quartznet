@@ -161,8 +161,7 @@ internal static class MisfireInstructionNames
             if (IsValidFor(family, otherFamilyValue))
             {
                 ILogger log = logger ?? LogProvider.CreateLogger(typeof(MisfireInstructionNames).FullName!);
-                log.LogWarning(
-                    "Misfire instruction '{MisfireInstruction}' is not one of the {Family} trigger names. It resolves to code {Code}, which for this trigger means {Policy}; spell it '{Canonical}'",
+                log.MisfireInstructionFromAnotherFamily(
                     trimmed,
                     family.DisplayName(),
                     otherFamilyValue,

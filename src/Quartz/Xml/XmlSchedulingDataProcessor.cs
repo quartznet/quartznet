@@ -169,7 +169,7 @@ internal class XmlSchedulingDataProcessor
         // resolve file name first
         fileName = FileUtil.ResolveFile(fileName) ?? fileName;
 
-        logger.LogInformation("Parsing XML file: {FileName} with systemId: {SystemId}", fileName, systemId);
+        logger.ParsingFile(fileName, systemId);
 
         using (var stream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
         using (StreamReader sr = new StreamReader(stream))
@@ -191,7 +191,7 @@ internal class XmlSchedulingDataProcessor
         string? systemId,
         CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Parsing XML from stream with systemId: {SystemId}", systemId);
+        logger.ParsingStream(systemId);
         using StreamReader sr = new StreamReader(stream);
         ProcessInternal(await sr.ReadToEndAsync(cancellationToken).ConfigureAwait(false));
     }
@@ -276,10 +276,10 @@ internal class XmlSchedulingDataProcessor
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug("Found {JobGroupCount} delete job group commands.", jobGroupsToDelete.Count);
-            logger.LogDebug("Found {TriggerGroupDeleteCount}delete trigger group commands.", triggerGroupsToDelete.Count);
-            logger.LogDebug("Found {JobsToDeleteCount} delete job commands.", jobsToDelete.Count);
-            logger.LogDebug("Found {TriggersToDelete} delete trigger commands.", triggersToDelete.Count);
+            logger.FoundDeleteJobGroupCommands(jobGroupsToDelete.Count);
+            logger.FoundDeleteTriggerGroupCommands(triggerGroupsToDelete.Count);
+            logger.FoundDeleteJobCommands(jobsToDelete.Count);
+            logger.FoundDeleteTriggerCommands(triggersToDelete.Count);
         }
 
         //
@@ -287,28 +287,26 @@ internal class XmlSchedulingDataProcessor
         //
         if (data.Directives is not null)
         {
-            logger.LogDebug("Directive 'overwrite-existing-data' specified as: {Overwrite}", data.Directives.OverwriteExistingData);
+            logger.OverwriteExistingDataSpecified(data.Directives.OverwriteExistingData);
             OverwriteExistingData = data.Directives.OverwriteExistingData;
 
-            logger.LogDebug("Directive 'ignore-duplicates' specified as: {IgnoreDuplicates}", data.Directives.IgnoreDuplicates);
+            logger.IgnoreDuplicatesSpecified(data.Directives.IgnoreDuplicates);
             IgnoreDuplicates = data.Directives.IgnoreDuplicates;
 
-            logger.LogDebug("Directive 'schedule-trigger-relative-to-replaced-trigger' specified as: {ScheduleRelative}",
-                data.Directives.ScheduleTriggerRelativeToReplacedTrigger);
+            logger.ScheduleTriggerRelativeSpecified(data.Directives.ScheduleTriggerRelativeToReplacedTrigger);
             ScheduleTriggerRelativeToReplacedTrigger = data.Directives.ScheduleTriggerRelativeToReplacedTrigger;
         }
         else
         {
-            logger.LogDebug("Directive 'overwrite-existing-data' not specified, defaulting to {Overwrite}", OverwriteExistingData);
-            logger.LogDebug("Directive 'ignore-duplicates' not specified, defaulting to {IgnoreDuplicates}", IgnoreDuplicates);
-            logger.LogDebug("Directive 'schedule-trigger-relative-to-replaced-trigger' not specified, defaulting to {ScheduleTriggerRelativeToReplacedTrigger}",
-                ScheduleTriggerRelativeToReplacedTrigger);
+            logger.OverwriteExistingDataDefaulted(OverwriteExistingData);
+            logger.IgnoreDuplicatesDefaulted(IgnoreDuplicates);
+            logger.ScheduleTriggerRelativeDefaulted(ScheduleTriggerRelativeToReplacedTrigger);
         }
 
         //
         // Extract Job definitions...
         //
-        logger.LogDebug("Found {Count} job definitions.", data.Jobs.Count);
+        logger.FoundJobDefinitions(data.Jobs.Count);
 
         foreach (JobDefinition jobDefinition in data.Jobs)
         {
@@ -335,7 +333,7 @@ internal class XmlSchedulingDataProcessor
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("Parsed job definition: {JobDetail}", jobDetail);
+                logger.ParsedJobDefinition(jobDetail);
             }
 
             AddJobToSchedule(jobDetail);
@@ -344,7 +342,7 @@ internal class XmlSchedulingDataProcessor
         //
         // Extract Trigger definitions...
         //
-        logger.LogDebug("Found {TriggerCount} trigger definitions.", data.Triggers.Count);
+        logger.FoundTriggerDefinitions(data.Triggers.Count);
 
         foreach (TriggerDefinition triggerNode in data.Triggers)
         {
@@ -447,7 +445,7 @@ internal class XmlSchedulingDataProcessor
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("Parsed trigger definition: {Trigger}", trigger);
+                logger.ParsedTriggerDefinition(trigger);
             }
 
             AddTriggerToSchedule(trigger);
@@ -550,7 +548,7 @@ internal class XmlSchedulingDataProcessor
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Unable to validate XML with schema: {Message}", ex.Message);
+            logger.SchemaValidationUnavailable(ex.Message, ex);
         }
     }
 
@@ -562,9 +560,7 @@ internal class XmlSchedulingDataProcessor
         }
         else
         {
-#pragma warning disable CA2254
-            logger.LogWarning(e.Message);
-#pragma warning restore CA2254
+            logger.SchemaValidationWarning(e.Message);
         }
     }
 
@@ -668,7 +664,7 @@ internal class XmlSchedulingDataProcessor
         List<IJobDetail> jobs = new List<IJobDetail>(LoadedJobs);
         List<ITrigger> triggers = new List<ITrigger>(LoadedTriggers);
 
-        logger.LogInformation("Adding {JobCount} jobs, {TriggerCount} triggers", jobs.Count, triggers.Count);
+        logger.AddingJobsAndTriggers(jobs.Count, triggers.Count);
 
         Dictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFullyQualifiedJobNameMap(triggers);
 
@@ -691,7 +687,7 @@ internal class XmlSchedulingDataProcessor
                 if (e.InnerException is TypeLoadException && OverwriteExistingData)
                 {
                     // We are going to replace jobDetail anyway, so just delete it first.
-                    logger.LogInformation("Removing job: {JobKey}", detail.Key);
+                    logger.RemovingJob(detail.Key);
                     await scheduler.DeleteJob(detail.Key, cancellationToken).ConfigureAwait(false);
                 }
                 else
@@ -704,7 +700,7 @@ internal class XmlSchedulingDataProcessor
             {
                 if (!OverwriteExistingData && IgnoreDuplicates)
                 {
-                    logger.LogInformation("Not overwriting existing job: {JobKey}", dupeJ.Key);
+                    logger.NotOverwritingExistingJob(dupeJ.Key);
                     continue; // just ignore the entry
                 }
 
@@ -716,11 +712,11 @@ internal class XmlSchedulingDataProcessor
 
             if (dupeJ is not null)
             {
-                logger.LogInformation("Replacing job: {JobKey}", detail.Key);
+                logger.ReplacingJob(detail.Key);
             }
             else
             {
-                logger.LogInformation("Adding job: {JobKey}", detail.Key);
+                logger.AddingJob(detail.Key);
             }
 
             triggersByFQJobName.TryGetValue(detail.Key, out var triggersOfJob);
@@ -773,12 +769,12 @@ internal class XmlSchedulingDataProcessor
                         {
                             if (logger.IsEnabled(LogLevel.Debug))
                             {
-                                logger.LogDebug("Rescheduling job: {JobKey} with updated trigger: {TriggerKey}", trigger.JobKey, trigger.Key);
+                                logger.ReschedulingJob(trigger.JobKey, trigger.Key);
                             }
                         }
                         else if (IgnoreDuplicates)
                         {
-                            logger.LogInformation("Not overwriting existing trigger: {Key}", dupeT.Key);
+                            logger.NotOverwritingExistingTriggerByKey(dupeT.Key);
                             continue; // just ignore the trigger (and possibly job)
                         }
                         else
@@ -797,7 +793,7 @@ internal class XmlSchedulingDataProcessor
                     {
                         if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            logger.LogDebug("Scheduling job: {JobKey} with trigger: {TriggerKey}", trigger.JobKey, trigger.Key);
+                            logger.SchedulingJob(trigger.JobKey, trigger.Key);
                         }
 
                         try
@@ -816,9 +812,7 @@ internal class XmlSchedulingDataProcessor
                         {
                             if (logger.IsEnabled(LogLevel.Debug))
                             {
-                                logger.LogDebug("Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed.  "
-                                                + "This is likely due to a race condition between multiple instances "
-                                                + "in the cluster.  Will try to reschedule instead.", trigger.Key, detail.Key);
+                                logger.TriggerAlreadyExistedWillReschedule(trigger.Key, detail.Key);
                             }
 
                             // Let's try one more time as reschedule.
@@ -840,12 +834,12 @@ internal class XmlSchedulingDataProcessor
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug("Rescheduling job: {JobKey} with updated trigger: {TriggerKey}", trigger.JobKey, trigger.Key);
+                        logger.ReschedulingJob(trigger.JobKey, trigger.Key);
                     }
                 }
                 else if (IgnoreDuplicates)
                 {
-                    logger.LogInformation("Not overwriting existing trigger: {JobKey}", dupeT.Key);
+                    logger.NotOverwritingExistingTrigger(dupeT.Key);
                     continue; // just ignore the trigger
                 }
                 else
@@ -864,7 +858,7 @@ internal class XmlSchedulingDataProcessor
             {
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
-                    logger.LogDebug("Scheduling job: {JobKey} with trigger: {TriggerKey}", trigger.JobKey, trigger.Key);
+                    logger.SchedulingJob(trigger.JobKey, trigger.Key);
                 }
 
                 try
@@ -875,10 +869,7 @@ internal class XmlSchedulingDataProcessor
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug(
-                            "Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed. This is likely due to a race condition between multiple instances in the cluster. Will try to reschedule instead.",
-                            trigger.Key,
-                            trigger.JobKey);
+                        logger.TriggerAlreadyExistedWillRescheduleJob(trigger.Key, trigger.JobKey);
                     }
 
                     // Let's rescheduleJob one more time.
@@ -891,8 +882,7 @@ internal class XmlSchedulingDataProcessor
 
     private void ReportDuplicateTrigger(IMutableTrigger trigger)
     {
-        logger.LogWarning("Possibly duplicately named ({TriggerKey}) trigger in configuration, this can be caused by not having a fixed job key for targeted jobs",
-            trigger.Key);
+        logger.DuplicatelyNamedTrigger(trigger.Key);
     }
 
     private ValueTask<DateTimeOffset?> DoRescheduleJob(
@@ -904,7 +894,7 @@ internal class XmlSchedulingDataProcessor
         // if this is a trigger with default start time we can consider relative scheduling
         if (oldTrigger is not null && trigger.StartTimeUtc - timeProvider.GetUtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
         {
-            logger.LogDebug("Using relative scheduling for trigger with key {TriggerKey}", trigger.Key);
+            logger.UsingRelativeScheduling(trigger.Key);
 
             var oldTriggerPreviousFireTime = oldTrigger.PreviousFireTimeUtc;
             trigger.StartTimeUtc = oldTrigger.StartTimeUtc;
@@ -954,7 +944,7 @@ internal class XmlSchedulingDataProcessor
         {
             if (group == "*")
             {
-                logger.LogInformation("Deleting all jobs in ALL groups.");
+                logger.DeletingAllJobsInAllGroups();
                 // deliberately unbounded: deleting only the first page would leave survivors behind
                 PagedResult<JobHeader> allJobs = await scheduler.QueryJobs(new JobQuery { Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
                 foreach (JobHeader job in allJobs.Items)
@@ -969,7 +959,7 @@ internal class XmlSchedulingDataProcessor
             {
                 if (!jobGroupsToNeverDelete.Contains(group))
                 {
-                    logger.LogInformation("Deleting all jobs in group: {Group}", group);
+                    logger.DeletingAllJobsInGroup(group);
                     foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group), cancellationToken).ConfigureAwait(false))
                     {
                         await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
@@ -982,7 +972,7 @@ internal class XmlSchedulingDataProcessor
         {
             if (group == "*")
             {
-                logger.LogInformation("Deleting all triggers in ALL groups.");
+                logger.DeletingAllTriggersInAllGroups();
                 // deliberately unbounded: unscheduling only the first page would leave survivors behind
                 PagedResult<TriggerHeader> allTriggers = await scheduler.QueryTriggers(new TriggerQuery { Take = int.MaxValue }, cancellationToken).ConfigureAwait(false);
                 foreach (TriggerHeader trigger in allTriggers.Items)
@@ -997,7 +987,7 @@ internal class XmlSchedulingDataProcessor
             {
                 if (!triggerGroupsToNeverDelete.Contains(group))
                 {
-                    logger.LogInformation("Deleting all triggers in group: {Group}", group);
+                    logger.DeletingAllTriggersInGroup(group);
                     foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group), cancellationToken).ConfigureAwait(false))
                     {
                         await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
@@ -1010,7 +1000,7 @@ internal class XmlSchedulingDataProcessor
         {
             if (!jobGroupsToNeverDelete.Contains(key.Group))
             {
-                logger.LogInformation("Deleting job: {Key}", key);
+                logger.DeletingJob(key);
                 await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -1019,7 +1009,7 @@ internal class XmlSchedulingDataProcessor
         {
             if (!triggerGroupsToNeverDelete.Contains(key.Group))
             {
-                logger.LogInformation("Deleting trigger: {Key}", key);
+                logger.DeletingTrigger(key);
                 await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
             }
         }

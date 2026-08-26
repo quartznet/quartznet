@@ -21,6 +21,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz.Impl;
 
@@ -119,10 +120,7 @@ internal sealed class SimpleTypeLoader : ITypeLoader
             var type = Type.GetType(candidate, false);
             if (type is not null)
             {
-                logger.LogWarning(
-                    "Type '{OldName}' was found as '{NewName}'; the type moved in Quartz 4.0. " +
-                    "Update the configuration, as this fallback will not last forever.",
-                    name, candidate);
+                logger.TypeFoundUnderNewName(name, candidate);
                 return type;
             }
         }

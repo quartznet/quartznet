@@ -309,7 +309,7 @@ public static class TimeZones
                 catch
                 {
                     var logger = LogProvider.CreateLogger(nameof(TimeZones));
-                    logger.LogError("Could not find time zone using alias id {AliasId}", aliasedId);
+                    logger.TimeZoneAliasNotFound(aliasedId);
                 }
             }
 

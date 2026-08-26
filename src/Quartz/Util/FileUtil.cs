@@ -57,7 +57,7 @@ internal sealed class FileUtil
             catch (SecurityException)
             {
                 var logger = LogProvider.CreateLogger<FileUtil>();
-                logger.LogWarning("Unable to resolve file path '{FileName}' due to security exception, probably running under medium trust", fName);
+                logger.FilePathResolutionDenied(fName);
                 return null;
             }
         }

@@ -22,6 +22,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
+using Quartz.Util;
 
 namespace Quartz.Listeners;
 
@@ -185,7 +186,7 @@ public sealed class JobChainingJobListener : IJobListener
 
         foreach (JobKey followUpJob in followUpJobs)
         {
-            logger.LogInformation("Job '{JobKey}' will now chain to Job '{Job}'", context.JobDetail.Key, followUpJob);
+            logger.ChainingToJob(context.JobDetail.Key, followUpJob);
 
             try
             {
@@ -194,7 +195,7 @@ public sealed class JobChainingJobListener : IJobListener
             catch (SchedulerException se)
             {
                 // a follow-up that could not be triggered must not cost its siblings their firing
-                logger.LogError(se, "Error encountered during chaining to Job '{Job}'", followUpJob);
+                logger.ChainingToJobFailed(followUpJob, se);
             }
         }
     }

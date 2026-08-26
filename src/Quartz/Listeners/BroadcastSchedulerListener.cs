@@ -22,6 +22,7 @@
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
+using Quartz.Util;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -226,7 +227,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
             {
                 if (logger.IsEnabled(LogLevel.Error))
                 {
-                    logger.LogError(e, "Listener method {MethodName} raised an exception: {ExceptionMessage}", methodName, e.Message);
+                    logger.SchedulerListenerRaisedException(methodName, e.Message, e);
                 }
             }
         }

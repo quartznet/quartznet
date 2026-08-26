@@ -23,6 +23,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz.Impl.Triggers;
 
@@ -447,8 +448,7 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
         else
         {
             var logger = LogProvider.CreateLogger<CronTriggerImpl>();
-            logger.LogWarning("Unrecognized misfire policy {MisfireInstruction}. Derived builder will use the default cron trigger behavior (FireOnceNow)",
-                MisfireInstructionCode);
+            logger.UnrecognizedCronMisfirePolicy(MisfireInstructionCode);
         }
 
         return cb;
