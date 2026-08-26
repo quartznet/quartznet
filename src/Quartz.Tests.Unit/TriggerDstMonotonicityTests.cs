@@ -110,6 +110,23 @@ public class TriggerDstMonotonicityTests
                     new DateTimeOffset(2019, 4, 6, 13, 0, 0, TimeSpan.Zero),
                     () => TestTimeZones.AssumeAmbiguousLocalTime(TestTimeZones.LordHowe, new DateTime(2019, 4, 7, 1, 45, 0)));
 
+            case "AmmanSpring":
+                // Midnight transition, the other way round from Santiago's: 2017-03-31 has no 00:00
+                // local, the day starts at 01:00. Jordan abolished DST in 2022, so this is frozen
+                // history rather than a rule that can move under the test.
+                return new DstWindow(
+                    TestTimeZones.Amman,
+                    new DateTimeOffset(2017, 3, 30, 20, 0, 0, TimeSpan.Zero),
+                    () => TestTimeZones.AssumeInvalidLocalTime(TestTimeZones.Amman, new DateTime(2017, 3, 31, 0, 30, 0)));
+
+            case "AmmanFall":
+                // The repeated hour is the first hour of the local day, 00:00-00:59 on 2017-10-27,
+                // which no other window here covers.
+                return new DstWindow(
+                    TestTimeZones.Amman,
+                    new DateTimeOffset(2017, 10, 26, 20, 0, 0, TimeSpan.Zero),
+                    () => TestTimeZones.AssumeAmbiguousLocalTime(TestTimeZones.Amman, new DateTime(2017, 10, 27, 0, 30, 0)));
+
             case "SydneyFall":
                 // 03:00 AEDT -> 02:00 AEST at 2024-04-06 16:00Z.
                 return new DstWindow(
@@ -218,6 +235,8 @@ public class TriggerDstMonotonicityTests
     [TestCase("CronMinutely", "LordHoweSpring", "2019-10-05 13:30 +00:00", 90)]
     [TestCase("CronMinutely", "LordHoweFall", "2019-04-06 13:00 +00:00", 90)]
     [TestCase("CronMinutely", "SydneyFall", "2024-04-06 14:00 +00:00", 90)]
+    [TestCase("CronMinutely", "AmmanSpring", "2017-03-30 20:00 +00:00", 90)]
+    [TestCase("CronMinutely", "AmmanFall", "2017-10-26 20:00 +00:00", 90)]
     [TestCase("CronHourly", "EasternSpring", "2024-03-10 05:00 +00:00", 150)]
     [TestCase("CronHourly", "EasternFall", "2024-11-03 04:00 +00:00", 150)]
     [TestCase("CronHourly", "CentralEuropeanFall", "2018-10-27 23:00 +00:00", 150)]
@@ -225,6 +244,8 @@ public class TriggerDstMonotonicityTests
     [TestCase("CronHourly", "LordHoweSpring", "2019-10-05 13:30 +00:00", 150)]
     [TestCase("CronHourly", "LordHoweFall", "2019-04-06 13:00 +00:00", 150)]
     [TestCase("CronHourly", "SydneyFall", "2024-04-06 14:00 +00:00", 150)]
+    [TestCase("CronHourly", "AmmanSpring", "2017-03-30 20:00 +00:00", 150)]
+    [TestCase("CronHourly", "AmmanFall", "2017-10-26 20:00 +00:00", 150)]
     [TestCase("CalendarIntervalHourly", "EasternSpring", "2024-03-10 05:00 +00:00", 90)]
     [TestCase("CalendarIntervalHourly", "EasternFall", "2024-11-03 04:00 +00:00", 90)]
     [TestCase("CalendarIntervalHourly", "CentralEuropeanFall", "2018-10-27 23:00 +00:00", 90)]
@@ -232,6 +253,8 @@ public class TriggerDstMonotonicityTests
     [TestCase("CalendarIntervalHourly", "LordHoweSpring", "2019-10-05 13:30 +00:00", 90)]
     [TestCase("CalendarIntervalHourly", "LordHoweFall", "2019-04-06 13:00 +00:00", 90)]
     [TestCase("CalendarIntervalHourly", "SydneyFall", "2024-04-06 14:00 +00:00", 90)]
+    [TestCase("CalendarIntervalHourly", "AmmanSpring", "2017-03-30 20:00 +00:00", 90)]
+    [TestCase("CalendarIntervalHourly", "AmmanFall", "2017-10-26 20:00 +00:00", 90)]
     // A daily schedule that preserves its wall clock spans the 25 hour fall back day, so the bound
     // is 26 hours. Observed maximum across these seven windows is exactly 25 hours (Central European
     // and Sydney fall back); the spare hour absorbs a zone whose delta is larger than one hour.
@@ -242,6 +265,8 @@ public class TriggerDstMonotonicityTests
     [TestCase("CalendarIntervalDailyPreserve", "LordHoweSpring", "2019-10-05 13:30 +00:00", 26 * 60)]
     [TestCase("CalendarIntervalDailyPreserve", "LordHoweFall", "2019-04-06 13:00 +00:00", 26 * 60)]
     [TestCase("CalendarIntervalDailyPreserve", "SydneyFall", "2024-04-06 14:00 +00:00", 26 * 60)]
+    [TestCase("CalendarIntervalDailyPreserve", "AmmanSpring", "2017-03-30 20:00 +00:00", 26 * 60)]
+    [TestCase("CalendarIntervalDailyPreserve", "AmmanFall", "2017-10-26 20:00 +00:00", 26 * 60)]
     [TestCase("DailyTimeIntervalQuarterHour", "EasternSpring", "2024-03-10 05:00 +00:00", 90)]
     [TestCase("DailyTimeIntervalQuarterHour", "EasternFall", "2024-11-03 04:00 +00:00", 90)]
     [TestCase("DailyTimeIntervalQuarterHour", "CentralEuropeanFall", "2018-10-27 23:00 +00:00", 90)]
@@ -249,6 +274,8 @@ public class TriggerDstMonotonicityTests
     [TestCase("DailyTimeIntervalQuarterHour", "LordHoweSpring", "2019-10-05 13:30 +00:00", 90)]
     [TestCase("DailyTimeIntervalQuarterHour", "LordHoweFall", "2019-04-06 13:00 +00:00", 90)]
     [TestCase("DailyTimeIntervalQuarterHour", "SydneyFall", "2024-04-06 14:00 +00:00", 90)]
+    [TestCase("DailyTimeIntervalQuarterHour", "AmmanSpring", "2017-03-30 20:00 +00:00", 90)]
+    [TestCase("DailyTimeIntervalQuarterHour", "AmmanFall", "2017-10-26 20:00 +00:00", 90)]
     [TestCase("SimpleHalfHour", "EasternSpring", "2024-03-10 05:00 +00:00", 31)]
     [TestCase("SimpleHalfHour", "EasternFall", "2024-11-03 04:00 +00:00", 31)]
     [TestCase("SimpleHalfHour", "CentralEuropeanFall", "2018-10-27 23:00 +00:00", 31)]
@@ -256,6 +283,8 @@ public class TriggerDstMonotonicityTests
     [TestCase("SimpleHalfHour", "LordHoweSpring", "2019-10-05 13:30 +00:00", 31)]
     [TestCase("SimpleHalfHour", "LordHoweFall", "2019-04-06 13:00 +00:00", 31)]
     [TestCase("SimpleHalfHour", "SydneyFall", "2024-04-06 14:00 +00:00", 31)]
+    [TestCase("SimpleHalfHour", "AmmanSpring", "2017-03-30 20:00 +00:00", 31)]
+    [TestCase("SimpleHalfHour", "AmmanFall", "2017-10-26 20:00 +00:00", 31)]
     [TestCase("RecurrenceHourly", "EasternSpring", "2024-03-10 05:00 +00:00", 150)]
     [TestCase("RecurrenceHourly", "EasternFall", "2024-11-03 04:00 +00:00", 150)]
     [TestCase("RecurrenceHourly", "CentralEuropeanFall", "2018-10-27 23:00 +00:00", 150)]
@@ -263,6 +292,8 @@ public class TriggerDstMonotonicityTests
     [TestCase("RecurrenceHourly", "LordHoweSpring", "2019-10-05 13:30 +00:00", 150)]
     [TestCase("RecurrenceHourly", "LordHoweFall", "2019-04-06 13:00 +00:00", 150)]
     [TestCase("RecurrenceHourly", "SydneyFall", "2024-04-06 14:00 +00:00", 150)]
+    [TestCase("RecurrenceHourly", "AmmanSpring", "2017-03-30 20:00 +00:00", 150)]
+    [TestCase("RecurrenceHourly", "AmmanFall", "2017-10-26 20:00 +00:00", 150)]
     public void FireTimesProgressMonotonicallyAcrossTransition(
         string triggerKind,
         string windowKey,
