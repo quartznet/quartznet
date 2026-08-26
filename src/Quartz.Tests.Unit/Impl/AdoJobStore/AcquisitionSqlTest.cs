@@ -5,27 +5,34 @@ using Quartz.Impl.AdoJobStore;
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <summary>
-/// The acquisition statement every shipped dialect produces when nothing is excluded, pinned as a
-/// snapshot.
+/// The two row-limited statements every shipped dialect produces, pinned as snapshots.
 /// </summary>
 /// <remarks>
-/// The statement is assembled from a shared template, a per-dialect row-limiting splice and an
-/// optional job-type exclusion clause. The text here is the one from before that assembly was
-/// consolidated into a single template, so a change that is meant to leave the no-exclusion
-/// statement alone has to prove it did — including the parts that look like whitespace and are not,
-/// such as SQL Server's <c>Substring(6)</c> splice and MySQL's index hint, both of which are
-/// positional and would break silently if the projection moved.
+/// Each is assembled from a shared template, a per-dialect row-limiting clause and — for acquisition
+/// — an optional job-type exclusion clause. The text here is the one from before that assembly was
+/// consolidated, so a change that is meant to leave a statement alone has to prove it did —
+/// including the parts that look like whitespace and are not, such as SQL Server's row-limit splice
+/// and MySQL's index hint, both of which used to be positional and would have broken silently if the
+/// projection moved.
 /// </remarks>
 public class AcquisitionSqlTest
 {
     private const int MaxCount = 5;
+
+    /// <summary>
+    /// A misfire recovery batch size, and the sentinel that asks for an unlimited one. Both are
+    /// snapshotted, because the row limit is what tells the two apart.
+    /// </summary>
+    private const int MisfireCount = 20;
+
+    private const int Unlimited = -1;
 
     [Test]
     public async Task EveryDialectBuildsTheAcquisitionStatementItAlwaysDidWhenNothingIsExcluded()
     {
         StringBuilder statements = new StringBuilder();
 
-        foreach (IAcquisitionSql dialect in Dialects())
+        foreach (IDialectSql dialect in Dialects())
         {
             statements.Append("=== ").Append(dialect.GetType().BaseType!.Name).AppendLine(" ===");
             statements.AppendLine(dialect.NoExclusions(MaxCount));
@@ -35,6 +42,30 @@ public class AcquisitionSqlTest
         await Verify(statements.ToString(), extension: "txt")
             .UseDirectory("../../Verify")
             .UseFileName("AcquisitionSqlTest_NoExclusions")
+            .DisableRequireUniquePrefix();
+    }
+
+    [Test]
+    public async Task EveryDialectBuildsTheMisfireRecoveryStatementItAlwaysDid()
+    {
+        StringBuilder statements = new StringBuilder();
+
+        foreach (IDialectSql dialect in Dialects())
+        {
+            string name = dialect.GetType().BaseType!.Name;
+
+            statements.Append("=== ").Append(name).AppendLine(" ===");
+            statements.AppendLine(dialect.MisfireRecovery(MisfireCount));
+            statements.AppendLine();
+
+            statements.Append("=== ").Append(name).AppendLine(" (unlimited) ===");
+            statements.AppendLine(dialect.MisfireRecovery(Unlimited));
+            statements.AppendLine();
+        }
+
+        await Verify(statements.ToString(), extension: "txt")
+            .UseDirectory("../../Verify")
+            .UseFileName("AcquisitionSqlTest_MisfireRecovery")
             .DisableRequireUniquePrefix();
     }
 
@@ -52,7 +83,7 @@ public class AcquisitionSqlTest
             .DisableRequireUniquePrefix();
     }
 
-    private static IAcquisitionSql[] Dialects() =>
+    private static IDialectSql[] Dialects() =>
     [
         new AcquisitionSqlStdAdoDelegate(),
         new AcquisitionSqlSqlServerDelegate(),
@@ -64,47 +95,63 @@ public class AcquisitionSqlTest
     ];
 
     /// <summary>
-    /// What each dialect is asked for. The hook is protected, so reaching it means deriving — which
-    /// is what a dialect author does anyway.
+    /// What each dialect is asked for. The hooks are protected, so reaching them means deriving —
+    /// which is what a dialect author does anyway.
     /// </summary>
-    private interface IAcquisitionSql
+    private interface IDialectSql
     {
         string NoExclusions(int maxCount);
+
+        string MisfireRecovery(int count);
     }
 
-    private sealed class AcquisitionSqlStdAdoDelegate : StdAdoDelegate, IAcquisitionSql
+    private sealed class AcquisitionSqlStdAdoDelegate : StdAdoDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
 
-    private sealed class AcquisitionSqlSqlServerDelegate : SqlServerDelegate, IAcquisitionSql
+    private sealed class AcquisitionSqlSqlServerDelegate : SqlServerDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
 
-    private sealed class AcquisitionSqlPostgreSQLDelegate : PostgreSQLDelegate, IAcquisitionSql
+    private sealed class AcquisitionSqlPostgreSQLDelegate : PostgreSQLDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
 
-    private sealed class AcquisitionSqlMySQLDelegate : MySQLDelegate, IAcquisitionSql
+    private sealed class AcquisitionSqlMySQLDelegate : MySQLDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
 
-    private sealed class AcquisitionSqlSQLiteDelegate : SQLiteDelegate, IAcquisitionSql
+    private sealed class AcquisitionSqlSQLiteDelegate : SQLiteDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
 
-    private sealed class AcquisitionSqlOracleDelegate : OracleDelegate, IAcquisitionSql
+    private sealed class AcquisitionSqlOracleDelegate : OracleDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
 
-    private sealed class AcquisitionSqlFirebirdDelegate : FirebirdDelegate, IAcquisitionSql
+    private sealed class AcquisitionSqlFirebirdDelegate : FirebirdDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
 
     private static TriggerAcquisitionSqlShape Shape(int maxCount) =>

@@ -1,0 +1,490 @@
+﻿=== StdAdoDelegate ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
+
+=== StdAdoDelegate (unlimited) ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
+
+=== SqlServerDelegate ===
+SELECT TOP 20  
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
+
+=== SqlServerDelegate (unlimited) ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
+
+=== PostgreSQLDelegate ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC LIMIT 20
+
+=== PostgreSQLDelegate (unlimited) ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
+
+=== MySQLDelegate ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC LIMIT 20
+
+=== MySQLDelegate (unlimited) ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
+
+=== SQLiteDelegate ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC LIMIT 20
+
+=== SQLiteDelegate (unlimited) ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
+
+=== OracleDelegate ===
+SELECT * FROM (SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC) WHERE rownum <= 20
+
+=== OracleDelegate (unlimited) ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
+
+=== FirebirdDelegate ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC ROWS 20
+
+=== FirebirdDelegate (unlimited) ===
+SELECT 
+                JOB_NAME,
+                JOB_GROUP,
+                DESCRIPTION,
+                NEXT_FIRE_TIME,
+                PREV_FIRE_TIME,
+                TRIGGER_TYPE,
+                START_TIME,
+                END_TIME,
+                CALENDAR_NAME,
+                MISFIRE_INSTR,
+                PRIORITY,
+                JOB_DATA,
+                CRON_EXPRESSION,
+                TIME_ZONE_ID,
+                REPEAT_COUNT,
+                REPEAT_INTERVAL,
+                TIMES_TRIGGERED,
+                t.MISFIRE_ORIG_FIRE_TIME,
+                t.EXECUTION_GROUP,
+                t.PREFERRED_NODE,
+                t.PREFERRED_NODE_AUTO,
+                t.TRIGGER_NAME,
+                t.TRIGGER_GROUP
+            FROM
+                {0}TRIGGERS t
+            LEFT JOIN
+                {0}SIMPLE_TRIGGERS st ON (st.SCHED_NAME = t.SCHED_NAME AND st.TRIGGER_GROUP = t.TRIGGER_GROUP AND st.TRIGGER_NAME = t.TRIGGER_NAME)
+            LEFT JOIN
+                {0}CRON_TRIGGERS ct ON (ct.SCHED_NAME = t.SCHED_NAME AND ct.TRIGGER_GROUP = t.TRIGGER_GROUP AND ct.TRIGGER_NAME = t.TRIGGER_NAME)
+            WHERE
+                t.SCHED_NAME = @schedulerName AND t.MISFIRE_INSTR <> -1 AND t.NEXT_FIRE_TIME <= @nextFireTime AND t.TRIGGER_STATE = @state
+            ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC
+
