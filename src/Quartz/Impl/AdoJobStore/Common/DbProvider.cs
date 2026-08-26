@@ -96,8 +96,8 @@ public class DbProvider : IDbProvider
         // Invokers rather than the ConstructorInfo itself: every command and every connection the store
         // opens goes through these, and ConstructorInfo.Invoke walks its argument array and re-checks the
         // signature on each call.
-        connectionConstructor = ConstructorInvoker.Create(ObjectUtils.GetDefaultConstructor(metadata.ConnectionType));
-        commandConstructor = ConstructorInvoker.Create(ObjectUtils.GetDefaultConstructor(metadata.CommandType));
+        connectionConstructor = ConstructorInvoker.Create(TypeActivator.GetDefaultConstructor(metadata.ConnectionType));
+        commandConstructor = ConstructorInvoker.Create(TypeActivator.GetDefaultConstructor(metadata.CommandType));
     }
 
     /// <inheritdoc />

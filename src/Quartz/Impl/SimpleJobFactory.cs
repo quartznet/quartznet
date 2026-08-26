@@ -30,7 +30,7 @@ namespace Quartz.Impl;
 
 /// <summary>
 /// The default JobFactory used by Quartz - simply calls
-/// <see cref="ObjectUtils.InstantiateType{T}" /> on the job class.
+/// <see cref="TypeActivator.Instantiate{T}" /> on the job class.
 /// </summary>
 /// <seealso cref="IJobFactory" />
 /// <seealso cref="PropertySettingJobFactory" />
@@ -91,7 +91,7 @@ public class SimpleJobFactory : IJobFactory
                 logger.ProducingJobInstance(jobDetail.Key, jobType.FullName);
             }
 
-            return ObjectUtils.InstantiateType<IJob>(jobType);
+            return TypeActivator.Instantiate<IJob>(jobType);
         }
         catch (Exception e)
         {

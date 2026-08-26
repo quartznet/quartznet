@@ -87,7 +87,7 @@ internal static class PropertyListenerFactory
             {
                 try
                 {
-                    ObjectUtils.SetObjectProperties(listener, listenerProperties);
+                    PropertyBinder.SetObjectProperties(listener, listenerProperties);
                 }
                 catch (Exception e)
                 {

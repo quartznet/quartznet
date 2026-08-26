@@ -295,6 +295,46 @@ public class PropertySettingJobFactoryTest
         });
     }
 
+    /// <summary>
+    /// <see cref="PropertySettingJobFactory.ConvertValueIfNecessary" /> is <c>protected virtual</c>, and
+    /// a derived factory is allowed to convert a value some other way. This pins that seam: it is the
+    /// one thing between the map and the property, so an override sees every value the factory binds,
+    /// and moving the shared coercion behind <c>ValueConverter</c> left it where it was.
+    /// </summary>
+    [Test]
+    public void ADerivedFactoryCanConvertAValueItsOwnWay()
+    {
+        JobDataMap jobDataMap = new JobDataMap
+        {
+            ["stringValue"] = "plain",
+            ["intValue"] = "1",
+        };
+
+        RecordingFactory recording = new RecordingFactory { PropertyMismatchBehavior = PropertyMismatchBehavior.Throw };
+        TestObject myObject = new TestObject();
+
+        recording.SetObjectProperties(myObject, jobDataMap);
+
+        myObject.StringValue.Should().Be("converted by the override", "the override decides, not the shared converter");
+        myObject.IntValue.Should().Be(1, "an override that defers to base for the rest still gets the base behaviour");
+        recording.Seen.Should().Contain(typeof(string)).And.Contain(typeof(int),
+            "every value the factory binds goes through the one seam, so an override sees all of them");
+    }
+
+    private sealed class RecordingFactory : PropertySettingJobFactory
+    {
+        public List<Type> Seen { get; } = [];
+
+        protected override object ConvertValueIfNecessary(Type requiredType, object newValue)
+        {
+            Seen.Add(requiredType);
+
+            return requiredType == typeof(string)
+                ? "converted by the override"
+                : base.ConvertValueIfNecessary(requiredType, newValue);
+        }
+    }
+
     internal sealed class TestObject
     {
         public bool BooleanValue { get; set; }

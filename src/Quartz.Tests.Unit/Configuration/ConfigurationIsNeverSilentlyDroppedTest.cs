@@ -939,7 +939,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     /// but the property bridge is not a caller, it is reflection, and an init accessor is an ordinary
     /// setter to <see cref="System.Reflection.PropertyInfo.SetValue" />. This pins that, because the two
     /// facts that make it work — <c>CanWrite</c> being true for an init accessor, and
-    /// <c>GetSetMethod</c> returning it — live in <c>ObjectUtils</c> and could be tightened by someone
+    /// <c>GetSetMethod</c> returning it — live in <c>PropertyBinder</c> and could be tightened by someone
     /// who reasonably believed init-only properties were not settable.
     /// </summary>
     [Test]

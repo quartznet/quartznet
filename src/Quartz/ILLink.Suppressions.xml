@@ -151,7 +151,7 @@
     </type>
 
     <!-- Values converted onto a property the compiler cannot see -->
-    <type fullname="Quartz.Util.ObjectUtils*">
+    <type fullname="Quartz.Util.ValueConverter*">
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>
         <argument>IL2026</argument>

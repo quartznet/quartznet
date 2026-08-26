@@ -16,8 +16,8 @@ namespace Quartz.Impl;
 /// <para>
 /// This replaces the reflective construction the properties-based factory used to do: there is no type
 /// loading from configuration strings, no property setting by reflection, and no
-/// <c>InstantiateType&lt;T&gt;</c> seam for a container to patch. Whatever the container holds is what
-/// the scheduler is built from.
+/// <c>InstantiateType&lt;T&gt;</c> seam for a container to patch — the name 3.x's
+/// <c>StdSchedulerFactory</c> gave it. Whatever the container holds is what the scheduler is built from.
 /// </para>
 /// <para>
 /// The graph itself is constructed by the container. What remains here is the ordering that

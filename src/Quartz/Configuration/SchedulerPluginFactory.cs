@@ -181,7 +181,7 @@ internal static class SchedulerPluginFactory
 
         try
         {
-            ObjectUtils.SetObjectProperties(plugin, pluginProperties);
+            PropertyBinder.SetObjectProperties(plugin, pluginProperties);
         }
         catch (Exception e)
         {
