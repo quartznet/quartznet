@@ -1662,7 +1662,7 @@ public partial class StdAdoDelegate
 
     public virtual void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate persistenceDelegate)
     {
-        logger.LogDebug("Adding TriggerPersistenceDelegate of type: {Type}", persistenceDelegate.GetType());
+        logger.TriggerPersistenceDelegateAdded(persistenceDelegate.GetType());
         persistenceDelegate.Initialize(new TriggerPersistenceDelegateContext
         {
             SchedulerName = schedulerName,
@@ -1905,7 +1905,7 @@ public partial class StdAdoDelegate
             }
             else
             {
-                logger.LogWarning("Misfired trigger '{TriggerKey}' has no {TriggerType} row and is skipped", keys[i], rows[i].TriggerType);
+                logger.MisfiredTriggerHasNoTypeRow(keys[i], rows[i].TriggerType);
             }
         }
 
@@ -2336,7 +2336,7 @@ public partial class StdAdoDelegate
             // just dropped — or a transaction the server has already doomed, which is what Postgres does
             // to every statement after the first error — surfaces some later, unrecognisable failure
             // instead, and a retryable operation stops being retried.
-            logger.LogWarning(e, "Batched statement execution failed, retrying {StatementCount} statement(s) individually", length);
+            logger.BatchedStatementExecutionFailed(length, e);
             await ExecuteStatementsIndividually(conn, statements, offset, length, cancellationToken).ConfigureAwait(false);
         }
     }

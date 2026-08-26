@@ -87,7 +87,7 @@ public class ExternalTransactionJobStore : AdoJobStoreBase
         }
 
         await base.Initialize(identity, cancellationToken).ConfigureAwait(false);
-        Logger.LogInformation("ExternalTransactionJobStore initialized.");
+        Logger.ExternalTransactionStoreInitialized();
     }
 
     /// <summary>
@@ -105,7 +105,7 @@ public class ExternalTransactionJobStore : AdoJobStoreBase
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex, "Database connection shutdown unsuccessful.");
+            Logger.ExternalTransactionStoreShutdownFailed(ex);
         }
     }
 

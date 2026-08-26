@@ -86,7 +86,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
 
         if (isDebugEnabled)
         {
-            logger.LogDebug("Lock '{LockName}' is desired by: {RequestorId}", lockName, requestorId);
+            logger.LockDesired(lockName, requestorId);
         }
 
         // Fast path: re-entrant acquisition by the same requestor avoids
@@ -98,7 +98,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
                 lockCount++;
                 if (isDebugEnabled)
                 {
-                    logger.LogDebug("Lock '{LockName}' reentrant acquisition by: {RequestorId} (count: {LockCount})", lockName, requestorId, lockCount);
+                    logger.LockReentrantAcquisition(lockName, requestorId, lockCount);
                 }
                 return new ValueTask<bool>(true);
             }
@@ -115,7 +115,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
     {
         if (isDebugEnabled)
         {
-            logger.LogDebug("Lock '{LockName}' is being obtained: {RequestorId}", lockName, requestorId);
+            logger.LockBeingObtained(lockName, requestorId);
         }
 
         try
@@ -126,7 +126,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
         {
             if (isDebugEnabled)
             {
-                logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId}", lockName, requestorId);
+                logger.LockNotObtained(lockName, requestorId);
             }
 
             return false;
@@ -140,7 +140,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
 
         if (isDebugEnabled)
         {
-            logger.LogDebug("Lock '{LockName}' given to: {RequestorId}", lockName, requestorId);
+            logger.LockGiven(lockName, requestorId);
         }
 
         return true;
@@ -160,8 +160,8 @@ internal sealed class SQLiteSemaphore : ISemaphore
             {
                 if (logger.IsEnabled(LogLevel.Warning))
                 {
-                    logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockKind.ToLockName(), requestorId);
-                    logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}", Environment.StackTrace);
+                    logger.LockReturnedByNonOwner(lockKind.ToLockName(), requestorId);
+                    logger.WrongfulReturnerStack(Environment.StackTrace);
                 }
 
                 return default;
@@ -172,7 +172,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
             {
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
-                    logger.LogDebug("Lock '{LockName}' reentrant release by: {RequestorId} (remaining: {LockCount})", lockKind.ToLockName(), requestorId, lockCount);
+                    logger.LockReentrantRelease(lockKind.ToLockName(), requestorId, lockCount);
                 }
 
                 return default;
@@ -185,7 +185,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}", lockKind.ToLockName(), requestorId);
+            logger.LockReturned(lockKind.ToLockName(), requestorId);
         }
 
         return default;
