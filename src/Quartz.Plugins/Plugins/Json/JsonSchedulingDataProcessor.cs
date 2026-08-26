@@ -315,7 +315,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
             var triggerGroup = NormalizeEmpty(triggerDef.Group);
             var triggerJobGroup = NormalizeEmpty(triggerDef.JobGroup);
 
-            var tb = TriggerBuilder.Create();
+            var tb = TriggerBuilder.Create(timeProvider);
             if (triggerGroup is not null) tb.WithIdentity(triggerName, triggerGroup);
             else tb.WithIdentity(triggerName);
             if (triggerJobGroup is not null) tb.ForJob(triggerJobName, triggerJobGroup);

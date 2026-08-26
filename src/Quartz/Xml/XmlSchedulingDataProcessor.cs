@@ -436,7 +436,7 @@ internal class XmlSchedulingDataProcessor
                 return;
             }
 
-            IMutableTrigger trigger = (IMutableTrigger) TriggerBuilder.Create()
+            IMutableTrigger trigger = (IMutableTrigger) TriggerBuilder.Create(timeProvider)
                 .WithIdentity(triggerName, triggerGroup)
                 .WithDescription(triggerDescription)
                 .ForJob(triggerJobName, triggerJobGroup)
