@@ -407,9 +407,14 @@ public abstract partial class AdoJobStoreBase
     /// rather than in the fifty copies of the same three lines that used to surround every delegate call.
     /// </para>
     /// <para>
-    /// An <see cref="ObjectAlreadyExistsException" /> leaves as itself. It is the one failure this store
-    /// raises on purpose and callers catch by type, so hiding it inside
-    /// <see cref="Exception.InnerException" /> would take the answer away.
+    /// Two failures pass through as themselves. A <see cref="JobPersistenceException" /> is already an
+    /// answer of this kind: either one this store raised on purpose — an
+    /// <see cref="ObjectAlreadyExistsException" /> a caller catches by type, a calendar that is still
+    /// referenced — or one an inner operation has already described. Wrapping it would push that answer
+    /// into <see cref="Exception.InnerException" />, where nobody reads it, behind a message naming only
+    /// whichever outer operation happened to be in progress. An
+    /// <see cref="OperationCanceledException" /> is not a persistence failure at all: nothing has gone
+    /// wrong with the database, the caller asked to stop, and callers match on the type.
     /// </para>
     /// </remarks>
     /// <param name="operation">The work to run.</param>
@@ -421,55 +426,36 @@ public abstract partial class AdoJobStoreBase
     /// Asked to explain a failure that is about the stored bytes rather than about the database, and
     /// appended to <paramref name="description" /> when it has an answer.
     /// </param>
-    /// <param name="wrapPersistenceFailures">
-    /// Whether a <see cref="JobPersistenceException" /> the work raised itself is wrapped in this
-    /// operation's message as well. It is everywhere but the two operations that were written to let
-    /// their own diagnostics through unprefixed.
-    /// </param>
     private static async ValueTask<T> Guarded<T>(
         Func<ValueTask<T>> operation,
         string description,
-        Func<Exception, string?>? reason = null,
-        bool wrapPersistenceFailures = true)
+        Func<Exception, string?>? reason = null)
     {
         try
         {
             return await operation().ConfigureAwait(false);
         }
-        catch (Exception e) when (ShouldWrap(e, wrapPersistenceFailures))
+        catch (Exception e) when (e is not JobPersistenceException and not OperationCanceledException)
         {
             Throw.JobPersistenceException("Couldn't " + description + reason?.Invoke(e) + ": " + e.Message, e);
             return default;
         }
     }
 
-    /// <inheritdoc cref="Guarded{T}(Func{ValueTask{T}}, string, Func{Exception, string}, bool)" />
+    /// <inheritdoc cref="Guarded{T}(Func{ValueTask{T}}, string, Func{Exception, string})" />
     private static async ValueTask Guarded(
         Func<ValueTask> operation,
         string description,
-        Func<Exception, string?>? reason = null,
-        bool wrapPersistenceFailures = true)
+        Func<Exception, string?>? reason = null)
     {
         try
         {
             await operation().ConfigureAwait(false);
         }
-        catch (Exception e) when (ShouldWrap(e, wrapPersistenceFailures))
+        catch (Exception e) when (e is not JobPersistenceException and not OperationCanceledException)
         {
             Throw.JobPersistenceException("Couldn't " + description + reason?.Invoke(e) + ": " + e.Message, e);
         }
-    }
-
-    /// <summary>
-    /// Whether <see cref="Guarded{T}(Func{ValueTask{T}}, string, Func{Exception, string}, bool)" /> takes
-    /// this failure over, or lets it pass as the answer it already is.
-    /// </summary>
-    private static bool ShouldWrap(Exception failure, bool wrapPersistenceFailures)
-    {
-        // ObjectAlreadyExistsException is itself a JobPersistenceException, so the first test also
-        // settles it for the operations that wrap persistence failures.
-        return failure is not ObjectAlreadyExistsException
-               && (wrapPersistenceFailures || failure is not JobPersistenceException);
     }
 
     /// <summary>
