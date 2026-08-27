@@ -750,20 +750,33 @@ public abstract partial class AdoJobStoreBase
     /// Deletes the triggers whose last fired-trigger row this pass has just removed and which had
     /// already run to COMPLETE — nothing else is ever going to clean them up.
     /// </summary>
+    /// <remarks>
+    /// Which of the node's triggers are COMPLETE is one read for the whole set, where it used to be a
+    /// state per key: the answer for a node that left nothing complete behind — which is the ordinary
+    /// case — costs one round trip rather than one per trigger it was holding. What follows is per
+    /// trigger, and stays that way: only the triggers that came back COMPLETE reach it, and each of
+    /// them asks a question whose answer decides whether the delete beside it is issued at all.
+    /// </remarks>
     private async ValueTask<int> DeleteTriggersLeftComplete(
         ConnectionAndTransactionHolder conn,
         FailedInstanceResidue residue,
         CancellationToken cancellationToken)
     {
+        if (residue.TriggerKeys.Count == 0)
+        {
+            return 0;
+        }
+
+        List<TriggerKey> complete = await Delegate.SelectTriggerKeysInState(
+            conn,
+            residue.TriggerKeys,
+            StoredTriggerState.Complete,
+            cancellationToken).ConfigureAwait(false);
+
         int completeCount = 0;
 
-        foreach (TriggerKey triggerKey in residue.TriggerKeys)
+        foreach (TriggerKey triggerKey in complete)
         {
-            if (await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false) != StoredTriggerState.Complete)
-            {
-                continue;
-            }
-
             List<FiredTriggerRecord> firedTriggers = await Delegate.SelectFiredTriggerRecords(
                 conn,
                 new FiredTriggerQuery { Trigger = triggerKey },

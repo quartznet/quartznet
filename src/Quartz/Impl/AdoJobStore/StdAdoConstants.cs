@@ -668,6 +668,15 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectTriggersInState =
         Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State}");
 
+    /// <summary>
+    /// Prefix of the state filter over a set of keys — which of these triggers are in this state; the
+    /// caller appends a key-set predicate built by <c>AdoUtil.BuildTriggerKeyPredicate</c>. The state
+    /// is named before the keys, so a binder walking the statement's parameters in order binds it
+    /// second.
+    /// </summary>
+    public static readonly string SqlSelectTriggerKeysInStatePrefix =
+        Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerState} = @{SqlParameters.State} AND ");
+
     public static readonly string SqlSelectTriggerType =
         Invariant($"SELECT {AdoConstants.ColumnTriggerType} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
