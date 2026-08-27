@@ -83,6 +83,28 @@ public class AcquisitionSqlTest
             .DisableRequireUniquePrefix();
     }
 
+    /// <summary>
+    /// Every shipped dialect says it keeps the excluded job types out itself, and the store takes that
+    /// at its word — so a dialect whose statement lost the clause would silently run what a deployment
+    /// excluded. The declaration and the statement are checked together for exactly that reason.
+    /// </summary>
+    [Test]
+    public void EveryShippedDialectDeclaresTheExclusionFilterItsStatementActuallyCarries()
+    {
+        foreach (IDialectSql dialect in Dialects())
+        {
+            string name = dialect.GetType().BaseType!.Name;
+
+            ((IDriverDelegate) dialect).FiltersAcquisitionJobTypeExclusions.Should().BeTrue(
+                $"{name} builds its acquisition statement from the one that carries the NOT IN clause");
+
+            dialect.WithExclusions(MaxCount, bucket: 2).Should()
+                .Contain("@" + StdAdoConstants.ExcludedJobTypeParameter(0), $"{name} must bind the first excluded name")
+                .And.Contain("@" + StdAdoConstants.ExcludedJobTypeParameter(1),
+                    $"{name} declares that it filters, which is only true while its statement carries a term per excluded name");
+        }
+    }
+
     private static IDialectSql[] Dialects() =>
     [
         new AcquisitionSqlStdAdoDelegate(),
@@ -102,12 +124,16 @@ public class AcquisitionSqlTest
     {
         string NoExclusions(int maxCount);
 
+        string WithExclusions(int maxCount, int bucket);
+
         string MisfireRecovery(int count);
     }
 
     private sealed class AcquisitionSqlStdAdoDelegate : StdAdoDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string WithExclusions(int maxCount, int bucket) => GetSelectNextTriggerToAcquireSql(new TriggerAcquisitionSqlShape(maxCount, bucket));
 
         public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
@@ -116,12 +142,16 @@ public class AcquisitionSqlTest
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
 
+        public string WithExclusions(int maxCount, int bucket) => GetSelectNextTriggerToAcquireSql(new TriggerAcquisitionSqlShape(maxCount, bucket));
+
         public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
 
     private sealed class AcquisitionSqlPostgreSQLDelegate : PostgreSQLDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string WithExclusions(int maxCount, int bucket) => GetSelectNextTriggerToAcquireSql(new TriggerAcquisitionSqlShape(maxCount, bucket));
 
         public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
@@ -130,12 +160,16 @@ public class AcquisitionSqlTest
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
 
+        public string WithExclusions(int maxCount, int bucket) => GetSelectNextTriggerToAcquireSql(new TriggerAcquisitionSqlShape(maxCount, bucket));
+
         public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
 
     private sealed class AcquisitionSqlSQLiteDelegate : SQLiteDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string WithExclusions(int maxCount, int bucket) => GetSelectNextTriggerToAcquireSql(new TriggerAcquisitionSqlShape(maxCount, bucket));
 
         public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
@@ -144,12 +178,16 @@ public class AcquisitionSqlTest
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
 
+        public string WithExclusions(int maxCount, int bucket) => GetSelectNextTriggerToAcquireSql(new TriggerAcquisitionSqlShape(maxCount, bucket));
+
         public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }
 
     private sealed class AcquisitionSqlFirebirdDelegate : FirebirdDelegate, IDialectSql
     {
         public string NoExclusions(int maxCount) => GetSelectNextTriggerToAcquireSql(Shape(maxCount));
+
+        public string WithExclusions(int maxCount, int bucket) => GetSelectNextTriggerToAcquireSql(new TriggerAcquisitionSqlShape(maxCount, bucket));
 
         public string MisfireRecovery(int count) => GetSelectMisfiredTriggersToRecoverSql(count);
     }

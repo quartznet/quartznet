@@ -2438,6 +2438,7 @@ namespace Quartz.Impl.AdoJobStore
     }
     public interface IDriverDelegate
     {
+        bool FiltersAcquisitionJobTypeExclusions { get; }
         System.Threading.Tasks.ValueTask ApplyTriggerFired(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.TriggerFiredUpdate update, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> CalendarExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> CalendarIsReferenced(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
@@ -2768,6 +2769,7 @@ namespace Quartz.Impl.AdoJobStore
         public StdAdoDelegate() { }
         protected virtual bool CanUseProperties { get; }
         protected Quartz.Impl.AdoJobStore.Common.IDbProvider DbProvider { get; }
+        public virtual bool FiltersAcquisitionJobTypeExclusions { get; }
         public virtual void AddCommandParameter(System.Data.Common.DbCommand cmd, string paramName, object? paramValue, System.Enum? dataType = null, int? size = default) { }
         protected virtual void AddDefaultTriggerPersistenceDelegates() { }
         protected virtual void AddPagingParameters(System.Data.Common.DbCommand cmd, int skip, int take, bool takeLimited) { }

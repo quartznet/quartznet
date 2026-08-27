@@ -166,9 +166,12 @@ public abstract partial class AdoJobStoreBase
                     currentLoopCount++;
                     // Built inside the loop, so each retry asks again and sees the time it retried at.
                     TriggerAcquisitionCriteria criteria = CreateAcquisitionCriteria(request);
-                    // This delegate fallback deliberately compares ordinally; SQL filtering follows the
-                    // job-class column's collation and is not guaranteed to agree.
-                    HashSet<string>? excludedJobTypeNames = criteria.ExcludedJobTypeNames is { Count: > 0 } names
+                    // The backstop for a delegate that does not keep the excluded job types out itself.
+                    // Not built at all for one that says it does — which is every dialect Quartz ships —
+                    // so the shipped path pays nothing for it. It deliberately compares ordinally; SQL
+                    // filtering follows the job-class column's collation and is not guaranteed to agree.
+                    HashSet<string>? excludedJobTypeNames = !Delegate.FiltersAcquisitionJobTypeExclusions
+                                                            && criteria.ExcludedJobTypeNames is { Count: > 0 } names
                         ? new HashSet<string>(names, StringComparer.Ordinal)
                         : null;
 
@@ -196,6 +199,16 @@ public abstract partial class AdoJobStoreBase
 
                     foreach (var result in results)
                     {
+                        // The delegate was told which job types this node will not run, and did not say
+                        // it enforces that itself. Dropping the candidate here — on the name the
+                        // acquisition read already returned — is what keeps the promise; doing it before
+                        // the read below is what keeps it from costing a round trip and a type
+                        // resolution per candidate (#3443).
+                        if (excludedJobTypeNames is not null && excludedJobTypeNames.Contains(result.JobTypeName))
+                        {
+                            continue; // next trigger
+                        }
+
                         TriggerKey triggerKey = result.TriggerKey;
 
                         // If our trigger is no longer available, try a new one.
@@ -229,11 +242,6 @@ public abstract partial class AdoJobStoreBase
                                 Logger.TriggerErrorStateUpdateFailed(ex);
                             }
                             continue;
-                        }
-
-                        if (excludedJobTypeNames is not null && excludedJobTypeNames.Contains(result.JobTypeName))
-                        {
-                            continue; // next trigger — this delegate did not filter it out itself
                         }
 
                         // The same question JobDetailImpl answers, answered the same way: the attribute is
