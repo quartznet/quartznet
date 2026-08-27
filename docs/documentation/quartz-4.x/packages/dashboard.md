@@ -118,8 +118,8 @@ This section says what each page shows. What the numbers on them *mean* for a cl
 
 ### Overview
 
-`/quartz` — the page a scheduler is judged from. It opens with the scheduler's status and — outside read-only mode —
-the controls that change it: start, stand-by, pause all, resume all and shutdown.
+`/quartz` — the page a scheduler is judged from. It opens with the scheduler's status and, outside
+read-only mode, the controls that change it: start, stand-by, pause all, resume all and shutdown.
 
 Beside the totals — jobs, triggers, firings in flight, triggers in error, nodes — it carries four
 breakdowns, because a total is rarely the thing that explains why work is not being done:
@@ -145,7 +145,9 @@ breakdowns, because a total is rarely the thing that explains why work is not be
 
 The **Nodes** tile is the one with a verdict in it: it carries the node count, and beside it the number
 that are not `Alive` when there are any — a cluster of four is only news when one of them has stopped
-checking in. It is a link to the Cluster page, and it is shown only for a store that has nodes to count.
+checking in, and the tile turns red when it is. It is a link to the Cluster page. A scheduler that is
+not clustered reads `1` here, which is the honest answer rather than a missing tile: it is one node.
+
 Below the breakdowns the page ends with the most recent entries from the [Action Log](#action-log).
 
 ### Jobs, Triggers and Calendars
@@ -284,7 +286,9 @@ does not matter. A scheduler registered with `AddQuartz("acme", …)` therefore 
 view and History page just like the default one; each scheduler gets its own instance of each plugin,
 initialized with its own name, and history entries are attributed to the scheduler that produced them.
 
-It does this with `ConfigureAllQuartzSchedulers`, so nothing extra is written at the call site.
+It does this with `ConfigureAllQuartzSchedulers`, so nothing extra is written at the call site. Which
+schedulers those are is what [the Schedulers page](#schedulers) lists — every registration in the
+container, built or not.
 
 ::: warning Fixed in 4.0.0-alpha.2
 The dashboard's plugins used to be registered without a service key, which meant only a scheduler
@@ -292,9 +296,6 @@ registered by `AddQuartz()` — the unnamed, default one — ever ran them. A na
 scheduler selector and its jobs and triggers rendered, but its Live Logs view and its History page were
 silently always empty. There was nothing to configure to get them; this is a fix rather than a new option.
 :::
-
-Which schedulers those are is [the Schedulers page](#schedulers) — every registration
-in the container, built or not.
 
 ## Hosting under a custom path
 
