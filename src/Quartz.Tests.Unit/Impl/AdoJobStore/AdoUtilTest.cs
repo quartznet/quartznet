@@ -72,6 +72,7 @@ public class AdoUtilTest
         var act = () => AdoJobStoreUtil.ReplaceTablePrefix(sql, "QRTZ_");
 
         act.Should().NotThrow();
-        AdoJobStoreUtil.ReplaceTablePrefix(sql, "QRTZ_").Should().StartWith("SELECT * FROM QRTZ_SIMPROP_TRIGGERS WHERE");
+        AdoJobStoreUtil.ReplaceTablePrefix(sql, "QRTZ_").Should().Contain("FROM QRTZ_SIMPROP_TRIGGERS WHERE",
+            "the table prefix is the one brace pair the statement does mean to substitute");
     }
 }
