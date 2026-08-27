@@ -713,6 +713,28 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             "moving store selection into code must not silently drop the delegate named in configuration");
     }
 
+    /// <summary>
+    /// A driver delegate is the one component whose type name a persistent configuration nearly always
+    /// spells out by hand — dialect, namespace and assembly — so a misspelling is the likeliest way this
+    /// key goes wrong, and the store has an exception for exactly that failure.
+    /// </summary>
+    [Test]
+    public void AMisspelledDriverDelegateTypeIsReportedAsNoSuchDelegate()
+    {
+        var services = new ServiceCollection();
+
+        var act = () => services.AddQuartz(
+            new NameValueCollection { ["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelagate, Quartz" },
+            UseStubbedPersistentStore);
+
+        act.Should().Throw<NoSuchDelegateException>(
+                "a type name that does not resolve is a missing delegate, not an unclassified type-load failure")
+            .WithMessage("*Quartz.Impl.AdoJobStore.SqlServerDelagate, Quartz*",
+                "the message has to name the value that was configured, or there is nothing to correct")
+            .WithInnerException<TypeLoadException>(
+                "the loader's own report of what it looked for is worth keeping as the cause");
+    }
+
     [Test]
     public void AConnectionProviderKeyAppliesWhenTheStoreIsChosenInCode()
     {

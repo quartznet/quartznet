@@ -464,6 +464,39 @@ internal static class QuartzPropertyBridge
         parser.Int("quartz.threadPool.maxConcurrency", value => options.MaxConcurrency = value);
     }
 
+    /// <summary>
+    /// Resolves <c>quartz.jobStore.driverDelegateType</c>, reporting a name that does not resolve as the
+    /// exception the ADO.NET store keeps for exactly this.
+    /// </summary>
+    /// <remarks>
+    /// The type loader raises a <see cref="TypeLoadException" /> naming the type it could not find, which
+    /// says nothing about which setting asked for it — and a driver delegate is the one component whose
+    /// type name a persistent configuration nearly always spells out by hand, dialect and assembly and
+    /// all. <see cref="NoSuchDelegateException" /> is what the store's own failure to find a delegate has
+    /// always been called, and it carries the loader's exception as its cause.
+    /// </remarks>
+    private static Type? DriverDelegateType(PropertyReader parser)
+    {
+        const string Key = "quartz.jobStore.driverDelegateType";
+
+        if (parser.String(Key) is not { } configured)
+        {
+            return null;
+        }
+
+        try
+        {
+            return parser.Type(Key);
+        }
+        catch (Exception exception) when (exception is not NoSuchDelegateException)
+        {
+            Throw.NoSuchDelegateException(
+                $"Driver delegate type '{configured}', configured by '{Key}', could not be loaded.",
+                exception);
+            return null;
+        }
+    }
+
     private static void RegisterJobStore(
         IServiceCollection services,
         PropertyReader parser,
@@ -472,7 +505,7 @@ internal static class QuartzPropertyBridge
         // The delegate and lock handler stand on their own: an application that has moved store
         // selection into code can still be naming its driver delegate in a configuration file, and
         // returning early on a missing quartz.jobStore.type would drop it.
-        Register<IDriverDelegate>(services, schedulerName, parser.Type("quartz.jobStore.driverDelegateType"));
+        Register<IDriverDelegate>(services, schedulerName, DriverDelegateType(parser));
 
         RegisterConnectionProvider(services, parser, schedulerName);
 
