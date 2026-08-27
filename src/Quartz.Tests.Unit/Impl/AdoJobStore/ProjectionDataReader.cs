@@ -81,8 +81,12 @@ internal sealed class ProjectionDataReader : DbDataReader
         AdoConstants.ColumnCronExpression => "0 0 12 * * ?",
         AdoConstants.ColumnTimeZoneId => "UTC",
 
+        AdoConstants.ColumnTriggerState => AdoConstants.StateWaiting,
+        AdoConstants.ColumnTriggerType => AdoConstants.TriggerTypeSimple,
+
         // Stored as UTC ticks.
-        AdoConstants.ColumnFiredTime or AdoConstants.ColumnScheduledTime or AdoConstants.ColumnLastCheckinTime => 638_000_000_000_000_000L,
+        AdoConstants.ColumnFiredTime or AdoConstants.ColumnScheduledTime or AdoConstants.ColumnLastCheckinTime
+            or AdoConstants.ColumnNextFireTime => 638_000_000_000_000_000L,
 
         // Stored as whole milliseconds.
         AdoConstants.ColumnCheckinInterval or AdoConstants.ColumnRepeatInterval => 15_000L,
