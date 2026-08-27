@@ -165,13 +165,19 @@ internal static class StdAdoConstants
         Invariant($"SELECT {AdoConstants.ColumnBlob}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableBlobTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND ");
 
     /// <summary>
+    /// The key columns a batch lookup projects beside the row's own, so that the caller can match each
+    /// row back to the key it asked for.
+    /// </summary>
+    private const string TriggerKeySelectColumns = $"{AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}";
+
+    /// <summary>
     /// Prefix of the batch simple-properties trigger lookup; the caller appends a key-set predicate built
     /// by <c>AdoUtil.BuildTriggerKeyPredicate</c>. All simple-properties trigger types
     /// (calendar-interval, daily-time-interval, recurrence, and any custom ones) share this one table, so a
     /// single query covers them all — the per-row discriminator comes from TRIGGERS.TRIGGER_TYPE.
     /// </summary>
     public static readonly string SqlSelectSimpropTriggersByKeysPrefix =
-        Invariant($"SELECT * FROM {TablePrefixSubst}SIMPROP_TRIGGERS WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND ");
+        Invariant($"SELECT {SimplePropertiesTriggerPersistenceDelegateBase.SelectColumns}, {TriggerKeySelectColumns} FROM {TablePrefixSubst}SIMPROP_TRIGGERS WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND ");
 
     public static readonly string SqlSelectCalendar =
         Invariant($"SELECT {AdoConstants.ColumnCalendar} FROM {TablePrefixSubst}{AdoConstants.TableCalendars} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnCalendarName} = @calendarName");
@@ -179,15 +185,28 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectCalendarExistence =
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableCalendars} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnCalendarName} = @calendarName");
 
+    /// <summary>
+    /// Every column <c>CronTriggerPersistenceDelegate.ReadTriggerPropertyBundle</c> reads, and only
+    /// those. Shared by the single-key and batch lookups so the two cannot drift apart.
+    /// </summary>
+    private const string CronTriggerSelectColumns = $"{AdoConstants.ColumnCronExpression}, {AdoConstants.ColumnTimeZoneId}";
+
     public static readonly string SqlSelectCronTriggers =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{AdoConstants.TableCronTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
+        Invariant($"SELECT {CronTriggerSelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableCronTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
+
+    /// <summary>
+    /// Every column <c>StdAdoDelegate.ReadFiredTriggerRecord</c> reads, and only those — EXECUTION_GROUP
+    /// is on the row but not on <see cref="FiredTriggerRecord" />, so it is not fetched.
+    /// </summary>
+    private const string FiredTriggerSelectColumns =
+        $"{AdoConstants.ColumnEntryId}, {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnEntryState}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnIsNonConcurrent}, {AdoConstants.ColumnRequestsRecovery}, {AdoConstants.ColumnPriority}";
 
     /// <summary>
     /// Selects every fired trigger of the scheduler; the caller appends the predicates of a
     /// <see cref="FiredTriggerQuery" /> to narrow it.
     /// </summary>
     public static readonly string SqlSelectFiredTriggers =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+        Invariant($"SELECT {FiredTriggerSelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
 
     // FIRED_TRIGGERS predicates, shared by the select and the delete so the two cannot filter
     // differently. They are appended — and their parameters bound — in the order declared here,
@@ -208,8 +227,16 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectCountExecutingFiredTriggersOfJob =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnJobName} = @jobName AND {AdoConstants.ColumnJobGroup} = @jobGroup AND {AdoConstants.ColumnEntryState} = @executingState");
 
+    /// <summary>
+    /// Every column <c>StdAdoDelegate.SelectTriggersForRecoveringJobs</c> reads, and only those. It
+    /// builds a recovery trigger rather than a <see cref="FiredTriggerRecord" />, so it needs fewer
+    /// columns than <see cref="SqlSelectFiredTriggers" /> does.
+    /// </summary>
+    private const string RecoverableFiredTriggerSelectColumns =
+        $"{AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnFiredTime}, {AdoConstants.ColumnScheduledTime}, {AdoConstants.ColumnPriority}";
+
     public static readonly string SqlSelectInstancesRecoverableFiredTriggers =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnInstanceName} = @instanceName AND {AdoConstants.ColumnRequestsRecovery} = @requestsRecovery");
+        Invariant($"SELECT {RecoverableFiredTriggerSelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableFiredTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnInstanceName} = @instanceName AND {AdoConstants.ColumnRequestsRecovery} = @requestsRecovery");
 
     /// <summary>
     /// Column list shared by <see cref="SqlSelectJobDetail" /> and <see cref="SqlSelectJobDetailsByKeysPrefix" />,
@@ -438,14 +465,28 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectReferencedCalendar =
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnCalendarName} = @calendarName");
 
+    /// <summary>
+    /// The three columns a <see cref="SchedulerStateRecord" /> is made of. SCHED_NAME is the fourth
+    /// column of the table and is not projected: it is the parameter the statement filters on.
+    /// </summary>
+    private const string SchedulerStateSelectColumns =
+        $"{AdoConstants.ColumnInstanceName}, {AdoConstants.ColumnLastCheckinTime}, {AdoConstants.ColumnCheckinInterval}";
+
     public static readonly string SqlSelectSchedulerState =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnInstanceName} = @instanceName");
+        Invariant($"SELECT {SchedulerStateSelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnInstanceName} = @instanceName");
 
     public static readonly string SqlSelectSchedulerStates =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+        Invariant($"SELECT {SchedulerStateSelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+
+    /// <summary>
+    /// Every column <c>SimpleTriggerPersistenceDelegate.ReadTriggerPropertyBundle</c> reads, and only
+    /// those. Shared by the single-key and batch lookups so the two cannot drift apart.
+    /// </summary>
+    private const string SimpleTriggerSelectColumns =
+        $"{AdoConstants.ColumnRepeatCount}, {AdoConstants.ColumnRepeatInterval}, {AdoConstants.ColumnTimesTriggered}";
 
     public static readonly string SqlSelectSimpleTrigger =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{AdoConstants.TableSimpleTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
+        Invariant($"SELECT {SimpleTriggerSelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableSimpleTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
 
     /// <summary>
     /// Column list shared by <see cref="SqlSelectTrigger" /> and <see cref="SqlSelectMisfiredTriggersToRecover" />,
@@ -544,14 +585,14 @@ internal static class StdAdoConstants
     /// <c>AdoUtil.BuildTriggerKeyPredicate</c>.
     /// </summary>
     public static readonly string SqlSelectSimpleTriggersByKeysPrefix =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{AdoConstants.TableSimpleTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND ");
+        Invariant($"SELECT {SimpleTriggerSelectColumns}, {TriggerKeySelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableSimpleTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND ");
 
     /// <summary>
     /// Prefix of the batch cron-trigger lookup; the caller appends a key-set predicate built by
     /// <c>AdoUtil.BuildTriggerKeyPredicate</c>.
     /// </summary>
     public static readonly string SqlSelectCronTriggersByKeysPrefix =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{AdoConstants.TableCronTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND ");
+        Invariant($"SELECT {CronTriggerSelectColumns}, {TriggerKeySelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableCronTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND ");
 
     public static readonly string SqlSelectTriggerData =
         Invariant($"SELECT {AdoConstants.ColumnJobDataMap} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");

@@ -57,7 +57,20 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
     protected const string ColumnBoolProp2 = "BOOL_PROP_2";
     protected const string ColumnTimeZoneId = "TIME_ZONE_ID";
 
-    private const string SelectSimplePropsTrigger = "SELECT *" + " FROM "
+    /// <summary>
+    /// Every column <see cref="ReadTriggerPropertyBundle" /> reads, and only those. Shared with the
+    /// batch lookup in <c>StdAdoConstants</c>, so the single-key and batch read paths cannot drift
+    /// apart, and named rather than starred so that a column a migration or a user adds to the table
+    /// does not change what comes back.
+    /// </summary>
+    internal const string SelectColumns =
+        ColumnStrProp1 + ", " + ColumnStrProp2 + ", " + ColumnStrProp3 + ", "
+        + ColumnIntProp1 + ", " + ColumnIntProp2 + ", "
+        + ColumnLongProp1 + ", " + ColumnLongProp2 + ", "
+        + ColumnDecProp1 + ", " + ColumnDecProp2 + ", "
+        + ColumnBoolProp1 + ", " + ColumnBoolProp2 + ", " + ColumnTimeZoneId;
+
+    private const string SelectSimplePropsTrigger = "SELECT " + SelectColumns + " FROM "
                                                                  + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
                                                                  + AdoConstants.ColumnSchedulerName + " = @schedulerName"
                                                                  + " AND " + AdoConstants.ColumnTriggerName + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
