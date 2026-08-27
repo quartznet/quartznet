@@ -61,9 +61,9 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlDeleteSimpleTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.SchedulerName, SchedulerName);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -78,12 +78,12 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
         ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlInsertSimpleTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        DbAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
-        DbAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
-        DbAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.SchedulerName, SchedulerName);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerName, trigger.Key.Name);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerGroup, trigger.Key.Group);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerRepeatCount, simpleTrigger.RepeatCount);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerRepeatInterval, DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerTimesTriggered, simpleTrigger.TimesTriggered);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -94,9 +94,9 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.SchedulerName, SchedulerName);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -172,12 +172,12 @@ public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelega
 
         return
         [
-            new SqlStatementParameter("schedulerName", SchedulerName),
-            new SqlStatementParameter("triggerRepeatCount", simpleTrigger.RepeatCount),
-            new SqlStatementParameter("triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval)),
-            new SqlStatementParameter("triggerTimesTriggered", simpleTrigger.TimesTriggered),
-            new SqlStatementParameter("triggerName", trigger.Key.Name),
-            new SqlStatementParameter("triggerGroup", trigger.Key.Group)
+            new SqlStatementParameter(SqlParameters.SchedulerName, SchedulerName),
+            new SqlStatementParameter(SqlParameters.TriggerRepeatCount, simpleTrigger.RepeatCount),
+            new SqlStatementParameter(SqlParameters.TriggerRepeatInterval, DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval)),
+            new SqlStatementParameter(SqlParameters.TriggerTimesTriggered, simpleTrigger.TimesTriggered),
+            new SqlStatementParameter(SqlParameters.TriggerName, trigger.Key.Name),
+            new SqlStatementParameter(SqlParameters.TriggerGroup, trigger.Key.Group)
         ];
     }
 }

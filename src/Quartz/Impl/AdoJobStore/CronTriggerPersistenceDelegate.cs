@@ -63,9 +63,9 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlDeleteCronTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.SchedulerName, SchedulerName);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -80,11 +80,11 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlInsertCronTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
-        DbAccessor.AddCommandParameter(cmd, "triggerTimeZone", cronTrigger.TimeZone.Id);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.SchedulerName, SchedulerName);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerName, trigger.Key.Name);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerGroup, trigger.Key.Group);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerCronExpression, cronTrigger.CronExpressionString);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerTimeZone, cronTrigger.TimeZone.Id);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -95,9 +95,9 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.SchedulerName, SchedulerName);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -175,11 +175,11 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 
         return
         [
-            new SqlStatementParameter("schedulerName", SchedulerName),
-            new SqlStatementParameter("triggerCronExpression", cronTrigger.CronExpressionString),
-            new SqlStatementParameter("timeZoneId", cronTrigger.TimeZone.Id),
-            new SqlStatementParameter("triggerName", trigger.Key.Name),
-            new SqlStatementParameter("triggerGroup", trigger.Key.Group)
+            new SqlStatementParameter(SqlParameters.SchedulerName, SchedulerName),
+            new SqlStatementParameter(SqlParameters.TriggerCronExpression, cronTrigger.CronExpressionString),
+            new SqlStatementParameter(SqlParameters.TimeZoneId, cronTrigger.TimeZone.Id),
+            new SqlStatementParameter(SqlParameters.TriggerName, trigger.Key.Name),
+            new SqlStatementParameter(SqlParameters.TriggerGroup, trigger.Key.Group)
         ];
     }
 }

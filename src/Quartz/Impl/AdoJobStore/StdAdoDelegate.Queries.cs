@@ -48,8 +48,8 @@ public partial class StdAdoDelegate
     protected virtual string ApplyPaging(string sql, bool takeLimited)
     {
         return takeLimited
-            ? sql + " OFFSET @pageSkip ROWS FETCH NEXT @pageTake ROWS ONLY"
-            : sql + " OFFSET @pageSkip ROWS";
+            ? sql + " OFFSET @" + SqlParameters.PageSkip + " ROWS FETCH NEXT @" + SqlParameters.PageTake + " ROWS ONLY"
+            : sql + " OFFSET @" + SqlParameters.PageSkip + " ROWS";
     }
 
     /// <summary>
@@ -64,10 +64,10 @@ public partial class StdAdoDelegate
     /// <param name="takeLimited">Whether the page has an upper bound.</param>
     protected virtual void AddPagingParameters(DbCommand cmd, int skip, int take, bool takeLimited)
     {
-        AddCommandParameter(cmd, "pageSkip", skip);
+        AddCommandParameter(cmd, SqlParameters.PageSkip, skip);
         if (takeLimited)
         {
-            AddCommandParameter(cmd, "pageTake", take);
+            AddCommandParameter(cmd, SqlParameters.PageTake, take);
         }
     }
 
@@ -237,7 +237,7 @@ public partial class StdAdoDelegate
         if (IsCountOnly(query))
         {
             using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobHeaders + predicate));
-            AddCommandParameter(countCmd, "schedulerName", schedulerName);
+            AddCommandParameter(countCmd, SqlParameters.SchedulerName, schedulerName);
             BindJobHeaderFilters(countCmd, groupParameter, nameParameter);
 
             return CountOnlyResult<JobHeader>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
@@ -248,7 +248,7 @@ public partial class StdAdoDelegate
 
         using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectJobHeaders + predicate + StdAdoConstants.SqlOrderByJobGroupAndName, query))))
         {
-            AddCommandParameter(cmd, "schedulerName", schedulerName);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             BindJobHeaderFilters(cmd, groupParameter, nameParameter);
             BindPaging(cmd, query);
 
@@ -259,7 +259,7 @@ public partial class StdAdoDelegate
         if (query.IncludeTotalCount)
         {
             using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobHeaders + predicate));
-            AddCommandParameter(cmd, "schedulerName", schedulerName);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             BindJobHeaderFilters(cmd, groupParameter, nameParameter);
 
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
@@ -276,12 +276,12 @@ public partial class StdAdoDelegate
     {
         if (groupParameter is not null)
         {
-            AddCommandParameter(cmd, "jobGroup", groupParameter);
+            AddCommandParameter(cmd, SqlParameters.JobGroup, groupParameter);
         }
 
         if (nameParameter is not null)
         {
-            AddCommandParameter(cmd, "jobName", nameParameter);
+            AddCommandParameter(cmd, SqlParameters.JobName, nameParameter);
         }
     }
 
@@ -366,7 +366,7 @@ public partial class StdAdoDelegate
         if (IsCountOnly(query))
         {
             using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountTriggerHeaders + predicate));
-            AddCommandParameter(countCmd, "schedulerName", schedulerName);
+            AddCommandParameter(countCmd, SqlParameters.SchedulerName, schedulerName);
             foreach (KeyValuePair<string, object?> parameter in parameters)
             {
                 AddCommandParameter(countCmd, parameter.Key, parameter.Value);
@@ -380,7 +380,7 @@ public partial class StdAdoDelegate
 
         using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectTriggerHeaders + predicate + StdAdoConstants.SqlOrderByTriggerGroupAndName, query))))
         {
-            AddCommandParameter(cmd, "schedulerName", schedulerName);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             foreach (KeyValuePair<string, object?> parameter in parameters)
             {
                 AddCommandParameter(cmd, parameter.Key, parameter.Value);
@@ -395,7 +395,7 @@ public partial class StdAdoDelegate
         if (query.IncludeTotalCount)
         {
             using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountTriggerHeaders + predicate));
-            AddCommandParameter(cmd, "schedulerName", schedulerName);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             foreach (KeyValuePair<string, object?> parameter in parameters)
             {
                 AddCommandParameter(cmd, parameter.Key, parameter.Value);
@@ -472,7 +472,7 @@ public partial class StdAdoDelegate
         if (IsCountOnly(query))
         {
             using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
-            AddCommandParameter(countCmd, "schedulerName", schedulerName);
+            AddCommandParameter(countCmd, SqlParameters.SchedulerName, schedulerName);
             BindGroupName(countCmd, query.Name);
 
             return CountOnlyResult<JobGroup>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
@@ -483,7 +483,7 @@ public partial class StdAdoDelegate
 
         using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(sql + predicate + orderBy, query))))
         {
-            AddCommandParameter(cmd, "schedulerName", schedulerName);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             BindGroupName(cmd, query.Name);
             BindPaging(cmd, query);
 
@@ -498,7 +498,7 @@ public partial class StdAdoDelegate
         if (query.IncludeTotalCount)
         {
             using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
-            AddCommandParameter(cmd, "schedulerName", schedulerName);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             BindGroupName(cmd, query.Name);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }
@@ -545,7 +545,7 @@ public partial class StdAdoDelegate
         if (IsCountOnly(query))
         {
             using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
-            AddCommandParameter(countCmd, "schedulerName", schedulerName);
+            AddCommandParameter(countCmd, SqlParameters.SchedulerName, schedulerName);
             BindGroupName(countCmd, query.Name);
 
             return CountOnlyResult<TriggerGroup>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
@@ -556,7 +556,7 @@ public partial class StdAdoDelegate
 
         using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(sql + predicate + orderBy, query))))
         {
-            AddCommandParameter(cmd, "schedulerName", schedulerName);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             BindGroupName(cmd, query.Name);
             BindPaging(cmd, query);
 
@@ -571,7 +571,7 @@ public partial class StdAdoDelegate
         if (query.IncludeTotalCount)
         {
             using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
-            AddCommandParameter(cmd, "schedulerName", schedulerName);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             BindGroupName(cmd, query.Name);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }
@@ -586,7 +586,7 @@ public partial class StdAdoDelegate
     {
         if (groupName is not null)
         {
-            AddCommandParameter(cmd, "groupName", groupName);
+            AddCommandParameter(cmd, SqlParameters.GroupName, groupName);
         }
     }
 
@@ -601,7 +601,7 @@ public partial class StdAdoDelegate
         if (IsCountOnly(query))
         {
             using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountCalendarNames + namePredicate));
-            AddCommandParameter(countCmd, "schedulerName", schedulerName);
+            AddCommandParameter(countCmd, SqlParameters.SchedulerName, schedulerName);
             BindCalendarNameFilter(countCmd, nameParameter);
 
             return CountOnlyResult<string>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
@@ -612,7 +612,7 @@ public partial class StdAdoDelegate
 
         using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectCalendarNames + namePredicate + StdAdoConstants.SqlOrderByCalendarName, query))))
         {
-            AddCommandParameter(cmd, "schedulerName", schedulerName);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             BindCalendarNameFilter(cmd, nameParameter);
             BindPaging(cmd, query);
 
@@ -623,7 +623,7 @@ public partial class StdAdoDelegate
         if (query.IncludeTotalCount)
         {
             using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountCalendarNames + namePredicate));
-            AddCommandParameter(cmd, "schedulerName", schedulerName);
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
             BindCalendarNameFilter(cmd, nameParameter);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }
@@ -639,7 +639,7 @@ public partial class StdAdoDelegate
     {
         if (nameParameter is not null)
         {
-            AddCommandParameter(cmd, "calendarName", nameParameter);
+            AddCommandParameter(cmd, SqlParameters.CalendarName, nameParameter);
         }
     }
 
@@ -737,7 +737,7 @@ public partial class StdAdoDelegate
     /// </summary>
     private void BindFireInstanceFilters(DbCommand cmd, List<KeyValuePair<string, object?>> parameters)
     {
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         foreach (KeyValuePair<string, object?> parameter in parameters)
         {
             AddCommandParameter(cmd, parameter.Key, parameter.Value);

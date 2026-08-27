@@ -37,8 +37,8 @@ public class MySQLDelegate : StdAdoDelegate
     protected override string ApplyPaging(string sql, bool takeLimited)
     {
         return takeLimited
-            ? sql + " LIMIT @pageTake OFFSET @pageSkip"
-            : sql + " LIMIT 18446744073709551615 OFFSET @pageSkip";
+            ? sql + " LIMIT @" + SqlParameters.PageTake + " OFFSET @" + SqlParameters.PageSkip
+            : sql + " LIMIT 18446744073709551615 OFFSET @" + SqlParameters.PageSkip;
     }
 
     /// <summary>
@@ -49,10 +49,10 @@ public class MySQLDelegate : StdAdoDelegate
     {
         if (takeLimited)
         {
-            AddCommandParameter(cmd, "pageTake", take);
+            AddCommandParameter(cmd, SqlParameters.PageTake, take);
         }
 
-        AddCommandParameter(cmd, "pageSkip", skip);
+        AddCommandParameter(cmd, SqlParameters.PageSkip, skip);
     }
 
     /// <summary>

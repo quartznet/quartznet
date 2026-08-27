@@ -512,7 +512,7 @@ internal sealed class AdoUtil : IAdoUtil
             var paddedCount = RoundUpTriggerKeyCount(length);
 
             using var cmd = dbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(sqlPrefix + BuildTriggerKeyPredicate(paddedCount), tablePrefix));
-            dbAccessor.AddCommandParameter(cmd, "schedulerName", schedulerName);
+            dbAccessor.AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
 
             for (var i = 0; i < paddedCount; i++)
             {
