@@ -47,8 +47,6 @@ public abstract partial class AdoJobStoreBase
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        // Recovery is a sequence of operations that each say what they could not do, so one of their
-        // failures travels as itself rather than behind a second "couldn't recover jobs".
         return Guarded(
             async () =>
             {
@@ -88,8 +86,7 @@ public abstract partial class AdoJobStoreBase
                 int deleted = await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery(), cancellationToken).ConfigureAwait(false);
                 Logger.StaleFiredJobEntriesRemoved(deleted);
             },
-            "recover jobs",
-            wrapPersistenceFailures: false);
+            "recover jobs");
     }
 
     private bool firstCheckIn = true;

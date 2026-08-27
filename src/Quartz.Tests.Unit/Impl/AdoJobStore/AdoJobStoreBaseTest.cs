@@ -1026,9 +1026,12 @@ public class AdoJobStoreBaseTest
             return GetJob(conn, jobKey, CancellationToken.None);
         }
 
-        internal ValueTask<bool> CallJobExists(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        internal ValueTask<bool> CallJobExists(
+            ConnectionAndTransactionHolder conn,
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
         {
-            return Exists(conn, jobKey, CancellationToken.None);
+            return Exists(conn, jobKey, cancellationToken);
         }
 
         internal ValueTask<bool> CallTriggerExists(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)

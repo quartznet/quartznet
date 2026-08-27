@@ -494,9 +494,6 @@ public abstract partial class AdoJobStoreBase
         TriggerDetailsUpdate update,
         CancellationToken cancellationToken = default)
     {
-        // The update's own refusals — an unknown calendar, a misfire instruction from another family,
-        // a job that is gone — are already specific about the trigger they are about, so they travel
-        // as themselves rather than behind a second "couldn't update" the caller has to read through.
         return Guarded(
             async () =>
             {
@@ -583,8 +580,7 @@ public abstract partial class AdoJobStoreBase
 
                 return true;
             },
-            $"update trigger details for '{triggerKey}'",
-            wrapPersistenceFailures: false);
+            $"update trigger details for '{triggerKey}'");
     }
 
     /// <summary>

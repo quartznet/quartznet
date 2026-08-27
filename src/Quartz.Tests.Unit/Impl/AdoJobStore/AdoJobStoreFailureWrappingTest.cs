@@ -153,7 +153,7 @@ public class AdoJobStoreFailureWrappingTest
 
     /// <summary>
     /// Recovery is a sequence of operations that each say what they could not do, so one of those
-    /// answers reaches the caller as itself.
+    /// answers reaches the caller as itself rather than behind a second one.
     /// </summary>
     [Test]
     public async Task RecoveryLetsAnOperationsOwnAnswerThrough()
@@ -228,5 +228,57 @@ public class AdoJobStoreFailureWrappingTest
 
         await act.Should().ThrowAsync<JobPersistenceException>()
             .WithMessage("Couldn't update trigger details for 'g1.t1': connection reset by peer");
+    }
+
+    /// <summary>
+    /// A refusal the store raised on purpose travels as itself, whichever operation was in progress
+    /// around it. Storing a trigger whose job is gone is the case: the answer is that the job does not
+    /// exist, and a "couldn't store trigger" wrapped around it would push that answer down into
+    /// <see cref="Exception.InnerException" /> and say nothing in its place.
+    /// </summary>
+    [Test]
+    public async Task ARefusalTheStoreRaisedTravelsWithoutTheOperationAroundIt()
+    {
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(TestTrigger)
+            .ForJob(TestJob)
+            .StartNow()
+            .Build();
+
+        // The job read comes back empty, which is what AddTrigger refuses on. Said explicitly, because
+        // an unarranged fake hands back a dummy job rather than nothing.
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, TestJob, A<ITypeLoader>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>((IJobDetail) null));
+
+        Func<Task> act = async () => await jobStore.CallAddTrigger(conn, trigger, job: null, replace: false);
+
+        await act.Should().ThrowAsync<JobPersistenceException>()
+            .WithMessage("The job (jg1.j1) referenced by the trigger does not exist.",
+                "the whole message, so a prefix naming the surrounding operation would fail this");
+    }
+
+    /// <summary>
+    /// Cancellation is not a persistence failure: nothing has gone wrong with the database, the caller
+    /// asked to stop, and a caller matching on <see cref="OperationCanceledException" /> has to see one.
+    /// </summary>
+    [Test]
+    public async Task ACancelledTokenSurfacesAsCancellationRatherThanAsAPersistenceFailure()
+    {
+        using CancellationTokenSource cancellation = new();
+        await cancellation.CancelAsync();
+
+        // Honouring the token is the delegate's job, so the fake does with it what a provider does.
+        A.CallTo(() => driverDelegate.JobExists(conn, TestJob, A<CancellationToken>.Ignored))
+            .ReturnsLazily((ConnectionAndTransactionHolder _, JobKey _, CancellationToken token) =>
+            {
+                token.ThrowIfCancellationRequested();
+                return new ValueTask<bool>(true);
+            });
+
+        Func<Task> act = async () => await jobStore.CallJobExists(conn, TestJob, cancellation.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>(
+            "the store forwards the token, and what comes back of it is not something to report as a "
+            + "failure to reach the database");
     }
 }
