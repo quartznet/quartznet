@@ -73,12 +73,12 @@ namespace Quartz.Serialization.SystemTextJson;
 /// </item>
 /// <item>
 /// <description>
-/// What a <see cref="JobDataMap" /> holds. The read side is closed —
-/// <c>SerializationExtensions.GetJobDataMap</c> produces a string, a bool, an int, a long, a double,
-/// null or a <c>Dictionary&lt;string, string&gt;</c> and nothing else — and the write side is not, but
-/// the types <c>DataMapExtensions</c> declares an accessor for are the ones Quartz teaches an
-/// application to store. Anything past them is the application's own choice, and reaches Quartz
-/// through <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" />.
+/// What a <see cref="JobDataMap" /> holds. Both sides are closed, over the one set
+/// <see cref="JobDataValues" /> declares: the reader produces a string, a bool, an int, a long, a
+/// double, null or a <c>Dictionary&lt;string, string&gt;</c> and nothing else, and the writer refuses
+/// a value it could not produce. Every type in that set is listed here, so a trimmed application can
+/// write all of it. Anything past them is the application's own choice, and reaches Quartz through
+/// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" />.
 /// </description>
 /// </item>
 /// </list>
@@ -122,5 +122,7 @@ namespace Quartz.Serialization.SystemTextJson;
 [JsonSerializable(typeof(DateTimeOffset))]
 [JsonSerializable(typeof(TimeSpan))]
 [JsonSerializable(typeof(Guid))]
+[JsonSerializable(typeof(DateOnly))]
+[JsonSerializable(typeof(TimeOnly))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 internal sealed partial class QuartzStoreJsonContext : JsonSerializerContext;

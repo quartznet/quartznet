@@ -99,7 +99,7 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
             writer.WriteString(options.GetPropertyName("Description"), value.Description);
             writer.WriteString(options.GetPropertyName("CalendarName"), value.CalendarName);
             writer.WritePropertyName(options.GetPropertyName("JobDataMap"));
-            writer.WriteJobDataMapValue(value.JobDataMap, options);
+            writer.WriteJobDataMapValue(value.JobDataMap, options, registry);
             writer.WriteNumber(options.GetPropertyName("MisfireInstruction"), value.MisfireInstructionCode);
             writer.WriteString(options.GetPropertyName("StartTimeUtc"), value.StartTimeUtc);
             writer.WriteString(options.GetPropertyName("EndTimeUtc"), value.EndTimeUtc);
@@ -121,6 +121,12 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
 
             triggerSerializer.SerializeFields(writer, value, options);
             writer.WriteEndObject();
+        }
+        // A job data value the reader could not accept is refused by name; wrapping that in a second
+        // exception of the same type would only bury which entry it was about.
+        catch (JsonSerializationException)
+        {
+            throw;
         }
         catch (Exception e)
         {

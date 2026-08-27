@@ -49,7 +49,7 @@ public static class SystemTextJsonConfigurationExtensions
     {
         options.Converters.Add(new CalendarConverter(registry, newtonsoftCompatibilityMode));
         options.Converters.Add(new CronExpressionConverter());
-        options.Converters.Add(new JobDataMapConverter());
+        options.Converters.Add(new JobDataMapConverter(registry));
         options.Converters.Add(new JobKeyConverter());
         options.Converters.Add(new TriggerKeyConverter());
         options.Converters.Add(new NameValueCollectionConverter());

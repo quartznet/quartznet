@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -40,14 +41,16 @@ public sealed class SystemTextJsonSerializerRegistry
     private readonly SerializerMap<ITriggerSerializer> triggerSerializers = new(StringComparer.OrdinalIgnoreCase);
     private readonly SerializerMap<ICalendarSerializer> calendarSerializers = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Type, Func<JsonSerializerOptions, JsonConverter, JsonTypeInfo>> registeredTypeInfos = [];
-    private readonly List<IJsonTypeInfoResolver> resolvers;
+    private readonly RegisteredTypeResolver registeredTypeResolver;
+    private readonly List<IJsonTypeInfoResolver> applicationResolvers = [];
+    private readonly ConcurrentDictionary<Type, bool> declaredJobDataValueTypes = new();
 
     /// <summary>
     /// Creates a registry holding the serializers for the built-in trigger and calendar types.
     /// </summary>
     public SystemTextJsonSerializerRegistry()
     {
-        resolvers = [new RegisteredTypeResolver(registeredTypeInfos)];
+        registeredTypeResolver = new RegisteredTypeResolver(registeredTypeInfos);
 
         AddTriggerSerializer<CalendarIntervalTriggerImpl>(new CalendarIntervalTriggerSerializer());
         AddTriggerSerializer<CronTriggerImpl>(new CronTriggerSerializer());
@@ -128,7 +131,8 @@ public sealed class SystemTextJsonSerializerRegistry
     {
         ArgumentNullException.ThrowIfNull(resolver);
 
-        resolvers.Add(resolver);
+        applicationResolvers.Add(resolver);
+        declaredJobDataValueTypes.Clear();
         return this;
     }
 
@@ -137,7 +141,44 @@ public sealed class SystemTextJsonSerializerRegistry
     /// the types registered here first, then whatever the application handed to
     /// <see cref="AddTypeInfoResolver" />.
     /// </summary>
-    internal IReadOnlyList<IJsonTypeInfoResolver> TypeInfoResolvers => resolvers;
+    internal IReadOnlyList<IJsonTypeInfoResolver> TypeInfoResolvers => [registeredTypeResolver, .. applicationResolvers];
+
+    /// <summary>
+    /// Whether the application has declared metadata for <paramref name="type" /> through
+    /// <see cref="AddTypeInfoResolver" />, which is what makes it a job data value Quartz will write.
+    /// </summary>
+    /// <remarks>
+    /// Only the application's own resolvers are asked. Quartz's contract is not, because it answers for
+    /// the store's own shapes — a <see cref="JobDataMap" />, a trigger, a calendar — and none of those
+    /// is something a job data map may hold; and reflection is not, because being able to write a value
+    /// is exactly what the reader has never been able to honour. The answers are cached, since a job
+    /// data map holding an application's type is written again on every store update.
+    /// </remarks>
+    internal bool DeclaresJobDataValueType(Type type, JsonSerializerOptions options)
+    {
+        if (applicationResolvers.Count == 0)
+        {
+            return false;
+        }
+
+        if (declaredJobDataValueTypes.TryGetValue(type, out bool declared))
+        {
+            return declared;
+        }
+
+        declared = false;
+        for (int i = 0; i < applicationResolvers.Count; i++)
+        {
+            if (applicationResolvers[i].GetTypeInfo(type, options) is not null)
+            {
+                declared = true;
+                break;
+            }
+        }
+
+        declaredJobDataValueTypes[type] = declared;
+        return declared;
+    }
 
     internal ITriggerSerializer GetTriggerSerializer(string? typeName)
     {
