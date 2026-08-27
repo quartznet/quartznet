@@ -1424,10 +1424,26 @@ public partial class StdAdoDelegate
         return await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
     }
 
+    /// <summary>
+    /// Builds the acquisition statement for one shape. A dialect that overrides this and stops
+    /// splicing in <see cref="TriggerAcquisitionSqlShape.ExcludedJobTypeBucket" /> terms must also
+    /// override <see cref="FiltersAcquisitionJobTypeExclusions" /> to <see langword="false" />, so
+    /// that the store's backstop takes over.
+    /// </summary>
     protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
     {
         return StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(shape.ExcludedJobTypeBucket, RowLimitFor(shape.MaxCount));
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// True, because <see cref="GetSelectNextTriggerToAcquireSql" /> puts the exclusions into the
+    /// statement as a <c>NOT IN</c> clause and every dialect Quartz ships builds its statement from
+    /// that one — the dialects only splice in a row limit and, for MySQL, an index hint. A subclass
+    /// that replaces the statement with one carrying no such clause overrides this back to
+    /// <see langword="false" />.
+    /// </remarks>
+    public virtual bool FiltersAcquisitionJobTypeExclusions => true;
 
     /// <summary>
     /// Binds the preferred node (node affinity) parameters of the acquisition SQL. Parameters are

@@ -1010,6 +1010,31 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Whether <see cref="SelectTriggersToAcquire" /> already keeps
+    /// <see cref="TriggerAcquisitionCriteria.ExcludedJobTypeNames" /> out of the rows it returns.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every other property of <see cref="TriggerAcquisitionCriteria" /> may be ignored by a delegate
+    /// with no worse consequence than a wider result than asked for. This one is different: ignoring it
+    /// means the node <em>runs</em> job types the deployment excluded. So
+    /// <see cref="AdoJobStoreBase" /> keeps a backstop — it drops an excluded candidate ordinally on
+    /// <see cref="TriggerAcquireResult.JobTypeName" /> before reading the trigger back — and this
+    /// property is how a delegate says the backstop has nothing left to do.
+    /// </para>
+    /// <para>
+    /// It defaults to <see langword="false" />, because a delegate written before the exclusions
+    /// existed cannot have honoured them. <see cref="StdAdoDelegate" /> answers
+    /// <see langword="true" />: its acquisition statement carries the <c>NOT IN</c> clause, and every
+    /// dialect Quartz ships builds its statement from that one. A delegate of somebody's own that
+    /// replaces the acquisition statement without the clause — or overrides
+    /// <c>StdAdoDelegate.GetSelectNextTriggerToAcquireSql</c> to drop it — must answer
+    /// <see langword="false" />, or the exclusions stop being enforced anywhere.
+    /// </para>
+    /// </remarks>
+    bool FiltersAcquisitionJobTypeExclusions => false;
+
+    /// <summary>
     /// Counts what the cluster currently holds in flight for each (execution group, trigger group)
     /// pair, which is what a <see cref="ExecutionLimitScope.Cluster" /> execution limit is counted
     /// against.

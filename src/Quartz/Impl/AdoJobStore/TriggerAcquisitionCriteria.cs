@@ -76,9 +76,11 @@ public sealed record TriggerAcquisitionCriteria
     /// <para>
     /// <see cref="StdAdoDelegate" /> keeps the rows out in the acquisition SQL, where comparison
     /// follows the job-class column's collation. A delegate is free to ignore the property, as it is
-    /// with every other one here — <see cref="AdoJobStoreBase" /> post-filters the results ordinally
-    /// afterwards, so an uncooperative delegate degrades to a wasted read rather than to running work
-    /// the deployment excluded.
+    /// with every other one here — <see cref="AdoJobStoreBase" /> drops the excluded candidates
+    /// ordinally as they come back, before it reads any of them, so an uncooperative delegate degrades
+    /// to a wider result set rather than to running work the deployment excluded. A delegate that
+    /// answers <see cref="IDriverDelegate.FiltersAcquisitionJobTypeExclusions" /> with
+    /// <see langword="true" /> is taken at its word and that pass is skipped.
     /// </para>
     /// <para>
     /// Entries must be non-blank, and there may be at most 1,000 of them — Oracle's ceiling on an
