@@ -65,17 +65,6 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
     private int repeatInterval;
     internal TimeZoneInfo? timeZone;
 
-    // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
-    // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
-    // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
-    // on timelines, it may be worth doign the mapping here.
-    // More info: https://github.com/dotnet/corefx/issues/7757
-    private string? timeZoneInfoId
-    {
-        get => timeZone?.Id;
-        set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
-    }
-
     /// <summary>
     /// Create a <see cref="ICalendarIntervalTrigger" /> with no settings.
     /// </summary>
