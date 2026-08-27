@@ -1876,6 +1876,104 @@ public abstract class JobStoreContractTest
     protected abstract string StoreInstanceId { get; }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Persisting a job's data map across firings
+    //
+    // PersistJobDataAfterExecution exists for one thing: what the job wrote into its data map is
+    // there the next time it runs. On the in-memory store that is a reference and would pass by
+    // accident; on an ADO store it is a round trip through the serializer and a JOB_DATA update. So
+    // the assertion is not "the store kept it" but "the next firing was handed it".
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task APersistentJobsDataMapIsWrittenBackAndHandedToTheNextFiring()
+    {
+        IJobDetail job = CreateJob<PersistentContractTestJob>("persistent", JobGroupA, new JobDataMap
+        {
+            ["count"] = 1,
+            ["watermark"] = "before",
+        });
+
+        IOperableTrigger trigger = CreateTrigger("persistent", TriggerGroupA, job.Key,
+            startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(job, trigger);
+
+        (IOperableTrigger firing, IJobDetail fired) = await FireOnce(trigger);
+
+        fired.PersistJobDataAfterExecution.Should().BeTrue(
+            "the store has to hand the firing a job detail that knows its data map is persistent, "
+            + "since that is what it reads when the firing ends");
+
+        // What a job does in Execute: it mutates the data map on the detail its context carries.
+        fired.JobDataMap["count"] = 2;
+        fired.JobDataMap["watermark"] = "after";
+
+        await Store.TriggeredJobComplete(firing, fired, SchedulerInstruction.NoInstruction);
+
+        IJobDetail stored = await Store.GetJob(job.Key);
+        stored.JobDataMap["count"].Should().Be(2,
+            "the point of the attribute is that the value the job wrote is the value the store now holds");
+        stored.JobDataMap["watermark"].Should().Be("after");
+
+        (_, IJobDetail refired) = await FireOnce(trigger);
+        refired.JobDataMap["count"].Should().Be(2,
+            "the next firing has to be handed what the previous one wrote, which is the whole reason for the attribute");
+        refired.JobDataMap["watermark"].Should().Be("after");
+    }
+
+    [Test]
+    public async Task AJobThatDoesNotPersistItsDataMapIsHandedTheStoredOneEveryTime()
+    {
+        IJobDetail job = CreateJob<ContractTestJob>("volatile-data", JobGroupA, new JobDataMap
+        {
+            ["count"] = 1,
+        });
+
+        IOperableTrigger trigger = CreateTrigger("volatile-data", TriggerGroupA, job.Key,
+            startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(job, trigger);
+
+        (IOperableTrigger firing, IJobDetail fired) = await FireOnce(trigger);
+
+        fired.PersistJobDataAfterExecution.Should().BeFalse("this job type carries no such attribute");
+
+        fired.JobDataMap["count"] = 99;
+
+        await Store.TriggeredJobComplete(firing, fired, SchedulerInstruction.NoInstruction);
+
+        IJobDetail stored = await Store.GetJob(job.Key);
+        stored.JobDataMap["count"].Should().Be(1,
+            "without the attribute a firing's data map is scratch space, and what it scribbled must not "
+            + "become the schedule's idea of the job");
+
+        (_, IJobDetail refired) = await FireOnce(trigger);
+        refired.JobDataMap["count"].Should().Be(1,
+            "every firing of such a job starts from the same stored map");
+    }
+
+    /// <summary>
+    /// Takes the given trigger through one acquisition and firing, handing back the trigger carrying
+    /// the fire instance and the job detail the store built for it.
+    /// </summary>
+    private async Task<(IOperableTrigger Firing, IJobDetail JobDetail)> FireOnce(IOperableTrigger trigger)
+    {
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddHours(2),
+            MaxCount = 1
+        });
+
+        IOperableTrigger firing = acquired.Should().ContainSingle(x => x.Key.Equals(trigger.Key),
+            "the trigger under test is the only one due").Subject;
+
+        List<TriggerFiredResult> fired = await Store.TriggersFired([firing]);
+        TriggerFiredBundle bundle = fired.Should().ContainSingle().Which.TriggerFiredBundle;
+
+        bundle.Should().NotBeNull("the firing has to be committed for its job detail to mean anything");
+
+        return (firing, bundle.JobDetail);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Unblocking the triggers of a job that forbids concurrent execution
     //
     // A trigger blocked behind a running execution is out of the acquisition set and out of the
@@ -2089,6 +2187,15 @@ public abstract class JobStoreContractTest
             .Build();
     }
 
+    private static IJobDetail CreateJob<TJob>(string name, string group, JobDataMap jobDataMap) where TJob : IJob
+    {
+        return JobBuilder.Create<TJob>()
+            .WithIdentity(name, group)
+            .WithDescription("job " + name)
+            .UsingJobData(jobDataMap)
+            .Build();
+    }
+
     private static IOperableTrigger CreateTrigger(
         string name,
         string group,
@@ -2138,6 +2245,16 @@ public abstract class JobStoreContractTest
     /// </summary>
     [DisallowConcurrentExecution]
     public sealed class NonConcurrentContractTestJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// A job whose data map survives a firing, which is what makes a store write the map back when the
+    /// firing ends.
+    /// </summary>
+    [PersistJobDataAfterExecution]
+    public sealed class PersistentContractTestJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
