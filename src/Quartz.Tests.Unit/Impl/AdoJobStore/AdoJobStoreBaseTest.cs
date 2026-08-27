@@ -2486,13 +2486,57 @@ public class AdoJobStoreBaseTest
 
         await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
 
-        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
-                conn, blockedJob, StoredTriggerState.Waiting, StoredTriggerState.Blocked, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobsFromOtherState(
+                conn,
+                A<IReadOnlyCollection<JobKey>>.That.Matches(jobKeys => jobKeys.Contains(blockedJob)),
+                StoredTriggerState.Waiting,
+                StoredTriggerState.Blocked,
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobsFromOtherState(
+                conn,
+                A<IReadOnlyCollection<JobKey>>.That.Matches(jobKeys => jobKeys.Contains(pausedJob)),
+                StoredTriggerState.Paused,
+                StoredTriggerState.PausedBlocked,
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// One statement per job rather than one per row, however many rows the dead node left behind, and
+    /// one round trip for all of them.
+    /// </summary>
+    [Test]
+    public async Task ClusterRecover_ShouldUnblockEachJobOnceHoweverManyRowsItLeftBehind()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        JobKey serialJob = new("serial", "jg");
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-1", StoredTriggerState.Executing, new TriggerKey("t-1", "tg"), serialJob, disallowsConcurrentExecution: true),
+            FiredTrigger("fi-2", StoredTriggerState.Executing, new TriggerKey("t-2", "tg"), serialJob, disallowsConcurrentExecution: true),
+            FiredTrigger("fi-3", StoredTriggerState.Blocked, new TriggerKey("t-3", "tg"), serialJob, disallowsConcurrentExecution: true));
+
+        await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
+
+        // Three rows of one job are one job to unblock, not three.
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobsFromOtherState(
+                conn,
+                A<IReadOnlyCollection<JobKey>>.That.Matches(jobKeys => jobKeys.Count == 1 && jobKeys.Contains(serialJob)),
+                StoredTriggerState.Waiting,
+                StoredTriggerState.Blocked,
+                A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
 
         A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
-                conn, pausedJob, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, A<CancellationToken>.Ignored))
-            .MustHaveHappenedOnceExactly();
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<JobKey>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
     }
 
     [Test]
@@ -2509,9 +2553,55 @@ public class AdoJobStoreBaseTest
 
         await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
 
-        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
-                conn, acquired, StoredTriggerState.Waiting, StoredTriggerState.Acquired, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherState(
+                conn,
+                A<IReadOnlyCollection<TriggerKey>>.That.Matches(triggerKeys => triggerKeys.Contains(acquired)),
+                StoredTriggerState.Waiting,
+                StoredTriggerState.Acquired,
+                A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// However many triggers the dead node was holding, releasing them is one round trip.
+    /// </summary>
+    [Test]
+    public async Task ClusterRecover_ShouldReleaseEveryAcquiredTriggerInOneRoundTrip()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        TriggerKey[] acquired =
+        [
+            new("t-acquired-1", "tg"),
+            new("t-acquired-2", "tg"),
+            new("t-acquired-3", "tg")
+        ];
+
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-1", StoredTriggerState.Acquired, acquired[0]),
+            FiredTrigger("fi-2", StoredTriggerState.Acquired, acquired[1]),
+            FiredTrigger("fi-3", StoredTriggerState.Acquired, acquired[2]));
+
+        await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
+
+        // The whole set of reservations is released in one call.
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherState(
+                conn,
+                A<IReadOnlyCollection<TriggerKey>>.That.Matches(triggerKeys => triggerKeys.Count == 3 && acquired.All(triggerKeys.Contains)),
+                StoredTriggerState.Waiting,
+                StoredTriggerState.Acquired,
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        // The per-trigger statement is what the batch replaces.
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<TriggerKey>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
     }
 
     [Test]
@@ -2623,10 +2713,10 @@ public class AdoJobStoreBaseTest
 
         await jobStoreSupport.CallClusterRecover(conn, [rec]);
 
-        A.CallTo(() => driverDelegate.DeleteFiredTrigger(conn, "fi-executing", A<CancellationToken>.Ignored))
-            .MustNotHaveHappened();
-
-        A.CallTo(() => driverDelegate.DeleteFiredTrigger(conn, "fi-acquired", A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+                conn,
+                A<IReadOnlyCollection<string>>.That.Matches(ids => ids.Contains("fi-acquired") && !ids.Contains("fi-executing")),
+                A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
 
         A.CallTo(() => driverDelegate.DeleteFiredTriggers(
@@ -2670,9 +2760,9 @@ public class AdoJobStoreBaseTest
             .MustHaveHappenedOnceExactly();
 
         // With nothing preserved the whole instance is cleared in one statement.
-        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
                 A<ConnectionAndTransactionHolder>.Ignored,
-                A<string>.Ignored,
+                A<IReadOnlyCollection<string>>.Ignored,
                 A<CancellationToken>.Ignored))
             .MustNotHaveHappened();
 
@@ -2705,9 +2795,9 @@ public class AdoJobStoreBaseTest
                 A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
 
-        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
                 A<ConnectionAndTransactionHolder>.Ignored,
-                A<string>.Ignored,
+                A<IReadOnlyCollection<string>>.Ignored,
                 A<CancellationToken>.Ignored))
             .MustNotHaveHappened();
 
@@ -2798,12 +2888,20 @@ public class AdoJobStoreBaseTest
 
         // The siblings the dead firing blocked have to be let go, or the job never runs again --
         // and paused siblings go back to paused rather than to waiting.
-        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
-                conn, serialJob, StoredTriggerState.Waiting, StoredTriggerState.Blocked, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobsFromOtherState(
+                conn,
+                A<IReadOnlyCollection<JobKey>>.That.Matches(jobKeys => jobKeys.Contains(serialJob)),
+                StoredTriggerState.Waiting,
+                StoredTriggerState.Blocked,
+                A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
 
-        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobFromOtherState(
-                conn, serialJob, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesForJobsFromOtherState(
+                conn,
+                A<IReadOnlyCollection<JobKey>>.That.Matches(jobKeys => jobKeys.Contains(serialJob)),
+                StoredTriggerState.Paused,
+                StoredTriggerState.PausedBlocked,
+                A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
     }
 
