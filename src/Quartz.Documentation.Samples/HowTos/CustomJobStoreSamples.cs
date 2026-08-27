@@ -66,30 +66,22 @@ public sealed class MetricsJobStore(IJobStore inner, IMeterFactory meters) : Del
 
 #endregion
 
+#region sample_custom_job_store_dependencies
+
+public sealed class MyAdoJobStore(AdoJobStoreDependencies dependencies)
+    : LocalTransactionJobStore(dependencies)
+{
+    // ...
+}
+
+#endregion
+
 /// <summary>
-/// Scaffolding for the one member the page shows: <c>AdoJobStoreBase</c> has an eleven-parameter
-/// constructor its subclasses forward, and none of that belongs on the page.
+/// Scaffolding for the one member the page shows: the constructor is
+/// <see cref="MyAdoJobStore" />'s, and none of that belongs on the page twice.
 /// </summary>
-internal sealed class BudgetedJobStore(
-    ISchedulerSignaler schedulerSignaler,
-    ITypeLoader typeLoader,
-    TimeProvider timeProvider,
-    IOptions<QuartzSchedulerOptions> schedulerOptions,
-    IOptions<AdoJobStoreOptions> storeOptions,
-    IOptions<ClusteringOptions> clusteringOptions,
-    IObjectSerializer objectSerializer,
-    IDbProvider dbProvider,
-    IDriverDelegate driverDelegate)
-    : LocalTransactionJobStore(
-        schedulerSignaler,
-        typeLoader,
-        timeProvider,
-        schedulerOptions,
-        storeOptions,
-        clusteringOptions,
-        objectSerializer,
-        dbProvider,
-        driverDelegate)
+internal sealed class BudgetedJobStore(AdoJobStoreDependencies dependencies)
+    : LocalTransactionJobStore(dependencies)
 {
     private readonly int nodeBudget = 5;
 
@@ -107,26 +99,8 @@ internal sealed class BudgetedJobStore(
 /// <summary>
 /// The same scaffolding as <see cref="BudgetedJobStore" />, for the second override the page shows.
 /// </summary>
-internal sealed class MaintenanceWindowJobStore(
-    ISchedulerSignaler schedulerSignaler,
-    ITypeLoader typeLoader,
-    TimeProvider timeProvider,
-    IOptions<QuartzSchedulerOptions> schedulerOptions,
-    IOptions<AdoJobStoreOptions> storeOptions,
-    IOptions<ClusteringOptions> clusteringOptions,
-    IObjectSerializer objectSerializer,
-    IDbProvider dbProvider,
-    IDriverDelegate driverDelegate)
-    : LocalTransactionJobStore(
-        schedulerSignaler,
-        typeLoader,
-        timeProvider,
-        schedulerOptions,
-        storeOptions,
-        clusteringOptions,
-        objectSerializer,
-        dbProvider,
-        driverDelegate)
+internal sealed class MaintenanceWindowJobStore(AdoJobStoreDependencies dependencies)
+    : LocalTransactionJobStore(dependencies)
 {
     private readonly IMaintenanceWindow maintenanceWindow = null!;
 

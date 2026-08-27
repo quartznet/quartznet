@@ -25,7 +25,9 @@ public class ExternalTransactionJobStoreTest
     private sealed class TestExternalTransactionJobStore : ExternalTransactionJobStore
     {
         public TestExternalTransactionJobStore(IDbProvider dbProvider, bool openConnection = false)
-            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(configure: o => o.OpenConnection = openConnection), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), dbProvider, TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+            : base(TestJobStores.Dependencies(
+                storeOptions: TestJobStores.StoreOptions(configure: o => o.OpenConnection = openConnection),
+                dbProvider: dbProvider))
         {
         }
 

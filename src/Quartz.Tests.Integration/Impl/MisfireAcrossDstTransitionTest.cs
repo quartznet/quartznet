@@ -368,20 +368,15 @@ public sealed class MisfireAcrossDstTransitionTest
     private sealed class RecoverableJobStore : LocalTransactionJobStore
     {
         public RecoverableJobStore(IDbProvider dbProvider, TimeProvider timeProvider)
-            : base(
-                TestJobStores.Signaler(),
-                TestJobStores.TypeLoader(),
-                timeProvider,
-                TestJobStores.SchedulerOptions(SchedulerName, "AUTO"),
-                TestJobStores.StoreOptions(
+            : base(TestJobStores.Dependencies(
+                timeProvider: timeProvider,
+                schedulerOptions: TestJobStores.SchedulerOptions(SchedulerName, "AUTO"),
+                storeOptions: TestJobStores.StoreOptions(
                     DataSourceName,
                     MisfireAcrossDstTransitionTest.TablePrefix,
                     options => options.MisfireThreshold = MisfireAcrossDstTransitionTest.MisfireThreshold),
-                TestJobStores.ClusteringOptions(),
-                TestJobStores.Serializer(),
-                dbProvider,
-                new SQLiteDelegate(),
-                TestJobStores.LockHandler())
+                dbProvider: dbProvider,
+                driverDelegate: new SQLiteDelegate()))
         {
         }
 

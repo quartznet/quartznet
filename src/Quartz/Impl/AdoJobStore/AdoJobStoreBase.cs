@@ -68,32 +68,27 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// <summary>
     /// Initializes a new instance of the <see cref="AdoJobStoreBase"/> class.
     /// </summary>
-    protected AdoJobStoreBase(
-        ISchedulerSignaler schedulerSignaler,
-        ITypeLoader typeLoader,
-        TimeProvider timeProvider,
-        IOptions<QuartzSchedulerOptions> schedulerOptions,
-        IOptions<AdoJobStoreOptions> storeOptions,
-        IOptions<ClusteringOptions> clusteringOptions,
-        IObjectSerializer objectSerializer,
-        IDbProvider dbProvider,
-        IDriverDelegate driverDelegate,
-        ISemaphore? lockHandler = null,
-        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null,
-        ILoggerFactory? loggerFactory = null)
+    /// <param name="dependencies">
+    /// Everything this store is built from. A derived store takes the same argument and chains it, so
+    /// that a dependency added to <see cref="AdoJobStoreDependencies" /> reaches every store without
+    /// any of them changing shape.
+    /// </param>
+    protected AdoJobStoreBase(AdoJobStoreDependencies dependencies)
     {
-        schedSignaler = schedulerSignaler;
-        ObjectSerializer = objectSerializer;
-        this.typeLoader = typeLoader;
-        this.timeProvider = timeProvider;
-        InstanceName = schedulerOptions.Value.InstanceName;
-        InstanceId = schedulerOptions.Value.InstanceId;
+        ArgumentNullException.ThrowIfNull(dependencies);
+
+        schedSignaler = dependencies.SchedulerSignaler;
+        ObjectSerializer = dependencies.ObjectSerializer;
+        typeLoader = dependencies.TypeLoader;
+        timeProvider = dependencies.TimeProvider;
+        InstanceName = dependencies.SchedulerOptions.Value.InstanceName;
+        InstanceId = dependencies.SchedulerOptions.Value.InstanceId;
 
         // The container has a logger factory and fills this in, which is what makes the store, its
         // cluster manager, its misfire handler, its delegate and its lock handler log in an application
         // that never touched LogProvider. A store built by hand is handed nothing and keeps reading the
         // ambient factory, which is what it did before there was anything to inject.
-        LoggerFactory = loggerFactory ?? LogProviderLoggerFactory.Instance;
+        LoggerFactory = dependencies.LoggerFactory ?? LogProviderLoggerFactory.Instance;
 
         // Created from the runtime type, so LocalTransactionJobStore and ExternalTransactionJobStore log
         // under their own names rather than everything arriving as AdoJobStoreBase.
@@ -103,7 +98,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
         // per operation, and CreateLogger<T> allocates.
         ConnectionLogger = LoggerFactory.CreateLogger<ConnectionAndTransactionHolder>();
 
-        var options = storeOptions.Value;
+        var options = dependencies.StoreOptions.Value;
         DataSource = options.DataSource;
         TablePrefix = options.TablePrefix ?? "";
         useProperties = options.StoreJobDataAsStrings;
@@ -111,7 +106,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
         misfirehandlerFrequence = options.MisfireHandlerFrequency;
         MaxMisfiresToHandleAtATime = options.MaxMisfiresToHandleAtATime;
 
-        var clustering = clusteringOptions.Value;
+        var clustering = dependencies.ClusteringOptions.Value;
         Clustered = clustering.Enabled;
         ClusterCheckinInterval = clustering.CheckinInterval;
         ClusterCheckinMisfireThreshold = clustering.CheckinMisfireThreshold;
@@ -134,22 +129,22 @@ public abstract partial class AdoJobStoreBase : IJobStore
         // Registered through UseTriggerPersistenceDelegate<T>() (or translated from the legacy
         // quartz.jobStore.driverDelegateInitString key by the property bridge) and handed to the driver
         // delegate when it is initialized.
-        this.triggerPersistenceDelegates = triggerPersistenceDelegates?.ToArray() ?? [];
+        triggerPersistenceDelegates = dependencies.TriggerPersistenceDelegates?.ToArray() ?? [];
 
         // The store uses the provider it was given, and nothing else needs to be told about it: the
         // container is the registry, keyed by scheduler name, so two schedulers whose data sources
         // happen to share a name cannot end up talking to each other's database.
-        DbProvider = dbProvider;
+        DbProvider = dependencies.DbProvider;
 
         // The delegate and lock handler are chosen by configuration and built by the container, rather
         // than loaded from a type name here.
-        this.driverDelegate = driverDelegate;
+        driverDelegate = dependencies.DriverDelegate;
 
         // A lock handler is only injected when one was chosen explicitly. Left null, Initialize picks
         // between database row locks and an in-process monitor once the delegate and clustering settings
         // are known — a decision that cannot be made at registration time, because it depends on which
         // database this store turns out to be talking to.
-        LockHandler = lockHandler!;
+        LockHandler = dependencies.LockHandler!;
     }
 
     /// <summary>

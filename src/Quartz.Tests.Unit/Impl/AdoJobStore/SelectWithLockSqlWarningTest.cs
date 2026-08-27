@@ -96,21 +96,16 @@ public sealed class SelectWithLockSqlWarningTest
     private sealed class WarningStore : AdoJobStoreBase
     {
         public WarningStore(ISemaphore? lockHandler, string? selectWithLockSql)
-            : base(
-                TestJobStores.Signaler(),
-                TestJobStores.TypeLoader(),
-                TimeProvider.System,
-                TestJobStores.SchedulerOptions(),
-                TestJobStores.StoreOptions(configure: options =>
+            : base(TestJobStores.Dependencies(
+                storeOptions: TestJobStores.StoreOptions(configure: options =>
                 {
                     options.PerformSchemaValidation = false;
                     options.SelectWithLockSql = selectWithLockSql;
-                }),
-                TestJobStores.ClusteringOptions(),
-                TestJobStores.Serializer(),
-                TestJobStores.DbProvider(),
-                TestJobStores.DriverDelegate(),
-                lockHandler)
+                }))
+                // Through `with`, because the fixture's null means "none configured" — the case where
+                // Initialize picks a handler itself — rather than "give me the default double".
+                with
+                { LockHandler = lockHandler })
         {
         }
 

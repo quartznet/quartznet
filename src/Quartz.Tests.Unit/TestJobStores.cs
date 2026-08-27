@@ -93,6 +93,40 @@ public static class TestJobStores
             timeProvider ?? TimeProvider.System);
     }
 
+    /// <summary>
+    /// Everything a persistent store is built from, with a test double wherever the caller does not
+    /// care. A store that derives from <see cref="AdoJobStoreBase" /> takes one of these, so this is
+    /// the one place a test has to name a collaborator it wants to observe.
+    /// </summary>
+    public static AdoJobStoreDependencies Dependencies(
+        ISchedulerSignaler? signaler = null,
+        ITypeLoader? typeLoader = null,
+        TimeProvider? timeProvider = null,
+        IOptions<QuartzSchedulerOptions>? schedulerOptions = null,
+        IOptions<AdoJobStoreOptions>? storeOptions = null,
+        IOptions<ClusteringOptions>? clusteringOptions = null,
+        IObjectSerializer? serializer = null,
+        IDbProvider? dbProvider = null,
+        IDriverDelegate? driverDelegate = null,
+        ISemaphore? lockHandler = null,
+        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null,
+        ILoggerFactory? loggerFactory = null)
+    {
+        return new AdoJobStoreDependencies(
+            signaler ?? new NoOpSchedulerSignaler(),
+            typeLoader ?? new SimpleTypeLoader(),
+            timeProvider ?? TimeProvider.System,
+            schedulerOptions ?? SchedulerOptions(),
+            storeOptions ?? StoreOptions(),
+            clusteringOptions ?? ClusteringOptions(),
+            serializer ?? Serializer(),
+            dbProvider ?? DbProvider(),
+            driverDelegate ?? DriverDelegate(),
+            lockHandler ?? LockHandler(),
+            triggerPersistenceDelegates,
+            loggerFactory);
+    }
+
     public static LocalTransactionJobStore Tx(
         ISchedulerSignaler? signaler = null,
         ITypeLoader? typeLoader = null,
@@ -103,17 +137,13 @@ public static class TestJobStores
         string tablePrefix = AdoConstants.DefaultTablePrefix,
         IDbProvider? dbProvider = null)
     {
-        return new LocalTransactionJobStore(
-            signaler ?? new NoOpSchedulerSignaler(),
-            typeLoader ?? new SimpleTypeLoader(),
-            timeProvider ?? TimeProvider.System,
+        return new LocalTransactionJobStore(Dependencies(
+            signaler,
+            typeLoader,
+            timeProvider,
             SchedulerOptions(instanceName, instanceId),
             StoreOptions(dataSource, tablePrefix),
-            ClusteringOptions(),
-            Serializer(),
-            dbProvider ?? DbProvider(),
-            DriverDelegate(),
-            LockHandler());
+            dbProvider: dbProvider));
     }
 
     public static ExternalTransactionJobStore Cmt(
@@ -121,17 +151,7 @@ public static class TestJobStores
         ITypeLoader? typeLoader = null,
         TimeProvider? timeProvider = null)
     {
-        return new ExternalTransactionJobStore(
-            signaler ?? new NoOpSchedulerSignaler(),
-            typeLoader ?? new SimpleTypeLoader(),
-            timeProvider ?? TimeProvider.System,
-            SchedulerOptions(),
-            StoreOptions(),
-            ClusteringOptions(),
-            Serializer(),
-            DbProvider(),
-            DriverDelegate(),
-            LockHandler());
+        return new ExternalTransactionJobStore(Dependencies(signaler, typeLoader, timeProvider));
     }
 }
 

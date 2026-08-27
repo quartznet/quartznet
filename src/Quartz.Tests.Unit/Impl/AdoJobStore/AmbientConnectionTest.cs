@@ -412,17 +412,10 @@ public sealed class AmbientConnectionTest
             IDbProvider dbProvider,
             Microsoft.Extensions.Options.IOptions<AdoJobStoreOptions> storeOptions,
             string instanceName)
-            : base(
-                TestJobStores.Signaler(),
-                TestJobStores.TypeLoader(),
-                TimeProvider.System,
-                TestJobStores.SchedulerOptions(instanceName),
-                storeOptions,
-                TestJobStores.ClusteringOptions(),
-                TestJobStores.Serializer(),
-                dbProvider,
-                TestJobStores.DriverDelegate(),
-                TestJobStores.LockHandler())
+            : base(TestJobStores.Dependencies(
+                schedulerOptions: TestJobStores.SchedulerOptions(instanceName),
+                storeOptions: storeOptions,
+                dbProvider: dbProvider))
         {
         }
 

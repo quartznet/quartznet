@@ -238,6 +238,24 @@ protected abstract ValueTask<T> ExecuteInLock<T>(
 `LocalTransactionJobStore` and `ExternalTransactionJobStore` are the two shipped answers. An override of
 `GetLocalTransactionConnection` has to start with `GetEnlistedConnection`.
 
+Everything the base is built from arrives as one `AdoJobStoreDependencies`, so a derived store chains a
+single argument and a dependency added later reaches it without the constructor changing shape:
+
+<!-- snippet: sample_custom_job_store_dependencies -->
+```csharp
+public sealed class MyAdoJobStore(AdoJobStoreDependencies dependencies)
+    : LocalTransactionJobStore(dependencies)
+{
+    // ...
+}
+```
+<!-- endSnippet -->
+
+The container registers `AdoJobStoreDependencies` per scheduler, so the generic registration forms build
+your store with the scheduler's own signaler, provider, driver delegate and options. Take the record and
+pass it on; read what you need off it if you want a setting at construction time — that is where
+`ExternalTransactionJobStore` reads `StoreOptions.Value.OpenConnection`.
+
 Four members are `protected virtual`, and one of them is a real extension point:
 
 <!-- A signature listing rather than code, so it is written out here rather than compiled. -->

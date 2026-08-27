@@ -270,22 +270,16 @@ public class MisfireBatchRecoveryTest
     private sealed class TestLocalTransactionJobStore : LocalTransactionJobStore
     {
         public TestLocalTransactionJobStore(IObjectSerializer serializer, IDbProvider dbProvider, IDriverDelegate driverDelegate, int maxMisfiresToHandleAtATime)
-            : base(
-                TestJobStores.Signaler(),
-                TestJobStores.TypeLoader(),
-                TimeProvider.System,
-                TestJobStores.SchedulerOptions(),
-                TestJobStores.StoreOptions(DataSourceName, MisfireBatchRecoveryTest.TablePrefix, options =>
+            : base(TestJobStores.Dependencies(
+                storeOptions: TestJobStores.StoreOptions(DataSourceName, MisfireBatchRecoveryTest.TablePrefix, options =>
                 {
                     options.MaxMisfiresToHandleAtATime = maxMisfiresToHandleAtATime;
                     // Anything overdue by more than a moment counts as misfired.
                     options.MisfireThreshold = TimeSpan.FromSeconds(1);
                 }),
-                TestJobStores.ClusteringOptions(),
-                serializer,
-                dbProvider,
-                driverDelegate,
-                TestJobStores.LockHandler())
+                serializer: serializer,
+                dbProvider: dbProvider,
+                driverDelegate: driverDelegate))
         {
         }
 

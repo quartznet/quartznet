@@ -119,21 +119,25 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
     /// </summary>
     protected virtual AdoJobStoreBase CreateJobStore(IDbProvider dbProvider, IDriverDelegate driverDelegate)
     {
-        return new LocalTransactionJobStore(
-            TestJobStores.Signaler(),
-            TestJobStores.TypeLoader(),
-            TimeProvider.System,
-            TestJobStores.SchedulerOptions(SchedulerName, InstanceId),
-            TestJobStores.StoreOptions(DataSourceName),
-            TestJobStores.ClusteringOptions(),
-            TestJobStores.Serializer(),
-            dbProvider,
-            driverDelegate,
-            // Deliberately none: the store picks the lock handler its delegate and clustering settings
-            // call for, which is the decision production makes too — the configuration builder injects
-            // one only when the application asked for a specific one. SQLite therefore gets
-            // SQLiteSemaphore here exactly as it would in an application.
-            lockHandler: null);
+        return new LocalTransactionJobStore(StoreDependencies(dbProvider, driverDelegate));
+    }
+
+    /// <summary>
+    /// What the store under test is built from. Deliberately no lock handler: the store picks the one
+    /// its delegate and clustering settings call for, which is the decision production makes too — the
+    /// configuration builder injects one only when the application asked for a specific one. SQLite
+    /// therefore gets SQLiteSemaphore here exactly as it would in an application.
+    /// </summary>
+    protected AdoJobStoreDependencies StoreDependencies(IDbProvider dbProvider, IDriverDelegate driverDelegate)
+    {
+        return TestJobStores.Dependencies(
+            schedulerOptions: TestJobStores.SchedulerOptions(SchedulerName, InstanceId),
+            storeOptions: TestJobStores.StoreOptions(DataSourceName),
+            dbProvider: dbProvider,
+            driverDelegate: driverDelegate) with
+        {
+            LockHandler = null,
+        };
     }
 
     protected override async ValueTask<IJobStore> CreateStore()

@@ -167,6 +167,12 @@ internal static class QuartzServiceRegistration
         services.TryAddKeyed<IDriverDelegate>(key, static (provider, key) =>
             ActivatorUtilities.CreateInstance<StdAdoDelegate>(Scoped(provider, key)));
 
+        // What every AdoJobStoreBase is constructed from, as one argument. Built the same way the store
+        // itself is, so each dependency is resolved from this scheduler's registrations and a store that
+        // was never given a lock handler still gets none.
+        services.TryAddKeyed<AdoJobStoreDependencies>(key, static (provider, key) =>
+            ActivatorUtilities.CreateInstance<AdoJobStoreDependencies>(Scoped(provider, key)));
+
         // A named scheduler that was not given its own set of custom trigger and calendar serializers
         // reads the container's. Registered keyed so an application can hand one scheduler a different
         // set — services.AddKeyedSingleton(schedulerName, registry) — without affecting the others.

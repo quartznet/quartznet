@@ -147,17 +147,7 @@ public class AdoBulkDeleteTest
     private sealed class LockCountingJobStore : AdoJobStoreBase
     {
         public LockCountingJobStore()
-            : base(
-                TestJobStores.Signaler(),
-                TestJobStores.TypeLoader(),
-                TimeProvider.System,
-                TestJobStores.SchedulerOptions(),
-                TestJobStores.StoreOptions(),
-                TestJobStores.ClusteringOptions(),
-                TestJobStores.Serializer(),
-                TestJobStores.DbProvider(),
-                TestJobStores.DriverDelegate(),
-                TestJobStores.LockHandler())
+            : base(TestJobStores.Dependencies())
         {
         }
 
