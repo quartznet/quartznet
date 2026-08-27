@@ -21,7 +21,16 @@ namespace Quartz.Serialization.Newtonsoft;
 /// Both forms are read. The object form is what is sitting in job store blobs written before this
 /// converter existed, and it carries the id under <c>Id</c>; the string form is what is written from
 /// now on, and it is the same spelling the trigger and calendar serializers have always used for a
-/// zone.
+/// zone. Reading the object form is not optional even after the fix, because a typed member in a blob
+/// written before it still carries one.
+/// </para>
+/// <para>
+/// <c>QuartzContractResolver</c> attaches this per property, to members typed as a
+/// <see cref="TimeZoneInfo" />, and it is deliberately <em>not</em> in the serializer's converter list:
+/// that list is consulted for a value's runtime type wherever the value appears, so a zone held as an
+/// <see cref="object" /> — a job data map value — would be written as a bare string and lose the
+/// <c>$type</c> that path carries. Scoped to typed members, this reaches every trigger's
+/// <c>TimeZone</c> and nothing else.
 /// </para>
 /// </remarks>
 internal sealed class TimeZoneInfoConverter : JsonConverter

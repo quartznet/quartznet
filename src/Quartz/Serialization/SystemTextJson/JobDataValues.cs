@@ -53,6 +53,14 @@ namespace Quartz.Serialization.SystemTextJson;
 /// the same escape hatch a trimmed publish needs, so a type an application has already answered for is
 /// a type this refuses nothing about.
 /// </para>
+/// <para>
+/// The gate lives in <c>JobDataMapConverter</c>, which <c>AddQuartzConverters</c> registers for the
+/// store serializer and for the HTTP API alike — so the refusal reaches a job data map on its way into
+/// an HTTP response too, and deliberately: the client's reader is this same closed one, so a value the
+/// server could not read back is one the client cannot either. That is why the message says "Quartz's
+/// JSON format" rather than naming a database, and why the way out it names —
+/// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> — is the right one on both.
+/// </para>
 /// </remarks>
 internal static class JobDataValues
 {
@@ -107,7 +115,7 @@ internal static class JobDataValues
         }
 
         throw new JsonSerializationException(
-            $"Job data entry '{key}' holds a {type.FullName}, which a persistent store cannot read back. " +
+            $"Job data entry '{key}' holds a {type.FullName}, which Quartz's JSON format cannot read back. " +
             "A job data value has to be one of the types JobDataMap declares an accessor for " +
             "(string, bool, char, int, long, float, double, decimal, DateTime, DateTimeOffset, TimeSpan, Guid, DateOnly, TimeOnly or an enum), " +
             "a Dictionary<string, string>, or a type the application declares through SystemTextJsonSerializerRegistry.AddTypeInfoResolver. " +
