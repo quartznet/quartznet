@@ -408,14 +408,14 @@ assignable on a live instance with nothing saying which wins or when. The compon
 | `RAMJobStore.MisfireThreshold` | `UseInMemoryStore(o => o.MisfireThreshold = …)` |
 | `AdoJobStoreBase.MisfireThreshold` | `UsePersistentStore(store => store.ConfigureStore(o => o.MisfireThreshold = …))` |
 | `TaskSchedulingThreadPool.MaxConcurrency`, `.Scheduler` | `UseDefaultThreadPool(maxConcurrency: …)`; both setters are `protected internal`, so a pool of your own can still set them |
-| `RedisSemaphore.RedisConfiguration`, `.KeyPrefix`, `.LockTimeToLive`, `.LockRetryInterval` | `UseRedisLockHandler(o => …)` |
+| `RedisLockHandler.RedisConfiguration`, `.KeyPrefix`, `.LockTimeToLive`, `.LockRetryInterval` | `UseRedisLockHandler(o => …)` |
 | The history plugins' message templates | `UseJobHistoryLogging(o => …)`, `UseTriggerHistoryLogging(o => …)`, and now `UseStructuredJobLogging(o => …)` / `UseStructuredTriggerLogging(o => …)` |
 | `JobInterruptMonitorPlugin.DefaultMaxRunTime` | `UseJobAutoInterrupt(o => …)` |
 | The scheduling-data plugins' `FileNames`, `ScanInterval`, `FailOn*` | `UseXmlSchedulingConfiguration(o => …)` / `UseJsonSchedulingConfiguration(o => …)` |
 | `ShutdownHookPlugin.CleanShutdown` | `UseShutdownHook(o => o.CleanShutdown = …)` |
 
 The two shipped row-lock handlers keep their retry knobs, but as `init`-only properties rather than
-setters: `SelectForUpdateSemaphore` has `MaxRetry` and `RetryPeriod`, and `UpdateRowSemaphore` has
+setters: `SelectForUpdateLockHandler` has `MaxRetry` and `RetryPeriod`, and `UpdateRowLockHandler` has
 `RetryPeriod` — it gained one, having previously hard-coded a second. Set them at construction, or through
 `quartz.jobStore.lockHandler.maxRetry` / `.retryPeriod`, which the binder still writes.
 
@@ -842,7 +842,7 @@ write instead, and the typed option that is usually the better answer.
 | `PropertyJobStorePrefix` | `quartz.jobStore` | `AdoJobStoreOptions` / `InMemoryJobStoreOptions` |
 | `PropertyJobStoreType` | `quartz.jobStore.type` | `UseInMemoryStore()`, `UsePersistentStore<T>()`, or `UseJobStore(instance)` |
 | `PropertyJobStoreDbRetryInterval` | `quartz.jobStore.dbRetryInterval` | `AdoJobStoreOptions.DbRetryInterval` |
-| `PropertyJobStoreLockHandlerPrefix` | `quartz.jobStore.lockHandler` | constructor injection into your `ISemaphore` |
+| `PropertyJobStoreLockHandlerPrefix` | `quartz.jobStore.lockHandler` | constructor injection into your `ILockHandler` |
 | `PropertyJobStoreLockHandlerType` | `quartz.jobStore.lockHandler.type` | `UseLockHandler<T>()` |
 | `PropertyTablePrefix` | `tablePrefix` (under `quartz.jobStore`) | `AdoJobStoreOptions.TablePrefix` |
 | `PropertyDataSourcePrefix` | `quartz.dataSource` | `DataSourceOptions`, bound from `Quartz:DataSource:<name>` |
@@ -1179,7 +1179,7 @@ every section as flat keys too. What is new is the hierarchical spelling that ma
 
 `AdoJobStoreOptions` validation lost the rule that `UseDbLocks` must be on when `Clustered` is: it can
 no longer see both settings, and it never needed to, since every path that enables clustering enables
-database locking with it and a store with an explicit lock handler of its own — a Redis semaphore, say —
+database locking with it and a store with an explicit lock handler of its own — the Redis one, say —
 was never wrong to leave `UseDbLocks` off.
 
 ## The SQLite extension methods swapped names
@@ -2874,7 +2874,7 @@ on `QuartzSchedulerResources` are `QuartzSchedulerOptions`.
 
 **`StdAdoConstants` and `IAdoUtil` are internal, and constants are no longer inherited.** `AdoConstants` stays
 public — table, column and state names are a real contract for delegate authors — but it is a `static class`
-now, and `AdoJobStoreBase`, `StdAdoDelegate` and `DbSemaphore` no longer derive from it or from
+now, and `AdoJobStoreBase`, `StdAdoDelegate` and `DbLockHandler` no longer derive from it or from
 `StdAdoConstants`:
 
 ```diff
@@ -2889,21 +2889,21 @@ The `Sql*` statement templates on `StdAdoConstants` are not visible at all any m
 statement is not a contract. Build the statement your dialect needs, or override the `GetSelect*Sql` hooks,
 which are unchanged.
 
-`DbSemaphore.AdoUtil` is `private protected` for the same reason, so a semaphore written outside Quartz no
-longer sees it. What such a semaphore needs from it — preparing a statement and binding a parameter — is
-`protected` on `DbSemaphore` itself:
+`DbLockHandler.AdoUtil` is `private protected` for the same reason, so a lock handler written outside Quartz
+no longer sees it. What such a handler needs from it — preparing a statement and binding a parameter — is
+`protected` on `DbLockHandler` itself:
 
 ```csharp
 protected DbCommand PrepareCommand(ConnectionAndTransactionHolder conn, string commandText);
 protected void AddCommandParameter(DbCommand command, string paramName, object? paramValue);
 ```
 
-`ExecuteSql` is the one method a `DbSemaphore` subclass exists to implement, and it could not be
+`ExecuteSql` is the one method a `DbLockHandler` subclass exists to implement, and it could not be
 implemented without these; both shipped row-lock handlers now issue their statements through them, so
-`SelectForUpdateSemaphore` and `UpdateRowSemaphore` are literal example code for one of your own. There
+`SelectForUpdateLockHandler` and `UpdateRowLockHandler` are literal example code for one of your own. There
 is no overload taking a provider-specific data type or a size, because a lock statement binds a scheduler
 name and a lock name and both are strings. A handler that does not lock in a database implements
-`ISemaphore` directly instead.
+`ILockHandler` directly instead.
 
 **Three trigger persistence delegates became public**, so a custom delegate list can name all five built-ins:
 `CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and
@@ -4167,7 +4167,7 @@ takes a `SchedulerIdentity`:
 The identity — the scheduler's name and this node's instance id — could not be a constructor argument,
 because with `GenerateInstanceId` the id is produced by an `IInstanceIdGenerator` that runs after the
 container has built the object graph. Initialization is the first moment it is settled, which is the same
-reasoning as `SemaphoreContext` on `ISemaphore.Initialize`. A store records it against the firings it
+reasoning as `LockHandlerContext` on `ILockHandler.Initialize`. A store records it against the firings it
 owns, so that a listing can say which node is running what.
 
 The ADO.NET store previously learned a generated id through a special case in the scheduler factory,
@@ -4819,14 +4819,14 @@ constant `true` that the old void adapter produced.
 
 ## Locks are a `SchedulerLock`, not a string
 
-`ISemaphore` took the lock as a `string` whose only two legal values were `"TRIGGER_ACCESS"` and
+`ILockHandler` took the lock as a `string` whose only two legal values were `"TRIGGER_ACCESS"` and
 `"STATE_ACCESS"`; anything else threw at run time. `Quartz.Impl.AdoJobStore.SchedulerLock` is now that
 type, with members `TriggerAccess` and `StateAccess`.
 
 ```diff
 - ValueTask<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder? conn, string lockName, CancellationToken ct = default);
 - ValueTask ReleaseLock(Guid requestorId, string lockName, CancellationToken ct = default);
-+ ValueTask<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder? conn, SchedulerLock lockKind, CancellationToken ct = default);
++ ValueTask<bool> AcquireLock(Guid requestorId, ConnectionAndTransactionHolder? conn, SchedulerLock lockKind, CancellationToken ct = default);
 + ValueTask ReleaseLock(Guid requestorId, SchedulerLock lockKind, CancellationToken ct = default);
 ```
 
@@ -4835,7 +4835,7 @@ changes in the database**: the `LOCK_NAME` column still holds `TRIGGER_ACCESS` a
 conversion happens where the row is written, and a 4.0 node contends for the same rows as a 3.x one. The
 same applies to `Quartz.Extensions.Redis`, whose keys keep their `…:TRIGGER_ACCESS` spelling.
 
-`DbSemaphore.ExecuteSql` still receives the stored name as a `string` — that parameter really is the value
+`DbLockHandler.ExecuteSql` still receives the stored name as a `string` — that parameter really is the value
 bound into the statement.
 
 ## The job store configuration is read-only, and no longer a public currency
@@ -4912,28 +4912,46 @@ overriding one changed the store's internal call order in ways no test covered. 
 obtain the `ConnectionAndTransactionHolder` they demand. The dialect seam — statement text, paging,
 parameter binding — was never here; it belongs to `StdAdoDelegate`.
 
-## The semaphores were tidied
+## The semaphores are lock handlers
 
-The four database lock handlers named the same concept three different ways — `StdRowLockSemaphore` and
-`UpdateLockRowSemaphore` transposed the same two words for two strategies that diverge only under load,
-and `MOT` was an acronym expanded nowhere. They are named for the SQL they issue now, which is the only
-thing that distinguishes them:
+A semaphore is a counted permit. This thing is a mutual-exclusion lock over a named row — one holder,
+re-entrant per connection, released on the same connection — so "semaphore" named one implementation
+strategy rather than the thing itself, and the name came from the Java port rather than from anything it
+does. Every type in the family says `LockHandler` now, which is what the builder method
+(`UseLockHandler`), the configuration key (`quartz.jobStore.lockHandler.type`) and the how-to have said
+all along:
 
-| 3.x | 4.x |
-|-----|-----|
-| `StdRowLockSemaphore` | `SelectForUpdateSemaphore` |
-| `PostgreSQLRowLockSemaphore` | `PostgreSqlSelectForUpdateSemaphore` |
-| `UpdateLockRowSemaphore` | `UpdateRowSemaphore` |
-| `UpdateLockRowSemaphoreMOT` | `SqlServerMemoryOptimizedUpdateRowSemaphore` |
+| 3.x | 4.0 alpha | 4.0 |
+|-----|-----------|-----|
+| `ISemaphore` | `ISemaphore` | `ILockHandler` |
+| `DBSemaphore` | `DbSemaphore` | `DbLockHandler` |
+| `StdRowLockSemaphore` | `SelectForUpdateSemaphore` | `SelectForUpdateLockHandler` |
+| `PostgreSQLRowLockSemaphore` | `PostgreSqlSelectForUpdateSemaphore` | `PostgreSqlSelectForUpdateLockHandler` |
+| `UpdateLockRowSemaphore` | `UpdateRowSemaphore` | `UpdateRowLockHandler` |
+| `UpdateLockRowSemaphoreMOT` | `SqlServerMemoryOptimizedUpdateRowSemaphore` | `SqlServerMemoryOptimizedUpdateRowLockHandler` |
+| `SimpleSemaphore` | `SimpleSemaphore` (internal) | `InProcessLockHandler` (internal) |
+| — | `SQLiteSemaphore` (internal) | `SqliteLockHandler` (internal) |
+| `RedisSemaphore` | `RedisSemaphore` | `RedisLockHandler` |
+| — | `SemaphoreContext` | `LockHandlerContext` |
+| `ISemaphore.ObtainLock` | `ISemaphore.ObtainLock` | `ILockHandler.AcquireLock` |
 
-A `quartz.jobStore.lockHandler.type` naming any of the old types still resolves, with a warning.
+`ReleaseLock` and `RequiresConnection` keep their names — the verb pairs with `AcquireLock`, and the
+property was never about permits.
+
+A `quartz.jobStore.lockHandler.type` naming any of the old types — either generation of them — still
+resolves, with a warning.
+
+The four database lock handlers had also named the same concept three different ways in 3.x:
+`StdRowLockSemaphore` and `UpdateLockRowSemaphore` transposed the same two words for two strategies that
+diverge only under load, and `MOT` was an acronym expanded nowhere. They are named for the SQL they issue
+now, which is the only thing that distinguishes them.
 
 * The public static SQL fields settled on one convention and became `protected const`, because nothing
   outside the class hierarchy that owns them ever read them and every interpolation hole in them is
-  itself a constant: `SelectForUpdateSemaphore.SelectForLock` / `.InsertLock` keep their member names,
-  and `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateRowSemaphore.UpdateForLock`
+  itself a constant: `SelectForUpdateLockHandler.SelectForLock` / `.InsertLock` keep their member names,
+  and `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateRowLockHandler.UpdateForLock`
   / `.InsertLock`.
-* `DbSemaphore.Sql` is `LockSql`, saying which of the two statements it holds and pairing with
+* `DbLockHandler.Sql` is `LockSql`, saying which of the two statements it holds and pairing with
   `InsertSql`. Both are get-only and arrive through the constructor. They were `protected` settable,
   which let a subclass swap a statement after the table prefix had already been folded into it — the
   select and the insert backing the same lock could end up naming different tables. A subclass that
@@ -4955,45 +4973,45 @@ A `quartz.jobStore.lockHandler.type` naming any of the old types still resolves,
 `ITablePrefixAware` is gone. A lock handler used to learn its scheduler's identity through that get/set
 property pair, which the store property-injected after construction — and a handler that never touches a
 SQL table (the Redis one, say) still had to carry a dead `TablePrefix` property in order to be told its
-own scheduler's name. `ISemaphore` has a single initialization seam now:
+own scheduler's name. `ILockHandler` has a single initialization seam now:
 
 ```csharp
-public interface ISemaphore
+public interface ILockHandler
 {
-    void Initialize(SemaphoreContext context)
+    void Initialize(LockHandlerContext context)
     {
     }
 
-    // ObtainLock / ReleaseLock / RequiresConnection unchanged
+    // AcquireLock (was ObtainLock) / ReleaseLock / RequiresConnection otherwise unchanged
 }
 ```
 
-`SemaphoreContext` carries the identity a handler locks under — `SchedulerName`, `InstanceId` and
+`LockHandlerContext` carries the identity a handler locks under — `SchedulerName`, `InstanceId` and
 `TablePrefix` — and the environment it locks in: `TimeProvider`, the clock a handler backs off on
 between attempts, and `CommandTimeout`, how long its statements may run. The job store calls
-`Initialize` once, before the semaphore is used, whether the store built the handler itself or the
+`Initialize` once, before the handler is used, whether the store built the handler itself or the
 container or configuration supplied it. The default implementation does nothing, so a handler that does
-not key its locks by scheduler identity implements nothing. `DbSemaphore` overrides it to re-expand its
+not key its locks by scheduler identity implements nothing. `DbLockHandler` overrides it to re-expand its
 statements with the table prefix and rebuild its accessor with the timeout; its `TablePrefix` and
 `SchedulerName` properties are read-only now, and it exposes the clock as a `protected TimeProvider`.
 
 Both shipped row-lock handlers wait on that clock rather than on wall time, so their retry behaviour is
 finally testable — the backoff was a `Task.Delay(TimeSpan, CancellationToken)`, which meant the only way
-to watch a retry was to sit out the real second, and neither retry loop had a test. `UpdateRowSemaphore`
+to watch a retry was to sit out the real second, and neither retry loop had a test. `UpdateRowLockHandler`
 picked up a `RetryPeriod` in the process: its backoff was a literal `TimeSpan.FromSeconds(1)`, so it
-ignored `quartz.jobStore.lockHandler.retryPeriod` while `SelectForUpdateSemaphore` beside it honoured
+ignored `quartz.jobStore.lockHandler.retryPeriod` while `SelectForUpdateLockHandler` beside it honoured
 the same key.
 
-`SelectForUpdateSemaphore.MaxRetry` and `.RetryPeriod` are `init`-only. How many times a contended lock
+`SelectForUpdateLockHandler.MaxRetry` and `.RetryPeriod` are `init`-only. How many times a contended lock
 is retried is fixed for the life of the handler, and a setter invited changing it mid-retry. The flat
 `quartz.jobStore.lockHandler.maxRetry` / `.retryPeriod` keys still reach them: the property bridge writes
 the handler by reflection, and an init accessor is an ordinary setter to reflection. Code that assigned
 them after construction moves the values into the object initializer:
 
 ```diff
-- var semaphore = new SelectForUpdateSemaphore(dbProvider);
-- semaphore.MaxRetry = 5;
-+ var semaphore = new SelectForUpdateSemaphore(dbProvider) { MaxRetry = 5 };
+- var lockHandler = new StdRowLockSemaphore(dbProvider);
+- lockHandler.MaxRetry = 5;
++ var lockHandler = new SelectForUpdateLockHandler(dbProvider) { MaxRetry = 5 };
 ```
 
 A custom handler that implemented `ITablePrefixAware` replaces the property pair with `Initialize` and
@@ -5001,13 +5019,13 @@ reads the same values from the context:
 
 ```diff
 - public sealed class ConsulSemaphore : ISemaphore, ITablePrefixAware
-+ public sealed class ConsulSemaphore : ISemaphore
++ public sealed class ConsulLockHandler : ILockHandler
   {
 -     public string TablePrefix { get; set; } = "";
 -     public string? SchedName { get; set; }
 +     public string? SchedulerName { get; private set; }
 +
-+     public void Initialize(SemaphoreContext context)
++     public void Initialize(LockHandlerContext context)
 +     {
 +         SchedulerName = context.SchedulerName;
 +     }
@@ -5101,13 +5119,13 @@ state checks — that has to see the whole set. Handing one of those a page woul
 ## The initialization seams are context records
 
 The ADO.NET store has three things it initializes after construction, and each of them used to say so
-differently: a lock handler took a `SemaphoreContext`, a driver delegate took a bag called
+differently: a lock handler took a `LockHandlerContext`, a driver delegate took a bag called
 `DelegateInitializationArgs`, and a trigger persistence delegate took three loose positional arguments.
 All three take a context record now, and the records agree on what the scheduler's name is called:
 
 | Seam | 4.0 |
 |---|---|
-| `ISemaphore.Initialize` | `SemaphoreContext` — unchanged |
+| `ILockHandler.Initialize` | `LockHandlerContext` — unchanged |
 | `IDriverDelegate.Initialize` | `DriverDelegateContext` (was `DelegateInitializationArgs`), whose `InstanceName` is `SchedulerName` |
 | `ITriggerPersistenceDelegate.Initialize` | `TriggerPersistenceDelegateContext` (was `(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)`) |
 
@@ -5126,10 +5144,10 @@ All three take a context record now, and the records agree on what the scheduler
 
 `DelegateInitializationArgs.InstanceName` held the scheduler name, which is the confusion
 [One term for a scheduler instance](#one-term-for-a-scheduler-instance) settled everywhere else, so it is
-`SchedulerName` — matching `SemaphoreContext.SchedulerName` beside it. `InstanceId` keeps its name and its
+`SchedulerName` — matching `LockHandlerContext.SchedulerName` beside it. `InstanceId` keeps its name and its
 meaning: the node's identity within the cluster.
 
-Neither of the two delegate seams has a default implementation, unlike `ISemaphore.Initialize`. A lock
+Neither of the two delegate seams has a default implementation, unlike `ILockHandler.Initialize`. A lock
 handler that ignores its context is a legitimate handler — one that does not key its locks by scheduler
 identity has nothing to read. A delegate that ignores its context has no table prefix, no provider and no
 accessor, so a do-nothing default would only move the failure from startup to the first statement.
@@ -5705,7 +5723,7 @@ above cover configuration strings.
 | `Quartz.AspNetCore`, `Quartz.AspNetCore.HealthChecks`, `Quartz.AspNetCore.HttpApi` | `Quartz` | The package is still `Quartz.AspNetCore`; only the namespaces are gone. `AddQuartzHealthChecks`, `AddQuartzHttpApi` and `MapQuartzHttpApi` are extension methods and resolve through the `Quartz` you already have, so a `using Quartz.AspNetCore;` can simply be deleted. The class that hosts them is `QuartzAspNetCoreConfigurationExtensions`, renamed from `QuartzServiceCollectionExtensions` because the core package now has a class of that name in the same namespace |
 | `Quartz.HttpClient` | `Quartz` | `HttpScheduler` and `HttpClientException`; the package is still `Quartz.HttpClient`. The namespace had to go because it shadowed `System.Net.Http.HttpClient` for every file under `Quartz.*`, including Quartz's own. `HttpScheduler` is also `sealed` now |
 | `Quartz.Serialization.Json`, `Quartz.Serialization.Json.Calendars`, `Quartz.Serialization.Json.Triggers` | `Quartz.Serialization.SystemTextJson[.Calendars\|.Triggers]` | These are the System.Text.Json types, which merged into the core package; the namespace was named after the *retired 3.x Newtonsoft package*. `Quartz.JsonConfigurationExtensions` is `Quartz.SystemTextJsonConfigurationExtensions` to match — the extension methods on it are unaffected. **Read the warning below before changing a `using` on a ported serializer** |
-| `Quartz.Impl.Redis` | `Quartz.Extensions.Redis` | One type, `RedisSemaphore`, filed under `Impl` as if it were part of the core. Namespace, assembly and package are the same string now; the **package id is unchanged**. A `quartz.jobStore.lockHandler.type` naming the old namespace still resolves, with a warning |
+| `Quartz.Impl.Redis` | `Quartz.Extensions.Redis` | One type, `RedisSemaphore`, filed under `Impl` as if it were part of the core; it is `RedisLockHandler` now. Namespace, assembly and package are the same string now; the **package id is unchanged**. A `quartz.jobStore.lockHandler.type` naming the old namespace or the old type name still resolves, with a warning |
 
 ::: warning Porting a 3.x Newtonsoft serializer
 In 3.x, `Quartz.Serialization.Json.Triggers` and `Quartz.Serialization.Json.Calendars` were the
@@ -6387,13 +6405,13 @@ called out.
 | `QuartzScheduler.NumJobsExecuted` | `NumberOfJobsExecuted` (the type is internal now — read `IScheduler.GetMetadata()`) |
 | `QuartzScheduler.JobStoreClass`, `.ThreadPoolClass` | `JobStoreType`, `ThreadPoolType` (they return a `Type`; the type is internal now) |
 | `JobStoreSupport.UseDBLocks`, `.SelectWithLockSQL` | `UseDbLocks`, `SelectWithLockSql` |
-| `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `LockSql`, `InsertSql` (both readable now), `ExecuteSql` — see [The semaphores were tidied](#the-semaphores-were-tidied) |
+| `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `LockSql`, `InsertSql` (both readable now), `ExecuteSql` — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
 | `DbMetadata.Init()` | Gone entirely: `DbMetadata` is an init-only record now, and the reflection its description implies happens internally instead of in a second phase you had to remember. `UseGenericDatabase`'s describing overloads take a `Func<DbMetadata>` returning `new DbMetadata { … }`; the dead `ParameterIsNullableProperty` went too |
 | `DbMetadata.DbBinaryType` and `.ParameterDbTypeProperty` are internal | Everything else on the record is something you *say* about a driver; these two were the lookups Quartz then performed — an `Enum.Parse` of `DbBinaryTypeName` against `ParameterDbType`, and a `GetProperty(ParameterDbTypePropertyName)` on `ParameterType`. Describe the driver with the four naming properties, which are unchanged and public; the resolved results are Quartz's business |
 | `AdoConstants.ColumnMifireInstruction` | `ColumnMisfireInstruction` (a typo; the column name is unchanged) |
 | `SchedulerConstants.FailedJobOriginalTriggerFiretime`, `…ScheduledFiretime` | `…TriggerFireTime`, `…ScheduledFireTime` (the string values are unchanged) |
 | `SchedulingOptions.OverWriteExistingData` | `OverwriteExistingData`. The configuration key is spelled `Quartz:Scheduling:OverwriteExistingData` now; keys are matched case-insensitively, so an existing file keeps binding, but code assigning the property has to change |
-| `RedisSemaphore.LockTtlMilliseconds`, `.LockRetryIntervalMilliseconds` | `LockTimeToLive`, `LockRetryInterval`, both `TimeSpan` — **also the config keys `lockTtlMilliseconds` → `lockTimeToLive` and `lockRetryIntervalMilliseconds` → `lockRetryInterval`** |
+| `RedisSemaphore.LockTtlMilliseconds`, `.LockRetryIntervalMilliseconds` | `RedisLockHandler.LockTimeToLive`, `.LockRetryInterval`, both `TimeSpan` — **also the config keys `lockTtlMilliseconds` → `lockTimeToLive` and `lockRetryIntervalMilliseconds` → `lockRetryInterval`** |
 | `IObjectSerializer.DeSerialize` | `Deserialize`. `IObjectSerializer.Initialize()` went at the same time: a serializer builds whatever it needs on first use, and nothing was left for a separate initialization call to do |
 | `TriggerFiredBundle.PrevFireTimeUtc` | `PreviousFireTimeUtc`, matching the spelling used everywhere else. The type is a required-init record now: the eight-positional constructor ended in three interchangeable `DateTimeOffset?` values, so transposing `scheduledFireTimeUtc` and `previousFireTimeUtc` compiled cleanly and reported wrong fire times to every listener. A custom job store's `TriggerFired` writes `new TriggerFiredBundle { JobDetail = …, Trigger = …, Recovering = …, FireTimeUtc = …, ScheduledFireTimeUtc = …, PreviousFireTimeUtc = …, NextFireTimeUtc = … }`; only `Calendar` is optional |
 | `Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin` | `Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin` — the namespace moved and the casing follows .NET rules. A `quartz.plugin.<name>.type` naming either old spelling still resolves, with a warning. Its nested `JobFile` class and its `JobFiles` property are internal now: they are how the plugin tracks what it has read, not something to call |
@@ -8092,7 +8110,7 @@ Parameters and behavior are unchanged:
 | Cancelling a store operation raises `OperationCanceledException` | It was reported as a `JobPersistenceException` wrapping one. Cancellation is not a persistence failure, and callers match on the type. `LocalTransactionJobStore` still converts one raised inside a locked, transacted operation into `Unexpected runtime exception`, as it converts anything else that is not a `JobPersistenceException` |
 | `AdoJobStoreBase`'s nine `Execute…Lock` overloads became four members | Optional parameters replace the ladder, and no member returns `object` as a stand-in for `void` any more — see [Nine `Execute…Lock` overloads became four members](#nine-execute-lock-overloads-became-four-members) |
 | `ExternalTransactionJobStore.OpenConnection` moved to `AdoJobStoreOptions.OpenConnection` | The last store setting outside the options system; the store reads it once at construction — see [Nine `Execute…Lock` overloads became four members](#nine-execute-lock-overloads-became-four-members) |
-| `ISemaphore` takes a `SchedulerLock` | The `string lockName` had two legal values. The `LOCK_NAME` column and the Redis keys are unchanged — see [Locks are a `SchedulerLock`, not a string](#locks-are-a-schedulerlock-not-a-string) |
+| `ILockHandler` takes a `SchedulerLock` | The `string lockName` had two legal values. The `LOCK_NAME` column and the Redis keys are unchanged — see [Locks are a `SchedulerLock`, not a string](#locks-are-a-schedulerlock-not-a-string) |
 | `AdoJobStoreBase.LockTriggerAccess` / `.LockStateAccess` removed | `SchedulerLock.TriggerAccess` / `.StateAccess` replace the two protected constants |
 | ~25 `AdoJobStoreBase` configuration properties are read-only and `protected`/internal | They duplicated `AdoJobStoreOptions` / `QuartzSchedulerOptions`; resolve `IOptions<AdoJobStoreOptions>` to read, configure the options to write. `MisfireThreshold` deliberately stays publicly *readable* (its setter is internal), and the `IJobStore` members stay public — see [The job store configuration is read-only](#the-job-store-configuration-is-read-only-and-no-longer-a-public-currency) |
 | The seven conn-taking `Pause…`/`Resume…`/`RecoverMisfiredJobs` overloads are `protected` | They took a `ConnectionAndTransactionHolder` no caller outside the store can obtain; call the public keyed overloads, which take the lock and the connection themselves |
@@ -8104,17 +8122,20 @@ Parameters and behavior are unchanged:
 | `AdoJobStoreBase.DoCheckin` and `.DoRecoverMisfires` lost the `Do` prefix | `CheckIn` and `RecoverMisfires`. The prefix distinguished each from nothing — neither had a same-named member to be told apart from — and in the box only `ClusterManager` and `MisfireHandler` call them |
 | Four `AdoJobStoreBase` parameters are spelled out | `CloseConnection`, `RollbackConnection` and `CommitConnection` take `connection` where they took `cth`; `CalcFailedIfAfter` takes `record` where it took `rec`. Only a call that named its argument is affected |
 | `AdoJobStoreBase.RecoverJobs(CancellationToken)` returns `ValueTask` | The `bool` it returned was the constant `true` |
-| `DbSemaphore.LockSql` (was `Sql`) and `InsertSql` are get-only, fed by the constructor | Assigning one after construction left it un-prefixed relative to its pair — see [The semaphores were tidied](#the-semaphores-were-tidied) |
-| The row-lock semaphores are named for the SQL they issue | `StdRowLockSemaphore` is `SelectForUpdateSemaphore`, `UpdateLockRowSemaphore` is `UpdateRowSemaphore`, `PostgreSQLRowLockSemaphore` is `PostgreSqlSelectForUpdateSemaphore`, `UpdateLockRowSemaphoreMOT` is `SqlServerMemoryOptimizedUpdateRowSemaphore`. `quartz.jobStore.lockHandler.type` naming an old one still resolves, with a warning — see [The semaphores were tidied](#the-semaphores-were-tidied) |
-| Row-lock semaphore SQL fields are `protected const` and consistently named | `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateRowSemaphore.UpdateForLock` / `.InsertLock`; `SelectForUpdateSemaphore.SelectForLock` / `.InsertLock` keep their member names |
-| `ISemaphore.Initialize(SemaphoreContext)` replaces `ITablePrefixAware` | Identity arrives through one initialization call instead of a property pair; the default implementation does nothing — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
-| `SemaphoreContext` also carries `TimeProvider` and `CommandTimeout` | The environment a handler locks in, beside the identity it locks under. `DbSemaphore` exposes the clock as a `protected TimeProvider` and both shipped row-lock handlers back off on it, so a retry is observable without waiting out the real second |
-| `SemaphoreContext.LoggerFactory` and `DriverDelegateContext.LoggerFactory` added | Where the handler and the delegate create their loggers, defaulting to `NullLoggerFactory.Instance`. The job store passes the factory its container gave it, so lock contention and statement failures reach an application that never called `LogProvider.SetLogProvider` — see [The ambient logger factory stays ambient](#the-ambient-logger-factory-stays-ambient) |
+| `DbLockHandler.LockSql` (was `Sql`) and `InsertSql` are get-only, fed by the constructor | Assigning one after construction left it un-prefixed relative to its pair — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
+| The row-lock handlers are named for the SQL they issue | `StdRowLockSemaphore` is `SelectForUpdateLockHandler`, `UpdateLockRowSemaphore` is `UpdateRowLockHandler`, `PostgreSQLRowLockSemaphore` is `PostgreSqlSelectForUpdateLockHandler`, `UpdateLockRowSemaphoreMOT` is `SqlServerMemoryOptimizedUpdateRowLockHandler`. `quartz.jobStore.lockHandler.type` naming an old one still resolves, with a warning — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
+| Row-lock handler SQL fields are `protected const` and consistently named | `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateRowLockHandler.UpdateForLock` / `.InsertLock`; `SelectForUpdateLockHandler.SelectForLock` / `.InsertLock` keep their member names |
+| `ISemaphore` is `ILockHandler`, and every implementation says `LockHandler` | A semaphore is a counted permit; this is a mutual-exclusion lock with one holder. `DBSemaphore` is `DbLockHandler`, `SimpleSemaphore` is the internal `InProcessLockHandler`, `RedisSemaphore` is `RedisLockHandler` — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
+| `ISemaphore.ObtainLock` is `ILockHandler.AcquireLock` | `ReleaseLock` and `RequiresConnection` are unchanged; the verb pairs with the one that gives the lock back |
+| `SemaphoreContext` is `LockHandlerContext` | The record `Initialize` takes. Its members are unchanged |
+| `ILockHandler.Initialize(LockHandlerContext)` replaces `ITablePrefixAware` | Identity arrives through one initialization call instead of a property pair; the default implementation does nothing — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
+| `LockHandlerContext` also carries `TimeProvider` and `CommandTimeout` | The environment a handler locks in, beside the identity it locks under. `DbLockHandler` exposes the clock as a `protected TimeProvider` and both shipped row-lock handlers back off on it, so a retry is observable without waiting out the real second |
+| `LockHandlerContext.LoggerFactory` and `DriverDelegateContext.LoggerFactory` added | Where the handler and the delegate create their loggers, defaulting to `NullLoggerFactory.Instance`. The job store passes the factory its container gave it, so lock contention and statement failures reach an application that never called `LogProvider.SetLogProvider` — see [The ambient logger factory stays ambient](#the-ambient-logger-factory-stays-ambient) |
 | The ADO stores take an optional `ILoggerFactory?`, through `AdoJobStoreDependencies.LoggerFactory` | The container fills it in, and the store, its cluster manager, its misfire handler and its units of work log through it. A store constructed by hand leaves it unset and keeps reading the ambient factory — see [The ambient logger factory stays ambient](#the-ambient-logger-factory-stays-ambient) |
 | The components `Use*<T>()` builds take an optional logger | `TaskSchedulingThreadPool` (both constructors) and `DefaultThreadPool`, `ZeroSizeThreadPool` and `HostNameBasedIdGenerator` take an `ILogger<T>?`; `SimpleJobFactory`, `PropertySettingJobFactory` and `MicrosoftDependencyInjectionJobFactory` take an `ILoggerFactory?`, because the factory chain logs under two categories. All are optional and `null` means the ambient factory, so `new DefaultThreadPool()` and a derived type's `: base()` compile unchanged; a subclass that wants the container's logger passes the parameter through — see [The ambient logger factory stays ambient](#the-ambient-logger-factory-stays-ambient) |
-| `DbSemaphore.PrepareCommand` / `.AddCommandParameter` are `protected` | The two things a subclass needs to implement `ExecuteSql`, which `private protected AdoUtil` had left it unable to do at all — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
-| `SelectForUpdateSemaphore.MaxRetry` / `.RetryPeriod` are `init`-only | Assign them in an object initializer. `quartz.jobStore.lockHandler.maxRetry` / `.retryPeriod` still reach them — the property bridge writes by reflection, which an init accessor does not stop |
-| `UpdateRowSemaphore.RetryPeriod` added | Its backoff was a literal one second, so it ignored `quartz.jobStore.lockHandler.retryPeriod` while its sibling honoured it. The default is unchanged at one second |
+| `DbLockHandler.PrepareCommand` / `.AddCommandParameter` are `protected` | The two things a subclass needs to implement `ExecuteSql`, which `private protected AdoUtil` had left it unable to do at all — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
+| `SelectForUpdateLockHandler.MaxRetry` / `.RetryPeriod` are `init`-only | Assign them in an object initializer. `quartz.jobStore.lockHandler.maxRetry` / `.retryPeriod` still reach them — the property bridge writes by reflection, which an init accessor does not stop |
+| `UpdateRowLockHandler.RetryPeriod` added | Its backoff was a literal one second, so it ignored `quartz.jobStore.lockHandler.retryPeriod` while its sibling honoured it. The default is unchanged at one second |
 | `AdoJobStoreBase.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
 | `ConnectionAndTransactionHolder` gained an ownership-aware constructor and `OwnsResources` | `(connection, transaction, ownsResources)` for a store running on a connection it did not open |
 | `ConnectionAndTransactionHolder` is `IAsyncDisposable` | `await using` is the form to prefer in an async method — the provider closes its connection without blocking a thread. Purely additive; `using` keeps working, and both disposal paths now log failures at debug instead of swallowing them |
@@ -8141,7 +8162,7 @@ Parameters and behavior are unchanged:
 | `Quartz.Impl.AdoJobStore.SqlRowLimit` added | A `readonly record struct` naming the three placements a row limit can take — `InProjection`, `AtStatementEnd`, `InEnclosingSelect` — and `Unlimited` for a database that cannot limit rows |
 | `IDbConnectionManager` / `DbConnectionManager` removed | The container is the provider registry, keyed by scheduler name; register a provider with `UseConnectionProvider` — see [The connection manager is gone](#the-connection-manager-is-gone) |
 | `AdoJobStoreOptions.TxIsolationLevelSerializable` is `TransactionIsolationLevel` | An `IsolationLevel?` rather than a `bool`, so `Snapshot` and the rest are expressible. The legacy key still translates — see [The isolation level is an isolation level](#the-isolation-level-is-an-isolation-level) |
-| `AdoJobStoreOptions.CommandTimeout` added | Bounds every statement the store issues, the lock handler's included; it reaches them through `DriverDelegateContext.CommandTimeout` and `SemaphoreContext.CommandTimeout`. Unset keeps each provider's own default, so nothing changes for a store that does not set it. 3.x had no way to say this at all — there was no `quartz.*` key for it, so nothing needs translating |
+| `AdoJobStoreOptions.CommandTimeout` added | Bounds every statement the store issues, the lock handler's included; it reaches them through `DriverDelegateContext.CommandTimeout` and `LockHandlerContext.CommandTimeout`. Unset keeps each provider's own default, so nothing changes for a store that does not set it. 3.x had no way to say this at all — there was no `quartz.*` key for it, so nothing needs translating |
 | `DbMetadataFactory` is internal | Every implementation was already internal and no public member accepted one; describe a driver through `UseGenericDatabase`'s metadata factory |
 | `DbProvider.PropertyDbProvider` and `.DbProviderResourceName` removed | Two `protected const`s nothing read, left over from the process-wide provider registry |
 | `SimplePropertiesTriggerPersistenceDelegateBase`'s four SQL statements are private | `SelectSimplePropsTrigger`, `DeleteSimplePropsTrigger`, `InsertSimplePropsTrigger` and `UpdateSimplePropsTrigger` name every column the base class binds, so replacing one could not work. The table and column name constants stay `protected` — they are the schema contract |
@@ -8185,7 +8206,7 @@ Parameters and behavior are unchanged:
 | `TimeZoneUtil` became `Quartz.TimeZones` | `FindTimeZoneById` — now `FindById` — and the wall-clock `GetUtcOffset` are scheduling API, not utilities — see [`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones) |
 | `Quartz.Util.ObjectExtensions` is internal | `AssemblyQualifiedNameWithoutVersion()` is how Quartz spells a type name into a blob or onto the wire, not a general-purpose helper |
 | `Quartz.Diagnostics.ActivityOptions` is `ActivityTags` | It holds `Activity` tag names, not options, and `*Options` names an options type everywhere else. It replaced 3.x's `DiagnosticHeaders`; the constant names are unchanged, but their **values** are all `quartz.*` now — see [Job execution metrics](#job-execution-metrics) |
-| `DBSemaphore` is `DbSemaphore` | The last `DB` spelling left in the ADO.NET surface. The type is abstract and is never named in configuration |
+| `DBSemaphore` is `DbLockHandler` | The last `DB` spelling left in the ADO.NET surface, and the noun the whole family settled on — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers). The type is abstract and is never named in configuration |
 | `StartingDailyAt` / `EndingDailyAt` take a `timeOfDay` | The parameter was `timeOfDayUtc`, and the value is wall-clock in the trigger's time zone rather than UTC — the property it sets, `StartTimeOfDay`, never claimed otherwise. `DailyTimeIntervalTriggerImpl`'s five constructors say `startTimeOfDay` / `endTimeOfDay` for the same reason |
 | `ITriggerSerializer.TriggerTypeForJson` is `TriggerTypeName` | `ICalendarSerializer.CalendarTypeName` names the same concept; both JSON serializers changed |
 | `IDriverDelegate.SelectNumTriggersForJob` is `CountTriggersForJob` | Matching `CountMisfiredTriggersInState`, and spelling out the last `Num` |
@@ -8252,7 +8273,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Util.DataReaderExtensions` | Internal | No replacement; they were `IDataReader` conveniences Quartz used on its own reads |
 | `Quartz.Util.DBConnectionManager` | Removed | Register a provider with `UseConnectionProvider`, and resolve `IDbProvider` from the container; `.Instance` is gone — see [The connection manager is gone](#the-connection-manager-is-gone) |
 | `Quartz.Impl.AdoJobStore.Common.DbMetadataFactory` | Internal | The metadata factory on `UseGenericDatabase` |
-| `Quartz.Impl.AdoJobStore.DBSemaphore` | Renamed `DbSemaphore` | Same abstract base, still public — see [The semaphores were tidied](#the-semaphores-were-tidied) |
+| `Quartz.Impl.AdoJobStore.DBSemaphore` | Renamed `DbLockHandler` | Same abstract base, still public — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
 | `Quartz.Simpl.DedicatedThreadPool` | Internal | `IQuartzBuilder.UseThreadPool(IThreadPool)` for a pool of your own — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
 | `Quartz.Logging.DiagnosticHeaders` | Renamed `Quartz.Diagnostics.ActivityTags` | The constant names are unchanged; every value is `quartz.*` now — see [Job execution metrics](#job-execution-metrics) |
 | `Quartz.Util.DictionaryExtensions` | Removed | No replacement — see [Other Breaking Changes](#other-breaking-changes) |
@@ -8270,7 +8291,8 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Dashboard.Services.InProcessQuartzApiClient` | Internal | Resolve `IQuartzApiClient` — see [Other Breaking Changes](#other-breaking-changes) |
 | `Quartz.Simpl.InternalTriggerState` | Removed | `Quartz.Extensibility.StoredTriggerState`, the stored-state vocabulary every store now shares — see [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate) |
 | `Quartz.IPropertyConfigurationRoot` | Removed | Typed options — see [Code-first configuration is typed](#code-first-configuration-is-typed) |
-| `Quartz.Impl.AdoJobStore.ITablePrefixAware` | Removed | `ISemaphore.Initialize(SemaphoreContext)` — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
+| `Quartz.Impl.AdoJobStore.ISemaphore` | Renamed `ILockHandler` | `ObtainLock` is `AcquireLock`; `ReleaseLock` and `RequiresConnection` are unchanged — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
+| `Quartz.Impl.AdoJobStore.ITablePrefixAware` | Removed | `ILockHandler.Initialize(LockHandlerContext)` — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
 | `Quartz.IPropertyConfigurer` | Removed | Typed options — see [Code-first configuration is typed](#code-first-configuration-is-typed) |
 | `Quartz.IPropertySetter` | Removed | Typed options — see [Code-first configuration is typed](#code-first-configuration-is-typed) |
 | `Quartz.Dashboard.Services.IQuartzApiClientExecutionLimits` | Removed | `IQuartzApiClient`, which carries `GetExecutionLimits` itself |
@@ -8321,14 +8343,14 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.ServiceCollectionExtensions` | Split into `Quartz.QuartzServiceCollectionExtensions` and `Quartz.QuartzBuilderExtensions` | Extension-form call sites are unaffected; only a static-form call (`ServiceCollectionExtensions.AddQuartz(services, …)`) has to change. `ServiceCollectionExtensions` is the most common helper-class name in .NET, and claiming it in `Quartz` gave CS0104 in any file that had one of its own and a `using Quartz;` |
 | `Quartz.Simpl.SimpleInstanceIdGenerator` | Internal | It is still the default; register your own `IInstanceIdGenerator` to replace it |
 | `Quartz.SimpleScheduleTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
-| `Quartz.Impl.AdoJobStore.SimpleSemaphore` | Internal | It is the in-process lock the ADO.NET store falls back to when database locking is off; implement `ISemaphore` for a lock of your own — see [Locks are a `SchedulerLock`, not a string](#locks-are-a-schedulerlock-not-a-string) |
+| `Quartz.Impl.AdoJobStore.SimpleSemaphore` | Internal, renamed `InProcessLockHandler` | It is the in-process lock the ADO.NET store falls back to when database locking is off; implement `ILockHandler` for a lock of your own — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
 | `Quartz.Xml.XMLSchedulingDataProcessor` | Internal, respelled `XmlSchedulingDataProcessor` | `UseXmlSchedulingConfiguration()` — the plugin *is* the supported entry point. The type's only constructor needed an `ITypeLoader`, whose every implementation is internal; `OverwriteExistingData = false` was reverted by any file carrying `<processing-directives>`; and `ProcessFile(fileName, systemId)` wanted an identifier from a specification Quartz no longer uses. With it goes the last public type in `Quartz.Xml` |
 | `Quartz.Simpl.SimpleTypeLoadHelper` | Internal, renamed `SimpleTypeLoader` | Register your own `ITypeLoader`; a configuration string naming the old type still resolves, with a warning |
 | `Quartz.Impl.AdoJobStore.StdAdoConstants` | Internal | `AdoConstants` for table, column and state names; statement text is not a contract — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
-| `Quartz.Impl.AdoJobStore.StdRowLockSemaphore` | Renamed `SelectForUpdateSemaphore` | The old spelling still resolves in configuration, with a warning — see [The semaphores were tidied](#the-semaphores-were-tidied) |
-| `Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore` | Renamed `PostgreSqlSelectForUpdateSemaphore` | As above |
-| `Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore` | Renamed `UpdateRowSemaphore` | As above |
-| `Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT` | Renamed `SqlServerMemoryOptimizedUpdateRowSemaphore` | As above |
+| `Quartz.Impl.AdoJobStore.StdRowLockSemaphore` | Renamed `SelectForUpdateLockHandler` | The old spelling still resolves in configuration, with a warning — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
+| `Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore` | Renamed `PostgreSqlSelectForUpdateLockHandler` | As above |
+| `Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore` | Renamed `UpdateRowLockHandler` | As above |
+| `Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT` | Renamed `SqlServerMemoryOptimizedUpdateRowLockHandler` | As above |
 | `Quartz.Impl.StdJobRunShellFactory` | Internal | No replacement; see `IJobRunShellFactory` above |
 | `Quartz.Impl.StdScheduler` | Internal | Resolve `IScheduler` — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
 | `Quartz.Impl.StdSchedulerFactory` | Removed, with all 47 constants | `QuartzSchedulerBuilder.Create().UseProperties(properties)` — see [`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone) for every constant and member |
@@ -8383,7 +8405,7 @@ removals on types that are still public and still open, which no section above n
 | `LogProvider.SetCurrentLogProvider(ILogProvider)` | Removed with LibLog | `LogProvider.SetLogProvider(ILoggerFactory)` — see [Logging](#logging) |
 | `QuartzDashboardOptions.ApiPath` | Removed | No replacement; it addressed the HTTP API the dashboard's remote client called, and that client is gone — see [The dashboard reads the schedulers in its own process](#the-dashboard-reads-the-schedulers-in-its-own-process). `QuartzHttpApiOptions.ApiPath`, which is where the API is served, is a different option and unchanged |
 | `SchedulerMetadata.Started`, `.InStandbyMode`, `.Shutdown` | Removed | `Status`, a `required SchedulerStatus` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
-| `SimplePropertiesTriggerPersistenceDelegateSupport.SchedNameLiteral`, and the same member on `DbSemaphore` | Removed; both were `[Obsolete]` in 3.x | No replacement; the scheduler name is a SQL parameter, not literal text |
+| `SimplePropertiesTriggerPersistenceDelegateSupport.SchedNameLiteral`, and the same member on `DbLockHandler` | Removed; both were `[Obsolete]` in 3.x | No replacement; the scheduler name is a SQL parameter, not literal text |
 | `StdAdoDelegate.GetStorableJobTypeName(Type)` | Removed (`protected`) | `new JobType(type).FullName`, which is the spelling the `JOB_CLASS_NAME` column holds |
 | `StdAdoDelegate.SchedulerNameLiteral` | Removed; it was `[Obsolete]` in 3.x | No replacement; as above |
 | `StringKeyDirtyFlagMap.GetKeys()` | Removed | `Keys` |

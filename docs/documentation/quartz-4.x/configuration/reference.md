@@ -367,11 +367,11 @@ handler that needs building — as `UseRedisLockHandler()` does.
 option doing nothing — the store logs a warning at startup when it finds that combination.
 
 Both this and `UseSerializer` register against the scheduler that owns the store. Registering
-`ISemaphore` or `IObjectSerializer` directly against `Services` registers it for the container, which a
+`ILockHandler` or `IObjectSerializer` directly against `Services` registers it for the container, which a
 named scheduler will not see.
 
 Whichever handler is in use, the store tells it which scheduler it locks for and the environment it
-locks in — its clock and the `CommandTimeout` above — through `ISemaphore.Initialize(SemaphoreContext)`,
+locks in — its clock and the `CommandTimeout` above — through `ILockHandler.Initialize(LockHandlerContext)`,
 before the first lock is taken. A handler of your own does not need configuring for any of it. The
 timeout is worth setting for a clustered store: a node waiting on `QRTZ_LOCKS` behind a peer that
 stopped without releasing the row cannot schedule anything until the lock statement gives up.
