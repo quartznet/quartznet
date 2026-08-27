@@ -1,21 +1,22 @@
-using System.Collections.Concurrent;
-using System.Collections.Specialized;
-using System.Globalization;
-
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
 /// The clustered failures nobody can produce by shutting a scheduler down politely: a node that died
-/// mid-flight and left its rows behind, and two live nodes racing for the same due triggers.
+/// mid-flight and left its rows behind, and a live node that a peer decided was dead.
 /// <para>
-/// These run against every engine that has a fixture, because the interesting code is the SQL — the row
-/// locking that stops two nodes acquiring the same trigger, and the recovery statements that undo a
-/// dead node's residue — and that SQL differs per engine. PostgreSQL locks with
-/// <c>SELECT ... FOR UPDATE</c>, SQL Server with an <c>(UPDLOCK,ROWLOCK)</c> hint; only running both
-/// says the store works on both.
+/// These run on PostgreSQL and SQL Server, because the interesting code is the SQL — the row locking
+/// that stops two nodes acquiring the same trigger, and the recovery statements that undo a dead node's
+/// residue — and that SQL differs per engine. PostgreSQL locks with <c>SELECT ... FOR UPDATE</c>, SQL
+/// Server with an <c>(UPDLOCK,ROWLOCK)</c> hint; only running both says the store works on both.
+/// </para>
+/// <para>
+/// The exactly-once case these inherit from <see cref="ClusteredExactlyOnceTestBase" /> runs on three
+/// more engines besides. What keeps the cases below off those is that they write a dead node's residue
+/// by hand, so the fixture has to spell a boolean and a timestamp the way each engine stores them —
+/// which is fixture work rather than coverage of the store.
 /// </para>
 /// </summary>
-public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
+public abstract class ClusteredHardeningTestBase : ClusteredExactlyOnceTestBase
 {
     private const string Group = "clusterHardening";
 
@@ -30,9 +31,6 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
     }
 
     protected override string SchedulerName => "ClusterHardeningTest";
-
-    [SetUp]
-    public void ResetFirings() => FiringRecordingJob.Reset();
 
     /// <summary>
     /// A node killed while it held an acquired trigger leaves the trigger row in ACQUIRED and a
@@ -336,111 +334,6 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
     }
 
     /// <summary>
-    /// The property the clustered job store exists to provide: two nodes, one set of triggers, every
-    /// trigger fired exactly once.
-    /// </summary>
-    [Test]
-    public Task TwoNodes_EveryOneShotTriggerFiresExactlyOnce()
-    {
-        return AssertNoDoubleFire(configure: null);
-    }
-
-    /// <summary>
-    /// Starts two contending nodes, schedules thirty one-shot triggers due at the same instant, and
-    /// asserts each fired exactly once. Both nodes acquire in batches so they genuinely reach for
-    /// overlapping sets of rows rather than politely taking turns, which is the only arrangement in
-    /// which a broken lock or a lost <c>WHERE TRIGGER_STATE = 'WAITING'</c> guard shows up at all.
-    /// </summary>
-    protected async Task AssertNoDoubleFire(Action<NameValueCollection> configure)
-    {
-        const int TriggerCount = 30;
-
-        void ConfigureNode(NameValueCollection properties)
-        {
-            // A node that acquires ten at a time reaches for overlapping sets of rows rather than
-            // politely taking one each; the thread pool has to grow with it, because the scheduler
-            // refuses a batch larger than the number of threads that could run it.
-            properties["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "10";
-            properties["quartz.threadPool.maxConcurrency"] = "10";
-            configure?.Invoke(properties);
-        }
-
-        IScheduler nodeA = await CreateScheduler("nodeA", configure: ConfigureNode);
-        IScheduler nodeB = await CreateScheduler("nodeB", configure: ConfigureNode);
-
-        try
-        {
-            await nodeA.Start();
-            await nodeB.Start();
-
-            IJobDetail job = JobBuilder.Create<FiringRecordingJob>()
-                .WithIdentity("noDoubleFireJob", Group)
-                .StoreDurably()
-                .Build();
-            await nodeA.AddJob(job, new AddJobOptions { Replace = true });
-
-            // Far enough out that every trigger is stored before any of them is due, so all thirty
-            // become eligible at the same instant with both nodes awake to see them.
-            DateTimeOffset start = DateTimeOffset.UtcNow.AddSeconds(5);
-            string[] expected = new string[TriggerCount];
-            for (int i = 0; i < TriggerCount; i++)
-            {
-                expected[i] = "oneShot-" + i.ToString(CultureInfo.InvariantCulture);
-                await nodeA.ScheduleJob(TriggerBuilder.Create()
-                    .WithIdentity(expected[i], Group)
-                    .ForJob(job)
-                    .StartAt(start)
-                    .Build());
-            }
-
-            await WaitForCondition(
-                () => Task.FromResult(FiringRecordingJob.Firings.Count >= TriggerCount),
-                timeoutMs: 90_000,
-                async () =>
-                {
-                    string[] missing = expected.Except(FiredTriggerNames()).ToArray();
-                    return $"all {TriggerCount} one-shot triggers to fire; {missing.Length} never did "
-                           + $"([{string.Join(", ", missing)}]). State:\n{await DumpDatabaseState()}";
-                });
-
-            // Absence cannot be polled for, only waited out: a duplicate acquisition that lost the race by
-            // a few hundred milliseconds arrives after the thirtieth firing, not before it.
-            await SettleForRepeatFirings();
-
-            TestContext.Out.WriteLine("Firings per node: " + string.Join(", ", FiringRecordingJob.Firings
-                .GroupBy(x => x.InstanceId)
-                .OrderBy(x => x.Key, StringComparer.Ordinal)
-                .Select(x => $"{x.Key}={x.Count()}")));
-
-            FiredTriggerNames().Should().BeEquivalentTo(expected,
-                "a clustered store hands each one-shot trigger to exactly one node — a repeated name means "
-                + "two nodes acquired the same row, and a missing one means a row was acquired and dropped");
-        }
-        finally
-        {
-            await nodeA.Shutdown(waitForJobsToComplete: false);
-            await nodeB.Shutdown(waitForJobsToComplete: false);
-        }
-    }
-
-    private static string[] FiredTriggerNames() => FiringRecordingJob.Firings.Select(x => x.TriggerKey.Name).ToArray();
-
-    private Task WaitForFirings(int count, int timeoutMs, string what)
-    {
-        return WaitForCondition(
-            () => Task.FromResult(FiringRecordingJob.Firings.Count >= count),
-            timeoutMs,
-            async () => $"{what}. State:\n{await DumpDatabaseState()}");
-    }
-
-    /// <summary>
-    /// Gives a repeat firing time to arrive before the caller asserts there was none. Recovery is driven
-    /// by the check-in loop, so a recovery that failed to clean up after itself would run again on the
-    /// next check-in — three of those, at this fixture's one-second interval, pass inside this wait.
-    /// </summary>
-    private static Task SettleForRepeatFirings() => Task.Delay(3000);
-
-    /// <summary>
     /// Writes the SCHEDULER_STATE row a node leaves behind, then ages it past the failure threshold. The
     /// row is inserted at the current time and backdated rather than written already stale, so that the
     /// helper the staleness waits use is also what makes this node look dead.
@@ -504,32 +397,5 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
             $"SELECT COUNT(*) FROM {table} WHERE SCHED_NAME = @schedulerName AND INSTANCE_NAME = @instanceName",
             ("schedulerName", SchedulerName),
             ("instanceName", instanceName));
-    }
-
-    private sealed record FiringRecord(TriggerKey TriggerKey, string InstanceId, string OriginalTriggerName);
-
-    /// <summary>
-    /// Records the trigger, the node, and — for a recovered firing — the trigger whose firing is being
-    /// replayed. Concurrent by design: the exactly-once property under test belongs to trigger
-    /// acquisition, and <c>[DisallowConcurrentExecution]</c> would hide it behind a queue.
-    /// </summary>
-    private sealed class FiringRecordingJob : IJob
-    {
-        private static volatile ConcurrentQueue<FiringRecord> firings = new();
-
-        public static ConcurrentQueue<FiringRecord> Firings => firings;
-
-        public static void Reset() => Interlocked.Exchange(ref firings, new ConcurrentQueue<FiringRecord>());
-
-        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
-        {
-            JobDataMap map = context.MergedJobDataMap;
-            string originalTriggerName = map.ContainsKey(SchedulerConstants.FailedJobOriginalTriggerName)
-                ? map.GetString(SchedulerConstants.FailedJobOriginalTriggerName)
-                : null;
-
-            Firings.Enqueue(new FiringRecord(context.Trigger.Key, context.Scheduler.SchedulerInstanceId, originalTriggerName));
-            return default;
-        }
     }
 }

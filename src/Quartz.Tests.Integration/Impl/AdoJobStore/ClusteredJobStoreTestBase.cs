@@ -55,17 +55,23 @@ public abstract class ClusteredJobStoreTestBase
         // SCHEDULER_STATE row survives Shutdown (it is only deleted by another node's
         // ClusterRecover), and scheduler.Clear() does not touch it either. Remove all
         // rows for this fixture's scheduler so later tests start against a clean cluster.
-        await ExecuteNonQuery(
-            "DELETE FROM QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = @schedulerName;" +
-            "DELETE FROM QRTZ_SIMPLE_TRIGGERS WHERE SCHED_NAME = @schedulerName;" +
-            "DELETE FROM QRTZ_CRON_TRIGGERS WHERE SCHED_NAME = @schedulerName;" +
-            "DELETE FROM QRTZ_SIMPROP_TRIGGERS WHERE SCHED_NAME = @schedulerName;" +
-            "DELETE FROM QRTZ_BLOB_TRIGGERS WHERE SCHED_NAME = @schedulerName;" +
-            "DELETE FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName;" +
-            "DELETE FROM QRTZ_JOB_DETAILS WHERE SCHED_NAME = @schedulerName;" +
-            "DELETE FROM QRTZ_CALENDARS WHERE SCHED_NAME = @schedulerName;" +
-            "DELETE FROM QRTZ_PAUSED_TRIGGER_GRPS WHERE SCHED_NAME = @schedulerName;" +
-            "DELETE FROM QRTZ_SCHEDULER_STATE WHERE SCHED_NAME = @schedulerName;",
+        //
+        // One statement per round trip rather than one semicolon-separated batch: Oracle has no
+        // statement separator outside a PL/SQL block and Firebird's driver takes one statement per
+        // command, so a batch here would work on three engines and fail on two.
+        await ExecuteStatements(
+            [
+                "DELETE FROM QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = @schedulerName",
+                "DELETE FROM QRTZ_SIMPLE_TRIGGERS WHERE SCHED_NAME = @schedulerName",
+                "DELETE FROM QRTZ_CRON_TRIGGERS WHERE SCHED_NAME = @schedulerName",
+                "DELETE FROM QRTZ_SIMPROP_TRIGGERS WHERE SCHED_NAME = @schedulerName",
+                "DELETE FROM QRTZ_BLOB_TRIGGERS WHERE SCHED_NAME = @schedulerName",
+                "DELETE FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName",
+                "DELETE FROM QRTZ_JOB_DETAILS WHERE SCHED_NAME = @schedulerName",
+                "DELETE FROM QRTZ_CALENDARS WHERE SCHED_NAME = @schedulerName",
+                "DELETE FROM QRTZ_PAUSED_TRIGGER_GRPS WHERE SCHED_NAME = @schedulerName",
+                "DELETE FROM QRTZ_SCHEDULER_STATE WHERE SCHED_NAME = @schedulerName",
+            ],
             ("schedulerName", SchedulerName));
     }
 
@@ -162,7 +168,7 @@ public abstract class ClusteredJobStoreTestBase
     }
 
     /// <summary>
-    /// Runs a statement (or a batch of them) against the store's own tables.
+    /// Runs a statement against the store's own tables.
     /// </summary>
     protected async Task<int> ExecuteNonQuery(string sql, params (string Name, object Value)[] parameters)
     {
@@ -170,6 +176,22 @@ public abstract class ClusteredJobStoreTestBase
         await connection.OpenAsync();
         using DbCommand command = CreateCommand(connection, sql, parameters);
         return await command.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Runs several statements, each on its own command, over one connection. Statements that a
+    /// fixture wants run together but that no single command can carry on every engine.
+    /// </summary>
+    protected async Task ExecuteStatements(IReadOnlyList<string> statements, params (string Name, object Value)[] parameters)
+    {
+        using DbConnection connection = Database.CreateConnection();
+        await connection.OpenAsync();
+
+        foreach (string sql in statements)
+        {
+            using DbCommand command = CreateCommand(connection, sql, parameters);
+            await command.ExecuteNonQueryAsync();
+        }
     }
 
     /// <summary>
@@ -184,9 +206,27 @@ public abstract class ClusteredJobStoreTestBase
         return Convert.ToInt32(result, CultureInfo.InvariantCulture);
     }
 
-    private static DbCommand CreateCommand(DbConnection connection, string sql, (string Name, object Value)[] parameters)
+    /// <summary>
+    /// Prepares a fixture's statement for this engine's driver, rewriting the <c>@name</c> placeholders
+    /// every fixture writes into whatever the driver spells them with.
+    /// </summary>
+    /// <remarks>
+    /// The longest names go first, so that a rewrite cannot chop the head off a longer placeholder that
+    /// happens to start with a shorter one's name.
+    /// </remarks>
+    private DbCommand CreateCommand(DbConnection connection, string sql, (string Name, object Value)[] parameters)
     {
         DbCommand command = connection.CreateCommand();
+
+        string prefix = Database.ParameterPrefix;
+        if (prefix != "@")
+        {
+            foreach ((string name, _) in parameters.OrderByDescending(x => x.Name.Length))
+            {
+                sql = sql.Replace("@" + name, prefix + name, StringComparison.Ordinal);
+            }
+        }
+
         command.CommandText = sql;
         foreach ((string name, object value) in parameters)
         {
@@ -214,11 +254,11 @@ public abstract class ClusteredJobStoreTestBase
             "SELECT TRIGGER_NAME, TRIGGER_STATE, PREFERRED_NODE, PREFERRED_NODE_AUTO, EXECUTION_GROUP, NEXT_FIRE_TIME "
             + "FROM QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName",
             reader => $"TRIGGER: {reader.GetString(0)} state={reader.GetString(1)} "
-                      + $"pin={Text(reader, 2)} auto={reader.GetBoolean(3)} group={Text(reader, 4)} next={Number(reader, 5)}");
+                      + $"pin={Text(reader, 2)} auto={Text(reader, 3)} group={Text(reader, 4)} next={Number(reader, 5)}");
 
         await AppendRows(
             "SELECT INSTANCE_NAME, LAST_CHECKIN_TIME, CHECKIN_INTERVAL FROM QRTZ_SCHEDULER_STATE WHERE SCHED_NAME = @schedulerName",
-            reader => $"STATE: {reader.GetString(0)} lastCheckin={reader.GetInt64(1)} interval={reader.GetInt64(2)}");
+            reader => $"STATE: {reader.GetString(0)} lastCheckin={Number(reader, 1)} interval={Number(reader, 2)}");
 
         await AppendRows(
             "SELECT TRIGGER_NAME, INSTANCE_NAME, STATE, ENTRY_ID FROM QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = @schedulerName",
@@ -236,9 +276,15 @@ public abstract class ClusteredJobStoreTestBase
             }
         }
 
-        static string Text(DbDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? "<null>" : reader.GetString(ordinal);
+        // Read through the boxed value rather than a typed accessor: a boolean is a `bit` on SQL Server,
+        // a `boolean` on MySQL, a `VARCHAR2(1)` on Oracle and a `SMALLINT` on Firebird, and a big number
+        // is `BIGINT` on four engines and `NUMBER` — which comes back a decimal — on Oracle. This is a
+        // diagnostic, and one that threw while explaining a failure would replace the explanation.
+        static string Text(DbDataReader reader, int ordinal)
+            => reader.IsDBNull(ordinal) ? "<null>" : Convert.ToString(reader.GetValue(ordinal), CultureInfo.InvariantCulture);
 
-        static string Number(DbDataReader reader, int ordinal) => reader.IsDBNull(ordinal) ? "<null>" : reader.GetInt64(ordinal).ToString(CultureInfo.InvariantCulture);
+        static string Number(DbDataReader reader, int ordinal)
+            => reader.IsDBNull(ordinal) ? "<null>" : Convert.ToInt64(reader.GetValue(ordinal), CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
     }
 
     protected static async Task WaitForTriggerCompletion(
