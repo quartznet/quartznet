@@ -4385,17 +4385,23 @@ statements are the same; they now travel a set at a time.
 Nothing needs configuring, and the same `DbBatch` support decides it as everywhere else: providers that
 cannot batch issue exactly the statements they always did, one command at a time, in the same order.
 
-This matters if you implement `IDriverDelegate` yourself, which has three more members:
+This matters if you implement `IDriverDelegate` yourself, which has two more members:
 
 | Member | Purpose |
 |--------|---------|
-| `UpdateTriggerStatesFromOtherState(conn, IReadOnlyCollection<TriggerKey>, newState, oldState, ct)` | The single-trigger overload's statement, once per key, in one batch — releasing everything a dead node had acquired |
 | `UpdateTriggerStatesForJobsFromOtherState(conn, IReadOnlyCollection<JobKey>, newState, oldState, ct)` | The single-job overload's statement, once per job key, in one batch — unblocking the siblings of every interrupted execution |
 | `DeleteFiredTriggers(conn, IReadOnlyCollection<string> entryIds, ct)` | The single-entry delete, once per id, in one batch — clearing a dead node's rows while holding some of them back |
 
-All three return `ValueTask` rather than a row count: a batch does not report one per command in any
-portable way, and the store counts the rows it asked about rather than the rows that moved. Subclassing
-`StdAdoDelegate` gets all three for free.
+Both return `ValueTask` rather than a row count: a batch does not report one per command in any portable
+way, and the store counts the rows it asked about rather than the rows that moved. Subclassing
+`StdAdoDelegate` gets both for free.
+
+Releasing what a dead node had reserved is the third such step, and it uses
+`UpdateTriggerStatesFromOtherStates(conn, IReadOnlyCollection<TriggerKey>, newState, oldStates, ct)` —
+described under [Batched trigger acquisition, and the sets pause and resume work
+on](#batched-trigger-acquisition-and-the-sets-pause-and-resume-work-on), because pause and resume want
+the same shape. It is one `UPDATE` with a key-set predicate rather than a command per key, so it *does*
+report a row count; a caller wanting one old state passes a set of one.
 
 Behavioural notes:
 
@@ -4438,7 +4444,7 @@ overrides all of them, so a delegate deriving from it gets the batched forms for
 |--------|---------|
 | `InsertFiredTriggers(conn, IReadOnlyList<IOperableTrigger>, state, jobDetail, ct)` | An acquisition round's fired-trigger rows as one batch |
 | `SelectStoredTriggerHeaders(conn, IReadOnlyCollection<TriggerKey>, ct)` | The plural of `SelectTriggerHeader`; what pause and resume decide a whole set's transitions from. Not the listing `SelectTriggerHeaders`, which pages over `TriggerHeader` |
-| `UpdateTriggerStatesFromOtherStates(conn, IReadOnlyCollection<TriggerKey>, newState, oldStates, ct)` | One conditional transition for a whole key set, beside the store-wide overload that is still there |
+| `UpdateTriggerStatesFromOtherStates(conn, IReadOnlyCollection<TriggerKey>, newState, oldStates, ct)` | One conditional transition for a whole key set — one `UPDATE` with a key-set predicate — beside the store-wide overload that is still there. Cluster recovery releases a dead node's reservations through it as well, with a set of one old state |
 | `SelectTriggerKeysForJobs(conn, IReadOnlyCollection<JobKey>, ct)` | Every trigger key of a set of jobs in one read, for pausing and resuming a job matcher |
 | `SelectPausedJobGroups(conn, IReadOnlyCollection<string>, ct)` | Which of a set of job groups already have a paused row — the set form of `IsJobGroupPaused` |
 | `InsertPausedJobGroups(conn, IReadOnlyCollection<string>, ct)` | The missing paused-job-group rows, together |
@@ -8250,7 +8256,7 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.ValidateSchema` added | Schema validation was a `StdAdoDelegate` method reached by type test, so a delegate of your own silently skipped it — see [`ValidateSchema` is part of `IDriverDelegate`](#validateschema-is-part-of-idriverdelegate) |
 | `IDriverDelegate.ApplyTriggerFired` added | One trigger fire is one round trip's worth of writes rather than five to eight; `TriggerFiredUpdate` describes it — see [Batched trigger fire](#batched-trigger-fire) |
 | `IDriverDelegate` gains a transition-list `UpdateTriggerStatesForJobFromOtherState` and a state-filtered `SelectTriggerKeysForJob` | Overloads beside the existing ones, so the blocking and unblocking of a job's triggers is one round trip and completion stops reading a state per trigger — see [Batched trigger fire](#batched-trigger-fire) |
-| `IDriverDelegate` gains set-taking `UpdateTriggerStatesFromOtherState`, `UpdateTriggerStatesForJobsFromOtherState` and `DeleteFiredTriggers` | Overloads beside the single-key ones, so recovering a failed node issues one round trip per kind of change rather than one per fired-trigger row — see [Batched cluster recovery](#batched-cluster-recovery) |
+| `IDriverDelegate` gains set-taking `UpdateTriggerStatesForJobsFromOtherState` and `DeleteFiredTriggers` | Overloads beside the single-key ones, so recovering a failed node issues one round trip per kind of change rather than one per fired-trigger row. Its third step, releasing what the node had reserved, uses the key-set `UpdateTriggerStatesFromOtherStates` listed with the acquisition members — see [Batched cluster recovery](#batched-cluster-recovery) |
 | `StoredTriggerHeader` carries `TriggerType` | A fifth positional parameter; it comes off the row the state came from, which is what removes the separate type lookup — see [Batched trigger fire](#batched-trigger-fire) |
 | `ITriggerPersistenceDelegate.TryDescribeUpdateExtendedTriggerProperties` added | A default interface member returning `false`, so an existing persistence delegate is unaffected; implementing it puts a trigger's schedule in the same round trip as its row — see [Batched trigger fire](#batched-trigger-fire) |
 | `IDriverDelegate.UpdateFiredTrigger` removed | `ApplyTriggerFired` writes the fired-trigger row as one command of its batch, and nothing else called it; an override of it would have stopped taking effect silently — see [Batched trigger fire](#batched-trigger-fire) |

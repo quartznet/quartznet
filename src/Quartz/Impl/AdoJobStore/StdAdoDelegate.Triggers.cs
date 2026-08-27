@@ -580,8 +580,11 @@ public partial class StdAdoDelegate
         List<StoredTriggerState> states = DistinctStates(oldStates, nameof(oldStates));
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStateFromStatesPrefix + AdoUtil.BuildTriggerStatePredicate(states.Count)));
-        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        // Bound in the order the statement names them, as every other binder in this file is: a provider
+        // that binds by name does not care, but one configured to bind by position would take
+        // @newState and @schedulerName the other way round.
         AddCommandParameter(cmd, SqlParameters.NewState, newState.ToStoredValue());
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
         AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
         AddOldStateParameters(cmd, states);
@@ -656,43 +659,16 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStateFromState));
-        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        // Bound in the order the statement names them, as every other binder in this file is: a provider
+        // that binds by name does not care, but one configured to bind by position would take
+        // @newState and @schedulerName the other way round.
         AddCommandParameter(cmd, SqlParameters.NewState, newState.ToStoredValue());
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
         AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
         AddCommandParameter(cmd, SqlParameters.OldState, oldState.ToStoredValue());
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc />
-    public virtual ValueTask UpdateTriggerStatesFromOtherState(
-        ConnectionAndTransactionHolder conn,
-        IReadOnlyCollection<TriggerKey> triggerKeys,
-        StoredTriggerState newState,
-        StoredTriggerState oldState,
-        CancellationToken cancellationToken = default)
-    {
-        if (triggerKeys.Count == 0)
-        {
-            return default;
-        }
-
-        string sql = ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStateFromState);
-        List<SqlStatement> statements = new(triggerKeys.Count);
-        foreach (TriggerKey triggerKey in triggerKeys)
-        {
-            statements.Add(new SqlStatement(sql,
-            [
-                new SqlStatementParameter("schedulerName", schedulerName),
-                new SqlStatementParameter("newState", newState.ToStoredValue()),
-                new SqlStatementParameter("triggerName", triggerKey.Name),
-                new SqlStatementParameter("triggerGroup", triggerKey.Group),
-                new SqlStatementParameter("oldState", oldState.ToStoredValue())
-            ]));
-        }
-
-        return ExecuteStatements(conn, statements, cancellationToken);
     }
 
     /// <inheritdoc />
