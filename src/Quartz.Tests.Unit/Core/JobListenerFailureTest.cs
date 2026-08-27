@@ -103,7 +103,7 @@ public sealed class JobListenerFailureTest
         // scheduler carrying on rather than this listener having lost interest.
         FailingJobListener listener = new(shape, FailureSide.BeforeTheJob, context => context.Trigger.Key.Equals(wedgedKey));
 
-        (IScheduler scheduler, CompletionRecordingJobStore store) = await BuildScheduler($"listener-wedge-{shape}");
+        (IScheduler scheduler, CompletionWatchingJobStore store) = await BuildScheduler($"listener-wedge-{shape}");
 
         try
         {
@@ -175,7 +175,7 @@ public sealed class JobListenerFailureTest
         CallLog<TriggerKey> runs = new();
         FailingJobListener listener = new(shape, side, _ => true);
 
-        (IScheduler scheduler, CompletionRecordingJobStore store) = await BuildScheduler($"listener-phantom-{shape}-{side}");
+        (IScheduler scheduler, CompletionWatchingJobStore store) = await BuildScheduler($"listener-phantom-{shape}-{side}");
 
         try
         {
@@ -269,14 +269,14 @@ public sealed class JobListenerFailureTest
     /// <summary>
     /// A scheduler whose in-memory store records every firing it is handed back.
     /// </summary>
-    private static async Task<(IScheduler Scheduler, CompletionRecordingJobStore Store)> BuildScheduler(string instanceName)
+    private static async Task<(IScheduler Scheduler, CompletionWatchingJobStore Store)> BuildScheduler(string instanceName)
     {
-        CompletionRecordingJobStore store = null;
+        CompletionWatchingJobStore store = null;
         IScheduler scheduler = await QuartzSchedulerBuilder.Create()
             .ConfigureScheduler(options => options.InstanceName = instanceName)
             .UseJobStore(provider =>
             {
-                store = new CompletionRecordingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+                store = new CompletionWatchingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
                 return store;
             })
             .BuildScheduler();
@@ -380,39 +380,6 @@ public sealed class JobListenerFailureTest
         {
             Finalized.Record(trigger.Key);
             return default;
-        }
-    }
-
-    /// <summary>
-    /// Records each firing the scheduler handed back, after the real store has acted on it — so a test
-    /// that waits for a record and then asks the store a question is asking a store that has settled.
-    /// </summary>
-    private sealed class CompletionRecordingJobStore : DelegatingJobStore
-    {
-        public CompletionRecordingJobStore(IJobStore jobStore) : base(jobStore)
-        {
-        }
-
-        /// <summary>The completions the scheduler reported, instruction included.</summary>
-        public CallLog<CompletedFiring> Completions { get; } = new();
-
-        /// <summary>The triggers handed back through <see cref="ReleaseAcquiredTrigger" />.</summary>
-        public CallLog<TriggerKey> Releases { get; } = new();
-
-        public override async ValueTask TriggeredJobComplete(
-            IOperableTrigger trigger,
-            IJobDetail jobDetail,
-            SchedulerInstruction triggerInstructionCode,
-            CancellationToken cancellationToken = default)
-        {
-            await base.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken).ConfigureAwait(false);
-            Completions.Record(new CompletedFiring(trigger.Key, jobDetail.Key, triggerInstructionCode));
-        }
-
-        public override async ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
-        {
-            await base.ReleaseAcquiredTrigger(trigger, cancellationToken).ConfigureAwait(false);
-            Releases.Record(trigger.Key);
         }
     }
 }
