@@ -24,7 +24,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <summary>
 /// Selects rows of the FIRED_TRIGGERS table, for both
 /// <see cref="IDriverDelegate.SelectFiredTriggerRecords" /> and
-/// <see cref="IDriverDelegate.DeleteFiredTriggers" />.
+/// <see cref="IDriverDelegate.DeleteFiredTriggers(ConnectionAndTransactionHolder, FiredTriggerQuery, CancellationToken)" />.
 /// </summary>
 /// <remarks>
 /// <para>
