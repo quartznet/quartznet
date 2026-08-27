@@ -37,6 +37,12 @@ namespace Quartz.Tests.Unit.Core;
 [NonParallelizable]
 public class QuartzSchedulerTest
 {
+    /// <summary>
+    /// How long a test is willing to wait for a signal before declaring the scheduler stuck. Long enough
+    /// that a loaded build agent never trips it, and never used as a measurement.
+    /// </summary>
+    private static readonly TimeSpan observationDeadline = TimeSpan.FromSeconds(30);
+
     [Test]
     public void TestVersionInfo()
     {
@@ -147,107 +153,156 @@ public class QuartzSchedulerTest
         A.CallTo(() => listener.JobScheduled(scheduler, jobTrigger, A<CancellationToken>._)).MustHaveHappened();
     }
 
+    /// <summary>
+    /// The listing is of firings that have begun and not yet ended, and it is exactly that at every
+    /// point: nothing before the first one starts, one entry per firing while they are held open, and
+    /// nothing once each has been let go.
+    /// </summary>
+    /// <remarks>
+    /// Every step is driven by a signal a firing raises rather than by an elapsed interval — which is
+    /// what this test used to do, and what made it flaky enough to switch off. A job that sleeps for
+    /// 200ms is executing at 150ms only on a machine with a thread to spare at the instant the test
+    /// wanted one.
+    /// </remarks>
     [Test]
-    [Ignore("Flaky in CI")]
-    public void CurrentlyExecutingJobs()
+    public async Task GetCurrentlyExecutingJobsListsTheFiringsThatHaveStartedAndNotFinished()
     {
-        IReadOnlyCollection<IJobExecutionContext> executingJobs;
+        QuartzScheduler scheduler = await CreateQuartzScheduler("currentlyExecuting", "instance", threadCount: 5);
+        CompletionRecordingJobListener completions = new();
+        scheduler.ListenerManager.AddJobListener(completions);
 
-        var scheduler = CreateQuartzScheduler("A", "B", 5);
-
-        executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.That(executingJobs, Is.Empty);
-
-        scheduler.Start().GetAwaiter().GetResult();
-
-        executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.That(executingJobs, Is.Empty);
-
-        ScheduleJobs<DelayedJob>(scheduler, 3, true, false, 1, TimeSpan.FromMilliseconds(1), 1);
-        ScheduleJobs<DelayedJob>(scheduler, 1, true, false, 1, TimeSpan.FromMilliseconds(1), 0);
-
-        Thread.Sleep(150);
-
-        executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.That(executingJobs, Has.Count.EqualTo(4));
-
-        Thread.Sleep(150);
-
-        executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.That(executingJobs, Has.Count.EqualTo(3));
-
-        Thread.Sleep(300);
-
-        executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.That(executingJobs, Is.Empty);
-
-        scheduler.Shutdown(true).GetAwaiter().GetResult();
-    }
-
-    [Test]
-    [Ignore("Flaky in CI")]
-    public void NumberOfJobsExecuted()
-    {
-        var scheduler = CreateQuartzScheduler("A", "B", 5);
-
-        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(0));
-
-        scheduler.Start().GetAwaiter().GetResult();
-
-        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(0));
-
-        ScheduleJobs<DelayedJob>(scheduler, 3, true, false, 1, TimeSpan.FromMilliseconds(1), 1);
-        ScheduleJobs<DelayedJob>(scheduler, 1, true, false, 1, TimeSpan.FromMilliseconds(1), 0);
-
-        Thread.Sleep(150);
-
-        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(4));
-
-        Thread.Sleep(150);
-
-        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(7));
-
-        Thread.Sleep(200);
-
-        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(7));
-
-        scheduler.Shutdown(true).GetAwaiter().GetResult();
-    }
-
-    private static void ScheduleJobs<T>(QuartzScheduler scheduler,
-        int jobCount,
-        bool disableConcurrentExecution,
-        bool persistJobDataAfterExecution,
-        int triggersPerJob,
-        TimeSpan repeatInterval,
-        int repeatCount)
-    {
-        var triggersByJob = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
-
-        for (var i = 0; i < jobCount; i++)
+        try
         {
-            var job = CreateJobDetail(typeof(QuartzSchedulerTest).Name,
-                typeof(T),
-                disableConcurrentExecution,
-                persistJobDataAfterExecution);
+            scheduler.GetCurrentlyExecutingJobs().Should().BeEmpty("nothing has fired yet");
 
-            var triggers = new ITrigger[triggersPerJob];
-            for (var j = 0; j < triggersPerJob; j++)
+            await scheduler.Start();
+
+            scheduler.GetCurrentlyExecutingJobs().Should().BeEmpty(
+                "starting a scheduler with nothing scheduled cannot have begun a firing");
+
+            List<ExecutionGate> gates = await ScheduleGatedJobs(scheduler, jobCount: 4);
+
+            await ShouldObserve(
+                Task.WhenAll(gates.Select(gate => gate.Started.Reaches(1))),
+                "all four jobs have to be in flight before the listing means anything");
+
+            scheduler.GetCurrentlyExecutingJobs().Should().HaveCount(4,
+                "every firing that has begun and not ended is listed");
+
+            gates[0].Open();
+            await ShouldObserve(completions.Completed.Reaches(1), "the released job has to finish before it can be missing");
+
+            scheduler.GetCurrentlyExecutingJobs().Should().HaveCount(3,
+                "a firing leaves the listing as soon as it is over, and the other three are still held open");
+
+            foreach (ExecutionGate gate in gates.Skip(1))
             {
-                triggers[j] = CreateTrigger(job, repeatInterval, repeatCount);
+                gate.Open();
             }
 
-            triggersByJob.Add(job, triggers);
-        }
+            await ShouldObserve(completions.Completed.Reaches(4), "every firing has to finish");
 
-        scheduler.ScheduleJobs(triggersByJob).GetAwaiter().GetResult();
+            scheduler.GetCurrentlyExecutingJobs().Should().BeEmpty(
+                "with every firing over there is nothing left to list");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
     }
 
-
-    private static QuartzScheduler CreateQuartzScheduler(string name, string instanceId, int threadCount)
+    /// <summary>
+    /// The count is of firings that began, and it counts each of them once.
+    /// </summary>
+    /// <remarks>
+    /// Seven firings are asked for and seven are waited for; the schedule then has nothing left, and the
+    /// shutdown that follows is what makes "and no more than seven" a fact rather than the verdict of a
+    /// sleep that happened to be long enough.
+    /// </remarks>
+    [Test]
+    public async Task NumberOfJobsExecutedCountsEveryFiringOnce()
     {
-        var threadPool = new DefaultThreadPool { MaxConcurrency = threadCount };
-        threadPool.Initialize();
+        QuartzScheduler scheduler = await CreateQuartzScheduler("jobsExecuted", "instance", threadCount: 5);
+        CompletionRecordingJobListener completions = new();
+        scheduler.ListenerManager.AddJobListener(completions);
+
+        try
+        {
+            scheduler.NumberOfJobsExecuted.Should().Be(0, "nothing has fired yet");
+
+            await scheduler.Start();
+
+            scheduler.NumberOfJobsExecuted.Should().Be(0,
+                "starting a scheduler with nothing scheduled cannot have fired anything");
+
+            // Three jobs whose trigger fires twice and one whose trigger fires once: seven firings, and
+            // no schedule left over afterwards.
+            await ScheduleJobs<CountedJob>(scheduler, jobCount: 3, repeatCount: 1);
+            await ScheduleJobs<CountedJob>(scheduler, jobCount: 1, repeatCount: 0);
+
+            await ShouldObserve(completions.Completed.Reaches(7), "every firing the schedule calls for has to happen");
+
+            scheduler.NumberOfJobsExecuted.Should().Be(7, "the seven firings that ran are seven firings counted");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+
+        scheduler.NumberOfJobsExecuted.Should().Be(7,
+            "the schedule is exhausted and the scheduler is down, so nothing further can have been counted");
+        scheduler.GetCurrentlyExecutingJobs().Should().BeEmpty("every firing ended before the shutdown returned");
+    }
+
+    private static async Task ShouldObserve(Task observation, string because)
+    {
+        Func<Task> act = () => observation;
+        await act.Should().CompleteWithinAsync(observationDeadline, because);
+    }
+
+    /// <summary>
+    /// Schedules <paramref name="jobCount" /> jobs that each hold their firing open until the gate
+    /// handed back for them is opened, one trigger and one firing apiece.
+    /// </summary>
+    private static async Task<List<ExecutionGate>> ScheduleGatedJobs(QuartzScheduler scheduler, int jobCount)
+    {
+        List<ExecutionGate> gates = new(jobCount);
+        Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersByJob = new();
+
+        for (int i = 0; i < jobCount; i++)
+        {
+            ExecutionGate gate = new();
+            gates.Add(gate);
+
+            IJobDetail job = CreateJobDetail<GatedJob>(new JobDataMap { [ExecutionGate.JobDataKey] = gate });
+            triggersByJob.Add(job, [CreateTrigger(job, repeatCount: 0)]);
+        }
+
+        await scheduler.ScheduleJobs(triggersByJob);
+        return gates;
+    }
+
+    private static async Task ScheduleJobs<TJob>(QuartzScheduler scheduler, int jobCount, int repeatCount)
+        where TJob : IJob
+    {
+        Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersByJob = new();
+
+        for (int i = 0; i < jobCount; i++)
+        {
+            IJobDetail job = CreateJobDetail<TJob>(new JobDataMap());
+            triggersByJob.Add(job, [CreateTrigger(job, repeatCount)]);
+        }
+
+        await scheduler.ScheduleJobs(triggersByJob);
+    }
+
+    private static async Task<QuartzScheduler> CreateQuartzScheduler(string name, string instanceId, int threadCount)
+    {
+        DefaultThreadPool threadPool = new() { MaxConcurrency = threadCount };
+        await threadPool.Initialize();
+
+        RAMJobStore jobStore = TestJobStores.Ram();
+        await jobStore.Initialize(TestJobStores.Identity(name, instanceId));
 
         QuartzSchedulerResources res = new QuartzSchedulerResources
         {
@@ -255,47 +310,98 @@ public class QuartzSchedulerTest
             InstanceId = instanceId,
             ThreadPool = threadPool,
             JobRunShellFactory = new StdJobRunShellFactory(NullLogger<JobRunShell>.Instance),
-            JobStore = TestJobStores.Ram(),
+            JobStore = jobStore,
             IdleWaitTime = TimeSpan.FromMilliseconds(10),
             MaxBatchSize = threadCount,
             BatchTimeWindow = TimeSpan.FromMilliseconds(10)
         };
 
-        var scheduler = new QuartzScheduler(res);
+        QuartzScheduler scheduler = new QuartzScheduler(res);
         scheduler.JobFactory = new SimpleJobFactory();
         return scheduler;
     }
 
-    private static ITrigger CreateTrigger(IJobDetail job, TimeSpan repeatInterval, int repeatCount)
+    private static ITrigger CreateTrigger(IJobDetail job, int repeatCount)
     {
         return TriggerBuilder.Create()
             .ForJob(job)
             .WithSimpleSchedule(
                 sb => sb.WithRepeatCount(repeatCount)
-                    .WithInterval(repeatInterval)
+                    .WithInterval(TimeSpan.FromMilliseconds(1))
                     .WithMisfireInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires))
             .Build();
     }
 
-    private static IJobDetail CreateJobDetail(string group,
-        Type jobType,
-        bool disableConcurrentExecution,
-        bool persistJobDataAfterExecution)
+    private static IJobDetail CreateJobDetail<TJob>(JobDataMap jobDataMap) where TJob : IJob
     {
-        return JobBuilder.Create().OfType(jobType)
-            .WithIdentity(Guid.NewGuid().ToString(), group)
-            .DisallowConcurrentExecution(disableConcurrentExecution)
-            .PersistJobDataAfterExecution(persistJobDataAfterExecution)
+        return JobBuilder.Create<TJob>()
+            .WithIdentity(Guid.NewGuid().ToString(), nameof(QuartzSchedulerTest))
+            .DisallowConcurrentExecution()
+            .UsingJobData(jobDataMap)
             .Build();
     }
 
-    public class DelayedJob : IJob
+    /// <summary>
+    /// One firing's half of the conversation with the test: it says when it has started, and waits to be
+    /// let go. Handed to the job through its data map, so nothing is static and two tests cannot see each
+    /// other's firings.
+    /// </summary>
+    private sealed class ExecutionGate
     {
-        private static readonly TimeSpan _delay = TimeSpan.FromMilliseconds(200);
+        public const string JobDataKey = "gate";
 
+        private readonly TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>The firings of this job that have begun.</summary>
+        public CallLog<JobKey> Started { get; } = new();
+
+        /// <summary>Completes when <see cref="Open" /> is called, and never before.</summary>
+        public Task Released => release.Task;
+
+        public void Open() => release.TrySetResult();
+    }
+
+    /// <summary>
+    /// A job that begins and then runs until the test lets it stop.
+    /// </summary>
+    public sealed class GatedJob : IJob
+    {
         public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
-            await Task.Delay(_delay).ConfigureAwait(false);
+            ExecutionGate gate = (ExecutionGate) context.MergedJobDataMap[ExecutionGate.JobDataKey];
+            gate.Started.Record(context.JobDetail.Key);
+            await gate.Released.ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// A job that does nothing, for the tests that count firings rather than watch them.
+    /// </summary>
+    public sealed class CountedJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// Records each firing as it ends.
+    /// </summary>
+    /// <remarks>
+    /// The scheduler notifies its own <c>ExecutingJobsManager</c> before any listener the application
+    /// registered, so by the time this records a firing the scheduler has already dropped it from
+    /// <see cref="QuartzScheduler.GetCurrentlyExecutingJobs" /> — which is what makes it safe to assert
+    /// on that listing the moment this signals.
+    /// </remarks>
+    private sealed class CompletionRecordingJobListener : IJobListener
+    {
+        public CallLog<JobKey> Completed { get; } = new();
+
+        public ValueTask JobWasExecuted(
+            IJobExecutionContext context,
+            JobExecutionException jobException,
+            CancellationToken cancellationToken = default)
+        {
+            Completed.Record(context.JobDetail.Key);
+            return default;
         }
     }
 }
