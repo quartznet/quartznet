@@ -20,6 +20,7 @@
 #endregion
 
 using System.Text;
+using System.Text.Json;
 
 using Quartz.Extensibility;
 using Quartz.Impl;
@@ -293,11 +294,24 @@ public class NewtonsoftLegacyTimeZonePayloadTest
 /// data map — where the slot is typed <see cref="object" /> — is written exactly as it always was.
 /// </summary>
 /// <remarks>
-/// The map payload below is verbatim output of the code at 347392bd, captured before the converter
-/// existed, and the current serializer reproduces it byte for byte. Scoping is what keeps that true: a
-/// converter on the serializer's list is consulted for a value's runtime type wherever it appears, so
-/// a global one would have written the zone as a bare string and dropped the <c>$type</c> that the
-/// object-typed path carries.
+/// <para>
+/// Scoping is what keeps that true: a converter on the serializer's list is consulted for a value's
+/// runtime type wherever it appears, so a global one would have written the zone as a bare string and
+/// dropped the <c>$type</c> that the object-typed path carries.
+/// </para>
+/// <para>
+/// The written shape is asserted member by member rather than against a captured string, because most
+/// of what Json.NET writes for a zone is the running OS's own text: Windows says
+/// <c>"(UTC+09:00) Osaka, Sapporo, Tokyo"</c> where Linux says
+/// <c>"(UTC+09:00) Japan Standard Time (Tokyo)"</c>, and the standard and daylight names differ with
+/// them. Only <c>$type</c> and <c>Id</c> mean the same thing everywhere — and the id is compared
+/// against the zone the test itself resolved rather than a literal, since a Windows id resolves to an
+/// IANA one on Unix and the spelling belongs to the platform.
+/// </para>
+/// <para>
+/// <see cref="JobDataMapWithZone" /> is verbatim output of the code at 347392bd and is used for reading
+/// only, which is safe: what makes that read fail has nothing to do with the names in it.
+/// </para>
 /// </remarks>
 [TestFixture]
 public class NewtonsoftJobDataTimeZoneTest
@@ -309,32 +323,40 @@ public class NewtonsoftJobDataTimeZoneTest
     public void AZoneInAJobDataMapIsWrittenAsItAlwaysWas()
     {
         IObjectSerializer serializer = new NewtonsoftJsonObjectSerializer();
-        JobDataMap map = new JobDataMap { { "zone", TimeZones.FindById("Tokyo Standard Time") } };
+        TimeZoneInfo tokyo = TimeZones.FindById("Tokyo Standard Time");
+        JobDataMap map = new JobDataMap { { "zone", tokyo } };
 
-        string written = Encoding.UTF8.GetString(serializer.Serialize(map));
+        using JsonDocument written = JsonDocument.Parse(serializer.Serialize(map));
+        JsonElement zone = written.RootElement.GetProperty("zone");
 
-        written.Should().Be(JobDataMapWithZone,
-            "the converter is scoped to typed members, so an object-typed slot keeps the shape - and the $type - that every payload already in a JOB_DATA column carries");
+        zone.ValueKind.Should().Be(JsonValueKind.Object,
+            "the converter is scoped to typed members, so an object-typed slot is left alone - a global one would have collapsed the zone to a bare string");
+        zone.GetProperty("$type").GetString().Should().Be("System.TimeZoneInfo, System.Private.CoreLib",
+            "the $type is what every payload already in a JOB_DATA column carries, and losing it would change the shape of a stored blob");
+        zone.GetProperty("Id").GetString().Should().Be(tokyo.Id,
+            "the id is the one member of a written zone that means the same thing on every platform");
     }
 
     [Test]
     public void ATriggerWritesItsZoneAsTheIdInstead()
     {
         IObjectSerializer serializer = new NewtonsoftJsonObjectSerializer();
+        TimeZoneInfo tokyo = TimeZones.FindById("Tokyo Standard Time");
         CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl
         {
             Key = new TriggerKey("calendarInterval", "group"),
             RepeatIntervalUnit = IntervalUnit.Hour,
-            TimeZone = TimeZones.FindById("Tokyo Standard Time"),
+            TimeZone = tokyo,
             StartTimeUtc = new DateTimeOffset(2024, 7, 1, 0, 0, 0, TimeSpan.Zero)
         };
 
-        string written = Encoding.UTF8.GetString(serializer.Serialize(trigger));
+        using JsonDocument written = JsonDocument.Parse(serializer.Serialize(trigger));
+        JsonElement zone = written.RootElement.GetProperty("TimeZone");
 
-        written.Should().Contain("""
-                                 "TimeZone":"Tokyo Standard Time"
-                                 """,
-            "a typed member is where the converter applies, and the id is the only part of a zone another process can use");
+        zone.ValueKind.Should().Be(JsonValueKind.String,
+            "a typed member is where the converter applies, so the whole object collapses to one value");
+        zone.GetString().Should().Be(tokyo.Id,
+            "the id is the only part of a zone another process can use, and its spelling is the resolving platform's own");
     }
 
     /// <summary>
