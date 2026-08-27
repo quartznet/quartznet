@@ -2031,10 +2031,39 @@ internal sealed class QuartzScheduler
         IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        return NotifyJobListeners(static (jl, context, jobExecutionException, cancellationToken) => jl.JobToBeExecuted(context, cancellationToken),
+        // The scheduler's own record of the firing is kept outside the listener loop below, because a
+        // listener that throws abandons that loop. JobRunShell then completes the firing without the
+        // job having run and without anyone being told it was executed, so a record kept inside the
+        // loop would list the firing as executing for as long as the process lived (#3502).
+        jobMgr.FiringStarted(context);
+
+        ValueTask notification = NotifyJobListeners(
+            static (jl, context, jobExecutionException, cancellationToken) => jl.JobToBeExecuted(context, cancellationToken),
             context,
             null,
             cancellationToken);
+
+        return notification.IsCompletedSuccessfully
+            ? default
+            : EndFiringIfNotificationFails(notification, jobMgr, context);
+
+        static async ValueTask EndFiringIfNotificationFails(
+            ValueTask notification,
+            ExecutingJobsManager jobMgr,
+            IJobExecutionContext context)
+        {
+            try
+            {
+                await notification.ConfigureAwait(false);
+            }
+            catch
+            {
+                // Nothing further will be notified for this firing, so this is the only place the
+                // record of it can be taken back out.
+                jobMgr.FiringEnded(context);
+                throw;
+            }
+        }
     }
 
     /// <summary>
@@ -2063,6 +2092,11 @@ internal sealed class QuartzScheduler
         JobExecutionException? jobExecutionException,
         CancellationToken cancellationToken = default)
     {
+        // Taken out of the record before the listeners are told, and not by one of them: a listener
+        // that throws here must not leave the firing showing as executing (#3502). It is also what
+        // ShutdownDrainTest pins — the count drops before the job store update the firing ends with.
+        jobMgr.FiringEnded(context);
+
         return NotifyJobListeners(static (jl, context, jobExecutionException, cancellationToken) => jl.JobWasExecuted(context, jobExecutionException, cancellationToken),
             context,
             jobExecutionException,
@@ -2079,42 +2113,18 @@ internal sealed class QuartzScheduler
         var listeners = ListenerManager.GetJobListeners();
         if (listeners.Count == 0)
         {
-            return NotifyExecutingJobManager(notifyAction, context, jobExecutionException, cancellationToken, jobMgr);
+            return default;
         }
 
-        return NotifyAllJobListeners(ListenerManager, jobMgr, listeners, notifyAction, context, jobExecutionException, cancellationToken);
-
-        static ValueTask NotifyExecutingJobManager(Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
-            IJobExecutionContext context,
-            JobExecutionException? jobExecutionException,
-            CancellationToken cancellationToken,
-            ExecutingJobsManager jobsManager)
-        {
-            var task = notifyAction(jobsManager, context, jobExecutionException, cancellationToken);
-            return task.IsCompletedSuccessfully ? default : NotifySingle(task, jobsManager, context);
-        }
-
-        static ValueTask NotifyAllJobListeners(IListenerManager listenerManager,
-            ExecutingJobsManager jobManager,
-            IReadOnlyList<IJobListener> listeners,
-            Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
-            IJobExecutionContext context,
-            JobExecutionException? jobExecutionException,
-            CancellationToken cancellationToken)
-        {
-            return NotifyAwaited(listenerManager, jobManager, listeners, notifyAction, context, jobExecutionException, cancellationToken);
-        }
+        return NotifyAwaited(ListenerManager, listeners, notifyAction, context, jobExecutionException, cancellationToken);
 
         static async ValueTask NotifyAwaited(IListenerManager listenerManager,
-            ExecutingJobsManager jobManager,
             IReadOnlyList<IJobListener> listeners,
             Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
             IJobExecutionContext context,
             JobExecutionException? jobExecutionException,
             CancellationToken cancellationToken)
         {
-            await NotifySingle(notifyAction(jobManager, context, jobExecutionException, cancellationToken), jobManager, context).ConfigureAwait(false);
-
             foreach (var jl in listeners)
             {
                 if (!MatchJobListener(listenerManager, jl, context.JobDetail.Key))
@@ -2122,19 +2132,19 @@ internal sealed class QuartzScheduler
                     continue;
                 }
 
-                await NotifySingle(notifyAction(jl, context, jobExecutionException, cancellationToken), jl, context).ConfigureAwait(false);
-            }
-        }
-
-        static async ValueTask NotifySingle(ValueTask t, IJobListener jl, IJobExecutionContext context)
-        {
-            try
-            {
-                await t.ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                throw new JobExecutionProcessException(jl, context, e);
+                // The call to the listener is inside the guard, not an argument to it, so a listener
+                // that throws before it hands anything back — a guard clause in a method that is not
+                // async — is wrapped in the same exception as one that hands back a faulted task.
+                // JobRunShell catches SchedulerException, and a raw exception escaping it left the
+                // firing stranded and the job's other triggers blocked behind it (#3502).
+                try
+                {
+                    await notifyAction(jl, context, jobExecutionException, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    throw new JobExecutionProcessException(jl, context, e);
+                }
             }
         }
     }
