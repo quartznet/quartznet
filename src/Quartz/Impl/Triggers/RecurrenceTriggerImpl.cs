@@ -32,13 +32,6 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     [NonSerialized]
     private volatile RRule? parsedRule;
 
-    // For binary serialization — uses TimeZoneUtil for cross-platform ID resolution
-    private string? timeZoneInfoId
-    {
-        get => timeZone?.Id;
-        set => timeZone = value == null ? null : TimeZoneUtil.FindTimeZoneById(value);
-    }
-
     /// <summary>
     /// Create a <see cref="RecurrenceTriggerImpl"/> with no settings.
     /// </summary>
