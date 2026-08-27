@@ -75,6 +75,6 @@ public sealed record AdoJobStoreDependencies(
     IObjectSerializer ObjectSerializer,
     IDbProvider DbProvider,
     IDriverDelegate DriverDelegate,
-    ISemaphore? LockHandler = null,
+    ILockHandler? LockHandler = null,
     IEnumerable<ITriggerPersistenceDelegate>? TriggerPersistenceDelegates = null,
     ILoggerFactory? LoggerFactory = null);

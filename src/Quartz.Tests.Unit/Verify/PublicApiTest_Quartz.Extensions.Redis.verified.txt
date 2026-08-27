@@ -1,9 +1,9 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
 namespace Quartz.Extensions.Redis
 {
-    public sealed class RedisSemaphore : Quartz.Impl.AdoJobStore.ISemaphore
+    public sealed class RedisLockHandler : Quartz.Impl.AdoJobStore.ILockHandler
     {
-        public RedisSemaphore() { }
+        public RedisLockHandler() { }
         public string KeyPrefix { get; }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
         public System.TimeSpan LockRetryInterval { get; }
@@ -12,8 +12,8 @@ namespace Quartz.Extensions.Redis
         public string RedisConfiguration { get; }
         public bool RequiresConnection { get; }
         public string? SchedulerName { get; }
-        public void Initialize(Quartz.Impl.AdoJobStore.SemaphoreContext context) { }
-        public System.Threading.Tasks.ValueTask<bool> ObtainLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> AcquireLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
+        public void Initialize(Quartz.Impl.AdoJobStore.LockHandlerContext context) { }
         public System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }

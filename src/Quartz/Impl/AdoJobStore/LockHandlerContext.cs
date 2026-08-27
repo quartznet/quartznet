@@ -26,9 +26,9 @@ namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
 /// The identity of the scheduler a lock handler locks for and the environment it locks in, handed to
-/// <see cref="ISemaphore.Initialize" /> once by the job store before the semaphore is used.
+/// <see cref="ILockHandler.Initialize" /> once by the job store before the handler is used.
 /// </summary>
-public sealed record SemaphoreContext
+public sealed record LockHandlerContext
 {
     /// <summary>
     /// Name of the scheduler whose scheduling data the lock protects.

@@ -6,17 +6,17 @@ using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Documentation.Samples.HowTos;
 
-#region sample_lock_handler_semaphore
+#region sample_lock_handler_custom
 
-public sealed class LeaseSemaphore : ISemaphore
+public sealed class LeaseLockHandler : ILockHandler
 {
     private string schedulerName = "";
 
     public bool RequiresConnection => false;
 
-    public void Initialize(SemaphoreContext context) => schedulerName = context.SchedulerName;
+    public void Initialize(LockHandlerContext context) => schedulerName = context.SchedulerName;
 
-    public async ValueTask<bool> ObtainLock(
+    public async ValueTask<bool> AcquireLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
         SchedulerLock lockKind,
@@ -51,7 +51,7 @@ public static class LockHandlerSamples
         {
             q.UsePersistentStore(s =>
             {
-                s.UseLockHandler<LeaseSemaphore>();
+                s.UseLockHandler<LeaseLockHandler>();
                 s.UseSqlServer(connectionString);
                 s.UseClustering();
             });

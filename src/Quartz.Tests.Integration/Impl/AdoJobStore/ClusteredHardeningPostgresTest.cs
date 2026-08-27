@@ -2,7 +2,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
 /// The clustered hardening scenarios against PostgreSQL, whose store locks through
-/// <c>PostgreSqlSelectForUpdateSemaphore</c>.
+/// <c>PostgreSqlSelectForUpdateLockHandler</c>.
 /// </summary>
 [Category("db-postgres")]
 [NonParallelizable]

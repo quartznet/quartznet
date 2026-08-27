@@ -270,13 +270,13 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     }
 
     public IPersistentStoreBuilder UseLockHandler<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
-        where T : class, ISemaphore
+        where T : class, ILockHandler
     {
-        Register<ISemaphore, T>();
+        Register<ILockHandler, T>();
         return this;
     }
 
-    public IPersistentStoreBuilder UseLockHandler(Func<IServiceProvider, ISemaphore> factory)
+    public IPersistentStoreBuilder UseLockHandler(Func<IServiceProvider, ILockHandler> factory)
     {
         ArgumentNullException.ThrowIfNull(factory);
         RegisterScoped(factory);

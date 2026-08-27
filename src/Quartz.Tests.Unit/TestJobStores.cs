@@ -34,7 +34,7 @@ public static class TestJobStores
 
     public static IDriverDelegate DriverDelegate() => new StdAdoDelegate();
 
-    public static ISemaphore LockHandler() => new SimpleSemaphore();
+    public static ILockHandler LockHandler() => new InProcessLockHandler();
 
     public static IObjectSerializer Serializer()
     {
@@ -108,7 +108,7 @@ public static class TestJobStores
         IObjectSerializer? serializer = null,
         IDbProvider? dbProvider = null,
         IDriverDelegate? driverDelegate = null,
-        ISemaphore? lockHandler = null,
+        ILockHandler? lockHandler = null,
         IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null,
         ILoggerFactory? loggerFactory = null)
     {

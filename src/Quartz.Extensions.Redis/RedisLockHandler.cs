@@ -31,7 +31,7 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 namespace Quartz.Extensions.Redis;
 
 /// <summary>
-/// A Redis-based <see cref="ISemaphore"/> that uses distributed locks
+/// A Redis-based <see cref="ILockHandler"/> that uses distributed locks
 /// (<c>SET NX PX</c>) instead of database row locks.
 /// </summary>
 /// <remarks>
@@ -48,12 +48,12 @@ namespace Quartz.Extensions.Redis;
 /// <para>
 /// Configure via properties:
 /// <code>
-/// quartz.jobStore.lockHandler.type = Quartz.Extensions.Redis.RedisSemaphore, Quartz.Extensions.Redis
+/// quartz.jobStore.lockHandler.type = Quartz.Extensions.Redis.RedisLockHandler, Quartz.Extensions.Redis
 /// quartz.jobStore.lockHandler.redisConfiguration = localhost:6379
 /// </code>
 /// </para>
 /// </remarks>
-public sealed class RedisSemaphore : ISemaphore
+public sealed class RedisLockHandler : ILockHandler
 {
     // The Redis key keeps the stored lock names rather than the enum member names, so that a rolling
     // upgrade and a mixed-version cluster keep contending for the same key.
@@ -65,7 +65,7 @@ public sealed class RedisSemaphore : ISemaphore
 
     private readonly ResourceLock triggerLock = new();
     private readonly ResourceLock stateLock = new();
-    private ILogger<RedisSemaphore> logger = LogProvider.CreateLogger<RedisSemaphore>();
+    private ILogger<RedisLockHandler> logger = LogProvider.CreateLogger<RedisLockHandler>();
 
     private IConnectionMultiplexer? redis;
     private readonly SemaphoreSlim connectionLock = new(1, 1);
@@ -128,26 +128,26 @@ public sealed class RedisSemaphore : ISemaphore
     /// Gets the scheduler name used to namespace Redis lock keys.
     /// </summary>
     /// <remarks>
-    /// Told to the semaphore by the job store through <see cref="Initialize"/>.
+    /// Told to the handler by the job store through <see cref="Initialize"/>.
     /// </remarks>
     public string? SchedulerName { get; private set; }
 
     /// <inheritdoc />
-    public void Initialize(SemaphoreContext context)
+    public void Initialize(LockHandlerContext context)
     {
         SchedulerName = context.SchedulerName;
 
         // Lock contention and expiry are what this handler has to say, and they are of no use to an
         // application that has to set a static before it can hear them. Until the store calls this, the
         // ambient factory still answers.
-        logger = context.LoggerFactory.CreateLogger<RedisSemaphore>();
+        logger = context.LoggerFactory.CreateLogger<RedisLockHandler>();
     }
 
     /// <inheritdoc />
     public bool RequiresConnection => false;
 
     /// <inheritdoc />
-    public async ValueTask<bool> ObtainLock(
+    public async ValueTask<bool> AcquireLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
         SchedulerLock lockKind,

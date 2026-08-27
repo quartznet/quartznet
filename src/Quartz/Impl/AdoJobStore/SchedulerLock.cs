@@ -26,7 +26,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// nodes of a cluster.
 /// </summary>
 /// <remarks>
-/// There have only ever been these two, and an <see cref="ISemaphore" /> that was handed anything
+/// There have only ever been these two, and an <see cref="ILockHandler" /> that was handed anything
 /// else threw. Saying so in the type means a caller cannot invent a third lock that silently
 /// protects nothing, and it keeps the stored lock names out of every signature that mentions a lock.
 /// </remarks>
@@ -50,7 +50,7 @@ public enum SchedulerLock
 /// </summary>
 /// <remarks>
 /// Internal because the stored names are only ever needed where rows are written; an
-/// <see cref="ISemaphore" /> that locks somewhere other than the database names its own keys.
+/// <see cref="ILockHandler" /> that locks somewhere other than the database names its own keys.
 /// </remarks>
 internal static class SchedulerLockExtensions
 {

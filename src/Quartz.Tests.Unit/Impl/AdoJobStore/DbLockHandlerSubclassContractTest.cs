@@ -8,27 +8,27 @@ using Quartz.Impl.AdoJobStore.Common;
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <summary>
-/// <see cref="DbSemaphore.ExecuteSql" /> is the one method a subclass exists to implement, and until
-/// <see cref="DbSemaphore.PrepareCommand" /> and <see cref="DbSemaphore.AddCommandParameter" /> were
+/// <see cref="DbLockHandler.ExecuteSql" /> is the one method a subclass exists to implement, and until
+/// <see cref="DbLockHandler.PrepareCommand" /> and <see cref="DbLockHandler.AddCommandParameter" /> were
 /// <c>protected</c> there was no way to implement it: the accessor that prepares a statement is
-/// <c>private protected</c>, so a semaphore written outside this assembly could not see it. The
-/// migration guide told such an author to "derive from <c>DbSemaphore</c> and use <c>IDbProvider</c>",
+/// <c>private protected</c>, so a handler written outside this assembly could not see it. The
+/// migration guide told such an author to "derive from <c>DbLockHandler</c> and use <c>IDbProvider</c>",
 /// which does not work — a command minted from the provider is attached to no connection and no
 /// transaction, so it would run outside the unit of work the lock is supposed to protect.
 /// </summary>
 /// <remarks>
-/// This test is mostly its own subject: <see cref="OutsiderSemaphore" /> uses nothing that is not
-/// <c>public</c> or <c>protected</c>, so it compiles exactly where a semaphore in someone else's
+/// This test is mostly its own subject: <see cref="OutsiderLockHandler" /> uses nothing that is not
+/// <c>public</c> or <c>protected</c>, so it compiles exactly where a handler in someone else's
 /// assembly would. If the helpers were narrowed again, this file would stop building.
 /// </remarks>
-public class DbSemaphoreSubclassContractTest
+public class DbLockHandlerSubclassContractTest
 {
     [Test]
-    public async Task ASemaphoreWrittenOutsideQuartzCanIssueItsOwnLockStatement()
+    public async Task ALockHandlerWrittenOutsideQuartzCanIssueItsOwnLockStatement()
     {
         var provider = new RecordingDbProvider();
-        var semaphore = new OutsiderSemaphore(provider);
-        semaphore.Initialize(new SemaphoreContext
+        var lockHandler = new OutsiderLockHandler(provider);
+        lockHandler.Initialize(new LockHandlerContext
         {
             SchedulerName = "TESTSCHED",
             InstanceId = "node-1",
@@ -39,7 +39,7 @@ public class DbSemaphoreSubclassContractTest
         using var connection = new RecordingConnection();
         using var holder = new ConnectionAndTransactionHolder(connection, transaction: null);
 
-        bool obtained = await semaphore.ObtainLock(Guid.NewGuid(), holder, SchedulerLock.TriggerAccess);
+        bool obtained = await lockHandler.AcquireLock(Guid.NewGuid(), holder, SchedulerLock.TriggerAccess);
 
         obtained.Should().BeTrue();
 
@@ -57,10 +57,10 @@ public class DbSemaphoreSubclassContractTest
 
     /// <summary>
     /// A lock handler as an author outside this assembly would write one: it derives from
-    /// <see cref="DbSemaphore" />, overrides <see cref="DbSemaphore.ExecuteSql" />, and reaches for
+    /// <see cref="DbLockHandler" />, overrides <see cref="DbLockHandler.ExecuteSql" />, and reaches for
     /// nothing beyond what that base class offers a derived type.
     /// </summary>
-    private sealed class OutsiderSemaphore : DbSemaphore
+    private sealed class OutsiderLockHandler : DbLockHandler
     {
         private const string LockStatement =
             "SELECT 1 FROM {0}LOCKS WHERE SCHED_NAME = @schedulerName AND LOCK_NAME = @lockName";
@@ -68,7 +68,7 @@ public class DbSemaphoreSubclassContractTest
         private const string InsertStatement =
             "INSERT INTO {0}LOCKS (SCHED_NAME, LOCK_NAME) VALUES (@schedulerName, @lockName)";
 
-        public OutsiderSemaphore(IDbProvider dbProvider)
+        public OutsiderLockHandler(IDbProvider dbProvider)
             : base("QRTZ_", schedulerName: null, LockStatement, InsertStatement, dbProvider)
         {
         }

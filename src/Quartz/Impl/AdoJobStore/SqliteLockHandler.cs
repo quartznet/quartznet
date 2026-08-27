@@ -28,22 +28,22 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
-/// In-memory semaphore for SQLite that uses a single global lock to serialize
+/// In-memory lock handler for SQLite that uses a single global lock to serialize
 /// all database access. SQLite only supports one writer at a time and concurrent
-/// serializable transactions cause "database is locked" errors. This semaphore
+/// serializable transactions cause "database is locked" errors. This handler
 /// ensures only one operation accesses the database at a time by using a single
 /// <see cref="SemaphoreSlim"/> regardless of lock name.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Unlike <see cref="SimpleSemaphore"/> which uses separate locks per lock name
-/// (allowing concurrent access with different lock names), this semaphore uses a
+/// Unlike <see cref="InProcessLockHandler"/> which uses separate locks per lock name
+/// (allowing concurrent access with different lock names), this handler uses a
 /// single global gate. This prevents the scenario where Thread A holds TRIGGER_ACCESS
 /// and Thread B holds STATE_ACCESS, both with open serializable transactions that
 /// cause SQLite contention.
 /// </para>
 /// <para>
-/// This semaphore does not require a database connection (<see cref="RequiresConnection"/>
+/// This handler does not require a database connection (<see cref="RequiresConnection"/>
 /// returns <c>false</c>), which is critical: it allows <see cref="AdoJobStoreBase"/>
 /// to acquire the lock before opening a connection/transaction, eliminating the
 /// chicken-and-egg problem where a serializable transaction was needed just to
@@ -51,23 +51,23 @@ namespace Quartz.Impl.AdoJobStore;
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma</author>
-internal sealed class SQLiteSemaphore : ISemaphore
+internal sealed class SqliteLockHandler : ILockHandler
 {
     private readonly SemaphoreSlim globalLock = new(1, 1);
     private readonly Lock syncRoot = new();
     private Guid? currentOwner;
     private int lockCount;
 
-    private ILogger<SQLiteSemaphore> logger = LogProvider.CreateLogger<SQLiteSemaphore>();
+    private ILogger<SqliteLockHandler> logger = LogProvider.CreateLogger<SqliteLockHandler>();
 
     /// <summary>
     /// Takes the logger from the job store's factory, so the global gate's contention is visible to an
     /// application that never set <see cref="LogProvider" />. Until the store calls this — a handler
     /// constructed and used directly — the ambient factory is still what answers.
     /// </summary>
-    public void Initialize(SemaphoreContext context)
+    public void Initialize(LockHandlerContext context)
     {
-        logger = context.LoggerFactory.CreateLogger<SQLiteSemaphore>();
+        logger = context.LoggerFactory.CreateLogger<SqliteLockHandler>();
     }
 
     /// <summary>
@@ -75,7 +75,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
     /// until it is available).
     /// </summary>
     /// <returns>True if the lock was obtained.</returns>
-    public ValueTask<bool> ObtainLock(
+    public ValueTask<bool> AcquireLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
         SchedulerLock lockKind,
@@ -104,10 +104,10 @@ internal sealed class SQLiteSemaphore : ISemaphore
             }
         }
 
-        return ObtainLockCore(requestorId, lockName, isDebugEnabled, cancellationToken);
+        return AcquireLockCore(requestorId, lockName, isDebugEnabled, cancellationToken);
     }
 
-    private async ValueTask<bool> ObtainLockCore(
+    private async ValueTask<bool> AcquireLockCore(
         Guid requestorId,
         string lockName,
         bool isDebugEnabled,
@@ -192,10 +192,10 @@ internal sealed class SQLiteSemaphore : ISemaphore
     }
 
     /// <summary>
-    /// Whether this Semaphore implementation requires a database connection for
-    /// its lock management operations.
+    /// Whether this lock handler requires a database connection for its lock
+    /// management operations.
     /// </summary>
-    /// <seealso cref="ObtainLock"/>
+    /// <seealso cref="AcquireLock"/>
     /// <seealso cref="ReleaseLock"/>
     public bool RequiresConnection => false;
 }

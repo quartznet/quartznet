@@ -480,11 +480,11 @@ internal static class QuartzPropertyBridge
 
         if (parser.Type(LegacyPropertyKeys.JobStoreLockHandlerType) is { } lockHandlerType)
         {
-            // A lock handler has no typed options, so its settings — a Redis semaphore's key prefix and
+            // A lock handler has no typed options, so its settings — the Redis handler's key prefix and
             // lock TTL, say — arrive as strings under its own prefix and are applied after construction.
-            RegisterConfigured<ISemaphore>(services, schedulerName, (provider, key) =>
+            RegisterConfigured<ILockHandler>(services, schedulerName, (provider, key) =>
             {
-                var lockHandler = (ISemaphore) ActivatorUtilities.CreateInstance(
+                var lockHandler = (ILockHandler) ActivatorUtilities.CreateInstance(
                     SchedulerScopedServiceProvider.For(provider, key), lockHandlerType);
 
                 ApplyStringProperties(lockHandler, provider, key, LegacyPropertyKeys.JobStoreLockHandlerPrefix);

@@ -86,8 +86,8 @@
     "Trigger {TriggerKey} set to ERROR state."
 2006  Information  RAMJobStoreLog.JobTriggersSetToError
     "All triggers of Job {JobKey} set to ERROR state."
-3000  Information  AdoJobStoreLog.SqliteSemaphoreSubstituted
-    "Detected SQLite usage, changing to use SQLiteSemaphore for in-memory locking"
+3000  Information  AdoJobStoreLog.SqliteLockHandlerSubstituted
+    "Detected SQLite usage, changing to use SqliteLockHandler for in-memory locking"
 3001  Information  AdoJobStoreLog.SqliteAcquireTriggersWithinLockForced
     "With SQLite we need to set AcquireTriggersWithinLock to true, changing"
 3002  Information  AdoJobStoreLog.SqliteSerializableIsolationForced
@@ -107,11 +107,11 @@
 3009  Warning  AdoJobStoreLog.RowLockStatementIgnoredBySuppliedHandler
     "A row-lock statement is configured, but lock handler {LockHandlerType} was supplied rather than built by the job store, so the statement is ignored. Pass it to the handler's constructor, or remove the lock handler and let the store choose one."
 3010  Warning  AdoJobStoreLog.EnlistedTransactionsWithSqlite
-    "Accepting enlisted transactions with SQLite keeps in-process locking: SQLiteSemaphore releases the lock when the scheduling call returns, while the application transaction still holds the SQLite writer lock, so a concurrent scheduler operation can fail with 'database is locked' until that transaction completes. Keep enlisted transactions short, or use a database that supports row locking."
+    "Accepting enlisted transactions with SQLite keeps in-process locking: SqliteLockHandler releases the lock when the scheduling call returns, while the application transaction still holds the SQLite writer lock, so a concurrent scheduler operation can fail with 'database is locked' until that transaction completes. Keep enlisted transactions short, or use a database that supports row locking."
 3011  Warning  AdoJobStoreLog.EnlistedTransactionsWithInProcessLocking
     "Accepting enlisted transactions with lock handler {LockHandlerType}, which does not lock in the database. Its locks are released before the application commits its transaction, so concurrent callers can act on scheduling data that is not visible to them yet."
 3012  Warning  AdoJobStoreLog.SqlServerCouldUseRowLocking
-    "Detected usage of SqlServerDelegate and UpdateRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access"
+    "Detected usage of SqlServerDelegate and UpdateRowLockHandler, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access"
 3013  Warning  AdoJobStoreLog.SqlServerProviderWithoutSqlServerDelegate
     "Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance"
 3014  Information  AdoJobStoreLog.SchemaValidated

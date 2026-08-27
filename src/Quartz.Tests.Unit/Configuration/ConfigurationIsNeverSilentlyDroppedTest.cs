@@ -253,14 +253,14 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         services.AddQuartz(q => q.UsePersistentStore(store =>
         {
             store.ConfigureStore(options => options.DataSource = "test");
-            store.UseLockHandler<SimpleSemaphore>();
+            store.UseLockHandler<InProcessLockHandler>();
             RegisterStubProvider(store.Services, q.SchedulerName);
         }));
 
         using var provider = services.BuildServiceProvider();
         var store = (AdoJobStoreBase) provider.GetRequiredService<IJobStore>();
 
-        store.LockHandler.Should().BeOfType<SimpleSemaphore>();
+        store.LockHandler.Should().BeOfType<InProcessLockHandler>();
     }
 
     [Test]
@@ -271,13 +271,13 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         {
             store.ConfigureStore(options => options.DataSource = "test");
             // Takes an IDbProvider, which for a named scheduler exists only under that scheduler's key.
-            store.UseLockHandler<SelectForUpdateSemaphore>();
+            store.UseLockHandler<SelectForUpdateLockHandler>();
             RegisterStubProvider(store.Services, q.SchedulerName);
         }));
 
         using var provider = services.BuildServiceProvider();
 
-        provider.GetRequiredKeyedService<ISemaphore>("reporting").Should().BeOfType<SelectForUpdateSemaphore>();
+        provider.GetRequiredKeyedService<ILockHandler>("reporting").Should().BeOfType<SelectForUpdateLockHandler>();
     }
 
     [Test]
@@ -923,14 +923,14 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         services.AddQuartz(
             new NameValueCollection
             {
-                ["quartz.jobStore.lockHandler.type"] = typeof(MarkedSemaphore).AssemblyQualifiedName,
+                ["quartz.jobStore.lockHandler.type"] = typeof(MarkedLockHandler).AssemblyQualifiedName,
                 ["quartz.jobStore.lockHandler.marker"] = "configured",
             },
             UseStubbedPersistentStore);
 
         using var provider = services.BuildServiceProvider();
 
-        provider.GetRequiredService<ISemaphore>().Should().BeOfType<MarkedSemaphore>()
+        provider.GetRequiredService<ILockHandler>().Should().BeOfType<MarkedLockHandler>()
             .Which.Marker.Should().Be("configured");
     }
 
@@ -949,7 +949,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         services.AddQuartz(
             new NameValueCollection
             {
-                ["quartz.jobStore.lockHandler.type"] = typeof(SelectForUpdateSemaphore).AssemblyQualifiedName,
+                ["quartz.jobStore.lockHandler.type"] = typeof(SelectForUpdateLockHandler).AssemblyQualifiedName,
                 ["quartz.jobStore.lockHandler.maxRetry"] = "7",
                 ["quartz.jobStore.lockHandler.retryPeriod"] = "2500",
             },
@@ -957,12 +957,12 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
         using var provider = services.BuildServiceProvider();
 
-        var semaphore = provider.GetRequiredService<ISemaphore>().Should().BeOfType<SelectForUpdateSemaphore>().Subject;
+        var lockHandler = provider.GetRequiredService<ILockHandler>().Should().BeOfType<SelectForUpdateLockHandler>().Subject;
 
-        semaphore.MaxRetry.Should().Be(7,
+        lockHandler.MaxRetry.Should().Be(7,
             "quartz.jobStore.lockHandler.maxRetry has always reached this property, and making it "
             + "init-only must not have quietly stopped that");
-        semaphore.RetryPeriod.Should().Be(TimeSpan.FromMilliseconds(2500),
+        lockHandler.RetryPeriod.Should().Be(TimeSpan.FromMilliseconds(2500),
             "the [TimeSpanParseRule] on the property says the key is milliseconds");
     }
 
@@ -1114,13 +1114,13 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             => throw new NotSupportedException();
     }
 
-    private sealed class MarkedSemaphore : ISemaphore
+    private sealed class MarkedLockHandler : ILockHandler
     {
         public string Marker { get; set; } = "";
 
         public bool RequiresConnection => false;
 
-        public ValueTask<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder? conn, SchedulerLock lockKind, CancellationToken cancellationToken = default)
+        public ValueTask<bool> AcquireLock(Guid requestorId, ConnectionAndTransactionHolder? conn, SchedulerLock lockKind, CancellationToken cancellationToken = default)
             => new(true);
 
         public ValueTask ReleaseLock(Guid requestorId, SchedulerLock lockKind, CancellationToken cancellationToken = default) => default;

@@ -126,7 +126,7 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
     /// What the store under test is built from. Deliberately no lock handler: the store picks the one
     /// its delegate and clustering settings call for, which is the decision production makes too — the
     /// configuration builder injects one only when the application asked for a specific one. SQLite
-    /// therefore gets SQLiteSemaphore here exactly as it would in an application.
+    /// therefore gets SqliteLockHandler here exactly as it would in an application.
     /// </summary>
     protected AdoJobStoreDependencies StoreDependencies(IDbProvider dbProvider, IDriverDelegate driverDelegate)
     {

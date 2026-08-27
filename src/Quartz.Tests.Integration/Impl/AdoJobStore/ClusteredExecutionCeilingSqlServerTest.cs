@@ -2,7 +2,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
 /// The cluster-scoped ceiling against SQL Server, whose acquisition locks through
-/// <c>SelectForUpdateSemaphore</c> with the <c>(UPDLOCK,ROWLOCK)</c> hint and whose <c>COUNT(*)</c>
+/// <c>SelectForUpdateLockHandler</c> with the <c>(UPDLOCK,ROWLOCK)</c> hint and whose <c>COUNT(*)</c>
 /// comes back as a 32-bit integer.
 /// </summary>
 [Category("db-sqlserver")]

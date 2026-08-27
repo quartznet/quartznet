@@ -32,7 +32,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// Database based lock handler that takes the lock by issuing
 /// <c>SELECT ... FOR UPDATE</c> against the lock row.
 /// </summary>
-public class SelectForUpdateSemaphore : DbSemaphore
+public class SelectForUpdateLockHandler : DbLockHandler
 {
     /// <summary>
     /// The statement that takes the lock by selecting its row for update.
@@ -47,33 +47,33 @@ public class SelectForUpdateSemaphore : DbSemaphore
         $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SelectForUpdateSemaphore"/> class.
+    /// Initializes a new instance of the <see cref="SelectForUpdateLockHandler"/> class.
     /// </summary>
     /// <remarks>
     /// This is the constructor the container uses. The other one takes strings, which no container can
     /// supply, and marking this one says so rather than leaving the choice ambiguous.
     /// </remarks>
     [ActivatorUtilitiesConstructor]
-    public SelectForUpdateSemaphore(IDbProvider dbProvider)
+    public SelectForUpdateLockHandler(IDbProvider dbProvider)
         : base(AdoConstants.DefaultTablePrefix, null, SelectForLock, InsertLock, dbProvider)
     {
 
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SelectForUpdateSemaphore"/> class.
+    /// Initializes a new instance of the <see cref="SelectForUpdateLockHandler"/> class.
     /// </summary>
     /// <param name="tablePrefix">The table prefix.</param>
     /// <param name="schedulerName">the scheduler name</param>
     /// <param name="selectWithLockSql">The select with lock SQL.</param>
     /// <param name="dbProvider"></param>
-    public SelectForUpdateSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
+    public SelectForUpdateLockHandler(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
         : this(tablePrefix, schedulerName, selectWithLockSql, InsertLock, dbProvider)
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SelectForUpdateSemaphore"/> class for a subclass that
+    /// Initializes a new instance of the <see cref="SelectForUpdateLockHandler"/> class for a subclass that
     /// needs its own insert statement.
     /// </summary>
     /// <remarks>
@@ -85,7 +85,7 @@ public class SelectForUpdateSemaphore : DbSemaphore
     /// <param name="selectWithLockSql">The select with lock SQL.</param>
     /// <param name="insertLockSql">The statement that inserts the lock row when it does not exist yet.</param>
     /// <param name="dbProvider">The db provider.</param>
-    protected SelectForUpdateSemaphore(
+    protected SelectForUpdateLockHandler(
         string tablePrefix,
         string? schedulerName,
         string? selectWithLockSql,

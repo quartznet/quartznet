@@ -25,14 +25,14 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public interface ISemaphore
+public interface ILockHandler
 {
     /// <summary>
-    /// Called once by the job store before the semaphore is used, telling the handler which
+    /// Called once by the job store before the lock handler is used, telling the handler which
     /// scheduler it locks for. The default implementation does nothing, which suits a handler
     /// that does not key its locks by scheduler identity.
     /// </summary>
-    void Initialize(SemaphoreContext context)
+    void Initialize(LockHandlerContext context)
     {
     }
 
@@ -42,7 +42,7 @@ public interface ISemaphore
     /// </summary>
     /// <returns> true if the lock was obtained.
     /// </returns>
-    ValueTask<bool> ObtainLock(
+    ValueTask<bool> AcquireLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
         SchedulerLock lockKind,
@@ -57,10 +57,10 @@ public interface ISemaphore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Whether this Semaphore implementation requires a database connection for
-    /// its lock management operations.
+    /// Whether this lock handler requires a database connection for its lock
+    /// management operations.
     /// </summary>
-    /// <seealso cref="ObtainLock" />
+    /// <seealso cref="AcquireLock" />
     /// <seealso cref="ReleaseLock" />
     bool RequiresConnection { get; }
 }

@@ -34,7 +34,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// same time.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-public abstract class DbSemaphore : ISemaphore
+public abstract class DbLockHandler : ILockHandler
 {
     private readonly ConcurrentDictionary<ThreadLockKey, object?> locks = new();
 
@@ -50,7 +50,7 @@ public abstract class DbSemaphore : ISemaphore
     private string expandedInsertSql = null!;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="DbSemaphore"/> class.
+    /// Initializes a new instance of the <see cref="DbLockHandler"/> class.
     /// </summary>
     /// <remarks>
     /// The two statements are fixed at construction. They were settable, which meant a subclass could
@@ -62,14 +62,14 @@ public abstract class DbSemaphore : ISemaphore
     /// <param name="insertSql">The statement that inserts the lock row when it does not exist yet.</param>
     /// <param name="sql">The statement that takes the lock.</param>
     /// <param name="dbProvider">The db provider.</param>
-    protected DbSemaphore(
+    protected DbLockHandler(
         string tablePrefix,
         string? schedulerName,
         string sql,
         string insertSql,
         IDbProvider dbProvider)
     {
-        logger = LogProvider.CreateLogger<DbSemaphore>();
+        logger = LogProvider.CreateLogger<DbLockHandler>();
         this.schedulerName = schedulerName;
         this.tablePrefix = tablePrefix;
         this.sql = sql.Trim();
@@ -88,23 +88,23 @@ public abstract class DbSemaphore : ISemaphore
     /// dialect a scheduler ends up with.
     /// </remarks>
     /// <value>The log.</value>
-    internal ILogger<DbSemaphore> logger { get; private set; }
+    internal ILogger<DbLockHandler> logger { get; private set; }
 
     /// <summary>
-    /// Learns which scheduler this semaphore locks for and folds the store's table prefix into
-    /// both statements. The job store calls this once before the semaphore is used, whether the
+    /// Learns which scheduler this handler locks for and folds the store's table prefix into
+    /// both statements. The job store calls this once before the handler is used, whether the
     /// store built the handler itself or the container supplied it.
     /// </summary>
     /// <remarks>
     /// The command timeout arrives here too, so the accessor is rebuilt rather than reconfigured: it is
     /// only ever replaced on this one call, before any lock has been taken.
     /// </remarks>
-    public void Initialize(SemaphoreContext context)
+    public void Initialize(LockHandlerContext context)
     {
         schedulerName = context.SchedulerName;
         tablePrefix = context.TablePrefix;
         TimeProvider = context.TimeProvider;
-        logger = context.LoggerFactory.CreateLogger<DbSemaphore>();
+        logger = context.LoggerFactory.CreateLogger<DbLockHandler>();
         adoUtil = new AdoUtil(dbProvider, context.CommandTimeout, context.LoggerFactory.CreateLogger<AdoUtil>());
         SetExpandedSql();
     }
@@ -125,7 +125,7 @@ public abstract class DbSemaphore : ISemaphore
     /// until it is available).
     /// </summary>
     /// <returns>true if the lock was obtained.</returns>
-    public async ValueTask<bool> ObtainLock(
+    public async ValueTask<bool> AcquireLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
         SchedulerLock lockKind,
@@ -199,7 +199,7 @@ public abstract class DbSemaphore : ISemaphore
     }
 
     /// <summary>
-    /// This Semaphore implementation does use the database.
+    /// This lock handler does use the database.
     /// </summary>
     public bool RequiresConnection => true;
 
@@ -221,31 +221,31 @@ public abstract class DbSemaphore : ISemaphore
     }
 
     /// <summary>
-    /// Name of the scheduler whose lock rows this semaphore contends for, told to the semaphore
+    /// Name of the scheduler whose lock rows this handler contends for, told to the handler
     /// through <see cref="Initialize" />.
     /// </summary>
     public string? SchedulerName => schedulerName;
 
     /// <summary>
-    /// Table prefix of the tables the ADO.NET job store uses, told to the semaphore through
+    /// Table prefix of the tables the ADO.NET job store uses, told to the handler through
     /// <see cref="Initialize" />.
     /// </summary>
     public string TablePrefix => tablePrefix;
 
     /// <summary>
-    /// The clock this semaphore backs off on between attempts, told to it through
+    /// The clock this handler backs off on between attempts, told to it through
     /// <see cref="Initialize" />. Defaults to <see cref="System.TimeProvider.System" /> for a handler
     /// used before the store has initialized it.
     /// </summary>
     protected TimeProvider TimeProvider { get; private set; } = TimeProvider.System;
 
     /// <summary>
-    /// Prepares one of this semaphore's statements against the unit of work
+    /// Prepares one of this handler's statements against the unit of work
     /// <see cref="ExecuteSql" /> was handed, attached to its connection and transaction and carrying the
     /// store's command timeout.
     /// </summary>
     /// <remarks>
-    /// This and <see cref="AddCommandParameter" /> are what a semaphore of your own issues its lock
+    /// This and <see cref="AddCommandParameter" /> are what a lock handler of your own issues its lock
     /// statement through. The accessor behind them stays out of reach — how a command is minted and how
     /// a parameter is named differ by driver, and are not a contract — but a subclass that could not
     /// prepare a command at all had no way to implement <see cref="ExecuteSql" />, which is the one
@@ -265,7 +265,7 @@ public abstract class DbSemaphore : ISemaphore
     /// </summary>
     /// <remarks>
     /// There is no overload taking a provider-specific data type or a size, because a lock statement
-    /// binds a scheduler name and a lock name and both are strings. A semaphore that needs to bind
+    /// binds a scheduler name and a lock name and both are strings. A handler that needs to bind
     /// something else is not locking a Quartz lock row.
     /// </remarks>
     /// <param name="command">The command to bind to.</param>
@@ -278,7 +278,7 @@ public abstract class DbSemaphore : ISemaphore
 
     /// <remarks>
     /// <c>private protected</c> because <see cref="IAdoUtil" /> is an implementation detail: command
-    /// preparation and parameter naming are not something an out-of-assembly semaphore should reach into.
+    /// preparation and parameter naming are not something an out-of-assembly handler should reach into.
     /// <see cref="PrepareCommand" /> and <see cref="AddCommandParameter" /> are what it uses instead.
     /// </remarks>
     private protected IAdoUtil AdoUtil => adoUtil;

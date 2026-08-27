@@ -29,7 +29,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <author>JBVyncent</author>
 /// <author>Marko Lahma</author>
-public sealed class SqlServerMemoryOptimizedUpdateRowSemaphore : UpdateRowSemaphore
+public sealed class SqlServerMemoryOptimizedUpdateRowLockHandler : UpdateRowLockHandler
 {
     private const string UpdateForLockMemoryOptimized =
         $"UPDATE {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks} WITH (SNAPSHOT) SET {AdoConstants.ColumnLockName} = {AdoConstants.ColumnLockName} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnLockName} = @lockName";
@@ -38,9 +38,9 @@ public sealed class SqlServerMemoryOptimizedUpdateRowSemaphore : UpdateRowSemaph
         $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SqlServerMemoryOptimizedUpdateRowSemaphore"/> class.
+    /// Initializes a new instance of the <see cref="SqlServerMemoryOptimizedUpdateRowLockHandler"/> class.
     /// </summary>
-    public SqlServerMemoryOptimizedUpdateRowSemaphore(IDbProvider provider)
+    public SqlServerMemoryOptimizedUpdateRowLockHandler(IDbProvider provider)
         : base(AdoConstants.DefaultTablePrefix, null, UpdateForLockMemoryOptimized, InsertLockMemoryOptimized, provider)
     {
     }

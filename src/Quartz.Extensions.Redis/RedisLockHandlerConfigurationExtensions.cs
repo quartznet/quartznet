@@ -6,7 +6,7 @@ using Quartz.Extensions.Redis;
 namespace Quartz;
 
 /// <summary>
-/// Configures <see cref="RedisSemaphore"/> as the lock handler for a persistent job store.
+/// Configures <see cref="RedisLockHandler"/> as the lock handler for a persistent job store.
 /// </summary>
 public static class RedisLockHandlerConfigurationExtensions
 {
@@ -26,28 +26,28 @@ public static class RedisLockHandlerConfigurationExtensions
 
         builder.UseLockHandler(provider =>
         {
-            var semaphore = ActivatorUtilities.CreateInstance<RedisSemaphore>(provider);
+            var lockHandler = ActivatorUtilities.CreateInstance<RedisLockHandler>(provider);
             if (options.RedisConfiguration is not null)
             {
-                semaphore.RedisConfiguration = options.RedisConfiguration;
+                lockHandler.RedisConfiguration = options.RedisConfiguration;
             }
 
             if (options.KeyPrefix is not null)
             {
-                semaphore.KeyPrefix = options.KeyPrefix;
+                lockHandler.KeyPrefix = options.KeyPrefix;
             }
 
             if (options.LockTimeToLive.HasValue)
             {
-                semaphore.LockTimeToLive = options.LockTimeToLive.Value;
+                lockHandler.LockTimeToLive = options.LockTimeToLive.Value;
             }
 
             if (options.LockRetryInterval.HasValue)
             {
-                semaphore.LockRetryInterval = options.LockRetryInterval.Value;
+                lockHandler.LockRetryInterval = options.LockRetryInterval.Value;
             }
 
-            return semaphore;
+            return lockHandler;
         });
 
         return builder;

@@ -114,7 +114,7 @@ internal static class LegacyPropertyKeys
     /// </remarks>
     private const string LockHandlerSchedulerNameAdvice =
         "The job store tells the lock handler which scheduler it locks for through "
-        + "ISemaphore.Initialize, using the scheduler's own instance name. Remove this key.";
+        + "ILockHandler.Initialize, using the scheduler's own instance name. Remove this key.";
 
     /// <summary>
     /// The key prefixes a scheduler understands, used to reject a misspelled one.
@@ -174,7 +174,7 @@ internal static class LegacyPropertyKeys
             "Remoting a scheduler is not supported on modern .NET. Expose a scheduler over HTTP with the "
             + "Quartz.AspNetCore package (AddQuartzHttpApi and MapQuartzHttpApi) instead."),
         (JobStoreLockHandlerPrefix + ".tablePrefix",
-            "The job store tells the lock handler its table prefix through ISemaphore.Initialize, "
+            "The job store tells the lock handler its table prefix through ILockHandler.Initialize, "
             + "using the value of 'quartz.jobStore.tablePrefix'. Set that key instead and remove this one."),
         (JobStoreLockHandlerPrefix + ".schedName", LockHandlerSchedulerNameAdvice),
         (JobStoreLockHandlerPrefix + ".schedulerName", LockHandlerSchedulerNameAdvice),
