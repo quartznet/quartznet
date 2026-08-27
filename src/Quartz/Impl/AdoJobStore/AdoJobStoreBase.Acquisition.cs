@@ -144,9 +144,10 @@ public abstract partial class AdoJobStoreBase
         };
     }
 
-    // TODO: this really ought to return something like a FiredTriggerBundle,
-    // so that the fireInstanceId doesn't have to be on the trigger...
-
+    // The acquired triggers carry their fire instance id on themselves rather than in a bundle beside
+    // them, because IOperableTrigger.FireInstanceId is the contract the scheduling loop, the fired-
+    // trigger row and TriggerFiredBundle all read it through; a second shape here would be a fourth
+    // spelling of the same field rather than a way of removing one.
     protected ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerAcquisitionRequest request,
@@ -275,7 +276,10 @@ public abstract partial class AdoJobStoreBase
                         int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Waiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
                         if (rowsUpdated <= 0)
                         {
-                            // TODO: Hum... shouldn't we log a warning here?
+                            // Not worth a warning: the row was no longer WAITING, which is what losing
+                            // the race to another node looks like, and in a cluster that is the ordinary
+                            // outcome of two nodes reaching for the same batch. Logging it would produce
+                            // noise proportional to how well the cluster is sharing its work.
                             continue; // next trigger
                         }
                         nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
