@@ -4414,6 +4414,66 @@ Behavioural notes:
   would replay a firing that is already being replayed. See
   [When the node that was taken over is still running](operations.md#when-the-node-that-was-taken-over-is-still-running).
 
+## Batched trigger acquisition, and the sets pause and resume work on
+
+Acquiring a trigger used to cost three statements per candidate on top of the read that found it: the
+acquisition `SELECT` named the batch, and then each candidate was read back on its own, compare-and-swapped
+into the acquired state, and written to the fired-triggers table. Pausing or resuming a set of triggers —
+or a matcher's worth of jobs — walked the set and called the single-key member, which is two or three
+statements per key. All of it runs inside the `TRIGGER_ACCESS` lock, so all of it is time the other nodes
+of a cluster spend waiting.
+
+A round now reads its candidates in one statement and writes their fired-trigger rows in one batch; the
+compare-and-swap stays per candidate, because its result is what decides whether that candidate was
+acquired at all. Pause and resume read the stored states of a whole set once and then issue one statement
+per transition the set turns out to need. Nothing needs configuring, and nothing about the rows written or
+the answers returned has changed.
+
+This matters if you implement `IDriverDelegate` yourself. Every member below is a **default interface
+member** whose default is the per-key loop the store used to make, so a delegate written before this keeps
+compiling and keeps behaving exactly as it did — it simply keeps paying the round trips. `StdAdoDelegate`
+overrides all of them, so a delegate deriving from it gets the batched forms for free.
+
+| Member | Purpose |
+|--------|---------|
+| `InsertFiredTriggers(conn, IReadOnlyList<IOperableTrigger>, state, jobDetail, ct)` | An acquisition round's fired-trigger rows as one batch |
+| `SelectStoredTriggerHeaders(conn, IReadOnlyCollection<TriggerKey>, ct)` | The plural of `SelectTriggerHeader`; what pause and resume decide a whole set's transitions from. Not the listing `SelectTriggerHeaders`, which pages over `TriggerHeader` |
+| `UpdateTriggerStatesFromOtherStates(conn, IReadOnlyCollection<TriggerKey>, newState, oldStates, ct)` | One conditional transition for a whole key set, beside the store-wide overload that is still there |
+| `SelectTriggerKeysForJobs(conn, IReadOnlyCollection<JobKey>, ct)` | Every trigger key of a set of jobs in one read, for pausing and resuming a job matcher |
+| `SelectPausedJobGroups(conn, IReadOnlyCollection<string>, ct)` | Which of a set of job groups already have a paused row — the set form of `IsJobGroupPaused` |
+| `InsertPausedJobGroups(conn, IReadOnlyCollection<string>, ct)` | The missing paused-job-group rows, together |
+
+One new property comes with them:
+
+| Member | Purpose |
+|--------|---------|
+| `FiltersAcquisitionJobTypeExclusions` | Whether `SelectTriggersToAcquire` already keeps `TriggerAcquisitionCriteria.ExcludedJobTypeNames` out of the rows it returns. It defaults to `false`, and `StdAdoDelegate` answers `true` |
+
+`ExcludedJobTypeNames` is the one acquisition criterion a delegate cannot safely ignore: ignoring it means
+the node *runs* job types the deployment excluded. `AdoJobStoreBase` therefore keeps a backstop, which now
+drops an excluded candidate on the job type name the acquisition read already returned — before the
+candidate costs a read and a type resolution. A delegate that answers `true` is taken at its word and the
+backstop is skipped entirely, so the shipped dialects pay nothing per candidate for a promise their own
+`NOT IN` clause already keeps. **If you subclass `StdAdoDelegate` and override
+`GetSelectNextTriggerToAcquireSql` with a statement that does not splice in the exclusion terms, override
+`FiltersAcquisitionJobTypeExclusions` back to `false`**, or the exclusions stop being enforced anywhere.
+
+Behavioral notes:
+
+- `StdAdoDelegate.SelectTriggersForJob` is now the job's trigger keys followed by one `SelectTriggers` for
+  the set, where it used to read each trigger back on its own. The triggers and their order are the same.
+- `StdAdoDelegate.SelectTriggers` and `InsertFiredTriggers` answer a one-element set through
+  `SelectTrigger` and `InsertFiredTrigger`. One key is one statement either way, and the set forms pay for
+  a key-set predicate and a `DbBatch` to say the same thing — which matters because the scheduler's
+  default acquisition batch size is one. An override of either singular member therefore also takes
+  effect for a set of one.
+- Pausing or resuming a job no longer materializes that job's triggers to reach their keys. The schedule in
+  a trigger's type table was read and never looked at.
+- `PauseAll` and `ResumeAll` pass the any-group matcher once rather than naming each trigger group in turn.
+  The statements are the same ones; there is one set of them instead of one set per group.
+- A resume still applies each overdue trigger's misfire policy with that trigger's own write, because
+  recovering a misfire recomputes one trigger's schedule and cannot be expressed as a set operation.
+
 ## Job store listings became queries
 
 Listing jobs or triggers meant reading every key and then spending one round trip per key on anything more
@@ -8194,6 +8254,8 @@ Parameters and behavior are unchanged:
 | `StoredTriggerHeader` carries `TriggerType` | A fifth positional parameter; it comes off the row the state came from, which is what removes the separate type lookup — see [Batched trigger fire](#batched-trigger-fire) |
 | `ITriggerPersistenceDelegate.TryDescribeUpdateExtendedTriggerProperties` added | A default interface member returning `false`, so an existing persistence delegate is unaffected; implementing it puts a trigger's schedule in the same round trip as its row — see [Batched trigger fire](#batched-trigger-fire) |
 | `IDriverDelegate.UpdateFiredTrigger` removed | `ApplyTriggerFired` writes the fired-trigger row as one command of its batch, and nothing else called it; an override of it would have stopped taking effect silently — see [Batched trigger fire](#batched-trigger-fire) |
+| `IDriverDelegate` gains six set-shaped members | `InsertFiredTriggers`, `SelectStoredTriggerHeaders`, a key-set `UpdateTriggerStatesFromOtherStates`, `SelectTriggerKeysForJobs`, `SelectPausedJobGroups` and `InsertPausedJobGroups`. All are default interface members whose default is the per-key loop the store used to make, so an existing delegate is unaffected — see [Batched trigger acquisition, and the sets pause and resume work on](#batched-trigger-acquisition-and-the-sets-pause-and-resume-work-on) |
+| `IDriverDelegate.FiltersAcquisitionJobTypeExclusions` added | A default interface member answering `false`; `StdAdoDelegate` answers `true`. A delegate that says it filters the excluded job types itself is taken at its word, and the store's backstop is skipped — see [Batched trigger acquisition, and the sets pause and resume work on](#batched-trigger-acquisition-and-the-sets-pause-and-resume-work-on) |
 | `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |
 | `GetSelectNextTriggerToAcquireWith*Sql` removed | The `…WithExecutionGroupSql`, `…WithPreferredNodeSql` and `…WithPreferredNodeOnlySql` hooks, on `StdAdoDelegate` and all six dialect delegates. One statement covers every case now, so a dialect delegate keeps only its `GetSelectNextTriggerToAcquireSql` override — see [The three extra acquisition SQL hooks went with them](#the-three-extra-acquisition-sql-hooks-went-with-them) |
 | `StdAdoDelegate.GetSelectNextTriggerToAcquireSql(int maxCount)` | `GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)`; a custom dialect override passes the whole shape to `base`, so the next acquisition dimension is a property on the record rather than another parameter |
