@@ -583,7 +583,7 @@ code:
 - **One for the cluster manager**, when clustering is on.
 
 So `MaxConcurrency + 3` clustered and `+ 2` otherwise; the round number covers both. Taking the
-cluster-wide lock does not cost a second connection — the row-lock semaphore is handed the caller's
+cluster-wide lock does not cost a second connection — the row-lock handler is handed the caller's
 connection rather than opening one of its own.
 
 <!-- snippet: sample_best_practices_pool_sizing -->
