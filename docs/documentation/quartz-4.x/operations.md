@@ -352,6 +352,31 @@ back, the failed node's check-in row is left in place with its stale timestamp �
 reported `Failed` rather than disappearing, which is the store keeping the node visible until it is
 finished with it.
 
+### When the node that was taken over is still running
+
+A takeover is one node's opinion, and it can be wrong: a stalled process, a paused container or a clock
+that drifted is enough for a peer to write off a node that is still working. The node that was written
+off finds out on its next check-in, when its own `QRTZ_SCHEDULER_STATE` row is not there any more. It:
+
+- **writes the row back**, which is what re-registers it — until then it does not exist as far as its
+  peers are concerned, and it is not listed by `QueryClusterNodes()` on any other node;
+- **logs a warning** — `This scheduler instance (…) is still active but was recovered by another
+  instance in the cluster` (event id `3501`), followed by one naming the peer that did it (`3515`) or
+  saying that it cannot be named (`3516`). The peer can only be named when it is the only other node
+  with a state row, because nothing in the schema records who recovered whom;
+- **counts the event** on `quartz.cluster.recovery.trigger` with `quartz.cluster.recovered.instance.id`
+  set to its own instance id. That equality — recovered node and reporting node the same — is what an
+  alert on "this node is being failed out" matches. It counts 1, because how many firings the peer took
+  over cannot be known from this side; the peer's own measurement carries that number;
+- **does not recover its own fired triggers.** The peer released, rescheduled and deleted them under the
+  trigger-access lock, and running recovery over the same rows again would schedule a second recovery
+  trigger for a firing that is already being replayed.
+
+None of that makes the takeover harmless — the peer has started work this node may still be doing, and
+`[DisallowConcurrentExecution]` is not honoured across a firing the cluster believes has been recovered.
+It is a symptom to fix at its cause, and the cause is nearly always the clock or a pause; see
+[Clock Skew Between Nodes](../troubleshooting.md#clock-skew-between-nodes).
+
 ### Reading the cluster
 
 `IScheduler.QueryClusterNodes()` lists the nodes with a verdict on each, decided by the same predicate
