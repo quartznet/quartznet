@@ -78,7 +78,11 @@ await scheduler.TriggerJob(jobKey, new JobDataMap { ["reason"] = "manual re-run"
 
 `JobDataMap` implements `IDictionary<string, object?>`, so the dictionary surface is all there —
 indexer, `TryGetValue`, `ContainsKey`, `Remove`, `Count`, `Keys`, `Values`, `Clear`, plus
-`ContainsValue` and `IsEmpty`. On top of that come 31 typed accessors, as extension members:
+`ContainsValue` and `IsEmpty`. On top of that come 33 typed accessors, as extension members on
+`DataMapExtensions`. They fall into two families, and the difference between them is the thing to
+know before picking one.
+
+### The fifteen named types, which coerce
 
 **Throwing readers** — the value must be there and must be coercible:
 
@@ -86,31 +90,56 @@ indexer, `TryGetValue`, `ContainsKey`, `Remove`, `Count`, `Keys`, `Values`, `Cle
 `GetDateTime`, `GetDateTimeOffset`, `GetDateOnly`, `GetTimeOnly`, `GetTimeSpan`, `GetGuid`,
 `GetEnum<TEnum>`.
 
-**Try readers** — the same set, returning `false` instead of throwing:
+**Try readers** — the same fifteen, returning `false` instead of throwing:
 
 `TryGetInt`, `TryGetLong`, `TryGetFloat`, `TryGetDouble`, `TryGetDecimal`, `TryGetBoolean`,
 `TryGetChar`, `TryGetString`, `TryGetDateTime`, `TryGetDateTimeOffset`, `TryGetDateOnly`,
 `TryGetTimeOnly`, `TryGetTimeSpan`, `TryGetGuid`, `TryGetEnum<TEnum>`.
 
-**And one generic** — `TryGet<T>(string key, out T value)`, for a type the list does not name:
-
-<!-- snippet: sample_job_data_map_try_get -->
-```csharp
-if (data.TryGet<ReportOptions>("options", out ReportOptions? options))
-{
-    // ...
-}
-```
-<!-- endSnippet -->
-
-Each accessor accepts the value **either as its own type or as an invariant-culture string**. The
+Each of these accepts the value **either as its own type or as an invariant-culture string**. The
 stored type is matched first, a string is parsed with `CultureInfo.InvariantCulture`, and only an
 exotic stored type falls back to `Convert` semantics. That is what makes the same job code work whether
-the store kept `30` as an `int` or as `"30"`.
+the store kept `30` as an `int` or as `"30"`. `GetEnum<TEnum>` parses a string by name and
+case-insensitively, which is what `PutAsString` writes for an enum.
 
 `GetString` is the one that returns `string?` rather than throwing on a missing key — the rest throw.
 Reach for the `TryGet…` form whenever the key is genuinely optional; there is no performance argument
 either way, it is about whether absence is an error.
+
+### The three generic readers, which do not
+
+For a type the list does not name — your own options class, a `Uri`, a `byte[]` — there are three more.
+**They are a pure type test**: no string parsing, no `Convert`, nothing but `is T`. A `"30"` that
+`GetInt` reads as `30` is *not* an `int` to `Get<int>`, and that is deliberate — a generic accessor
+cannot know which invariant format an arbitrary `T` was written in, so it does not guess.
+
+| Accessor | Entry missing | Entry is not a `T` | Entry is a `T` |
+|---|---|---|---|
+| `TryGet<T>(key, out T value)` | `false` | `false` | `true`, value out |
+| `Get<T>(key)` | `KeyNotFoundException` | `InvalidCastException` naming both types | the value |
+| `GetValueOrDefault<T>(key, defaultValue)` | `defaultValue` | `defaultValue` | the value |
+
+<!-- snippet: sample_job_data_map_generic_readers -->
+```csharp
+// False when the entry is missing and when it holds something else.
+if (data.TryGet<ReportOptions>("options", out ReportOptions? options))
+{
+    // ...
+}
+
+// Throws KeyNotFoundException for a missing entry, InvalidCastException for a wrong one -
+// the two mistakes told apart, where TryGet answers false to both.
+ReportOptions required = data.Get<ReportOptions>("options");
+
+// Neither throws nor distinguishes: missing and wrong-typed both give the fallback.
+ReportOptions effective = data.GetValueOrDefault("options", new ReportOptions());
+```
+<!-- endSnippet -->
+
+`Get<T>` is the one to reach for when the entry is a contract rather than an option: it is the same
+test `TryGet<T>` makes, but it says *which* of the two things went wrong instead of answering `false`
+to both. `GetValueOrDefault<T>` deliberately does not distinguish them — a wrong-typed entry gives the
+fallback exactly as a missing one does, so do not use it where a mistyped key needs to be noticed.
 
 ::: tip
 The same accessors are available on `SchedulerContext`, which is the other string-keyed map in the

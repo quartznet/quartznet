@@ -76,14 +76,22 @@ public static class JobDataMapSamples
         #endregion
     }
 
-    public static void TheGenericReader(JobDataMap data)
+    public static void TheGenericReaders(JobDataMap data)
     {
-        #region sample_job_data_map_try_get
+        #region sample_job_data_map_generic_readers
 
+        // False when the entry is missing and when it holds something else.
         if (data.TryGet<ReportOptions>("options", out ReportOptions? options))
         {
             // ...
         }
+
+        // Throws KeyNotFoundException for a missing entry, InvalidCastException for a wrong one -
+        // the two mistakes told apart, where TryGet answers false to both.
+        ReportOptions required = data.Get<ReportOptions>("options");
+
+        // Neither throws nor distinguishes: missing and wrong-typed both give the fallback.
+        ReportOptions effective = data.GetValueOrDefault("options", new ReportOptions());
 
         #endregion
     }
