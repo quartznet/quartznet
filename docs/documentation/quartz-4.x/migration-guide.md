@@ -2666,6 +2666,13 @@ then failed to load. If you were relying on a nested `JobDataMap` or a collectio
 in the job and store the result as a string. Newtonsoft is unchanged, and `StoreJobDataAsStrings` was
 never affected.
 
+The check lives in the job data map converter, which the HTTP API shares with the store serializer, so
+it applies there too: a job whose map holds a `List<string>` — in a `RAMJobStore` as much as a
+persistent one — now fails to serialize into a `GET` response with the message above, where before the
+server sent a payload `Quartz.HttpClient` threw on reading. Both ends use the same closed reader, so a
+value the server cannot read back is one the client cannot either, and `AddTypeInfoResolver` is the
+answer on both.
+
 ### Custom trigger and calendar serializers are no longer static
 
 The static registration methods have been removed, because they wrote into process-global dictionaries: two
@@ -2760,8 +2767,8 @@ written as a plain object graph. A `TimeZoneInfo` written that way came out as i
 set nothing, and the trigger's getter fell through to `TimeZoneInfo.Local`. A trigger stored under
 `Tokyo Standard Time` fired on whichever zone the reading machine was in, and nothing said so.
 
-The serializer now carries a `TimeZoneInfo` converter, so a zone travels as its id — the same spelling the
-trigger and calendar serializers have always used:
+A `TimeZoneInfo` converter is now attached to every property *typed* as one, so a zone on a trigger travels
+as its id — the same spelling the trigger and calendar serializers have always used:
 
 ```diff
 - "TimeZone": { "Id": "Tokyo Standard Time", "DisplayName": "(UTC+09:00) Osaka, Sapporo, Tokyo", … }
@@ -2772,6 +2779,12 @@ Both forms are read, so blobs already written in the object form still load and 
 `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` and `RecurrenceTriggerImpl` were affected;
 `CronTriggerImpl` was not, because its zone rides on the `CronExpression`, which has always had a converter
 of its own.
+
+The converter is attached per property rather than registered on the serializer, so it changes typed members
+only. A `TimeZoneInfo` stored as a *value* in a `JobDataMap` sits in an `object`-typed slot and is written
+exactly as before, `$type` and all — that payload has never been readable back (a `TimeZoneInfo` has no
+constructor Json.NET can call), and this change neither introduces that nor repairs it. Store the zone's id
+if a job needs one in its data.
 
 The ADO.NET job store persists every trigger type Quartz ships through a persistence delegate rather than as
 a blob, so this reaches a scheduler only through a trigger type the store has to serialize — a custom one —

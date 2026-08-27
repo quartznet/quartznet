@@ -91,7 +91,6 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
                 new NameValueCollectionConverter(),
                 new StringKeyDirtyFlagMapConverter(),
                 new CronExpressionConverter(),
-                new TimeZoneInfoConverter(),
                 new CalendarConverter(Registry)
             },
             ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
