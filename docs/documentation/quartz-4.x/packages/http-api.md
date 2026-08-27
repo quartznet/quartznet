@@ -68,12 +68,103 @@ given, **the pattern passed to `MapQuartzHttpApi` wins**; the parameterless over
 `ApiPath` says. A pattern given at the map site has to start with `/`, the same rule `ApiPath` is
 validated against.
 
-## Endpoint groups
+## Every endpoint
 
-- **Schedulers**: list schedulers, read metadata/context, list cluster nodes, start, stand-by, shutdown, clear, pause-all, resume-all
-- **Jobs**: query jobs, fetch details by key, check existence, list fire instances, pause/resume, trigger, interrupt, add, delete
-- **Triggers**: query triggers, fetch by key, read state, pause/resume, reset from error state, schedule/unschedule/reschedule
-- **Calendars**: query names, get details, add/replace, delete
+Fifty-seven routes in four groups. `{ApiPath}` is `/quartz-api` unless you said otherwise, and
+`{name}` is the scheduler the request is for — every route but the first carries one, and every route
+that carries one is subject to
+[`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when it is set.
+
+The **Answers** column is shorthand for the [response-shape
+conventions](#response-shape-conventions): *empty* means `200` with no body, `{ applied }` is the
+one-flag form, `{ groups }` / `{ jobs }` / `{ triggers }` are the key-set and group-matcher forms, and
+*paged* is the [paged envelope](#listing-endpoints-are-paged). An unknown scheduler is `404` on every
+one of them.
+
+### Schedulers — 13
+
+| Method | Path | Answers |
+|---|---|---|
+| `GET` | `{ApiPath}/schedulers` | Every scheduler the container knows about, built or merely registered — [see below](#the-scheduler-listing-carries-registrations). The one route that names no scheduler, so it filters itself |
+| `GET` | `{ApiPath}/schedulers/{name}` | The scheduler and its `SchedulerMetadata` |
+| `GET` | `{ApiPath}/schedulers/{name}/context` | `{ context }` — [every value as text](#the-scheduler-context-travels-as-text) |
+| `POST` | `{ApiPath}/schedulers/{name}/start` | empty. `?delay=00:00:30` starts it delayed; a negative delay is a `400` |
+| `POST` | `{ApiPath}/schedulers/{name}/standby` | empty |
+| `POST` | `{ApiPath}/schedulers/{name}/shutdown` | empty. `?waitForJobsToComplete=true` waits for running jobs |
+| `POST` | `{ApiPath}/schedulers/{name}/clear` | empty — deletes every job, trigger and calendar |
+| `POST` | `{ApiPath}/schedulers/{name}/pause-all` | empty |
+| `POST` | `{ApiPath}/schedulers/{name}/resume-all` | empty |
+| `GET` | `{ApiPath}/schedulers/{name}/nodes` | The cluster's nodes — [see below](#cluster-nodes) |
+| `GET` | `{ApiPath}/schedulers/{name}/execution-limits` | `{ limits, useTriggerGroupWhenUnset }`; `limits` is `null` when nothing is limited |
+| `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty — replaces the whole set |
+| `DELETE` | `{ApiPath}/schedulers/{name}/execution-limits` | empty — the same as posting an empty set |
+
+### Jobs — 20
+
+Every path below is prefixed `{ApiPath}/schedulers/{name}`.
+
+| Method | Path | Answers |
+|---|---|---|
+| `GET` | `…/jobs` | paged job headers |
+| `POST` | `…/jobs/fetch` | Whole job details for a page of keys, at most 1000 |
+| `GET` | `…/jobs/{jobGroup}/{jobName}` | The job detail |
+| `GET` | `…/jobs/{jobGroup}/{jobName}/exists` | `{ exists }` |
+| `GET` | `…/jobs/{jobGroup}/{jobName}/triggers` | Every trigger pointing at that job |
+| `GET` | `…/jobs/fire-instances` | paged fire instances — [see below](#fire-instances) |
+| `POST` | `…/jobs/{jobGroup}/{jobName}/pause` | `{ applied }` |
+| `POST` | `…/jobs/pause` | `{ groups }` — selects by group matcher in the query string |
+| `POST` | `…/jobs/keys/pause` | `{ jobs }` — selects by key set in the body |
+| `POST` | `…/jobs/{jobGroup}/{jobName}/resume` | `{ applied }` |
+| `POST` | `…/jobs/resume` | `{ groups }` |
+| `POST` | `…/jobs/keys/resume` | `{ jobs }` |
+| `POST` | `…/jobs/{jobGroup}/{jobName}/trigger` | empty — fires the job now; body may carry a `JobDataMap` for the one firing |
+| `POST` | `…/jobs/{jobGroup}/{jobName}/interrupt` | `{ applied }` — every execution of that job |
+| `POST` | `…/jobs/interrupt/{fireInstanceId}` | `{ applied }` — the one firing |
+| `DELETE` | `…/jobs/{jobGroup}/{jobName}` | `{ applied }` |
+| `POST` | `…/jobs/delete` | `{ jobs }` |
+| `POST` | `…/jobs` | empty — adds the job; `replace` and `storeNonDurableWhileAwaitingScheduling` are body fields |
+| `GET` | `…/jobs/groups` | paged job groups: `name`, `paused` |
+| `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused }` |
+
+### Triggers — 20
+
+| Method | Path | Answers |
+|---|---|---|
+| `GET` | `…/triggers` | paged trigger headers |
+| `POST` | `…/triggers/fetch` | Whole triggers for a page of keys, at most 1000 |
+| `GET` | `…/triggers/{triggerGroup}/{triggerName}` | The trigger |
+| `GET` | `…/triggers/{triggerGroup}/{triggerName}/exists` | `{ exists }` |
+| `GET` | `…/triggers/{triggerGroup}/{triggerName}/state` | `{ state }` — the `TriggerState` name |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/reset-from-error-state` | `{ applied }` |
+| `POST` | `…/triggers/keys/reset-from-error-state` | `{ triggers }` |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/pause` | `{ applied }` |
+| `POST` | `…/triggers/pause` | `{ groups }` |
+| `POST` | `…/triggers/keys/pause` | `{ triggers }` |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/resume` | `{ applied }` |
+| `POST` | `…/triggers/resume` | `{ groups }` |
+| `POST` | `…/triggers/keys/resume` | `{ triggers }` |
+| `GET` | `…/triggers/groups` | paged trigger groups: `name`, `paused` |
+| `GET` | `…/triggers/groups/{triggerGroup}/paused` | `{ paused }` |
+| `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }` — one job and its trigger |
+| `POST` | `…/triggers/schedule-multiple` | empty — several jobs and their triggers in one call |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/unschedule` | `{ applied }` |
+| `POST` | `…/triggers/unschedule` | `{ triggers }` |
+| `POST` | `…/triggers/{triggerGroup}/{triggerName}/reschedule` | `{ firstFireTimeUtc }`, **`null`** when the trigger did not exist |
+
+### Calendars — 4
+
+| Method | Path | Answers |
+|---|---|---|
+| `GET` | `…/calendars` | paged calendar names |
+| `GET` | `…/calendars/{calendarName}` | The calendar |
+| `POST` | `…/calendars` | empty — adds or replaces; `replace` and `updateTriggers` are body fields |
+| `DELETE` | `…/calendars/{calendarName}` | `{ applied }` |
+
+::: tip Why `schedule-multiple` is not `schedule`
+`POST …/triggers/schedule` computes one first fire time and answers with it. The plural form cannot —
+there is one per job — so it is a separate route with an empty body rather than an overload that
+sometimes answers and sometimes does not.
+:::
 
 ## The scheduler listing carries registrations
 
