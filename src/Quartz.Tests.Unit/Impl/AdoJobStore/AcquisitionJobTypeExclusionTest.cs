@@ -84,11 +84,11 @@ public class AcquisitionJobTypeExclusionTest
 
         // The excluded candidate is dropped on the job type name the acquisition read already returned,
         // so it is never read back.
-        A.CallTo(() => driverDelegate.SelectTrigger(
+        A.CallTo(() => driverDelegate.SelectTriggers(
                 A<ConnectionAndTransactionHolder>._,
-                new TriggerKey("excluded", "g1"),
+                A<IReadOnlyCollection<TriggerKey>>.That.Matches(keys => !keys.Contains(new TriggerKey("excluded", "g1"))),
                 A<CancellationToken>._))
-            .MustNotHaveHappened();
+            .MustHaveHappenedOnceExactly();
 
         // ExcludedJobTypeName names no type that will load. Had the check still run after
         // JobType.Resolve, the candidate would have been driven into the error state instead.
@@ -139,15 +139,14 @@ public class AcquisitionJobTypeExclusionTest
                 A<CancellationToken>._))
             .Returns(new ValueTask<List<TriggerAcquireResult>>(candidates.ToList()));
 
-        foreach (TriggerAcquireResult candidate in candidates)
-        {
-            TriggerKey key = candidate.TriggerKey;
-            A.CallTo(() => driverDelegate.SelectTrigger(
-                    A<ConnectionAndTransactionHolder>._,
-                    key,
-                    A<CancellationToken>._))
-                .Returns(new ValueTask<IOperableTrigger>(CreateTrigger(key.Name)));
-        }
+        List<IOperableTrigger> rows = [.. candidates.Select(candidate => CreateTrigger(candidate.TriggerKey.Name))];
+
+        A.CallTo(() => driverDelegate.SelectTriggers(
+                A<ConnectionAndTransactionHolder>._,
+                A<IReadOnlyCollection<TriggerKey>>._,
+                A<CancellationToken>._))
+            .ReturnsLazily((ConnectionAndTransactionHolder _, IReadOnlyCollection<TriggerKey> keys, CancellationToken _) =>
+                new ValueTask<List<IOperableTrigger>>(rows.Where(row => keys.Contains(row.Key)).ToList()));
     }
 
     private static TriggerAcquireResult Candidate(string name, string jobTypeName = null)

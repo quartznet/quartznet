@@ -1846,15 +1846,13 @@ public class AdoJobStoreBaseTest
             .Returns(new ValueTask<List<TriggerAcquireResult>>(
                 triggers.Select(x => new TriggerAcquireResult(x.Key, jobType.AssemblyQualifiedName, null)).ToList()));
 
-        foreach (IOperableTrigger trigger in triggers)
-        {
-            IOperableTrigger captured = trigger;
-            A.CallTo(() => driverDelegate.SelectTrigger(
-                    A<ConnectionAndTransactionHolder>.Ignored,
-                    A<TriggerKey>.That.IsEqualTo(captured.Key),
-                    A<CancellationToken>.Ignored))
-                .Returns(new ValueTask<IOperableTrigger>(captured));
-        }
+        // The round's candidates come back in one read, keyed by what was asked for.
+        A.CallTo(() => driverDelegate.SelectTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyCollection<TriggerKey>>.Ignored,
+                A<CancellationToken>.Ignored))
+            .ReturnsLazily((ConnectionAndTransactionHolder _, IReadOnlyCollection<TriggerKey> keys, CancellationToken _) =>
+                new ValueTask<List<IOperableTrigger>>(triggers.Where(trigger => keys.Contains(trigger.Key)).ToList()));
 
         A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherStateWithNextFireTime(
                 A<ConnectionAndTransactionHolder>.Ignored,

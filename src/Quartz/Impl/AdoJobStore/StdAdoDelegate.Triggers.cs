@@ -1634,34 +1634,82 @@ public partial class StdAdoDelegate
         IJobDetail? job,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertFiredTrigger));
-        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
-        AddCommandParameter(cmd, SqlParameters.TriggerEntryId, trigger.FireInstanceId);
-        AddCommandParameter(cmd, SqlParameters.TriggerName, trigger.Key.Name);
-        AddCommandParameter(cmd, SqlParameters.TriggerGroup, trigger.Key.Group);
-        AddCommandParameter(cmd, SqlParameters.TriggerInstanceName, instanceId);
-        AddCommandParameter(cmd, SqlParameters.TriggerFireTime, GetDbDateTimeValue(timeProvider.GetUtcNow()));
-        AddCommandParameter(cmd, SqlParameters.TriggerScheduledTime, GetDbDateTimeValue(trigger.NextFireTimeUtc));
-        AddCommandParameter(cmd, SqlParameters.TriggerState, state.ToStoredValue());
-        if (job is not null)
-        {
-            AddCommandParameter(cmd, SqlParameters.TriggerJobName, trigger.JobKey.Name);
-            AddCommandParameter(cmd, SqlParameters.TriggerJobGroup, trigger.JobKey.Group);
-            AddCommandParameter(cmd, SqlParameters.TriggerJobStateful, GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
-            AddCommandParameter(cmd, SqlParameters.TriggerJobRequestsRecovery, GetDbBooleanValue(job.RequestsRecovery));
-        }
-        else
-        {
-            AddCommandParameter(cmd, SqlParameters.TriggerJobName, null);
-            AddCommandParameter(cmd, SqlParameters.TriggerJobGroup, null);
-            AddCommandParameter(cmd, SqlParameters.TriggerJobStateful, GetDbBooleanValue(false));
-            AddCommandParameter(cmd, SqlParameters.TriggerJobRequestsRecovery, GetDbBooleanValue(false));
-        }
+        SqlStatement statement = BuildInsertFiredTriggerStatement(trigger, state, job);
 
-        AddCommandParameter(cmd, SqlParameters.TriggerPriority, trigger.Priority);
-        AddCommandParameter(cmd, SqlParameters.TriggerExecutionGroup, (object?) trigger.ExecutionGroup ?? DBNull.Value);
+        using var cmd = PrepareCommand(conn, statement.Sql);
+        foreach (SqlStatementParameter parameter in statement.Parameters)
+        {
+            AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
+        }
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// One <see cref="System.Data.Common.DbBatch" /> for the whole round where the provider can batch,
+    /// and the statement-per-row loop where it cannot — <see cref="ExecuteStatements" /> decides,
+    /// exactly as it does for misfire recovery.
+    /// </remarks>
+    public virtual async ValueTask InsertFiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<IOperableTrigger> triggers,
+        StoredTriggerState state,
+        IJobDetail? jobDetail,
+        CancellationToken cancellationToken = default)
+    {
+        if (triggers.Count == 0)
+        {
+            return;
+        }
+
+        if (triggers.Count == 1)
+        {
+            // A batch of one is one round trip either way, and assembling it costs more than issuing
+            // the command. The scheduler's default batch size is one, so this is the common round.
+            await InsertFiredTrigger(conn, triggers[0], state, jobDetail, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        List<SqlStatement> statements = new(triggers.Count);
+        for (int i = 0; i < triggers.Count; i++)
+        {
+            statements.Add(BuildInsertFiredTriggerStatement(triggers[i], state, jobDetail));
+        }
+
+        await ExecuteStatements(conn, statements, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The one fired-trigger insert, as data. Single source of truth for
+    /// <see cref="InsertFiredTrigger" /> and <see cref="InsertFiredTriggers" />, so the row a batched
+    /// round writes cannot drift from the row a single insert writes.
+    /// </summary>
+    private SqlStatement BuildInsertFiredTriggerStatement(
+        IOperableTrigger trigger,
+        StoredTriggerState state,
+        IJobDetail? job)
+    {
+        // In the order the statement mentions them, for providers that bind positionally.
+        return new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlInsertFiredTrigger),
+        [
+            new SqlStatementParameter(SqlParameters.SchedulerName, schedulerName),
+            new SqlStatementParameter(SqlParameters.TriggerEntryId, trigger.FireInstanceId),
+            new SqlStatementParameter(SqlParameters.TriggerName, trigger.Key.Name),
+            new SqlStatementParameter(SqlParameters.TriggerGroup, trigger.Key.Group),
+            new SqlStatementParameter(SqlParameters.TriggerInstanceName, instanceId),
+            new SqlStatementParameter(SqlParameters.TriggerFireTime, GetDbDateTimeValue(timeProvider.GetUtcNow())),
+            new SqlStatementParameter(SqlParameters.TriggerScheduledTime, GetDbDateTimeValue(trigger.NextFireTimeUtc)),
+            new SqlStatementParameter(SqlParameters.TriggerState, state.ToStoredValue()),
+            // No job named yet is what an acquired row looks like, and it is what keeps the row out of
+            // IsJobCurrentlyExecuting until the trigger actually fires.
+            new SqlStatementParameter(SqlParameters.TriggerJobName, job is not null ? trigger.JobKey.Name : null),
+            new SqlStatementParameter(SqlParameters.TriggerJobGroup, job is not null ? trigger.JobKey.Group : null),
+            new SqlStatementParameter(SqlParameters.TriggerJobStateful, GetDbBooleanValue(job?.ConcurrentExecutionDisallowed ?? false)),
+            new SqlStatementParameter(SqlParameters.TriggerJobRequestsRecovery, GetDbBooleanValue(job?.RequestsRecovery ?? false)),
+            new SqlStatementParameter(SqlParameters.TriggerPriority, trigger.Priority),
+            new SqlStatementParameter(SqlParameters.TriggerExecutionGroup, trigger.ExecutionGroup)
+        ]);
     }
 
     /// <inheritdoc />
@@ -2058,6 +2106,15 @@ public partial class StdAdoDelegate
         if (triggerKeys.Count == 0)
         {
             return [];
+        }
+
+        if (triggerKeys.Count == 1)
+        {
+            // One key is one statement either way, and the set read pays for a key-set predicate, a
+            // deduplication and a re-sort to answer what the single read answers directly. The
+            // scheduler's default acquisition batch size is one, so this is the common round.
+            IOperableTrigger? only = await SelectTrigger(conn, triggerKeys.First(), cancellationToken).ConfigureAwait(false);
+            return only is null ? [] : [only];
         }
 
         // A repeated key would come back as a repeated row, and the predicate is a disjunction that
