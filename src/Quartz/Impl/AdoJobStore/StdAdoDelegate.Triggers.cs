@@ -590,6 +590,44 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
+    public virtual async ValueTask<int> UpdateTriggerStatesFromOtherStates(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
+        CancellationToken cancellationToken = default)
+    {
+        if (triggerKeys.Count == 0)
+        {
+            return 0;
+        }
+
+        List<StoredTriggerState> states = DistinctStates(oldStates, nameof(oldStates));
+        // A repeated key cannot be updated twice, but it would enlarge the predicate for nothing.
+        List<TriggerKey> keys = Deduplicate(triggerKeys);
+        string statePredicate = AdoUtil.BuildTriggerStatePredicate(states.Count);
+        int updated = 0;
+
+        for (int offset = 0; offset < keys.Count; offset += AdoUtil.MaxTriggerKeysPerPredicate)
+        {
+            int length = Math.Min(AdoUtil.MaxTriggerKeysPerPredicate, keys.Count - offset);
+            int paddedCount = AdoUtil.RoundUpTriggerKeyCount(length);
+
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
+                StdAdoConstants.SqlUpdateTriggerStatesFromOtherStatesPrefix + statePredicate + " AND " + AdoUtil.BuildTriggerKeyPredicate(paddedCount)));
+            // Parameters are added in SQL token order for providers with positional binding.
+            AddCommandParameter(cmd, SqlParameters.NewState, newState.ToStoredValue());
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+            AddOldStateParameters(cmd, states);
+            AddTriggerKeyParameters(cmd, keys, offset, length, paddedCount);
+
+            updated += await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return updated;
+    }
+
+    /// <inheritdoc />
     public virtual async ValueTask<int> UpdateTriggerGroupStateFromOtherStates(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
@@ -1327,6 +1365,42 @@ public partial class StdAdoDelegate
             triggerType);
     }
 
+    /// <inheritdoc />
+    public virtual async ValueTask<List<StoredTriggerHeader>> SelectStoredTriggerHeaders(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        if (triggerKeys.Count == 0)
+        {
+            return [];
+        }
+
+        // A repeated key would come back as a repeated row, and the predicate is a disjunction that
+        // cannot tell the difference, so fold duplicates away before building it.
+        List<TriggerKey> requested = Deduplicate(triggerKeys);
+        List<StoredTriggerHeader> headers = new(requested.Count);
+
+        for (int offset = 0; offset < requested.Count; offset += AdoUtil.MaxTriggerKeysPerPredicate)
+        {
+            int length = Math.Min(AdoUtil.MaxTriggerKeysPerPredicate, requested.Count - offset);
+
+            using DbCommand cmd = PrepareTriggerKeySetCommand(conn, StdAdoConstants.SqlSelectTriggerHeadersByKeysPrefix, requested, offset, length);
+            using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                headers.Add(new StoredTriggerHeader(
+                    new TriggerKey(rs.GetString(AdoConstants.ColumnTriggerName)!, rs.GetString(AdoConstants.ColumnTriggerGroup)!),
+                    new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!),
+                    StoredTriggerStates.FromStoredValue(rs.GetString(AdoConstants.ColumnTriggerState)),
+                    GetDateTimeFromDbValue(rs[AdoConstants.ColumnNextFireTime]),
+                    rs.GetString(AdoConstants.ColumnTriggerType)!));
+            }
+        }
+
+        return headers;
+    }
+
     private async ValueTask<string?> SelectTriggerType(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -1925,36 +1999,15 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The job's trigger keys, then the whole set in one read. Reading them back one at a time was a
+    /// round trip per trigger for what <see cref="SelectTriggers" /> answers in one (#3424).
+    /// </remarks>
     public virtual async ValueTask<List<IOperableTrigger>> SelectTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        List<IOperableTrigger> trigList = [];
-        List<TriggerKey> keys = [];
+        List<TriggerKey> keys = await SelectTriggerKeysForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
 
-        using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggersForJob)))
-        {
-            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
-            AddCommandParameter(cmd, SqlParameters.JobName, jobKey.Name);
-            AddCommandParameter(cmd, SqlParameters.JobGroup, jobKey.Group);
-
-            using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
-            {
-                while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    keys.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
-                }
-            }
-        }
-
-        foreach (TriggerKey triggerKey in keys)
-        {
-            var t = await SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            if (t is not null)
-            {
-                trigList.Add(t);
-            }
-        }
-
-        return trigList;
+        return await SelectTriggers(conn, keys, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -2262,7 +2315,17 @@ public partial class StdAdoDelegate
         var paddedCount = AdoUtil.RoundUpTriggerKeyCount(length);
         var cmd = PrepareCommand(conn, ReplaceTablePrefix(sqlPrefix + AdoUtil.BuildTriggerKeyPredicate(paddedCount, qualified)));
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddTriggerKeyParameters(cmd, keys, offset, length, paddedCount);
 
+        return cmd;
+    }
+
+    /// <summary>
+    /// Binds one chunk of a key-set predicate's parameters, padding it up to the bucket size the
+    /// predicate was built for.
+    /// </summary>
+    private void AddTriggerKeyParameters(DbCommand cmd, List<TriggerKey> keys, int offset, int length, int paddedCount)
+    {
         for (var i = 0; i < paddedCount; i++)
         {
             // Pad up to the bucket size by repeating the chunk's last key. The predicate is a
@@ -2271,8 +2334,6 @@ public partial class StdAdoDelegate
             AddCommandParameter(cmd, AdoUtil.TriggerKeyNameParameter(i), key.Name);
             AddCommandParameter(cmd, AdoUtil.TriggerKeyGroupParameter(i), key.Group);
         }
-
-        return cmd;
     }
 
     private async ValueTask SelectBlobTriggersForBatch(

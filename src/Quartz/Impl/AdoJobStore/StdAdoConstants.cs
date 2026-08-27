@@ -635,6 +635,21 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectTriggerHeader =
         Invariant($"SELECT {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerType} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
+    /// <summary>
+    /// Prefix of the batch header read; the caller appends a key-set predicate built by
+    /// <c>AdoUtil.BuildTriggerKeyPredicate</c>. Same columns as <see cref="SqlSelectTriggerHeader" />
+    /// with the key columns in front, because a set read has to say which row each header came from.
+    /// </summary>
+    public static readonly string SqlSelectTriggerHeadersByKeysPrefix =
+        Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnTriggerType} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND ");
+
+    /// <summary>
+    /// Prefix of the batch trigger-key read for a set of jobs; the caller appends a job-key-set
+    /// predicate built by <c>AdoUtil.BuildJobKeyPredicate</c>.
+    /// </summary>
+    public static readonly string SqlSelectTriggerKeysForJobsPrefix =
+        Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND ");
+
     public static readonly string SqlSelectTriggersForCalendar =
         Invariant($"SELECT {AdoConstants.ColumnTriggerName}, {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnCalendarName} = @{SqlParameters.CalendarName}");
 

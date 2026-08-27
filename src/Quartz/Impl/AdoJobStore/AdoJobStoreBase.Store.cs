@@ -292,7 +292,11 @@ public abstract partial class AdoJobStoreBase
         await ExecuteInLock(
             LockOnInsert || replace ? SchedulerLock.TriggerAccess : null, async conn =>
             {
-                // TODO: make this more efficient with a true bulk operation...
+                // A job and its triggers at a time, on purpose rather than for want of a bulk insert:
+                // AddTrigger is a read-decide-write — does the row exist, is its group paused, is its
+                // job blocked — so a batch would have to gather every read first, and the reads are
+                // exactly what a bulk insert cannot skip. What this path costs is what AddJob and
+                // AddTrigger cost; there is nothing here to fold that is not folded there.
                 foreach (var pair in triggersAndJobs)
                 {
                     var job = pair.Key;
