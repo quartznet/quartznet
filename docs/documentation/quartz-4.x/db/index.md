@@ -88,3 +88,55 @@ trigger that does not exist. The stored states map onto it: `WAITING` and `ACQUI
 `PAUSED_BLOCKED` reads as `Paused`, and `DELETED` reads as `None`. A trigger whose job is running reads as
 `Executing`, unless the row says it is deleted, in error or paused — those are reported as they stand.
 `TriggerStateResolver.Resolve` is that mapping, should you need it in code of your own.
+
+### Indexes, and the two columns that have none
+
+Four indexes ship on `QRTZ_TRIGGERS`, five on SQL Server, MySQL, Oracle and Firebird. Three are lookups
+by key — `(SCHED_NAME, JOB_NAME, JOB_GROUP)`, `(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)` and
+`(SCHED_NAME, CALENDAR_NAME)`. The fourth, `IDX_QRTZ_T_NFT_ST` over
+`(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME)`, is the one acquisition runs on. The fifth,
+`IDX_QRTZ_T_NFT_ST_MISFIRE`, serves the misfire sweep; PostgreSQL and SQLite omit it because
+`IDX_QRTZ_T_NFT_ST` already covers that predicate.
+
+Two columns the scheduler reads on hot paths are in none of them: `PRIORITY`, the acquisition
+statement's second `ORDER BY` key, and `PREFERRED_NODE`, which node affinity filters and re-pins on.
+Whether either is worth covering was measured on PostgreSQL 15, SQL Server 2022 and MySQL 8.0 against
+100,000 triggers ([#3426](https://github.com/quartznet/quartznet/issues/3426)); the harness is
+[`AcquisitionIndexBenchmark`](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Benchmark/AcquisitionIndexBenchmark.cs),
+which prints the plans again on demand. **The schema is unchanged as a result, and these are the numbers
+that say why.**
+
+**Appending `PRIORITY` to the acquisition index changes nothing.** The plan comes back operator for
+operator on all three engines — PostgreSQL still runs its incremental sort, SQL Server still reads 4,319
+pages of `QRTZ_TRIGGERS`, MySQL still sorts 5,000 rows — because the statement orders by
+`NEXT_FIRE_TIME ASC, PRIORITY DESC`, and an ascending trailing column cannot deliver two directions. The
+obvious index costs four bytes an entry and buys nothing.
+
+**Declaring that column `PRIORITY DESC` is a different matter, and it is a large win.** With the two
+directions matching, the engine takes the first index entry rather than materialising every candidate
+and sorting: SQL Server goes from 4,319 logical reads to 8, MySQL from a 5,000-row sort at 39 ms to a
+one-row read at 0.1 ms, PostgreSQL from 371 buffers at 0.52 ms to 7 at 0.15 ms. It is not adopted here,
+for two reasons worth knowing before you add it by hand:
+
+- Firebird cannot express it. Its indexes are ascending or descending as a whole, with no per-column
+  direction, so the one schema in the set that cannot take it is also the one with no workaround. MySQL
+  before 8.0 and MariaDB before 10.8 parse `DESC` in an index definition and ignore it, which is
+  harmless but silently buys nothing.
+- The plan it produces is a seek from the oldest waiting trigger, and the statement's lower bound on
+  `NEXT_FIRE_TIME` sits inside an `OR` with `MISFIRE_INSTR`, so it cannot narrow that seek. A backlog of
+  misfired triggers therefore sits in front of every acquisition: against a 5,000-row backlog on SQL
+  Server the descending index read 20,410 pages where the shipped one read 4,319. Backlogs drain, but
+  the index wants that predicate made sargable beside it.
+
+**An index on `PREFERRED_NODE` does nothing for acquisition.** The node-affinity filter is a
+disjunction — unpinned, *or* pinned here, *or* pinned to a node that has stopped checking in — and no
+B-tree serves an `OR`. The plan is unchanged on all three engines with the index in place. What it does
+change is the failover re-pin, the one `UPDATE` `ClusterRecover` issues per dead node: from a full scan
+(PostgreSQL 8.4 ms, SQL Server 4,319 logical reads, MySQL around 88 ms) to a seek of two or three pages.
+That statement runs once per node failure, so a permanent write cost on the busiest table in the schema
+is not a trade the shipped schema makes.
+
+**If you add one anyway**, `(SCHED_NAME, PREFERRED_NODE, PREFERRED_NODE_AUTO)` is the shape the re-pin
+wants, and a cluster that fails over often enough for a multi-second recovery to hurt is the case for
+it. Measure your own schema first: none of this is visible below a few thousand triggers, where every
+plan reads a handful of pages whatever the indexes are.
