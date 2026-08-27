@@ -24,13 +24,12 @@ internal sealed class DialectDelegateOverrides : StdAdoDelegate
 {
     #region sample_dialect_delegate_row_limiting
 
-    // append (PostgreSQL, Firebird)
-    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
-        => base.GetSelectNextTriggerToAcquireSql(shape) + " LIMIT " + shape.MaxCount;
+    // … LIMIT n (PostgreSQL, MySQL, SQLite) — or "ROWS" on Firebird
+    protected override SqlRowLimit GetRowLimit(int count)
+        => SqlRowLimit.AtStatementEnd("LIMIT", count);
 
-    // splice a prefix (SQL Server: SELECT TOP n)
-    // wrap the whole statement (Oracle: SELECT * FROM ( … ) WHERE rownum <= n)
-    // append with an index hint (MySQL: FORCE INDEX (…) … LIMIT n)
+    // SELECT TOP n …                              SqlRowLimit.InProjection("TOP", count)
+    // SELECT * FROM ( … ) WHERE rownum <= n       SqlRowLimit.InEnclosingSelect("rownum", count)
 
     #endregion
 

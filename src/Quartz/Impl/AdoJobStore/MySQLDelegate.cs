@@ -56,30 +56,34 @@ public class MySQLDelegate : StdAdoDelegate
     }
 
     /// <summary>
-    /// Gets the select next trigger to acquire SQL clause.
-    /// MySQL version with LIMIT support and a FORCE INDEX hint pointing at IDX_*_T_NFT_ST.
+    /// MySQL limits rows with a trailing <c>LIMIT n</c>.
+    /// </summary>
+    protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.AtStatementEnd("LIMIT", count);
+
+    /// <summary>
+    /// The acquisition statement carries a FORCE INDEX hint pointing at IDX_*_T_NFT_ST.
     /// </summary>
     protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
     {
         return base.GetSelectNextTriggerToAcquireSql(shape)
-            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)")
-            + " LIMIT " + shape.MaxCount;
+            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)");
     }
 
     /// <summary>
-    /// MySQL version with LIMIT support and a FORCE INDEX hint pointing at IDX_*_T_NFT_ST_MISFIRE.
+    /// The misfire recovery statement carries a FORCE INDEX hint pointing at IDX_*_T_NFT_ST_MISFIRE.
     /// The hint attaches to the aliased TRIGGERS table, since this statement joins the type tables onto
     /// it rather than selecting from TRIGGERS alone.
     /// </summary>
+    /// <remarks>
+    /// Applied whatever the batch size, including an unlimited sweep. It used to be skipped for the
+    /// unlimited one, which was an artefact of the row limit and the hint sharing an early return
+    /// rather than a decision: the index a statement should read is not a function of how many rows
+    /// it returns, and an unlimited sweep is the case that reads the most.
+    /// </remarks>
     protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
     {
-        if (count != -1)
-        {
-            return StdAdoConstants.SqlSelectMisfiredTriggersToRecover
-                .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)")
-                + " LIMIT " + count;
-        }
-        return base.GetSelectMisfiredTriggersToRecoverSql(count);
+        return base.GetSelectMisfiredTriggersToRecoverSql(count)
+            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)");
     }
 
     protected override string GetCountMisfiredTriggersInStateSql()

@@ -11,8 +11,8 @@ a delegate of its own.
 ::: tip Start here
 **Do not implement `IDriverDelegate`.** Nothing in the product does; it is a hundred-odd members, and
 almost all of them are the same SQL on every database. Subclass `StdAdoDelegate` and override the
-handful that differ. The six shipped dialects override **eight distinct members between them**, out of
-roughly a hundred and ten.
+handful that differ. The six shipped dialects override **nine distinct members between them**, out of
+roughly a hundred and ten — and four of the six override two or fewer.
 :::
 
 ## The seam
@@ -28,12 +28,13 @@ public sealed class MyDatabaseDelegate : StdAdoDelegate
 ```
 <!-- endSnippet -->
 
-Eight members are the dialect contract. Everything else on `StdAdoDelegate` is an implementation step
+Nine members are the dialect contract. Everything else on `StdAdoDelegate` is an implementation step
 that happens to be `protected virtual` so the class can be composed — treat them as private.
 
 | Member | Override when |
 |---|---|
-| `protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)` | your database limits rows differently from ANSI |
+| `protected virtual SqlRowLimit GetRowLimit(int count)` | your database can limit the rows a statement returns |
+| `protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)` | the acquisition statement needs something else besides — MySQL's index hint is the only shipped case |
 | `protected virtual string GetSelectMisfiredTriggersToRecoverSql(int count)` | the same, for the misfire scan; `count == -1` means "no limit" |
 | `protected virtual string GetCountMisfiredTriggersInStateSql()` | the counting form needs a different shape |
 | `protected virtual string ApplyPaging(string sql, bool takeLimited)` | `OFFSET … FETCH NEXT …` is not understood |
@@ -44,28 +45,34 @@ that happens to be `protected virtual` so the class can be composed — treat th
 
 ### Row limiting
 
-The default `GetSelectNextTriggerToAcquireSql` ignores `shape.MaxCount` entirely — *"by default we
-don't support limits, this is db specific"* — so a dialect that can limit rows should say so. Four
-shapes appear among the shipped dialects:
+There is no ANSI row limit, so `StdAdoDelegate` applies none and a dialect that can limit rows says
+where its clause goes. Two statements carry one — trigger acquisition and the misfire scan — and both
+ask the same member, so a dialect says it once:
 
 <!-- snippet: sample_dialect_delegate_row_limiting -->
 ```csharp
-// append (PostgreSQL, Firebird)
-protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
-    => base.GetSelectNextTriggerToAcquireSql(shape) + " LIMIT " + shape.MaxCount;
+// … LIMIT n (PostgreSQL, MySQL, SQLite) — or "ROWS" on Firebird
+protected override SqlRowLimit GetRowLimit(int count)
+    => SqlRowLimit.AtStatementEnd("LIMIT", count);
 
-// splice a prefix (SQL Server: SELECT TOP n)
-// wrap the whole statement (Oracle: SELECT * FROM ( … ) WHERE rownum <= n)
-// append with an index hint (MySQL: FORCE INDEX (…) … LIMIT n)
+// SELECT TOP n …                              SqlRowLimit.InProjection("TOP", count)
+// SELECT * FROM ( … ) WHERE rownum <= n       SqlRowLimit.InEnclosingSelect("rownum", count)
 ```
 <!-- endSnippet -->
 
+`SqlRowLimit` names the three places a limit can sit, and the statement is built with the clause
+already in it. Nothing is spliced into finished SQL, so a dialect no longer depends on the statement
+starting with a particular keyword or ending with a particular clause. `count` is always at least
+one: the `-1` that means "every row" is turned into `SqlRowLimit.Unlimited` before the member is
+called, so an override never has to test for it.
+
 `TriggerAcquisitionSqlShape` carries everything about an acquisition attempt that changes the text of
-the statement — the row limit, and how many job-type exclusion terms the `NOT IN` clause needs. Read
-`shape.MaxCount` and hand the whole shape to `base`: a dimension added later becomes a property on
-the record, so an override written today keeps compiling and keeps applying it. It is also the key
-the finished statement is cached under, which is why it holds the bucketed exclusion count rather
-than the caller's exact one.
+the statement — the row limit's count, and how many job-type exclusion terms the `NOT IN` clause
+needs. It is also the key the finished statement is cached under, which is why it holds the bucketed
+exclusion count rather than the caller's exact one. Override
+`GetSelectNextTriggerToAcquireSql(shape)` only for something a row limit cannot express; MySQL is the
+one shipped dialect that does, for its `FORCE INDEX` hint, and it still calls `base` and leaves the
+limit alone.
 
 ### Paging
 
@@ -148,7 +155,7 @@ For a delegate in your own assembly this means two things:
 substitutes it. Statements the base class returns still contain it; the caller substitutes.
 
 ::: tip
-"Customize one statement" is not a supported operation, and that is deliberate. The five SQL hooks
+"Customize one statement" is not a supported operation, and that is deliberate. The six SQL hooks
 above cover the statements that actually differ between databases; the other ~76 are inlined
 `ReplaceTablePrefix(StdAdoConstants.X)` call sites, and the delegate *is* the seam — override the
 method that issues the statement. Additional `GetXxxSql()` hooks can be added later without breaking

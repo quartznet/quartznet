@@ -51,21 +51,7 @@ public class SQLiteDelegate : StdAdoDelegate
     }
 
     /// <summary>
-    /// Gets the select next trigger to acquire SQL clause.
-    /// SQLite version with LIMIT support.
+    /// SQLite limits rows with a trailing <c>LIMIT n</c>.
     /// </summary>
-    /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
-    {
-        return base.GetSelectNextTriggerToAcquireSql(shape) + " LIMIT " + shape.MaxCount;
-    }
-
-    protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
-    {
-        if (count != -1)
-        {
-            return StdAdoConstants.SqlSelectMisfiredTriggersToRecover + " LIMIT " + count;
-        }
-        return base.GetSelectMisfiredTriggersToRecoverSql(count);
-    }
+    protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.AtStatementEnd("LIMIT", count);
 }

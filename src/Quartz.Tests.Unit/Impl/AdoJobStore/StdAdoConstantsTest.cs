@@ -84,7 +84,7 @@ public class StdAdoConstantsTest
     [Test]
     public void BuildSqlSelectNextTriggerToAcquire_WithNoExclusions_ShouldKeepExistingSqlExactly()
     {
-        string sql = StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket: 0);
+        string sql = StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket: 0, SqlRowLimit.Unlimited);
 
         sql.Should().BeSameAs(StdAdoConstants.SqlSelectNextTriggerToAcquire,
             "the two are one template with an empty exclusion clause, so asking for no exclusions hands back the very string every exclusion-free caller already uses rather than an equal copy built beside it");
@@ -93,7 +93,7 @@ public class StdAdoConstantsTest
     [Test]
     public void BuildSqlSelectNextTriggerToAcquire_ShouldUseFixedWidthExclusionParameters()
     {
-        string sql = StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket: 16);
+        string sql = StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket: 16, SqlRowLimit.Unlimited);
 
         sql.Should().Contain("AND jd.JOB_CLASS_NAME NOT IN (@excludedJobType0000, @excludedJobType0001");
         sql.Should().Contain("@excludedJobType0009, @excludedJobType0010");

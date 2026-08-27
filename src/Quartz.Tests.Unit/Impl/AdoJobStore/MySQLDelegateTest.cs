@@ -65,14 +65,15 @@ public class MySQLDelegateTest
     }
 
     [Test]
-    public void GetSelectMisfiredTriggersToRecoverSql_WithMinusOne_ShouldNotContainLimit()
+    public void GetSelectMisfiredTriggersToRecoverSql_WithMinusOne_ShouldNotContainLimitButKeepTheHint()
     {
         var del = new TestMySQLDelegate();
 
         var sql = del.GetSelectMisfiredTriggersToRecoverSqlPublic(-1);
 
-        sql.Should().NotContain("LIMIT");
-        sql.Should().NotContain("FORCE INDEX");
+        sql.Should().NotContain("LIMIT", "-1 is the sentinel that asks for every misfired row");
+        sql.Should().Contain("{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)",
+            "which index the sweep should read does not depend on how many rows it returns, and an unlimited sweep is the one that reads the most");
     }
 
     [Test]

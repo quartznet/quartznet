@@ -5216,16 +5216,51 @@ protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlS
 Its parameter is new: `TriggerAcquisitionSqlShape` carries everything about an acquisition attempt
 that changes the statement's text — `MaxCount`, and `ExcludedJobTypeBucket` for the job-type
 exclusion clause — so the next acquisition dimension is a property on the record rather than another
-parameter here. Read `shape.MaxCount` and pass the whole shape to `base`. It is still the only thing
-the dialects differed in: `FirebirdDelegate` appends
-`ROWS n`, `SqlServerDelegate` splices in `SELECT TOP n`, `OracleDelegate` wraps the statement in a
-`rownum` filter, and the rest append `LIMIT n`. **A dialect delegate of your own should keep its
-`GetSelectNextTriggerToAcquireSql` override and delete the other three.**
+parameter here. **A dialect delegate of your own should delete the three removed overrides**; if the
+one it keeps exists only to hang a row limit off the statement, delete that too and say the limit
+once — see [Row limiting is a slot, not a splice](#row-limiting-is-a-slot-not-a-splice).
 
 The node-affinity parameters the statement now always carries are bound for you by the protected
 `AddPreferredNodeParameters(cmd, liveNodeCutoff)`, so an override that rewrites the statement text
 still does not have to know their names or the order they are bound in. The cutoff parameter is a
 `DateTimeOffset`; the binder converts it to the stored tick value itself.
+
+### Row limiting is a slot, not a splice
+
+Two statements come in a row-limited form — trigger acquisition and the misfire scan — and each of the
+six dialects used to produce its own by editing the finished SQL: `SqlServerDelegate` cut the first
+six characters off and pasted `SELECT TOP n` back on, `OracleDelegate` wrapped the whole thing in a
+`rownum` filter, and the rest appended `LIMIT n` or `ROWS n`. Correct, and correct only while the
+statement began with exactly `SELECT` — which nothing enforced — and repeated once per statement per
+dialect, each with its own `count == -1` test.
+
+A dialect now says where its clause goes, once, and the statement is built with it already there:
+
+```csharp
+protected virtual SqlRowLimit GetRowLimit(int count)
+```
+
+`SqlRowLimit` is new and names the three placements: `InProjection("TOP", count)` for SQL Server,
+`AtStatementEnd("LIMIT", count)` for PostgreSQL, MySQL and SQLite, `AtStatementEnd("ROWS", count)`
+for Firebird, `InEnclosingSelect("rownum", count)` for Oracle, and `Unlimited` for a database that
+cannot limit rows, which is what `StdAdoDelegate` returns. `count` is never the `-1` sentinel: that is
+turned into `Unlimited` before the member is called.
+
+`GetSelectNextTriggerToAcquireSql(shape)` and `GetSelectMisfiredTriggersToRecoverSql(count)` are still
+`protected virtual`, and still the seam for a statement that needs something a row limit cannot say —
+`MySQLDelegate` overrides both for its `FORCE INDEX` hint. The five other dialect delegates no longer
+override either.
+
+**If your dialect delegate overrides one of the two only to add a row limit, replace both overrides
+with a single `GetRowLimit`.** Nothing breaks if you do not: the two hooks behave as they always did,
+and an override that appends its own clause still works. It just spells the same thing twice, against
+a statement it does not own.
+
+One shipped statement changed as a result. `MySQLDelegate`'s misfire scan carries its
+`FORCE INDEX (IDX_…_T_NFT_ST_MISFIRE)` hint for an unlimited sweep as well now; it used to lose the
+hint in exactly that case, because the hint and the row limit shared one early return. Which index
+the sweep should read does not depend on how many rows it returns, and the unlimited sweep is the one
+that reads the most.
 
 ## The connection manager is gone
 
@@ -8101,7 +8136,9 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.UpdateFiredTrigger` removed | `ApplyTriggerFired` writes the fired-trigger row as one command of its batch, and nothing else called it; an override of it would have stopped taking effect silently — see [Batched trigger fire](#batched-trigger-fire) |
 | `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |
 | `GetSelectNextTriggerToAcquireWith*Sql` removed | The `…WithExecutionGroupSql`, `…WithPreferredNodeSql` and `…WithPreferredNodeOnlySql` hooks, on `StdAdoDelegate` and all six dialect delegates. One statement covers every case now, so a dialect delegate keeps only its `GetSelectNextTriggerToAcquireSql` override — see [The three extra acquisition SQL hooks went with them](#the-three-extra-acquisition-sql-hooks-went-with-them) |
-| `StdAdoDelegate.GetSelectNextTriggerToAcquireSql(int maxCount)` | `GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)`; a custom dialect override reads `shape.MaxCount` for its row limit and passes the whole shape to `base`, so the next acquisition dimension is a property on the record rather than another parameter |
+| `StdAdoDelegate.GetSelectNextTriggerToAcquireSql(int maxCount)` | `GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)`; a custom dialect override passes the whole shape to `base`, so the next acquisition dimension is a property on the record rather than another parameter |
+| `StdAdoDelegate.GetRowLimit(int count)` added | Where a dialect's row-limiting clause goes, said once for both statements that carry one, as a `SqlRowLimit` rather than an edit to finished SQL. Five of the six dialect delegates stopped overriding `GetSelectNextTriggerToAcquireSql` and `GetSelectMisfiredTriggersToRecoverSql` entirely; both hooks stay `protected virtual` and an override that splices its own clause still works — see [Row limiting is a slot, not a splice](#row-limiting-is-a-slot-not-a-splice) |
+| `Quartz.Impl.AdoJobStore.SqlRowLimit` added | A `readonly record struct` naming the three placements a row limit can take — `InProjection`, `AtStatementEnd`, `InEnclosingSelect` — and `Unlimited` for a database that cannot limit rows |
 | `IDbConnectionManager` / `DbConnectionManager` removed | The container is the provider registry, keyed by scheduler name; register a provider with `UseConnectionProvider` — see [The connection manager is gone](#the-connection-manager-is-gone) |
 | `AdoJobStoreOptions.TxIsolationLevelSerializable` is `TransactionIsolationLevel` | An `IsolationLevel?` rather than a `bool`, so `Snapshot` and the rest are expressible. The legacy key still translates — see [The isolation level is an isolation level](#the-isolation-level-is-an-isolation-level) |
 | `AdoJobStoreOptions.CommandTimeout` added | Bounds every statement the store issues, the lock handler's included; it reaches them through `DriverDelegateContext.CommandTimeout` and `SemaphoreContext.CommandTimeout`. Unset keeps each provider's own default, so nothing changes for a store that does not set it. 3.x had no way to say this at all — there was no `quartz.*` key for it, so nothing needs translating |

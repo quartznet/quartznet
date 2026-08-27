@@ -6,21 +6,7 @@ namespace Quartz.Impl.AdoJobStore;
 public class FirebirdDelegate : StdAdoDelegate
 {
     /// <summary>
-    /// Gets the select next trigger to acquire SQL clause.
-    /// FireBird version with ROWS support.
+    /// Firebird limits rows with a trailing <c>ROWS n</c>.
     /// </summary>
-    /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
-    {
-        return base.GetSelectNextTriggerToAcquireSql(shape) + " ROWS " + shape.MaxCount;
-    }
-
-    protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
-    {
-        if (count != -1)
-        {
-            return StdAdoConstants.SqlSelectMisfiredTriggersToRecover + " ROWS " + count;
-        }
-        return base.GetSelectMisfiredTriggersToRecoverSql(count);
-    }
+    protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.AtStatementEnd("ROWS", count);
 }

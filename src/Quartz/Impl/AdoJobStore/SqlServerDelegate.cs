@@ -30,29 +30,9 @@ namespace Quartz.Impl.AdoJobStore;
 public class SqlServerDelegate : StdAdoDelegate
 {
     /// <summary>
-    /// Gets the select next trigger to acquire SQL clause.
-    /// SQL Server specific version with TOP functionality
+    /// SQL Server names its row limit in the projection: <c>SELECT TOP n …</c>.
     /// </summary>
-    /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
-    {
-        string sqlSelectNextTriggerToAcquire = base.GetSelectNextTriggerToAcquireSql(shape);
-
-        // add limit clause to correct place
-        sqlSelectNextTriggerToAcquire = "SELECT TOP " + shape.MaxCount + " " + sqlSelectNextTriggerToAcquire.Substring(6);
-
-        return sqlSelectNextTriggerToAcquire;
-    }
-
-    protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
-    {
-        if (count != -1)
-        {
-            // add limit clause to correct place
-            return "SELECT TOP " + count + " " + StdAdoConstants.SqlSelectMisfiredTriggersToRecover.Substring(6);
-        }
-        return base.GetSelectMisfiredTriggersToRecoverSql(count);
-    }
+    protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.InProjection("TOP", count);
 
     public override void AddCommandParameter(
         DbCommand cmd,

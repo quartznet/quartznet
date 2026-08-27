@@ -72,7 +72,7 @@ public class AcquisitionSqlTest
     [Test]
     public async Task TheExclusionClauseSitsBetweenTheNodeFilterAndTheOrdering()
     {
-        string sql = StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket: 4);
+        string sql = StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(excludedJobTypeBucket: 4, SqlRowLimit.Unlimited);
 
         // Placement is what makes "no per-dialect SQL change" true: every dialect splices its row
         // limit into the projection or around the whole statement, so a clause that landed after
