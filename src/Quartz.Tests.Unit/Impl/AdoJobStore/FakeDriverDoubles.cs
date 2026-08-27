@@ -85,6 +85,12 @@ internal sealed class FakeCommand : DbCommand
     /// </summary>
     public bool BindByName { get; set; } = true;
 
+    /// <summary>
+    /// The result set the next execution hands back. Left unset, executing throws — a command made of
+    /// nothing has nothing to return, and most of these tests only ever prepare one.
+    /// </summary>
+    public DbDataReader? Reader { get; set; }
+
     [AllowNull]
     public override string CommandText { get; set; } = "";
 
@@ -116,7 +122,8 @@ internal sealed class FakeCommand : DbCommand
 
     protected override DbParameter CreateDbParameter() => new FakeParameter();
 
-    protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) => throw new NotSupportedException();
+    protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
+        => Reader ?? throw new NotSupportedException();
 }
 
 internal sealed class FakeParameterCollection : DbParameterCollection
