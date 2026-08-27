@@ -62,8 +62,11 @@ public partial class StdAdoDelegate
         List<StoredTriggerState> states = DistinctStates(oldStates, nameof(oldStates));
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStatesFromOtherStatesPrefix + AdoUtil.BuildTriggerStatePredicate(states.Count)));
-        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        // Bound in the order the statement names them, as every other binder in this file is: a provider
+        // that binds by name does not care, but one configured to bind by position would take
+        // @newState and @schedulerName the other way round.
         AddCommandParameter(cmd, SqlParameters.NewState, newState.ToStoredValue());
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddOldStateParameters(cmd, states);
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
