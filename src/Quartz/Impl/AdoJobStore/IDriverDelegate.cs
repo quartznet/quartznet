@@ -867,6 +867,34 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Inserts the fired-trigger rows of one acquisition round in as few round trips as the provider
+    /// allows.
+    /// </summary>
+    /// <remarks>
+    /// The rows are all in the same state and belong to the same job detail, which is what an
+    /// acquisition round produces: every row goes in as <see cref="StoredTriggerState.Acquired" />
+    /// with no job named yet. The default implementation is the loop the store used to make itself,
+    /// so a delegate that says nothing about batching keeps behaving exactly as it did.
+    /// </remarks>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="triggers">The triggers to record, in the order they were acquired.</param>
+    /// <param name="state">The state that the triggers should be stored in.</param>
+    /// <param name="jobDetail">The job detail, or <see langword="null" /> when no job is named yet.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask InsertFiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<IOperableTrigger> triggers,
+        StoredTriggerState state,
+        IJobDetail? jobDetail,
+        CancellationToken cancellationToken = default)
+    {
+        for (int i = 0; i < triggers.Count; i++)
+        {
+            await InsertFiredTrigger(conn, triggers[i], state, jobDetail, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     /// Selects the states of the fired-trigger records the query selects. A query with no filter set
     /// selects all of them.
     /// </summary>

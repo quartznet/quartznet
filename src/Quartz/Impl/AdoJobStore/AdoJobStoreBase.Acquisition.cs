@@ -195,25 +195,33 @@ public abstract partial class AdoJobStoreBase
                         return acquiredTriggers;
                     }
 
+                    // The delegate was told which job types this node will not run, and did not say it
+                    // enforces that itself. Dropping them here — on the name the acquisition read already
+                    // returned — is what keeps the promise; doing it before the read below is what keeps
+                    // it from costing a round trip and a type resolution per candidate (#3443).
+                    if (excludedJobTypeNames is not null)
+                    {
+                        results = results.FindAll(candidate => !excludedJobTypeNames.Contains(candidate.JobTypeName));
+                    }
+
+                    // One read for the whole round's candidates. The acquisition statement just named
+                    // them; going back per candidate cost a round trip each before a single one was
+                    // marked acquired (#3424).
+                    Dictionary<TriggerKey, IOperableTrigger> candidates = await ReadAcquisitionCandidates(Delegate, conn, results, cancellationToken).ConfigureAwait(false);
+
                     DateTimeOffset batchEnd = request.NoLaterThan;
+
+                    // The fired-trigger rows of this pass, written together at the end of it rather than
+                    // one statement at a time. They name no job until the trigger fires, so nothing this
+                    // loop asks the database can see them.
+                    List<IOperableTrigger> firedTriggerRows = [];
 
                     foreach (var result in results)
                     {
-                        // The delegate was told which job types this node will not run, and did not say
-                        // it enforces that itself. Dropping the candidate here — on the name the
-                        // acquisition read already returned — is what keeps the promise; doing it before
-                        // the read below is what keeps it from costing a round trip and a type
-                        // resolution per candidate (#3443).
-                        if (excludedJobTypeNames is not null && excludedJobTypeNames.Contains(result.JobTypeName))
-                        {
-                            continue; // next trigger
-                        }
-
                         TriggerKey triggerKey = result.TriggerKey;
 
                         // If our trigger is no longer available, try a new one.
-                        var nextTrigger = await GetTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-                        if (nextTrigger is null)
+                        if (!candidates.TryGetValue(triggerKey, out IOperableTrigger? nextTrigger))
                         {
                             continue; // next trigger
                         }
@@ -291,7 +299,7 @@ public abstract partial class AdoJobStoreBase
                             continue; // next trigger
                         }
                         nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
-                        await Delegate.InsertFiredTrigger(conn, nextTrigger, StoredTriggerState.Acquired, null, cancellationToken).ConfigureAwait(false);
+                        firedTriggerRows.Add(nextTrigger);
 
                         if (acquiredTriggers.Count == 0)
                         {
@@ -303,6 +311,11 @@ public abstract partial class AdoJobStoreBase
                         }
 
                         acquiredTriggers.Add(nextTrigger);
+                    }
+
+                    if (firedTriggerRows.Count > 0)
+                    {
+                        await Delegate.InsertFiredTriggers(conn, firedTriggerRows, StoredTriggerState.Acquired, null, cancellationToken).ConfigureAwait(false);
                     }
 
                     // if we didn't end up with any trigger to fire from that first
@@ -320,6 +333,46 @@ public abstract partial class AdoJobStoreBase
                 return acquiredTriggers;
             },
             "acquire next trigger");
+    }
+
+    /// <summary>
+    /// Reads back the triggers an acquisition round has just named, in one statement, keyed by their
+    /// trigger key.
+    /// </summary>
+    /// <remarks>
+    /// A candidate with no entry in the result is one whose row is no longer there — deleted between
+    /// the acquisition read and this one — which is exactly what the per-candidate read said by
+    /// answering <see langword="null" />. The delegate chunks the key set to the provider's parameter
+    /// ceiling, so "one statement" means one for a batch of any size a scheduler asks for.
+    /// </remarks>
+    private static async ValueTask<Dictionary<TriggerKey, IOperableTrigger>> ReadAcquisitionCandidates(
+        IDriverDelegate driverDelegate,
+        ConnectionAndTransactionHolder conn,
+        List<TriggerAcquireResult> results,
+        CancellationToken cancellationToken)
+    {
+        if (results.Count == 0)
+        {
+            return new Dictionary<TriggerKey, IOperableTrigger>();
+        }
+
+        List<TriggerKey> keys = new(results.Count);
+        foreach (TriggerAcquireResult result in results)
+        {
+            keys.Add(result.TriggerKey);
+        }
+
+        List<IOperableTrigger> triggers = await Guarded(
+            () => driverDelegate.SelectTriggers(conn, keys, cancellationToken),
+            "retrieve triggers").ConfigureAwait(false);
+
+        Dictionary<TriggerKey, IOperableTrigger> byKey = new(triggers.Count);
+        foreach (IOperableTrigger trigger in triggers)
+        {
+            byKey[trigger.Key] = trigger;
+        }
+
+        return byKey;
     }
 
     public ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
