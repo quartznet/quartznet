@@ -84,6 +84,55 @@ public partial class StdAdoDelegate
         return list;
     }
 
+    /// <inheritdoc />
+    public virtual async ValueTask<List<TriggerKey>> SelectTriggerKeysInState(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        StoredTriggerState state,
+        CancellationToken cancellationToken = default)
+    {
+        if (triggerKeys.Count == 0)
+        {
+            return [];
+        }
+
+        // A repeated key would come back as a repeated row, and the predicate is a disjunction that
+        // cannot tell the difference, so fold duplicates away before building it.
+        List<TriggerKey> requested = Deduplicate(triggerKeys);
+        List<TriggerKey> matched = [];
+
+        for (int offset = 0; offset < requested.Count; offset += AdoUtil.MaxTriggerKeysPerPredicate)
+        {
+            int length = Math.Min(AdoUtil.MaxTriggerKeysPerPredicate, requested.Count - offset);
+            int paddedCount = AdoUtil.RoundUpTriggerKeyCount(length);
+
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
+                StdAdoConstants.SqlSelectTriggerKeysInStatePrefix + AdoUtil.BuildTriggerKeyPredicate(paddedCount)));
+
+            // In the order the statement names them, so that a provider binding positionally does not
+            // read the state where the scheduler name goes.
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+            AddCommandParameter(cmd, SqlParameters.State, state.ToStoredValue());
+
+            for (int i = 0; i < paddedCount; i++)
+            {
+                // Pad up to the bucket size by repeating the chunk's last key. The predicate is a
+                // disjunction, so a repeated term cannot change which rows match.
+                TriggerKey key = requested[offset + Math.Min(i, length - 1)];
+                AddCommandParameter(cmd, AdoUtil.TriggerKeyNameParameter(i), key.Name);
+                AddCommandParameter(cmd, AdoUtil.TriggerKeyGroupParameter(i), key.Group);
+            }
+
+            using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                matched.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
+            }
+        }
+
+        return matched;
+    }
+
     /// <summary>
     /// The count a caller passes when it wants every row, rather than a batch of them.
     /// </summary>

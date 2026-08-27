@@ -3137,8 +3137,12 @@ public class AdoJobStoreBaseTest
         GivenFiredTriggersForInstance(DeadInstanceId,
             FiredTrigger("fi-executing", StoredTriggerState.Executing, completed, new JobKey("j", "jg")));
 
-        A.CallTo(() => driverDelegate.SelectTriggerState(conn, completed, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Complete));
+        A.CallTo(() => driverDelegate.SelectTriggerKeysInState(
+                conn,
+                A<IReadOnlyCollection<TriggerKey>>.That.Matches(triggerKeys => triggerKeys.Contains(completed)),
+                StoredTriggerState.Complete,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<TriggerKey>>([completed]));
 
         A.CallTo(() => driverDelegate.SelectJobForTrigger(
                 A<ConnectionAndTransactionHolder>.Ignored,
@@ -3155,6 +3159,54 @@ public class AdoJobStoreBaseTest
 
         A.CallTo(() => driverDelegate.DeleteTrigger(conn, completed, A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// However many triggers the dead node was holding, asking which of them ran to COMPLETE is one
+    /// statement — and a node that left none complete behind, which is the ordinary case, pays that one
+    /// statement and nothing more.
+    /// </summary>
+    [Test]
+    public async Task ClusterRecover_ShouldAskWhichTriggersRanToCompleteInOneRoundTrip()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+
+        JobKey jobKey = new("j", "jg");
+        TriggerKey[] triggers =
+        [
+            new("t-1", "tg"),
+            new("t-2", "tg"),
+            new("t-3", "tg")
+        ];
+
+        GivenFiredTriggersForInstance(DeadInstanceId,
+            FiredTrigger("fi-1", StoredTriggerState.Executing, triggers[0], jobKey),
+            FiredTrigger("fi-2", StoredTriggerState.Executing, triggers[1], jobKey),
+            FiredTrigger("fi-3", StoredTriggerState.Executing, triggers[2], jobKey));
+
+        await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
+
+        A.CallTo(() => driverDelegate.SelectTriggerKeysInState(
+                conn,
+                A<IReadOnlyCollection<TriggerKey>>.That.Matches(triggerKeys => triggerKeys.Count == 3 && triggers.All(triggerKeys.Contains)),
+                StoredTriggerState.Complete,
+                A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        // The state read per key is what the one statement replaces.
+        A.CallTo(() => driverDelegate.SelectTriggerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<TriggerKey>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        // Nothing came back COMPLETE, so nothing else is asked about a trigger at all.
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.That.Matches(query => query.Trigger != null),
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
     }
 
     [Test]

@@ -759,6 +759,26 @@ public interface IDriverDelegate
     ValueTask<List<TriggerKey>> SelectTriggersInState(ConnectionAndTransactionHolder conn, StoredTriggerState state, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Select which of the given triggers are in the given state.
+    /// </summary>
+    /// <remarks>
+    /// The set-taking form of <see cref="SelectTriggerState" />, for a caller that already holds the
+    /// keys — cluster recovery asking which of a failed node's triggers ran to COMPLETE, where a state
+    /// per key is a round trip per key for an answer one read gives. A key with no row, or with a row in
+    /// another state, is simply absent from the result.
+    /// </remarks>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="triggerKeys">The keys to ask about.</param>
+    /// <param name="state">The state the triggers must be in.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The keys of those triggers that are in the state.</returns>
+    ValueTask<List<TriggerKey>> SelectTriggerKeysInState(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        StoredTriggerState state,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Inserts the paused trigger group.
     /// </summary>
     /// <param name="conn">The conn.</param>
