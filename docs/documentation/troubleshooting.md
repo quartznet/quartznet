@@ -185,6 +185,13 @@ A node whose clock runs ahead of a peer's by more than the slack in that compari
 peer, releases its acquired triggers and re-runs its recovery-requesting jobs — while it is still
 executing them.
 
+**The database's clock plays no part in this.** `LAST_CHECKIN_TIME` holds the writing node's reading of
+its own clock, and nothing in the store ever asks the server what time it is — there is no `GETDATE()`,
+`now()` or `SYSDATE` anywhere in the SQL. So a database server whose clock disagrees with the whole
+cluster's changes nothing at all, and setting its clock is not a fix for this. Only the nodes' clocks
+agreeing with *each other* matters, and the slack they have to agree within is the failed node's own
+stored check-in interval plus the deciding node's check-in misfire threshold.
+
 **Resolution:** run a time-synchronisation service on every node; that is the fix, and ordinary NTP is
 orders of magnitude inside the requirement. Where you cannot guarantee it — or cannot guarantee that the
 process gets CPU promptly, which produces the same symptom with a perfect clock — widen the window with

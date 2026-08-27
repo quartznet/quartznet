@@ -2405,6 +2405,158 @@ public class AdoJobStoreBaseTest
 
     #endregion
 
+    #region Clock skew
+
+    /// <summary>
+    /// Where the cluster's clock actually lives, which is not where discussion #2248 assumes. Nothing in
+    /// the store ever asks the database what time it is: <c>LAST_CHECKIN_TIME</c> holds the writer's own
+    /// <see cref="TimeProvider" /> reading, and the reader compares it against its own. So a database
+    /// whose clock disagrees with every node's changes nothing at all, and this whole node judging on a
+    /// clock five years out reaches exactly the verdicts the real-time fixture does.
+    /// </summary>
+    [Test]
+    public async Task ClockSkew_TheDatabasesOwnClockNeverEntersTheArithmetic()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+
+        // Far enough from any plausible database clock that a store reading one would be wrong by years.
+        DateTimeOffset elsewhere = ClusterNow.AddYears(5);
+
+        GivenStoppedClock(elsewhere);
+        jobStoreSupport.SetFirstCheckIn(false);
+        jobStoreSupport.LastCheckin = elsewhere;
+
+        A.CallTo(() => driverDelegate.UpdateSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<DateTimeOffset>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<int>(1));
+
+        GivenSchedulerStates(
+            new SchedulerStateRecord(OwnInstanceId, elsewhere, CheckinInterval),
+            new SchedulerStateRecord("alive-node", elsewhere - TimeSpan.FromSeconds(5), CheckinInterval),
+            new SchedulerStateRecord(DeadInstanceId, elsewhere - TimeSpan.FromSeconds(60), CheckinInterval));
+
+        List<SchedulerStateRecord> failed = await jobStoreSupport.CallClusterCheckIn(conn);
+
+        failed.Select(x => x.SchedulerInstanceId).Should().Equal([DeadInstanceId],
+            "the whole predicate is arithmetic between this node's clock and stamps other nodes wrote "
+            + "from theirs, so a cluster agreeing with itself is judged the same wherever its clocks "
+            + "stand relative to the database's");
+
+        A.CallTo(() => driverDelegate.UpdateSchedulerState(conn, OwnInstanceId, elsewhere, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// How far a peer's clock may sit from this node's before the peer is written off: its own check-in
+    /// interval plus this node's misfire threshold, which for this fixture's ten-second interval and the
+    /// default 7.5s threshold is 17.5s. The boundary is asserted from both sides, because "roughly a
+    /// check-in interval" is what an operator would guess and it is short by the threshold.
+    /// </summary>
+    [Test]
+    public async Task ClockSkew_APeerIsToleratedUpToItsCheckInIntervalPlusTheMisfireThreshold()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+
+        // This node is checking in punctually, so CalcFailedIfAfter has no outage of its own to allow
+        // for and the record's interval sets the deadline.
+        jobStoreSupport.LastCheckin = ClusterNow;
+
+        TimeSpan tolerance = CheckinInterval + jobStoreSupport.ClusterCheckinMisfireThreshold;
+
+        // Both peers checked in on the instant by their own clocks. What differs is how far those clocks
+        // sit from this one's, which is what makes their stamps look old here.
+        GivenSchedulerStates(
+            new SchedulerStateRecord(OwnInstanceId, ClusterNow, CheckinInterval),
+            new SchedulerStateRecord("skew-at-the-limit", ClusterNow - tolerance, CheckinInterval),
+            new SchedulerStateRecord("skew-past-the-limit", ClusterNow - tolerance - TimeSpan.FromMilliseconds(1), CheckinInterval));
+
+        List<SchedulerStateRecord> failed = await jobStoreSupport.CallFindFailedInstances(conn);
+
+        failed.Select(x => x.SchedulerInstanceId).Should().Equal(["skew-past-the-limit"],
+            "a stamp landing exactly on the deadline is not past it -- the predicate is a strict "
+            + "comparison -- so the tolerance is the interval plus the threshold inclusive, and one "
+            + "millisecond more is a peer this node takes the work of");
+    }
+
+    /// <summary>
+    /// The limitation this leaves, stated rather than fixed: a node whose clock runs more than that
+    /// tolerance ahead of its peers' declares healthy peers failed and takes their work over. Changing
+    /// the predicate is out of scope for #3436 — what is in scope is that the behaviour is pinned, so
+    /// that a later change to it is a change to this test rather than a surprise in production.
+    /// </summary>
+    /// <remarks>
+    /// The same arrangement read from the other end is the other half of the report: a node checking in
+    /// punctually on a clock that lags the cluster by more than the tolerance leaves stamps its peers
+    /// read as stale, and is recovered while it is still running. One row, one comparison, two ways to
+    /// arrive at it — which is why there is one test.
+    /// </remarks>
+    [Test]
+    public async Task ClockSkew_ANodeWhoseClockRunsAheadOfTheClusterDeclaresHealthyPeersFailed()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        jobStoreSupport.LastCheckin = ClusterNow;
+
+        // A minute, against a 17.5s tolerance: enough that no amount of check-in jitter accounts for it.
+        TimeSpan skew = TimeSpan.FromMinutes(1);
+
+        GivenSchedulerStates(
+            new SchedulerStateRecord(OwnInstanceId, ClusterNow, CheckinInterval),
+            new SchedulerStateRecord("healthy-peer", ClusterNow - skew, CheckinInterval));
+
+        List<SchedulerStateRecord> failed = await jobStoreSupport.CallFindFailedInstances(conn);
+
+        failed.Should().ContainSingle(
+                "the peer wrote that stamp a moment ago by its own clock, and this node cannot tell a "
+                + "clock a minute behind its own from a process that stopped a minute ago")
+            .Which.SchedulerInstanceId.Should().Be("healthy-peer");
+
+        List<ClusterNode> nodes = await jobStoreSupport.CallQueryClusterNodes(conn);
+
+        StateOf(nodes, "healthy-peer").Should().Be(ClusterNodeState.Failed,
+            "the listing an operator reads is the same predicate, so it agrees with the sweep — which is "
+            + "what makes the skew diagnosable from QueryClusterNodes at all");
+    }
+
+    /// <summary>
+    /// The safe half of the same skew: a node whose clock lags the cluster reads every peer's stamp as
+    /// being in its own future, and a stamp in the future is never past a deadline built by adding to
+    /// it. A slow clock therefore costs the cluster nothing except this node's own rows looking stale to
+    /// everyone else.
+    /// </summary>
+    [Test]
+    public async Task ClockSkew_ANodeWhoseClockLagsTheClusterNeverDeclaresAPeerFailed()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        jobStoreSupport.LastCheckin = ClusterNow;
+
+        TimeSpan skew = TimeSpan.FromMinutes(1);
+
+        GivenSchedulerStates(
+            new SchedulerStateRecord(OwnInstanceId, ClusterNow, CheckinInterval),
+            new SchedulerStateRecord("healthy-peer", ClusterNow + skew, CheckinInterval));
+
+        List<SchedulerStateRecord> failed = await jobStoreSupport.CallFindFailedInstances(conn);
+
+        failed.Should().BeEmpty(
+            "the peer's stamp is a minute ahead of this node's now, so the deadline built from it is "
+            + "further ahead still; nothing a lagging node reads can look overdue to it");
+
+        List<ClusterNode> nodes = await jobStoreSupport.CallQueryClusterNodes(conn);
+
+        StateOf(nodes, "healthy-peer").Should().Be(ClusterNodeState.Alive);
+    }
+
+    #endregion
+
     #region ClusterCheckIn
 
     [Test]
