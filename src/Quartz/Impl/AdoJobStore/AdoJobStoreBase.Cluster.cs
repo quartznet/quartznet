@@ -608,22 +608,24 @@ public abstract partial class AdoJobStoreBase
     /// <summary>
     /// Puts back to WAITING every trigger the failed node had reserved and never fired.
     /// </summary>
-    private ValueTask ReleaseAcquiredTriggers(
+    private async ValueTask ReleaseAcquiredTriggers(
         ConnectionAndTransactionHolder conn,
         FailedInstanceResidue residue,
         CancellationToken cancellationToken)
     {
         if (residue.AcquiredTriggerKeys.Count == 0)
         {
-            return default;
+            return;
         }
 
-        return Delegate.UpdateTriggerStatesFromOtherState(
+        // One UPDATE over the whole key set. The row count it reports is the database's own, and
+        // recovery has no use for it: what it releases is what it read.
+        await Delegate.UpdateTriggerStatesFromOtherStates(
             conn,
             residue.AcquiredTriggerKeys,
             StoredTriggerState.Waiting,
-            StoredTriggerState.Acquired,
-            cancellationToken);
+            [StoredTriggerState.Acquired],
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

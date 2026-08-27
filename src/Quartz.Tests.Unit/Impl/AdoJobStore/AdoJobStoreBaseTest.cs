@@ -2874,17 +2874,17 @@ public class AdoJobStoreBaseTest
 
         await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
 
-        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherState(
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStates(
                 conn,
                 A<IReadOnlyCollection<TriggerKey>>.That.Matches(triggerKeys => triggerKeys.Contains(acquired)),
                 StoredTriggerState.Waiting,
-                StoredTriggerState.Acquired,
+                A<IReadOnlyCollection<StoredTriggerState>>.That.Matches(oldStates => oldStates.Count == 1 && oldStates.Contains(StoredTriggerState.Acquired)),
                 A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
     }
 
     /// <summary>
-    /// However many triggers the dead node was holding, releasing them is one round trip.
+    /// However many triggers the dead node was holding, releasing them is one statement.
     /// </summary>
     [Test]
     public async Task ClusterRecover_ShouldReleaseEveryAcquiredTriggerInOneRoundTrip()
@@ -2906,16 +2906,17 @@ public class AdoJobStoreBaseTest
 
         await jobStoreSupport.CallClusterRecover(conn, [DeadNode()]);
 
-        // The whole set of reservations is released in one call.
-        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherState(
+        // The whole set of reservations is released in one call — and, against a shipped delegate, in
+        // one UPDATE with a key-set predicate rather than a command per key inside one batch.
+        A.CallTo(() => driverDelegate.UpdateTriggerStatesFromOtherStates(
                 conn,
                 A<IReadOnlyCollection<TriggerKey>>.That.Matches(triggerKeys => triggerKeys.Count == 3 && acquired.All(triggerKeys.Contains)),
                 StoredTriggerState.Waiting,
-                StoredTriggerState.Acquired,
+                A<IReadOnlyCollection<StoredTriggerState>>.That.Matches(oldStates => oldStates.Count == 1 && oldStates.Contains(StoredTriggerState.Acquired)),
                 A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
 
-        // The per-trigger statement is what the batch replaces.
+        // The per-trigger statement is what the set update replaces.
         A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
                 A<ConnectionAndTransactionHolder>.Ignored,
                 A<TriggerKey>.Ignored,
