@@ -24,7 +24,7 @@ using Quartz.Impl.Triggers;
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <summary>
-/// The set-shaped delegate members an acquisition round uses, and what each costs.
+/// The set-shaped delegate members an acquisition round and a pause use, and what each costs.
 /// </summary>
 /// <remarks>
 /// The batched write path cannot be reached from the integration tests — SQLite is the only database
@@ -112,6 +112,24 @@ public class StdAdoDelegateBatchReadWriteTest
         del.SingleTriggerReads.Should().Be(1);
     }
 
+    /// <summary>
+    /// A job's triggers used to be read back one at a time after their keys were selected, which is a
+    /// round trip per trigger for what the key-set read answers in one.
+    /// </summary>
+    [Test]
+    public async Task AJobsTriggersAreReadBackAsASet()
+    {
+        RecordingSelectDelegate del = new();
+
+        List<IOperableTrigger> triggers = await del.SelectTriggersForJob(
+            new ConnectionAndTransactionHolder(new StubBatchingConnection(), null),
+            new JobKey("j1", "jg1"));
+
+        triggers.Should().HaveCount(2);
+        del.KeySetReads.Should().Be(1, "the whole set is one read");
+        del.SingleTriggerReads.Should().Be(0, "and no trigger is read on its own");
+    }
+
     private static IOperableTrigger Trigger(string name)
     {
         SimpleTriggerImpl trigger = new()
@@ -125,6 +143,44 @@ public class StdAdoDelegateBatchReadWriteTest
         };
         trigger.NextFireTimeUtc = new DateTimeOffset(2026, 3, 1, 13, 0, 0, TimeSpan.Zero);
         return trigger;
+    }
+
+    /// <summary>
+    /// Counts which reads <see cref="StdAdoDelegate.SelectTriggersForJob" /> composes itself from. The
+    /// two members it calls are overridden rather than stubbed at the connection, because what is being
+    /// asserted is the shape of the composition and not the SQL either one issues.
+    /// </summary>
+    private sealed class RecordingSelectDelegate : StdAdoDelegate
+    {
+        public int KeySetReads { get; private set; }
+
+        public int SingleTriggerReads { get; private set; }
+
+        public override ValueTask<List<TriggerKey>> SelectTriggerKeysForJob(
+            ConnectionAndTransactionHolder conn,
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<List<TriggerKey>>([new TriggerKey("t1", "g1"), new TriggerKey("t2", "g1")]);
+        }
+
+        public override ValueTask<List<IOperableTrigger>> SelectTriggers(
+            ConnectionAndTransactionHolder conn,
+            IReadOnlyCollection<TriggerKey> triggerKeys,
+            CancellationToken cancellationToken = default)
+        {
+            KeySetReads++;
+            return new ValueTask<List<IOperableTrigger>>([.. triggerKeys.Select(key => Trigger(key.Name))]);
+        }
+
+        public override ValueTask<IOperableTrigger> SelectTrigger(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
+        {
+            SingleTriggerReads++;
+            return new ValueTask<IOperableTrigger>(Trigger(triggerKey.Name));
+        }
     }
 
     /// <summary>

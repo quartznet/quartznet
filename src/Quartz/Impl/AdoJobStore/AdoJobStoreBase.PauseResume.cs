@@ -175,25 +175,98 @@ public abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Pauses the whole set inside one lock and one transaction rather than one per key.
+    /// Pauses the whole set inside one lock and one transaction rather than one per key, and in a
+    /// fixed number of statements rather than two per key.
     /// </summary>
     public ValueTask<List<TriggerKey>> PauseTriggers(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
-        {
-            List<TriggerKey> paused = new List<TriggerKey>(triggerKeys.Count);
-            foreach (TriggerKey triggerKey in triggerKeys)
-            {
-                if (await PauseTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
-                {
-                    paused.Add(triggerKey);
-                }
-            }
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess,
+            conn => PauseTriggers(conn, triggerKeys, cancellationToken),
+            cancellationToken);
+    }
 
-            return paused;
-        }, cancellationToken);
+    /// <summary>
+    /// Pauses a set of triggers: one read of their stored states, then one statement per transition
+    /// the set actually needs — at most two, whatever the size of the set.
+    /// </summary>
+    /// <remarks>
+    /// The transitions are the ones <see cref="PauseTrigger(ConnectionAndTransactionHolder, TriggerKey, CancellationToken)" />
+    /// makes: a waiting or acquired trigger becomes paused, a blocked one becomes paused-blocked, and
+    /// anything else is left alone. The updates name the old states as well, so a trigger the lock-free
+    /// acquisition path moved from waiting to acquired between the read and the write is still paused,
+    /// and one that left a pausable state entirely is not reported as paused.
+    /// </remarks>
+    /// <returns>The keys that were paused, in the order they were given, each named once.</returns>
+    protected ValueTask<List<TriggerKey>> PauseTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return Guarded(
+            async () =>
+            {
+                if (triggerKeys.Count == 0)
+                {
+                    return new List<TriggerKey>();
+                }
+
+                List<StoredTriggerHeader> headers = await Delegate.SelectStoredTriggerHeaders(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
+
+                List<TriggerKey> pausable = [];
+                List<TriggerKey> blocked = [];
+                foreach (StoredTriggerHeader header in headers)
+                {
+                    if (header.State is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
+                    {
+                        pausable.Add(header.Key);
+                    }
+                    else if (header.State == StoredTriggerState.Blocked)
+                    {
+                        blocked.Add(header.Key);
+                    }
+                }
+
+                HashSet<TriggerKey> paused = new(pausable.Count + blocked.Count);
+
+                if (pausable.Count > 0)
+                {
+                    await Delegate.UpdateTriggerStatesFromOtherStates(conn, pausable, StoredTriggerState.Paused,
+                        [StoredTriggerState.Waiting, StoredTriggerState.Acquired], cancellationToken).ConfigureAwait(false);
+                    paused.UnionWith(pausable);
+                }
+
+                if (blocked.Count > 0)
+                {
+                    await Delegate.UpdateTriggerStatesFromOtherStates(conn, blocked, StoredTriggerState.PausedBlocked,
+                        [StoredTriggerState.Blocked], cancellationToken).ConfigureAwait(false);
+                    paused.UnionWith(blocked);
+                }
+
+                return InRequestedOrder(triggerKeys, paused);
+            },
+            "pause triggers");
+    }
+
+    /// <summary>
+    /// The keys of <paramref name="requested" /> that are in <paramref name="selected" />, in the order
+    /// they were requested and each named once — which is what the per-key loops these set operations
+    /// replace returned.
+    /// </summary>
+    private static List<TriggerKey> InRequestedOrder(IReadOnlyCollection<TriggerKey> requested, HashSet<TriggerKey> selected)
+    {
+        List<TriggerKey> ordered = new(selected.Count);
+        foreach (TriggerKey key in requested)
+        {
+            if (selected.Remove(key))
+            {
+                ordered.Add(key);
+            }
+        }
+
+        return ordered;
     }
 
     /// <summary>
@@ -278,13 +351,32 @@ public abstract partial class AdoJobStoreBase
             return false;
         }
 
-        var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-        foreach (IOperableTrigger trigger in triggers)
-        {
-            await PauseTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-        }
+        // The keys, not the triggers: pausing decides on the stored state, and building each trigger
+        // would read its type table for a schedule nothing here looks at.
+        List<TriggerKey> triggerKeys = await GetTriggerKeysForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
+        await PauseTriggers(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
 
         return true;
+    }
+
+    private ValueTask<List<TriggerKey>> GetTriggerKeysForJob(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        return Guarded(
+            () => Delegate.SelectTriggerKeysForJob(conn, jobKey, cancellationToken),
+            "obtain trigger keys for job");
+    }
+
+    private ValueTask<List<TriggerKey>> GetTriggerKeysForJobs(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken)
+    {
+        return Guarded(
+            () => Delegate.SelectTriggerKeysForJobs(conn, jobKeys, cancellationToken),
+            "obtain trigger keys for jobs");
     }
 
     /// <summary>
@@ -303,16 +395,16 @@ public abstract partial class AdoJobStoreBase
     {
         return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
         {
-            var groupNames = new HashSet<string>();
-            var jobNames = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
+            List<JobKey> jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
 
-            foreach (JobKey jobKey in jobNames)
+            // Every matched job's triggers in one read, and then one pause for the whole set — where
+            // this used to walk the jobs and pause a trigger at a time.
+            List<TriggerKey> triggerKeys = await GetTriggerKeysForJobs(conn, jobKeys, cancellationToken).ConfigureAwait(false);
+            await PauseTriggers(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
+
+            var groupNames = new HashSet<string>();
+            foreach (JobKey jobKey in jobKeys)
             {
-                var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-                foreach (IOperableTrigger trigger in triggers)
-                {
-                    await PauseTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                }
                 groupNames.Add(jobKey.Group);
             }
 
@@ -332,7 +424,8 @@ public abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Writes a PAUSED_JOB_GRPS row for every group that does not already have one.
+    /// Writes a PAUSED_JOB_GRPS row for every group that does not already have one: one read of which
+    /// of them are paused, then the missing rows together, rather than a check and an insert per group.
     /// </summary>
     /// <remarks>
     /// The check-then-insert is safe across a cluster because every caller holds the trigger-access
@@ -342,18 +435,32 @@ public abstract partial class AdoJobStoreBase
     /// </remarks>
     private ValueTask RecordPausedJobGroups(
         ConnectionAndTransactionHolder conn,
-        IEnumerable<string> groupNames,
+        HashSet<string> groupNames,
         CancellationToken cancellationToken)
     {
         return Guarded(
             async () =>
             {
+                if (groupNames.Count == 0)
+                {
+                    return;
+                }
+
+                List<string> alreadyPaused = await Delegate.SelectPausedJobGroups(conn, groupNames, cancellationToken).ConfigureAwait(false);
+
+                HashSet<string> paused = new(alreadyPaused, StringComparer.Ordinal);
+                List<string> missing = [];
                 foreach (string group in groupNames)
                 {
-                    if (!await Delegate.IsJobGroupPaused(conn, group, cancellationToken).ConfigureAwait(false))
+                    if (!paused.Contains(group))
                     {
-                        await Delegate.InsertPausedJobGroup(conn, group, cancellationToken).ConfigureAwait(false);
+                        missing.Add(group);
                     }
+                }
+
+                if (missing.Count > 0)
+                {
+                    await Delegate.InsertPausedJobGroups(conn, missing, cancellationToken).ConfigureAwait(false);
                 }
             },
             "pause job groups");
@@ -410,25 +517,101 @@ public abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Resumes the whole set inside one lock and one transaction rather than one per key.
+    /// Resumes the whole set inside one lock and one transaction rather than one per key, and in a
+    /// number of statements that grows with the number of distinct jobs rather than with the number of
+    /// triggers.
     /// </summary>
     public ValueTask<List<TriggerKey>> ResumeTriggers(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
-        {
-            List<TriggerKey> resumed = new List<TriggerKey>(triggerKeys.Count);
-            foreach (TriggerKey triggerKey in triggerKeys)
-            {
-                if (await ResumeTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
-                {
-                    resumed.Add(triggerKey);
-                }
-            }
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess,
+            conn => ResumeTriggers(conn, triggerKeys, cancellationToken),
+            cancellationToken);
+    }
 
-            return resumed;
-        }, cancellationToken);
+    /// <summary>
+    /// Resumes a set of triggers: one read of their stored headers, one blocked-state question per
+    /// distinct job rather than per trigger, and one statement per state transition the set turns out
+    /// to need — at most four, whatever the size of the set.
+    /// </summary>
+    /// <remarks>
+    /// A trigger that missed fire times while paused still takes its own misfire-recovery write, which
+    /// recomputes that trigger's schedule and so cannot be expressed as a set operation. Everything
+    /// else about the resume is the same decision
+    /// <see cref="ResumeTrigger(ConnectionAndTransactionHolder, TriggerKey, CancellationToken)" />
+    /// makes.
+    /// </remarks>
+    /// <returns>The keys that were resumed, in the order they were given, each named once.</returns>
+    protected ValueTask<List<TriggerKey>> ResumeTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return Guarded(
+            async () =>
+            {
+                if (triggerKeys.Count == 0)
+                {
+                    return new List<TriggerKey>();
+                }
+
+                List<StoredTriggerHeader> headers = await Delegate.SelectStoredTriggerHeaders(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
+
+                DateTimeOffset now = timeProvider.GetUtcNow();
+                // The answer depends on the job and on nothing else this loop changes, so it is asked
+                // once per job instead of once per trigger of that job.
+                Dictionary<JobKey, StoredTriggerState> unpausedStateByJob = [];
+                Dictionary<TriggerStateTransition, List<TriggerKey>> transitions = [];
+                HashSet<TriggerKey> resumed = [];
+
+                foreach (StoredTriggerHeader header in headers)
+                {
+                    if (header.NextFireTimeUtc is null || header.NextFireTimeUtc == DateTimeOffset.MinValue)
+                    {
+                        continue;
+                    }
+
+                    if (header.State is not StoredTriggerState.Paused and not StoredTriggerState.PausedBlocked)
+                    {
+                        // not paused, nothing to resume
+                        continue;
+                    }
+
+                    if (!unpausedStateByJob.TryGetValue(header.JobKey, out StoredTriggerState newState))
+                    {
+                        newState = await CheckBlockedState(conn, header.JobKey, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
+                        unpausedStateByJob[header.JobKey] = newState;
+                    }
+
+                    if (schedulerRunning && header.NextFireTimeUtc.Value < now
+                        && await UpdateMisfiredTrigger(conn, header.Key, newState, forceState: true, cancellationToken).ConfigureAwait(false))
+                    {
+                        resumed.Add(header.Key);
+                        continue;
+                    }
+
+                    TriggerStateTransition transition = new(header.State, newState);
+                    if (!transitions.TryGetValue(transition, out List<TriggerKey>? keys))
+                    {
+                        keys = [];
+                        transitions[transition] = keys;
+                    }
+
+                    keys.Add(header.Key);
+                }
+
+                foreach (KeyValuePair<TriggerStateTransition, List<TriggerKey>> entry in transitions)
+                {
+                    await Delegate.UpdateTriggerStatesFromOtherStates(conn, entry.Value, entry.Key.To,
+                        [entry.Key.From], cancellationToken).ConfigureAwait(false);
+                    resumed.UnionWith(entry.Value);
+                }
+
+                return InRequestedOrder(triggerKeys, resumed);
+            },
+            "resume triggers");
     }
 
     /// <summary>
@@ -543,11 +726,8 @@ public abstract partial class AdoJobStoreBase
             return false;
         }
 
-        var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-        foreach (IOperableTrigger trigger in triggers)
-        {
-            await ResumeTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-        }
+        List<TriggerKey> triggerKeys = await GetTriggerKeysForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
+        await ResumeTriggers(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
 
         return true;
     }
@@ -573,18 +753,17 @@ public abstract partial class AdoJobStoreBase
                 () => Delegate.DeletePausedJobGroup(conn, matcher, cancellationToken),
                 "resume job groups").ConfigureAwait(false);
 
-            var jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
-            var groupNames = new HashSet<string>();
+            List<JobKey> jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
 
+            List<TriggerKey> triggerKeys = await GetTriggerKeysForJobs(conn, jobKeys, cancellationToken).ConfigureAwait(false);
+            await ResumeTriggers(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
+
+            var groupNames = new HashSet<string>();
             foreach (JobKey jobKey in jobKeys)
             {
-                var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
-                foreach (IOperableTrigger trigger in triggers)
-                {
-                    await ResumeTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                }
                 groupNames.Add(jobKey.Group);
             }
+
             return groupNames.ToList();
         }, cancellationToken);
     }
@@ -667,13 +846,13 @@ public abstract partial class AdoJobStoreBase
             async () =>
             {
                 await Delegate.DeletePausedTriggerGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+
+                List<TriggerKey> keys = await Delegate.SelectTriggerKeysInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+                await ResumeTriggers(conn, keys, cancellationToken).ConfigureAwait(false);
+
                 var groups = new HashSet<string>();
-
-                List<TriggerKey>? keys = await Delegate.SelectTriggerKeysInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
-
                 foreach (TriggerKey key in keys)
                 {
-                    await ResumeTrigger(conn, key, cancellationToken).ConfigureAwait(false);
                     groups.Add(key.Group);
                 }
 
@@ -700,12 +879,9 @@ public abstract partial class AdoJobStoreBase
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        var groupNames = await GetTriggerGroupNames(conn, cancellationToken).ConfigureAwait(false);
-
-        foreach (string groupName in groupNames)
-        {
-            await PauseTriggerGroup(conn, GroupMatcher<TriggerKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false);
-        }
+        // Every group at once. Asking for the group names and then pausing each of them by name issued
+        // the same statements a group at a time, and the any-group matcher already means all of them.
+        await PauseTriggerGroup(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
 
         await Guarded(
             async () =>
@@ -745,12 +921,9 @@ public abstract partial class AdoJobStoreBase
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        var triggerGroupNames = await GetTriggerGroupNames(conn, cancellationToken).ConfigureAwait(false);
-
-        foreach (string groupName in triggerGroupNames)
-        {
-            await ResumeTriggers(conn, GroupMatcher<TriggerKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false);
-        }
+        // Every group at once, for the reason PauseAll takes the any-group matcher: naming each group
+        // in turn issued the same statements a group at a time.
+        await ResumeTriggers(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
 
         await Guarded(
             async () =>

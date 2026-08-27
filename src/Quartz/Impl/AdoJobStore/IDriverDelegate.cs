@@ -161,6 +161,32 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get the keys of every trigger belonging to any of the given jobs.
+    /// </summary>
+    /// <remarks>
+    /// The job-set form of the first overload above, for pausing and resuming a whole matcher's worth
+    /// of jobs: what those paths want is one flat set of trigger keys, and reading it a job at a time
+    /// is a statement per job for an answer one statement can give. The default implementation is that
+    /// per-job loop.
+    /// </remarks>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="jobKeys">The keys identifying the jobs. May be empty.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask<List<TriggerKey>> SelectTriggerKeysForJobs(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        List<TriggerKey> keys = [];
+        foreach (JobKey jobKey in jobKeys)
+        {
+            keys.AddRange(await SelectTriggerKeysForJob(conn, jobKey, cancellationToken).ConfigureAwait(false));
+        }
+
+        return keys;
+    }
+
+    /// <summary>
     /// Delete the job detail record for the given job.
     /// </summary>
     /// <param name="conn">The DB Connection</param>
@@ -367,6 +393,38 @@ public interface IDriverDelegate
         StoredTriggerState newState,
         IReadOnlyCollection<StoredTriggerState> oldStates,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Moves a whole set of triggers to the given new state, each one only if it is in one of the given
+    /// old states.
+    /// </summary>
+    /// <remarks>
+    /// The key-set form of the member above, for the pause and resume paths, which decide one
+    /// transition for a set of keys and then have no reason to issue it a key at a time. The default
+    /// implementation is that loop, so a delegate that says nothing about key sets keeps behaving as it
+    /// did.
+    /// </remarks>
+    /// <param name="conn">The DB connection</param>
+    /// <param name="triggerKeys">The keys identifying the triggers. May be empty.</param>
+    /// <param name="newState">The new state for the triggers</param>
+    /// <param name="oldStates">The states a trigger must be in to be updated. Must not be empty.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The number of rows updated.</returns>
+    async ValueTask<int> UpdateTriggerStatesFromOtherStates(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
+        CancellationToken cancellationToken = default)
+    {
+        int updated = 0;
+        foreach (TriggerKey triggerKey in triggerKeys)
+        {
+            updated += await UpdateTriggerStateFromOtherStates(conn, triggerKey, newState, oldStates, cancellationToken).ConfigureAwait(false);
+        }
+
+        return updated;
+    }
 
     /// <summary>
     /// Update the given trigger to the given new state, if it is in the given
@@ -646,6 +704,38 @@ public interface IDriverDelegate
     ValueTask<StoredTriggerHeader?> SelectTriggerHeader(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Selects the stored headers of a whole set of triggers, chunking the keys into as few statements
+    /// as the provider's parameter ceiling allows. Keys that have no row are simply absent from the
+    /// result.
+    /// </summary>
+    /// <remarks>
+    /// The plural of <see cref="SelectTriggerHeader" /> — the storage-side header a state transition
+    /// decides on, not the listing entry <see cref="SelectTriggerHeaders" /> pages over. Pause and
+    /// resume read one of these per key and then decide the whole set's transitions at once; the
+    /// default implementation is the per-key loop they used to make.
+    /// </remarks>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="triggerKeys">The keys identifying the triggers. May be empty.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask<List<StoredTriggerHeader>> SelectStoredTriggerHeaders(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        List<StoredTriggerHeader> headers = new(triggerKeys.Count);
+        foreach (TriggerKey triggerKey in triggerKeys)
+        {
+            StoredTriggerHeader? header = await SelectTriggerHeader(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            if (header is not null)
+            {
+                headers.Add(header);
+            }
+        }
+
+        return headers;
+    }
+
+    /// <summary>
     /// Select all trigger group names a group matcher selects. Pass
     /// <see cref="GroupMatcher{TKey}.AnyGroup" /> for every group.
     /// </summary>
@@ -766,6 +856,58 @@ public interface IDriverDelegate
         ConnectionAndTransactionHolder conn,
         string groupName,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Of the given job groups, which already have a paused row.
+    /// </summary>
+    /// <remarks>
+    /// The set form of <see cref="IsJobGroupPaused" />, which is what pausing a matcher's worth of job
+    /// groups actually asks: it needs the groups that do <em>not</em> have a row, so that it can write
+    /// exactly those. The default implementation asks one group at a time, as that path used to.
+    /// </remarks>
+    /// <param name="conn">The database connection.</param>
+    /// <param name="groupNames">The groups to ask about. May be empty.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The subset of <paramref name="groupNames" /> that is paused.</returns>
+    async ValueTask<List<string>> SelectPausedJobGroups(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<string> groupNames,
+        CancellationToken cancellationToken = default)
+    {
+        List<string> paused = [];
+        foreach (string groupName in groupNames)
+        {
+            if (await IsJobGroupPaused(conn, groupName, cancellationToken).ConfigureAwait(false))
+            {
+                paused.Add(groupName);
+            }
+        }
+
+        return paused;
+    }
+
+    /// <summary>
+    /// Writes a paused row for each of the given job groups, in as few round trips as the provider
+    /// allows.
+    /// </summary>
+    /// <remarks>
+    /// Every group is expected to have no row yet — the caller established that with
+    /// <see cref="SelectPausedJobGroups" /> under the same lock — so this is a plain insert per group
+    /// rather than an upsert. The default implementation issues them one at a time.
+    /// </remarks>
+    /// <param name="conn">The database connection.</param>
+    /// <param name="groupNames">The groups to pause. May be empty.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask InsertPausedJobGroups(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<string> groupNames,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (string groupName in groupNames)
+        {
+            await InsertPausedJobGroup(conn, groupName, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     //---------------------------------------------------------------------------
     // calendars

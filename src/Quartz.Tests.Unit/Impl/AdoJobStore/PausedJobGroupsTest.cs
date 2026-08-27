@@ -70,6 +70,16 @@ public class PausedJobGroupsTest
         A.CallTo(() => driverDelegate.SelectTriggerKeysInGroup(
                 A<ConnectionAndTransactionHolder>._, A<GroupMatcher<TriggerKey>>._, A<CancellationToken>._))
             .Returns(new ValueTask<List<TriggerKey>>([]));
+
+        A.CallTo(() => driverDelegate.SelectTriggerKeysForJobs(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .Returns(new ValueTask<List<TriggerKey>>([]));
+
+        // Nothing is paused yet unless a test says otherwise. The pause path asks about the whole set
+        // of matched groups at once and then writes only the ones with no row.
+        A.CallTo(() => driverDelegate.SelectPausedJobGroups(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
+            .Returns(new ValueTask<List<string>>([]));
     }
 
     [Test]
@@ -80,19 +90,47 @@ public class PausedJobGroupsTest
         paused.Should().Equal(["reports"],
             "an equality matcher names the group to pause, so it pauses whether or not that group holds anything yet");
 
-        A.CallTo(() => driverDelegate.InsertPausedJobGroup(
-                A<ConnectionAndTransactionHolder>._, "reports", A<CancellationToken>._))
+        A.CallTo(() => driverDelegate.InsertPausedJobGroups(
+                A<ConnectionAndTransactionHolder>._,
+                A<IReadOnlyCollection<string>>.That.Matches(groups => groups.Count == 1 && groups.Contains("reports")),
+                A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }
 
     [Test]
     public async Task AGroupThatIsAlreadyPausedIsNotInsertedTwice()
     {
-        A.CallTo(() => driverDelegate.IsJobGroupPaused(
-                A<ConnectionAndTransactionHolder>._, "reports", A<CancellationToken>._))
-            .Returns(new ValueTask<bool>(true));
+        A.CallTo(() => driverDelegate.SelectPausedJobGroups(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
+            .Returns(new ValueTask<List<string>>(["reports"]));
 
         await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("reports"));
+
+        A.CallTo(() => driverDelegate.InsertPausedJobGroups(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task PausingAMatcherAsksAboutEveryGroupOnceAndWritesTheMissingRowsTogether()
+    {
+        A.CallTo(() => driverDelegate.SelectJobKeysInGroup(
+                A<ConnectionAndTransactionHolder>._, A<GroupMatcher<JobKey>>._, A<CancellationToken>._))
+            .Returns(new ValueTask<List<JobKey>>([new JobKey("a", "jga"), new JobKey("b", "jgb")]));
+
+        await store.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+
+        A.CallTo(() => driverDelegate.SelectPausedJobGroups(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.InsertPausedJobGroups(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.IsJobGroupPaused(
+                A<ConnectionAndTransactionHolder>._, A<string>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
 
         A.CallTo(() => driverDelegate.InsertPausedJobGroup(
                 A<ConnectionAndTransactionHolder>._, A<string>._, A<CancellationToken>._))
@@ -110,17 +148,13 @@ public class PausedJobGroupsTest
 
         paused.Should().BeEquivalentTo(["jga", "jgb"]);
 
-        A.CallTo(() => driverDelegate.InsertPausedJobGroup(
-                A<ConnectionAndTransactionHolder>._, "jga", A<CancellationToken>._))
-            .MustHaveHappenedOnceExactly();
-        A.CallTo(() => driverDelegate.InsertPausedJobGroup(
-                A<ConnectionAndTransactionHolder>._, "jgb", A<CancellationToken>._))
-            .MustHaveHappenedOnceExactly();
         // A pattern is not a group, and no job could ever belong to one, so the matcher's own text
         // must never reach the table.
-        A.CallTo(() => driverDelegate.InsertPausedJobGroup(
-                A<ConnectionAndTransactionHolder>._, "jg", A<CancellationToken>._))
-            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.InsertPausedJobGroups(
+                A<ConnectionAndTransactionHolder>._,
+                A<IReadOnlyCollection<string>>.That.Matches(groups => groups.Count == 2 && groups.Contains("jga") && groups.Contains("jgb")),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
     }
 
     [Test]
@@ -158,16 +192,16 @@ public class PausedJobGroupsTest
 
         // Pause-all is a trigger operation, and the in-memory store agrees: it leaves its own set of
         // paused job groups untouched.
-        A.CallTo(() => driverDelegate.InsertPausedJobGroup(
-                A<ConnectionAndTransactionHolder>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => driverDelegate.InsertPausedJobGroups(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
     [Test]
     public async Task AFailedInsertIsReportedAsAPersistenceFailure()
     {
-        A.CallTo(() => driverDelegate.InsertPausedJobGroup(
-                A<ConnectionAndTransactionHolder>._, A<string>._, A<CancellationToken>._))
+        A.CallTo(() => driverDelegate.InsertPausedJobGroups(
+                A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
             .Throws(new InvalidOperationException("primary key violation"));
 
         Func<Task> act = async () => await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("reports"));

@@ -54,6 +54,50 @@ public partial class StdAdoDelegate
         return SelectTriggerKeysForJob(conn, jobKey, StdAdoConstants.SqlSelectTriggersForJobInState, state, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public virtual async ValueTask<List<TriggerKey>> SelectTriggerKeysForJobs(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobKeys.Count == 0)
+        {
+            return [];
+        }
+
+        // A repeated job would come back as repeated trigger rows, and the predicate is a disjunction
+        // that cannot tell the difference, so fold duplicates away before building it.
+        List<JobKey> requested = Deduplicate(jobKeys);
+        List<TriggerKey> keys = [];
+
+        for (int offset = 0; offset < requested.Count; offset += AdoUtil.MaxJobKeysPerPredicate)
+        {
+            int length = Math.Min(AdoUtil.MaxJobKeysPerPredicate, requested.Count - offset);
+            int paddedCount = AdoUtil.RoundUpJobKeyCount(length);
+
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(
+                StdAdoConstants.SqlSelectTriggerKeysForJobsPrefix + AdoUtil.BuildJobKeyPredicate(paddedCount)));
+            AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+
+            for (int i = 0; i < paddedCount; i++)
+            {
+                // Pad up to the bucket size by repeating the chunk's last key. The predicate is a
+                // disjunction, so a repeated term cannot change which rows match.
+                JobKey key = requested[offset + Math.Min(i, length - 1)];
+                AddCommandParameter(cmd, AdoUtil.JobKeyNameParameter(i), key.Name);
+                AddCommandParameter(cmd, AdoUtil.JobKeyGroupParameter(i), key.Group);
+            }
+
+            using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                keys.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
+            }
+        }
+
+        return keys;
+    }
+
     private async ValueTask<List<TriggerKey>> SelectTriggerKeysForJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
@@ -479,5 +523,65 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.JobGroup, groupName);
 
         return await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Reads the whole paused-job-group table and intersects it here rather than naming the groups in
+    /// the statement. The table holds at most one row per job group a deployment has ever paused, and
+    /// this way the question costs one statement whatever it is asked about — which is the point of
+    /// asking it about a set.
+    /// </remarks>
+    public virtual async ValueTask<List<string>> SelectPausedJobGroups(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<string> groupNames,
+        CancellationToken cancellationToken = default)
+    {
+        if (groupNames.Count == 0)
+        {
+            return [];
+        }
+
+        HashSet<string> asked = new(groupNames, StringComparer.Ordinal);
+        List<string> paused = [];
+
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectPausedJobGroups));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+
+        using DbDataReader rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            string group = rs.GetString(0);
+            if (asked.Contains(group))
+            {
+                paused.Add(group);
+            }
+        }
+
+        return paused;
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask InsertPausedJobGroups(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<string> groupNames,
+        CancellationToken cancellationToken = default)
+    {
+        if (groupNames.Count == 0)
+        {
+            return;
+        }
+
+        List<SqlStatement> statements = new(groupNames.Count);
+        foreach (string groupName in groupNames)
+        {
+            statements.Add(new SqlStatement(ReplaceTablePrefix(StdAdoConstants.SqlInsertPausedJobGroup),
+            [
+                new SqlStatementParameter(SqlParameters.SchedulerName, schedulerName),
+                new SqlStatementParameter(SqlParameters.JobGroup, groupName)
+            ]));
+        }
+
+        await ExecuteStatements(conn, statements, cancellationToken).ConfigureAwait(false);
     }
 }
