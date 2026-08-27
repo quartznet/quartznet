@@ -219,6 +219,54 @@ public sealed class JobListenerFailureTest
     }
 
     /// <summary>
+    /// A trigger with nothing left to fire is finished whether its last firing ran or a listener
+    /// abandoned it, and the scheduler listeners hear so either way.
+    /// </summary>
+    [TestCase(FailureShape.Synchronous, FailureSide.BeforeTheJob)]
+    [TestCase(FailureShape.Asynchronous, FailureSide.BeforeTheJob)]
+    [TestCase(FailureShape.Synchronous, FailureSide.AfterTheJob)]
+    [TestCase(FailureShape.Asynchronous, FailureSide.AfterTheJob)]
+    public async Task AFailedListenerDoesNotSwallowTheTriggersFinalizedNotification(FailureShape shape, FailureSide side)
+    {
+        CallLog<TriggerKey> runs = new();
+        FailingJobListener listener = new(shape, side, _ => true);
+        FinalizedRecordingSchedulerListener finalized = new();
+
+        (IScheduler scheduler, _) = await BuildScheduler($"listener-finalized-{shape}-{side}");
+
+        try
+        {
+            scheduler.ListenerManager.AddJobListener(listener);
+            scheduler.ListenerManager.AddSchedulerListener(finalized);
+
+            IJobDetail job = JobBuilder.Create<NonConcurrentRecordingJob>()
+                .WithIdentity("job", Group)
+                .UsingJobData(new JobDataMap { [NonConcurrentRecordingJob.RunLogKey] = runs })
+                .Build();
+
+            TriggerKey triggerKey = new TriggerKey("once", Group);
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(job)
+                .StartNow()
+                .Build();
+
+            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.Start();
+
+            await ShouldObserve(finalized.Finalized.Reaches(1),
+                "the trigger had one firing in it and it is spent, so the scheduler listeners have to be told "
+                + "it will never fire again - the listener's failure is not theirs to inherit");
+
+            finalized.Finalized.Entries.Should().Equal([triggerKey]);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
     /// A scheduler whose in-memory store records every firing it is handed back.
     /// </summary>
     private static async Task<(IScheduler Scheduler, CompletionRecordingJobStore Store)> BuildScheduler(string instanceName)
@@ -321,6 +369,17 @@ public sealed class JobListenerFailureTest
 
             // What an async method does: the exception arrives in the task the caller was handed.
             return ValueTask.FromException(new InvalidOperationException(message));
+        }
+    }
+
+    private sealed class FinalizedRecordingSchedulerListener : ISchedulerListener
+    {
+        public CallLog<TriggerKey> Finalized { get; } = new();
+
+        public ValueTask TriggerFinalized(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
+        {
+            Finalized.Record(trigger.Key);
+            return default;
         }
     }
 
