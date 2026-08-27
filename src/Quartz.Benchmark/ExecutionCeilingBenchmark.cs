@@ -1,15 +1,9 @@
-using System.Data.Common;
 using System.Globalization;
-using System.Text;
 
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Engines;
 
-using Microsoft.Data.SqlClient;
-
-using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Benchmark;
 
@@ -41,9 +35,10 @@ namespace Quartz.Benchmark;
 /// QUARTZ_BENCHMARK_SQLSERVER='Server=localhost,51433;User ID=sa;Password=Quartz!DockerP4ss;TrustServerCertificate=true'
 /// </code>
 /// <para>
-/// The schema comes from <c>database/tables/</c> and is applied on first use, so the tables and their
-/// indexes are the ones a real deployment has. Seeding is skipped when the tables already hold what
-/// this parameter set wants, which is what keeps a sweep of this size to minutes rather than hours.
+/// The schema comes from <c>database/tables/</c> and is applied on first use by
+/// <see cref="BenchmarkDatabase" />, so the tables and their indexes are the ones a real deployment
+/// has. Seeding is skipped when the tables already hold what this parameter set wants, which is what
+/// keeps a sweep of this size to minutes rather than hours.
 /// </para>
 /// <para>
 /// <b>Row counts.</b> <c>FIRED_TRIGGERS</c> holds one row per reservation or running execution, so its
@@ -66,10 +61,6 @@ namespace Quartz.Benchmark;
 /// Neither depends on the row count, the group count or the index, so they double as a control: if
 /// they drift between parameter sets, the machine drifted rather than the query.
 /// </para>
-/// <para>
-/// One connection is opened per parameter set and reused, because pool acquisition is the same on both
-/// sides of the question and would only add variance.
-/// </para>
 /// </remarks>
 [MemoryDiagnoser]
 [SimpleJob(RunStrategy.Throughput, warmupCount: 3, iterationCount: 10)]
@@ -85,8 +76,8 @@ public class ExecutionCeilingBenchmark
 
     private const string CoveringIndexName = "IDX_QRTZ_FT_EG_TG";
 
-    [Params("Postgres", "SqlServer")]
-    public string Dialect { get; set; } = "Postgres";
+    [Params(BenchmarkDialect.Postgres, BenchmarkDialect.SqlServer)]
+    public BenchmarkDialect Dialect { get; set; } = BenchmarkDialect.Postgres;
 
     [Params(10, 100, 1_000, 10_000)]
     public int FiredTriggerRows { get; set; }
@@ -98,42 +89,17 @@ public class ExecutionCeilingBenchmark
     [Params(false, true)]
     public bool Indexed { get; set; }
 
+    private BenchmarkDatabase database = null!;
     private StdAdoDelegate driverDelegate = null!;
-    private DbConnection connection = null!;
-    private ConnectionAndTransactionHolder holder = null!;
     private TriggerAcquisitionCriteria singleCriteria = null!;
     private TriggerAcquisitionCriteria batchCriteria = null!;
-    private bool postgres;
 
     [GlobalSetup]
     public async Task Setup()
     {
-        postgres = Dialect == "Postgres";
-        string variable = postgres ? "QUARTZ_BENCHMARK_POSTGRES" : "QUARTZ_BENCHMARK_SQLSERVER";
-        string connectionString = Environment.GetEnvironmentVariable(variable)
-            ?? throw new InvalidOperationException($"{variable} is not set; see the remarks on {nameof(ExecutionCeilingBenchmark)} for how to start the databases.");
+        database = await BenchmarkDatabase.Open(Dialect).ConfigureAwait(false);
+        driverDelegate = database.CreateDelegate(SchedulerName, InstanceId, TablePrefix);
 
-        if (!postgres)
-        {
-            connectionString = await EnsureSqlServerDatabase(connectionString).ConfigureAwait(false);
-        }
-
-        DbProvider provider = new(postgres ? "Npgsql" : "SqlServer", connectionString);
-        driverDelegate = postgres ? new PostgreSQLDelegate() : new SqlServerDelegate();
-        driverDelegate.Initialize(new DriverDelegateContext
-        {
-            TablePrefix = TablePrefix,
-            SchedulerName = SchedulerName,
-            InstanceId = InstanceId,
-            TypeLoader = new SimpleTypeLoader(),
-            DbProvider = provider,
-        });
-
-        connection = provider.CreateConnection();
-        await connection.OpenAsync().ConfigureAwait(false);
-        holder = new ConnectionAndTransactionHolder(connection, null);
-
-        await EnsureSchema().ConfigureAwait(false);
         await EnsureWaitingTriggers().ConfigureAwait(false);
         await EnsureFiredTriggers().ConfigureAwait(false);
         await ApplyIndex().ConfigureAwait(false);
@@ -152,15 +118,14 @@ public class ExecutionCeilingBenchmark
     [GlobalCleanup]
     public async Task Cleanup()
     {
-        holder.Dispose();
-        await connection.DisposeAsync().ConfigureAwait(false);
+        await database.DisposeAsync().ConfigureAwait(false);
     }
 
     /// <summary>The aggregate the cluster-wide ceiling reads, once per acquisition attempt.</summary>
     [Benchmark]
     public async Task<int> InFlightAggregate()
     {
-        List<ExecutionGroupInFlight> counts = await driverDelegate.SelectExecutionGroupsInFlight(holder).ConfigureAwait(false);
+        List<ExecutionGroupInFlight> counts = await driverDelegate.SelectExecutionGroupsInFlight(database.Holder).ConfigureAwait(false);
         return counts.Count;
     }
 
@@ -168,7 +133,7 @@ public class ExecutionCeilingBenchmark
     [Benchmark]
     public async Task<int> AcquireCandidates()
     {
-        List<TriggerAcquireResult> results = await driverDelegate.SelectTriggersToAcquire(holder, singleCriteria).ConfigureAwait(false);
+        List<TriggerAcquireResult> results = await driverDelegate.SelectTriggersToAcquire(database.Holder, singleCriteria).ConfigureAwait(false);
         return results.Count;
     }
 
@@ -176,85 +141,20 @@ public class ExecutionCeilingBenchmark
     [Benchmark]
     public async Task<int> AcquireCandidatesBatched()
     {
-        List<TriggerAcquireResult> results = await driverDelegate.SelectTriggersToAcquire(holder, batchCriteria).ConfigureAwait(false);
+        List<TriggerAcquireResult> results = await driverDelegate.SelectTriggersToAcquire(database.Holder, batchCriteria).ConfigureAwait(false);
         return results.Count;
-    }
-
-    /// <summary>
-    /// Creates the <c>quartznet</c> database if the server has not got one, and returns a connection
-    /// string that names it. A fresh SQL Server container has only the system databases, and the table
-    /// script's <c>USE</c> has to land somewhere.
-    /// </summary>
-    private static async Task<string> EnsureSqlServerDatabase(string connectionString)
-    {
-        SqlConnectionStringBuilder builder = new(connectionString) { TrustServerCertificate = true };
-        string master = new SqlConnectionStringBuilder(builder.ConnectionString) { InitialCatalog = "master" }.ConnectionString;
-
-        await using (SqlConnection connection = new(master))
-        {
-            await connection.OpenAsync().ConfigureAwait(false);
-            await using SqlCommand command = connection.CreateCommand();
-            command.CommandText = "IF DB_ID('quartznet') IS NULL CREATE DATABASE quartznet";
-            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-        }
-
-        builder.InitialCatalog = "quartznet";
-        return builder.ConnectionString;
-    }
-
-    private async Task EnsureSchema()
-    {
-        if (await Scalar("SELECT COUNT(*) FROM " + TablePrefix + "FIRED_TRIGGERS").ConfigureAwait(false) >= 0)
-        {
-            return;
-        }
-
-        string script = ReadScript(postgres ? "tables_postgres.sql" : "tables_sqlServer.sql");
-        foreach (string batch in Batches(script))
-        {
-            await Execute(batch).ConfigureAwait(false);
-        }
-    }
-
-    /// <summary>
-    /// Splits a script on the <c>GO</c> separators SQL Server's tooling uses; PostgreSQL's script has
-    /// none and comes back whole.
-    /// </summary>
-    private static IEnumerable<string> Batches(string script)
-    {
-        StringBuilder batch = new();
-        foreach (string line in script.Split('\n'))
-        {
-            if (line.Trim().TrimEnd('\r').Equals("GO", StringComparison.OrdinalIgnoreCase))
-            {
-                if (batch.Length > 0)
-                {
-                    yield return batch.ToString();
-                    batch.Clear();
-                }
-
-                continue;
-            }
-
-            batch.Append(line.Replace("[enter_db_name_here]", "[quartznet]").Replace("[enter_path_here]", "/tmp")).Append('\n');
-        }
-
-        if (batch.ToString().Trim().Length > 0)
-        {
-            yield return batch.ToString();
-        }
     }
 
     private async Task ApplyIndex()
     {
         // Dropped and recreated per parameter set, so the two arms differ in the index and nothing else.
-        await Execute(postgres
+        await database.Execute(Dialect == BenchmarkDialect.Postgres
             ? "DROP INDEX IF EXISTS " + CoveringIndexName
             : "DROP INDEX IF EXISTS " + CoveringIndexName + " ON " + TablePrefix + "FIRED_TRIGGERS").ConfigureAwait(false);
 
         if (Indexed)
         {
-            await Execute("CREATE INDEX " + CoveringIndexName + " ON " + TablePrefix
+            await database.Execute("CREATE INDEX " + CoveringIndexName + " ON " + TablePrefix
                 + "FIRED_TRIGGERS (SCHED_NAME, EXECUTION_GROUP, TRIGGER_GROUP)").ConfigureAwait(false);
         }
     }
@@ -263,23 +163,20 @@ public class ExecutionCeilingBenchmark
     {
         // Re-seeding 5,000 rows in every one of the ninety-odd processes a sweep launches is most of
         // its runtime, so what is already there is left alone.
-        if (await Scalar("SELECT COUNT(*) FROM " + TablePrefix + "TRIGGERS").ConfigureAwait(false) == WaitingTriggers
-            && await Scalar("SELECT COUNT(DISTINCT TRIGGER_GROUP) FROM " + TablePrefix + "TRIGGERS").ConfigureAwait(false) == ExecutionGroups)
+        if (await database.Scalar("SELECT COUNT(*) FROM " + TablePrefix + "TRIGGERS").ConfigureAwait(false) == WaitingTriggers
+            && await database.Scalar("SELECT COUNT(DISTINCT TRIGGER_GROUP) FROM " + TablePrefix + "TRIGGERS").ConfigureAwait(false) == ExecutionGroups)
         {
             return;
         }
 
-        await Execute("DELETE FROM " + TablePrefix + "TRIGGERS").ConfigureAwait(false);
-        await Execute("DELETE FROM " + TablePrefix + "JOB_DETAILS").ConfigureAwait(false);
-        await Execute("DELETE FROM " + TablePrefix + "SCHEDULER_STATE").ConfigureAwait(false);
+        await database.Execute("DELETE FROM " + TablePrefix + "TRIGGERS").ConfigureAwait(false);
+        await database.Execute("DELETE FROM " + TablePrefix + "JOB_DETAILS").ConfigureAwait(false);
+        await database.Execute("DELETE FROM " + TablePrefix + "SCHEDULER_STATE").ConfigureAwait(false);
 
-        string trueLiteral = postgres ? "TRUE" : "1";
-        string falseLiteral = postgres ? "FALSE" : "0";
+        await database.Execute("INSERT INTO " + TablePrefix + "JOB_DETAILS (SCHED_NAME, JOB_NAME, JOB_GROUP, JOB_CLASS_NAME, IS_DURABLE, IS_NONCONCURRENT, IS_UPDATE_DATA, REQUESTS_RECOVERY) VALUES ('"
+            + SchedulerName + "', 'job', 'jobs', 'Quartz.Job.NoOpJob, Quartz', " + database.True + ", " + database.False + ", " + database.False + ", " + database.False + ")").ConfigureAwait(false);
 
-        await Execute("INSERT INTO " + TablePrefix + "JOB_DETAILS (SCHED_NAME, JOB_NAME, JOB_GROUP, JOB_CLASS_NAME, IS_DURABLE, IS_NONCONCURRENT, IS_UPDATE_DATA, REQUESTS_RECOVERY) VALUES ('"
-            + SchedulerName + "', 'job', 'jobs', 'Quartz.Job.NoOpJob, Quartz', " + trueLiteral + ", " + falseLiteral + ", " + falseLiteral + ", " + falseLiteral + ")").ConfigureAwait(false);
-
-        await Execute(string.Create(CultureInfo.InvariantCulture,
+        await database.Execute(string.Create(CultureInfo.InvariantCulture,
             $"INSERT INTO {TablePrefix}SCHEDULER_STATE (SCHED_NAME, INSTANCE_NAME, LAST_CHECKIN_TIME, CHECKIN_INTERVAL) VALUES ('{SchedulerName}', '{InstanceId}', {TimeProvider.System.GetUtcNow().UtcTicks}, 15000)")).ConfigureAwait(false);
 
         // Fire times spread one second apart, so the candidate select finds a handful inside its window
@@ -289,25 +186,25 @@ public class ExecutionCeilingBenchmark
         for (int i = 0; i < WaitingTriggers; i++)
         {
             inserts.Add(string.Create(CultureInfo.InvariantCulture,
-                $"INSERT INTO {TablePrefix}TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP, JOB_NAME, JOB_GROUP, TRIGGER_STATE, TRIGGER_TYPE, START_TIME, NEXT_FIRE_TIME, PRIORITY, MISFIRE_INSTR, EXECUTION_GROUP, PREFERRED_NODE_AUTO) VALUES ('{SchedulerName}', 'trigger{i}', 'group{i % ExecutionGroups}', 'job', 'jobs', 'WAITING', 'SIMPLE', {start}, {start + i * TimeSpan.TicksPerSecond}, 5, -1, 'exec{i % ExecutionGroups}', {falseLiteral})"));
+                $"INSERT INTO {TablePrefix}TRIGGERS (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP, JOB_NAME, JOB_GROUP, TRIGGER_STATE, TRIGGER_TYPE, START_TIME, NEXT_FIRE_TIME, PRIORITY, MISFIRE_INSTR, EXECUTION_GROUP, PREFERRED_NODE_AUTO) VALUES ('{SchedulerName}', 'trigger{i}', 'group{i % ExecutionGroups}', 'job', 'jobs', 'WAITING', 'SIMPLE', {start}, {start + i * TimeSpan.TicksPerSecond}, 5, -1, 'exec{i % ExecutionGroups}', {database.False})"));
         }
 
-        await ExecuteBatched(inserts).ConfigureAwait(false);
+        await database.ExecuteBatched(inserts).ConfigureAwait(false);
     }
 
     private async Task EnsureFiredTriggers()
     {
         int wantedGroups = Math.Min(FiredTriggerRows, ExecutionGroups);
-        if (await Scalar("SELECT COUNT(*) FROM " + TablePrefix + "FIRED_TRIGGERS").ConfigureAwait(false) == FiredTriggerRows
-            && await Scalar("SELECT COUNT(DISTINCT TRIGGER_GROUP) FROM " + TablePrefix + "FIRED_TRIGGERS").ConfigureAwait(false) == wantedGroups)
+        if (await database.Scalar("SELECT COUNT(*) FROM " + TablePrefix + "FIRED_TRIGGERS").ConfigureAwait(false) == FiredTriggerRows
+            && await database.Scalar("SELECT COUNT(DISTINCT TRIGGER_GROUP) FROM " + TablePrefix + "FIRED_TRIGGERS").ConfigureAwait(false) == wantedGroups)
         {
             return;
         }
 
-        await Execute("DELETE FROM " + TablePrefix + "FIRED_TRIGGERS").ConfigureAwait(false);
+        await database.Execute("DELETE FROM " + TablePrefix + "FIRED_TRIGGERS").ConfigureAwait(false);
 
         long now = TimeProvider.System.GetUtcNow().UtcTicks;
-        string falseLiterals = postgres ? "FALSE, FALSE" : "0, 0";
+        string falseLiterals = database.False + ", " + database.False;
         List<string> inserts = new(FiredTriggerRows);
         for (int i = 0; i < FiredTriggerRows; i++)
         {
@@ -315,70 +212,7 @@ public class ExecutionCeilingBenchmark
                 $"INSERT INTO {TablePrefix}FIRED_TRIGGERS (SCHED_NAME, ENTRY_ID, TRIGGER_NAME, TRIGGER_GROUP, INSTANCE_NAME, FIRED_TIME, SCHED_TIME, PRIORITY, STATE, JOB_NAME, JOB_GROUP, IS_NONCONCURRENT, REQUESTS_RECOVERY, EXECUTION_GROUP) VALUES ('{SchedulerName}', 'entry{i}', 'trigger{i}', 'group{i % ExecutionGroups}', 'NODE-{i % 10}', {now}, {now}, 5, 'EXECUTING', 'job', 'jobs', {falseLiterals}, 'exec{i % ExecutionGroups}')"));
         }
 
-        await ExecuteBatched(inserts).ConfigureAwait(false);
+        await database.ExecuteBatched(inserts).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Runs a list of statements in chunks, so that seeding ten thousand rows does not arrive as one
-    /// multi-megabyte command.
-    /// </summary>
-    private async Task ExecuteBatched(List<string> statements)
-    {
-        const int ChunkSize = 500;
-        StringBuilder chunk = new();
-        for (int i = 0; i < statements.Count; i++)
-        {
-            chunk.Append(statements[i]).Append(";\n");
-            if ((i + 1) % ChunkSize == 0 || i == statements.Count - 1)
-            {
-                await Execute(chunk.ToString()).ConfigureAwait(false);
-                chunk.Clear();
-            }
-        }
-    }
-
-    private async Task Execute(string sql)
-    {
-        using DbCommand command = connection.CreateCommand();
-        command.CommandText = sql;
-        command.CommandTimeout = 300;
-        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Runs a scalar query, answering -1 when the statement fails — which is how
-    /// <see cref="EnsureSchema" /> discovers that the tables are not there yet.
-    /// </summary>
-    private async Task<int> Scalar(string sql)
-    {
-        try
-        {
-            using DbCommand command = connection.CreateCommand();
-            command.CommandText = sql;
-            command.CommandTimeout = 300;
-            object? value = await command.ExecuteScalarAsync().ConfigureAwait(false);
-            return value is null or DBNull ? -1 : Convert.ToInt32(value, CultureInfo.InvariantCulture);
-        }
-        catch (DbException)
-        {
-            return -1;
-        }
-    }
-
-    private static string ReadScript(string fileName)
-    {
-        DirectoryInfo? current = new(AppContext.BaseDirectory);
-        while (current is not null)
-        {
-            string candidate = Path.Combine(current.FullName, "database", "tables", fileName);
-            if (File.Exists(candidate))
-            {
-                return File.ReadAllText(candidate, Encoding.UTF8);
-            }
-
-            current = current.Parent;
-        }
-
-        throw new FileNotFoundException("Could not locate the schema script.", fileName);
-    }
 }
