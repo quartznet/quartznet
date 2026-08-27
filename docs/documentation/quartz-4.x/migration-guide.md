@@ -4306,6 +4306,44 @@ Behavioral notes:
   batched write, which is what misfire recovery already did. A trigger that runs out of fire times while
   blocked is still stored `COMPLETE`, still finalized to the scheduler listeners, and still deleted.
 
+## Batched cluster recovery
+
+Recovering a failed node used to issue up to ten statements per fired-trigger row it left behind, each
+its own round trip, all of them inside the `TRIGGER_ACCESS` lock every other node is waiting for. The
+statements are the same; they now travel a set at a time.
+
+Nothing needs configuring, and the same `DbBatch` support decides it as everywhere else: providers that
+cannot batch issue exactly the statements they always did, one command at a time, in the same order.
+
+This matters if you implement `IDriverDelegate` yourself, which has three more members:
+
+| Member | Purpose |
+|--------|---------|
+| `UpdateTriggerStatesFromOtherState(conn, IReadOnlyCollection<TriggerKey>, newState, oldState, ct)` | The single-trigger overload's statement, once per key, in one batch — releasing everything a dead node had acquired |
+| `UpdateTriggerStatesForJobsFromOtherState(conn, IReadOnlyCollection<JobKey>, newState, oldState, ct)` | The single-job overload's statement, once per job key, in one batch — unblocking the siblings of every interrupted execution |
+| `DeleteFiredTriggers(conn, IReadOnlyCollection<string> entryIds, ct)` | The single-entry delete, once per id, in one batch — clearing a dead node's rows while holding some of them back |
+
+All three return `ValueTask` rather than a row count: a batch does not report one per command in any
+portable way, and the store counts the rows it asked about rather than the rows that moved. Subclassing
+`StdAdoDelegate` gets all three for free.
+
+Behavioural notes:
+
+- `ClusterRecover` is a sequence of named steps — release, unblock, reschedule, delete the fired rows,
+  delete the triggers those rows were the last of, give up the failed node's registration — rather than
+  one pass that did all of it per row. The steps are grouped by what they do instead of issued row by
+  row, which is only safe because they run in one transaction under one lock and touch disjoint rows.
+  What another node can observe is unchanged.
+- Scheduling a replacement firing is still row by row: each one reads whether its job still exists and
+  what its trigger's data map holds, and both answers decide whether anything is written at all.
+- **A node that finds its own `QRTZ_SCHEDULER_STATE` row gone now handles it.** On 3.x it logged
+  `This scheduler instance (…) is still active but was recovered by another instance in the cluster` and
+  carried on. It now writes its row back, names the peer that recovered it where the remaining rows say
+  which one that must have been, counts the event on `quartz.cluster.recovery.trigger` under its own
+  instance id, and does not recover its own fired triggers — the peer already did, and doing it again
+  would replay a firing that is already being replayed. See
+  [When the node that was taken over is still running](operations.md#when-the-node-that-was-taken-over-is-still-running).
+
 ## Job store listings became queries
 
 Listing jobs or triggers meant reading every key and then spending one round trip per key on anything more
@@ -8026,6 +8064,7 @@ Parameters and behavior are unchanged:
 | `IDriverDelegate.ValidateSchema` added | Schema validation was a `StdAdoDelegate` method reached by type test, so a delegate of your own silently skipped it — see [`ValidateSchema` is part of `IDriverDelegate`](#validateschema-is-part-of-idriverdelegate) |
 | `IDriverDelegate.ApplyTriggerFired` added | One trigger fire is one round trip's worth of writes rather than five to eight; `TriggerFiredUpdate` describes it — see [Batched trigger fire](#batched-trigger-fire) |
 | `IDriverDelegate` gains a transition-list `UpdateTriggerStatesForJobFromOtherState` and a state-filtered `SelectTriggerKeysForJob` | Overloads beside the existing ones, so the blocking and unblocking of a job's triggers is one round trip and completion stops reading a state per trigger — see [Batched trigger fire](#batched-trigger-fire) |
+| `IDriverDelegate` gains set-taking `UpdateTriggerStatesFromOtherState`, `UpdateTriggerStatesForJobsFromOtherState` and `DeleteFiredTriggers` | Overloads beside the single-key ones, so recovering a failed node issues one round trip per kind of change rather than one per fired-trigger row — see [Batched cluster recovery](#batched-cluster-recovery) |
 | `StoredTriggerHeader` carries `TriggerType` | A fifth positional parameter; it comes off the row the state came from, which is what removes the separate type lookup — see [Batched trigger fire](#batched-trigger-fire) |
 | `ITriggerPersistenceDelegate.TryDescribeUpdateExtendedTriggerProperties` added | A default interface member returning `false`, so an existing persistence delegate is unaffected; implementing it puts a trigger's schedule in the same round trip as its row — see [Batched trigger fire](#batched-trigger-fire) |
 | `IDriverDelegate.UpdateFiredTrigger` removed | `ApplyTriggerFired` writes the fired-trigger row as one command of its batch, and nothing else called it; an override of it would have stopped taking effect silently — see [Batched trigger fire](#batched-trigger-fire) |

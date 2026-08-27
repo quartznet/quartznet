@@ -76,7 +76,9 @@ Two things it deliberately does not do:
 
 * It only touches rows carrying **its own** instance id. A row left by a node that is gone is cleaned up
   by cluster recovery once that node is declared failed, not by this sweep — see
-  [Operating a Cluster (4.x)](quartz-4.x/operations.md#when-a-peer-takes-over).
+  [Operating a Cluster (4.x)](quartz-4.x/operations.md#when-a-peer-takes-over). The reverse case — this
+  node's rows swept by a peer that decided *it* was gone — is
+  [Clock Skew Between Nodes](#clock-skew-between-nodes).
 * It does not touch rows in `EXECUTING` state. Those describe a job the node believes is running, and
   the node is the authority on that.
 
@@ -187,6 +189,25 @@ executing them.
 orders of magnitude inside the requirement. Where you cannot guarantee it — or cannot guarantee that the
 process gets CPU promptly, which produces the same symptom with a perfect clock — widen the window with
 `quartz.jobStore.clusterCheckinMisfireThreshold`.
+
+**What the node that was written off does about it.** In 4.x, a node that finds its own
+`QRTZ_SCHEDULER_STATE` row gone on a check-in that is not its first has been failed out by a peer. It
+writes the row back — until it does, it does not exist as far as the rest of the cluster is concerned —
+and logs the warning above (event id `3501`) together with one naming the peer that recovered it
+(`3515`), or saying that the peer cannot be named because more than one node has a state row and no row
+records who recovered whom (`3516`). It also counts the event on `quartz.cluster.recovery.trigger` with
+`quartz.cluster.recovered.instance.id` set to its **own** instance id, which is the series to alert on:
+a recovery whose recovered node is the node reporting it is a node saying it was written off while it
+was running. The count is 1 rather than a number of triggers — how much the peer took over is not
+knowable from this side, and the peer's own measurement carries that number under the same attribute.
+
+What it deliberately does not do is recover its own fired triggers. The peer already released,
+rescheduled and deleted them, so a second pass over the same rows would schedule a second recovery
+trigger for a firing that is already being replayed — which is the "jobs run twice" symptom this section
+opens with. On 3.x the node logs the warning and otherwise carries on unchanged. Neither version makes
+this *safe*: the peer took work over from a process that is still running it, and only the clock fixes
+that. The rows left in `ACQUIRED` by the same event are a separate matter and clean themselves up — see
+[Triggers Stuck in ACQUIRED State](#triggers-stuck-in-acquired-state).
 
 [Clocks in a cluster](best-practices.md#clocks-in-a-cluster) has the arithmetic, the size of the default
 window, and why a pause matters more than an inaccuracy. In 4.x,
