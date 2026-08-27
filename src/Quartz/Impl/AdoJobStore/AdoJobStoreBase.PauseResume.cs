@@ -384,8 +384,16 @@ public abstract partial class AdoJobStoreBase
 
                 if (firedTriggers.Count > 0)
                 {
+                    // The row's own state is deliberately not consulted. A fired-trigger row of a job
+                    // that disallows concurrent execution means that job is reserved or running
+                    // somewhere, whichever state the row is in, and that is the whole of what blocks a
+                    // sibling. A row left behind by a node that died is not this predicate's business
+                    // either: ClusterRecover deletes it and unblocks the job, and
+                    // RecoverStaleAcquiredTriggers does the same for a stale reservation of this node's
+                    // own. Reading the state here would only let a sibling through while a row that is
+                    // about to be cleaned up says the job is still busy.
                     FiredTriggerRecord firedTrigger = firedTriggers[0];
-                    if (firedTrigger.JobDisallowsConcurrentExecution) // TODO: worry about failed/recovering/volatile job  states?
+                    if (firedTrigger.JobDisallowsConcurrentExecution)
                     {
                         return StoredTriggerState.Paused == currentState ? StoredTriggerState.PausedBlocked : StoredTriggerState.Blocked;
                     }
