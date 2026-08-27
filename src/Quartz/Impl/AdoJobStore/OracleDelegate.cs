@@ -28,21 +28,9 @@ namespace Quartz.Impl.AdoJobStore;
 public class OracleDelegate : StdAdoDelegate
 {
     /// <summary>
-    /// Creates the SQL for select next trigger to acquire.
+    /// Oracle limits rows from an enclosing select: <c>SELECT * FROM (…) WHERE rownum &lt;= n</c>.
     /// </summary>
-    protected override string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
-    {
-        return "SELECT * FROM (" + base.GetSelectNextTriggerToAcquireSql(shape) + ") WHERE rownum <= " + shape.MaxCount;
-    }
-
-    protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
-    {
-        if (count != -1)
-        {
-            return "SELECT * FROM (" + StdAdoConstants.SqlSelectMisfiredTriggersToRecover + ") WHERE rownum <= " + count;
-        }
-        return base.GetSelectMisfiredTriggersToRecoverSql(count);
-    }
+    protected override SqlRowLimit GetRowLimit(int count) => SqlRowLimit.InEnclosingSelect("rownum", count);
 
     /// <summary>
     /// Gets the db presentation for boolean value. For Oracle we use true/false of "1"/"0".

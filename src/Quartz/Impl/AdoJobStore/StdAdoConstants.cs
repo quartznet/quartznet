@@ -293,7 +293,8 @@ internal static class StdAdoConstants
     // literally the no-exclusion case of this template rather than a second copy kept in step by eye,
     // and a change to the projection, the join, the predicates or the ORDER BY is a change in one
     // place. The clause carries its own leading newline and indent, so passing an empty one yields
-    // the statement byte for byte as it was before there was a clause to pass.
+    // the statement byte for byte as it was before there was a clause to pass. The dialect's row
+    // limit is the same idea: two named slots and an enclosing SELECT, all three empty by default.
     //
     // PREFERRED_NODE is filtered entirely in PreferredNodeWhereClause and is not projected —
     // acquisition never reads it from the result (the trigger is reloaded via GetTrigger).
@@ -303,8 +304,8 @@ internal static class StdAdoConstants
     // now - MisfireThreshold the sweep asks about, so a waiting trigger belongs either to acquisition
     // or to the misfire handler and never to both. Acquiring one the store already counts as misfired
     // would fire it late without ever applying the policy it asked for.
-    private static string SelectNextTriggerToAcquire(string exclusionClause) =>
-        Invariant($@"SELECT
+    private static string SelectNextTriggerToAcquire(string exclusionClause, SqlRowLimit rowLimit) =>
+        rowLimit.Enclose(Invariant($@"SELECT{rowLimit.AfterSelect}
                 t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, t.{AdoConstants.ColumnExecutionGroup}
               FROM
                 {TablePrefixSubst}{AdoConstants.TableTriggers} t
@@ -314,9 +315,9 @@ internal static class StdAdoConstants
                 t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerState} = @state AND {AdoConstants.ColumnNextFireTime} <= @noLaterThan AND ({AdoConstants.ColumnMisfireInstruction} = -1 OR ({AdoConstants.ColumnMisfireInstruction} <> -1 AND {AdoConstants.ColumnNextFireTime} > @noEarlierThan))
                 {PreferredNodeWhereClause}{exclusionClause}
               ORDER BY
-                {AdoConstants.ColumnNextFireTime} ASC, {AdoConstants.ColumnPriority} DESC");
+                {AdoConstants.ColumnNextFireTime} ASC, {AdoConstants.ColumnPriority} DESC{rowLimit.AtEnd}"));
 
-    public static readonly string SqlSelectNextTriggerToAcquire = SelectNextTriggerToAcquire(exclusionClause: "");
+    public static readonly string SqlSelectNextTriggerToAcquire = SelectNextTriggerToAcquire(exclusionClause: "", SqlRowLimit.Unlimited);
 
     /// <summary>
     /// Exclusion counts are rounded up and padded to one of these sizes, limiting the acquisition
@@ -351,13 +352,21 @@ internal static class StdAdoConstants
     }
 
     /// <summary>
-    /// Builds the trigger-acquisition query for an already-rounded job-type exclusion bucket.
+    /// Builds the trigger-acquisition query for an already-rounded job-type exclusion bucket and the
+    /// dialect's row limit.
     /// </summary>
-    internal static string BuildSqlSelectNextTriggerToAcquire(int excludedJobTypeBucket)
+    /// <remarks>
+    /// Only the unlimited statements are cached here. A limited one is a pure function of the same
+    /// two inputs, but <c>StdAdoDelegate</c> already remembers the finished statement against the
+    /// acquisition shape it was built for, so caching it twice would buy nothing.
+    /// </remarks>
+    internal static string BuildSqlSelectNextTriggerToAcquire(int excludedJobTypeBucket, SqlRowLimit rowLimit)
     {
         if (excludedJobTypeBucket == 0)
         {
-            return SqlSelectNextTriggerToAcquire;
+            return rowLimit == SqlRowLimit.Unlimited
+                ? SqlSelectNextTriggerToAcquire
+                : SelectNextTriggerToAcquire(exclusionClause: "", rowLimit);
         }
 
         int bucketIndex = Array.IndexOf(excludedJobTypeBuckets, excludedJobTypeBucket);
@@ -366,13 +375,18 @@ internal static class StdAdoConstants
             Throw.ArgumentOutOfRangeException(nameof(excludedJobTypeBucket), "Excluded job type count must be rounded to a query bucket first");
         }
 
+        if (rowLimit != SqlRowLimit.Unlimited)
+        {
+            return SelectNextTriggerToAcquire(ExcludedJobTypeWhereClause(excludedJobTypeBucket), rowLimit);
+        }
+
         string? cached = sqlSelectNextTriggerToAcquireByExcludedJobTypeBucket[bucketIndex];
         if (cached is not null)
         {
             return cached;
         }
 
-        string predicateSql = SelectNextTriggerToAcquire(ExcludedJobTypeWhereClause(excludedJobTypeBucket));
+        string predicateSql = SelectNextTriggerToAcquire(ExcludedJobTypeWhereClause(excludedJobTypeBucket), rowLimit);
 
         sqlSelectNextTriggerToAcquireByExcludedJobTypeBucket[bucketIndex] = predicateSql;
         return predicateSql;
@@ -488,16 +502,29 @@ internal static class StdAdoConstants
     /// with the key columns appended (they are ambiguous across the joined tables, hence the alias).
     /// </summary>
     /// <remarks>
-    /// Must start with the <c>SELECT</c> keyword — <see cref="SqlServerDelegate" /> splices its
-    /// <c>TOP n</c> in at that offset.
+    /// The dialect's row limit goes in one of the two slots, or around the whole statement; a dialect
+    /// that has no way to limit rows leaves all three empty and gets the statement unchanged.
     /// </remarks>
-    public static readonly string SqlSelectMisfiredTriggersToRecover =
-        Invariant($@"SELECT {TriggerSelectColumns},
+    private static string SelectMisfiredTriggersToRecover(SqlRowLimit rowLimit) =>
+        rowLimit.Enclose(Invariant($@"SELECT{rowLimit.AfterSelect} {TriggerSelectColumns},
                 t.{AdoConstants.ColumnTriggerName},
                 t.{AdoConstants.ColumnTriggerGroup}{TriggerSelectFastPathFrom}
             WHERE
                 t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{AdoConstants.ColumnNextFireTime} <= @nextFireTime AND t.{AdoConstants.ColumnTriggerState} = @state
-            ORDER BY t.{AdoConstants.ColumnNextFireTime} ASC, t.{AdoConstants.ColumnPriority} DESC");
+            ORDER BY t.{AdoConstants.ColumnNextFireTime} ASC, t.{AdoConstants.ColumnPriority} DESC{rowLimit.AtEnd}"));
+
+    /// <inheritdoc cref="SelectMisfiredTriggersToRecover" />
+    public static readonly string SqlSelectMisfiredTriggersToRecover = SelectMisfiredTriggersToRecover(SqlRowLimit.Unlimited);
+
+    /// <summary>
+    /// Builds the misfire recovery statement for the dialect's row limit, which is the only thing
+    /// that varies about it. <c>StdAdoDelegate</c> remembers the result against the batch size it was
+    /// built for.
+    /// </summary>
+    internal static string BuildSqlSelectMisfiredTriggersToRecover(SqlRowLimit rowLimit) =>
+        rowLimit == SqlRowLimit.Unlimited
+            ? SqlSelectMisfiredTriggersToRecover
+            : SelectMisfiredTriggersToRecover(rowLimit);
 
     /// <summary>
     /// Prefix of the batch trigger lookup; the caller appends a key-set predicate built by

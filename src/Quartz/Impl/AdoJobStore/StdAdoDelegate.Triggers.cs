@@ -84,10 +84,33 @@ public partial class StdAdoDelegate
         return list;
     }
 
+    /// <summary>
+    /// The count a caller passes when it wants every row, rather than a batch of them.
+    /// </summary>
+    internal const int NoRowLimit = -1;
+
+    /// <summary>
+    /// Where this dialect's row-limiting clause goes, and what it says. The one thing a dialect has
+    /// to declare in order to limit a row-limited statement: both statements that carry a limit ask
+    /// here, so a dialect says it once and neither statement is rewritten by hand.
+    /// </summary>
+    /// <remarks>
+    /// The default limits nothing, because there is no ANSI way to. The sentinel that asks for no
+    /// limit at all is dealt with before this is called, so an override never sees it.
+    /// </remarks>
+    /// <param name="count">The most rows the statement may return, always at least one.</param>
+    protected virtual SqlRowLimit GetRowLimit(int count) => SqlRowLimit.Unlimited;
+
+    /// <summary>
+    /// The row limit for a batch size, with <see cref="NoRowLimit" /> taken out of every dialect's
+    /// hands: an unlimited statement is unlimited on every database, and each dialect used to spell
+    /// that check for itself.
+    /// </summary>
+    private SqlRowLimit RowLimitFor(int count) => count == NoRowLimit ? SqlRowLimit.Unlimited : GetRowLimit(count);
+
     protected virtual string GetSelectMisfiredTriggersToRecoverSql(int count)
     {
-        // by default we don't support limits, this is db specific
-        return StdAdoConstants.SqlSelectMisfiredTriggersToRecover;
+        return StdAdoConstants.BuildSqlSelectMisfiredTriggersToRecover(RowLimitFor(count));
     }
 
     /// <inheritdoc />
@@ -1350,8 +1373,7 @@ public partial class StdAdoDelegate
 
     protected virtual string GetSelectNextTriggerToAcquireSql(TriggerAcquisitionSqlShape shape)
     {
-        // by default we don't support limits, this is db specific
-        return StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(shape.ExcludedJobTypeBucket);
+        return StdAdoConstants.BuildSqlSelectNextTriggerToAcquire(shape.ExcludedJobTypeBucket, RowLimitFor(shape.MaxCount));
     }
 
     /// <summary>
