@@ -17,11 +17,106 @@ namespace Quartz.Tests.Unit.Simpl;
 public class MicrosoftDependencyInjectionJobFactoryTest
 {
     [Test]
-    [Ignore("WIP")]
-    public async Task DisposedServiceProviderShouldThrowSchedulerException()
+    public async Task ShouldThrowObjectDisposedExceptionWhenTheContainerIsGone()
     {
-        var factory = new MicrosoftDependencyInjectionJobFactory(new TestServiceProvider());
-        await factory.CreateJob(TestUtil.NewMinimalTriggerFiredBundle(), null!);
+        // A container disposed while a firing is in flight is what a host shutting down looks like from
+        // here, and the exception type is load-bearing: JobRunShell reads it to tell a shutdown race
+        // apart from a job that cannot be built, and completes the firing with NoInstruction rather than
+        // putting every trigger of the job into Error. The test below pins the other half of that.
+        ServiceCollection serviceCollection = [];
+        serviceCollection.AddTransient<ScopedJob>();
+        serviceCollection.AddScoped<ScopedDependency>();
+        ServiceProvider serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
+        await serviceProvider.DisposeAsync();
+
+        MicrosoftDependencyInjectionJobFactory factory = new(serviceProvider);
+
+        Func<Task> act = async () => await factory.CreateJob(NewBundleFor<ScopedJob>(), NewScheduler());
+
+        await act.Should().ThrowAsync<ObjectDisposedException>(
+            "the scope for the firing cannot be opened once the container it would come from is disposed");
+    }
+
+    [Test]
+    public async Task ShouldLeaveTheTriggerOutOfErrorStateWhenTheContainerIsGone()
+    {
+        // The consequence of the exception type above. A trigger left in Error needs a human to reset
+        // it, and a container that went away underneath a firing is not a configuration problem — it is
+        // the application stopping.
+        ServiceCollection serviceCollection = [];
+        serviceCollection.AddTransient<ScopedJob>();
+        serviceCollection.AddScoped<ScopedDependency>();
+        ServiceProvider serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
+
+        CompletionRecordingJobStore store = null!;
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .ConfigureScheduler(options => options.InstanceName = "disposed-container")
+            .UseJobStore(provider =>
+            {
+                store = new CompletionRecordingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+                return store;
+            })
+            .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider))
+            .BuildScheduler();
+
+        try
+        {
+            IJobDetail jobDetail = JobBuilder.Create<ScopedJob>()
+                .WithIdentity("job", "disposed-container")
+                .Build();
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("trigger", "disposed-container")
+                .ForJob(jobDetail)
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+                .Build();
+
+            await scheduler.ScheduleJob(jobDetail, trigger);
+
+            // Disposed before the scheduler is ever started, so the first firing is the one that finds
+            // the container gone.
+            await serviceProvider.DisposeAsync();
+
+            await scheduler.Start();
+
+            SchedulerInstruction instruction = await store.FirstCompletion.WaitAsync(TimeSpan.FromSeconds(30));
+
+            instruction.Should().Be(SchedulerInstruction.NoInstruction,
+                "a firing whose container has been disposed settles nothing, so the trigger is left as it was");
+
+            (await scheduler.GetTriggerState(trigger.Key)).Should().NotBe(TriggerState.Error,
+                "a container that went away is the application stopping, and must not leave a trigger needing a manual reset");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
+    /// Records the instruction the first finished firing was completed with, so a test can await the
+    /// completion rather than sleep for it.
+    /// </summary>
+    private sealed class CompletionRecordingJobStore : DelegatingJobStore
+    {
+        private readonly TaskCompletionSource<SchedulerInstruction> completed = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public CompletionRecordingJobStore(IJobStore jobStore) : base(jobStore)
+        {
+        }
+
+        public Task<SchedulerInstruction> FirstCompletion => completed.Task;
+
+        public override async ValueTask TriggeredJobComplete(
+            IOperableTrigger trigger,
+            IJobDetail jobDetail,
+            SchedulerInstruction triggerInstructionCode,
+            CancellationToken cancellationToken = default)
+        {
+            await base.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken).ConfigureAwait(false);
+            completed.TrySetResult(triggerInstructionCode);
+        }
     }
 
     [Test]
@@ -308,14 +403,6 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         {
             Disposed = true;
             DisposedSignal.TrySetResult();
-        }
-    }
-
-    private sealed class TestServiceProvider : IServiceProvider
-    {
-        public object GetService(Type serviceType)
-        {
-            return Activator.CreateInstance(serviceType);
         }
     }
 
