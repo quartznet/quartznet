@@ -321,7 +321,7 @@ public sealed class SchedulerMetricsTest
     {
         MetricsAdoJobStore store = await ClusteredStore("checkin", "node-e");
 
-        await store.DoCheckin(Guid.NewGuid());
+        await store.CheckIn(Guid.NewGuid());
 
         RecordedMeasurement checkin = MeasurementsFor(store.InstanceName)
             .Should().ContainSingle(m => m.Instrument == CheckinDuration,
@@ -349,7 +349,7 @@ public sealed class SchedulerMetricsTest
                 A<CancellationToken>.Ignored))
             .Throws(new InvalidOperationException("the database is gone"));
 
-        Func<Task> act = async () => await store.DoCheckin(Guid.NewGuid());
+        Func<Task> act = async () => await store.CheckIn(Guid.NewGuid());
         await act.Should().ThrowAsync<JobPersistenceException>();
 
         MeasurementsFor(store.InstanceName).Where(m => m.Instrument == CheckinDuration)
@@ -402,7 +402,7 @@ public sealed class SchedulerMetricsTest
     public async Task EveryMeasurement_CarriesTheSchedulerNameAndId()
     {
         MetricsAdoJobStore store = await ClusteredStore("identity", "node-h");
-        await store.DoCheckin(Guid.NewGuid());
+        await store.CheckIn(Guid.NewGuid());
 
         List<RecordedMeasurement> published = MeasurementsFor(store.InstanceName);
 
@@ -560,7 +560,7 @@ public sealed class SchedulerMetricsTest
         public ISchedulerSignaler DirectSignaler
         {
             set => typeof(AdoJobStoreBase)
-                .GetField("schedSignaler", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetField("signaler", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
                 .SetValue(this, value);
         }
 

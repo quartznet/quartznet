@@ -230,7 +230,7 @@ public abstract partial class AdoJobStoreBase
         DateTimeOffset? candidateNewNextFireTime,
         CancellationToken cancellationToken = default)
     {
-        return schedSignaler.SignalSchedulingChange(candidateNewNextFireTime, cancellationToken);
+        return signaler.SignalSchedulingChange(candidateNewNextFireTime, cancellationToken);
     }
 
     /// <summary>
@@ -332,31 +332,31 @@ public abstract partial class AdoJobStoreBase
     /// <summary>
     /// Closes the supplied connection.
     /// </summary>
-    /// <param name="cth">(Optional)</param>
+    /// <param name="connection">The unit of work to close.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     protected static async ValueTask CloseConnection(
-        ConnectionAndTransactionHolder cth,
+        ConnectionAndTransactionHolder connection,
         CancellationToken cancellationToken = default)
     {
-        await cth.Close(cancellationToken).ConfigureAwait(false);
+        await connection.Close(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Rollback the supplied connection.
     /// </summary>
     protected async ValueTask RollbackConnection(
-        ConnectionAndTransactionHolder? cth,
+        ConnectionAndTransactionHolder? connection,
         Exception cause,
         CancellationToken cancellationToken = default)
     {
-        if (cth is null)
+        if (connection is null)
         {
             // db might be down or similar
             Logger.RollbackWithoutConnectionHolder();
             return;
         }
 
-        await cth.Rollback(IsTransient(cause), cancellationToken).ConfigureAwait(false);
+        await connection.Rollback(IsTransient(cause), cancellationToken).ConfigureAwait(false);
     }
 
 
@@ -378,21 +378,21 @@ public abstract partial class AdoJobStoreBase
     /// <summary>
     /// Commit the supplied connection.
     /// </summary>
-    /// <param name="cth">The CTH.</param>
+    /// <param name="connection">The unit of work to commit.</param>
     /// <param name="openNewTransaction">if set to <c>true</c> opens a new transaction.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
     protected async ValueTask CommitConnection(
-        ConnectionAndTransactionHolder cth,
+        ConnectionAndTransactionHolder connection,
         bool openNewTransaction,
         CancellationToken cancellationToken = default)
     {
-        if (cth is null)
+        if (connection is null)
         {
             Logger.CommitWithoutConnectionHolder();
             return;
         }
-        await cth.Commit(openNewTransaction, cancellationToken).ConfigureAwait(false);
+        await connection.Commit(openNewTransaction, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -597,7 +597,7 @@ public abstract partial class AdoJobStoreBase
                         Message = "An error occurred during retry",
                         Exception = jpe,
                     };
-                    await schedSignaler.NotifySchedulerListenersError(error, cancellationToken).ConfigureAwait(false);
+                    await signaler.NotifySchedulerListenersError(error, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception e)

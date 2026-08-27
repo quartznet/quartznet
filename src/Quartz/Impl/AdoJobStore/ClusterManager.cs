@@ -77,7 +77,7 @@ internal sealed class ClusterManager
         bool res = false;
         try
         {
-            res = await jobStoreSupport.DoCheckin(requestorId).ConfigureAwait(false);
+            res = await jobStoreSupport.CheckIn(requestorId).ConfigureAwait(false);
 
             numFails = 0;
             logger.CheckInComplete();

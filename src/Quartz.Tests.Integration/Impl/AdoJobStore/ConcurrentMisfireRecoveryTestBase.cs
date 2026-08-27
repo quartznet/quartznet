@@ -126,7 +126,7 @@ public abstract class ConcurrentMisfireRecoveryTestBase : ClusteredJobStoreTestB
         async Task<RecoverMisfiredJobsResult> Sweep(LocalTransactionJobStore node)
         {
             await gate.Task;
-            return await node.DoRecoverMisfires(Guid.NewGuid());
+            return await node.RecoverMisfires(Guid.NewGuid());
         }
 
         TestContext.Out.WriteLine(

@@ -44,7 +44,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </remarks>
 internal static partial class ClusterLog
 {
-    [LoggerMessage(EventId = 3500, Level = LogLevel.Warning, Message = "Transient exception on attempt {Attempt} of {TotalAttempts} in DoCheckin, will retry after {RetryInterval}")]
+    [LoggerMessage(EventId = 3500, Level = LogLevel.Warning, Message = "Transient exception on attempt {Attempt} of {TotalAttempts} of the cluster check-in, will retry after {RetryInterval}")]
     public static partial void TransientFailureInCheckIn(this ILogger logger, int attempt, int totalAttempts, TimeSpan retryInterval, Exception exception);
 
     [LoggerMessage(EventId = 3501, Level = LogLevel.Warning, Message = "This scheduler instance ({InstanceId}) is still active but was recovered by another instance in the cluster.  This may cause inconsistent behavior.")]

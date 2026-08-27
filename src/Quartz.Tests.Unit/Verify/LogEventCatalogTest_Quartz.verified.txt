@@ -195,7 +195,7 @@
 3155  Warning  AdoJobStoreLog.BatchedStatementExecutionFailed
     "Batched statement execution failed, retrying {StatementCount} statement(s) individually"
 3500  Warning  ClusterLog.TransientFailureInCheckIn
-    "Transient exception on attempt {Attempt} of {TotalAttempts} in DoCheckin, will retry after {RetryInterval}"
+    "Transient exception on attempt {Attempt} of {TotalAttempts} of the cluster check-in, will retry after {RetryInterval}"
 3501  Warning  ClusterLog.RecoveredByAnotherInstance
     "This scheduler instance ({InstanceId}) is still active but was recovered by another instance in the cluster.  This may cause inconsistent behavior."
 3502  Warning  ClusterLog.OrphanedFiredTriggersFound

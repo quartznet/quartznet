@@ -46,7 +46,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     private ClusterManager? clusterManager;
     private MisfireHandler? misfireHandler;
     private readonly ITypeLoader typeLoader;
-    private readonly ISchedulerSignaler schedSignaler;
+    private readonly ISchedulerSignaler signaler;
     internal readonly TimeProvider timeProvider;
 
     private volatile bool schedulerRunning;
@@ -77,7 +77,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     {
         ArgumentNullException.ThrowIfNull(dependencies);
 
-        schedSignaler = dependencies.SchedulerSignaler;
+        signaler = dependencies.SchedulerSignaler;
         ObjectSerializer = dependencies.ObjectSerializer;
         typeLoader = dependencies.TypeLoader;
         timeProvider = dependencies.TimeProvider;

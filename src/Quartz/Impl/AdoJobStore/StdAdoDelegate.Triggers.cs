@@ -2196,8 +2196,8 @@ public partial class StdAdoDelegate
 
         // Narrow UPDATE: only columns that change during misfire recovery.
         // Only include MISFIRE_ORIG_FIRE_TIME when we have a value to write;
-        // null means "leave unchanged" (matches DoUpdateOfMisfiredTrigger which
-        // only calls UpdateMisfireOriginalFireTime on fire-now detection).
+        // null means "leave unchanged" (matching the store, which only records an original
+        // fire time when it detects a fire-now policy).
         bool writeMisfireOrigFireTime = update.MisfireOriginalFireTime.HasValue;
 
         List<SqlStatementParameter> parameters =

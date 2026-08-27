@@ -381,14 +381,14 @@ public abstract partial class AdoJobStoreBase
         List<ClusterNode> nodes = new(states.Count);
         ClusterNode? currentNode = null;
 
-        foreach (SchedulerStateRecord rec in states)
+        foreach (SchedulerStateRecord record in states)
         {
-            bool isCurrentNode = string.Equals(rec.SchedulerInstanceId, InstanceId, StringComparison.Ordinal);
+            bool isCurrentNode = string.Equals(record.SchedulerInstanceId, InstanceId, StringComparison.Ordinal);
             ClusterNode node = new(
-                rec.SchedulerInstanceId,
-                rec.CheckinTimestamp,
-                rec.CheckinInterval,
-                ClassifyClusterNode(rec, now),
+                record.SchedulerInstanceId,
+                record.CheckinTimestamp,
+                record.CheckinInterval,
+                ClassifyClusterNode(record, now),
                 isCurrentNode);
 
             if (isCurrentNode)
@@ -411,14 +411,14 @@ public abstract partial class AdoJobStoreBase
         return nodes;
     }
 
-    private ClusterNodeState ClassifyClusterNode(SchedulerStateRecord rec, DateTimeOffset now)
+    private ClusterNodeState ClassifyClusterNode(SchedulerStateRecord record, DateTimeOffset now)
     {
-        if (CalcFailedIfAfter(rec) < now)
+        if (CalcFailedIfAfter(record) < now)
         {
             return ClusterNodeState.Failed;
         }
 
-        return rec.CheckinTimestamp + rec.CheckinInterval < now ? ClusterNodeState.Overdue : ClusterNodeState.Alive;
+        return record.CheckinTimestamp + record.CheckinInterval < now ? ClusterNodeState.Overdue : ClusterNodeState.Alive;
     }
 
     /// <inheritdoc />

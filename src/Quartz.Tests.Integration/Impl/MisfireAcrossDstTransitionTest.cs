@@ -381,6 +381,6 @@ public sealed class MisfireAcrossDstTransitionTest
         }
 
         public ValueTask<RecoverMisfiredJobsResult> RecoverMisfires()
-            => DoRecoverMisfires(Guid.NewGuid(), CancellationToken.None);
+            => RecoverMisfires(Guid.NewGuid(), CancellationToken.None);
     }
 }

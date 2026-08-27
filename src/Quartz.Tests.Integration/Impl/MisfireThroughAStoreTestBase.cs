@@ -355,7 +355,7 @@ public sealed class SqliteMisfireStore : MisfireStoreUnderTest
 
     public override async ValueTask Sweep(DateTimeOffset noLaterThan, CancellationToken cancellationToken = default)
     {
-        await store.DoRecoverMisfires(Guid.NewGuid(), cancellationToken);
+        await store.RecoverMisfires(Guid.NewGuid(), cancellationToken);
     }
 
     /// <summary>

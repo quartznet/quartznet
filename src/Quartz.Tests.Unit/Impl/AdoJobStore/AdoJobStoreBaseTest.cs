@@ -991,7 +991,7 @@ public class AdoJobStoreBaseTest
         {
             set
             {
-                FieldInfo fieldInfo = typeof(AdoJobStoreBase).GetField("schedSignaler", BindingFlags.Instance | BindingFlags.NonPublic);
+                FieldInfo fieldInfo = typeof(AdoJobStoreBase).GetField("signaler", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(fieldInfo, Is.Not.Null);
                 fieldInfo.SetValue(this, value);
             }
@@ -1399,13 +1399,13 @@ public class AdoJobStoreBaseTest
 
     #endregion
 
-    #region DoCheckin transient retry tests
+    #region CheckIn transient retry tests
 
     [Test]
-    public async Task DoCheckin_RetriesOnTransientException()
+    public async Task CheckIn_RetriesOnTransientException()
     {
         int updateCallCount = 0;
-        TransientDoCheckinTestStore store = CreateTransientDoCheckinTestStore();
+        TransientCheckInTestStore store = CreateTransientCheckInTestStore();
         IDriverDelegate del = A.Fake<IDriverDelegate>();
         store.DirectDelegate = del;
 
@@ -1429,16 +1429,16 @@ public class AdoJobStoreBaseTest
                 return new ValueTask<int>(1);
             });
 
-        bool result = await store.DoCheckin(Guid.NewGuid());
+        bool result = await store.CheckIn(Guid.NewGuid());
 
         result.Should().BeFalse("no recovery needed");
         updateCallCount.Should().Be(2, "first call throws transient, second succeeds after retry");
     }
 
     [Test]
-    public async Task DoCheckin_DoesNotRetryNonTransientException()
+    public async Task CheckIn_DoesNotRetryNonTransientException()
     {
-        TransientDoCheckinTestStore store = CreateTransientDoCheckinTestStore();
+        TransientCheckInTestStore store = CreateTransientCheckInTestStore();
         IDriverDelegate del = A.Fake<IDriverDelegate>();
         store.DirectDelegate = del;
 
@@ -1453,7 +1453,7 @@ public class AdoJobStoreBaseTest
         A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
             .ThrowsAsync(new InvalidOperationException("permanent error"));
 
-        Func<Task> act = async () => await store.DoCheckin(Guid.NewGuid());
+        Func<Task> act = async () => await store.CheckIn(Guid.NewGuid());
 
         await act.Should().ThrowAsync<JobPersistenceException>();
         A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
@@ -1461,9 +1461,9 @@ public class AdoJobStoreBaseTest
     }
 
     [Test]
-    public async Task DoCheckin_TransientExceptionPropagatesAfterMaxRetries()
+    public async Task CheckIn_TransientExceptionPropagatesAfterMaxRetries()
     {
-        TransientDoCheckinTestStore store = CreateTransientDoCheckinTestStore(maxTransientRetries: 1);
+        TransientCheckInTestStore store = CreateTransientCheckInTestStore(maxTransientRetries: 1);
         IDriverDelegate del = A.Fake<IDriverDelegate>();
         store.DirectDelegate = del;
 
@@ -1478,7 +1478,7 @@ public class AdoJobStoreBaseTest
         A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
             .ThrowsAsync(new TransientTestException());
 
-        Func<Task> act = async () => await store.DoCheckin(Guid.NewGuid());
+        Func<Task> act = async () => await store.CheckIn(Guid.NewGuid());
 
         await act.Should().ThrowAsync<JobPersistenceException>();
         // Initial attempt + 1 retry = 2 total
@@ -1487,9 +1487,9 @@ public class AdoJobStoreBaseTest
     }
 
     [Test]
-    public async Task DoCheckin_LastCheckinNotAdvancedOnFailure()
+    public async Task CheckIn_LastCheckinNotAdvancedOnFailure()
     {
-        TransientDoCheckinTestStore store = CreateTransientDoCheckinTestStore();
+        TransientCheckInTestStore store = CreateTransientCheckInTestStore();
         IDriverDelegate del = A.Fake<IDriverDelegate>();
         store.DirectDelegate = del;
 
@@ -1515,23 +1515,23 @@ public class AdoJobStoreBaseTest
                 return new ValueTask<int>(1);
             });
 
-        await store.DoCheckin(Guid.NewGuid());
+        await store.CheckIn(Guid.NewGuid());
 
         store.LastCheckin.Should().BeAfter(initialCheckin, "LastCheckin should advance after successful check-in");
     }
 
-    private static TransientDoCheckinTestStore CreateTransientDoCheckinTestStore(int maxTransientRetries = 3)
+    private static TransientCheckInTestStore CreateTransientCheckInTestStore(int maxTransientRetries = 3)
     {
-        return new TransientDoCheckinTestStore(maxTransientRetries);
+        return new TransientCheckInTestStore(maxTransientRetries);
     }
 
     /// <summary>
     /// A <see cref="AdoJobStoreBase"/> subclass used to test transient retry logic
-    /// in the <see cref="AdoJobStoreBase.DoCheckin"/> method.
+    /// in the <see cref="AdoJobStoreBase.CheckIn"/> method.
     /// </summary>
-    public sealed class TransientDoCheckinTestStore : AdoJobStoreBase
+    public sealed class TransientCheckInTestStore : AdoJobStoreBase
     {
-        public TransientDoCheckinTestStore(int maxTransientRetries = 3)
+        public TransientCheckInTestStore(int maxTransientRetries = 3)
         : base(TestJobStores.Dependencies(
             schedulerOptions: TestJobStores.SchedulerOptions("test-scheduler", "test-instance"),
             storeOptions: TestJobStores.StoreOptions(configure: options =>
