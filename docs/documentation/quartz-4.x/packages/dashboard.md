@@ -9,6 +9,31 @@ Quartz Dashboard is currently a work in progress.
 The dashboard API surface may change between releases.
 :::
 
+## Features
+
+Ten pages, listed under [The pages](#the-pages). What they are built on, which is what decides where
+the dashboard fits:
+
+- **It reads the schedulers in its own process**, through the `IQuartzApiClient` in the container. No
+  address to configure and no scheduler to point it at; a dashboard over another process is
+  [#3387](https://github.com/quartznet/quartznet/issues/3387) and is 4.1.
+- **Every scheduler the container knows about**, not just the default one — including a registration
+  nothing has built yet, which is shown as such rather than omitted. The header's picker switches
+  between them and every page follows it.
+- **Cluster-aware wherever the store is.** With a persistent job store the executing view, the fire
+  counts and the node listing are the whole cluster's rather than this process's, and the pages say
+  which of the two you are looking at.
+- **Its own execution history**, installed and populated without anything further being written, and
+  bounded by age as well as by count. It is in-memory and per-process unless you
+  [give it a store of your own](#execution-history-and-misfires).
+- **A live event stream** over SignalR, fed by plugins installed into every scheduler in the container.
+- **Authorization at three levels that compose** — who reaches the dashboard, which schedulers they see
+  once they are in, and whether anyone may change anything. See
+  [Production hardening](#production-hardening).
+- **A time zone picker and a theme toggle** in the header. The picker is what the pages render their
+  absolute times in, so a cluster spanning regions can be read in one; the times that are more useful
+  as an age — a last check-in, a last fire — are shown relative as well.
+
 ## Installation
 
 The dashboard package builds on `Quartz.AspNetCore` and brings it along, so one reference is enough:
@@ -82,19 +107,32 @@ dashboard — with the authentication forwarding, execution limits and history s
 is designed in [#3387](https://github.com/quartznet/quartznet/issues/3387).
 :::
 
-## The overview
+## The pages
 
-The **Overview** page at `/quartz` is the one a scheduler is judged from. Beside the totals — jobs,
-triggers, firings in flight, triggers in error, nodes — it carries four breakdowns, because a total is
-rarely the thing that explains why work is not being done:
+Ten of them, all served under `{DashboardPath}` — `/quartz` unless you said otherwise. Every one of
+them renders the scheduler the header's picker has selected, so switching schedulers keeps you on the
+page you were reading.
+
+This section says what each page shows. What the numbers on them *mean* for a cluster in trouble is
+[Operating a Cluster](../operations.md), which these pages link into rather than restate.
+
+### Overview
+
+`/quartz` — the page a scheduler is judged from. It opens with the scheduler's status and — outside read-only mode —
+the controls that change it: start, stand-by, pause all, resume all and shutdown.
+
+Beside the totals — jobs, triggers, firings in flight, triggers in error, nodes — it carries four
+breakdowns, because a total is rarely the thing that explains why work is not being done:
 
 - A **trigger-state histogram**: how many triggers are `Normal`, `Paused`, `Blocked`, `Error` and
   `Complete`. Each count is a link to the Triggers page already narrowed to that state, which is also
   what `/quartz/triggers?state=Paused` does for any state you name. The counts are counting queries, so
   a scheduler with a hundred thousand triggers costs the same as one with ten.
-- A **paused-group** tile: how many trigger groups and how many job groups are paused. A group can be
-  paused while it holds nothing, and this counts such a group — which is exactly the one an operator
-  cannot find by looking at a listing.
+- A **paused-group** tile: how many trigger groups and how many job groups are paused, both kinds in one
+  tile because pausing a trigger group and pausing a job group are different acts with the same
+  consequence. A group can be paused while it holds nothing, and this counts such a group — which is
+  exactly the one an operator cannot find by looking at a listing, and a common and entirely silent
+  answer to [Nothing is firing](../operations.md#nothing-is-firing).
 - A **misfire** tile: how many firings the scheduler missed inside the history store's retention window,
   which the tile names — `Misfires (last 24 h)` at the default `HistoryRetention`, and whatever you
   configured otherwise, so the label cannot promise a day a store set to remember an hour has already
@@ -104,6 +142,112 @@ rarely the thing that explains why work is not being done:
 - An **execution-group panel**: one row per [execution group](../tutorial/execution-groups.md), with the
   limit that governs it, the scope that limit is counted in, what the group has in flight, and the
   headroom left. It is described under [Execution groups](#execution-groups) below.
+
+The **Nodes** tile is the one with a verdict in it: it carries the node count, and beside it the number
+that are not `Alive` when there are any — a cluster of four is only news when one of them has stopped
+checking in. It is a link to the Cluster page, and it is shown only for a store that has nodes to count.
+Below the breakdowns the page ends with the most recent entries from the [Action Log](#action-log).
+
+### Jobs, Triggers and Calendars
+
+`/quartz/jobs`, `/quartz/triggers`, `/quartz/calendars` — the three listings, each with search and
+pagination, each row a link to a detail page.
+
+- **Jobs** lists the job details and their keys; the detail page shows the job's `JobDataMap`, the
+  triggers pointing at it, and — outside read-only mode — trigger-now with overrides, pause, resume and
+  delete.
+- **Triggers** lists triggers with their state, their next and previous fire times and their execution
+  group. `?state=` opens it already narrowed, which is what the overview's histogram counts link to. The
+  detail page shows the trigger's own `JobDataMap`, and outside read-only mode offers pause, resume,
+  unschedule, *reset error state* — the one that clears an `ERROR` trigger once the reason for it is
+  fixed — and, for a cron trigger, an editor that reschedules it with a preview of its next five fires.
+- **Calendars** lists the calendars by name; the detail page shows one, and outside read-only mode a
+  cron calendar can be created, replaced or deleted.
+
+### Currently Executing
+
+`/quartz/executing` — one row per firing: job, trigger, node, execution group, fire time and run time. It is the fire-instance
+listing, so **with a persistent job store it is the whole cluster's**, and the `Node` column is which
+machine owns each firing rather than decoration.
+
+Interrupting from here interrupts *the one firing the row names*, not every firing of its job — the
+distinction matters for a job without `[DisallowConcurrentExecution]`, which can have several in flight.
+
+A row that will not go away is worth reading
+[Fired triggers: backlog or leak](../operations.md#fired-triggers-backlog-or-leak) about: a firing whose
+node died leaves its row behind until another node's check-in sweep takes it over.
+
+### Schedulers
+
+`/quartz/schedulers` — the fleet: one row per scheduler the container knows about, whether or not anything has built it. It
+reads `ISchedulerRegistry`, so a scheduler registered with `AddQuartz("acme", …)` that nothing has
+resolved yet is listed with its origin and a **not created** status rather than being absent — and
+listing it does not build it.
+
+Each row that has a scheduler behind it shows what that scheduler is made of, read from its
+`SchedulerMetadata`: its instance id, whether its job store is persistent and whether it is clustered,
+the store and thread pool it uses, the pool size, when it started (in the time zone the header picker
+selects), how many jobs it has executed, and the version of Quartz running it. The node count beside it
+comes from the cluster-node query, and only for a store that has nodes — a persistent, clustered one. An
+in-memory store is never asked, because the answer would always be "one".
+
+Following a row makes that scheduler the active one and opens its Overview page, which is the same
+switch the header's scheduler picker makes. A registration nothing has built is not a link: there is no
+scheduler behind it for any page to show. The picker offers it too, greyed out, so that a tenant that
+failed to start is visible rather than looking as though it had never been registered. Should such a
+registration end up being the active scheduler anyway — it is the only one there is, or the one that was
+running has just been shut down — the Overview page says it has not been created rather than reporting a
+scheduler it could not find.
+
+### Cluster
+
+`/quartz/cluster` — one row per node of the selected scheduler's cluster, refreshed every five seconds, with the time of
+the last refresh in the header so a stalled page is visible as one. The columns are the node's instance
+id, its state, its last check-in, its check-in interval, and how many firings it holds `Acquired` and
+how many it is `Executing`. The node answering is marked *(this node)*.
+
+The state is `Alive`, `Overdue` or `Failed`, and it is `IScheduler.QueryClusterNodes()`'s verdict —
+decided by the same predicate the store's own recovery sweep applies, so the page and the sweep cannot
+disagree. What the three mean, why a `Failed` node is listed for a short while and then vanishes, and
+what it means when one does not, are in
+[Check-in, node states and failover](../operations.md#check-in-node-states-and-failover) and
+[Reading the cluster](../operations.md#reading-the-cluster).
+
+**A scheduler whose job store is not clustered says so** rather than showing an empty table: such a
+store keeps no check-in state, so the only node is this one. The check-in times are the ones that node
+was configured with rather than the reader's, and the verdicts are read off the answering node's clock —
+on a cluster with skewed clocks two nodes can disagree about a third.
+
+### Execution History
+
+`/quartz/history` — covered in full under [Execution history and misfires](#execution-history-and-misfires): one row per
+execution with the node that ran it, a node filter, four stat cards whose titles say which scope their
+figures cover, and a misfires section beneath.
+
+### Live Logs
+
+`/quartz/live` — the scheduler's events as they happen, over the SignalR hub, fed by a plugin `AddQuartzDashboard`
+installs into every scheduler in the container. Every event names the node that raised it, and the page
+says which node its own process is — which is how a clustered scheduler's stream is readable rather
+than an undifferentiated blur.
+
+Events can be narrowed by type from the header, which is what makes a busy scheduler readable.
+
+It is a live view, not a log: it starts when the page opens, holds the newest hundred events and drops
+the rest. Nothing here survives a reload, and nothing here is the record — see
+[Current limitations](#current-limitations).
+
+### Action Log
+
+`/quartz/actions` — what was done *from this dashboard*: time, scheduler, action, target, whether it succeeded and any
+message, newest first. It is the audit trail for the buttons, and it answers "who paused this" for a
+value of "who" that is the dashboard rather than a user.
+
+The store behind it is in-memory and process-wide, holding the last 250 actions across every scheduler;
+the page takes the most recent 100 of those and shows the ones aimed at the scheduler you have selected,
+so switching schedulers re-filters it. That makes it a recent-activity view rather than an audit store —
+and it records only what *this process's dashboard* did. An action taken through the HTTP API, from
+another node, or by another operator's dashboard is not in it, and nothing in it survives a restart.
 
 ## Execution groups
 
@@ -149,27 +293,8 @@ scheduler selector and its jobs and triggers rendered, but its Live Logs view an
 silently always empty. There was nothing to configure to get them; this is a fix rather than a new option.
 :::
 
-### Schedulers
-
-The **Schedulers** page at `/quartz/schedulers` is the fleet: one row per scheduler the container knows
-about, whether or not anything has built it. It reads `ISchedulerRegistry`, so a scheduler registered
-with `AddQuartz("acme", …)` that nothing has resolved yet is listed with its origin and a **not created**
-status rather than being absent — and listing it does not build it.
-
-Each row that has a scheduler behind it shows what that scheduler is made of, read from its
-`SchedulerMetadata`: its instance id, whether its job store is persistent and whether it is clustered,
-the store and thread pool it uses, the pool size, when it started (in the time zone the header picker
-selects), how many jobs it has executed, and the version of Quartz running it. The node count beside it
-comes from the cluster-node query, and only for a store that has nodes — a persistent, clustered one. An
-in-memory store is never asked, because the answer would always be "one".
-
-Following a row makes that scheduler the active one and opens its Dashboard page, which is the same
-switch the header's scheduler picker makes. A registration nothing has built is not a link: there is no
-scheduler behind it for any page to show. The picker offers it too, greyed out, so that a tenant that
-failed to start is visible rather than looking as though it had never been registered. Should such a
-registration end up being the active scheduler anyway — it is the only one there is, or the one that was
-running has just been shut down — the Dashboard page says it has not been created rather than reporting
-a scheduler it could not find.
+Which schedulers those are is [the Schedulers page](#schedulers) — every registration
+in the container, built or not.
 
 ## Hosting under a custom path
 
@@ -218,10 +343,14 @@ A custom dashboard path is **not** supported when integrating into an existing B
 ## Execution history and misfires
 
 `AddQuartzDashboard()` installs the history plugin itself, so the **History** page at `/quartz/history`
-is populated without anything further being written. Each row carries the node that ran it, so a
-clustered scheduler's history is readable rather than an undifferentiated stream, and the page's node
-filter narrows the listing — and the figures on its stat cards, whose titles then say which node they
-cover — to one machine.
+is populated without anything further being written. Each row names the job, the trigger, the node that
+ran it, when it fired, how long it took, whether it succeeded and the error if it did not.
+
+Above the rows are four figures over the page in view — success rate, failures, average duration and
+P95 duration — and above those three filters: by job, by trigger, and by node. **The node filter is the
+one a cluster needs**: it narrows the listing to one machine, and the stat cards' titles then say so, so
+a success rate cannot be read as the fleet's when it is one node's. Without it a clustered scheduler's
+history is an undifferentiated stream.
 
 Beneath the executions the page lists **misfires**: firings the scheduler missed. Nothing ran, so they
 never appear in the execution history however long a reader stares at it; each row names the trigger,
@@ -343,56 +472,22 @@ responsible for not routing them to one they fail for.
 Leaving it unset is the behaviour every earlier release had: whoever passes `AuthorizationPolicy` sees
 every scheduler in the process.
 
-### API key or custom authorization checks
+### Read-only mode
 
-If you need machine-to-machine access, use your API auth scheme (for example, an API key handler) and bind that to a policy used by `MapQuartzHttpApi()`.
-For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based authorization so the dashboard UI, hub, and API are enforced consistently.
+`ReadOnly = true` hides every mutating control the pages carry: pause, resume, trigger-now,
+trigger-with-overrides, reschedule, reset-from-error-state, unschedule, interrupt, delete, calendar
+create and replace, and the scheduler's own start, stand-by, pause-all, resume-all and shutdown. What
+remains is every listing, every detail page and every live view — which is the whole of the dashboard's
+diagnostic value.
 
-### Deployment guidance for multi-scheduler and clustered setups
+It is one setting for the whole process, not per scheduler and not per operation. The shape to reach for
+when different people need different powers is two dashboards: a read-only one for observers, and a
+write-enabled one behind a policy only operators pass. `SchedulerAuthorizationPolicy` narrows *which
+schedulers* each of those shows; it does not narrow what may be done to the ones it does show.
 
-- **Clustered ADO.NET job stores:** actions in dashboard are scheduler operations and can affect cluster behavior; restrict write access to trusted operator roles.
-- **Many local schedulers in one host:** dashboard scheduler selector supports multiple registered schedulers; use clear scheduler names and environment-specific grouping.
-- **Reverse proxy and Blazor Server:** enable WebSocket/SignalR forwarding and sticky sessions where required by your hosting stack. The Blazor circuit connects to `/_blazor` (or `{DashboardPath}/_blazor` when a custom `DashboardPath` is configured).
-- **Split operator experiences:** expose a read-only dashboard instance (`ReadOnly = true`) for observers, and a separate write-enabled dashboard for operators.
-- **Operational retention:** the built-in history store is per-process and in-memory, bounded by `HistoryRetention` and `HistoryMaxEntriesPerScheduler`. Every node of a cluster therefore keeps its own; the rows name the node they came from, so registering a shared `IDashboardHistoryStore` gives one page over the whole fleet. Configure external retention/reporting if you need long-term analytics.
-
-## Features
-
-- Scheduler overview and summary cards, with a trigger-state histogram (`Normal`, `Paused`, `Blocked`,
-  `Error`, `Complete`) whose counts link to the Triggers page narrowed to that state, a paused-group
-  tile counting paused trigger groups and job groups — a group paused while it holds nothing included —
-  and a misfire count over the history store's retention window, which the tile names
-- Execution-group panel on the overview — one row per group with its limit, the scope that limit is
-  counted in (`Node` or `Cluster`), what it has in flight and the headroom left; cluster-wide with a
-  persistent job store and per node otherwise, and it says which. See
-  [Execution groups](#execution-groups)
-- Jobs and triggers listing with search and pagination; `?state=` opens the trigger listing filtered
-- Job details and trigger details pages
-- Currently executing jobs view — cluster-wide with a persistent job store, showing which node owns each
-  execution, and interrupting the one execution a row names rather than every execution of its job
-- Schedulers view at `/quartz/schedulers` — one row per scheduler the container knows about, built or
-  merely registered, with its origin and status and, for one that exists, its job store and thread pool,
-  when it started, how many jobs it has executed, its node count when it is clustered, and its version;
-  a row is the link that makes that scheduler the active one
-- Cluster view at `/quartz/cluster` — one row per node with its state (`Alive`, `Overdue`, `Failed`),
-  its last check-in in the selected time zone and as a relative time, its check-in interval, and how
-  many firings it is holding and running; the node answering is marked, and a scheduler whose job store
-  is not clustered says so rather than showing an empty table
-- Execution history at `/quartz/history` — one row per execution with the node that ran it, filterable
-  by job, by trigger and by node, with the page's stat cards saying which scope their figures cover; and
-  a misfires section listing the firings the scheduler missed. Bounded by age as well as by count — see
-  [Execution history and misfires](#execution-history-and-misfires)
-- Live event/log stream for scheduler activity, fed by plugins `AddQuartzDashboard` installs on every
-  scheduler in the container — so a named scheduler streams its own events, each plugin instance
-  initialized with the name of the scheduler it belongs to. Every event names the node that raised it,
-  and the page says which node its own process is
-- Pause, resume, trigger-now, and unschedule/delete actions (when not in read-only mode)
-- Trigger detail cron reschedule and job detail trigger-with-overrides actions
-- Calendar create/replace (cron calendar), details, and delete actions
-- Multi-scheduler selection, over every scheduler the container knows about — the dashboard lists
-  `ISchedulerRegistry`, so a registered scheduler nothing has created yet is offered greyed out rather
-  than omitted
-- Read-only mode support via dashboard options
+Note what read-only is not: it hides the dashboard's controls and does nothing to the HTTP API, which is
+mapped and authorized separately. A dashboard in read-only mode over an API that anyone may post to is
+read-only in appearance alone.
 
 ::: warning Fixed in 4.0.0-alpha.2
 The dashboard's controls did not work. Blazor's event handlers and two-way binding are directive
@@ -410,6 +505,19 @@ opens the dialog was live.
 
 There was nothing to configure to get these working; this is a fix rather than a new option.
 :::
+
+### API key or custom authorization checks
+
+If you need machine-to-machine access, use your API auth scheme (for example, an API key handler) and bind that to a policy used by `MapQuartzHttpApi()`.
+For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based authorization so the dashboard UI, hub, and API are enforced consistently.
+
+### Deployment guidance for multi-scheduler and clustered setups
+
+- **Clustered ADO.NET job stores:** actions in dashboard are scheduler operations and can affect cluster behavior; restrict write access to trusted operator roles.
+- **Many local schedulers in one host:** dashboard scheduler selector supports multiple registered schedulers; use clear scheduler names and environment-specific grouping. Where those schedulers are different tenants, `SchedulerAuthorizationPolicy` is what keeps them apart — see [Multi-tenancy](../multi-tenancy.md#authorizing-a-tenant-on-its-own-scheduler).
+- **Reverse proxy and Blazor Server:** enable WebSocket/SignalR forwarding and sticky sessions where required by your hosting stack. The Blazor circuit connects to `/_blazor` (or `{DashboardPath}/_blazor` when a custom `DashboardPath` is configured).
+- **Split operator experiences:** expose a read-only dashboard instance (`ReadOnly = true`) for observers, and a separate write-enabled dashboard for operators.
+- **Operational retention:** the built-in history store is per-process and in-memory, bounded by `HistoryRetention` and `HistoryMaxEntriesPerScheduler`. Every node of a cluster therefore keeps its own; the rows name the node they came from, so registering a shared `IDashboardHistoryStore` gives one page over the whole fleet. Configure external retention/reporting if you need long-term analytics.
 
 ## Integrating with an existing Blazor Server app
 
@@ -440,6 +548,22 @@ The dashboard pages, layout, CSS, and JavaScript interop are automatically regis
 Do **not** call the parameterless `MapQuartzDashboard()` alongside your own `MapRazorComponents` — this registers two `/_blazor` endpoints and causes the dashboard's interactive pages to fail.
 :::
 
+### What integrated hosting changes
+
+Three things behave differently when the components are hosted under an application's own Blazor root
+rather than the dashboard's. Everything else on this page applies to both modes.
+
+| | Standalone (`MapQuartzDashboard()`) | Integrated (`MapQuartzDashboard(blazor)`) |
+|---|---|---|
+| `DashboardPath` | Honoured; the whole dashboard is self-contained under it | **Rejected** — the page routes are fixed at `/quartz`, and a custom path fails startup with a descriptive exception. There is no `MapQuartzDashboard(blazor, pattern)` for the same reason |
+| The Blazor circuit and framework assets | Dashboard-owned endpoints, which carry the dashboard's own authorization metadata | The host's — so a fail-closed `FallbackPolicy` governs them, and `AllowAnonymous` on your static assets is yours to decide |
+| The *not authorized* frame | Drawn, because the dashboard's layout is in the render tree | **Not drawn** — see [One scheduler at a time](#one-scheduler-at-a-time) |
+
+What does *not* change is every listing the dashboard writes and every hub subscription it makes: both
+are filtered by `SchedulerAuthorizationPolicy` in either mode, so the dashboard itself will never offer
+a visitor a scheduler they fail for. The gap is only an application that routes a visitor to one by
+means of its own.
+
 ## API-only projects (no .razor files)
 
 If your host project has no `.razor` files of its own (for example a pure API project hosting Quartz), you must add the following to your project file:
@@ -454,7 +578,22 @@ This property tells the .NET SDK to include the Blazor framework scripts (`_fram
 
 ## Current limitations
 
-- Live views are near-real-time polling/streaming and are not guaranteed to be lossless event storage
-- No built-in persistence UI for historical analytics; the shipped history store is in-memory and per-process, so history does not survive a restart and one node cannot show another's unless you register a shared `IDashboardHistoryStore`. A database-backed one ships with 4.1 ([#3387](https://github.com/quartznet/quartznet/issues/3387))
-- Advanced management remains intentionally scoped; rich typed editors are currently focused on cron calendars/triggers and operational overrides
-- UX is optimized for Quartz APIs and scheduler operations, not full workflow/business process visualization
+- **The dashboard renders its own process.** There is no address to point it at another one; a remote
+  dashboard is [#3387](https://github.com/quartznet/quartznet/issues/3387) and is 4.1.
+- **Nothing here is the record.** Live Logs is a live view that starts when the page opens and keeps a
+  hundred events; the Action Log keeps 250 and only what this process's dashboard did. Neither survives
+  a restart, and neither is lossless — use logging and
+  [metrics](opentelemetry-integration.md) for anything you need to be able to go back to.
+- **The history store is in-memory and per-process**, so history does not survive a restart and one
+  node cannot show another's unless you register a shared `IDashboardHistoryStore`. A database-backed
+  one ships with 4.1.
+- **Read-only is one setting for the whole process**, not per scheduler and not per operation — "acme
+  may look, globex may act" and "this tenant may pause but not delete" are not expressible. Which
+  *schedulers* a visitor sees is expressible; see [One scheduler at a time](#one-scheduler-at-a-time).
+- **The misfire tile and the Cluster page ask the store what it can answer.** A data source with no
+  misfire feed shows a dash rather than a zero, and a job store with no check-in state reports the one
+  node it is. Neither is a count of zero, and the pages say so rather than implying otherwise.
+- **Typed editors are deliberately narrow**: cron calendars, cron trigger reschedules and job-data
+  overrides. Building an arbitrary trigger of any type from the UI is not offered.
+- **It is a scheduler console, not a workflow tool.** Job dependencies, DAGs and business-process
+  visualisation are outside what Quartz itself models, so they are outside this.
