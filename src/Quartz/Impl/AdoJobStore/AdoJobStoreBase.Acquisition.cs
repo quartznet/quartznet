@@ -28,11 +28,11 @@ public abstract partial class AdoJobStoreBase
 {
     protected virtual string GetFiredTriggerRecordId()
     {
-        Interlocked.Increment(ref ftrCtr);
-        return InstanceId + ftrCtr;
+        Interlocked.Increment(ref firedTriggerCounter);
+        return InstanceId + firedTriggerCounter;
     }
 
-    private static long ftrCtr = TimeProvider.System.GetTimestamp();
+    private static long firedTriggerCounter = TimeProvider.System.GetTimestamp();
 
     /// <summary>
     /// Get a handle to the next N triggers to be fired, and mark them as 'reserved'
@@ -221,7 +221,7 @@ public abstract partial class AdoJobStoreBase
                                 // A trigger whose job type will not load stops firing here and is reported
                                 // nowhere else - not even through SchedulerError. Inline, as the misfire
                                 // notification in this store already is.
-                                await schedSignaler.NotifySchedulerListenersTriggerInError(triggerKey, cancellationToken).ConfigureAwait(false);
+                                await signaler.NotifySchedulerListenersTriggerInError(triggerKey, cancellationToken).ConfigureAwait(false);
                             }
                             catch (Exception ex)
                             {
@@ -420,7 +420,7 @@ public abstract partial class AdoJobStoreBase
                 await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
 
                 // Same as above: the trigger stops here and nothing else says so.
-                await schedSignaler.NotifySchedulerListenersTriggerInError(trigger.Key, cancellationToken).ConfigureAwait(false);
+                await signaler.NotifySchedulerListenersTriggerInError(trigger.Key, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception sqle)
             {

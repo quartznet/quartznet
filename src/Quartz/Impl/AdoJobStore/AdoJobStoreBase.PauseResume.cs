@@ -380,12 +380,12 @@ public abstract partial class AdoJobStoreBase
         return await Guarded(
             async () =>
             {
-                var lst = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Job = jobKey }, cancellationToken).ConfigureAwait(false);
+                var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Job = jobKey }, cancellationToken).ConfigureAwait(false);
 
-                if (lst.Count > 0)
+                if (firedTriggers.Count > 0)
                 {
-                    FiredTriggerRecord rec = lst[0];
-                    if (rec.JobDisallowsConcurrentExecution) // TODO: worry about failed/recovering/volatile job  states?
+                    FiredTriggerRecord firedTrigger = firedTriggers[0];
+                    if (firedTrigger.JobDisallowsConcurrentExecution) // TODO: worry about failed/recovering/volatile job  states?
                     {
                         return StoredTriggerState.Paused == currentState ? StoredTriggerState.PausedBlocked : StoredTriggerState.Blocked;
                     }

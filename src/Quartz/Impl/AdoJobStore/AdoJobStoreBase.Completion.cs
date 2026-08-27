@@ -77,11 +77,11 @@ public abstract partial class AdoJobStoreBase
         // has no business executing inside the store's transaction or seeing a state that may roll back.
         if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
         {
-            await schedSignaler.NotifySchedulerListenersTriggerInError(trigger.Key, cancellationToken).ConfigureAwait(false);
+            await signaler.NotifySchedulerListenersTriggerInError(trigger.Key, cancellationToken).ConfigureAwait(false);
         }
         else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
         {
-            await schedSignaler.NotifySchedulerListenersTriggersInError(trigger.JobKey, cancellationToken).ConfigureAwait(false);
+            await signaler.NotifySchedulerListenersTriggersInError(trigger.JobKey, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -101,8 +101,8 @@ public abstract partial class AdoJobStoreBase
                     {
                         // double check for possible reschedule within job
                         // execution, which would cancel the need to delete...
-                        var stat = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                        if (stat is not null && !stat.NextFireTimeUtc.HasValue)
+                        var header = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                        if (header is not null && !header.NextFireTimeUtc.HasValue)
                         {
                             await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
                         }
@@ -216,19 +216,19 @@ public abstract partial class AdoJobStoreBase
         List<MisfiredTriggerUpdate>? updates = null;
         List<IOperableTrigger>? finalized = null;
 
-        foreach (IOperableTrigger trig in triggers)
+        foreach (IOperableTrigger trigger in triggers)
         {
-            if (trig.NextFireTimeUtc.GetValueOrDefault() > misfireTime)
+            if (trigger.NextFireTimeUtc.GetValueOrDefault() > misfireTime)
             {
                 continue;
             }
 
-            MisfiredTriggerUpdate update = await PrepareMisfiredTriggerUpdate(conn, trig, StoredTriggerState.Waiting, calendarCache: null, cancellationToken).ConfigureAwait(false);
+            MisfiredTriggerUpdate update = await PrepareMisfiredTriggerUpdate(conn, trigger, StoredTriggerState.Waiting, calendarCache: null, cancellationToken).ConfigureAwait(false);
             (updates ??= []).Add(update);
 
             if (update.NewState == StoredTriggerState.Complete)
             {
-                (finalized ??= []).Add(trig);
+                (finalized ??= []).Add(trigger);
             }
         }
 
@@ -239,13 +239,13 @@ public abstract partial class AdoJobStoreBase
 
         await Delegate.UpdateMisfiredTriggers(conn, updates, cancellationToken).ConfigureAwait(false);
 
-        foreach (IOperableTrigger trig in finalized ?? [])
+        foreach (IOperableTrigger trigger in finalized ?? [])
         {
-            await schedSignaler.NotifySchedulerListenersFinalized(trig, cancellationToken).ConfigureAwait(false);
+            await signaler.NotifySchedulerListenersFinalized(trigger, cancellationToken).ConfigureAwait(false);
 
             // A trigger with nothing left to fire was just stored COMPLETE, and a COMPLETE row lingers
             // where callers expect the trigger to be gone — GetTrigger would keep handing it back.
-            await DeleteTrigger(conn, trig.Key, cancellationToken).ConfigureAwait(false);
+            await DeleteTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
         }
     }
 

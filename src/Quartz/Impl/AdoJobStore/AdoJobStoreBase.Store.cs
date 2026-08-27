@@ -414,7 +414,7 @@ public abstract partial class AdoJobStoreBase
                         // triggers again.
                         if (await DeleteJobAndChildren(conn, job.Key, cancellationToken).ConfigureAwait(false))
                         {
-                            await schedSignaler.NotifySchedulerListenersJobDeleted(job.Key, cancellationToken).ConfigureAwait(false);
+                            await signaler.NotifySchedulerListenersJobDeleted(job.Key, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }

@@ -85,8 +85,8 @@ public abstract partial class AdoJobStoreBase
                 Logger.CompleteTriggersRemoved(triggersInState.Count);
 
                 // clean up any fired trigger entries
-                int n = await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery(), cancellationToken).ConfigureAwait(false);
-                Logger.StaleFiredJobEntriesRemoved(n);
+                int deleted = await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery(), cancellationToken).ConfigureAwait(false);
+                Logger.StaleFiredJobEntriesRemoved(deleted);
             },
             "recover jobs",
             wrapPersistenceFailures: false);
@@ -100,7 +100,7 @@ public abstract partial class AdoJobStoreBase
     /// </summary>
     internal DateTimeOffset LastCheckin { get; set; }
 
-    protected internal async ValueTask<bool> DoCheckin(
+    protected internal async ValueTask<bool> CheckIn(
         Guid requestorId,
         CancellationToken cancellationToken = default)
     {
@@ -219,7 +219,7 @@ public abstract partial class AdoJobStoreBase
             await Task.Delay(TransientRetryInterval, timeProvider, cancellationToken).ConfigureAwait(false);
         }
 
-        Throw.InvalidOperationException("DoCheckin retry loop exited unexpectedly");
+        Throw.InvalidOperationException("CheckIn retry loop exited unexpectedly");
         return default;
     }
 
@@ -238,23 +238,23 @@ public abstract partial class AdoJobStoreBase
 
             var states = await Delegate.SelectSchedulerStateRecords(conn, instanceId: null, cancellationToken).ConfigureAwait(false);
 
-            foreach (SchedulerStateRecord rec in states)
+            foreach (SchedulerStateRecord record in states)
             {
                 // find own record...
-                if (rec.SchedulerInstanceId == InstanceId)
+                if (record.SchedulerInstanceId == InstanceId)
                 {
                     foundThisScheduler = true;
                     if (firstCheckIn)
                     {
-                        failedInstances.Add(rec);
+                        failedInstances.Add(record);
                     }
                 }
                 else
                 {
                     // find failed instances...
-                    if (CalcFailedIfAfter(rec) < timeProvider.GetUtcNow())
+                    if (CalcFailedIfAfter(record) < timeProvider.GetUtcNow())
                     {
-                        failedInstances.Add(rec);
+                        failedInstances.Add(record);
                     }
                 }
             }
@@ -302,9 +302,9 @@ public abstract partial class AdoJobStoreBase
         if (names.Count > 0)
         {
             var allFiredTriggerInstanceNames = new HashSet<string>(names);
-            foreach (SchedulerStateRecord rec in schedulerStateRecords)
+            foreach (SchedulerStateRecord record in schedulerStateRecords)
             {
-                allFiredTriggerInstanceNames.Remove(rec.SchedulerInstanceId);
+                allFiredTriggerInstanceNames.Remove(record.SchedulerInstanceId);
             }
 
             foreach (string name in allFiredTriggerInstanceNames)
@@ -319,11 +319,11 @@ public abstract partial class AdoJobStoreBase
         return orphanedInstances;
     }
 
-    protected DateTimeOffset CalcFailedIfAfter(SchedulerStateRecord rec)
+    protected DateTimeOffset CalcFailedIfAfter(SchedulerStateRecord record)
     {
         TimeSpan passed = timeProvider.GetUtcNow() - LastCheckin;
-        TimeSpan ts = rec.CheckinInterval > passed ? rec.CheckinInterval : passed;
-        return rec.CheckinTimestamp.Add(ts).Add(ClusterCheckinMisfireThreshold);
+        TimeSpan ts = record.CheckinInterval > passed ? record.CheckinInterval : passed;
+        return record.CheckinTimestamp.Add(ts).Add(ClusterCheckinMisfireThreshold);
     }
 
     protected async ValueTask<List<SchedulerStateRecord>> ClusterCheckIn(
@@ -363,11 +363,11 @@ public abstract partial class AdoJobStoreBase
             Logger.FailedInstancesDetected(failedInstances.Count);
             try
             {
-                foreach (SchedulerStateRecord rec in failedInstances)
+                foreach (SchedulerStateRecord record in failedInstances)
                 {
-                    Logger.ScanningFailedInstance(rec.SchedulerInstanceId);
+                    Logger.ScanningFailedInstance(record.SchedulerInstanceId);
 
-                    var firedTriggerRecs = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = rec.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
+                    var nodeFiredTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = record.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
 
                     int acquiredCount = 0;
                     int recoveredCount = 0;
@@ -381,7 +381,7 @@ public abstract partial class AdoJobStoreBase
                     // Once the grace period expires (elapsed time exceeds two failure detection
                     // cycles), full cleanup is performed. This decision is derived entirely from
                     // DB state so all cluster nodes make the same choice (#2817).
-                    bool isOrphanedInstance = rec.CheckinInterval == default && rec.CheckinTimestamp == default;
+                    bool isOrphanedInstance = record.CheckinInterval == default && record.CheckinTimestamp == default;
                     bool canDeferRecovery;
                     if (isOrphanedInstance)
                     {
@@ -389,79 +389,79 @@ public abstract partial class AdoJobStoreBase
                     }
                     else
                     {
-                        TimeSpan elapsed = timeProvider.GetUtcNow() - rec.CheckinTimestamp;
-                        TimeSpan gracePeriod = rec.CheckinInterval.Add(rec.CheckinInterval).Add(ClusterCheckinMisfireThreshold);
+                        TimeSpan elapsed = timeProvider.GetUtcNow() - record.CheckinTimestamp;
+                        TimeSpan gracePeriod = record.CheckinInterval.Add(record.CheckinInterval).Add(ClusterCheckinMisfireThreshold);
                         canDeferRecovery = elapsed < gracePeriod;
                     }
                     HashSet<string>? preservedFireInstanceIds = null;
                     int deferredCount = 0;
 
-                    foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
+                    foreach (FiredTriggerRecord firedTrigger in nodeFiredTriggers)
                     {
-                        TriggerKey tKey = ftRec.TriggerKey;
-                        JobKey? jKey = ftRec.JobKey;
+                        TriggerKey triggerKey = firedTrigger.TriggerKey;
+                        JobKey? jobKey = firedTrigger.JobKey;
 
-                        triggerKeys.Add(tKey);
+                        triggerKeys.Add(triggerKey);
 
                         // For timed-out (non-orphan) instances on first detection, preserve
                         // EXECUTING records for DisallowConcurrentExecution jobs. The node may
                         // still be alive and running the job. If it truly died, on the second
                         // detection (after the grace period) full cleanup will be performed.
                         if (canDeferRecovery
-                            && ftRec.FireInstanceState == StoredTriggerState.Executing
-                            && ftRec.JobDisallowsConcurrentExecution)
+                            && firedTrigger.FireInstanceState == StoredTriggerState.Executing
+                            && firedTrigger.JobDisallowsConcurrentExecution)
                         {
                             preservedFireInstanceIds ??= [];
-                            preservedFireInstanceIds.Add(ftRec.FireInstanceId);
+                            preservedFireInstanceIds.Add(firedTrigger.FireInstanceId);
                             deferredCount++;
-                            Logger.RecoveryDeferred(jKey, ftRec.FireInstanceId, rec.SchedulerInstanceId);
+                            Logger.RecoveryDeferred(jobKey, firedTrigger.FireInstanceId, record.SchedulerInstanceId);
                             continue;
                         }
 
                         // release blocked triggers..
-                        if (ftRec.FireInstanceState == StoredTriggerState.Blocked)
+                        if (firedTrigger.FireInstanceState == StoredTriggerState.Blocked)
                         {
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobKey!, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
                         }
-                        else if (ftRec.FireInstanceState == StoredTriggerState.PausedBlocked)
+                        else if (firedTrigger.FireInstanceState == StoredTriggerState.PausedBlocked)
                         {
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobKey!, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
                         }
 
                         // release acquired triggers..
-                        if (ftRec.FireInstanceState == StoredTriggerState.Acquired)
+                        if (firedTrigger.FireInstanceState == StoredTriggerState.Acquired)
                         {
-                            await Delegate.UpdateTriggerStateFromOtherState(conn, tKey, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
                             acquiredCount++;
                         }
-                        else if (ftRec.JobRequestsRecovery)
+                        else if (firedTrigger.JobRequestsRecovery)
                         {
                             // handle jobs marked for recovery that were not fully
                             // executed..
-                            if (await JobExists(conn, jKey!, cancellationToken).ConfigureAwait(false))
+                            if (await JobExists(conn, jobKey!, cancellationToken).ConfigureAwait(false))
                             {
-                                SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl(timeProvider)
+                                SimpleTriggerImpl recoveryTrigger = new SimpleTriggerImpl(timeProvider)
                                 {
-                                    Key = new TriggerKey($"recover_{rec.SchedulerInstanceId}_{recoverIds++}", SchedulerConstants.DefaultRecoveryGroup),
-                                    StartTimeUtc = ftRec.FireTimestamp,
-                                    JobKey = jKey!,
+                                    Key = new TriggerKey($"recover_{record.SchedulerInstanceId}_{recoverIds++}", SchedulerConstants.DefaultRecoveryGroup),
+                                    StartTimeUtc = firedTrigger.FireTimestamp,
+                                    JobKey = jobKey!,
                                     MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow,
-                                    Priority = ftRec.Priority
+                                    Priority = firedTrigger.Priority
                                 };
 
-                                JobDataMap jd = await Delegate.SelectTriggerJobDataMap(conn, tKey, cancellationToken).ConfigureAwait(false);
-                                jd[SchedulerConstants.FailedJobOriginalTriggerName] = tKey.Name;
-                                jd[SchedulerConstants.FailedJobOriginalTriggerGroup] = tKey.Group;
-                                jd[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture);
-                                rcvryTrig.JobDataMap = jd;
+                                JobDataMap jobDataMap = await Delegate.SelectTriggerJobDataMap(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                                jobDataMap[SchedulerConstants.FailedJobOriginalTriggerName] = triggerKey.Name;
+                                jobDataMap[SchedulerConstants.FailedJobOriginalTriggerGroup] = triggerKey.Group;
+                                jobDataMap[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(firedTrigger.FireTimestamp, CultureInfo.InvariantCulture);
+                                recoveryTrigger.JobDataMap = jobDataMap;
 
-                                rcvryTrig.ComputeFirstFireTimeUtc(null);
-                                await AddTrigger(conn, rcvryTrig, null, false, StoredTriggerState.Waiting, false, true, cancellationToken).ConfigureAwait(false);
+                                recoveryTrigger.ComputeFirstFireTimeUtc(null);
+                                await AddTrigger(conn, recoveryTrigger, null, false, StoredTriggerState.Waiting, false, true, cancellationToken).ConfigureAwait(false);
                                 recoveredCount++;
                             }
                             else
                             {
-                                Logger.FailedJobNoLongerExists(jKey);
+                                Logger.FailedJobNoLongerExists(jobKey);
                                 otherCount++;
                             }
                         }
@@ -471,10 +471,10 @@ public abstract partial class AdoJobStoreBase
                         }
 
                         // free up stateful job's triggers
-                        if (ftRec.JobDisallowsConcurrentExecution)
+                        if (firedTrigger.JobDisallowsConcurrentExecution)
                         {
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobKey!, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobKey!, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
                         }
                     }
 
@@ -482,17 +482,17 @@ public abstract partial class AdoJobStoreBase
                     // DisallowConcurrentExecution jobs on timed-out (non-orphan) instances
                     if (preservedFireInstanceIds is { Count: > 0 })
                     {
-                        foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
+                        foreach (FiredTriggerRecord firedTrigger in nodeFiredTriggers)
                         {
-                            if (!preservedFireInstanceIds.Contains(ftRec.FireInstanceId))
+                            if (!preservedFireInstanceIds.Contains(firedTrigger.FireInstanceId))
                             {
-                                await Delegate.DeleteFiredTrigger(conn, ftRec.FireInstanceId, cancellationToken).ConfigureAwait(false);
+                                await Delegate.DeleteFiredTrigger(conn, firedTrigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
                             }
                         }
                     }
                     else
                     {
-                        await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery { InstanceId = rec.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
+                        await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery { InstanceId = record.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
                     }
 
                     // Check if any of the fired triggers we just deleted were the last fired trigger
@@ -519,7 +519,7 @@ public abstract partial class AdoJobStoreBase
                     Meters.ClusterTriggersRecovered(
                         InstanceName,
                         InstanceId,
-                        rec.SchedulerInstanceId,
+                        record.SchedulerInstanceId,
                         acquiredCount + recoveredCount + otherCount);
 
                     if (acquiredCount > 0)
@@ -547,7 +547,7 @@ public abstract partial class AdoJobStoreBase
                         Logger.ExecutingJobRecoveriesDeferred(deferredCount);
                     }
 
-                    if (rec.SchedulerInstanceId != InstanceId)
+                    if (record.SchedulerInstanceId != InstanceId)
                     {
                         if (preservedFireInstanceIds is { Count: > 0 })
                         {
@@ -565,13 +565,13 @@ public abstract partial class AdoJobStoreBase
                             // state row is deleted, and relies on the already-confirmed dead-node
                             // detection from FindFailedInstances.
                             int repinned = await Delegate.RepinTriggersFromDeadNode(
-                                conn, rec.SchedulerInstanceId, StdAdoConstants.AutoPinSentinel, cancellationToken).ConfigureAwait(false);
+                                conn, record.SchedulerInstanceId, StdAdoConstants.AutoPinSentinel, cancellationToken).ConfigureAwait(false);
                             if (repinned > 0)
                             {
-                                Logger.AutoPinnedTriggersReleased(repinned, rec.SchedulerInstanceId);
+                                Logger.AutoPinnedTriggersReleased(repinned, record.SchedulerInstanceId);
                             }
 
-                            await Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
+                            await Delegate.DeleteSchedulerState(conn, record.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }

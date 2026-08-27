@@ -147,7 +147,7 @@ internal sealed class MisfireHandler
         {
             logger.ScanningForMisfires();
 
-            RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId, CancellationToken.None).ConfigureAwait(false);
+            RecoverMisfiredJobsResult res = await jobStoreSupport.RecoverMisfires(requestorId, CancellationToken.None).ConfigureAwait(false);
             numFails = 0;
             return res;
         }
