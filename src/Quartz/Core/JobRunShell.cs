@@ -181,6 +181,7 @@ internal sealed class JobRunShell
                 {
                     if (!await NotifyListenersBeginning(context, cancellationToken).ConfigureAwait(false))
                     {
+                        await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
                         await qs.NotifyJobStoreJobComplete(trigger, jobDetail, SchedulerInstruction.NoInstruction, cancellationToken).ConfigureAwait(false);
                         break;
                     }
@@ -290,6 +291,7 @@ internal sealed class JobRunShell
                 // notify all job listeners
                 if (!await NotifyJobListenersComplete(qs, context, jobExEx, cancellationToken).ConfigureAwait(false))
                 {
+                    await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
                     await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
                     break;
                 }
@@ -297,23 +299,7 @@ internal sealed class JobRunShell
                 // notify all trigger listeners
                 if (!await NotifyTriggerListenersComplete(qs, context, instructionCode, cancellationToken).ConfigureAwait(false))
                 {
-                    // Ensure finalized notification is still sent when the trigger has no next fire time,
-                    // even if trigger listener notification failed.
-                    try
-                    {
-                        if (!trigger.MayFireAgain)
-                        {
-                            await qs.NotifySchedulerListenersFinalized(context.Trigger, cancellationToken).ConfigureAwait(false);
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        SchedulerException se2 = new SchedulerException("Error notifying scheduler listeners of finalized trigger.", e);
-                        await qs.NotifySchedulerListenersError(
-                            ErrorFor(context, "Error notifying scheduler listeners of finalized trigger.", se2),
-                            cancellationToken).ConfigureAwait(false);
-                    }
-
+                    await NotifyFinalizedIfDone(qs, context, cancellationToken).ConfigureAwait(false);
                     await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
                     break;
                 }
@@ -492,6 +478,39 @@ internal sealed class JobRunShell
             string msg = $"Unable to notify TriggerListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
             await qs.NotifySchedulerListenersError(ErrorFor(ctx, msg, se), cancellationToken).ConfigureAwait(false);
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Announces that the trigger has fired for the last time, when it has.
+    /// </summary>
+    /// <remarks>
+    /// Every way out of a firing has to do this, the ones a failed listener cut short included: a
+    /// trigger whose last firing was abandoned is as finished as one whose last firing ran, and a
+    /// scheduler listener told only about the tidy paths would go on believing the trigger is still
+    /// there. The veto path says it in its own words, because the message it reports a failure with
+    /// names the veto.
+    /// </remarks>
+    private static async ValueTask NotifyFinalizedIfDone(
+        QuartzScheduler qs,
+        JobExecutionContextImpl ctx,
+        CancellationToken cancellationToken)
+    {
+        if (ctx.Trigger.MayFireAgain)
+        {
+            return;
+        }
+
+        try
+        {
+            await qs.NotifySchedulerListenersFinalized(ctx.Trigger, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            SchedulerException se = new SchedulerException("Error notifying scheduler listeners of finalized trigger.", e);
+            await qs.NotifySchedulerListenersError(
+                ErrorFor(ctx, "Error notifying scheduler listeners of finalized trigger.", se),
+                cancellationToken).ConfigureAwait(false);
         }
     }
 
