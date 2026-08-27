@@ -80,12 +80,45 @@ public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICale
     [Test]
     public void TestExclusionAndNextIncludedTime()
     {
+        // Both the instant and the zone are pinned. The answer to "and the next included day?" is the
+        // start of the next *local* day, which is twenty-four hours later only in a zone with no
+        // transition that night — so built from DateTimeOffset.UtcNow.Date and the machine's own zone
+        // this passed every night of the year but the two the zone moves on (#3465).
+        calendar.TimeZone = TimeZoneInfo.Utc;
         calendar.DaysExcluded.Should().BeEmpty();
-        DateTimeOffset test = DateTimeOffset.UtcNow.Date;
-        Assert.That(calendar.GetNextIncludedTimeUtc(test), Is.EqualTo(test), "Did not get today as date when nothing was excluded");
 
-        calendar.AddExcludedDay(MonthDay.From(DateOnly.FromDateTime(test.Date)));
-        Assert.That(calendar.GetNextIncludedTimeUtc(test), Is.EqualTo(test.AddDays(1)), "Did not get next day when current day excluded");
+        DateTimeOffset test = new DateTimeOffset(2026, 3, 6, 0, 0, 0, TimeSpan.Zero);
+
+        calendar.GetNextIncludedTimeUtc(test).Should().Be(test,
+            "with nothing excluded the queried instant is itself included, so it comes back unchanged");
+
+        calendar.AddExcludedDay(MonthDay.From(DateOnly.FromDateTime(test.UtcDateTime)));
+
+        calendar.GetNextIncludedTimeUtc(test).Should().Be(test.AddDays(1),
+            "excluding the queried day moves the answer to the first instant of the next one");
+    }
+
+    /// <summary>
+    /// The companion to the case above, and the reason it had to be pinned to a zone of its own.
+    /// </summary>
+    [Test]
+    public void TestNextIncludedTimeIsTheStartOfTheNextLocalDayAcrossATransition()
+    {
+        // A day begins when its zone says it does, so the day after an excluded one starts twenty-three
+        // hours later on a spring-forward night rather than twenty-four. "Tomorrow is UtcNow plus a day"
+        // is therefore wrong two nights a year in any zone that moves, which is what made the machine
+        // clock the wrong thing to build the expectation from.
+        TimeZoneInfo zone = TestTimeZones.Helsinki;
+        TestTimeZones.AssumeInvalidLocalTime(zone, new DateTime(2024, 3, 31, 3, 30, 0));
+
+        calendar.TimeZone = zone;
+        calendar.AddExcludedDay(new MonthDay(3, 31));
+
+        DateTimeOffset startOfExcludedDay = new DateTimeOffset(2024, 3, 30, 22, 0, 0, TimeSpan.Zero);
+
+        calendar.GetNextIncludedTimeUtc(startOfExcludedDay).Should().Be(
+            new DateTimeOffset(2024, 3, 31, 21, 0, 0, TimeSpan.Zero),
+            "the first instant of 1 April is 21:00 UTC on 31 March, because the zone gained an hour overnight");
     }
 
     /// <summary>
