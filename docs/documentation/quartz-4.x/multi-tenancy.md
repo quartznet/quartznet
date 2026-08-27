@@ -20,6 +20,7 @@ mechanics.
 | **Tenants known at** | startup | any time | startup |
 | **Add a tenant at runtime** | no (needs a new container) | yes | no |
 | **Per-tenant concurrency limits** | yes, naturally | yes, via execution groups | yes |
+| **Per-tenant dashboard and API access** | yes — [`SchedulerAuthorizationPolicy`](#authorizing-a-tenant-on-its-own-scheduler) | no: Quartz authorizes a scheduler, not a group | yes, if each is its own scheduler |
 | **Cost per tenant** | a scheduling loop, a connection pool, a thread pool | ~nothing | a schema |
 | **Fits** | tens of tenants, strong isolation needs | hundreds or thousands of tenants | regulatory separation of data |
 
@@ -342,7 +343,7 @@ A handful of things are container-wide, shared by every scheduler in the process
 | `SystemTextJsonSerializerRegistry` | one per container by default — the HTTP API and the HTTP client serialize triggers without knowing which scheduler they came from. A named scheduler *can* be given its own, see below |
 | `Meters` | built from the container's `IMeterFactory` |
 | `DataSourceOptions` | named after the **data source**, not the scheduler, so several schedulers can read through the same one |
-| `QuartzHttpApiOptions` | one per process — see [honest limits](#honest-limits) |
+| `QuartzHttpApiOptions`, `QuartzDashboardOptions` | one of each per process: they describe the surfaces, and every scheduler is reached through them. *Which* schedulers a caller reaches is per scheduler — see [Authorizing a tenant on its own scheduler](#authorizing-a-tenant-on-its-own-scheduler) — but what they may do once there is not |
 
 Logging is one per container rather than one per scheduler: every scheduler's parts are injected the
 container's `ILoggerFactory`, and a line says which tenant wrote it through the logging scope the
@@ -496,6 +497,22 @@ Listeners take matchers too, so a per-tenant listener is one registration:
 q.AddJobListener<AuditListener>(Matchers.Group<JobKey>(StringOperator.Equality, tenantId));
 ```
 <!-- endSnippet -->
+
+### What the group model does not partition
+
+The matcher reaches everything that takes one — and the two operator surfaces do not take one. **Quartz
+authorizes a scheduler, never a group**: the resource a policy is evaluated against is a
+`SchedulerResource` carrying a scheduler's name, so under this model every tenant's jobs, triggers and
+history are visible to anyone who reaches the dashboard or the HTTP API at all. There is no
+group-shaped equivalent of
+[`SchedulerAuthorizationPolicy`](#authorizing-a-tenant-on-its-own-scheduler), and a group matcher in a
+query string is a filter rather than a boundary — a caller can simply pass a different one.
+
+If tenants must not see each other on those surfaces, that is the argument for giving them schedulers,
+or for putting your own API in front of Quartz's and never exposing Quartz's to them. It is not an
+argument against the group model for everything else: the isolation the group model *does* give —
+scheduling, pausing, quotas, listeners — is real, and most deployments never expose the dashboard to
+tenants in the first place.
 
 ### Per-tenant concurrency quotas
 
@@ -920,9 +937,12 @@ read one node at a time:
 - **Traces.** `quartz.scheduler.name` and `quartz.scheduler.id` are on every span, and the execution
   span adds `quartz.job.group`, `quartz.job.name`, `quartz.trigger.group`, `quartz.trigger.name` and
   `quartz.fire.instance.id`.
-- **Metrics.** `quartz.scheduler.name` and `quartz.scheduler.id` are on every measurement.
-  `quartz.job.execution.active` and `quartz.job.execution.duration` add `quartz.trigger.group`,
-  `quartz.trigger.name`, `quartz.job.group` and `quartz.job.name`.
+- **Metrics.** `quartz.scheduler.name` and `quartz.scheduler.id` are on **every** measurement, on every
+  instrument — which is what makes a per-tenant metrics dashboard a `group by` rather than extra
+  instrumentation. `quartz.job.execution.active` and `quartz.job.execution.duration` add
+  `quartz.trigger.group`, `quartz.trigger.name`, `quartz.job.group` and `quartz.job.name`. The whole set
+  of instruments, and which attributes each carries, is on the
+  [OpenTelemetry page](packages/opentelemetry-integration.md#metrics).
 
 Under the group-per-tenant model, `quartz.trigger.group` and `quartz.job.group` **are** the tenant, so
 the same dashboards work by grouping on those instead. That is a good reason to make the group the raw
@@ -943,4 +963,6 @@ rest — so a view or a filter can reference them rather than repeat the strings
 - [Execution Groups](tutorial/execution-groups.md) — per-node and cluster-wide thread limits in full
 - [Querying Jobs and Triggers](tutorial/querying-jobs-and-triggers.md) — group-filtered listings
 - [Clustering](tutorial/advanced-enterprise-features.md) — what a shared database gives you
+- [Dashboard](packages/dashboard.md) — the Schedulers page, read-only mode, and how the policy above gates the UI
+- [HTTP API](packages/http-api.md#authorizing-per-scheduler) — the same policy on the other surface, and why it answers 403 before 404
 - [Migration Guide](migration-guide.md) — including why a shut-down scheduler cannot be restarted
