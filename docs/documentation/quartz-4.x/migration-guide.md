@@ -2722,6 +2722,33 @@ unpinned it, and the same held for a custom `IJobStore` that persists serialized
 store was never affected: it keeps the pin in the `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` columns and
 reapplies them to every trigger it reads, blob triggers included.
 
+### A Newtonsoft-serialized trigger keeps its time zone
+
+`UseNewtonsoftJsonSerializer` leaves `registerTriggerConverters` off by default, and with it off a trigger is
+written as a plain object graph. A `TimeZoneInfo` written that way came out as its whole public surface —
+`Id`, `DisplayName`, `BaseUtcOffset` and the rest, every one of them read-only — so reading the object back
+set nothing, and the trigger's getter fell through to `TimeZoneInfo.Local`. A trigger stored under
+`Tokyo Standard Time` fired on whichever zone the reading machine was in, and nothing said so.
+
+The serializer now carries a `TimeZoneInfo` converter, so a zone travels as its id — the same spelling the
+trigger and calendar serializers have always used:
+
+```diff
+- "TimeZone": { "Id": "Tokyo Standard Time", "DisplayName": "(UTC+09:00) Osaka, Sapporo, Tokyo", … }
++ "TimeZone": "Tokyo Standard Time"
+```
+
+Both forms are read, so blobs already written in the object form still load and pick their zone out of `Id`.
+`CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` and `RecurrenceTriggerImpl` were affected;
+`CronTriggerImpl` was not, because its zone rides on the `CronExpression`, which has always had a converter
+of its own.
+
+The ADO.NET job store persists every trigger type Quartz ships through a persistence delegate rather than as
+a blob, so this reaches a scheduler only through a trigger type the store has to serialize — a custom one —
+or through code that hands a trigger to `IObjectSerializer` itself. The private `timeZoneInfoId` helpers on
+those trigger implementations, which had been meant for exactly this and never worked because Json.NET's
+default contract does not serialize private members, are gone.
+
 ### Newtonsoft types moved out of the core namespaces
 
 The `Quartz.Serialization.Newtonsoft` package used to put types in namespaces that read as if they came from the

@@ -182,22 +182,11 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
     private DateTimeOffset? endTimeUtc;
 
+    // With binary serialization the time zone does not need serializing, since it is part of the
+    // CronExpression. With JSON serialization the cron expression is written as a string as well as an
+    // object, so the zone is written separately - as its id, by TimeZoneInfoConverter on the Newtonsoft
+    // side and by the trigger serializers on both.
     [NonSerialized] private TimeZoneInfo? timeZone;
-
-    // With binary serialization, the timeZone doesn't need serialized since it is part of the CronExpression.
-    // With json serialization, however, the cron expression is only serialized as a string (CronExpressionString),
-    // so the TimeZone needs serialized separately.
-    //
-    // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
-    // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
-    // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
-    // on timelines, it may be worth doing the mapping here.
-    // More info: https://github.com/dotnet/corefx/issues/7757
-    private string? timeZoneInfoId
-    {
-        get => timeZone?.Id;
-        set => timeZone = value is null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
-    }
 
     /// <summary>
     /// Create a <see cref="CronTriggerImpl" /> with no settings.
