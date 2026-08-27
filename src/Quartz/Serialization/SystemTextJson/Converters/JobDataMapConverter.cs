@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Quartz.Serialization.SystemTextJson.Converters;
 
-internal sealed class JobDataMapConverter : JsonConverter<JobDataMap>
+internal sealed class JobDataMapConverter(SystemTextJsonSerializerRegistry registry) : JsonConverter<JobDataMap>
 {
     public override JobDataMap Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
@@ -23,7 +23,13 @@ internal sealed class JobDataMapConverter : JsonConverter<JobDataMap>
     {
         try
         {
-            writer.WriteJobDataMapValue(value, options);
+            writer.WriteJobDataMapValue(value, options, registry);
+        }
+        // A refusal already says which entry it is about and what to do; wrapping it in a second
+        // exception of the same type would only bury that behind "Failed to serialize JobDataMap".
+        catch (JsonSerializationException)
+        {
+            throw;
         }
         catch (Exception e)
         {

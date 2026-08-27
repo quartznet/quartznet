@@ -162,6 +162,26 @@ public class StoreFormatSourceGenerationTest
             "every type DataMapExtensions declares an accessor for is a type Quartz teaches an application to store, so a trimmed application must be able to write it");
     }
 
+    /// <summary>
+    /// <c>JobDataValues</c> is the one list the writer refuses against, so every type on it has to be
+    /// answerable without reflection too. A type accepted on write and unanswerable in a trimmed
+    /// publish would be refused nothing and then fail at the writer anyway, which is the failure the
+    /// refusal exists to replace.
+    /// </summary>
+    [Test]
+    public void EveryAcceptedJobDataValueTypeIsAnsweredWithoutReflection()
+    {
+        JsonSerializerOptions options = new TestSerializer(new SystemTextJsonSerializerRegistry(), withoutReflection: true).Options();
+
+        foreach (Type accepted in JobDataValues.Accepted)
+        {
+            Action resolve = () => options.GetTypeInfo(accepted);
+
+            resolve.Should().NotThrow(
+                $"{accepted.Name} is a value the writer accepts, so QuartzStoreJsonContext has to name it");
+        }
+    }
+
     [Test]
     public void CronExpressionAndNameValueCollectionRoundTripWithoutReflection()
     {

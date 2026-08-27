@@ -285,18 +285,35 @@ internal static class Utf8JsonWriterExtensions
     }
 
     /// <summary>
-    /// Writes a job data map's entries, each value as whatever the application stored.
+    /// Writes a job data map's entries, each value as whatever the application stored — and refuses
+    /// one the reader will not be able to turn back into it.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The value is written as <see cref="object" />, so its runtime type is looked up through the
     /// options' resolver chain — the closed set Quartz names, then the scheduler's registry, then
     /// reflection where a publish left any. Asking for that metadata here rather than passing the
     /// options to <see cref="JsonSerializer" /> is what makes this method trimming- and AOT-clean: the
     /// overloads taking <see cref="JsonSerializerOptions" /> are <c>RequiresUnreferencedCode</c> and
     /// <c>RequiresDynamicCode</c> wholesale, whatever they are handed.
+    /// </para>
+    /// <para>
+    /// Reflection being able to write a value is not the same as the reader being able to read it, and
+    /// that gap is what <see cref="JobDataValues.Refuse" /> closes. It runs before the entry's name is
+    /// written, so a map with one unreadable value in it puts nothing at all in the column.
+    /// </para>
     /// </remarks>
-    public static void WriteJobDataMapValue(this Utf8JsonWriter writer, JobDataMap jobDataMap, JsonSerializerOptions options)
+    public static void WriteJobDataMapValue(
+        this Utf8JsonWriter writer,
+        JobDataMap jobDataMap,
+        JsonSerializerOptions options,
+        SystemTextJsonSerializerRegistry registry)
     {
+        foreach (var pair in jobDataMap)
+        {
+            JobDataValues.Refuse(pair.Key, pair.Value, options, registry);
+        }
+
         writer.WriteStartObject();
 
         JsonTypeInfo valueTypeInfo = options.GetTypeInfo(typeof(object));
@@ -315,45 +332,7 @@ internal static class Utf8JsonWriterExtensions
 
         foreach (JsonProperty property in jsonElement.EnumerateObject())
         {
-            object? value;
-            switch (property.Value.ValueKind)
-            {
-                case JsonValueKind.String:
-                    value = property.Value.GetString();
-                    break;
-                case JsonValueKind.True:
-                    value = true;
-                    break;
-                case JsonValueKind.False:
-                    value = false;
-                    break;
-                case JsonValueKind.Null:
-                    value = null;
-                    break;
-                case JsonValueKind.Number:
-                    if (property.Value.TryGetInt32(out int intValue))
-                    {
-                        value = intValue;
-                    }
-                    else if (property.Value.TryGetInt64(out long longValue))
-                    {
-                        value = longValue;
-                    }
-                    else
-                    {
-                        value = property.Value.GetDouble();
-                    }
-                    break;
-                case JsonValueKind.Object:
-                    // The one shape past the primitives a job data value comes back as, and the reason
-                    // Dictionary<string, string> is named in QuartzStoreJsonContext.
-                    value = property.Value.Deserialize((JsonTypeInfo<Dictionary<string, string>>) options.GetTypeInfo(typeof(Dictionary<string, string>)));
-                    break;
-                default:
-                    throw new JsonException($"Unsupported value kind: {property.Value.ValueKind}");
-            }
-
-            result.Add(property.Name, value);
+            result.Add(property.Name, JobDataValues.Read(property.Value, options));
         }
 
         result.ClearDirtyFlag();

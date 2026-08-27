@@ -2636,6 +2636,36 @@ catch (Newtonsoft.Json.JsonSerializationException e)
 catch (Quartz.JsonSerializationException e)
 ```
 
+### System.Text.Json refuses a job data value it cannot read back
+
+The System.Text.Json read side is closed on purpose — a stored job data value comes back as a string, a
+bool, an int, a long, a double, null or a `Dictionary<string, string>`, and there is no polymorphic
+`object` deserialization, which is what keeps a trimmed publish honest. The write side was not closed to
+match, so a `JobDataMap` holding a `List<string>` or a `Dictionary<string, object>` serialized without
+complaint and threw `JsonSerializationException` on read. The blob was in the database by then, and the
+failure belonged to whoever next ran the job.
+
+Writing now refuses such a value, naming the entry and the type:
+
+```
+Job data entry 'recipients' holds a System.Collections.Generic.List`1[[System.String, …]], which a
+persistent store cannot read back. A job data value has to be one of the types JobDataMap declares an
+accessor for (string, bool, char, int, long, float, double, decimal, DateTime, DateTimeOffset, TimeSpan,
+Guid, DateOnly, TimeOnly or an enum), a Dictionary<string, string>, or a type the application declares
+through SystemTextJsonSerializerRegistry.AddTypeInfoResolver. Anything with structure of its own has to
+be serialized by the job and stored as a string.
+```
+
+The set is the one `DataMapExtensions` declares an accessor for, plus `Dictionary<string, string>`, plus
+enums by rule. A type of your own is declared through `AddTypeInfoResolver` — the same registration a
+trimmed or native-AOT publish already needs — and is then written like any other, coming back as the
+string map the store format gives for any object.
+
+Nothing that used to round-trip stops working: what is refused is exactly what used to be written and
+then failed to load. If you were relying on a nested `JobDataMap` or a collection surviving, serialize it
+in the job and store the result as a string. Newtonsoft is unchanged, and `StoreJobDataAsStrings` was
+never affected.
+
 ### Custom trigger and calendar serializers are no longer static
 
 The static registration methods have been removed, because they wrote into process-global dictionaries: two

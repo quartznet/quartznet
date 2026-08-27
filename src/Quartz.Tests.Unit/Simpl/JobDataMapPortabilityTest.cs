@@ -19,8 +19,11 @@
 
 #endregion
 
+using System.Text.Json.Serialization;
+
 using Quartz.Extensibility;
 using Quartz.Impl;
+using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz.Tests.Unit.Simpl;
 
@@ -33,8 +36,9 @@ namespace Quartz.Tests.Unit.Simpl;
 /// <remarks>
 /// The set covered here is the set <see cref="DataMapExtensions" /> declares an accessor for: those
 /// are the types Quartz teaches an application to store, and so the ones the store format owes an
-/// answer for. Everything past them is the application's own choice — see
-/// <c>QuartzStoreJsonContext</c>, whose remarks spell the closed read side out.
+/// answer for. Everything past them is the application's own choice — see <c>JobDataValues</c>, which
+/// declares what System.Text.Json will write and what it hands back, and refuses the rest at the one
+/// moment anyone can still be told.
 /// </remarks>
 public class JobDataMapPortabilityTest
 {
@@ -116,24 +120,81 @@ public class JobDataMapPortabilityTest
     }
 
     /// <summary>
+    /// The values System.Text.Json refuses to write, because it could never read them back. Each of
+    /// these used to serialize without complaint and throw on the way out, by which time the blob was
+    /// in the database and the failure belonged to whoever next ran the job.
+    /// </summary>
+    private static IEnumerable<TestCaseData> UnreadableValues()
+    {
+        yield return Refused("list", new List<string> { "a", "b" }, "System.Collections.Generic.List");
+        yield return Refused("dictionaryOfObject", new Dictionary<string, object> { ["inner"] = 1 }, "System.Collections.Generic.Dictionary");
+        yield return Refused("nested", new JobDataMap { { "inner", "value" } }, "Quartz.JobDataMap");
+    }
+
+    private static TestCaseData Refused(string key, object value, string expectedTypeName)
+    {
+        return new TestCaseData(key, value, expectedTypeName).SetName("{m}(" + key + ")");
+    }
+
+    [TestCaseSource(nameof(UnreadableValues))]
+    public void AValueTheReaderCannotAcceptIsRefusedOnWrite(string key, object value, string expectedTypeName)
+    {
+        JobDataMap original = new JobDataMap { { key, value } };
+
+        Action write = () => systemTextJsonSerializer.Serialize(original);
+
+        write.Should().Throw<JsonSerializationException>(
+                "a value written now and unreadable later is a blob in the database nobody can load, and the write is the last moment anyone can be told")
+            .Which.Message.Should().Contain(key, "the failure has to say which entry it is about")
+            .And.Contain(expectedTypeName, "and what was in it")
+            .And.Contain("AddTypeInfoResolver", "and how an application declares a type of its own");
+    }
+
+    /// <summary>
+    /// Refusing on write must not close the door an application is told to use. A type declared through
+    /// <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" /> is written, and reading it
+    /// back gives what the store format gives for any object: a
+    /// <c>Dictionary&lt;string, string&gt;</c>.
+    /// </summary>
+    [Test]
+    public void ATypeTheApplicationDeclaredIsWrittenAndRead()
+    {
+        JobDataMap original = new JobDataMap { { "report", new ApplicationJobDataValue { Name = "monthly" } } };
+
+        Action withoutDeclaration = () => systemTextJsonSerializer.Serialize(original);
+        withoutDeclaration.Should().Throw<JsonSerializationException>(
+            "an application type Quartz has not been told about is exactly the case the refusal exists for");
+
+        SystemTextJsonSerializerRegistry registry = new();
+        registry.AddTypeInfoResolver(ApplicationJobDataContext.Default);
+        IObjectSerializer declared = new SystemTextJsonObjectSerializer(registry);
+
+        JobDataMap restored = declared.Deserialize<JobDataMap>(declared.Serialize(original))!;
+
+        restored["report"].Should().BeEquivalentTo(new Dictionary<string, string> { ["Name"] = "monthly" },
+            "declaring a type is what lets it be written; the store format still hands an object back as a string map");
+    }
+
+    /// <summary>
     /// Nesting is where the two formats stop agreeing, so this is the guarantee an application gets:
-    /// none. A nested map never comes back as the <see cref="JobDataMap" /> it went in as, and the two
-    /// serializers do not agree on what it does come back as — System.Text.Json's read side is closed
-    /// over the primitives plus <c>Dictionary&lt;string, string&gt;</c>, while Newtonsoft hands back
-    /// its own <c>JObject</c>. Job code that needs structure has to serialize the structure itself and
-    /// store the result as a string.
+    /// none. Newtonsoft writes a nested map and hands back its own <c>JObject</c> or a string map,
+    /// never the <see cref="JobDataMap" /> that went in; System.Text.Json refuses to write one at all.
+    /// Job code that needs structure has to serialize the structure itself and store the result as a
+    /// string.
     /// </summary>
     [Test]
     public void ANestedMapIsNotPartOfThePortableFormat()
     {
         JobDataMap original = new JobDataMap { { "nested", new JobDataMap { { "inner", "value" } } } };
 
-        foreach ((string label, IObjectSerializer writer, IObjectSerializer reader) in Pairings())
+        byte[] written = newtonsoftSerializer.Serialize(original);
+
+        foreach (IObjectSerializer reader in new[] { newtonsoftSerializer, systemTextJsonSerializer })
         {
-            JobDataMap restored = reader.Deserialize<JobDataMap>(writer.Serialize(original))!;
+            JobDataMap restored = reader.Deserialize<JobDataMap>(written)!;
 
             restored["nested"].Should().NotBeOfType<JobDataMap>(
-                "{0}: neither format carries a nested map's identity, so job code must not expect one back", label);
+                "neither format carries a nested map's identity, so job code must not expect one back");
         }
     }
 
@@ -145,3 +206,17 @@ public class JobDataMapPortabilityTest
         yield return ("system.text.json -> system.text.json", systemTextJsonSerializer, systemTextJsonSerializer);
     }
 }
+
+/// <summary>A job data value type of the application's own, which no contract of Quartz's can name.</summary>
+public sealed class ApplicationJobDataValue
+{
+    public string Name { get; set; }
+}
+
+/// <summary>
+/// The metadata an application hands to <see cref="SystemTextJsonSerializerRegistry.AddTypeInfoResolver" />
+/// so that Quartz will write a job data value of its own.
+/// </summary>
+[JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
+[JsonSerializable(typeof(ApplicationJobDataValue))]
+internal sealed partial class ApplicationJobDataContext : JsonSerializerContext;
