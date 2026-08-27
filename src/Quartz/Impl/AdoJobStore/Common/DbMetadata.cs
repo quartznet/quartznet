@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Collections.Concurrent;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
@@ -290,10 +291,24 @@ public sealed record DbMetadata
     /// Gets the name of the parameter which includes the parameter prefix for this
     /// database.
     /// </summary>
+    /// <remarks>
+    /// Called once per parameter bound, which is seven times for a trigger acquisition and fifteen
+    /// for a trigger write, and it was a concatenation each time. The set of names is small and
+    /// settled — the statements name about eighty-five between them, and the generated ones
+    /// (<c>tkn000</c>, <c>oldState00</c>, <c>excludedJobType0000</c>) are bounded by the predicate
+    /// sizes — so each spelling is worked out once and handed back thereafter.
+    /// </remarks>
     /// <param name="parameterName">Name of the parameter.</param>
     public string GetParameterName(string parameterName)
     {
-        return ParameterNamePrefix + parameterName;
+        // A driver that spells parameters with no prefix at all wants the name it was given, and
+        // there is nothing to remember.
+        if (string.IsNullOrEmpty(ParameterNamePrefix))
+        {
+            return parameterName;
+        }
+
+        return Derived.GetParameterName(ParameterNamePrefix, parameterName);
     }
 
     /// <summary>
@@ -313,14 +328,15 @@ public sealed record DbMetadata
     }
 
     /// <summary>
-    /// The members derived from this description by reflection, worked out once per description.
+    /// What is worked out from this description rather than said by it: the reflective lookups, done
+    /// once, and the parameter-name spellings, remembered as they are asked for.
     /// </summary>
     /// <remarks>
     /// <para>
     /// Kept beside the record rather than in fields on it. A record's generated equality compares every
     /// instance field, so a memoization field would make two descriptions that say the same thing about
     /// a driver compare unequal as soon as one of them had been used. The description stays what it
-    /// always was — a value — and what reflection makes of it hangs off it here.
+    /// always was — a value — and what is made of it hangs off it here.
     /// </para>
     /// <para>
     /// <see cref="DbBinaryType" /> used to run <see cref="Enum.Parse(Type, string)" /> on every read and
@@ -372,6 +388,37 @@ public sealed record DbMetadata
 
             ParameterDbTypeProperty = property;
             ParameterDbTypeSetter = MethodInvoker.Create(property.SetMethod);
+        }
+
+        /// <summary>
+        /// The prefixed spelling of every parameter name this driver has been asked for.
+        /// </summary>
+        /// <remarks>
+        /// Bounded rather than unbounded, because <see cref="DbMetadata.GetParameterName" /> is public
+        /// and a delegate of someone's own may name a parameter after its data. The cap is well past
+        /// what Quartz itself can reach — around eighty-five fixed names, four hundred trigger-key and
+        /// five hundred job-key names, eleven state names and at most a thousand job-type exclusions —
+        /// so the cache never stops working for the statements this assembly issues, and a caller that
+        /// mints names simply stops adding to it and pays the concatenation it used to pay.
+        /// </remarks>
+        private readonly ConcurrentDictionary<string, string> parameterNames = new(StringComparer.Ordinal);
+
+        private const int MaxCachedParameterNames = 4096;
+
+        public string GetParameterName(string prefix, string parameterName)
+        {
+            if (parameterNames.TryGetValue(parameterName, out string? cached))
+            {
+                return cached;
+            }
+
+            string prefixed = prefix + parameterName;
+            if (parameterNames.Count < MaxCachedParameterNames)
+            {
+                parameterNames[parameterName] = prefixed;
+            }
+
+            return prefixed;
         }
 
         public Enum? DbBinaryType { get; }
