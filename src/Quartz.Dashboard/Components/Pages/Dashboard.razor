@@ -57,9 +57,9 @@
                 <StatCard Title="Nodes" Value="@NodesStatValue" Icon="🖧" Color="@NodesStatColor" />
             </a>
             <StatCard Title="Paused Groups" Value="@PausedGroupsStatValue" Icon="⏸" Color="@PausedGroupsStatColor" />
-            @* No link: #3422 gave the dashboard a misfire feed but no page to show it on, and a tile
-               that goes nowhere is better than one that goes to a 404. *@
-            <StatCard Title="@MisfiresStatTitle" Value="@MisfiresStatValue" Icon="⏰" Color="@MisfiresStatColor" />
+            <a class="qz-stat-card-link" href="@DashboardLink.To(Options.Value, "history#misfires")">
+                <StatCard Title="@MisfiresStatTitle" Value="@MisfiresStatValue" Icon="⏰" Color="@MisfiresStatColor" />
+            </a>
         </div>
 
         <section class="qz-section">

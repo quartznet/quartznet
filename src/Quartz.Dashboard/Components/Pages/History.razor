@@ -117,7 +117,8 @@
 
     @if (!_isLoading && !_historyUnavailable && string.IsNullOrWhiteSpace(_error) && !_misfiresUnavailable)
     {
-        <section class="qz-section qz-misfires">
+        @* The overview's misfire tile links here by fragment, so the id is part of that contract. *@
+        <section id="misfires" class="qz-section qz-misfires">
             <h2>Misfires</h2>
             <p class="qz-muted">
                 Firings the scheduler missed. Nothing ran, so these never appear above — they are the

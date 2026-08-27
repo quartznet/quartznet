@@ -18,11 +18,37 @@ internal static class DashboardMarkup
     public static string StatCardValue<TComponent>(this IRenderedComponent<TComponent> component, string title)
         where TComponent : IComponent
     {
+        return StatCard(component, title).QuerySelector(".qz-stat-card-value")?.TextContent.Trim() ?? string.Empty;
+    }
+
+    /// <summary>
+    /// The <c>href</c> of the link wrapping the <c>StatCard</c> with the given title, or
+    /// <see langword="null" /> when that tile is not a link. Titled rather than positional, because
+    /// several tiles are links and a bare selector would silently read whichever came first.
+    /// </summary>
+    public static string? StatCardLinkHref<TComponent>(this IRenderedComponent<TComponent> component, string title)
+        where TComponent : IComponent
+    {
+        return StatCard(component, title).Closest(".qz-stat-card-link")?.GetAttribute("href");
+    }
+
+    /// <summary>
+    /// The classes on the <c>StatCard</c> with the given title, which carry its colour.
+    /// </summary>
+    public static ITokenList StatCardClasses<TComponent>(this IRenderedComponent<TComponent> component, string title)
+        where TComponent : IComponent
+    {
+        return StatCard(component, title).ClassList;
+    }
+
+    private static IElement StatCard<TComponent>(IRenderedComponent<TComponent> component, string title)
+        where TComponent : IComponent
+    {
         foreach (IElement card in component.FindAll(".qz-stat-card"))
         {
             if (string.Equals(card.QuerySelector(".qz-stat-card-title")?.TextContent.Trim(), title, StringComparison.Ordinal))
             {
-                return card.QuerySelector(".qz-stat-card-value")?.TextContent.Trim() ?? string.Empty;
+                return card;
             }
         }
 

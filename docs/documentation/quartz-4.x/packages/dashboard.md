@@ -137,7 +137,8 @@ breakdowns, because a total is rarely the thing that explains why work is not be
   which the tile names — `Misfires (last 24 h)` at the default `HistoryRetention`, and whatever you
   configured otherwise, so the label cannot promise a day a store set to remember an hour has already
   forgotten. A data source that keeps no misfire feed shows a dash rather than a zero: it has not looked,
-  which is not the same as having looked and found none. See
+  which is not the same as having looked and found none. The tile is a link to the misfires section of
+  the History page — `/quartz/history#misfires` — which lists the firings it counted. See
   [Execution history and misfires](#execution-history-and-misfires).
 - An **execution-group panel**: one row per [execution group](../tutorial/execution-groups.md), with the
   limit that governs it, the scope that limit is counted in, what the group has in flight, and the
