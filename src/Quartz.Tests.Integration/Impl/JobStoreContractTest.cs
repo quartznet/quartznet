@@ -2098,6 +2098,144 @@ public abstract class JobStoreContractTest
     private sealed record BlockedTrigger(TriggerKey Key, IJobDetail Job, IOperableTrigger Firing);
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // A firing that was abandoned between committing it and running the job
+    //
+    // A job listener that fails, a veto, a scheduler shutting down: each of them loses a firing the
+    // store has already committed, and the run shell hands such a firing back with no instruction.
+    // For a trigger that can fire again that has to settle nothing at all, which is what #3501 pins.
+    // It settles something for a trigger that cannot: TriggersFired advanced it before anything went
+    // wrong, so the trigger is spent whether the job ran or not, and a store that took "no
+    // instruction" literally kept it for good - waiting, with no fire time, offered to an operator as
+    // a trigger that will fire and to the scheduler as one it will never be able to fire (#3507).
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task AnAbandonedFiringOfATriggersLastRunLeavesNoTriggerBehind()
+    {
+        AbandonedFiring abandoned = await GivenAFiringToAbandon("abandoned-last", repeating: false);
+
+        await Store.TriggeredJobComplete(abandoned.Firing, abandoned.Job, SchedulerInstruction.NoInstruction);
+
+        (await Store.GetTrigger(abandoned.Key)).Should().BeNull(
+            "the trigger had one firing in it and that firing is over, so a store still handing it back "
+            + "is handing back a trigger that can never fire");
+        (await Store.GetTriggerState(abandoned.Key)).Should().Be(TriggerState.None,
+            "a trigger that is gone has no state");
+        (await Store.QueryTriggers(new TriggerQuery { Take = int.MaxValue })).Items
+            .Should().NotContain(x => x.Key.Equals(abandoned.Key),
+                "a listing is what an operator reads, and it must not show a trigger the scheduler has finished with");
+        (await Store.GetJob(abandoned.Job.Key)).Should().BeNull(
+            "the job is not durable and the trigger just removed was its last, so it goes with it - "
+            + "exactly as it would have had the firing ended in the ordinary way");
+    }
+
+    /// <summary>
+    /// The histogram on the dashboard's overview is one count per state, and this is the state a
+    /// stranded trigger would have been counted in.
+    /// </summary>
+    [Test]
+    public async Task AnAbandonedFiringOfATriggersLastRunLeavesNothingInTheWaitingCount()
+    {
+        AbandonedFiring abandoned = await GivenAFiringToAbandon("abandoned-counted", repeating: false);
+
+        await Store.TriggeredJobComplete(abandoned.Firing, abandoned.Job, SchedulerInstruction.NoInstruction);
+
+        PagedResult<TriggerHeader> waiting = await Store.QueryTriggers(new TriggerQuery
+        {
+            State = TriggerState.Normal,
+            Take = 0,
+            IncludeTotalCount = true
+        });
+
+        waiting.TotalCount.Should().Be(0,
+            "the dashboard counts waiting triggers by asking for this very query, and a trigger with no "
+            + "fire time left in it must not be counted among the ones that are going to fire");
+    }
+
+    [Test]
+    public async Task AnAbandonedFiringOfATriggerWithFiringsLeftSettlesNothing()
+    {
+        AbandonedFiring abandoned = await GivenAFiringToAbandon("abandoned-repeating", repeating: true);
+
+        await Store.TriggeredJobComplete(abandoned.Firing, abandoned.Job, SchedulerInstruction.NoInstruction);
+
+        IOperableTrigger readBack = await Store.GetTrigger(abandoned.Key);
+
+        readBack.Should().NotBeNull("a firing that never happened settles nothing about the schedule");
+        readBack.NextFireTimeUtc.Should().Be(abandoned.NextFireTimeUtc,
+            "the firing advanced the trigger, and losing the firing neither takes that back nor takes "
+            + "away the firing after it");
+        (await Store.GetTriggerState(abandoned.Key)).Should().Be(TriggerState.Normal,
+            "the trigger is waiting for its next turn");
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddHours(2),
+            MaxCount = 1
+        });
+
+        acquired.Select(x => x.Key).Should().Equal([abandoned.Key],
+            "the trigger's next firing is due and it is the store's to hand out, which is the whole of "
+            + "what 'settles nothing' means");
+    }
+
+    /// <summary>
+    /// Commits a firing of a trigger with either one firing in it or many, and hands back everything
+    /// needed to abandon that firing the way the run shell does.
+    /// </summary>
+    private async Task<AbandonedFiring> GivenAFiringToAbandon(string name, bool repeating)
+    {
+        IJobDetail job = CreateJob(name, JobGroupA);
+
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create()
+            .WithIdentity(name, TriggerGroupA)
+            .ForJob(job.Key)
+            .StartAt(DateTimeOffset.UtcNow.AddSeconds(5));
+
+        if (repeating)
+        {
+            builder = builder.WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever());
+        }
+
+        IOperableTrigger trigger = (IOperableTrigger) builder.Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        await Store.ScheduleJob(job, trigger);
+
+        List<IOperableTrigger> acquired = await Store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = DateTimeOffset.UtcNow.AddMinutes(1),
+            MaxCount = 1
+        });
+
+        IOperableTrigger firing = acquired.Should().ContainSingle(x => x.Key.Equals(trigger.Key),
+            "the trigger under test is the only one due").Subject;
+
+        TriggerFiredBundle bundle = (await Store.TriggersFired([firing]))
+            .Should().ContainSingle().Which.TriggerFiredBundle;
+
+        bundle.Should().NotBeNull("the firing has to be committed before abandoning it says anything");
+        bundle.NextFireTimeUtc.HasValue.Should().Be(repeating,
+            "a trigger that repeats has a firing after this one and a trigger that does not is spent, "
+            + "which is the difference these tests are about");
+
+        // The bundle's trigger rather than the acquired one: it is the copy the firing advanced, and it
+        // is what the scheduler completes the firing with. The in-memory store advances the caller's
+        // instance and the ADO store advances a clone of it, so a test holding the acquired copy would
+        // be asking the two stores different questions.
+        return new AbandonedFiring(trigger.Key, job, bundle.Trigger, bundle.NextFireTimeUtc);
+    }
+
+    /// <summary>
+    /// A committed firing, and what the store said the trigger's next fire time was when it committed
+    /// it — which for a trigger on its last run is nothing at all.
+    /// </summary>
+    private sealed record AbandonedFiring(
+        TriggerKey Key,
+        IJobDetail Job,
+        IOperableTrigger Firing,
+        DateTimeOffset? NextFireTimeUtc);
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Helpers
     //////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -267,6 +267,75 @@ public sealed class JobListenerFailureTest
     }
 
     /// <summary>
+    /// The leak #3507 reported. The firing is abandoned with no instruction, which settles nothing about
+    /// the schedule — but the trigger was advanced when the firing was committed and had nothing after
+    /// this one, so it is spent, and a store that kept it goes on offering an operator a trigger that
+    /// can never fire.
+    /// </summary>
+    [TestCase(FailureShape.Synchronous)]
+    [TestCase(FailureShape.Asynchronous)]
+    public async Task AListenerFailingOnATriggersLastFiringLeavesNoTriggerBehind(FailureShape shape)
+    {
+        CallLog<TriggerKey> runs = new();
+        FailingJobListener listener = new(shape, FailureSide.BeforeTheJob, _ => true);
+
+        (IScheduler scheduler, CompletionWatchingJobStore store) = await BuildScheduler($"listener-spent-{shape}");
+
+        try
+        {
+            scheduler.ListenerManager.AddJobListener(listener);
+
+            IJobDetail job = JobBuilder.Create<NonConcurrentRecordingJob>()
+                .WithIdentity("job", Group)
+                .UsingJobData(new JobDataMap { [NonConcurrentRecordingJob.RunLogKey] = runs })
+                .Build();
+
+            TriggerKey triggerKey = new TriggerKey("once", Group);
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(job)
+                .StartNow()
+                .Build();
+
+            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.Start();
+
+            await ShouldObserve(store.Completions.Reaches(1),
+                "the store has settled the firing by the time it records it, so everything below is asked "
+                + "of a store that has finished with this trigger");
+
+            store.Completions.Entries[0].Should().Be(
+                new CompletedFiring(triggerKey, job.Key, SchedulerInstruction.NoInstruction),
+                "a firing that never happened settles nothing about the schedule - the trigger is removed "
+                + "because it is spent, not because the completion said to remove it");
+
+            (await scheduler.GetTrigger(triggerKey)).Should().BeNull(
+                "the trigger's only firing is over, however badly it went");
+            (await scheduler.GetTriggerState(triggerKey)).Should().Be(TriggerState.None,
+                "a trigger that is gone has no state");
+            (await scheduler.QueryTriggers(new TriggerQuery { Take = int.MaxValue })).Items.Should().BeEmpty(
+                "the listing an operator reads must not show a trigger that will never fire again");
+            (await scheduler.GetJobDetail(job.Key)).Should().BeNull(
+                "the job is not durable and its only trigger is gone");
+
+            PagedResult<TriggerHeader> waiting = await scheduler.QueryTriggers(new TriggerQuery
+            {
+                State = TriggerState.Normal,
+                Take = 0,
+                IncludeTotalCount = true
+            });
+
+            waiting.TotalCount.Should().Be(0,
+                "the dashboard's trigger-state histogram is this query, one state at a time, and a trigger "
+                + "with no fire time left in it must not be counted among the ones about to fire");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
     /// A scheduler whose in-memory store records every firing it is handed back.
     /// </summary>
     private static async Task<(IScheduler Scheduler, CompletionWatchingJobStore Store)> BuildScheduler(string instanceName)
