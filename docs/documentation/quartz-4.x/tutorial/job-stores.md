@@ -104,6 +104,14 @@ also takes a callback over `DataSourceOptions` instead of a connection string, f
 (`db => db.ConnectionStringName = "Scheduler"`) or for connecting through a `DbDataSource` the container already
 holds (`db => db.UseRegisteredDataSource = true`).
 
+::: warning
+SQLite cannot take part in a [cluster](advanced-enterprise-features.md): it locks in process rather than in the
+database, so the row locks a cluster coordinates through do not hold between nodes. Configuring `UseSqlite` or
+`UseSystemDataSqlite` together with `UseClustering()` therefore fails as the store initializes, with a
+`Quartz.Impl.AdoJobStore.InvalidConfigurationException` — a startup failure, not something that surfaces later
+under load.
+:::
+
 ::: tip
 `UseGenericDatabase` uses `StdAdoDelegate`, which writes portable SQL and therefore cannot limit a result set —
 it reads every candidate trigger and discards the surplus in memory. The database-specific delegates page their
