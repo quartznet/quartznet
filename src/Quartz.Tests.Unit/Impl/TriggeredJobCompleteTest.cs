@@ -1,5 +1,7 @@
 using FakeItEasy;
 
+using Microsoft.Extensions.Time.Testing;
+
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
@@ -179,6 +181,145 @@ public sealed class TriggeredJobCompleteTest
 
         (await store.GetTriggerState(sibling.Key)).Should().Be(TriggerState.Normal,
             "completion is what lets the blocked siblings go, and it does so even when the instruction itself decides nothing");
+    }
+
+    /// <summary>
+    /// A trigger that sat blocked past its own fire time has its misfire policy applied as it is let
+    /// go, because completion is the first thing that can settle the debt.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A blocked trigger is out of the acquisition set and out of the misfire sweep's, so a store that
+    /// left the policy to the next acquisition would hand a caller a past-due fire time in the window
+    /// between — the divergence #3463 reported and #3471 closed.
+    /// </para>
+    /// <para>
+    /// The contract suite asserts the same thing against both stores, but it runs only in the
+    /// integration leg, whose coverage the Sonar gate does not read. This is the in-memory half of it
+    /// in the fast suite, on a clock the test owns so that "rescheduled to now" is an exact instant
+    /// rather than a window.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public async Task RamStoreAppliesTheMisfirePolicyOfATriggerItUnblocks()
+    {
+        FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 6, 12, 0, 0, TimeSpan.Zero));
+        RAMJobStore store = TestJobStores.Ram(timeProvider: clock);
+        store.MisfireThreshold = TimeSpan.FromMinutes(1);
+
+        IJobDetail job = CreateJob<DisallowConcurrentCompletionTestJob>();
+        IOperableTrigger firing = await GivenABlockingFiring(store, clock, job);
+
+        // FireNow on a one-shot: the missed firing is owed, so the policy hands the trigger back due
+        // now rather than due in the past.
+        IOperableTrigger blocked = CreateOverdueOneShot("blocked", job, clock, SimpleTriggerMisfireInstruction.FireNow);
+        await store.AddTrigger(blocked, replace: false);
+
+        (await store.GetTriggerState(blocked.Key)).Should().Be(TriggerState.Blocked,
+            "a trigger added while the job is already running is blocked as it arrives");
+
+        await store.TriggeredJobComplete(firing, job, SchedulerInstruction.NoInstruction);
+
+        (await store.GetTriggerState(blocked.Key)).Should().Be(TriggerState.Normal,
+            "the trigger has a firing left to do, so completing the execution that blocked it leaves it waiting");
+
+        IOperableTrigger readBack = await store.GetTrigger(blocked.Key);
+
+        readBack.NextFireTimeUtc.Should().Be(clock.GetUtcNow(),
+            "the policy was applied while the completion was unblocking the trigger, not left to the next "
+            + "acquisition - which would still be reporting the fire time the trigger missed");
+    }
+
+    [Test]
+    public async Task RamStoreRemovesAnUnblockedTriggerWithNothingLeftToFire()
+    {
+        FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 6, 12, 0, 0, TimeSpan.Zero));
+        RAMJobStore store = TestJobStores.Ram(timeProvider: clock);
+        store.MisfireThreshold = TimeSpan.FromMinutes(1);
+
+        IJobDetail job = CreateJob<DisallowConcurrentCompletionTestJob>();
+        IOperableTrigger firing = await GivenABlockingFiring(store, clock, job);
+
+        // Reschedule to the next firing after now, of which a one-shot whose only firing was missed
+        // has none: the policy writes the missed firing off and leaves the trigger finished.
+        IOperableTrigger blocked = CreateOverdueOneShot("blocked", job, clock, SimpleTriggerMisfireInstruction.NextWithRemainingCount);
+        await store.AddTrigger(blocked, replace: false);
+
+        await store.TriggeredJobComplete(firing, job, SchedulerInstruction.NoInstruction);
+
+        (await store.GetTrigger(blocked.Key)).Should().BeNull(
+            "a trigger whose policy left it with nothing to fire is finished, and a store that kept it "
+            + "would go on handing callers a trigger that can never fire again");
+        (await store.GetTriggerState(blocked.Key)).Should().Be(TriggerState.None,
+            "a trigger that is gone has no state");
+        (await store.GetJob(job.Key)).Should().NotBeNull(
+            "the job still has the trigger that was running, so removing the finished one must not take it");
+    }
+
+    /// <summary>
+    /// Fires one trigger of a job that forbids concurrent execution, leaving the job blocked and the
+    /// firing open for the caller to complete.
+    /// </summary>
+    private static async Task<IOperableTrigger> GivenABlockingFiring(
+        RAMJobStore store,
+        FakeTimeProvider clock,
+        IJobDetail job)
+    {
+        IOperableTrigger running = (IOperableTrigger) TriggerBuilder.Create(clock)
+            .WithIdentity("running", "completion")
+            .ForJob(job)
+            .StartAt(clock.GetUtcNow())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .Build();
+        running.ComputeFirstFireTimeUtc(calendar: null);
+
+        await store.ScheduleJob(job, running);
+
+        List<IOperableTrigger> acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest
+        {
+            NoLaterThan = clock.GetUtcNow().AddMinutes(1),
+            MaxCount = 1,
+        });
+
+        IOperableTrigger firing = acquired.Should().ContainSingle(x => x.Key.Equals(running.Key),
+            "the trigger due now is the one whose firing blocks the job").Subject;
+
+        List<TriggerFiredResult> results = await store.TriggersFired([firing]);
+        results.Should().ContainSingle().Which.TriggerFiredBundle.Should().NotBeNull(
+            "the firing has to be committed for the job to count as running");
+
+        return firing;
+    }
+
+    /// <summary>
+    /// A one-shot trigger whose only firing was an hour ago and which nobody got around to firing.
+    /// </summary>
+    /// <remarks>
+    /// The fire time is written back by hand because <see cref="IOperableTrigger.ComputeFirstFireTimeUtc" />
+    /// is what a scheduler would have called before storing it, and a trigger that is overdue is one
+    /// whose stored fire time has since gone past.
+    /// </remarks>
+    private static IOperableTrigger CreateOverdueOneShot(
+        string name,
+        IJobDetail job,
+        FakeTimeProvider clock,
+        SimpleTriggerMisfireInstruction misfireInstruction)
+    {
+        DateTimeOffset missed = clock.GetUtcNow().AddHours(-1);
+
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(clock)
+            .WithIdentity(name, "completion")
+            .ForJob(job)
+            .StartAt(missed)
+            .WithSimpleSchedule(x => x
+                .WithRepeatCount(0)
+                .WithInterval(TimeSpan.Zero)
+                .WithMisfireInstruction(misfireInstruction))
+            .Build();
+
+        trigger.ComputeFirstFireTimeUtc(calendar: null);
+        trigger.NextFireTimeUtc = missed;
+        return trigger;
     }
 
     #endregion
