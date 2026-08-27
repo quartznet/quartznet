@@ -100,6 +100,19 @@ public class SelectColumnListTest
             (del, conn) => del.SelectFiredTriggerRecords(conn, new FiredTriggerQuery()).AsTask());
     }
 
+    /// <summary>
+    /// The set form of the stored trigger header, which pause and resume decide a whole set's
+    /// transitions from. Its projection is the single-trigger header's with the key columns in front,
+    /// because a set read has to say which row each header came from.
+    /// </summary>
+    [Test]
+    public async Task TheBatchTriggerHeaderStatementNamesWhatTheHeaderIsMadeOf()
+    {
+        await ReadsExactly(StdAdoConstants.SqlSelectTriggerHeadersByKeysPrefix,
+            (del, conn) => del.SelectStoredTriggerHeaders(conn, [new TriggerKey("trigger", "group")]).AsTask(),
+            statementIsAPrefix: true);
+    }
+
     [Test]
     public async Task TheRecoverableFiredTriggerStatementNamesWhatTheRecoveryTriggerIsMadeOf()
     {
@@ -142,7 +155,8 @@ public class SelectColumnListTest
     private static async Task ReadsExactly(
         string sql,
         Func<StdAdoDelegate, ConnectionAndTransactionHolder, Task> issue,
-        int trailingReaders = 0)
+        int trailingReaders = 0,
+        bool statementIsAPrefix = false)
     {
         ProjectionDataReader reader = new(ProjectionOf(sql));
 
@@ -156,8 +170,20 @@ public class SelectColumnListTest
         using ConnectionAndTransactionHolder conn = new(new StubBatchingConnection(), transaction: null);
         await issue(del, conn);
 
-        del.Statements[0].Should().Be(AdoJobStoreUtil.ReplaceTablePrefix(sql, "QRTZ_"),
-            "the statement measured has to be the statement issued");
+        string expected = AdoJobStoreUtil.ReplaceTablePrefix(sql, "QRTZ_");
+        if (statementIsAPrefix)
+        {
+            // A key-set statement is this prefix plus the predicate the caller appends, so what is
+            // measured is that the projection reached the database unaltered.
+            del.Statements[0].Should().StartWith(expected,
+                "the statement measured has to begin with the statement issued");
+        }
+        else
+        {
+            del.Statements[0].Should().Be(expected,
+                "the statement measured has to be the statement issued");
+        }
+
         reader.Unread.Should().BeEmpty(
             "'{0}' projects columns nothing reads, which is bytes off the wire for nobody", Projection(sql));
     }
