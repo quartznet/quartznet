@@ -328,6 +328,29 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Apply the same conditional state change to each of several triggers, in as few round trips as
+    /// the provider allows.
+    /// </summary>
+    /// <remarks>
+    /// The same statement as the single-trigger overload, once per key, issued as one
+    /// <see cref="System.Data.Common.DbBatch" /> where the provider supports batching. Cluster recovery
+    /// releases every trigger a dead node had acquired, which is one of these per fired-trigger row when
+    /// they travel separately. No row count comes back: a batch does not report one per command in any
+    /// portable way, and the caller counts the rows it asked about rather than the rows that moved.
+    /// </remarks>
+    /// <param name="conn">The DB connection</param>
+    /// <param name="triggerKeys">The keys identifying the triggers. An empty collection does nothing.</param>
+    /// <param name="newState">The new state for the triggers</param>
+    /// <param name="oldState">The old state a trigger must be in to be updated</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask UpdateTriggerStatesFromOtherState(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Update the given trigger to the given new state, if it is one of the
     /// given old states.
     /// </summary>
@@ -433,6 +456,30 @@ public interface IDriverDelegate
     ValueTask<int> UpdateTriggerStatesForJobFromOtherState(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Apply the same conditional state change to the triggers of each of several jobs, in as few round
+    /// trips as the provider allows.
+    /// </summary>
+    /// <remarks>
+    /// The same statement as the single-job overload, once per job key, issued as one
+    /// <see cref="System.Data.Common.DbBatch" /> where the provider supports batching. Cluster recovery
+    /// unblocks the siblings of every interrupted execution, which is one or two of these per
+    /// fired-trigger row when they travel separately — and the same job over and over when a dead node
+    /// left several rows behind. No row count comes back, for the reason
+    /// <see cref="UpdateTriggerStatesFromOtherState" /> gives.
+    /// </remarks>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="jobKeys">The keys identifying the jobs. An empty collection does nothing.</param>
+    /// <param name="newState">The new state for the triggers</param>
+    /// <param name="oldState">The old state a trigger must be in to be updated</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask UpdateTriggerStatesForJobsFromOtherState(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<JobKey> jobKeys,
         StoredTriggerState newState,
         StoredTriggerState oldState,
         CancellationToken cancellationToken = default);
@@ -870,6 +917,25 @@ public interface IDriverDelegate
     ValueTask<int> DeleteFiredTrigger(
         ConnectionAndTransactionHolder conn,
         string entryId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Delete several fired triggers by entry id, in as few round trips as the provider allows.
+    /// </summary>
+    /// <remarks>
+    /// The same statement as the single-entry overload, once per id, issued as one
+    /// <see cref="System.Data.Common.DbBatch" /> where the provider supports batching. This is the shape
+    /// cluster recovery needs when it is clearing a dead node's rows but holding some of them back: the
+    /// whole-instance <see cref="DeleteFiredTriggers(ConnectionAndTransactionHolder, FiredTriggerQuery, CancellationToken)" />
+    /// would take the preserved rows with it. No row count comes back, for the reason
+    /// <see cref="UpdateTriggerStatesFromOtherState" /> gives.
+    /// </remarks>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="entryIds">The fired trigger entries to delete. An empty collection does nothing.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask DeleteFiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<string> entryIds,
         CancellationToken cancellationToken = default);
 
     /// <summary>

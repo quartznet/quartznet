@@ -628,6 +628,36 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
+    public virtual ValueTask UpdateTriggerStatesFromOtherState(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
+        CancellationToken cancellationToken = default)
+    {
+        if (triggerKeys.Count == 0)
+        {
+            return default;
+        }
+
+        string sql = ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStateFromState);
+        List<SqlStatement> statements = new(triggerKeys.Count);
+        foreach (TriggerKey triggerKey in triggerKeys)
+        {
+            statements.Add(new SqlStatement(sql,
+            [
+                new SqlStatementParameter("schedulerName", schedulerName),
+                new SqlStatementParameter("newState", newState.ToStoredValue()),
+                new SqlStatementParameter("triggerName", triggerKey.Name),
+                new SqlStatementParameter("triggerGroup", triggerKey.Group),
+                new SqlStatementParameter("oldState", oldState.ToStoredValue())
+            ]));
+        }
+
+        return ExecuteStatements(conn, statements, cancellationToken);
+    }
+
+    /// <inheritdoc />
     public async ValueTask<int> UpdateTriggerStateFromOtherStateWithNextFireTime(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
@@ -698,6 +728,29 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.OldState, oldState.ToStoredValue());
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask UpdateTriggerStatesForJobsFromOtherState(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<JobKey> jobKeys,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
+        CancellationToken cancellationToken = default)
+    {
+        if (jobKeys.Count == 0)
+        {
+            return default;
+        }
+
+        TriggerStateTransition[] transition = [new TriggerStateTransition(oldState, newState)];
+        List<SqlStatement> statements = new(jobKeys.Count);
+        foreach (JobKey jobKey in jobKeys)
+        {
+            AddJobTriggerStateTransitions(statements, jobKey, transition);
+        }
+
+        return ExecuteStatements(conn, statements, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -1701,6 +1754,31 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
         AddCommandParameter(cmd, SqlParameters.TriggerEntryId, entryId);
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual ValueTask DeleteFiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<string> entryIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (entryIds.Count == 0)
+        {
+            return default;
+        }
+
+        string sql = ReplaceTablePrefix(StdAdoConstants.SqlDeleteFiredTrigger);
+        List<SqlStatement> statements = new(entryIds.Count);
+        foreach (string entryId in entryIds)
+        {
+            statements.Add(new SqlStatement(sql,
+            [
+                new SqlStatementParameter("schedulerName", schedulerName),
+                new SqlStatementParameter("triggerEntryId", entryId)
+            ]));
+        }
+
+        return ExecuteStatements(conn, statements, cancellationToken);
     }
 
     public virtual void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate persistenceDelegate)
