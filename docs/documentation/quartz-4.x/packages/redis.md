@@ -2,7 +2,7 @@
 title: Redis Lock Handler
 ---
 
-[Quartz.Extensions.Redis](https://www.nuget.org/packages/Quartz.Extensions.Redis) provides a Redis-based distributed lock handler (`ISemaphore`) that replaces database row locks in clustered Quartz.NET setups.
+[Quartz.Extensions.Redis](https://www.nuget.org/packages/Quartz.Extensions.Redis) provides a Redis-based distributed lock handler (`ILockHandler`) that replaces database row locks in clustered Quartz.NET setups.
 
 ::: tip
 Useful when database row locks (the default for clustered setups) cause deadlocks or performance issues under heavy scheduling load.
@@ -20,7 +20,7 @@ dotnet add package Quartz.Extensions.Redis
 
 ## Why Redis Locks?
 
-The default `SelectForUpdateSemaphore` uses `SELECT ... FOR UPDATE` database row locks to coordinate trigger acquisition across cluster nodes. Under heavy scheduling load this can lead to:
+The default `SelectForUpdateLockHandler` uses `SELECT ... FOR UPDATE` database row locks to coordinate trigger acquisition across cluster nodes. Under heavy scheduling load this can lead to:
 
 - **Table deadlocks** in certain database engines
 - **Connection timeouts** when obtaining locks is slow
@@ -72,7 +72,7 @@ store.UseRedisLockHandler(redis =>
 <!-- endSnippet -->
 
 The scheduler name that namespaces the lock keys is not configured here: the job store tells the handler
-which scheduler it locks for, through `ISemaphore.Initialize(SemaphoreContext)`, before the handler is used.
+which scheduler it locks for, through `ILockHandler.Initialize(LockHandlerContext)`, before the handler is used.
 
 ### Using properties
 
@@ -85,7 +85,7 @@ NameValueCollection properties = new()
 {
     ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
     ["quartz.jobStore.clustered"] = "true",
-    ["quartz.jobStore.lockHandler.type"] = "Quartz.Extensions.Redis.RedisSemaphore, Quartz.Extensions.Redis",
+    ["quartz.jobStore.lockHandler.type"] = "Quartz.Extensions.Redis.RedisLockHandler, Quartz.Extensions.Redis",
     ["quartz.jobStore.lockHandler.redisConfiguration"] = "redis-server:6379",
     ["quartz.jobStore.lockHandler.lockTimeToLive"] = "30000"
 };
@@ -109,5 +109,5 @@ Lock release uses a Lua script for atomic check-and-delete, preventing a node fr
 ## Considerations
 
 - **Lock TTL**: The default 30-second TTL provides ample margin for typical scheduling operations (milliseconds to low seconds). If your database is very slow, increase the TTL. If a node crashes, the lock auto-expires after the TTL.
-- **Redis availability**: If Redis is unreachable, `ObtainLock` throws a `LockException` which the scheduler handles via its standard retry mechanism.
+- **Redis availability**: If Redis is unreachable, `AcquireLock` throws a `LockException` which the scheduler handles via its standard retry mechanism.
 - **Single-instance Redis**: This implementation uses simple `SET NX` locks, not the Redlock algorithm. For most Quartz.NET deployments a single Redis instance (or replica set with Sentinel) is sufficient since the locks are advisory and short-lived.

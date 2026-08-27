@@ -397,7 +397,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// through <c>UseLockHandler</c> was given its statement by whoever built it, and
     /// <see cref="Initialize" /> warns when both are configured.
     /// </remarks>
-    /// <seealso cref="SelectForUpdateSemaphore" />
+    /// <seealso cref="SelectForUpdateLockHandler" />
     protected internal string? SelectWithLockSql { get; internal set; }
 
     /// <summary>
@@ -472,7 +472,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// </summary>
     protected internal IDbProvider DbProvider { get; }
 
-    protected internal ISemaphore LockHandler { get; set; } = null!;
+    protected internal ILockHandler LockHandler { get; set; } = null!;
 
     /// <summary>
     /// Get whether String-only properties will be handled in JobDataMaps.
@@ -502,10 +502,10 @@ public abstract partial class AdoJobStoreBase : IJobStore
         LastCheckin = timeProvider.GetUtcNow();
         InitializeDelegate();
 
-        if (Delegate is SQLiteDelegate && LockHandler is not SQLiteSemaphore)
+        if (Delegate is SQLiteDelegate && LockHandler is not SqliteLockHandler)
         {
-            Logger.SqliteSemaphoreSubstituted();
-            LockHandler = new SQLiteSemaphore();
+            Logger.SqliteLockHandlerSubstituted();
+            LockHandler = new SqliteLockHandler();
         }
 
         if (Delegate is SQLiteDelegate)
@@ -551,7 +551,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
                 UseDbLocks = true;
             }
 
-            // The same applies when the application owns the transaction: SimpleSemaphore releases its
+            // The same applies when the application owns the transaction: InProcessLockHandler releases its
             // in-process lock as soon as our work is done, which is before the application has
             // committed, so another caller could act on scheduling data that is not visible yet.
             if (AcceptEnlistedTransactions)
@@ -573,18 +573,18 @@ public abstract partial class AdoJobStoreBase : IJobStore
 
                 if (Delegate is PostgreSQLDelegate)
                 {
-                    LockHandler = new PostgreSqlSelectForUpdateSemaphore(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
+                    LockHandler = new PostgreSqlSelectForUpdateLockHandler(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
                 }
                 else
                 {
-                    LockHandler = new SelectForUpdateSemaphore(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
+                    LockHandler = new SelectForUpdateLockHandler(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
                 }
 
                 Logger.UsingDatabaseLocking(LockHandler.GetType().Name);
             }
             else
             {
-                LockHandler = new SimpleSemaphore();
+                LockHandler = new InProcessLockHandler();
                 Logger.UsingMonitorLocking(LockHandler.GetType().Name);
             }
         }
@@ -595,7 +595,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
             // configuring both leaves the statement doing nothing and the drift is invisible.
             if (SelectWithLockSql is not null)
             {
-                if (LockHandler is SQLiteSemaphore)
+                if (LockHandler is SqliteLockHandler)
                 {
                     // SQLite arrives here with a handler the store installed rather than one the caller
                     // chose, so this is a property of the database rather than a configuration to undo.
@@ -610,7 +610,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
             // be ready to give a friendly warning if locks would be released before the application commits
             if (AcceptEnlistedTransactions && !LockHandler.RequiresConnection)
             {
-                if (LockHandler is SQLiteSemaphore)
+                if (LockHandler is SqliteLockHandler)
                 {
                     // SQLite gets this handler unconditionally, before the upgrade to database locks
                     // can be applied, and it cannot be swapped for one - so this is a property of the
@@ -624,7 +624,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
             }
 
             // be ready to give a friendly warning if SQL Server is used and sub-optimal locking
-            if (LockHandler is UpdateRowSemaphore and not SqlServerMemoryOptimizedUpdateRowSemaphore && Delegate is SqlServerDelegate)
+            if (LockHandler is UpdateRowLockHandler and not SqlServerMemoryOptimizedUpdateRowLockHandler && Delegate is SqlServerDelegate)
             {
                 Logger.SqlServerCouldUseRowLocking();
             }
@@ -643,7 +643,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
         // paths: a handler the store built itself is told the same identity its constructor arguments
         // carried, and a handler the container or configuration supplied would otherwise query
         // QRTZ_LOCKS with a null scheduler name, whatever the store is actually configured with.
-        LockHandler.Initialize(new SemaphoreContext
+        LockHandler.Initialize(new LockHandlerContext
         {
             SchedulerName = InstanceName,
             InstanceId = InstanceId,

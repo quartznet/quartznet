@@ -54,14 +54,28 @@ internal sealed class SimpleTypeLoader : ITypeLoader
     /// Types that were renamed in 4.0. The job stores are here because <c>quartz.jobStore.type</c> is
     /// the one type name almost every persistent configuration spells out.
     /// </summary>
+    /// <remarks>
+    /// The lock handlers were renamed twice — once out of 3.x's three spellings of the same idea, and
+    /// again when "semaphore" gave way to "lock handler" — so each of them has two entries: a 3.x
+    /// configuration file and a 4.0 alpha one both name a type nothing is called any more, and both have
+    /// to keep resolving. Each entry names the type as it is called today rather than chaining, because
+    /// the rewrite is one pass.
+    /// </remarks>
     private static readonly (string Old, string New)[] renamedTypes =
     [
         ("Quartz.Impl.AdoJobStore.JobStoreTX", "Quartz.Impl.AdoJobStore.LocalTransactionJobStore"),
         ("Quartz.Impl.AdoJobStore.JobStoreCMT", "Quartz.Impl.AdoJobStore.ExternalTransactionJobStore"),
-        ("Quartz.Impl.AdoJobStore.StdRowLockSemaphore", "Quartz.Impl.AdoJobStore.SelectForUpdateSemaphore"),
-        ("Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore", "Quartz.Impl.AdoJobStore.PostgreSqlSelectForUpdateSemaphore"),
-        ("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore", "Quartz.Impl.AdoJobStore.UpdateRowSemaphore"),
-        ("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT", "Quartz.Impl.AdoJobStore.SqlServerMemoryOptimizedUpdateRowSemaphore"),
+        ("Quartz.Impl.AdoJobStore.StdRowLockSemaphore", "Quartz.Impl.AdoJobStore.SelectForUpdateLockHandler"),
+        ("Quartz.Impl.AdoJobStore.SelectForUpdateSemaphore", "Quartz.Impl.AdoJobStore.SelectForUpdateLockHandler"),
+        ("Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore", "Quartz.Impl.AdoJobStore.PostgreSqlSelectForUpdateLockHandler"),
+        ("Quartz.Impl.AdoJobStore.PostgreSqlSelectForUpdateSemaphore", "Quartz.Impl.AdoJobStore.PostgreSqlSelectForUpdateLockHandler"),
+        ("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore", "Quartz.Impl.AdoJobStore.UpdateRowLockHandler"),
+        ("Quartz.Impl.AdoJobStore.UpdateRowSemaphore", "Quartz.Impl.AdoJobStore.UpdateRowLockHandler"),
+        ("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT", "Quartz.Impl.AdoJobStore.SqlServerMemoryOptimizedUpdateRowLockHandler"),
+        ("Quartz.Impl.AdoJobStore.SqlServerMemoryOptimizedUpdateRowSemaphore", "Quartz.Impl.AdoJobStore.SqlServerMemoryOptimizedUpdateRowLockHandler"),
+        ("Quartz.Impl.AdoJobStore.SimpleSemaphore", "Quartz.Impl.AdoJobStore.InProcessLockHandler"),
+        ("Quartz.Impl.AdoJobStore.SQLiteSemaphore", "Quartz.Impl.AdoJobStore.SqliteLockHandler"),
+        ("Quartz.Extensions.Redis.RedisSemaphore", "Quartz.Extensions.Redis.RedisLockHandler"),
         ("Quartz.Impl.HostnameInstanceIdGenerator", "Quartz.Impl.HostNameInstanceIdGenerator"),
         ("Quartz.Impl.SimpleTypeLoadHelper", "Quartz.Impl.SimpleTypeLoader"),
         ("Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin", "Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin"),

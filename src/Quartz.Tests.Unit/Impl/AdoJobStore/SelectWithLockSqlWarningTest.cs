@@ -30,18 +30,18 @@ public sealed class SelectWithLockSqlWarningTest
     [Test]
     public async Task ASuppliedLockHandlerWithARowLockStatementIsReported()
     {
-        var entries = await InitializeAndCaptureLogs(new SimpleSemaphore(), LockSql);
+        var entries = await InitializeAndCaptureLogs(new InProcessLockHandler(), LockSql);
 
         entries.Should().ContainSingle(entry =>
             entry.Level == LogLevel.Warning && entry.Message.Contains("row-lock statement is configured"))
-            .Which.Message.Should().Contain(nameof(SimpleSemaphore),
+            .Which.Message.Should().Contain(nameof(InProcessLockHandler),
                 "the message has to name the handler that is ignoring the statement");
     }
 
     [Test]
     public async Task ASuppliedLockHandlerOnItsOwnIsNotReported()
     {
-        var entries = await InitializeAndCaptureLogs(new SimpleSemaphore(), selectWithLockSql: null);
+        var entries = await InitializeAndCaptureLogs(new InProcessLockHandler(), selectWithLockSql: null);
 
         entries.Should().NotContain(entry => entry.Message.Contains("row-lock statement is configured"),
             "a store with no statement configured has nothing to be silently dropped");
@@ -59,7 +59,7 @@ public sealed class SelectWithLockSqlWarningTest
     [Test]
     public async Task SQLiteIsReportedAsThePropertyOfTheDatabaseThatItIs()
     {
-        var entries = await InitializeAndCaptureLogs(new SQLiteSemaphore(), LockSql);
+        var entries = await InitializeAndCaptureLogs(new SqliteLockHandler(), LockSql);
 
         entries.Should().ContainSingle(entry => entry.Message.Contains("row-lock statement is configured"))
             .Which.Message.Should().Contain("SQLite serializes callers in process",
@@ -67,7 +67,7 @@ public sealed class SelectWithLockSqlWarningTest
                 + "remove a lock handler they never chose would send them looking for one");
     }
 
-    private static async Task<List<LogEntry>> InitializeAndCaptureLogs(ISemaphore? lockHandler, string? selectWithLockSql)
+    private static async Task<List<LogEntry>> InitializeAndCaptureLogs(ILockHandler? lockHandler, string? selectWithLockSql)
     {
         var recorder = new RecordingLoggerProvider();
         using var factory = new LoggerFactory();
@@ -95,7 +95,7 @@ public sealed class SelectWithLockSqlWarningTest
     /// </summary>
     private sealed class WarningStore : AdoJobStoreBase
     {
-        public WarningStore(ISemaphore? lockHandler, string? selectWithLockSql)
+        public WarningStore(ILockHandler? lockHandler, string? selectWithLockSql)
             : base(TestJobStores.Dependencies(
                 storeOptions: TestJobStores.StoreOptions(configure: options =>
                 {

@@ -34,7 +34,7 @@ namespace Quartz.Extensions.Redis;
 /// </para>
 /// <para>
 /// The class is named for the concept rather than for the type that raises the events: the handler is
-/// still called <c>RedisSemaphore</c> until #3440 renames it, and an event catalogue that renames
+/// still called <c>RedisLockHandler</c> until #3440 renames it, and an event catalogue that renames
 /// itself with its caller is a catalogue that renumbers. The ids and the class name outlive whatever
 /// the implementing type is spelled.
 /// </para>

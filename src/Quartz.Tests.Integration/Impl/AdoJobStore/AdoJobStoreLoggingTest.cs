@@ -117,7 +117,7 @@ public sealed class AdoJobStoreLoggingTest
         recorder.Categories.Should().Contain("Quartz.Impl.AdoJobStore.LocalTransactionJobStore",
             "the store's own lines - the lock handler it chose, the isolation level it forced, a failed "
             + "schema validation - reach an application that configured logging and nothing else");
-        recorder.Categories.Should().Contain("Quartz.Impl.AdoJobStore.SQLiteSemaphore",
+        recorder.Categories.Should().Contain("Quartz.Impl.AdoJobStore.SqliteLockHandler",
             "the lock handler learns where to log from the context the store initializes it with");
         recorder.Categories.Should().Contain("Quartz.Impl.AdoJobStore.AdoUtil",
             "so does the command preparation underneath the driver delegate");

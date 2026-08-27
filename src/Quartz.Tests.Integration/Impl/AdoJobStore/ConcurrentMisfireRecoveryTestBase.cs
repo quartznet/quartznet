@@ -36,7 +36,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <c>SchedulerStarted()</c> is what spawns the <c>MisfireHandler</c> loop, and a loop sweeping on its
 /// own schedule is precisely the thing that would make "exactly once" unobservable. The stores are
 /// built with no lock handler so that each picks the one its own dialect calls for, which is the whole
-/// mechanism under test: on PostgreSQL that is <c>PostgreSqlSelectForUpdateSemaphore</c>, and the
+/// mechanism under test: on PostgreSQL that is <c>PostgreSqlSelectForUpdateLockHandler</c>, and the
 /// second node's sweep has to wait behind the first node's row lock and then find nothing left to do.
 /// </para>
 /// <para>

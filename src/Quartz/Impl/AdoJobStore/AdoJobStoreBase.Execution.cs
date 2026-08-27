@@ -673,7 +673,7 @@ public abstract partial class AdoJobStoreBase
                         conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                     }
 
-                    transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockKind.Value, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.AcquireLock(requestorId.Value, conn, lockKind.Value, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn is null)

@@ -43,8 +43,8 @@ namespace Quartz.Impl.AdoJobStore;
 /// </remarks>
 internal static partial class AdoJobStoreLog
 {
-    [LoggerMessage(EventId = 3000, Level = LogLevel.Information, Message = "Detected SQLite usage, changing to use SQLiteSemaphore for in-memory locking")]
-    public static partial void SqliteSemaphoreSubstituted(this ILogger logger);
+    [LoggerMessage(EventId = 3000, Level = LogLevel.Information, Message = "Detected SQLite usage, changing to use SqliteLockHandler for in-memory locking")]
+    public static partial void SqliteLockHandlerSubstituted(this ILogger logger);
 
     [LoggerMessage(EventId = 3001, Level = LogLevel.Information, Message = "With SQLite we need to set AcquireTriggersWithinLock to true, changing")]
     public static partial void SqliteAcquireTriggersWithinLockForced(this ILogger logger);
@@ -73,13 +73,13 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3009, Level = LogLevel.Warning, Message = "A row-lock statement is configured, but lock handler {LockHandlerType} was supplied rather than built by the job store, so the statement is ignored. Pass it to the handler's constructor, or remove the lock handler and let the store choose one.")]
     public static partial void RowLockStatementIgnoredBySuppliedHandler(this ILogger logger, string lockHandlerType);
 
-    [LoggerMessage(EventId = 3010, Level = LogLevel.Warning, Message = "Accepting enlisted transactions with SQLite keeps in-process locking: SQLiteSemaphore releases the lock when the scheduling call returns, while the application transaction still holds the SQLite writer lock, so a concurrent scheduler operation can fail with 'database is locked' until that transaction completes. Keep enlisted transactions short, or use a database that supports row locking.")]
+    [LoggerMessage(EventId = 3010, Level = LogLevel.Warning, Message = "Accepting enlisted transactions with SQLite keeps in-process locking: SqliteLockHandler releases the lock when the scheduling call returns, while the application transaction still holds the SQLite writer lock, so a concurrent scheduler operation can fail with 'database is locked' until that transaction completes. Keep enlisted transactions short, or use a database that supports row locking.")]
     public static partial void EnlistedTransactionsWithSqlite(this ILogger logger);
 
     [LoggerMessage(EventId = 3011, Level = LogLevel.Warning, Message = "Accepting enlisted transactions with lock handler {LockHandlerType}, which does not lock in the database. Its locks are released before the application commits its transaction, so concurrent callers can act on scheduling data that is not visible to them yet.")]
     public static partial void EnlistedTransactionsWithInProcessLocking(this ILogger logger, string lockHandlerType);
 
-    [LoggerMessage(EventId = 3012, Level = LogLevel.Warning, Message = "Detected usage of SqlServerDelegate and UpdateRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access")]
+    [LoggerMessage(EventId = 3012, Level = LogLevel.Warning, Message = "Detected usage of SqlServerDelegate and UpdateRowLockHandler, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access")]
     public static partial void SqlServerCouldUseRowLocking(this ILogger logger);
 
     [LoggerMessage(EventId = 3013, Level = LogLevel.Warning, Message = "Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance")]

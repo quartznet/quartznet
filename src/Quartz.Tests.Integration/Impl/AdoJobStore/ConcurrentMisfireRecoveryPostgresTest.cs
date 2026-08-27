@@ -2,7 +2,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
 /// Concurrent misfire recovery against PostgreSQL, whose nodes serialize on
-/// <c>PostgreSqlSelectForUpdateSemaphore</c> — a <c>SELECT ... FOR UPDATE</c> against
+/// <c>PostgreSqlSelectForUpdateLockHandler</c> — a <c>SELECT ... FOR UPDATE</c> against
 /// <c>QRTZ_LOCKS</c>, held for the length of the sweep's own transaction.
 /// </summary>
 [Category("db-postgres")]

@@ -96,7 +96,7 @@ public class ClusteringJobsExecutionExample : IExample
                 store.UseSqlServer(connectionString);
 
                 // if running SQLite this would be UseSystemDataSqlite (System.Data.SQLite) or
-                // UseSqlite (Microsoft.Data.Sqlite), plus UseLockHandler<UpdateRowSemaphore>()
+                // UseSqlite (Microsoft.Data.Sqlite), plus UseLockHandler<UpdateRowLockHandler>()
 
                 store.UseClustering(cluster =>
                 {

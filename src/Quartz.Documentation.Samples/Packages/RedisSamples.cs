@@ -53,7 +53,7 @@ public static class RedisSamples
         {
             ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
             ["quartz.jobStore.clustered"] = "true",
-            ["quartz.jobStore.lockHandler.type"] = "Quartz.Extensions.Redis.RedisSemaphore, Quartz.Extensions.Redis",
+            ["quartz.jobStore.lockHandler.type"] = "Quartz.Extensions.Redis.RedisLockHandler, Quartz.Extensions.Redis",
             ["quartz.jobStore.lockHandler.redisConfiguration"] = "redis-server:6379",
             ["quartz.jobStore.lockHandler.lockTimeToLive"] = "30000"
         };

@@ -34,7 +34,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Note:</b> This Semaphore implementation is useful for databases that do
+/// <b>Note:</b> This lock handler is useful for databases that do
 /// not support row locking via "SELECT FOR UPDATE" or SQL Server's type syntax.
 /// </para>
 /// <para>
@@ -43,7 +43,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
-public class UpdateRowSemaphore : DbSemaphore
+public class UpdateRowLockHandler : DbLockHandler
 {
     /// <summary>
     /// The statement that takes the lock by updating its row.
@@ -65,7 +65,7 @@ public class UpdateRowSemaphore : DbSemaphore
     /// <remarks>
     /// It was a literal <c>TimeSpan.FromSeconds(1)</c> in the retry loop, which meant this handler
     /// ignored <c>quartz.jobStore.lockHandler.retryPeriod</c> while its sibling
-    /// <see cref="SelectForUpdateSemaphore" /> honoured it. Init-only for the same reason as there: the
+    /// <see cref="SelectForUpdateLockHandler" /> honoured it. Init-only for the same reason as there: the
     /// value is fixed for the life of the handler, and the property bridge writes it by reflection,
     /// which an init accessor does not stop.
     /// </remarks>
@@ -73,14 +73,14 @@ public class UpdateRowSemaphore : DbSemaphore
     public TimeSpan RetryPeriod { get; init; } = TimeSpan.FromMilliseconds(1000);
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="UpdateRowSemaphore"/> class.
+    /// Initializes a new instance of the <see cref="UpdateRowLockHandler"/> class.
     /// </summary>
-    public UpdateRowSemaphore(IDbProvider provider)
+    public UpdateRowLockHandler(IDbProvider provider)
         : base(AdoConstants.DefaultTablePrefix, null, UpdateForLock, InsertLock, provider)
     {
     }
 
-    protected UpdateRowSemaphore(
+    protected UpdateRowLockHandler(
         string tablePrefix,
         string? schedulerName,
         string updateForLockSql,

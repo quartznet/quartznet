@@ -21,7 +21,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <remarks>
 /// Run against every engine that has a fixture: the ceiling is one aggregate over
 /// <c>QRTZ_FIRED_TRIGGERS</c> evaluated beside the candidate select, under whichever lock the engine's
-/// semaphore implements, and neither the aggregate's <c>COUNT(*)</c> type nor the locking is the same on
+/// lock handler implements, and neither the aggregate's <c>COUNT(*)</c> type nor the locking is the same on
 /// PostgreSQL as on SQL Server.
 /// </remarks>
 public abstract class ClusteredExecutionCeilingTestBase : ClusteredJobStoreTestBase

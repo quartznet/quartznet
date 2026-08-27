@@ -2,7 +2,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
 /// The cluster-scoped ceiling against PostgreSQL, whose acquisition locks through
-/// <c>PostgreSqlSelectForUpdateSemaphore</c> and whose <c>COUNT(*)</c> comes back as a 64-bit integer.
+/// <c>PostgreSqlSelectForUpdateLockHandler</c> and whose <c>COUNT(*)</c> comes back as a 64-bit integer.
 /// </summary>
 [Category("db-postgres")]
 [NonParallelizable]

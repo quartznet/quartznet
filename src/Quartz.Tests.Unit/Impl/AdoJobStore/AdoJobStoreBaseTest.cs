@@ -1368,7 +1368,7 @@ public class AdoJobStoreBaseTest
             options.TransientRetryInterval = TimeSpan.Zero;
         })))
         {
-            LockHandler = new SimpleSemaphore();
+            LockHandler = new InProcessLockHandler();
         }
 
         protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
@@ -1543,7 +1543,7 @@ public class AdoJobStoreBaseTest
                 options.TransientRetryInterval = TimeSpan.Zero;
             })))
         {
-            LockHandler = new SimpleSemaphore();
+            LockHandler = new InProcessLockHandler();
         }
 
         public void SetFirstCheckIn(bool value)

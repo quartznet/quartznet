@@ -13,11 +13,11 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <summary>
 /// The row-lock handlers back off between attempts. Until the wait moved onto
-/// <see cref="SemaphoreContext.TimeProvider"/> it was a wall-clock <see cref="Task.Delay(TimeSpan, CancellationToken)"/>,
+/// <see cref="LockHandlerContext.TimeProvider"/> it was a wall-clock <see cref="Task.Delay(TimeSpan, CancellationToken)"/>,
 /// so the only way to observe a retry was for the test to sit out the real second — which is why the
 /// retry paths of both handlers had no test at all.
 /// </summary>
-public class DbSemaphoreRetryTest
+public class DbLockHandlerRetryTest
 {
     private static readonly DbMetadata FakeDriver = new()
     {
@@ -26,7 +26,7 @@ public class DbSemaphoreRetryTest
         BindByName = true,
     };
 
-    private static SemaphoreContext Context(TimeProvider timeProvider) => new()
+    private static LockHandlerContext Context(TimeProvider timeProvider) => new()
     {
         SchedulerName = "TESTSCHED",
         InstanceId = "node-1",
@@ -35,21 +35,21 @@ public class DbSemaphoreRetryTest
     };
 
     [Test]
-    public async Task AnUpdateRowSemaphoreBacksOffOnTheStoresClockRatherThanOnWallTime()
+    public async Task AnUpdateRowLockHandlerBacksOffOnTheStoresClockRatherThanOnWallTime()
     {
         var clock = new FakeTimeProvider();
         var provider = new FailingDbProvider();
 
         // Ten minutes: long enough that a handler still waiting on wall time would hang this test rather
         // than pass it slowly, so the assertion cannot be satisfied by accident.
-        var semaphore = new UpdateRowSemaphore(provider) { RetryPeriod = TimeSpan.FromMinutes(10) };
-        semaphore.Initialize(Context(clock));
+        var lockHandler = new UpdateRowLockHandler(provider) { RetryPeriod = TimeSpan.FromMinutes(10) };
+        lockHandler.Initialize(Context(clock));
 
         using var connection = new FakeConnection();
         using var holder = new ConnectionAndTransactionHolder(connection, transaction: null);
 
         var started = Stopwatch.GetTimestamp();
-        Task<bool> obtain = semaphore.ObtainLock(Guid.NewGuid(), holder, SchedulerLock.TriggerAccess).AsTask();
+        Task<bool> obtain = lockHandler.AcquireLock(Guid.NewGuid(), holder, SchedulerLock.TriggerAccess).AsTask();
 
         await WaitUntil(() => provider.CommandsExecuted >= 1, obtain);
         obtain.IsCompleted.Should().BeFalse("the first attempt failed and the handler is parked on its ten-minute backoff");
@@ -59,28 +59,28 @@ public class DbSemaphoreRetryTest
         var act = async () => await obtain;
         await act.Should().ThrowAsync<LockException>().WithMessage("*db row lock*");
 
-        provider.CommandsExecuted.Should().Be(2, "UpdateRowSemaphore.RetryCount is 2, so the failure is retried once");
+        provider.CommandsExecuted.Should().Be(2, "UpdateRowLockHandler.RetryCount is 2, so the failure is retried once");
         Stopwatch.GetElapsedTime(started).Should().BeLessThan(TimeSpan.FromMinutes(1),
             "the ten minutes were waited on the fake clock, not on the wall");
     }
 
     [Test]
-    public async Task ASelectForUpdateSemaphoreBacksOffOnTheStoresClockRatherThanOnWallTime()
+    public async Task ASelectForUpdateLockHandlerBacksOffOnTheStoresClockRatherThanOnWallTime()
     {
         var clock = new FakeTimeProvider();
         var provider = new FailingDbProvider();
 
-        var semaphore = new SelectForUpdateSemaphore(provider)
+        var lockHandler = new SelectForUpdateLockHandler(provider)
         {
             MaxRetry = 3,
             RetryPeriod = TimeSpan.FromMinutes(10),
         };
-        semaphore.Initialize(Context(clock));
+        lockHandler.Initialize(Context(clock));
 
         using var connection = new FakeConnection();
         using var holder = new ConnectionAndTransactionHolder(connection, transaction: null);
 
-        Task<bool> obtain = semaphore.ObtainLock(Guid.NewGuid(), holder, SchedulerLock.TriggerAccess).AsTask();
+        Task<bool> obtain = lockHandler.AcquireLock(Guid.NewGuid(), holder, SchedulerLock.TriggerAccess).AsTask();
 
         await WaitUntil(() => provider.CommandsExecuted >= 1, obtain);
         obtain.IsCompleted.Should().BeFalse("the first attempt failed and the handler is parked on its ten-minute backoff");

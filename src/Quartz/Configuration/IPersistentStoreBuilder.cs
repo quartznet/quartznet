@@ -175,7 +175,7 @@ public interface IPersistentStoreBuilder
     /// row locks when clustered, and an in-process monitor otherwise.
     /// </remarks>
     IPersistentStoreBuilder UseLockHandler<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
-        where T : class, ISemaphore;
+        where T : class, ILockHandler;
 
     /// <summary>
     /// Uses a lock handler the caller builds, for cases where it needs configuring first.
@@ -184,7 +184,7 @@ public interface IPersistentStoreBuilder
     /// As with <see cref="UseSerializer(Func{IServiceProvider, IObjectSerializer})"/>, this registers
     /// under the scheduler's own key, which registering against <see cref="Services"/> would not.
     /// </remarks>
-    IPersistentStoreBuilder UseLockHandler(Func<IServiceProvider, ISemaphore> factory);
+    IPersistentStoreBuilder UseLockHandler(Func<IServiceProvider, ILockHandler> factory);
 
     /// <summary>
     /// Adds a trigger persistence delegate, which stores and rebuilds a custom trigger type's

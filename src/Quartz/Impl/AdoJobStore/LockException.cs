@@ -23,7 +23,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// Exception class for when there is a failure obtaining or releasing a
 /// resource lock.
 /// </summary>
-/// <seealso cref="ISemaphore" />
+/// <seealso cref="ILockHandler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class LockException : JobPersistenceException

@@ -34,21 +34,21 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed class SimpleSemaphore : ISemaphore
+internal sealed class InProcessLockHandler : ILockHandler
 {
     private readonly ResourceLock triggerLock = new();
     private readonly ResourceLock stateLock = new();
 
-    private ILogger<SimpleSemaphore> logger = LogProvider.CreateLogger<SimpleSemaphore>();
+    private ILogger<InProcessLockHandler> logger = LogProvider.CreateLogger<InProcessLockHandler>();
 
     /// <summary>
     /// Takes the logger from the job store's factory, so lock contention is visible to an application
     /// that never set <see cref="LogProvider" />. Until the store calls this — a handler constructed and
     /// used directly — the ambient factory is still what answers.
     /// </summary>
-    public void Initialize(SemaphoreContext context)
+    public void Initialize(LockHandlerContext context)
     {
-        logger = context.LoggerFactory.CreateLogger<SimpleSemaphore>();
+        logger = context.LoggerFactory.CreateLogger<InProcessLockHandler>();
     }
 
     /// <summary>
@@ -56,7 +56,7 @@ internal sealed class SimpleSemaphore : ISemaphore
     /// until it is available).
     /// </summary>
     /// <returns>True if the lock was obtained.</returns>
-    public async ValueTask<bool> ObtainLock(
+    public async ValueTask<bool> AcquireLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
         SchedulerLock lockKind,
@@ -134,11 +134,11 @@ internal sealed class SimpleSemaphore : ISemaphore
     }
 
     /// <summary>
-    /// Whether this Semaphore implementation requires a database connection for
-    /// its lock management operations.
+    /// Whether this lock handler requires a database connection for its lock
+    /// management operations.
     /// </summary>
     /// <value></value>
-    /// <seealso cref="ObtainLock"/>
+    /// <seealso cref="AcquireLock"/>
     /// <seealso cref="ReleaseLock"/>
     public bool RequiresConnection => false;
 

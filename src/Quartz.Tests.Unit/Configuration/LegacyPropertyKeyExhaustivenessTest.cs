@@ -286,7 +286,7 @@ public class LegacyPropertyKeyExhaustivenessTest
 
         foreach (string key in threeXTablePrefixAwareKeys)
         {
-            Rejection(key).Should().Contain("ISemaphore.Initialize",
+            Rejection(key).Should().Contain("ILockHandler.Initialize",
                 "the point of naming the key is to say which seam replaced it");
         }
     }

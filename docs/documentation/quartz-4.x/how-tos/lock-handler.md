@@ -5,22 +5,22 @@ title: 'A Lock Handler of Your Own'
 # A Lock Handler of Your Own
 
 A clustered ADO job store serializes its work with a lock, so that two nodes cannot acquire the same
-trigger. By default that lock is a row in `QRTZ_LOCKS`. `ISemaphore` is the seam for making it
+trigger. By default that lock is a row in `QRTZ_LOCKS`. `ILockHandler` is the seam for making it
 something else — Redis, ZooKeeper, a cloud lease, anything that can grant one holder at a time.
 
 ## The contract
 
 <!-- Quartz's own declaration of the interface, so it is written out here rather than compiled
-     from the samples project: a second `ISemaphore` in that project would shadow the real one. -->
+     from the samples project: a second `ILockHandler` in that project would shadow the real one. -->
 
 ```csharp
-public interface ISemaphore
+public interface ILockHandler
 {
     bool RequiresConnection { get; }
 
-    void Initialize(SemaphoreContext context) { }
+    void Initialize(LockHandlerContext context) { }
 
-    ValueTask<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder? conn,
+    ValueTask<bool> AcquireLock(Guid requestorId, ConnectionAndTransactionHolder? conn,
         SchedulerLock lockKind, CancellationToken cancellationToken = default);
 
     ValueTask ReleaseLock(Guid requestorId, SchedulerLock lockKind,
@@ -45,13 +45,13 @@ Saying so in the type means a caller cannot invent a third lock that silently pr
 ::: warning
 The enum-to-string mapping is internal. A handler in your own assembly that needs the stored names —
 for key compatibility with the row-lock handler, or across a rolling upgrade — declares its own
-constants. `RedisSemaphore` does exactly that, with the comment that the Redis key keeps the *stored*
+constants. `RedisLockHandler` does exactly that, with the comment that the Redis key keeps the *stored*
 lock names so that a mixed-version cluster keeps contending for the same key.
 :::
 
 ### Re-entry returns false
 
-The single most important rule: **`ObtainLock` called again with the same `requestorId` and the same
+The single most important rule: **`AcquireLock` called again with the same `requestorId` and the same
 `lockKind` must return `false`, and must not take a second lock.**
 
 That is not an error signal. The store stores the result and releases the lock only when it was the
@@ -61,9 +61,9 @@ lock the outer one is still relying on.
 
 `ReleaseLock` from a non-owner should warn, not throw — that is what the shipped handlers do.
 
-## Deriving from DbSemaphore
+## Deriving from DbLockHandler
 
-When the lock *is* a database row, `DbSemaphore` does the plumbing — ownership tracking, re-entry,
+When the lock *is* a database row, `DbLockHandler` does the plumbing — ownership tracking, re-entry,
 prefix substitution — and leaves one method:
 
 <!-- A signature listing rather than code, so it is written out here rather than compiled. -->
@@ -96,34 +96,34 @@ scheduler name and a lock name and both are strings.
 
 Two shipped implementations to read:
 
-- **`UpdateRowSemaphore`** — `UPDATE {0}LOCKS SET LOCK_NAME = LOCK_NAME WHERE SCHED_NAME = @schedulerName AND LOCK_NAME = @lockName`,
+- **`UpdateRowLockHandler`** — `UPDATE {0}LOCKS SET LOCK_NAME = LOCK_NAME WHERE SCHED_NAME = @schedulerName AND LOCK_NAME = @lockName`,
   retried `RetryCount` times (a `protected virtual` property, 2 by default) with `RetryPeriod` between
-  attempts, inserting the row if the update affected none. `SqlServerMemoryOptimizedUpdateRowSemaphore`
+  attempts, inserting the row if the update affected none. `SqlServerMemoryOptimizedUpdateRowLockHandler`
   is a two-line subclass that raises the retry count to 5.
-- **`SelectForUpdateSemaphore`** — `SELECT * FROM {0}LOCKS … FOR UPDATE`, with
-  `PostgreSqlSelectForUpdateSemaphore` as its dialect variant.
+- **`SelectForUpdateLockHandler`** — `SELECT * FROM {0}LOCKS … FOR UPDATE`, with
+  `PostgreSqlSelectForUpdateLockHandler` as its dialect variant.
 
 Both are `public` and unsealed. Both wait on the `TimeProvider` between attempts rather than on wall
 time, so their retry behaviour is testable.
 
-`DbSemaphore` fixes `RequiresConnection` to `true`, so its `conn` is never null.
+`DbLockHandler` fixes `RequiresConnection` to `true`, so its `conn` is never null.
 
-## Implementing ISemaphore directly
+## Implementing ILockHandler directly
 
 When the lock does not live in the database, implement the interface and answer `false` to
 `RequiresConnection`:
 
-<!-- snippet: sample_lock_handler_semaphore -->
+<!-- snippet: sample_lock_handler_custom -->
 ```csharp
-public sealed class LeaseSemaphore : ISemaphore
+public sealed class LeaseLockHandler : ILockHandler
 {
     private string schedulerName = "";
 
     public bool RequiresConnection => false;
 
-    public void Initialize(SemaphoreContext context) => schedulerName = context.SchedulerName;
+    public void Initialize(LockHandlerContext context) => schedulerName = context.SchedulerName;
 
-    public async ValueTask<bool> ObtainLock(
+    public async ValueTask<bool> AcquireLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
         SchedulerLock lockKind,
@@ -156,7 +156,7 @@ application commits its ambient transaction — so the window the lock was suppo
 window it covers.
 :::
 
-## SemaphoreContext
+## LockHandlerContext
 
 `Initialize` is called once, by the job store, after it has decided which handler to use and before
 schema validation:
@@ -184,7 +184,7 @@ builder.Services.AddQuartz(q =>
 {
     q.UsePersistentStore(s =>
     {
-        s.UseLockHandler<LeaseSemaphore>();
+        s.UseLockHandler<LeaseLockHandler>();
         s.UseSqlServer(connectionString);
         s.UseClustering();
     });
@@ -192,7 +192,7 @@ builder.Services.AddQuartz(q =>
 ```
 <!-- endSnippet -->
 
-There is a factory overload, `UseLockHandler(Func<IServiceProvider, ISemaphore>)`, for a handler that
+There is a factory overload, `UseLockHandler(Func<IServiceProvider, ILockHandler>)`, for a handler that
 needs values rather than services — it registers under the scheduler's own key, which registering
 against `Services` directly would not. `Quartz.Extensions.Redis` uses exactly that public overload;
 nothing about it is privileged:
@@ -221,8 +221,8 @@ locking happens:
 | Situation | Handler |
 |---|---|
 | You registered one | yours, and `SelectWithLockSql` is ignored with a warning |
-| `UseDbLocks = true` (forced on by clustering and by `AcceptEnlistedTransactions`) | `SelectForUpdateSemaphore`, or the PostgreSQL variant |
-| Otherwise | `SimpleSemaphore` — an in-process monitor |
+| `UseDbLocks = true` (forced on by clustering and by `AcceptEnlistedTransactions`) | `SelectForUpdateLockHandler`, or the PostgreSQL variant |
+| Otherwise | `InProcessLockHandler` — an in-process monitor |
 
 So a non-clustered scheduler still locks; it just locks in memory, which is correct when it is the only
 node.
@@ -232,8 +232,8 @@ node.
 The re-entry rule and the retry behaviour are the two things worth a test, and neither needs a
 scheduler:
 
-- Call `ObtainLock` twice with the same `requestorId` and assert the second returns `false`.
-- Give the handler a `FakeTimeProvider` through `SemaphoreContext` and advance it to drive the retry
+- Call `AcquireLock` twice with the same `requestorId` and assert the second returns `false`.
+- Give the handler a `FakeTimeProvider` through `LockHandlerContext` and advance it to drive the retry
   loop without the test waiting.
 
 ## See also

@@ -60,7 +60,7 @@ public class AdoJobStoreSmokeTest
         var properties = new NameValueCollection
         {
             ["quartz.jobStore.driverDelegateType"] = typeof(Quartz.Impl.AdoJobStore.SqlServerDelegate).AssemblyQualifiedNameWithoutVersion(),
-            ["quartz.jobStore.lockHandler.type"] = typeof(Quartz.Impl.AdoJobStore.SqlServerMemoryOptimizedUpdateRowSemaphore).AssemblyQualifiedNameWithoutVersion()
+            ["quartz.jobStore.lockHandler.type"] = typeof(Quartz.Impl.AdoJobStore.SqlServerMemoryOptimizedUpdateRowLockHandler).AssemblyQualifiedNameWithoutVersion()
         };
         return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServerMOT", serializerType, properties);
     }

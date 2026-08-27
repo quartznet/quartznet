@@ -85,8 +85,16 @@ public class SimpleTypeLoaderTest
     public void ShouldLoadTheRedisLockHandlerNamedByItsPre40Namespace()
     {
         typeLoader.LoadType("Quartz.Impl.Redis.RedisSemaphore, Quartz.Extensions.Redis")
-            .Should().Be<RedisSemaphore>(
-                "quartz.jobStore.lockHandler.type naming the old namespace has to keep working");
+            .Should().Be<RedisLockHandler>(
+                "quartz.jobStore.lockHandler.type naming the old namespace and the old type name has to keep working");
+    }
+
+    [Test]
+    public void ShouldLoadTheRedisLockHandlerNamedByItsAlphaTypeName()
+    {
+        typeLoader.LoadType("Quartz.Extensions.Redis.RedisSemaphore, Quartz.Extensions.Redis")
+            .Should().Be<RedisLockHandler>(
+                "the 4.0 alphas shipped the handler under the namespace it has now and the name it no longer has");
     }
 
     [Test]
@@ -138,15 +146,35 @@ public class SimpleTypeLoaderTest
     }
 
     [Test]
-    [TestCase("Quartz.Impl.AdoJobStore.StdRowLockSemaphore", typeof(SelectForUpdateSemaphore))]
-    [TestCase("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore", typeof(UpdateRowSemaphore))]
-    [TestCase("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT", typeof(SqlServerMemoryOptimizedUpdateRowSemaphore))]
-    [TestCase("Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore", typeof(PostgreSqlSelectForUpdateSemaphore))]
+    [TestCase("Quartz.Impl.AdoJobStore.StdRowLockSemaphore", typeof(SelectForUpdateLockHandler))]
+    [TestCase("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore", typeof(UpdateRowLockHandler))]
+    [TestCase("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT", typeof(SqlServerMemoryOptimizedUpdateRowLockHandler))]
+    [TestCase("Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore", typeof(PostgreSqlSelectForUpdateLockHandler))]
+    [TestCase("Quartz.Impl.AdoJobStore.SimpleSemaphore", typeof(InProcessLockHandler))]
     public void ShouldLoadALockHandlerNamedByItsPre40TypeName(string configured, Type expected)
     {
         typeLoader.LoadType(configured)
             .Should().Be(expected,
                 "quartz.jobStore.lockHandler.type spells these as strings, so the 3.x names must keep resolving");
+    }
+
+    /// <summary>
+    /// The lock handlers were renamed twice: once out of 3.x's three spellings of the same idea, and
+    /// again when "semaphore" gave way to "lock handler". A configuration written against a 4.0 alpha
+    /// names a type that only ever existed in those alphas, and it has to keep resolving too.
+    /// </summary>
+    [Test]
+    [TestCase("Quartz.Impl.AdoJobStore.SelectForUpdateSemaphore", typeof(SelectForUpdateLockHandler))]
+    [TestCase("Quartz.Impl.AdoJobStore.UpdateRowSemaphore", typeof(UpdateRowLockHandler))]
+    [TestCase("Quartz.Impl.AdoJobStore.SqlServerMemoryOptimizedUpdateRowSemaphore", typeof(SqlServerMemoryOptimizedUpdateRowLockHandler))]
+    [TestCase("Quartz.Impl.AdoJobStore.PostgreSqlSelectForUpdateSemaphore", typeof(PostgreSqlSelectForUpdateLockHandler))]
+    [TestCase("Quartz.Impl.AdoJobStore.SimpleSemaphore", typeof(InProcessLockHandler))]
+    [TestCase("Quartz.Impl.AdoJobStore.SQLiteSemaphore", typeof(SqliteLockHandler))]
+    public void ShouldLoadALockHandlerNamedByIts40AlphaTypeName(string configured, Type expected)
+    {
+        typeLoader.LoadType(configured)
+            .Should().Be(expected,
+                "the alphas are what an early adopter's configuration file was written against");
     }
 
     [Test]

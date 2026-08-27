@@ -28,8 +28,8 @@ namespace Quartz.Extensibility;
 /// <see cref="QuartzSchedulerOptions.GenerateInstanceId" /> the instance id is produced by an
 /// <see cref="IInstanceIdGenerator" /> that runs after the container has built the object graph.
 /// Initialization is the first moment the value is settled, which is why it arrives here — the same
-/// reasoning, and the same shape, as <see cref="Quartz.Impl.AdoJobStore.SemaphoreContext" /> on
-/// <see cref="Quartz.Impl.AdoJobStore.ISemaphore.Initialize" />.
+/// reasoning, and the same shape, as <see cref="Quartz.Impl.AdoJobStore.LockHandlerContext" /> on
+/// <see cref="Quartz.Impl.AdoJobStore.ILockHandler.Initialize" />.
 /// </remarks>
 public sealed record SchedulerIdentity
 {
