@@ -17,6 +17,7 @@ When using ADO.NET-based job store (the usual being `LocalTransactionJobStore`),
 | qrtz_simple_triggers | data for very simple repeat triggers |
 | qrtz_simprop_triggers | Reusable table for custom triggers. `ICalendarIntervalTrigger`, `IDailyTimeIntervalTrigger`, and `IRecurrenceTrigger` use this |
 | qrtz_paused_trigger_grps | `IScheduler.PauseTriggers` data |
+| qrtz_paused_job_grps | `IScheduler.PauseJobs` data — one row per paused job group, so a group paused while it holds nothing is still reported as paused |
 
 The scripts to create these tables for various providers can be found [here](https://github.com/quartznet/quartznet/tree/main/database/tables).
 
@@ -33,7 +34,10 @@ These four columns are optional in Quartz.NET 3.x — the scheduler probes for t
 | `PREFERRED_NODE` | `QRTZ_TRIGGERS` | 3.19 |
 | `PREFERRED_NODE_AUTO` | `QRTZ_TRIGGERS` | 3.19 |
 
-Apply [`database/migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) to add whichever are missing. Every statement is guarded, so it is safe to run on a database that already has some of them.
+4.x also needs a **table** 3.x never had: `QRTZ_PAUSED_JOB_GRPS`, which is what lets a job group be
+paused while it holds nothing and what makes a job group listing report `paused` truthfully.
+
+Apply [`database/migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) to add whichever are missing — it covers the table as well as the columns. Every statement is guarded, so it is safe to run on a database that already has some of them. [Database Schema Changes](../../database/schema-changes.md#version-4-0) lists the whole 3.x → 4.x set.
 
 ## The QRTZ_TRIGGERS table
 
