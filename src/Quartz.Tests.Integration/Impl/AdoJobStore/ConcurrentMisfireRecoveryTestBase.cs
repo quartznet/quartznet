@@ -183,21 +183,20 @@ public abstract class ConcurrentMisfireRecoveryTestBase : ClusteredJobStoreTestB
     /// </summary>
     private async Task<LocalTransactionJobStore> CreateNode(string instanceId)
     {
-        LocalTransactionJobStore node = new(
-            TestJobStores.Signaler(),
-            TestJobStores.TypeLoader(),
-            TimeProvider.System,
-            TestJobStores.SchedulerOptions(SchedulerName, instanceId),
-            TestJobStores.StoreOptions("default", "QRTZ_", options =>
+        LocalTransactionJobStore node = new(TestJobStores.Dependencies(
+            schedulerOptions: TestJobStores.SchedulerOptions(SchedulerName, instanceId),
+            storeOptions: TestJobStores.StoreOptions("default", "QRTZ_", options =>
             {
                 // Comfortably above the trigger count, so a short sweep means contention rather than a
                 // truncated batch.
                 options.MaxMisfiresToHandleAtATime = TriggerCount * 2;
             }),
-            TestJobStores.ClusteringOptions(options => options.Enabled = true),
-            TestJobStores.Serializer(),
-            new DbProvider(Database.Provider, Database.ConnectionString),
-            Database.CreateDriverDelegate());
+            clusteringOptions: TestJobStores.ClusteringOptions(options => options.Enabled = true),
+            dbProvider: new DbProvider(Database.Provider, Database.ConnectionString),
+            driverDelegate: Database.CreateDriverDelegate()) with
+        {
+            LockHandler = null,
+        });
 
         // Initialized but never started, so that no MisfireHandler loop exists to sweep behind the
         // test's back — the two sweeps below are the only ones there are.

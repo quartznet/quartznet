@@ -48,22 +48,11 @@ public class ExternalTransactionJobStore : AdoJobStoreBase
     /// <summary>
     /// Initializes a new instance of the <see cref="ExternalTransactionJobStore"/> class.
     /// </summary>
-    public ExternalTransactionJobStore(
-        ISchedulerSignaler schedulerSignaler,
-        ITypeLoader typeLoader,
-        TimeProvider timeProvider,
-        IOptions<QuartzSchedulerOptions> schedulerOptions,
-        IOptions<AdoJobStoreOptions> storeOptions,
-        IOptions<ClusteringOptions> clusteringOptions,
-        IObjectSerializer objectSerializer,
-        IDbProvider dbProvider,
-        IDriverDelegate driverDelegate,
-        ISemaphore? lockHandler = null,
-        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null,
-        ILoggerFactory? loggerFactory = null)
-        : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates, loggerFactory)
+    /// <param name="dependencies">Everything the store is built from.</param>
+    public ExternalTransactionJobStore(AdoJobStoreDependencies dependencies)
+        : base(dependencies)
     {
-        openConnection = storeOptions.Value.OpenConnection;
+        openConnection = dependencies.StoreOptions.Value.OpenConnection;
     }
 
     /// <summary>

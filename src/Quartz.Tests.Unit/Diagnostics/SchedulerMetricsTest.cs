@@ -541,17 +541,9 @@ public sealed class SchedulerMetricsTest
     public sealed class MetricsAdoJobStore : AdoJobStoreBase
     {
         public MetricsAdoJobStore(TimeProvider timeProvider, bool clustered = false)
-            : base(
-                TestJobStores.Signaler(),
-                TestJobStores.TypeLoader(),
-                timeProvider,
-                TestJobStores.SchedulerOptions(),
-                TestJobStores.StoreOptions(),
-                TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered),
-                TestJobStores.Serializer(),
-                TestJobStores.DbProvider(),
-                TestJobStores.DriverDelegate(),
-                TestJobStores.LockHandler())
+            : base(TestJobStores.Dependencies(
+                timeProvider: timeProvider,
+                clusteringOptions: TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered)))
         {
         }
 

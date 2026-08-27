@@ -15,7 +15,7 @@ public class AdoJobStoreBaseTest
     [Test]
     public void CanDetectTransientException()
     {
-        var jobStoreSupport = new TestAdoJobStoreBase(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler());
+        var jobStoreSupport = new TestAdoJobStoreBase(TestJobStores.Dependencies());
         var npgsqlException = new NpgsqlException("timeout", new TimeoutException());
         Assert.That(jobStoreSupport.IsTransientPublic(npgsqlException), Is.True);
 
@@ -38,18 +38,8 @@ public class AdoJobStoreBaseTest
 
     private sealed class TestAdoJobStoreBase : AdoJobStoreBase
     {
-        public TestAdoJobStoreBase(
-            ISchedulerSignaler schedulerSignaler,
-            ITypeLoader typeLoader,
-            TimeProvider timeProvider,
-            IOptions<QuartzSchedulerOptions> schedulerOptions,
-        IOptions<AdoJobStoreOptions> storeOptions,
-        IOptions<ClusteringOptions> clusteringOptions,
-        IObjectSerializer objectSerializer,
-        IDbProvider dbProvider,
-        IDriverDelegate driverDelegate,
-        ISemaphore lockHandler)
-            : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, dbProvider, driverDelegate, lockHandler)
+        public TestAdoJobStoreBase(AdoJobStoreDependencies dependencies)
+            : base(dependencies)
         {
         }
 

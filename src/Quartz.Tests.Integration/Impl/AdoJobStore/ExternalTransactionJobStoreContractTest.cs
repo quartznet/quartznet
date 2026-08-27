@@ -53,18 +53,15 @@ public sealed class ExternalTransactionJobStoreContractTest : SqliteFileJobStore
 
     protected override AdoJobStoreBase CreateJobStore(IDbProvider dbProvider, IDriverDelegate driverDelegate)
     {
-        return new ExternalTransactionJobStore(
-            TestJobStores.Signaler(),
-            TestJobStores.TypeLoader(),
-            TimeProvider.System,
-            TestJobStores.SchedulerOptions(SchedulerName, StoreInstanceId),
-            TestJobStores.StoreOptions(DataSourceName, configure: o => o.OpenConnection = true),
-            TestJobStores.ClusteringOptions(),
-            TestJobStores.Serializer(),
-            dbProvider,
-            driverDelegate,
-            // As with the local-transaction store: the store picks the handler, and for SQLite that is
-            // SQLiteSemaphore whatever this store would otherwise have insisted on.
-            lockHandler: null);
+        // As with the local-transaction store, no lock handler: the store picks it, and for SQLite that
+        // is SQLiteSemaphore whatever this store would otherwise have insisted on.
+        return new ExternalTransactionJobStore(TestJobStores.Dependencies(
+            schedulerOptions: TestJobStores.SchedulerOptions(SchedulerName, StoreInstanceId),
+            storeOptions: TestJobStores.StoreOptions(DataSourceName, configure: o => o.OpenConnection = true),
+            dbProvider: dbProvider,
+            driverDelegate: driverDelegate) with
+        {
+            LockHandler = null,
+        });
     }
 }

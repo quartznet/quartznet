@@ -168,20 +168,15 @@ public abstract class MisfireThroughAStoreTestBase
         FakeTimeProvider clock = new(anchor - HalfPeriod);
         string instanceId = NextInstanceId();
 
-        LocalTransactionJobStore store = new(
-            TestJobStores.Signaler(),
-            TestJobStores.TypeLoader(),
-            clock,
-            TestJobStores.SchedulerOptions(instanceName: "MisfireThroughAStoreTest", instanceId: instanceId),
-            TestJobStores.StoreOptions(DataSourceName, TablePrefix, options =>
+        LocalTransactionJobStore store = new(TestJobStores.Dependencies(
+            timeProvider: clock,
+            schedulerOptions: TestJobStores.SchedulerOptions(instanceName: "MisfireThroughAStoreTest", instanceId: instanceId),
+            storeOptions: TestJobStores.StoreOptions(DataSourceName, TablePrefix, options =>
             {
                 options.MisfireThreshold = Threshold;
             }),
-            TestJobStores.ClusteringOptions(),
-            TestJobStores.Serializer(),
-            dbProvider,
-            new SQLiteDelegate(),
-            TestJobStores.LockHandler());
+            dbProvider: dbProvider,
+            driverDelegate: new SQLiteDelegate()));
 
         // Initialized but deliberately not started: SchedulerStarted() spawns the MisfireHandler loop,
         // which would sweep on its own thread and race every assertion below.

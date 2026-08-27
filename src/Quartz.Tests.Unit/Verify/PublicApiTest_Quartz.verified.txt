@@ -2142,7 +2142,7 @@ namespace Quartz.Impl.AdoJobStore
     }
     public abstract class AdoJobStoreBase : Quartz.Extensibility.IJobStore
     {
-        protected AdoJobStoreBase(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoader typeLoader, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Microsoft.Extensions.Options.IOptions<Quartz.ClusteringOptions> clusteringOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null, System.Collections.Generic.IEnumerable<Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) { }
+        protected AdoJobStoreBase(Quartz.Impl.AdoJobStore.AdoJobStoreDependencies dependencies) { }
         protected bool AcquireTriggersWithinLock { get; }
         protected bool CanUseProperties { get; }
         protected System.TimeSpan ClusterCheckinMisfireThreshold { get; }
@@ -2300,6 +2300,22 @@ namespace Quartz.Impl.AdoJobStore
         protected static System.Threading.Tasks.ValueTask CleanupConnection(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, System.Threading.CancellationToken cancellationToken = default) { }
         protected static System.Threading.Tasks.ValueTask CloseConnection(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder cth, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public sealed class AdoJobStoreDependencies : System.IEquatable<Quartz.Impl.AdoJobStore.AdoJobStoreDependencies>
+    {
+        public AdoJobStoreDependencies(Quartz.Extensibility.ISchedulerSignaler SchedulerSignaler, Quartz.Extensibility.ITypeLoader TypeLoader, System.TimeProvider TimeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> SchedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> StoreOptions, Microsoft.Extensions.Options.IOptions<Quartz.ClusteringOptions> ClusteringOptions, Quartz.Extensibility.IObjectSerializer ObjectSerializer, Quartz.Impl.AdoJobStore.Common.IDbProvider DbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate DriverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? LockHandler = null, System.Collections.Generic.IEnumerable<Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate>? TriggerPersistenceDelegates = null, Microsoft.Extensions.Logging.ILoggerFactory? LoggerFactory = null) { }
+        public Microsoft.Extensions.Options.IOptions<Quartz.ClusteringOptions> ClusteringOptions { get; init; }
+        public Quartz.Impl.AdoJobStore.Common.IDbProvider DbProvider { get; init; }
+        public Quartz.Impl.AdoJobStore.IDriverDelegate DriverDelegate { get; init; }
+        public Quartz.Impl.AdoJobStore.ISemaphore? LockHandler { get; init; }
+        public Microsoft.Extensions.Logging.ILoggerFactory? LoggerFactory { get; init; }
+        public Quartz.Extensibility.IObjectSerializer ObjectSerializer { get; init; }
+        public Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> SchedulerOptions { get; init; }
+        public Quartz.Extensibility.ISchedulerSignaler SchedulerSignaler { get; init; }
+        public Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> StoreOptions { get; init; }
+        public System.TimeProvider TimeProvider { get; init; }
+        public System.Collections.Generic.IEnumerable<Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate>? TriggerPersistenceDelegates { get; init; }
+        public Quartz.Extensibility.ITypeLoader TypeLoader { get; init; }
+    }
     public sealed class CalendarIntervalTriggerPersistenceDelegate : Quartz.Impl.AdoJobStore.SimplePropertiesTriggerPersistenceDelegateBase
     {
         public CalendarIntervalTriggerPersistenceDelegate() { }
@@ -2377,7 +2393,7 @@ namespace Quartz.Impl.AdoJobStore
     }
     public class ExternalTransactionJobStore : Quartz.Impl.AdoJobStore.AdoJobStoreBase
     {
-        public ExternalTransactionJobStore(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoader typeLoader, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Microsoft.Extensions.Options.IOptions<Quartz.ClusteringOptions> clusteringOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null, System.Collections.Generic.IEnumerable<Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) { }
+        public ExternalTransactionJobStore(Quartz.Impl.AdoJobStore.AdoJobStoreDependencies dependencies) { }
         protected override System.Threading.Tasks.ValueTask<T> ExecuteInLock<T>(Quartz.Impl.AdoJobStore.SchedulerLock? lockKind, System.Func<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder, System.Threading.Tasks.ValueTask<T>> txCallback, System.Threading.CancellationToken cancellationToken = default) { }
         protected override System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder> GetLocalTransactionConnection(System.Threading.CancellationToken cancellationToken = default) { }
         public override System.Threading.Tasks.ValueTask Initialize(Quartz.Extensibility.SchedulerIdentity identity, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2533,7 +2549,7 @@ namespace Quartz.Impl.AdoJobStore
     }
     public class LocalTransactionJobStore : Quartz.Impl.AdoJobStore.AdoJobStoreBase
     {
-        public LocalTransactionJobStore(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoader typeLoader, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Microsoft.Extensions.Options.IOptions<Quartz.ClusteringOptions> clusteringOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null, System.Collections.Generic.IEnumerable<Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) { }
+        public LocalTransactionJobStore(Quartz.Impl.AdoJobStore.AdoJobStoreDependencies dependencies) { }
         protected override System.Threading.Tasks.ValueTask<T> ExecuteInLock<T>(Quartz.Impl.AdoJobStore.SchedulerLock? lockKind, System.Func<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder, System.Threading.Tasks.ValueTask<T>> txCallback, System.Threading.CancellationToken cancellationToken = default) { }
         protected override System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder> GetLocalTransactionConnection(System.Threading.CancellationToken cancellationToken = default) { }
         public override System.Threading.Tasks.ValueTask Initialize(Quartz.Extensibility.SchedulerIdentity identity, System.Threading.CancellationToken cancellationToken = default) { }

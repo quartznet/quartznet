@@ -47,6 +47,7 @@ internal sealed class SchedulerScopedServiceProvider
         typeof(IJobStore),
         typeof(IDbProvider),
         typeof(IDriverDelegate),
+        typeof(AdoJobStoreDependencies),
         typeof(ISemaphore),
         typeof(IObjectSerializer),
         typeof(SystemTextJsonSerializerRegistry),

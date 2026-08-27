@@ -230,11 +230,13 @@ public class MisfireHandlerTest
         /// </param>
         /// <param name="misfireThreshold">The configured misfire threshold.</param>
         public TestAdoJobStoreBase(TimeSpan? misfireHandlerFrequency, TimeSpan misfireThreshold)
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(configure: options =>
-        {
-            options.MisfireHandlerFrequency = misfireHandlerFrequency;
-            options.MisfireThreshold = misfireThreshold;
-        }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        : base(TestJobStores.Dependencies(
+            schedulerOptions: TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"),
+            storeOptions: TestJobStores.StoreOptions(configure: options =>
+            {
+                options.MisfireHandlerFrequency = misfireHandlerFrequency;
+                options.MisfireThreshold = misfireThreshold;
+            })))
         {
         }
 

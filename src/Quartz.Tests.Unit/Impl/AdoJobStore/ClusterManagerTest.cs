@@ -133,25 +133,12 @@ public class ClusterManagerTest
 
     private sealed class TestAdoJobStoreBase : AdoJobStoreBase
     {
-        public TestAdoJobStoreBase(
-            ISchedulerSignaler schedulerSignaler,
-            ITypeLoader typeLoader,
-            TimeProvider timeProvider,
-            IOptions<QuartzSchedulerOptions> schedulerOptions,
-        IOptions<AdoJobStoreOptions> storeOptions,
-        IOptions<ClusteringOptions> clusteringOptions,
-        IObjectSerializer objectSerializer,
-        IDbProvider dbProvider,
-        IDriverDelegate driverDelegate,
-        ISemaphore lockHandler)
-            : base(schedulerSignaler, typeLoader, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, dbProvider, driverDelegate, lockHandler)
-        {
-        }
-
         public TestAdoJobStoreBase()
         // A short check-in interval so that if the Run loop starts, it quickly checks the
         // cancellation token and exits, letting shutdown tests complete faster.
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(configure: options => options.CheckinInterval = TimeSpan.FromMilliseconds(100)), TestJobStores.Serializer(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        : base(TestJobStores.Dependencies(
+            schedulerOptions: TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"),
+            clusteringOptions: TestJobStores.ClusteringOptions(configure: options => options.CheckinInterval = TimeSpan.FromMilliseconds(100))))
         {
         }
 
