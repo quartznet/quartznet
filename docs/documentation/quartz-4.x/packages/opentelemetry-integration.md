@@ -77,7 +77,7 @@ and are constants on `Quartz.Diagnostics.ActivityTags`:
 
 ## Metrics
 
-Seven instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
+Eight instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and
 `quartz.scheduler.id`** — the name says which scheduler, the id says which node of it, and a cluster is
 several nodes sharing one name.
 

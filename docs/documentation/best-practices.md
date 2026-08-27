@@ -817,17 +817,31 @@ firing (`Quartz.Job.Veto`), and one per job store operation (`Quartz.JobStore.Ac
 instance id are attributes. Store-operation spans are the ones to watch for the failures above:
 acquisition latency and its exceptions are where a struggling database first shows.
 
-**Metrics are 4.x only**, and there are exactly two instruments:
-`quartz.job.execution.duration`, a histogram in seconds tagged with `error.type` when the execution
-failed, and `quartz.job.execution.active`, an up-down counter of executions in flight. The histogram
-carries its own count, so execution and failure counts come out of it. That is the whole of it
-today — **there is no misfire counter, no acquisition-latency instrument and no trigger-state
-gauge**, so do not build an alert on one. Quartz 3.x publishes no metrics at all.
+**Metrics are 4.x only** — Quartz 3.x publishes none at all — and there are eight instruments, all on
+a meter named `Quartz`. **Every measurement carries `quartz.scheduler.name` and
+`quartz.scheduler.id`**, so a cluster is separable by node and a process running several schedulers by
+scheduler, with no instrumentation of your own. Four of them answer the failures in this page directly:
 
-For what the instruments do not cover, the store is the source: count `QRTZ_TRIGGERS` grouped by
-`TRIGGER_STATE` and alert on `ERROR` and on `BLOCKED` rows older than your longest job, and count
-`QRTZ_FIRED_TRIGGERS` to see what the cluster believes is running. In 4.x,
-`IScheduler.QueryFireInstances` answers the latter for the whole cluster without SQL.
+- `quartz.job.execution.duration` — a histogram in seconds, tagged `error.type` when the execution
+  failed. Its *count* is the number of executions, so execution and failure counts come out of it and
+  do not need counters of their own.
+- `quartz.job.execution.active` — an up-down counter of executions in flight. Parked at a ceiling is
+  what a starved pool and a saturated execution group both look like.
+- `quartz.trigger.misfire` — firings that were owed and did not happen on time. This is the alert to
+  build for "the schedule is slipping", and it is the one that catches a group parked at its limit.
+- `quartz.trigger.acquisition.duration` — how long the scheduling loop waited on its store for the
+  next batch. A struggling database shows here before it shows anywhere else.
+
+The other four are `quartz.trigger.acquired`, `quartz.cluster.checkin.duration`,
+`quartz.cluster.recovery.trigger` — a node's work being taken over, which is a cluster mis-declaring a
+node made visible — and `quartz.jobstore.operation.duration`, tagged with the operation's name. The
+[OpenTelemetry page](quartz-4.x/packages/opentelemetry-integration.md#metrics) has the full table with
+each instrument's attributes.
+
+**There is still no trigger-state gauge**, so do not build an alert on one. For that the store is the
+source: count `QRTZ_TRIGGERS` grouped by `TRIGGER_STATE` and alert on `ERROR` and on `BLOCKED` rows
+older than your longest job, and count `QRTZ_FIRED_TRIGGERS` to see what the cluster believes is
+running. In 4.x, `IScheduler.QueryFireInstances` answers the latter for the whole cluster without SQL.
 
 **A health check** ships with the ASP.NET Core integration, and it asserts less than its name
 suggests: that the scheduler is in a state that can fire, and that the job store answers a query. It
