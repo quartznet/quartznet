@@ -228,6 +228,37 @@ public abstract partial class AdoJobStoreBase
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
+        ClusterStateScan scan = await ScanClusterState(conn, cancellationToken).ConfigureAwait(false);
+        return scan.FailedInstances;
+    }
+
+    /// <summary>
+    /// What one read of the scheduler state table said: the rows themselves, which of them belong to
+    /// instances that look failed, and whether this node's own row was there at all.
+    /// </summary>
+    /// <param name="States">Every row of the table, this node's own included when it has one.</param>
+    /// <param name="FailedInstances">The instances this node is prepared to recover.</param>
+    /// <param name="SelfFailedOut">
+    /// Whether this node's own row was missing on a pass that is not its first — which means a peer
+    /// judged this node failed and recovered it. See <see cref="HandleSelfFailedOut" />.
+    /// </param>
+    private readonly record struct ClusterStateScan(
+        List<SchedulerStateRecord> States,
+        List<SchedulerStateRecord> FailedInstances,
+        bool SelfFailedOut);
+
+    /// <summary>
+    /// Reads the scheduler state table once and says everything the check-in path decides from it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="FindFailedInstances" /> is the part of the answer a subclass asks for; check-in needs
+    /// the rest of it, and asking for the rest would otherwise be a second read of the same table on
+    /// every check-in of every node.
+    /// </remarks>
+    private async ValueTask<ClusterStateScan> ScanClusterState(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken)
+    {
         try
         {
             List<SchedulerStateRecord> failedInstances = [];
@@ -262,15 +293,14 @@ public abstract partial class AdoJobStoreBase
                 failedInstances.AddRange(await FindOrphanedFailedInstances(conn, states, cancellationToken).ConfigureAwait(false));
             }
 
-            // If not the first time but we didn't find our own instance, then
-            // Someone must have done recovery for us.
-            if (!foundThisScheduler && !firstCheckIn)
-            {
-                // TODO: revisit when handle self-failed-out impl'ed (see TODO in clusterCheckIn() below)
-                Logger.RecoveredByAnotherInstance(InstanceId);
-            }
+            // No row of this node's own, and it has checked in before: a peer decided this node had
+            // failed and recovered it. This node's own fired triggers are deliberately not added to the
+            // list — the peer already released, rescheduled and deleted them under the trigger-access
+            // lock, and recovering them again would schedule a second recovery trigger for work that is
+            // already being replayed. HandleSelfFailedOut is what does happen about it.
+            bool selfFailedOut = !foundThisScheduler && !firstCheckIn;
 
-            return failedInstances;
+            return new ClusterStateScan(states, failedInstances, selfFailedOut);
         }
         catch (Exception e)
         {
@@ -327,13 +357,35 @@ public abstract partial class AdoJobStoreBase
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        var failedInstances = await FindFailedInstances(conn, cancellationToken).ConfigureAwait(false);
+        ClusterStateScan scan = await ScanClusterState(conn, cancellationToken).ConfigureAwait(false);
+
+        await RecordCheckIn(conn, cancellationToken).ConfigureAwait(false);
+
+        if (scan.SelfFailedOut)
+        {
+            HandleSelfFailedOut(scan.States);
+        }
+
+        return scan.FailedInstances;
+    }
+
+    /// <summary>
+    /// Records that this node is alive: the timestamp on its own row, or the row itself when there is
+    /// none.
+    /// </summary>
+    /// <remarks>
+    /// The insert is not only the first check-in's business. A node whose row a peer deleted — because
+    /// the peer judged it failed — writes it back here, and that is what re-registers the node with the
+    /// cluster: until the row is back, every peer reading the table sees a scheduler that does not exist
+    /// and no node can be told anything about this one.
+    /// </remarks>
+    private async ValueTask RecordCheckIn(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            // TODO: handle self-failed-out
-
-            // check in...
-            var checkinTime = timeProvider.GetUtcNow();
+            DateTimeOffset checkinTime = timeProvider.GetUtcNow();
             if (await Delegate.UpdateSchedulerState(conn, InstanceId, checkinTime, cancellationToken).ConfigureAwait(false) == 0)
             {
                 await Delegate.InsertSchedulerState(conn, InstanceId, checkinTime, ClusterCheckinInterval, cancellationToken).ConfigureAwait(false);
@@ -344,8 +396,49 @@ public abstract partial class AdoJobStoreBase
         {
             Throw.JobPersistenceException("Failure updating scheduler state when checking-in: " + e.Message, e);
         }
+    }
 
-        return failedInstances;
+    /// <summary>
+    /// What this node does about having been failed out by a peer: says so, and counts it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The row is already back by the time this runs — <see cref="RecordCheckIn" /> wrote it — so this
+    /// node is registered again and its peers can see it. What it must not do is recover its own fired
+    /// triggers: the peer that deleted the row did that, and a second pass over the same rows would
+    /// replay work that is already being replayed. <see cref="ScanClusterState" /> is where that is
+    /// decided, and nothing here recovers anything.
+    /// </para>
+    /// <para>
+    /// Nothing in the schema records who recovered whom, so the peer can only be named when it is the
+    /// only other node with a state row — then it is the only node that could have written this one off.
+    /// With more than one, the log says it cannot tell, which is more use to an operator than naming a
+    /// suspect.
+    /// </para>
+    /// <para>
+    /// The recovery counter is bumped by one against this node's own id. How many fired triggers the
+    /// peer took over is not knowable here — the rows are gone, and they were the peer's to count — so
+    /// the measurement records that the event happened rather than its size, and the peer's own
+    /// measurement carries the real number under the same tag.
+    /// </para>
+    /// </remarks>
+    /// <param name="states">
+    /// The rows the scan read. This node's own is not among them, so every one of them is a peer.
+    /// </param>
+    private void HandleSelfFailedOut(List<SchedulerStateRecord> states)
+    {
+        Logger.RecoveredByAnotherInstance(InstanceId);
+
+        if (states.Count == 1)
+        {
+            Logger.SelfFailedOutRecoveredByPeer(InstanceId, states[0].SchedulerInstanceId);
+        }
+        else
+        {
+            Logger.SelfFailedOutRecoveringPeerUnknown(InstanceId, states.Count);
+        }
+
+        Meters.ClusterSelfRecoveryObserved(InstanceName, InstanceId);
     }
 
     /// <summary>

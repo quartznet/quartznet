@@ -7,11 +7,13 @@ using AwesomeAssertions.Execution;
 
 using FakeItEasy;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
 using Quartz.Extensibility;
+using Quartz.Tests.Unit.Plugin.History;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
@@ -955,10 +957,11 @@ public class AdoJobStoreBaseTest
     public class TestAdoJobStoreBase : AdoJobStoreBase
     {
 
-    public TestAdoJobStoreBase(bool clustered = false, TimeProvider timeProvider = null)
+    public TestAdoJobStoreBase(bool clustered = false, TimeProvider timeProvider = null, ILoggerFactory loggerFactory = null)
         : base(TestJobStores.Dependencies(
             timeProvider: timeProvider,
-            clusteringOptions: TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered)))
+            clusteringOptions: TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered),
+            loggerFactory: loggerFactory))
     {
     }
         protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
@@ -1981,6 +1984,22 @@ public class AdoJobStoreBaseTest
         return clock;
     }
 
+    /// <summary>
+    /// The same, with the store's log recorded so that a test can assert on the events the check-in path
+    /// raises. The factory is injected rather than installed process-wide, so these stay parallelizable.
+    /// </summary>
+    private RecordingLoggerProvider GivenRecordedLog(DateTimeOffset now)
+    {
+        RecordingLoggerProvider recorder = new();
+        LoggerFactory factory = new();
+        factory.AddProvider(recorder);
+
+        jobStoreSupport = new TestAdoJobStoreBase(timeProvider: new FakeTimeProvider(now), loggerFactory: factory);
+        jobStoreSupport.DirectDelegate = driverDelegate;
+        jobStoreSupport.DirectSignaler = A.Fake<ISchedulerSignaler>();
+        return recorder;
+    }
+
     private static ConnectionAndTransactionHolder FakeConnection() => new(A.Fake<DbConnection>(), null);
 
     /// <summary>
@@ -2466,6 +2485,158 @@ public class AdoJobStoreBaseTest
 
         jobStoreSupport.LastCheckin.Should().NotBe(ClusterNow,
             "a check-in that never reached the database must not claim to have happened, or this node would look alive to itself");
+    }
+
+    #endregion
+
+    #region Self-failed-out
+
+    /// <summary>
+    /// The event ids the self-failed-out path raises, spelled out rather than read from
+    /// <c>ClusterLog</c>: an id is what an operator filters on, so a test that read the same constant
+    /// the product logs from would let a renumbering through.
+    /// </summary>
+    private const int RecoveredByAnotherInstanceEvent = 3501;
+
+    private const int RecoveredByPeerEvent = 3515;
+
+    private const int RecoveringPeerUnknownEvent = 3516;
+
+    [Test]
+    public async Task ClusterCheckIn_ShouldWriteItsOwnRowBackWhenAPeerDeletedIt()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        jobStoreSupport.LastCheckin = ClusterNow - CheckinInterval;
+
+        // No row of this node's own: a peer decided it had failed and deleted it.
+        GivenSchedulerStates(new SchedulerStateRecord("live-node", ClusterNow, CheckinInterval));
+
+        A.CallTo(() => driverDelegate.UpdateSchedulerState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<DateTimeOffset>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<int>(0));
+
+        await jobStoreSupport.CallClusterCheckIn(conn);
+
+        // Until the row is back this node does not exist as far as its peers are concerned, and nothing
+        // else in the store writes it.
+        A.CallTo(() => driverDelegate.InsertSchedulerState(
+                conn, OwnInstanceId, ClusterNow, jobStoreSupport.ClusterCheckinInterval, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+
+        jobStoreSupport.LastCheckin.Should().Be(ClusterNow,
+            "the node is registered again, so the stamp its peers judge it by is this check-in's");
+    }
+
+    [Test]
+    public async Task ClusterCheckIn_ShouldNameThePeerThatRecoveredItWhenThereIsOnlyOneItCouldBe()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        RecordingLoggerProvider log = GivenRecordedLog(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        jobStoreSupport.LastCheckin = ClusterNow - CheckinInterval;
+
+        GivenSchedulerStates(new SchedulerStateRecord("live-node", ClusterNow, CheckinInterval));
+
+        await jobStoreSupport.CallClusterCheckIn(conn);
+
+        log.Entries.Should().ContainSingle(entry => entry.EventId.Id == RecoveredByAnotherInstanceEvent,
+            "being recovered out from under itself is the situation an operator alerts on, and it is that "
+            + "event id they alert on");
+
+        log.Entries.Should().ContainSingle(entry => entry.EventId.Id == RecoveredByPeerEvent)
+            .Which.Message.Should().Contain("live-node",
+                "nothing records who recovered whom, but with one other state row there is only one node it "
+                + "can have been, and naming it is what turns two logs into one story");
+    }
+
+    [Test]
+    public async Task ClusterCheckIn_ShouldSayItCannotTellWhichPeerRecoveredItWhenSeveralCouldHave()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        RecordingLoggerProvider log = GivenRecordedLog(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        jobStoreSupport.LastCheckin = ClusterNow - CheckinInterval;
+
+        GivenSchedulerStates(
+            new SchedulerStateRecord("live-node-a", ClusterNow, CheckinInterval),
+            new SchedulerStateRecord("live-node-b", ClusterNow, CheckinInterval));
+
+        await jobStoreSupport.CallClusterCheckIn(conn);
+
+        log.Entries.Should().ContainSingle(entry => entry.EventId.Id == RecoveringPeerUnknownEvent)
+            .Which.Message.Should().Contain("2",
+                "either of the two could have done it, so the log says so rather than picking one");
+
+        log.Entries.Should().NotContain(entry => entry.EventId.Id == RecoveredByPeerEvent,
+            "a node is only named when it is the only one that could have been");
+    }
+
+    [Test]
+    public async Task ClusterCheckIn_ShouldNotRecoverItsOwnWorkAfterAPeerFailedItOut()
+    {
+        GivenStoppedClock(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(false);
+        jobStoreSupport.LastCheckin = ClusterNow - CheckinInterval;
+
+        GivenSchedulerStates(new SchedulerStateRecord("live-node", ClusterNow, CheckinInterval));
+
+        // Work this node started after the peer swept it: rows that are still its own to finish.
+        GivenFiredTriggersForInstance(OwnInstanceId,
+            FiredTrigger("fi-executing", StoredTriggerState.Executing, new TriggerKey("t-executing", "tg"), new JobKey("j", "jg"),
+                requestsRecovery: true, instanceId: OwnInstanceId));
+
+        bool recovered = await jobStoreSupport.CheckIn(Guid.NewGuid());
+
+        recovered.Should().BeFalse(
+            "the peer released, rescheduled and deleted this node's in-flight rows already; recovering them "
+            + "again would schedule a second recovery trigger for work that is being replayed");
+
+        // Recovery never ran, so this node's own fired triggers were never read.
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.That.Matches(query => query.InstanceId == OwnInstanceId),
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<FiredTriggerQuery>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+
+        // A second recovery trigger for the same firing is the double-fire this guards.
+        A.CallTo(() => driverDelegate.InsertTrigger(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IOperableTrigger>.Ignored,
+                A<StoredTriggerState>.Ignored,
+                A<IJobDetail>.Ignored,
+                A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task ClusterCheckIn_ShouldNotCallItselfFailedOutOnItsFirstCheckIn()
+    {
+        ConnectionAndTransactionHolder conn = FakeConnection();
+        RecordingLoggerProvider log = GivenRecordedLog(ClusterNow);
+        jobStoreSupport.SetFirstCheckIn(true);
+
+        // A node starting up has no row of its own either, and that is not a peer having recovered it.
+        GivenSchedulerStates(new SchedulerStateRecord("live-node", ClusterNow, CheckinInterval));
+
+        await jobStoreSupport.CallClusterCheckIn(conn);
+
+        log.Entries.Should().NotContain(
+            entry => entry.EventId.Id == RecoveredByAnotherInstanceEvent
+                     || entry.EventId.Id == RecoveredByPeerEvent
+                     || entry.EventId.Id == RecoveringPeerUnknownEvent,
+            "the first check-in is where a node's own missing row means nothing more than that it has not "
+            + "written one yet");
     }
 
     #endregion

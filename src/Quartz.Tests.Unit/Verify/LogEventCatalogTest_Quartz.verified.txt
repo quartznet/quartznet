@@ -224,6 +224,10 @@
     "Check-in complete."
 3514  Error  ClusterLog.ClusterManagementFailed
     "Error managing cluster: {ExceptionMessage}"
+3515  Warning  ClusterLog.SelfFailedOutRecoveredByPeer
+    "Scheduler instance ({InstanceId}) was failed out by instance {RecoveringInstanceId}, the only other instance with a scheduler state row and so the only one that could have. Its own row has been written back; the work that instance recovered is not recovered again here."
+3516  Warning  ClusterLog.SelfFailedOutRecoveringPeerUnknown
+    "Scheduler instance ({InstanceId}) was failed out by another instance, which cannot be identified: {OtherInstanceCount} other instances have scheduler state rows and no row records which of them recovered this one. Its own row has been written back; the work that instance recovered is not recovered again here."
 3600  Information  MisfireLog.HandlingFirstMisfiredTriggers
     "Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed."
 3601  Information  MisfireLog.HandlingMisfiredTriggers

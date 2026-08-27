@@ -88,4 +88,10 @@ internal static partial class ClusterLog
 
     [LoggerMessage(EventId = 3514, Level = LogLevel.Error, Message = "Error managing cluster: {ExceptionMessage}")]
     public static partial void ClusterManagementFailed(this ILogger logger, string exceptionMessage, Exception exception);
+
+    [LoggerMessage(EventId = 3515, Level = LogLevel.Warning, Message = "Scheduler instance ({InstanceId}) was failed out by instance {RecoveringInstanceId}, the only other instance with a scheduler state row and so the only one that could have. Its own row has been written back; the work that instance recovered is not recovered again here.")]
+    public static partial void SelfFailedOutRecoveredByPeer(this ILogger logger, string instanceId, string recoveringInstanceId);
+
+    [LoggerMessage(EventId = 3516, Level = LogLevel.Warning, Message = "Scheduler instance ({InstanceId}) was failed out by another instance, which cannot be identified: {OtherInstanceCount} other instances have scheduler state rows and no row records which of them recovered this one. Its own row has been written back; the work that instance recovered is not recovered again here.")]
+    public static partial void SelfFailedOutRecoveringPeerUnknown(this ILogger logger, string instanceId, int otherInstanceCount);
 }
