@@ -84,6 +84,31 @@ public class DriverDelegateSetMemberTest
             ["@newState", "@schedulerName", "@oldState00", "@oldState01", "@tkn000", "@tkg000", "@tkn001", "@tkg001"]);
     }
 
+    /// <summary>
+    /// The transition that names no keys at all — every trigger of this scheduler that is in one of the
+    /// given states — whose two leading parameters were the pair still bound the wrong way round.
+    /// </summary>
+    [Test]
+    public async Task AStoreWideStateTransitionBindsItsParametersInStatementOrder()
+    {
+        RecordingDelegate del = RecordingDelegate.Create();
+
+        await del.UpdateTriggerStatesFromOtherStates(
+            del.Connection,
+            StoredTriggerState.Waiting,
+            [StoredTriggerState.Acquired, StoredTriggerState.Blocked]);
+
+        del.Statements.Should().ContainSingle();
+        del.Statements[0].Should().StartWith(
+            "UPDATE QRTZ_TRIGGERS SET TRIGGER_STATE = @newState WHERE SCHED_NAME = @schedulerName");
+
+        del.ParametersOf(0).Should().Equal(
+            ["@newState", "@schedulerName", "@oldState00", "@oldState01"],
+            "the SET clause names @newState before the WHERE names @schedulerName, so a provider "
+            + "configured to bind by position would otherwise write the scheduler's name into TRIGGER_STATE "
+            + "and look for triggers of a scheduler called WAITING");
+    }
+
     [Test]
     public async Task AnEmptyKeySetIsNoUpdateAtAll()
     {
