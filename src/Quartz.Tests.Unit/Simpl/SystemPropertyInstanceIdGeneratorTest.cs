@@ -21,14 +21,19 @@
 
 using System.Collections.Specialized;
 
+using Quartz.Configuration;
 using Quartz.Impl;
-using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Unit.Simpl;
 
 /// <summary>
 /// Unit test for SystemPropertyInstanceIdGenerator.
 /// </summary>
+/// <remarks>
+/// Not parallelizable: the setup writes environment variables, which belong to the process rather than
+/// to this fixture, and one of the tests holds them across building a whole scheduler.
+/// </remarks>
+[NonParallelizable]
 public class SystemPropertyInstanceIdGeneratorTest
 {
     [SetUp]
@@ -93,13 +98,21 @@ public class SystemPropertyInstanceIdGeneratorTest
         Assert.That(instId, Is.EqualTo("goo"));
     }
 
+    /// <summary>
+    /// The generator reached through configuration rather than constructed: the type, the variable it
+    /// reads and the prefix and suffix around it all arrive as strings, and nothing else asserts that
+    /// those four keys land on the object the container builds.
+    /// </summary>
+    /// <remarks>
+    /// The store is in-memory and merely reports itself clustered — see
+    /// <see cref="ClusteredNodeBuilder" /> — because that is the whole of what the id path needs. A
+    /// scheduler whose store is not clustered never asks the generator anything; it takes
+    /// <see cref="QuartzSchedulerOptions.DefaultInstanceId" />. The database the <c>TODO</c> that stood
+    /// here was waiting for would have bought nothing beyond saying <c>true</c>.
+    /// </remarks>
     [Test]
-    [Ignore("Work in progress")]
     public async Task TestGeneratorThroughSchedulerInstantiation()
     {
-        // TODO
-        //JdbcQuartzTestUtilities.createDatabase("MeSchedulerDatabase");
-
         NameValueCollection config = new NameValueCollection();
         config["quartz.scheduler.instanceName"] = "MeScheduler";
         config["quartz.scheduler.instanceId"] = "AUTO";
@@ -107,14 +120,15 @@ public class SystemPropertyInstanceIdGeneratorTest
         config["quartz.scheduler.instanceIdGenerator.prepend"] = "1";
         config["quartz.scheduler.instanceIdGenerator.postpend"] = "2";
         config["quartz.scheduler.instanceIdGenerator.systemPropertyName"] = "blah.blah";
-        config["quartz.threadPool.threadCount"] = "1";
+        config["quartz.threadPool.maxConcurrency"] = "1";
         config["quartz.threadPool.type"] = typeof(DefaultThreadPool).AssemblyQualifiedName;
-        config["quartz.jobStore.type"] = typeof(LocalTransactionJobStore).AssemblyQualifiedName;
-        config["quartz.jobStore.clustered"] = "true";
-        config["quartz.jobStore.dataSource"] = "MeSchedulerDatabase";
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
+        await using StandaloneSchedulerFactory factory = ClusteredNodeBuilder.Build(config);
+        IScheduler scheduler = await factory.GetScheduler();
 
-        Assert.That(scheduler.SchedulerInstanceId, Is.EqualTo("1goo2"));
+        scheduler.SchedulerInstanceId.Should().Be("1goo2",
+            "the id is the value of the variable systemPropertyName named, wrapped in the prepend and "
+            + "postpend keys — all four settings arrive as strings and are applied to the generator after "
+            + "the container has constructed it");
     }
 }
