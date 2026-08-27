@@ -288,6 +288,22 @@ public class HistoryPageTest
             "an empty section says the scheduler is healthy; a missing one says nothing at all");
     }
 
+    /// <summary>
+    /// The other half of the overview's misfire tile: it links to <c>#misfires</c>, and a fragment
+    /// that names nothing lands the reader at the top of the page with no sign anything went wrong.
+    /// </summary>
+    [Test]
+    public void TheMisfiresSectionCarriesTheIdTheOverviewsTileLinksTo()
+    {
+        GivenHistory(Entry(100));
+        GivenMisfires(TestData.Dashboard.MisfireEntry("nightly"));
+
+        IRenderedComponent<History> page = context.Render<History>();
+
+        page.Find("#misfires").ClassList.Should().Contain("qz-misfires",
+            "the overview's tile links to quartz/history#misfires, so this id is what makes that link land");
+    }
+
     private static DashboardHistoryEntry Entry(
         int durationMilliseconds,
         bool succeeded = true,

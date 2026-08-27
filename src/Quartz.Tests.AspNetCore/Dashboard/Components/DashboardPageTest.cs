@@ -86,7 +86,7 @@ public class DashboardPageTest
         IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
 
         page.StatCardValue("Nodes").Should().Be("3 (2 overdue/failed)");
-        page.Find(".qz-stat-card-link .qz-stat-card").ClassList.Should().Contain("qz-stat-card-error",
+        page.StatCardClasses("Nodes").Should().Contain("qz-stat-card-error",
             "a cluster with a node that stopped checking in is not an informational fact");
     }
 
@@ -98,7 +98,7 @@ public class DashboardPageTest
         IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
 
         page.StatCardValue("Nodes").Should().Be("2", "a healthy cluster has nothing to qualify");
-        page.Find(".qz-stat-card-link").GetAttribute("href").Should().Be("quartz/cluster",
+        page.StatCardLinkHref("Nodes").Should().Be("quartz/cluster",
             "the tile is the way to the page that explains it");
     }
 
@@ -323,6 +323,26 @@ public class DashboardPageTest
         page.StatCardValue("Misfires (last 24 h)").Should().Be("—",
             "a dashboard that says '0 misfires' when it never counted is worse than one that says "
             + "nothing");
+    }
+
+    /// <summary>
+    /// The misfire tile is a link to the History page's misfires section, the way the Nodes tile is a
+    /// link to the Cluster page.
+    /// </summary>
+    /// <remarks>
+    /// A count with no way through to what it counts leaves an operator to find the page themselves.
+    /// The fragment names the section on the History page; <see cref="HistoryPageTest" /> holds the
+    /// other half of that contract.
+    /// </remarks>
+    [Test]
+    public void TheMisfireTileIsTheWayToTheMisfiresItCounted()
+    {
+        A.CallTo(() => context.Api.CountMisfires(A<string>._, A<DateTimeOffset>._, A<CancellationToken>._)).Returns(4);
+
+        IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
+
+        page.StatCardLinkHref("Misfires (last 24 h)").Should().Be("quartz/history#misfires",
+            "the tile is the way to the section that lists what it counted");
     }
 
     [Test]
