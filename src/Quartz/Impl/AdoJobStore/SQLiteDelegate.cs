@@ -32,8 +32,8 @@ public class SQLiteDelegate : StdAdoDelegate
     protected override string ApplyPaging(string sql, bool takeLimited)
     {
         return takeLimited
-            ? sql + " LIMIT @pageTake OFFSET @pageSkip"
-            : sql + " LIMIT -1 OFFSET @pageSkip";
+            ? sql + " LIMIT @" + SqlParameters.PageTake + " OFFSET @" + SqlParameters.PageSkip
+            : sql + " LIMIT -1 OFFSET @" + SqlParameters.PageSkip;
     }
 
     /// <summary>
@@ -44,10 +44,10 @@ public class SQLiteDelegate : StdAdoDelegate
     {
         if (takeLimited)
         {
-            AddCommandParameter(cmd, "pageTake", take);
+            AddCommandParameter(cmd, SqlParameters.PageTake, take);
         }
 
-        AddCommandParameter(cmd, "pageSkip", skip);
+        AddCommandParameter(cmd, SqlParameters.PageSkip, skip);
     }
 
     /// <summary>

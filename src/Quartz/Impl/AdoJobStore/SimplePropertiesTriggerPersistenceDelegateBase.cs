@@ -72,13 +72,13 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
 
     private const string SelectSimplePropsTrigger = "SELECT " + SelectColumns + " FROM "
                                                                  + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
-                                                                 + AdoConstants.ColumnSchedulerName + " = @schedulerName"
-                                                                 + " AND " + AdoConstants.ColumnTriggerName + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
+                                                                 + AdoConstants.ColumnSchedulerName + " = @" + SqlParameters.SchedulerName
+                                                                 + " AND " + AdoConstants.ColumnTriggerName + " = @" + SqlParameters.TriggerName + " AND " + AdoConstants.ColumnTriggerGroup + " = @" + SqlParameters.TriggerGroup;
 
     private const string DeleteSimplePropsTrigger = "DELETE FROM "
                                                       + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
-                                                      + AdoConstants.ColumnSchedulerName + " = @schedulerName"
-                                                      + " AND " + AdoConstants.ColumnTriggerName + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
+                                                      + AdoConstants.ColumnSchedulerName + " = @" + SqlParameters.SchedulerName
+                                                      + " AND " + AdoConstants.ColumnTriggerName + " = @" + SqlParameters.TriggerName + " AND " + AdoConstants.ColumnTriggerGroup + " = @" + SqlParameters.TriggerGroup;
 
     private const string InsertSimplePropsTrigger = "INSERT INTO "
                                                       + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " ("
@@ -89,18 +89,18 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
                                                       + ColumnLongProp1 + ", " + ColumnLongProp2 + ", "
                                                       + ColumnDecProp1 + ", " + ColumnDecProp2 + ", "
                                                       + ColumnBoolProp1 + ", " + ColumnBoolProp2 + ", " + ColumnTimeZoneId
-                                                      + ") " + " VALUES(@schedulerName" + ", @triggerName, @triggerGroup, @string1, @string2, @string3, @int1, @int2, @long1, @long2, @decimal1, @decimal2, @boolean1, @boolean2, @timeZoneId)";
+                                                      + ") " + " VALUES(@" + SqlParameters.SchedulerName + ", @" + SqlParameters.TriggerName + ", @" + SqlParameters.TriggerGroup + ", @" + SqlParameters.String1 + ", @" + SqlParameters.String2 + ", @" + SqlParameters.String3 + ", @" + SqlParameters.Int1 + ", @" + SqlParameters.Int2 + ", @" + SqlParameters.Long1 + ", @" + SqlParameters.Long2 + ", @" + SqlParameters.Decimal1 + ", @" + SqlParameters.Decimal2 + ", @" + SqlParameters.Boolean1 + ", @" + SqlParameters.Boolean2 + ", @" + SqlParameters.TimeZoneId + ")";
 
     private const string UpdateSimplePropsTrigger = "UPDATE "
                                                       + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " SET "
-                                                      + ColumnStrProp1 + " = @string1, " + ColumnStrProp2 + " = @string2, " + ColumnStrProp3 + " = @string3, "
-                                                      + ColumnIntProp1 + " = @int1, " + ColumnIntProp2 + " = @int2, "
-                                                      + ColumnLongProp1 + " = @long1, " + ColumnLongProp2 + " = @long2, "
-                                                      + ColumnDecProp1 + " = @decimal1, " + ColumnDecProp2 + " = @decimal2, "
-                                                      + ColumnBoolProp1 + " = @boolean1, " + ColumnBoolProp2
-                                                      + " = @boolean2, " + ColumnTimeZoneId + " = @timeZoneId WHERE " + AdoConstants.ColumnSchedulerName + " = @schedulerName"
+                                                      + ColumnStrProp1 + " = @" + SqlParameters.String1 + ", " + ColumnStrProp2 + " = @" + SqlParameters.String2 + ", " + ColumnStrProp3 + " = @" + SqlParameters.String3 + ", "
+                                                      + ColumnIntProp1 + " = @" + SqlParameters.Int1 + ", " + ColumnIntProp2 + " = @" + SqlParameters.Int2 + ", "
+                                                      + ColumnLongProp1 + " = @" + SqlParameters.Long1 + ", " + ColumnLongProp2 + " = @" + SqlParameters.Long2 + ", "
+                                                      + ColumnDecProp1 + " = @" + SqlParameters.Decimal1 + ", " + ColumnDecProp2 + " = @" + SqlParameters.Decimal2 + ", "
+                                                      + ColumnBoolProp1 + " = @" + SqlParameters.Boolean1 + ", " + ColumnBoolProp2
+                                                      + " = @" + SqlParameters.Boolean2 + ", " + ColumnTimeZoneId + " = @" + SqlParameters.TimeZoneId + " WHERE " + AdoConstants.ColumnSchedulerName + " = @" + SqlParameters.SchedulerName
                                                       + " AND " + AdoConstants.ColumnTriggerName
-                                                      + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
+                                                      + " = @" + SqlParameters.TriggerName + " AND " + AdoConstants.ColumnTriggerGroup + " = @" + SqlParameters.TriggerGroup;
 
     public void Initialize(TriggerPersistenceDelegateContext context)
     {
@@ -135,9 +135,9 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(DeleteSimplePropsTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.SchedulerName, SchedulerName);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -152,22 +152,22 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
         SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(InsertSimplePropsTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.SchedulerName, SchedulerName);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerName, trigger.Key.Name);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerGroup, trigger.Key.Group);
 
-        DbAccessor.AddCommandParameter(cmd, "string1", properties.String1);
-        DbAccessor.AddCommandParameter(cmd, "string2", properties.String2);
-        DbAccessor.AddCommandParameter(cmd, "string3", properties.String3);
-        DbAccessor.AddCommandParameter(cmd, "int1", properties.Int1);
-        DbAccessor.AddCommandParameter(cmd, "int2", properties.Int2);
-        DbAccessor.AddCommandParameter(cmd, "long1", properties.Long1);
-        DbAccessor.AddCommandParameter(cmd, "long2", properties.Long2);
-        DbAccessor.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
-        DbAccessor.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
-        DbAccessor.AddCommandParameter(cmd, "boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1));
-        DbAccessor.AddCommandParameter(cmd, "boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2));
-        DbAccessor.AddCommandParameter(cmd, "timeZoneId", properties.TimeZoneId);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.String1, properties.String1);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.String2, properties.String2);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.String3, properties.String3);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.Int1, properties.Int1);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.Int2, properties.Int2);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.Long1, properties.Long1);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.Long2, properties.Long2);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.Decimal1, properties.Decimal1);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.Decimal2, properties.Decimal2);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.Boolean1, DbAccessor.GetDbBooleanValue(properties.Boolean1));
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.Boolean2, DbAccessor.GetDbBooleanValue(properties.Boolean2));
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TimeZoneId, properties.TimeZoneId);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -178,9 +178,9 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefixCached(SelectSimplePropsTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
-        DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.SchedulerName, SchedulerName);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        DbAccessor.AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -248,21 +248,21 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerP
 
         return
         [
-            new SqlStatementParameter("schedulerName", SchedulerName),
-            new SqlStatementParameter("string1", properties.String1),
-            new SqlStatementParameter("string2", properties.String2),
-            new SqlStatementParameter("string3", properties.String3),
-            new SqlStatementParameter("int1", properties.Int1),
-            new SqlStatementParameter("int2", properties.Int2),
-            new SqlStatementParameter("long1", properties.Long1),
-            new SqlStatementParameter("long2", properties.Long2),
-            new SqlStatementParameter("decimal1", properties.Decimal1),
-            new SqlStatementParameter("decimal2", properties.Decimal2),
-            new SqlStatementParameter("boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1)),
-            new SqlStatementParameter("boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2)),
-            new SqlStatementParameter("triggerName", trigger.Key.Name),
-            new SqlStatementParameter("triggerGroup", trigger.Key.Group),
-            new SqlStatementParameter("timeZoneId", properties.TimeZoneId)
+            new SqlStatementParameter(SqlParameters.SchedulerName, SchedulerName),
+            new SqlStatementParameter(SqlParameters.String1, properties.String1),
+            new SqlStatementParameter(SqlParameters.String2, properties.String2),
+            new SqlStatementParameter(SqlParameters.String3, properties.String3),
+            new SqlStatementParameter(SqlParameters.Int1, properties.Int1),
+            new SqlStatementParameter(SqlParameters.Int2, properties.Int2),
+            new SqlStatementParameter(SqlParameters.Long1, properties.Long1),
+            new SqlStatementParameter(SqlParameters.Long2, properties.Long2),
+            new SqlStatementParameter(SqlParameters.Decimal1, properties.Decimal1),
+            new SqlStatementParameter(SqlParameters.Decimal2, properties.Decimal2),
+            new SqlStatementParameter(SqlParameters.Boolean1, DbAccessor.GetDbBooleanValue(properties.Boolean1)),
+            new SqlStatementParameter(SqlParameters.Boolean2, DbAccessor.GetDbBooleanValue(properties.Boolean2)),
+            new SqlStatementParameter(SqlParameters.TriggerName, trigger.Key.Name),
+            new SqlStatementParameter(SqlParameters.TriggerGroup, trigger.Key.Group),
+            new SqlStatementParameter(SqlParameters.TimeZoneId, properties.TimeZoneId)
         ];
     }
 }

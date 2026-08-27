@@ -15,10 +15,10 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertSchedulerState));
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "instanceName", instanceId);
-        AddCommandParameter(cmd, "lastCheckinTime", GetDbDateTimeValue(checkInTime));
-        AddCommandParameter(cmd, "checkinInterval", GetDbTimeSpanValue(interval));
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.InstanceName, instanceId);
+        AddCommandParameter(cmd, SqlParameters.LastCheckinTime, GetDbDateTimeValue(checkInTime));
+        AddCommandParameter(cmd, SqlParameters.CheckinInterval, GetDbTimeSpanValue(interval));
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -30,8 +30,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteSchedulerState));
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "instanceName", instanceId);
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.InstanceName, instanceId);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -44,9 +44,9 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateSchedulerState));
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "lastCheckinTime", GetDbDateTimeValue(checkInTime));
-        AddCommandParameter(cmd, "instanceName", instanceId);
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.LastCheckinTime, GetDbDateTimeValue(checkInTime));
+        AddCommandParameter(cmd, SqlParameters.InstanceName, instanceId);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -60,14 +60,14 @@ public partial class StdAdoDelegate
         if (instanceId is not null)
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectSchedulerState));
-            AddCommandParameter(cmd, "instanceName", instanceId);
+            AddCommandParameter(cmd, SqlParameters.InstanceName, instanceId);
         }
         else
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectSchedulerStates));
         }
 
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))

@@ -188,7 +188,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         List<SqlStatement> statements = new(clearDataStatements.Length);
         foreach (string sql in clearDataStatements)
         {
-            statements.Add(new SqlStatement(ReplaceTablePrefix(sql), [new SqlStatementParameter("schedulerName", schedulerName)]));
+            statements.Add(new SqlStatement(ReplaceTablePrefix(sql), [new SqlStatementParameter(SqlParameters.SchedulerName, schedulerName)]));
         }
 
         return ExecuteStatements(conn, statements, cancellationToken);
@@ -380,8 +380,8 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         (string sql, string parameter) = MatchGroup(matcher, StdAdoConstants.SqlSelectJobsInGroup, StdAdoConstants.SqlSelectJobsInGroupLike);
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "jobGroup", parameter);
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.JobGroup, parameter);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         var list = new List<JobKey>();
