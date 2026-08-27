@@ -226,6 +226,34 @@ internal sealed class Meters
         });
     }
 
+    /// <summary>
+    /// A node that found its own scheduler state row gone: a peer judged it failed and took its work
+    /// over. The one case where the two node ids of a recovery are the same node.
+    /// </summary>
+    /// <remarks>
+    /// Recorded on the recovery counter, because it is the same event seen from the other side, and a
+    /// dashboard filtering on the recovered node wants it there. It counts one rather than a number of
+    /// triggers: the rows are gone by the time this node reads the table, so how much the peer recovered
+    /// is not knowable here — the peer's own measurement carries that, under the same tag. A series where
+    /// <see cref="ActivityTags.RecoveredInstanceId" /> equals <see cref="ActivityTags.SchedulerId" /> is
+    /// therefore a count of events, not of triggers, and is what an alert on "this node is being failed
+    /// out" watches.
+    /// </remarks>
+    internal void ClusterSelfRecoveryObserved(string schedulerName, string schedulerId)
+    {
+        if (!clusterRecoveredTriggers.Enabled)
+        {
+            return;
+        }
+
+        clusterRecoveredTriggers.Add(1, new TagList
+        {
+            { ActivityTags.SchedulerName, schedulerName },
+            { ActivityTags.SchedulerId, schedulerId },
+            { ActivityTags.RecoveredInstanceId, schedulerId },
+        });
+    }
+
     public Instrumentation StartJobExecute(IJobExecutionContext context)
     {
         // Nothing is subscribed to either instrument, so the whole tag list is work for a measurement no

@@ -225,6 +225,117 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
     }
 
     /// <summary>
+    /// A node that is alive and has been failed out anyway: a peer decided it was dead, took over the
+    /// firing it had in flight, and deleted its check-in row. The node has to notice, register itself
+    /// again, and leave the work the peer recovered alone — running recovery over its own rows a second
+    /// time is how one interrupted firing becomes two.
+    /// </summary>
+    /// <remarks>
+    /// The peer is a real second node rather than hand-written SQL, so the recovery under test is the
+    /// one the store performs. What makes the sequence deterministic is the two check-in intervals: the
+    /// failed-out node checks in every ten seconds and the peer every second, so backdating the first
+    /// node's row immediately after its start leaves the peer most of ten seconds to notice — it needs
+    /// one — and the node's own next check-in, which is the pass under test, follows within ten.
+    /// </remarks>
+    [Test]
+    public async Task NodeFailedOutByAPeer_RegistersItselfAgainAndDoesNotReplayItsOwnWork()
+    {
+        const string FailedOut = "failed-out";
+        const string Peer = "recovering-peer";
+
+        IScheduler failedOut = await CreateScheduler(FailedOut, checkinIntervalMs: 10_000);
+        IScheduler peer = null;
+        var triggerKey = new TriggerKey("failedOutTrigger", Group);
+
+        try
+        {
+            IJobDetail job = JobBuilder.Create<FiringRecordingJob>()
+                .WithIdentity("failedOutJob", Group)
+                .StoreDurably()
+                .RequestRecovery()
+                .Build();
+            await failedOut.AddJob(job, new AddJobOptions { Replace = true });
+
+            // An hour out, so the only thing that can run this job is a recovery trigger.
+            await failedOut.ScheduleJob(TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(job)
+                .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+                .Build());
+
+            await failedOut.Start();
+
+            await WaitForCondition(
+                async () => (await CountRowsFor("QRTZ_SCHEDULER_STATE", FailedOut)) == 1,
+                timeoutMs: 30_000,
+                async () => $"the first check-in of '{FailedOut}'. State:\n{await DumpDatabaseState()}");
+
+            // What this node has in flight at the moment the cluster stops believing in it.
+            await InsertDeadNodeFiredTrigger(
+                entryId: "failed-out-executing-1",
+                triggerKey: triggerKey,
+                state: "EXECUTING",
+                jobKey: job.Key,
+                requestsRecovery: true,
+                instanceName: FailedOut);
+
+            // And what makes the cluster stop believing in it: a check-in row five minutes old, which is
+            // what a stalled process or a paused container leaves behind while it is still running.
+            await BackdateCheckin(FailedOut, TimeSpan.FromMinutes(5));
+
+            peer = await CreateScheduler(Peer);
+            await peer.Start();
+
+            await WaitForCondition(
+                async () => (await CountRowsFor("QRTZ_SCHEDULER_STATE", FailedOut)) == 0,
+                timeoutMs: 30_000,
+                async () => $"'{Peer}' to declare '{FailedOut}' failed and delete its row. State:\n{await DumpDatabaseState()}");
+
+            await WaitForFirings(1, timeoutMs: 30_000, $"the recovery trigger '{Peer}' scheduled to run");
+
+            await WaitForCondition(
+                async () => (await CountRowsFor("QRTZ_SCHEDULER_STATE", FailedOut)) == 1,
+                timeoutMs: 30_000,
+                async () => $"'{FailedOut}' to write its own check-in row back. State:\n{await DumpDatabaseState()}");
+
+            // A second recovery would arrive a check-in later than the first, so waiting is the only way
+            // to assert it did not happen.
+            await SettleForRepeatFirings();
+
+            FiringRecord firing = FiringRecordingJob.Firings.Should().ContainSingle(
+                "the peer replayed the interrupted firing once; the failed-out node re-running recovery "
+                + "over its own rows is what would make it twice").Subject;
+            firing.TriggerKey.Group.Should().Be(SchedulerConstants.DefaultRecoveryGroup,
+                "what ran is the replacement firing, not the job's own trigger, which is still an hour out");
+            firing.OriginalTriggerName.Should().Be(triggerKey.Name);
+
+            // That entry id specifically, rather than every row this node owns: by now it may legitimately
+            // be running something of its own, including the recovery trigger the peer scheduled.
+            int takenOverRows = await CountRows(
+                "SELECT COUNT(*) FROM QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = @schedulerName AND ENTRY_ID = @entryId",
+                ("schedulerName", SchedulerName),
+                ("entryId", "failed-out-executing-1"));
+
+            takenOverRows.Should().Be(0,
+                "the peer deleted the row when it took the firing over, and the node it belonged to must "
+                + "not have written it back");
+
+            List<ClusterNode> nodes = await peer.QueryClusterNodes();
+            nodes.Should().Contain(x => x.InstanceId == FailedOut && x.State == ClusterNodeState.Alive,
+                "a node that has been failed out and has checked in since is a running node again, and its "
+                + "peers have to be able to see that");
+        }
+        finally
+        {
+            await failedOut.Shutdown(waitForJobsToComplete: false);
+            if (peer is not null)
+            {
+                await peer.Shutdown(waitForJobsToComplete: false);
+            }
+        }
+    }
+
+    /// <summary>
     /// The property the clustered job store exists to provide: two nodes, one set of triggers, every
     /// trigger fired exactly once.
     /// </summary>
@@ -348,15 +459,17 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
     }
 
     /// <summary>
-    /// Writes a fired-trigger row owned by the dead node, in the shape
-    /// <c>StdAdoDelegate.InsertFiredTrigger</c> writes for that state.
+    /// Writes a fired-trigger row owned by <paramref name="instanceName" /> — the dead node unless a
+    /// caller says otherwise — in the shape <c>StdAdoDelegate.InsertFiredTrigger</c> writes for that
+    /// state.
     /// </summary>
     private async Task InsertDeadNodeFiredTrigger(
         string entryId,
         TriggerKey triggerKey,
         string state,
         JobKey jobKey,
-        bool requestsRecovery)
+        bool requestsRecovery,
+        string instanceName = DeadNode)
     {
         // Recent enough that a recovery trigger built from it is merely overdue rather than misfired,
         // which keeps the assertions about what ran clear of misfire policy.
@@ -372,7 +485,7 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
             ("entryId", entryId),
             ("triggerName", triggerKey.Name),
             ("triggerGroup", triggerKey.Group),
-            ("instanceName", DeadNode),
+            ("instanceName", instanceName),
             ("firedTime", firedTime),
             ("schedTime", firedTime),
             ("priority", 5),
@@ -383,12 +496,14 @@ public abstract class ClusteredHardeningTestBase : ClusteredJobStoreTestBase
             ("requestsRecovery", requestsRecovery));
     }
 
-    private Task<int> CountDeadNodeRows(string table)
+    private Task<int> CountDeadNodeRows(string table) => CountRowsFor(table, DeadNode);
+
+    private Task<int> CountRowsFor(string table, string instanceName)
     {
         return CountRows(
             $"SELECT COUNT(*) FROM {table} WHERE SCHED_NAME = @schedulerName AND INSTANCE_NAME = @instanceName",
             ("schedulerName", SchedulerName),
-            ("instanceName", DeadNode));
+            ("instanceName", instanceName));
     }
 
     private sealed record FiringRecord(TriggerKey TriggerKey, string InstanceId, string OriginalTriggerName);

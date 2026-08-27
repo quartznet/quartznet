@@ -396,6 +396,43 @@ public sealed class SchedulerMetricsTest
     }
 
     /// <summary>
+    /// The one recovery a node reports about itself: it found its own state row gone, which means a peer
+    /// judged it failed and took its work over.
+    /// </summary>
+    [Test]
+    public async Task ClusterCheckin_ThatFindsItsOwnRowGone_IsCountedAsARecoveryOfThisNode()
+    {
+        MetricsAdoJobStore store = await ClusteredStore("self-recovery", "node-i");
+
+        // Not the first check-in: a node starting up has no row of its own either, and that means
+        // nothing more than that it has not written one yet.
+        store.SetFirstCheckIn(false);
+
+        A.CallTo(() => store.FakeDelegate.SelectSchedulerStateRecords(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<SchedulerStateRecord>>(new List<SchedulerStateRecord>
+            {
+                new("node-peer", DateTimeOffset.UtcNow, TimeSpan.FromSeconds(15)),
+            }));
+
+        await store.CheckIn(Guid.NewGuid());
+
+        RecordedMeasurement recovery = MeasurementsFor(store.InstanceName)
+            .Should().ContainSingle(m => m.Instrument == RecoveryCounter).Subject;
+
+        recovery.Value.Should().Be(1,
+            "how many fired triggers the peer took over is not knowable from here — the rows are gone — so "
+            + "this records that it happened rather than how big it was");
+
+        recovery.Tags.Should().Contain(new KeyValuePair<string, object>(SchedulerIdTag, "node-i"))
+            .And.Contain(new KeyValuePair<string, object>(RecoveredInstanceIdTag, "node-i"),
+                "the recovering node and the recovered node are the same node here, and that equality is "
+                + "what an alert on 'this node is being failed out' matches");
+    }
+
+    /// <summary>
     /// The whole of what #3421 was about: no measurement could say which node made it.
     /// </summary>
     [Test]
@@ -561,6 +598,17 @@ public sealed class SchedulerMetricsTest
         {
             set => typeof(AdoJobStoreBase)
                 .GetField("signaler", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .SetValue(this, value);
+        }
+
+        /// <summary>
+        /// Writes the private flag that tells the check-in path this is not the node's first pass, which
+        /// is what makes a missing row of its own mean it was failed out rather than that it is new.
+        /// </summary>
+        public void SetFirstCheckIn(bool value)
+        {
+            typeof(AdoJobStoreBase)
+                .GetField("firstCheckIn", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
                 .SetValue(this, value);
         }
 
