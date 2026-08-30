@@ -118,6 +118,7 @@ public enum AcquisitionIndexShape
 /// table. If an index cannot win here it cannot win anywhere on this path.
 /// </para>
 /// </remarks>
+[MemoryDiagnoser]
 [SimpleJob(RunStrategy.Throughput, warmupCount: 3, iterationCount: 10)]
 [BenchmarkCategory(BenchmarkCategories.RequiresDatabase, BenchmarkCategories.LongRunning)]
 public class AcquisitionIndexBenchmark

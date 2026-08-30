@@ -2,6 +2,7 @@ using BenchmarkDotNet.Attributes;
 
 namespace Quartz.Benchmark;
 
+[MemoryDiagnoser]
 public class StringOperatorBenchmark
 {
     [Benchmark]

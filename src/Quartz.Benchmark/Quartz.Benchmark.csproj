@@ -16,6 +16,16 @@
   </ItemGroup>
 
   <!--
+    NCrontab is the cron library the published third-party comparison measures Quartz against, and
+    CronExpressionComparisonBenchmark runs it in the same process so the two are read off one table
+    rather than off two machines. It is a benchmark-only reference row: nothing under src/Quartz uses
+    it, and it is dependency-free, so it costs the restore one small assembly.
+  -->
+  <ItemGroup>
+    <PackageReference Include="NCrontab" />
+  </ItemGroup>
+
+  <!--
     ExecutionCeilingBenchmark and AcquisitionIndexBenchmark measure statements against a real database,
     so they need the drivers for the dialects the issues ask for numbers on. The databases themselves are
     started outside the benchmark and named by environment variables. BenchmarkDotNet runs a process per
