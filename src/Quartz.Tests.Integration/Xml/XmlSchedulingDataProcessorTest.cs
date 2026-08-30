@@ -92,7 +92,12 @@ public class XmlSchedulingDataProcessorTest
 
         await processor.ScheduleJobs(mockScheduler);
 
-        A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(7, Times.Exactly);
+        // Five triggers over two schedule elements, and five scheduling calls: the durable job's two
+        // triggers are scheduled on their own, and so are the second and third of the non-durable job's
+        // three, whose first carries its job in. This used to count seven, because every trigger loaded
+        // beside its own job was scheduled again by the trailing loop (#3554).
+        A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(4, Times.Exactly);
+        A.CallTo(() => mockScheduler.ScheduleJob(A<IJobDetail>.That.Not.IsNull(), A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]
@@ -294,8 +299,16 @@ public class XmlSchedulingDataProcessorTest
 
         await processor.ScheduleJobs(mockScheduler);
 
-        A.CallTo(() => mockScheduler.ScheduleJob(A<IJobDetail>.That.Matches(p => p.Key.Name == "sched2_job"), A<ITrigger>.Ignored, A<CancellationToken>._));
-        A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"), A<CancellationToken>._)).MustHaveHappened();
+        // The second schedule element's job is not durable, so the first of its triggers is what carries
+        // it into the scheduler - and that is the only time the trigger is handed over. The first of
+        // these two calls asserted nothing at all until now: it was missing its MustHaveHappened.
+        A.CallTo(() => mockScheduler.ScheduleJob(
+            A<IJobDetail>.That.Matches(p => p.Key.Name == "sched2_job"),
+            A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"),
+            A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => mockScheduler.ScheduleJob(
+            A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"),
+            A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
