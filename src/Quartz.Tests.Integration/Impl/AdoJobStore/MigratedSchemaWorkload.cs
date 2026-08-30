@@ -283,7 +283,7 @@ internal static class MigratedSchemaWorkload
 
                 // The migrated tables have to pass the same startup check a fresh install does, and a
                 // mis-prefixed or missing one is reported by name rather than as a later failure.
-                o.PerformSchemaValidation = true;
+                o.SchemaProvisioning = SchemaProvisioning.Validate;
             });
 
             UseDialect(store, dialect, connectionString);

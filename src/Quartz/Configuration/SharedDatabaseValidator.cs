@@ -21,8 +21,14 @@ namespace Quartz.Configuration;
 /// primary key and every statement filters on it. Separate table sets in one database are legal, and
 /// occasionally deliberate for backup or permissions reasons, but a prefix that differs by *accident*
 /// produces the worst failure this area has: the misconfigured scheduler connects, passes
-/// <c>PerformSchemaValidation</c> against its own empty table set, starts, reports healthy, and fires
-/// nothing ever again.
+/// <see cref="SchemaProvisioning.Validate"/> against its own empty table set, starts, reports healthy,
+/// and fires nothing ever again.
+/// </para>
+/// <para>
+/// <see cref="SchemaProvisioning.CreateIfMissing"/> makes that failure easier to reach rather than
+/// harder: where a mis-typed prefix used to need an empty table set to already exist for the scheduler
+/// to start, a provisioning store creates one. Which is why this reports on the prefixes rather than on
+/// whether the tables are there.
 /// </para>
 /// <para>
 /// Schema validation is the natural neighbour and cannot see this — it asks whether the tables this
@@ -30,6 +36,11 @@ namespace Quartz.Configuration;
 /// knowable one level up, where the schedulers of a container are all visible. So the check lives here,
 /// and each scheduler records its arrangement as it is created; the first pair that disagrees is
 /// reported.
+/// </para>
+/// <para>
+/// Two schedulers sharing a database *and* a prefix are the supported arrangement and are never
+/// reported, whether or not either provisions — that is the one Quartz table set with two tenants in
+/// it, and both of them creating it if it is missing is exactly what a cluster does.
 /// </para>
 /// <para>
 /// It only ever warns. Deliberately separate table sets are a legitimate arrangement, and an error that

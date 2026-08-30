@@ -199,7 +199,7 @@ public sealed class SharedDatabaseValidatorTest
             {
                 options.DataSource = "tenants";
                 options.TablePrefix = tablePrefix;
-                options.PerformSchemaValidation = false;
+                options.SchemaProvisioning = SchemaProvisioning.None;
             });
 
             store.Services.AddKeyedSingleton<IDbProvider>(builder.SchedulerName, new StubDbProvider(ConnectionString));

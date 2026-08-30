@@ -164,6 +164,12 @@
     "RetryExecuteInLocalTransactionLock: RuntimeException {ExceptionMessage}"
 3038  Warning  AdoJobStoreLog.TransientFailureInLocalTransactionLock
     "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInLocalTransactionLock, will retry after {RetryInterval}"
+3039  Information  AdoJobStoreLog.SchemaCreated
+    "Created the schema objects missing under table prefix '{TablePrefix}'"
+3040  Debug  AdoJobStoreLog.SchemaCreatedByAnotherNode
+    "Schema creation under table prefix '{TablePrefix}' failed, but the schema validates, so another node created it first"
+3041  Debug  AdoJobStoreLog.SchemaCreationRetrying
+    "Schema creation under table prefix '{TablePrefix}' failed on attempt {Attempt} of {Attempts} and the schema does not validate yet, retrying"
 3100  Debug  AdoJobStoreLog.SqlPrepared
     "Prepared SQL: {Sql}"
 3110  Error  AdoJobStoreLog.ConnectionCloseFailed

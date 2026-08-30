@@ -27,6 +27,9 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma</author>
 public class OracleDelegate : StdAdoDelegate
 {
+    /// <inheritdoc />
+    protected override string? SchemaResourceName => "Quartz.Impl.AdoJobStore.Schema.create_oracle.sql";
+
     /// <summary>
     /// Oracle limits rows from an enclosing select: <c>SELECT * FROM (…) WHERE rownum &lt;= n</c>.
     /// </summary>

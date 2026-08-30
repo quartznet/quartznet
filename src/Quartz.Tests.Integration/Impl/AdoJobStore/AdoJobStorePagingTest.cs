@@ -167,7 +167,7 @@ public class AdoJobStorePagingTest
             store.ConfigureStore(o =>
             {
                 o.StoreJobDataAsStrings = false;
-                o.PerformSchemaValidation = true;
+                o.SchemaProvisioning = SchemaProvisioning.Validate;
             });
 
             store.UseGenericDatabase(dbProvider, connectionString);

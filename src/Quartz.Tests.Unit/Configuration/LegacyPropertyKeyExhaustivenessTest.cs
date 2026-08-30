@@ -122,7 +122,12 @@ public class LegacyPropertyKeyExhaustivenessTest
         "quartz.executionLimit.batch-jobs",
 
         // migration-guide.md
-        "quartz.timeProvider.type"
+        "quartz.timeProvider.type",
+
+        // migration-guide.md, the SchemaProvisioning row: the key that replaced
+        // performSchemaValidation, and the one it replaced, which still bridges
+        "quartz.jobStore.schemaProvisioning",
+        "quartz.jobStore.performSchemaValidation"
     ];
 
     /// <summary>

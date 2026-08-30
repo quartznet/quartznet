@@ -99,7 +99,7 @@ public sealed class SelectWithLockSqlWarningTest
             : base(TestJobStores.Dependencies(
                 storeOptions: TestJobStores.StoreOptions(configure: options =>
                 {
-                    options.PerformSchemaValidation = false;
+                    options.SchemaProvisioning = SchemaProvisioning.None;
                     options.SelectWithLockSql = selectWithLockSql;
                 }))
                 // Through `with`, because the fixture's null means "none configured" — the case where

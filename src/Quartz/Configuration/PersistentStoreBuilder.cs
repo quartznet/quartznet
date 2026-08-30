@@ -250,6 +250,11 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         return ConfigureStore(options => options.UseDbLocks = true);
     }
 
+    public IPersistentStoreBuilder ProvisionSchema()
+    {
+        return ConfigureStore(options => options.SchemaProvisioning = SchemaProvisioning.CreateIfMissing);
+    }
+
     public IPersistentStoreBuilder UseSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, IObjectSerializer
     {

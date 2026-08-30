@@ -29,6 +29,14 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma</author>
 public class SqlServerDelegate : StdAdoDelegate
 {
+    /// <inheritdoc />
+    /// <remarks>
+    /// The standard schema. The memory-optimized and pre-2016 variants under
+    /// <c>database/tables/</c> have no counterpart: each is a deliberate departure a person chose for
+    /// a particular deployment, not something a scheduler should decide to create.
+    /// </remarks>
+    protected override string? SchemaResourceName => "Quartz.Impl.AdoJobStore.Schema.create_sqlServer.sql";
+
     /// <summary>
     /// SQL Server names its row limit in the projection: <c>SELECT TOP n …</c>.
     /// </summary>

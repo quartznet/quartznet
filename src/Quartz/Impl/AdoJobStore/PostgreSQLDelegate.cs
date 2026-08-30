@@ -27,6 +27,9 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma</author>
 public class PostgreSQLDelegate : StdAdoDelegate
 {
+    /// <inheritdoc />
+    protected override string? SchemaResourceName => "Quartz.Impl.AdoJobStore.Schema.create_postgres.sql";
+
     /// <summary>
     /// PostgreSQL limits rows with a trailing <c>LIMIT n</c>.
     /// </summary>

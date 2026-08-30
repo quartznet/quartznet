@@ -234,6 +234,72 @@ public class QuartzPropertyBridgeTest
             + "translating it to an explicit ReadCommitted would stop SQLite getting serializable");
     }
 
+    [TestCase("true", SchemaProvisioning.Validate)]
+    [TestCase("false", SchemaProvisioning.None)]
+    public void ThePerformSchemaValidationFlagBecomesAProvisioningPosition(string configured, SchemaProvisioning expected)
+    {
+        using var provider = Bridge(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "primary",
+            ["quartz.jobStore.performSchemaValidation"] = configured,
+        });
+
+        Options<AdoJobStoreOptions>(provider).SchemaProvisioning.Should().Be(expected,
+            "the 3.x key said only whether the store checked, which is two of the three positions the "
+            + "setting that replaced it has");
+    }
+
+    [TestCase("None", SchemaProvisioning.None)]
+    [TestCase("Validate", SchemaProvisioning.Validate)]
+    [TestCase("CreateIfMissing", SchemaProvisioning.CreateIfMissing)]
+    [TestCase("createifmissing", SchemaProvisioning.CreateIfMissing)]
+    public void TheSchemaProvisioningKeyNamesThePositionDirectly(string configured, SchemaProvisioning expected)
+    {
+        using var provider = Bridge(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "primary",
+            ["quartz.jobStore.schemaProvisioning"] = configured,
+        });
+
+        Options<AdoJobStoreOptions>(provider).SchemaProvisioning.Should().Be(expected,
+            "a value in a configuration file is written by hand, so its case is not the reader's to insist on");
+    }
+
+    [Test]
+    public void TheSchemaProvisioningKeyWinsOverThePerformSchemaValidationFlag()
+    {
+        using var provider = Bridge(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "primary",
+            ["quartz.jobStore.performSchemaValidation"] = "true",
+            ["quartz.jobStore.schemaProvisioning"] = "CreateIfMissing",
+        });
+
+        Options<AdoJobStoreOptions>(provider).SchemaProvisioning.Should().Be(SchemaProvisioning.CreateIfMissing,
+            "a file carrying both is a file mid-migration, and only one of the two keys can express the "
+            + "third position — so the one that can decides");
+    }
+
+    [Test]
+    public void AMisspelledSchemaProvisioningValueIsRejectedWithTheOnesThatWouldWork()
+    {
+        using var provider = Bridge(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "primary",
+            ["quartz.jobStore.schemaProvisioning"] = "CreateIfMissng",
+        });
+
+        // The keys are translated when the options are built rather than when the bridge is applied,
+        // so reading them is what runs the parser.
+        var act = () => Options<AdoJobStoreOptions>(provider);
+
+        act.Should().Throw<SchedulerConfigException>()
+            .WithMessage("*CreateIfMissng*")
+            .WithMessage("*None, Validate, CreateIfMissing*",
+                "'not found' sends a reader back to the documentation; the names that would have worked "
+                + "are already here");
+    }
+
     [Test]
     public void InMemoryJobStoreKeepsItsOwnMisfireThreshold()
     {

@@ -565,6 +565,45 @@ The flat key `quartz.jobStore.makeThreadsDaemons` is unchanged and still sets it
 misfire handler and the cluster manager, which are the only real threads Quartz creates — so it is now
 the whole answer to "do Quartz's threads hold my console application open".
 
+### `PerformSchemaValidation` became `SchemaProvisioning`, which has a third position
+
+A persistent store can now create its own schema ([#3531](https://github.com/quartznet/quartznet/issues/3531)),
+which the old flag had nowhere to say. The check and the creation are one decision — a store that may
+create its schema obviously validates it too — so they are one setting with three positions rather than
+two flags that can contradict each other.
+
+| Before | After |
+|---|---|
+| `AdoJobStoreOptions.PerformSchemaValidation = true` | `AdoJobStoreOptions.SchemaProvisioning = SchemaProvisioning.Validate` (the default) |
+| `AdoJobStoreOptions.PerformSchemaValidation = false` | `AdoJobStoreOptions.SchemaProvisioning = SchemaProvisioning.None` |
+| — | `AdoJobStoreOptions.SchemaProvisioning = SchemaProvisioning.CreateIfMissing`, or `store.ProvisionSchema()` |
+
+The flat key `quartz.jobStore.performSchemaValidation` still works and still means what it meant:
+`true` bridges to `Validate` and `false` to `None`. `quartz.jobStore.schemaProvisioning` is the new key
+and takes a member name — `None`, `Validate` or `CreateIfMissing`, case-insensitively. A file carrying
+both is decided by the new key, since it is the only one of the two that can express the third position.
+
+`CreateIfMissing` only ever creates: no object is altered and none is dropped, so it is safe to leave on
+against a schema that already exists and cannot turn a mis-typed `TablePrefix` into data loss — though it
+will happily create a second, empty schema under the mis-typed one. It is equally **not** an upgrade: a
+schema that has every table but is missing a column a later release added is left exactly as it is.
+`database/migrations/` is still what moves a schema forward, and the 3.x → 4.0 upgrade is still mandatory.
+
+It is not the default, because creating tables needs DDL permission that a production database is usually
+right not to grant. When the account has none, the failure names the fresh-install script for your
+database and says to run it and drop back to `Validate`.
+
+`IDriverDelegate` gained the member behind it:
+
+```csharp
+ValueTask CreateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
+```
+
+A delegate deriving from `StdAdoDelegate` inherits an implementation that runs an embedded script, and
+names the script by overriding `protected virtual string? SchemaResourceName`. The six shipped delegates
+each name their own; one that names none throws when asked to provision, saying so, rather than reporting
+success and creating nothing.
+
 ### Code-first configuration is typed
 
 Settings that used to be write-only properties on the configurator are now options:
@@ -2068,8 +2107,9 @@ lands, its manager interface extends this one rather than replacing it.
 
 Two schedulers sharing a database are told apart by `SCHED_NAME` and share one table prefix. Pointing one
 of them at a different prefix by accident used to be silent in the worst possible way: the scheduler
-connects, `PerformSchemaValidation` passes against the tables it *was* pointed at, it starts, it reports
-healthy, and it never sees its tenant's data.
+connects, schema validation passes against the tables it *was* pointed at, it starts, it reports healthy,
+and it never sees its tenant's data. `SchemaProvisioning.CreateIfMissing` makes that easier to reach
+rather than harder, since it will create the mis-typed table set rather than needing one to be there.
 
 Creating a scheduler now records its database and table prefix, and a scheduler that shares a database
 with one already created but disagrees about the prefix is reported at `Warning`, naming both schedulers
@@ -5304,7 +5344,7 @@ diverged from the options everything else reads — and reading store configurat
 longer public: the mirrors a derived store legitimately reads while doing its work are `protected`
 (`AcquireTriggersWithinLock`, `CanUseProperties`, `ClusterCheckinMisfireThreshold`,
 `DataSource`, `DoubleCheckLockMisfireHandler`, `LockOnInsert`, `MaxMisfiresToHandleAtATime`,
-`MaxTransientRetries`, `ObjectSerializer`, `PerformSchemaValidation`, `SelectWithLockSql`, `TablePrefix`,
+`MaxTransientRetries`, `ObjectSerializer`, `SchemaProvisioning`, `SelectWithLockSql`, `TablePrefix`,
 `TransientRetryInterval`, `TransactionIsolationLevel`, `UseDbLocks`), and the ones only the store's
 own cluster and misfire machinery reads are internal (`AcceptEnlistedTransactions`,
 `ClusterCheckinInterval`, `DbRetryInterval`, `InstanceId`, `InstanceName`, `UseBackgroundThreads`,
@@ -5622,6 +5662,9 @@ had asked for. It is an interface member now, and every delegate participates:
 ```csharp
 ValueTask<int> ValidateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
 ```
+
+`CreateSchema` sits beside it, for the `SchemaProvisioning.CreateIfMissing` the flag it replaced could not
+express — see [`PerformSchemaValidation` became `SchemaProvisioning`](#performschemavalidation-became-schemaprovisioning-which-has-a-third-position).
 
 A delegate of your own that derives from `StdAdoDelegate` inherits the implementation and can extend it to
 cover tables of its own. One written against the interface directly has to implement it; returning `0`

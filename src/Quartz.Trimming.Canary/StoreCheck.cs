@@ -97,7 +97,7 @@ internal static class StoreCheck
                     // The registration this whole check exists for: the driver's own factory, so nothing
                     // is resolved from a type name and nothing is constructed by reflection.
                     store.UseSqlite(SqliteFactory.Instance, connectionString);
-                    store.ConfigureStore(options => options.PerformSchemaValidation = true);
+                    store.ConfigureStore(options => options.SchemaProvisioning = SchemaProvisioning.Validate);
                 });
             });
 

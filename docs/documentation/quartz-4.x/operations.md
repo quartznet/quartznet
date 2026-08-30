@@ -39,8 +39,8 @@ A node that meets a schema it cannot use refuses to start rather than misbehavin
 want: the store issues a `SELECT 1` against every table it needs and fails with
 `SchedulerException: Database schema validation failed` if one is missing. Know its limit, though — it
 checks *tables*, not columns, so a database that is missing only a column gets past startup and fails on
-the first statement that names it. `JobStore:PerformSchemaValidation` turns the check off; there is no
-good reason to.
+the first statement that names it. `JobStore:SchemaProvisioning` set to `None` turns the check off; there
+is no good reason to.
 
 ::: warning
 The fresh-install scripts in [`database/tables/`](https://github.com/quartznet/quartznet/tree/main/database/tables)

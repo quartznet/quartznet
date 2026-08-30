@@ -705,4 +705,115 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
 
         return AdoConstants.AllTableNames.Length;
     }
+
+    /// <summary>
+    /// The embedded script that creates this dialect's schema, or <see langword="null" /> when this
+    /// delegate has none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Null on <see cref="StdAdoDelegate" /> itself, because there is no dialect-neutral DDL: the
+    /// six shipped delegates each name their own script, and a delegate written outside Quartz names
+    /// one or leaves provisioning unavailable. Overriding it is the whole of what a delegate has to
+    /// do to support <see cref="SchemaProvisioning.CreateIfMissing" />.
+    /// </para>
+    /// <para>
+    /// The name is a manifest resource name in the assembly that declares the delegate, so a delegate
+    /// of somebody else's can embed a script of its own beside itself.
+    /// </para>
+    /// </remarks>
+    protected virtual string? SchemaResourceName => null;
+
+    /// <summary>
+    /// The line the schema scripts separate their statements with.
+    /// </summary>
+    /// <remarks>
+    /// A sentinel rather than a terminator, because there is no terminator that works: a semicolon
+    /// ends a statement on one dialect and a line inside a PL/SQL block on another, and finding out
+    /// which would mean lexing SQL here. The generator writes the sentinel, so splitting on it is
+    /// exact.
+    /// </remarks>
+    private const string SchemaStatementSeparator = "--;;";
+
+    /// <inheritdoc />
+    public virtual async ValueTask CreateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
+    {
+        string script = ReadSchemaScript();
+
+        foreach (string statement in SplitSchemaStatements(script))
+        {
+            try
+            {
+                DbCommand cmd = PrepareCommand(conn, statement);
+                await using (cmd.ConfigureAwait(false))
+                {
+                    await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new JobPersistenceException(
+                    $"Unable to create the schema with table prefix '{tablePrefix}': {ex.Message}"
+                    + Environment.NewLine + statement, ex);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads this delegate's schema script and substitutes the configured table prefix into it.
+    /// </summary>
+    private string ReadSchemaScript()
+    {
+        if (SchemaResourceName is not { } resourceName)
+        {
+            throw new JobPersistenceException(
+                $"{GetType().Name} ships no schema script, so it cannot create a schema. Create it by hand "
+                + "from the script for your database under database/tables/, and set "
+                + "SchemaProvisioning.Validate (the default). A driver delegate of your own supports "
+                + "provisioning by overriding StdAdoDelegate.SchemaResourceName with the name of an embedded "
+                + "script.");
+        }
+
+        // The resource lives beside the delegate that named it, which for a delegate written outside
+        // Quartz is not this assembly.
+        using Stream? stream = GetType().Assembly.GetManifestResourceStream(resourceName);
+        if (stream is null)
+        {
+            throw new JobPersistenceException(
+                $"{GetType().Name} names the schema script '{resourceName}', which is not embedded in "
+                + $"{GetType().Assembly.GetName().Name}.");
+        }
+
+        using StreamReader reader = new(stream, Encoding.UTF8);
+        return AdoJobStoreUtil.ReplaceTablePrefix(reader.ReadToEnd(), tablePrefix);
+    }
+
+    /// <summary>
+    /// Splits a schema script into the statements the provider is given one at a time, dropping the
+    /// chunks that are nothing but comments — the file's header, and nothing else.
+    /// </summary>
+    private static List<string> SplitSchemaStatements(string script)
+    {
+        return script
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split($"\n{SchemaStatementSeparator}\n")
+            .Where(HasSql)
+            .Select(chunk => chunk.Trim())
+            .ToList();
+    }
+
+    /// <summary>Whether a chunk holds anything but blank lines and whole-line comments.</summary>
+    private static bool HasSql(string chunk)
+    {
+        foreach (string line in chunk.Split('\n'))
+        {
+            string trimmed = line.Trim();
+            if (trimmed.Length > 0 && !trimmed.StartsWith("--", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

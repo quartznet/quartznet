@@ -27,6 +27,9 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma</author>
 public class MySQLDelegate : StdAdoDelegate
 {
+    /// <inheritdoc />
+    protected override string? SchemaResourceName => "Quartz.Impl.AdoJobStore.Schema.create_mysql_innodb.sql";
+
     /// <summary>
     /// MySQL pages with LIMIT/OFFSET rather than the ANSI clause.
     /// </summary>

@@ -281,7 +281,7 @@ It does three checks, in order:
   serialized, read back under the very type `StdAdoDelegate` asks for, and serialized again, with the
   two payloads compared byte for byte.
 - **The store.** It creates a SQLite file from the schema Quartz ships, registers it as
-  `UseSqlite(SqliteFactory.Instance, …)` with `PerformSchemaValidation` on, schedules a job, waits for
+  `UseSqlite(SqliteFactory.Instance, …)` with `SchemaProvisioning.Validate`, schedules a job, waits for
   the job itself to signal that it fired, and reads the job and the trigger back through `IScheduler`.
   The firing is the point: that is where the job's type comes back out of `JOB_CLASS_NAME` as a string.
 - **The binding.** It builds a whole scheduler from an in-memory `IConfiguration` and reads ten values

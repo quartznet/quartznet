@@ -1502,15 +1502,47 @@ public interface IDriverDelegate
     /// were checked.
     /// </summary>
     /// <remarks>
-    /// Called at startup when <c>PerformSchemaValidation</c> is on, so that a missing or mis-prefixed
-    /// table is reported once, by name, instead of as the first failing operation. A delegate that owns
-    /// tables of its own checks those too.
+    /// Called at startup for every <see cref="SchemaProvisioning"/> but
+    /// <see cref="SchemaProvisioning.None"/>, so that a missing or mis-prefixed table is reported once,
+    /// by name, instead of as the first failing operation. A delegate that owns tables of its own
+    /// checks those too.
     /// </remarks>
     /// <param name="conn">The DB connection.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The number of schema objects validated.</returns>
     /// <exception cref="JobPersistenceException">An object could not be queried.</exception>
     ValueTask<int> ValidateSchema(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates whatever this delegate's schema is missing, and leaves everything that is already there
+    /// exactly as it is.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Called at startup, before <see cref="ValidateSchema"/>, when
+    /// <see cref="SchemaProvisioning.CreateIfMissing"/> is configured. Every statement it runs is
+    /// guarded, so this is a no-op against a schema that already exists; nothing is altered and nothing
+    /// is dropped, which is what makes it safe to leave on and what keeps a mis-typed table prefix from
+    /// costing data.
+    /// </para>
+    /// <para>
+    /// It is not a migration. A schema that has every table but is missing a column a later release
+    /// added is left alone, and <see cref="ValidateSchema"/> passes over it, because that check is
+    /// table-level. Upgrading a schema is what <c>database/migrations/</c> is for.
+    /// </para>
+    /// <para>
+    /// A delegate that has no script for its database throws rather than pretending to have created
+    /// anything, naming itself and the script to run by hand.
+    /// </para>
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <exception cref="JobPersistenceException">
+    /// A statement failed, or this delegate has no schema script.
+    /// </exception>
+    ValueTask CreateSchema(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default);
 }

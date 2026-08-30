@@ -25,6 +25,9 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma</author>
 public class SQLiteDelegate : StdAdoDelegate
 {
+    /// <inheritdoc />
+    protected override string? SchemaResourceName => "Quartz.Impl.AdoJobStore.Schema.create_sqlite.sql";
+
     /// <summary>
     /// SQLite pages with LIMIT/OFFSET rather than the ANSI clause. A negative LIMIT means no limit,
     /// which is how SQLite writes an offset without one.
