@@ -55,6 +55,22 @@ public static class QuickStartSamples
         #endregion
     }
 
+    public static void ProvisionSchema(IHostApplicationBuilder builder)
+    {
+        builder.AddQuartz(q =>
+        {
+            #region sample_quick_start_provision_schema
+
+            q.UsePersistentStore(store =>
+            {
+                store.UseSqlServer("my connection string");
+                store.ProvisionSchema();
+            });
+
+            #endregion
+        });
+    }
+
     public static async ValueTask WithoutAHost()
     {
         #region sample_quick_start_standalone

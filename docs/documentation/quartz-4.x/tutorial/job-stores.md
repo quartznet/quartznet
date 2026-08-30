@@ -46,7 +46,9 @@ AdoJobStore is also aptly named - it keeps all of its data in a database via ADO
 Because of this it is a bit more complicated to configure than `RAMJobStore`, and it also is not as fast.
 However, the performance draw-back is not terribly bad, especially if you build the database tables with indexes on the primary keys.
 
-To use AdoJobStore, you must first create a set of database tables for Quartz.NET to use.
+AdoJobStore needs its tables to exist before it will start, and there are two ways to get them there. You
+can have the store create them for you — [Creating the schema](#creating-the-schema) below — or you can
+run the DDL yourself, which is what a production database usually wants.
 You can find table-creation SQL scripts in the "[database/tables](https://github.com/quartznet/quartznet/tree/main/database/tables)" directory of the Quartz.NET distribution.
 Each script drops an existing Quartz schema before recreating it, so read its header first — it says how to decline that if you are running it against a database you care about.
 If there is not already a script for your database type, just look at one of the existing ones, and modify it in any way necessary for your DB.
@@ -128,6 +130,94 @@ ADO.NET connection string, not of Quartz.
 Every setting of the store is on `AdoJobStoreOptions`, reached through `store.ConfigureStore(...)` or bound from the
 `Quartz:JobStore` configuration section; they are all tabulated in the
 [configuration reference](../configuration/reference.md#persistent-job-store).
+
+### Creating the schema
+
+A store can create its own tables rather than being handed them. `ProvisionSchema()` asks for it:
+
+<!-- snippet: sample_job_stores_provision_schema -->
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.UsePersistentStore(store =>
+    {
+        store.UsePostgres(connectionString);
+        store.UseSystemTextJsonSerializer();
+
+        // outside production, where whatever applies the rest of the database's
+        // schema applies this one too
+        if (builder.Environment.IsDevelopment())
+        {
+            store.ProvisionSchema();
+        }
+    });
+});
+```
+<!-- endSnippet -->
+
+It is one setting with three positions — `AdoJobStoreOptions.SchemaProvisioning`, bound from
+`Quartz:JobStore:SchemaProvisioning`, or the flat key `quartz.jobStore.schemaProvisioning`:
+
+| Value | What the store does as it initializes |
+|---|---|
+| `None` | Nothing. A missing table surfaces as the first statement that names it, whenever that happens to run. |
+| `Validate` | **The default.** Issues a `SELECT 1` against the store's tables and refuses to start if one is missing, naming it. |
+| `CreateIfMissing` | Runs the DDL for the configured database first, then validates. `ProvisionSchema()` sets this. |
+
+What it runs is not the script you would run by hand. Quartz embeds a second set, one per dialect,
+written for an ADO.NET provider rather than for a command-line client — the table prefix is a
+placeholder rather than a literal `QRTZ_`, and there is no `GO`, no lone `/` and no `SET TERM`, because
+each statement is sent on its own. The build parses the two sets with one parser and compares the
+tables, columns and indexes they name, and the integration tests provision a real database of every
+dialect and compare its catalog with a fresh install's — so the tables a scheduler creates for itself
+are the tables `database/tables/` creates.
+[`database/README.md`](https://github.com/quartznet/quartznet/blob/main/database/README.md#what-the-scheduler-runs)
+has the detail.
+
+Four things are worth knowing before you turn it on.
+
+**It only ever creates.** Every statement in those scripts is guarded and none of them drops or alters
+anything, so it is safe against a database that already has the schema, and safe to run twice. It is
+also safe under a cluster whose nodes all start at once: only one of them can create any given object,
+and a node whose create fails asks the schema rather than the error whether it lost the race — a
+validation that passes means another node got there first. Because the script is guarded throughout, a
+node that arrives while another is half-way through fills in the gaps rather than waiting, and a brief
+retry converges the two. It cannot turn a mis-typed `TablePrefix` into data loss either — but it will
+cheerfully build a second, empty table set under the mis-typed prefix, where refusing to start would
+have told you sooner. Read the prefix twice, and see
+[Shared database](../multi-tenancy.md#shared-database) for what is and is not reported.
+
+**It is not an upgrade.** A schema that has every table but is missing a column a later release added is
+left exactly as it is, because a guarded `CREATE TABLE` skips a table that exists without looking inside
+it. Moving a schema forward is
+[`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations) and
+nothing else, and the 3.x → 4.0 upgrade is still mandatory — see
+[Database Schema Changes](../../database/schema-changes.md).
+
+**It is not the default**, because creating tables needs a permission a production database is usually
+right not to grant. That is the case for the shape in the sample above: provision in development and in
+tests, where a database is disposable and nobody wants a DDL step in the way, and let whatever applies
+the rest of your schema apply this one in production. If the account has no such permission, startup
+fails naming the fresh-install script for that database and the setting to drop back to.
+
+**Not every configuration can provision, and one of them can provision the wrong thing.** The six
+databases with a dialect of their own — SQL Server, PostgreSQL, MySQL, Oracle, SQLite and Firebird —
+each carry a script. `UseGenericDatabase` does not, because `StdAdoDelegate` writes portable SQL and
+cannot know what DDL your database accepts; asking it for `CreateIfMissing` throws as the store
+initializes, naming the delegate and the script to run by hand, rather than quietly creating nothing. A
+driver delegate of your own joins in by overriding `StdAdoDelegate.SchemaResourceName` with the name of
+a script embedded in its own assembly. The case to watch is SQL Server's two variant schemas, the
+[memory-optimized one and the pre-2016 one](https://github.com/quartznet/quartznet/tree/main/database/tables):
+they have no delegate of their own, so a store configured for either still provisions the *standard*
+schema, which is not what you asked for. Both are deliberate departures a person chose for a particular
+deployment. Run those by hand and leave `SchemaProvisioning` at `Validate`.
+
+Validation, whichever position you leave the setting at, checks *tables* — not columns. A database
+missing only a column gets past startup and fails on the first statement that names it, which is the
+other half of why the 4.0 migration is mandatory rather than merely recommended. It is eleven of the
+twelve tables, too: `QRTZ_SIMPROP_TRIGGERS` is not among the ones it queries, so a schema missing only
+that one starts and fails later, when something schedules a calendar-interval, daily-time-interval or
+recurrence trigger.
 
 ### Storing job data as strings
 

@@ -1,7 +1,9 @@
 # Quartz.NET database scripts
 
-Quartz.NET does not create or migrate its schema automatically. Creating the tables and applying
-schema changes is a manual, deliberate step.
+These are the scripts a person runs against a database with a database client. Since 4.0 a scheduler
+can also create a missing schema for itself, if it is asked to — see
+[What the scheduler runs](#what-the-scheduler-runs) below — but **migrating** an existing schema is
+still a manual, deliberate step, and nothing in Quartz does it for you.
 
 A migration **both branches can run** is kept byte-identical on `3.x` and `main`, so its path
 resolves whichever branch you land on. The `4.0` folder is the exception and **lives on `main`
@@ -40,6 +42,45 @@ none: the `CREATE TABLE` statements are not guarded and fail against a schema th
 | Oracle | [`tables/tables_oracle.sql`](tables/tables_oracle.sql) |
 | SQLite | [`tables/tables_sqlite.sql`](tables/tables_sqlite.sql) |
 | Firebird | [`tables/tables_firebird.sql`](tables/tables_firebird.sql) |
+
+## What the scheduler runs
+
+A store configured with `SchemaProvisioning.CreateIfMissing` — `store.ProvisionSchema()` in code —
+creates a missing schema itself at startup. It does **not** run the scripts above. It runs a second
+set, embedded in `Quartz.dll` and living in the source tree at
+[`src/Quartz/Impl/AdoJobStore/Schema/create_<dialect>.sql`](../src/Quartz/Impl/AdoJobStore/Schema):
+
+| Database | Script |
+|---|---|
+| SQL Server | [`create_sqlServer.sql`](../src/Quartz/Impl/AdoJobStore/Schema/create_sqlServer.sql) |
+| PostgreSQL | [`create_postgres.sql`](../src/Quartz/Impl/AdoJobStore/Schema/create_postgres.sql) |
+| MySQL / MariaDB | [`create_mysql_innodb.sql`](../src/Quartz/Impl/AdoJobStore/Schema/create_mysql_innodb.sql) |
+| Oracle | [`create_oracle.sql`](../src/Quartz/Impl/AdoJobStore/Schema/create_oracle.sql) |
+| SQLite | [`create_sqlite.sql`](../src/Quartz/Impl/AdoJobStore/Schema/create_sqlite.sql) |
+| Firebird | [`create_firebird.sql`](../src/Quartz/Impl/AdoJobStore/Schema/create_firebird.sql) |
+
+Six, against `tables/`'s eight: the memory-optimized and pre-2016 SQL Server variants have no
+counterpart here. Both are deliberate departures from the standard schema, chosen by a person for a
+particular deployment, and neither is a decision a scheduler should make for itself. Neither has a
+driver delegate of its own either, so a store pointed at one of them and asked to provision creates the
+**standard** schema instead. Run those two by hand and leave the setting at `Validate`.
+
+**These are not the scripts to run by hand.** They are written for an ADO.NET provider rather than for
+a command-line client: the table prefix is a `{0}` placeholder rather than a literal `QRTZ_`, statements
+are separated by a line reading `--;;` rather than by `GO`, `/` or a `SET TERM` pair, and there is no
+`DECLARE` or variable of any kind because a provider is sent one statement at a time. Paste one into a
+query window and it will not run. Run [`tables/`](tables) instead — that is what those files are for.
+
+They are also **generated**, from the schema model in `build/Build.DatabaseSchema.cs`; `dotnet fallout
+GenerateSchema` emits them and CI's `VerifySchema` fails a build where they are out of step. Editing
+one by hand is pointless. What keeps the two sets honest about each other is `SchemaScriptTest`, which
+parses a `tables/` script and its `create_` counterpart with one parser and compares the tables, columns
+and indexes they name, and `SchemaProvisioningTest`, which provisions a real database of each dialect and
+compares its catalog with one built from `tables/`.
+
+The provisioning script only ever creates. Nothing in it drops or alters, so it is safe against a schema
+that already exists — and it is equally **not** an upgrade: it cannot add a column to a table that is
+already there. Moving an existing schema forward is the `migrations/` folders below, and only those.
 
 ## Upgrading an existing database
 
@@ -113,17 +154,21 @@ Everything under `migrations/` except the `2.0` and `3.0` folders is **generated
 those files by hand, they will be overwritten.
 
 1. Add the change to every `tables/tables_*.sql`, so fresh installs get it.
-2. Describe the change once in `build/Build.DatabaseMigrations.Scripts.cs`, and fold it into the
+2. Add it to the schema model in `build/Build.DatabaseSchema.cs` as well, so a scheduler that
+   provisions its own schema gets it too, and run `dotnet fallout GenerateSchema`. CI runs
+   `VerifySchema`, and `SchemaScriptTest` compares the two sets object by object — a change made in
+   only one of them fails both.
+3. Describe the change once in `build/Build.DatabaseMigrations.Scripts.cs`, and fold it into the
    `4.0` script there too if it is a 3.x change.
-3. Run `dotnet fallout GenerateMigrations` and commit the result. CI runs `VerifyMigrations`, so
+4. Run `dotnet fallout GenerateMigrations` and commit the result. CI runs `VerifyMigrations`, so
    a definition change without a regenerated script fails the build.
-4. If **both branches can run the change**, mirror the new `migrations/` folder and the definition
+5. If **both branches can run the change**, mirror the new `migrations/` folder and the definition
    behind it to `3.x` in a companion pull request — a migration both branches can run must stay
    byte-identical, or a documented path 404s on whichever branch lacks it (#3218). A change that
    exists **only on 4.x** has no companion at all. Either way the `4.0` fold happens here: `3.x`
    does not carry that folder. `tables/` and this README describe their own branch, so neither is
    mirrored verbatim.
-5. Add a section to the schema-changes page in the documentation (docs live on `main` only).
+6. Add a section to the schema-changes page in the documentation (docs live on `main` only).
 
 The `2.0` and `3.0` migrations are hand-written: they are SQL Server-only historical scripts
 that predate this layout and have no per-dialect variants.

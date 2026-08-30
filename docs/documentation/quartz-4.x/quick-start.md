@@ -295,15 +295,35 @@ public sealed class HelloJob : IJob
 
 ## Creating and initializing the database
 
-To use SQL persistence, and features such as clustering that depend on it, create a database for Quartz and
-then create its tables and indexes.
+To use SQL persistence, and features such as clustering that depend on it, create a database for Quartz.
+Its tables and indexes can then either be created by the scheduler or created by you.
 
-The DDL scripts are in
-[the Quartz.NET repository](https://github.com/quartznet/quartznet/tree/main/database/tables), one per
+The quickest way to a working database is to let the store do it. `ProvisionSchema()` runs the DDL for
+whichever database you named, creating whatever is missing before the scheduler starts:
+
+<!-- snippet: sample_quick_start_provision_schema -->
+```csharp
+q.UsePersistentStore(store =>
+{
+    store.UseSqlServer("my connection string");
+    store.ProvisionSchema();
+});
+```
+<!-- endSnippet -->
+
+It only ever creates: nothing is dropped and nothing is altered, so it is safe against a database that
+already has the tables, and a second node starting at the same time is fine. It is equally **not** an
+upgrade — a schema built by an earlier Quartz version is moved forward by the migration scripts, not by
+this. It is off by default because creating tables needs a permission a production database is usually
+right not to grant; when the account has none, startup fails naming the script to run instead.
+
+Running that script yourself is the other way, and the one production usually wants. The DDL is in
+[the Quartz.NET repository](https://github.com/quartznet/quartznet/tree/main/database/tables), one file per
 database. Each one drops an existing Quartz schema before it recreates it; the header of every script
 says how to turn that off. Upgrading a schema created by an earlier version is a different script — see
-[Database Schema Changes](../database/schema-changes.md). What the tables hold is described in
-[Database](db/).
+[Database Schema Changes](../database/schema-changes.md). What the tables hold, and why one route is
+automatic and the other is not, is described in [Database Schema](db/); the setting behind the first,
+and which databases can use it, is in [Creating the schema](tutorial/job-stores.md#creating-the-schema).
 
 ## Something to run
 
