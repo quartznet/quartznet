@@ -12,8 +12,9 @@
 --   4.x removed those probes and assumes all four exist, so a 3.x database that never
 --   ran the optional migrations will fail against 4.x until this script has run.
 --
---   4.x also adds a table 3.x never had, QRTZ_PAUSED_JOB_GRPS, and validates its whole
---   schema at startup -- so this script is required even for a 3.x database that took
+--   4.x also adds columns and a table 3.x never had -- RETRY_POLICY and RETRY_ATTEMPT
+--   on QRTZ_TRIGGERS, and the whole QRTZ_PAUSED_JOB_GRPS table -- and validates its
+--   schema at startup, so this script is required even for a 3.x database that took
 --   every optional migration going.
 --
 -- This script supersedes the optional per-feature migrations in ../3.17, ../3.18,
@@ -25,16 +26,24 @@
 --   1. MISFIRE_ORIG_FIRE_TIME column                REQUIRED
 --   2. EXECUTION_GROUP columns                      REQUIRED
 --   3. PREFERRED_NODE / PREFERRED_NODE_AUTO         REQUIRED
---   4. QRTZ_PAUSED_JOB_GRPS table                   REQUIRED
---   5. Index set aligned with the 4.x schema        optional
+--   4. RETRY_POLICY / RETRY_ATTEMPT                 REQUIRED
+--   5. QRTZ_PAUSED_JOB_GRPS table                   REQUIRED
+--   6. Index set aligned with the 4.x schema        optional
 --
--- Run the sections in order: the drops in section 5 assume the creates above them have
+-- Run the sections in order: the drops in section 6 assume the creates above them have
 -- already succeeded.
 --
--- Section 4 has no 3.x counterpart. 3.x pauses a job group without recording it anywhere,
--- so a paused job group could not be listed or asked about; 4.x keeps the group names in
--- QRTZ_PAUSED_JOB_GRPS, which is what makes JobGroup.Paused answer truthfully and what
--- carries the pause across a restart (#3336).
+-- Sections 4 and 5 have no 3.x counterpart at all, so nothing you ran on 3.x can have
+-- applied them.
+--
+-- RETRY_POLICY holds a trigger's retry policy and RETRY_ATTEMPT how many retries of the
+-- occurrence being executed have already been made. Both are nullable with no default, so
+-- every existing row reads as "no retry policy" and no data migration is needed (#3520).
+--
+-- 3.x pauses a job group without recording it anywhere, so a paused job group could not be
+-- listed or asked about; 4.x keeps the group names in QRTZ_PAUSED_JOB_GRPS, which is what
+-- makes JobGroup.Paused answer truthfully and what carries the pause across a restart
+-- (#3336).
 --
 -- Replace 'QRTZ_' with your configured table prefix if different.
 -- Every statement checks first, so this script is safe to run more than once.
@@ -106,7 +115,34 @@ END^
 SET TERM ; ^
 COMMIT;
 
--- === 4. QRTZ_PAUSED_JOB_GRPS ===
+-- === 4. RETRY_POLICY and RETRY_ATTEMPT on QRTZ_TRIGGERS ===
+-- REQUIRED for 4.x, and new in it -- 3.x has no equivalent, so on a database coming
+-- from 3.x both columns are always absent. Nullable with no default: an existing row
+-- reads as "no retry policy".
+
+SET TERM ^ ;
+EXECUTE BLOCK AS
+BEGIN
+  IF (NOT EXISTS(SELECT 1 FROM RDB$RELATION_FIELDS
+                 WHERE TRIM(RDB$RELATION_NAME) = 'QRTZ_TRIGGERS'
+                   AND TRIM(RDB$FIELD_NAME) = 'RETRY_POLICY')) THEN
+    EXECUTE STATEMENT 'ALTER TABLE QRTZ_TRIGGERS ADD RETRY_POLICY VARCHAR(250)';
+END^
+SET TERM ; ^
+COMMIT;
+
+SET TERM ^ ;
+EXECUTE BLOCK AS
+BEGIN
+  IF (NOT EXISTS(SELECT 1 FROM RDB$RELATION_FIELDS
+                 WHERE TRIM(RDB$RELATION_NAME) = 'QRTZ_TRIGGERS'
+                   AND TRIM(RDB$FIELD_NAME) = 'RETRY_ATTEMPT')) THEN
+    EXECUTE STATEMENT 'ALTER TABLE QRTZ_TRIGGERS ADD RETRY_ATTEMPT INTEGER DEFAULT NULL';
+END^
+SET TERM ; ^
+COMMIT;
+
+-- === 5. QRTZ_PAUSED_JOB_GRPS ===
 -- REQUIRED for 4.x, and new in it -- 3.x has no equivalent. One row per paused job
 -- group, mirroring QRTZ_PAUSED_TRIGGER_GRPS. Guarded on every dialect, SQLite
 -- included: CREATE TABLE IF NOT EXISTS is conditional DDL SQLite does have.
@@ -121,7 +157,7 @@ END^
 SET TERM ; ^
 COMMIT;
 
--- === 5. Index set ===
+-- === 6. Index set ===
 -- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a
 -- non-trivial number of triggers; the drops only reclaim write cost and storage.
 

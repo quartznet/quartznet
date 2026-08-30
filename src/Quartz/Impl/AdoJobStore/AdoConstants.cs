@@ -90,6 +90,12 @@ public static class AdoConstants
     public const string ColumnExecutionGroup = "EXECUTION_GROUP";
     public const string ColumnPreferredNode = "PREFERRED_NODE";
     public const string ColumnPreferredNodeAuto = "PREFERRED_NODE_AUTO";
+
+    // Retry columns, added by the 4.0 schema so that no later release has to add a column to
+    // QRTZ_TRIGGERS. No statement selects or writes them yet (#3520).
+    public const string ColumnRetryPolicy = "RETRY_POLICY";
+    public const string ColumnRetryAttempt = "RETRY_ATTEMPT";
+
     public const string AliasColumnNextFireTime = "ALIAS_NXT_FR_TM";
 
     // TableSimpleTriggers columns names

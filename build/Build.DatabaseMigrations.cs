@@ -153,6 +153,26 @@ partial class Build
         ["firebird"] = "PREFERRED_NODE_AUTO SMALLINT DEFAULT 0 NOT NULL",
     };
 
+    static readonly Dictionary<string, string> RetryPolicy = new()
+    {
+        ["sqlServer"] = "[RETRY_POLICY] nvarchar(250) NULL",
+        ["postgres"] = "RETRY_POLICY VARCHAR(250) NULL",
+        ["mysql_innodb"] = "RETRY_POLICY VARCHAR(250) NULL",
+        ["oracle"] = "RETRY_POLICY VARCHAR2(250) NULL",
+        ["sqlite"] = "RETRY_POLICY NVARCHAR(250) NULL",
+        ["firebird"] = "RETRY_POLICY VARCHAR(250)",
+    };
+
+    static readonly Dictionary<string, string> RetryAttempt = new()
+    {
+        ["sqlServer"] = "[RETRY_ATTEMPT] int NULL",
+        ["postgres"] = "RETRY_ATTEMPT INTEGER NULL",
+        ["mysql_innodb"] = "RETRY_ATTEMPT INTEGER NULL",
+        ["oracle"] = "RETRY_ATTEMPT NUMBER(13) NULL",
+        ["sqlite"] = "RETRY_ATTEMPT INTEGER NULL",
+        ["firebird"] = "RETRY_ATTEMPT INTEGER DEFAULT NULL",
+    };
+
     static readonly Dictionary<string, string> SchedTime = new()
     {
         ["sqlServer"] = "[SCHED_TIME] bigint NOT NULL",
