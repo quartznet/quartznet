@@ -258,8 +258,24 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask ScheduleJob(IJobDetail job, IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
-        await AddJob(job, replace: false, cancellationToken).ConfigureAwait(false);
-        await AddTrigger(trigger, replace: false, cancellationToken).ConfigureAwait(false);
+        PendingSignals pending = default;
+
+        // One acquisition rather than the two that AddJob followed by AddTrigger took: storing a job
+        // with its trigger is one operation, and between the two locks another caller could see the job
+        // without the trigger that gives it a reason to exist. The ADO store has always done both
+        // inside one ExecuteInLock.
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            AddJobNoLock(job, replace: false);
+            AddTriggerNoLock(trigger, replace: false, ref pending);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -508,11 +524,20 @@ public sealed class RAMJobStore : IJobStore
     private void AddTriggerNoLock(IOperableTrigger trigger, bool replace, ref PendingSignals pending)
     {
         TriggerWrapper tw = new((IOperableTrigger) trigger.Clone());
-        if (triggersByKey.ContainsKey(tw.TriggerKey))
+        if (triggersByKey.TryGetValue(tw.TriggerKey, out TriggerWrapper? replaced))
         {
             if (!replace)
             {
                 Throw.ObjectAlreadyExistsException(trigger);
+            }
+
+            // Carry the previous fire time over from the trigger being replaced, so that
+            // context.PreviousFireTimeUtc does not report "never fired" merely because the schedule was
+            // rewritten (#1834). The ADO store has done this since that fix; this store cloned the
+            // incoming trigger and dropped the old wrapper, so the two disagreed.
+            if (tw.Trigger.PreviousFireTimeUtc is null && replaced.Trigger.PreviousFireTimeUtc is not null)
+            {
+                tw.Trigger.PreviousFireTimeUtc = replaced.Trigger.PreviousFireTimeUtc;
             }
 
             // don't delete orphaned job, this trigger has the job anyways

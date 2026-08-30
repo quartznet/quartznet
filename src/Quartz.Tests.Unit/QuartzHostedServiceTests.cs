@@ -292,7 +292,17 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
+        public ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

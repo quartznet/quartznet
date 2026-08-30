@@ -101,6 +101,17 @@ internal sealed class DeferredScheduler : IScheduler
 
     public string SchedulerInstanceId => Resolved.SchedulerInstanceId;
 
+    /// <summary>
+    /// The built scheduler's clock, or the system clock while there is no scheduler yet.
+    /// </summary>
+    /// <remarks>
+    /// The field rather than <see cref="Resolved" />: reading a clock is not a reason to build a
+    /// scheduler, and building one here would turn a property read into a blocking wait on
+    /// asynchronous work. Every scheduler this defers to that was given a clock of its own reports it
+    /// from the moment it exists, which is before anything can have scheduled anything on it.
+    /// </remarks>
+    public TimeProvider TimeProvider => scheduler?.TimeProvider ?? TimeProvider.System;
+
     public SchedulerContext Context => Resolved.Context;
 
     public SchedulerStatus Status => Resolved.Status;
@@ -172,10 +183,22 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.ScheduleJob(jobDetail, trigger, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.ScheduleJob(jobDetail, trigger, options, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.ScheduleJob(trigger, options, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)

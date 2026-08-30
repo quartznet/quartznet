@@ -19,6 +19,7 @@ public class DelegatingScheduler : IScheduler
 
     public virtual string SchedulerName => scheduler.SchedulerName;
     public virtual string SchedulerInstanceId => scheduler.SchedulerInstanceId;
+    public virtual TimeProvider TimeProvider => scheduler.TimeProvider;
     public virtual SchedulerContext Context => scheduler.Context;
     public virtual SchedulerStatus Status => scheduler.Status;
 
@@ -79,9 +80,19 @@ public class DelegatingScheduler : IScheduler
         return scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
     }
 
+    public virtual ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    {
+        return scheduler.ScheduleJob(jobDetail, trigger, options, cancellationToken);
+    }
+
     public virtual ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, CancellationToken cancellationToken = default)
     {
         return scheduler.ScheduleJob(trigger, cancellationToken);
+    }
+
+    public virtual ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    {
+        return scheduler.ScheduleJob(trigger, options, cancellationToken);
     }
 
     public virtual ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)

@@ -93,3 +93,40 @@ public sealed class OneOffJobScheduledOnce
 
     #endregion
 }
+
+#region sample_one_off_job_typed_one_liner
+
+public sealed record SendInvoice(string CustomerId, decimal Amount);
+
+public sealed class SendInvoiceJob : IJob<SendInvoice>
+{
+    public ValueTask Execute(IJobExecutionContext context, SendInvoice input, CancellationToken cancellationToken = default)
+    {
+        // input.CustomerId, input.Amount
+        return default;
+    }
+}
+
+public sealed class Invoicing
+{
+    public async ValueTask Remind(IScheduler scheduler, SendInvoice invoice, CancellationToken cancellationToken)
+    {
+        TriggerKey firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
+            invoice,
+            TimeSpan.FromDays(7),
+            new OneOffJobOptions
+            {
+                // Named, so it can be replaced or cancelled; grouped by the thing it is about, so the
+                // whole conversation can be cancelled at once.
+                Name = $"invoice-{invoice.CustomerId}",
+                Group = invoice.CustomerId,
+                Replace = true
+            },
+            cancellationToken);
+
+        // ... and to call it off:
+        await scheduler.UnscheduleJob(firing, cancellationToken);
+    }
+}
+
+#endregion

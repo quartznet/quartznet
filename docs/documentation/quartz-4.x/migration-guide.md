@@ -1633,6 +1633,123 @@ or natively declares its payload types with `SystemTextJsonSerializerRegistry.Ad
 exactly as it declares a job data value type — there is no second registration to learn. See
 [Job Data](tutorial/job-data-map.md#a-typed-input-the-third-read-side).
 
+## Scheduling a trigger can replace one atomically
+
+New in 4.0, and purely additive: `IScheduler.ScheduleJob` has two more overloads, which take a
+`ScheduleJobOptions` and can therefore replace what is already stored.
+
+```csharp
+ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default);
+ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default);
+```
+
+On 3.x — and on the two existing overloads, which are unchanged — rescheduling under a key you may or may
+not already hold meant three round trips and a window:
+
+```diff
+- if (await scheduler.CheckExists(trigger.Key, cancellationToken))
+- {
+-     await scheduler.UnscheduleJob(trigger.Key, cancellationToken);
+- }
+- await scheduler.ScheduleJob(trigger, cancellationToken);
++ await scheduler.ScheduleJob(trigger, new ScheduleJobOptions { Replace = true }, cancellationToken);
+```
+
+The new form is one store operation under the store's own lock — `SchedulerLock.TriggerAccess` on an
+ADO store, the single lock on the in-memory one — so two nodes doing it at once cannot interleave into a
+schedule with the trigger deleted and not replaced. The job-and-trigger overload goes through the store's
+`ScheduleJobs`, so the job and its trigger are written together rather than under two locks.
+
+`options` deliberately has **no default** on either overload. Giving it one would make
+`scheduler.ScheduleJob(trigger)` and `scheduler.ScheduleJob(job, trigger)` ambiguous between the pair.
+
+**A replaced trigger keeps its previous fire time.** The ADO store has done this since #1834; the in-memory
+store cloned the incoming trigger and lost it, so the same code reported "never fired" on one store and a
+real time on the other. The in-memory store now carries the value over, and `JobStoreContractTest` pins it
+on every store — along with the rule that a trigger replaced into a paused group is still born paused, so
+an upsert is not a way to escape a pause. A caller who *means* to reset the history sets
+`PreviousFireTimeUtc` on the incoming trigger, which is honoured.
+
+**Over HTTP**, `POST /triggers/schedule` takes a `replace` flag, `HttpScheduler` implements both new
+overloads, and the flag reaches the scheduler unchanged. A request that omits it behaves exactly as before.
+
+## A scheduler says which clock it keeps
+
+New in 4.0: `IScheduler.TimeProvider`, a **default interface member** answering `TimeProvider.System`.
+Nothing has to implement it — a scheduler written outside this repository keeps compiling and reports
+what its triggers would have used anyway — and the schedulers Quartz ships answer better:
+
+| Scheduler | Answers |
+|---|---|
+| the local scheduler | the `TimeProvider` it was configured with |
+| `DelegatingScheduler` | whatever it decorates |
+| the deferred scheduler `AddQuartz` registers | the built scheduler's, or the system clock while there is no scheduler yet |
+| `HttpScheduler` | the system clock — the clock that decides when a trigger fires is the remote scheduler's, and a `TimeProvider` cannot be fetched over a wire |
+
+3.x had no way to ask. Code that builds a trigger *for* a scheduler had to reach for
+`DateTimeOffset.UtcNow`, so an application or a test running the scheduler on a clock of its own
+computed "in ten minutes" against a different clock from the one the scheduling loop compares the
+answer to:
+
+```diff
+- ITrigger trigger = TriggerBuilder.Create()
+-     .StartAt(DateTimeOffset.UtcNow.AddMinutes(10))
+-     .Build();
++ ITrigger trigger = TriggerBuilder.Create(scheduler.TimeProvider)
++     .StartAt(scheduler.TimeProvider.GetUtcNow().AddMinutes(10))
++     .Build();
+```
+
+It is also what a job rescheduling itself from inside `Execute` reads, as
+`context.Scheduler.TimeProvider`, and it is what the one-call `ScheduleJob<TJob, TInput>` overloads
+below use for their `TimeSpan` form and for the trigger they build.
+
+## A typed job can be scheduled in one call
+
+Also new, on top of [typed inputs](#a-job-can-take-a-typed-input): two extension methods on `IScheduler`
+that schedule one firing of a job with a payload and a time, and nothing else to build.
+
+```csharp
+ValueTask<TriggerKey> ScheduleJob<TJob, TInput>(this IScheduler scheduler, TInput input, DateTimeOffset at,
+    OneOffJobOptions options = default, CancellationToken cancellationToken = default) where TJob : IJob<TInput>;
+
+ValueTask<TriggerKey> ScheduleJob<TJob, TInput>(this IScheduler scheduler, TInput input, TimeSpan delay,
+    OneOffJobOptions options = default, CancellationToken cancellationToken = default) where TJob : IJob<TInput>;
+```
+
+They are the imperative twin of `IQuartzBuilder.ScheduleJob<TJob>`, which only ever existed for the firings
+an application declares at start-up. 3.x had nothing of the kind.
+
+```csharp
+TriggerKey firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
+    invoice, TimeSpan.FromDays(7), new OneOffJobOptions { Name = $"invoice-{invoice.CustomerId}", Group = invoice.CustomerId, Replace = true });
+
+await scheduler.UnscheduleJob(firing);
+```
+
+**One durable job per job type, many triggers.** The job is stored once under
+`(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)` — a new reserved constant spelled
+`"QRTZ_SCHEDULED"` — and every call adds a trigger to it. That is the shape a message bus's Quartz
+integration converges on: a scheduled message is a trigger, so there is no job churn to pay for. The job is
+ensured with `AddJob` and `Replace`, which is idempotent and cluster-safe, and remembered per scheduler
+instance; a store that reports the job missing gets it put back and the firing retried once, so a cluster
+restore or an operator's delete does not turn into a permanent failure.
+
+**`OneOffJobOptions` is named for what the call creates**, not for the call: one off, one firing, one
+trigger. It carries what would otherwise be `TriggerBuilder` calls — `Name`, `Group`, `Description`,
+`Priority`, `ExecutionGroup`, `MisfireInstruction` — plus `Replace`, which it passes on to the store.
+Every member is optional, and `default` is "a one-shot trigger with a generated name, in this job type's
+own group". An overload that schedules a *recurring* job would have something else to say — a schedule,
+an end time, a calendar — and will get an options type of its own rather than nullable members here that
+mean nothing to a single firing. It is a different thing from `ScheduleJobOptions`, which describes a
+*store* operation and says only whether it may over-write.
+
+The trigger group is the correlation axis: everything scheduled for one saga, one tenant or one
+conversation can share a group and be listed, paused or unscheduled together. Cancelling is
+`UnscheduleJob(key)`; the durable job stays behind, one row per job type whatever the traffic.
+
+See [One-Off Job](how-tos/one-off-job.md#a-payload-and-a-time-in-one-call).
+
 ## A component of your own is chosen the same way a shipped one is
 
 Three seams that had no code-first spelling at all, and one that only worked through a type-name string:

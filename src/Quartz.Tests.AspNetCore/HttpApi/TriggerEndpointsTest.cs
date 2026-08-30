@@ -407,30 +407,32 @@ public class TriggerEndpointsTest : WebApiTest
     public async Task ScheduleJobShouldWork()
     {
         var firstFireTime = DateTimeOffset.Now;
-        A.CallTo(() => FakeScheduler.ScheduleJob(A<ITrigger>._, A<CancellationToken>._)).Returns(firstFireTime);
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._)).Returns(firstFireTime);
 
         var response = await HttpScheduler.ScheduleJob(TestData.CronTrigger);
         response.Should().Be(firstFireTime);
 
-        A.CallTo(() => FakeScheduler.ScheduleJob(A<ITrigger>._, A<CancellationToken>._))
-            .WhenArgumentsMatch((ITrigger trigger, CancellationToken _) =>
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((ITrigger trigger, ScheduleJobOptions options, CancellationToken _) =>
             {
                 trigger.Should().BeEquivalentTo(TestData.CronTrigger);
+                options.Replace.Should().BeFalse("a client that did not ask to replace must not be made to");
                 return true;
             })
             .MustHaveHappened(1, Times.Exactly);
 
         firstFireTime = DateTimeOffset.Now.AddDays(1);
-        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<CancellationToken>._)).Returns(firstFireTime);
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._)).Returns(firstFireTime);
 
         response = await HttpScheduler.ScheduleJob(TestData.JobDetail, TestData.DailyTimeIntervalTrigger);
         response.Should().Be(firstFireTime);
 
-        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<CancellationToken>._))
-            .WhenArgumentsMatch((IJobDetail jobDetail, ITrigger trigger, CancellationToken _) =>
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken _) =>
             {
                 jobDetail.Should().BeEquivalentTo(TestData.JobDetail);
                 trigger.Should().BeEquivalentTo(TestData.DailyTimeIntervalTrigger);
+                options.Replace.Should().BeFalse();
                 return true;
             })
             .MustHaveHappened(1, Times.Exactly);
@@ -444,10 +446,41 @@ public class TriggerEndpointsTest : WebApiTest
 
         await HttpScheduler.ScheduleJob(jobDetailWithUnresolvableType, TestData.SimpleTrigger);
 
-        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<CancellationToken>._))
-            .WhenArgumentsMatch((IJobDetail jobDetail, ITrigger trigger, CancellationToken _) =>
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken _) =>
             {
                 jobDetail.JobType.FullName.Should().Be(TestData.UnresolvableJobTypeName);
+                return true;
+            })
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task ScheduleJobShouldCarryTheReplaceFlagAcrossTheWire()
+    {
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._)).Returns(DateTimeOffset.Now);
+
+        await HttpScheduler.ScheduleJob(TestData.CronTrigger, new ScheduleJobOptions { Replace = true });
+
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((ITrigger trigger, ScheduleJobOptions options, CancellationToken _) =>
+            {
+                trigger.Should().BeEquivalentTo(TestData.CronTrigger);
+                options.Replace.Should().BeTrue(
+                    "an upsert over HTTP is the same one call as an upsert in process, so the flag has to reach the scheduler");
+                return true;
+            })
+            .MustHaveHappened(1, Times.Exactly);
+
+        Fake.ClearRecordedCalls(FakeScheduler);
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._)).Returns(DateTimeOffset.Now);
+
+        await HttpScheduler.ScheduleJob(TestData.JobDetail, TestData.SimpleTrigger, new ScheduleJobOptions { Replace = true });
+
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken _) =>
+            {
+                options.Replace.Should().BeTrue();
                 return true;
             })
             .MustHaveHappened(1, Times.Exactly);
@@ -464,7 +497,7 @@ public class TriggerEndpointsTest : WebApiTest
         Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailWithEmptyType, TestData.SimpleTrigger).AsTask())!
             .Message.Should().ContainEquivalentOf("malformed job type");
 
-        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<ScheduleJobOptions>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]

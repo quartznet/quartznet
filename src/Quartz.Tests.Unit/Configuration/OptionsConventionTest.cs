@@ -88,6 +88,28 @@ public class OptionsConventionTest
     };
 
     /// <summary>
+    /// Members whose options argument is mandatory, each with the reason it cannot carry a default.
+    /// A new entry needs a reason of the same kind: giving the parameter a default would not compile,
+    /// or would make a call that already exists ambiguous.
+    /// </summary>
+    /// <remarks>
+    /// The rule already tolerates a mandatory argument when a later parameter is required, and that case
+    /// is decided in the check itself. This list is for the other one: an overload pair where the
+    /// options argument is what tells the two members apart, so a default on it would leave the shorter
+    /// call with no single best candidate.
+    /// </remarks>
+    private static readonly Dictionary<string, string> mandatoryOptionsExceptions = new(StringComparer.Ordinal)
+    {
+        // #3522: the upsert twins of ScheduleJob(ITrigger, …) and ScheduleJob(IJobDetail, ITrigger, …).
+        // Both shorter overloads already exist and are what a caller who does not care about replacing
+        // writes, so the options argument is the only thing distinguishing the pair.
+        ["IScheduler.ScheduleJob(ITrigger, ScheduleJobOptions, CancellationToken)"] = "a default would make ScheduleJob(trigger) ambiguous",
+        ["IScheduler.ScheduleJob(IJobDetail, ITrigger, ScheduleJobOptions, CancellationToken)"] = "a default would make ScheduleJob(jobDetail, trigger) ambiguous",
+        ["DelegatingScheduler.ScheduleJob(ITrigger, ScheduleJobOptions, CancellationToken)"] = "implements IScheduler.ScheduleJob(ITrigger, ScheduleJobOptions, CancellationToken)",
+        ["DelegatingScheduler.ScheduleJob(IJobDetail, ITrigger, ScheduleJobOptions, CancellationToken)"] = "implements IScheduler.ScheduleJob(IJobDetail, ITrigger, ScheduleJobOptions, CancellationToken)",
+    };
+
+    /// <summary>
     /// Types a scalar member may be: assigned wholesale, carrying no state Quartz binds into.
     /// </summary>
     private static readonly HashSet<Type> scalarTypes =
@@ -373,9 +395,9 @@ public class OptionsConventionTest
                     }
 
                     // A parameter cannot be optional while something after it is required, which is the
-                    // one reason the rule tolerates a mandatory options argument.
+                    // one reason the rule tolerates a mandatory options argument without being told.
                     bool couldBeOptional = parameters.Skip(i + 1).All(later => later.IsOptional);
-                    if (couldBeOptional && !parameter.IsOptional)
+                    if (couldBeOptional && !parameter.IsOptional && !mandatoryOptionsExceptions.ContainsKey(Signature(type, member)))
                     {
                         violations.Add($"{type.Name}.{member.Name} takes a mandatory {parameterType.Name}");
                     }
@@ -482,6 +504,15 @@ public class OptionsConventionTest
     /// generated equality members take it as a parameter, which would classify every record as a
     /// call-site argument if they were counted.
     /// </summary>
+    /// <summary>
+    /// A member spelled the way <see cref="mandatoryOptionsExceptions" /> keys it, so an exemption names
+    /// one overload rather than every member sharing its name.
+    /// </summary>
+    private static string Signature(Type type, MethodBase member)
+    {
+        return $"{type.Name}.{member.Name}({string.Join(", ", member.GetParameters().Select(parameter => parameter.ParameterType.Name))})";
+    }
+
     private static IEnumerable<Type> ConsumingTypes() => quartzAssembly.GetExportedTypes().Where(type => !IsOptionsType(type));
 
     private static IEnumerable<MethodBase> PublicMembers(Type type) => type

@@ -119,3 +119,84 @@ scheduler was down happens as soon as it is back rather than being dropped. The 
 they are worth naming, are in
 [SimpleTriggers](../tutorial/simpletriggers.md#simpletrigger-misfire-instructions).
 :::
+
+## A payload and a time, in one call
+
+When the job takes [a typed input](../tutorial/job-data-map.md#a-typed-input-the-third-read-side), there is
+nothing left to build — say what to run, what to run it with, and when:
+
+<!-- snippet: sample_one_off_job_typed_one_liner -->
+```csharp
+public sealed record SendInvoice(string CustomerId, decimal Amount);
+
+public sealed class SendInvoiceJob : IJob<SendInvoice>
+{
+    public ValueTask Execute(IJobExecutionContext context, SendInvoice input, CancellationToken cancellationToken = default)
+    {
+        // input.CustomerId, input.Amount
+        return default;
+    }
+}
+
+public sealed class Invoicing
+{
+    public async ValueTask Remind(IScheduler scheduler, SendInvoice invoice, CancellationToken cancellationToken)
+    {
+        TriggerKey firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
+            invoice,
+            TimeSpan.FromDays(7),
+            new OneOffJobOptions
+            {
+                // Named, so it can be replaced or cancelled; grouped by the thing it is about, so the
+                // whole conversation can be cancelled at once.
+                Name = $"invoice-{invoice.CustomerId}",
+                Group = invoice.CustomerId,
+                Replace = true
+            },
+            cancellationToken);
+
+        // ... and to call it off:
+        await scheduler.UnscheduleJob(firing, cancellationToken);
+    }
+}
+```
+<!-- endSnippet -->
+
+There are two overloads, one taking a `DateTimeOffset` and one a `TimeSpan` from now, and both return the
+`TriggerKey` of the firing they stored — the handle to cancel it with, or to replace it by scheduling the same
+name again.
+
+What is stored is **one durable job per job type**, under
+`(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)`, plus one trigger per call. That is the shape a
+message bus's Quartz integration converges on: a scheduled message is a trigger, so there is no job churn to
+pay for however many firings are in flight. The job is stored idempotently the first time a call is made on a
+scheduler and remembered afterwards, so it is safe for several nodes to do at once and costs one round trip
+rather than two from the second call on. It is left behind when the last firing is cancelled — one row per job
+type, whatever the traffic.
+
+`OneOffJobOptions` carries what would otherwise be `TriggerBuilder` calls: `Name` and `Group` (defaulting
+to a generated identifier in a group named after the job type), `Description`, `Priority`, `ExecutionGroup`,
+`MisfireInstruction`, and `Replace`. **The group is the correlation axis** — everything scheduled for one saga,
+one tenant or one conversation shares a group and can be listed, paused or unscheduled together.
+
+## Scheduling over a firing that is already there
+
+Replacing what is already scheduled is one call rather than three. The two `ScheduleJob` overloads that take a
+`ScheduleJobOptions` do the whole thing inside the store's own lock:
+
+```csharp
+// Trigger only - the job it names is already stored.
+await scheduler.ScheduleJob(trigger, new ScheduleJobOptions { Replace = true }, cancellationToken);
+
+// Job and trigger together, in one store operation.
+await scheduler.ScheduleJob(job, trigger, new ScheduleJobOptions { Replace = true }, cancellationToken);
+```
+
+Without them the only way to reschedule under a key you may or may not already hold was
+`CheckExists` → `UnscheduleJob` → `ScheduleJob`, which is three round trips and a window in which another node
+can do the same thing. `options` has no default on these two overloads, deliberately: giving it one would make
+`scheduler.ScheduleJob(trigger)` ambiguous.
+
+A replaced trigger **keeps the previous fire time it had**, so a job reading
+`context.PreviousFireTimeUtc` is not told the schedule has never fired merely because its trigger was
+rewritten. Supply a `PreviousFireTimeUtc` on the incoming trigger to say otherwise.
