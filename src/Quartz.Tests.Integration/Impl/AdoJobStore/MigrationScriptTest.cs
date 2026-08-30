@@ -884,6 +884,15 @@ public class MigrationScriptTest
 
     private static string PrepareForMigratedPrefix(string script, string dialect, string prefix)
     {
+        if (dialect == "sqlite")
+        {
+            // The 3.16 script's referential-integrity triggers carry no table prefix, so they would
+            // collide with the current schema's and with each other's. The current script names them
+            // QRTZ_DELETE_*, which the prefix substitution below retargets on its own; this baseline
+            // is frozen at what 3.16 shipped, so it needs the prefix put on by hand.
+            script = PrefixSqliteTriggers(script, SqliteTriggerPrefix(prefix));
+        }
+
         if (dialect is "sqlServer")
         {
             // The script has its own switch for skipping the teardown block. Use it rather than
@@ -914,14 +923,17 @@ public class MigrationScriptTest
     /// </summary>
     private static string Rewrite(string script, string prefix)
     {
-        script = script
+        return script
             .Replace(FreshPrefix, prefix, StringComparison.Ordinal)
             .Replace(FreshPrefix.ToLowerInvariant(), prefix.ToLowerInvariant(), StringComparison.Ordinal);
+    }
 
-        // The SQLite script's referential-integrity triggers have fixed names that carry no table
-        // prefix, so they would collide with the fresh schema's — and, now that two migrated schemas
-        // share a database, with each other's.
-        string triggerPrefix = SqliteTriggerPrefix(prefix);
+    /// <summary>
+    /// Puts a prefix on the four unprefixed trigger names the 3.16 SQLite script declares, so that
+    /// two schemas built from it can share one database.
+    /// </summary>
+    private static string PrefixSqliteTriggers(string script, string triggerPrefix)
+    {
         foreach (string trigger in SqliteTriggerNames)
         {
             script = script.Replace(trigger, triggerPrefix + trigger, StringComparison.Ordinal);
@@ -930,11 +942,14 @@ public class MigrationScriptTest
         return script;
     }
 
+    /// <summary>
+    /// Only the two baseline-built schemas need one: the current script names its triggers
+    /// <c>QRTZ_DELETE_*</c>, which <see cref="Rewrite" /> retargets like every other object.
+    /// </summary>
     private static string SqliteTriggerPrefix(string prefix) => prefix switch
     {
         SteppedPrefix => "M_",
         DirectPrefix => "D_",
-        DropSwitchPrefix => "S_",
         _ => throw new ArgumentOutOfRangeException(nameof(prefix), prefix, "no SQLite trigger prefix for this table prefix")
     };
 

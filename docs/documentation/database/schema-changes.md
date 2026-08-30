@@ -272,6 +272,28 @@ is a scan plus a sort.
 
 Node affinity needs no data migration: 3.x and 4.x store pins identically.
 
+### SQLite trigger names
+
+`database/tables/tables_sqlite.sql` now names its four referential-integrity triggers
+`QRTZ_DELETE_SIMPLE_TRIGGER`, `QRTZ_DELETE_SIMPROP_TRIGGER`, `QRTZ_DELETE_CRON_TRIGGER` and
+`QRTZ_DELETE_BLOB_TRIGGER`. They were `DELETE_SIMPLE_TRIGGER` and friends, with no table prefix at
+all, which meant two Quartz schemas could not share one SQLite database however their table prefixes
+were configured — the second `CREATE TRIGGER` collided with the first.
+
+**No action is required on an existing database.** Nothing in Quartz names these triggers; SQLite
+runs them by itself when a row leaves `QRTZ_TRIGGERS`, so a schema built from an older script keeps
+working under its old names. Rename them only if you want a second Quartz schema in the same file:
+
+```sql
+DROP TRIGGER DELETE_SIMPLE_TRIGGER;
+DROP TRIGGER DELETE_SIMPROP_TRIGGER;
+DROP TRIGGER DELETE_CRON_TRIGGER;
+DROP TRIGGER DELETE_BLOB_TRIGGER;
+```
+
+then re-create them from the current `tables_sqlite.sql`, adjusting `QRTZ_` to your table prefix.
+There is no migration script for this: it changes nothing about what Quartz stores or reads.
+
 ::: tip
 The `4.0` scripts live on `main` and nowhere else — the `3.x` branch links to them rather than
 carrying a copy, because what this upgrade has to do is decided by 4.x's schema and a mirror

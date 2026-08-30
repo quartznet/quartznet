@@ -31,6 +31,7 @@
         "DocsBuild",
         "DocsSnippets",
         "GenerateMigrations",
+        "GenerateSchema",
         "IntegrationTest",
         "Pack",
         "PackZip",
@@ -40,7 +41,8 @@
         "Restore",
         "UnitTest",
         "VerifyDocsSnippets",
-        "VerifyMigrations"
+        "VerifyMigrations",
+        "VerifySchema"
       ]
     },
     "Verbosity": {

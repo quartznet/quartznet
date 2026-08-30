@@ -121,14 +121,22 @@ jobs:
           #   instance is a whole-table statement that means it: the teardown preamble of
           #   tables_oracle.sql, which drops each of those tables a few lines later, and the three
           #   backfills in the 1.x -> 2.x upgrade that populate a column just added to every row.
+          #
+          # src/Quartz/Impl/AdoJobStore/Schema/ leaves analysis entirely, like the vendored baselines
+          # and for the same reason: it is not source. Those six files are emitted by
+          # build/Build.DatabaseSchema.cs, which is analysed as the C# it is, and VerifySchema fails
+          # the build if they are not exactly what it emits -- so a finding in one of them cannot be
+          # acted on where it is reported. It arrives as PL/SQL whatever the dialect, which is how the
+          # T-SQL file collects "define a constant instead of duplicating this literal", and the Oracle
+          # one the same EXECUTE IMMEDIATE guards that database/migrations is already excused for.
           dotnet-sonarscanner begin \
             /k:"quartznet_quartznet" \
             /o:"quartznet" \
             /d:sonar.host.url="https://sonarcloud.io" \
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
-            /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**" \
-            /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,database/**" \
+            /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**" \
+            /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,database/**" \
             /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**" \
             /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
