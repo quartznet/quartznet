@@ -175,6 +175,28 @@ public interface IJobStore
     }
 
     /// <summary>
+    /// Remove (delete) every <see cref="IJob" /> in the matching groups, and any
+    /// <see cref="ITrigger" />s that reference them.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation lists the matching keys and then deletes them, which is two
+    /// operations and so lets a job added in between escape. A store overrides it to resolve the
+    /// keys and delete them under the same lock or connection scope; the answer must not change
+    /// when it does.
+    /// </remarks>
+    /// <returns>
+    /// The keys this call removed. A group that matched nothing contributes nothing — an empty
+    /// list is the plural of the single-key <see langword="false" />, not a failure.
+    /// </returns>
+    /// <seealso cref="DeleteJobs(IReadOnlyCollection{JobKey}, CancellationToken)" />
+    ValueTask<List<JobKey>> DeleteJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+
+        return DeleteMatchingJobs(this, matcher, cancellationToken);
+    }
+
+    /// <summary>
     /// Retrieve the <see cref="IJobDetail" /> for the given
     /// <see cref="IJob" />.
     /// </summary>
@@ -232,6 +254,27 @@ public interface IJobStore
     ValueTask<List<TriggerKey>> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
         return ApplyToEach(triggerKeys, DeleteTrigger, cancellationToken);
+    }
+
+    /// <summary>
+    /// Remove (delete) every <see cref="ITrigger" /> in the matching groups.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation lists the matching keys and then deletes them, which is two
+    /// operations and so lets a trigger added in between escape. A store overrides it to resolve
+    /// the keys and delete them under the same lock or connection scope; the answer must not change
+    /// when it does.
+    /// </remarks>
+    /// <returns>
+    /// The keys this call removed. A job left orphaned and non-durable by the removal is deleted
+    /// too, as in the single-key form, but the answer names triggers only.
+    /// </returns>
+    /// <seealso cref="DeleteTriggers(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    ValueTask<List<TriggerKey>> DeleteTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+
+        return DeleteMatchingTriggers(this, matcher, cancellationToken);
     }
 
     /// <summary>
@@ -819,5 +862,51 @@ public interface IJobStore
         }
 
         return applied;
+    }
+
+    /// <summary>
+    /// Lists the jobs in the matching groups and deletes them, for a store that has not overridden
+    /// the group form.
+    /// </summary>
+    /// <remarks>
+    /// Correct for any store and atomic for none: the listing and the deletion are two operations,
+    /// so a job stored between them is not deleted. Every shipped store resolves the keys inside
+    /// the same lock the deletion takes, which is the difference this default cannot express.
+    /// </remarks>
+    private static async ValueTask<List<JobKey>> DeleteMatchingJobs(
+        IJobStore store,
+        GroupMatcher<JobKey> matcher,
+        CancellationToken cancellationToken)
+    {
+        PagedResult<JobHeader> matching = await store.QueryJobs(
+            new JobQuery { Group = matcher, Take = int.MaxValue },
+            cancellationToken).ConfigureAwait(false);
+
+        List<JobKey> keys = new List<JobKey>(matching.Items.Count);
+        foreach (JobHeader header in matching.Items)
+        {
+            keys.Add(header.Key);
+        }
+
+        return await store.DeleteJobs(keys, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc cref="DeleteMatchingJobs" />
+    private static async ValueTask<List<TriggerKey>> DeleteMatchingTriggers(
+        IJobStore store,
+        GroupMatcher<TriggerKey> matcher,
+        CancellationToken cancellationToken)
+    {
+        PagedResult<TriggerHeader> matching = await store.QueryTriggers(
+            new TriggerQuery { Group = matcher, Take = int.MaxValue },
+            cancellationToken).ConfigureAwait(false);
+
+        List<TriggerKey> keys = new List<TriggerKey>(matching.Items.Count);
+        foreach (TriggerHeader header in matching.Items)
+        {
+            keys.Add(header.Key);
+        }
+
+        return await store.DeleteTriggers(keys, cancellationToken).ConfigureAwait(false);
     }
 }

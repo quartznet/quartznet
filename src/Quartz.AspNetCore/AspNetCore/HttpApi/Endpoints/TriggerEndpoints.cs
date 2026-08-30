@@ -74,6 +74,11 @@ internal static class TriggerEndpoints
         yield return builder.MapPost(patternPrefix + "/unschedule", UnscheduleJobs)
             .WithQuartzDefaults(nameof(UnscheduleJobs), "Unschedule jobs");
 
+        // "unschedule" was taken by the key-set form before there was a group form, so the group
+        // form says so in its path rather than taking the plain one away from an endpoint that has it.
+        yield return builder.MapPost(patternPrefix + "/unschedule-by-group", UnscheduleJobsByGroup)
+            .WithQuartzDefaults(nameof(UnscheduleJobsByGroup), "Unschedule jobs by group");
+
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/reschedule", RescheduleJob)
             .WithQuartzDefaults(nameof(RescheduleJob), "Reschedule job");
     }
@@ -472,6 +477,34 @@ internal static class TriggerEndpoints
         {
             var triggerKeys = request.Triggers.Select(x => x.AsTriggerKey()).ToArray();
             var unscheduled = await scheduler.UnscheduleJobs(triggerKeys, cancellationToken).ConfigureAwait(false);
+            return new AppliedTriggerKeysResponse([.. unscheduled.Select(KeyDto.Create)]);
+        });
+    }
+
+    /// <summary>
+    /// Removes every trigger in the matching groups, answering with the keys it removed.
+    /// </summary>
+    /// <remarks>
+    /// The group matcher is the same one the pause and resume endpoints take, and the answer is the
+    /// keys rather than the group names: unscheduling leaves nothing behind to remember about a
+    /// group, so what a caller can use is what went. A job left with no triggers and no durability
+    /// goes with them, and is not named — the answer is about triggers.
+    /// </remarks>
+    [ProducesResponseType(typeof(AppliedTriggerKeysResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> UnscheduleJobsByGroup(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        string? groupContains = null,
+        string? groupEndsWith = null,
+        string? groupStartsWith = null,
+        string? groupEquals = null,
+        CancellationToken cancellationToken = default)
+    {
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
+            var unscheduled = await scheduler.UnscheduleJobs(matcher, cancellationToken).ConfigureAwait(false);
             return new AppliedTriggerKeysResponse([.. unscheduled.Select(KeyDto.Create)]);
         });
     }

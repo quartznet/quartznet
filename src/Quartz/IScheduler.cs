@@ -459,6 +459,32 @@ public interface IScheduler : IAsyncDisposable
     ValueTask<List<TriggerKey>> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Remove every <see cref="ITrigger" /> in the matching groups from the scheduler.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The group is the correlation axis: everything scheduled for one saga, one tenant or one
+    /// conversation shares a trigger group, and this is how the whole of it is called off in one
+    /// call rather than one round trip per key — and without first listing the keys, which is a
+    /// window in which another node can add one more.
+    /// </para>
+    /// <para>A job left with no triggers by the removal is deleted too if it is not durable,
+    /// exactly as the single-key <see cref="UnscheduleJob" /> does, but the answer names triggers
+    /// only.</para>
+    /// <para>One <see cref="ISchedulerListener.JobUnscheduled" /> is raised per removed key, and the
+    /// scheduling change is signalled once for the whole call. A matcher that matched nothing raises
+    /// nothing.</para>
+    /// </remarks>
+    /// <param name="matcher">
+    /// Selects the trigger groups to empty. Required — there is no "unschedule the default group"
+    /// reading of <see langword="null" /> worth risking on a destructive call.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The keys of the triggers this call removed.</returns>
+    /// <seealso cref="UnscheduleJobs(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    ValueTask<List<TriggerKey>> UnscheduleJobs(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Remove (delete) the <see cref="ITrigger" /> with the
     /// given key, and store the new given one - which must be associated
     /// with the same job (the new trigger must have the job name &amp; group specified)
@@ -570,6 +596,32 @@ public interface IScheduler : IAsyncDisposable
     /// </returns>
     /// <seealso cref="DeleteJob" />
     ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Delete every <see cref="IJobDetail" /> in the matching groups from the Scheduler - and any
+    /// associated <see cref="ITrigger" />s.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The group is the correlation axis: everything belonging to one tenant, one saga or one
+    /// import shares a job group, and this is how the whole of it goes in one call rather than one
+    /// round trip per key — and without first listing the keys, which is a window in which another
+    /// node can add one more.
+    /// </para>
+    /// <para>Unlike <see cref="PauseJobs(GroupMatcher{JobKey}, CancellationToken)" />, nothing is
+    /// remembered about the groups: a delete has no state to impose on a job added afterwards.</para>
+    /// <para>One <see cref="ISchedulerListener.JobDeleted" /> is raised per deleted key, and the
+    /// scheduling change is signalled once for the whole call. A matcher that matched nothing raises
+    /// nothing.</para>
+    /// </remarks>
+    /// <param name="matcher">
+    /// Selects the job groups to empty. Required — there is no "delete the default group" reading of
+    /// <see langword="null" /> worth risking on a destructive call.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The keys of the jobs this call deleted.</returns>
+    /// <seealso cref="DeleteJobs(IReadOnlyCollection{JobKey}, CancellationToken)" />
+    ValueTask<List<JobKey>> DeleteJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Trigger the identified <see cref="IJobDetail" /> (Execute it now).

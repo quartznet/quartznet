@@ -64,6 +64,8 @@ public class JobStoreKeySetDefaultsTest
         A.CallTo(() => store.ResumeJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).CallsBaseMethod();
         A.CallTo(() => store.ResumeTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).CallsBaseMethod();
         A.CallTo(() => store.ResetTriggersFromErrorState(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => store.DeleteJobs(A<GroupMatcher<JobKey>>._, A<CancellationToken>._)).CallsBaseMethod();
+        A.CallTo(() => store.DeleteTriggers(A<GroupMatcher<TriggerKey>>._, A<CancellationToken>._)).CallsBaseMethod();
     }
 
     [Test]
@@ -115,6 +117,140 @@ public class JobStoreKeySetDefaultsTest
         (await store.PauseTriggers([FirstTrigger, MissingTrigger])).Should().Equal([FirstTrigger]);
         (await store.ResumeTriggers([FirstTrigger, MissingTrigger])).Should().Equal([FirstTrigger]);
         (await store.ResetTriggersFromErrorState([FirstTrigger, MissingTrigger])).Should().Equal([FirstTrigger]);
+    }
+
+    /// <summary>
+    /// The group form's default: list what matches, then delete it by key.
+    /// </summary>
+    /// <remarks>
+    /// A store that overrides nothing still answers a group delete correctly, which is the point of
+    /// giving the member a body at all. What it cannot be is atomic - the listing and the deletion
+    /// are two operations - so the shipped stores override it; this is the other side of that
+    /// promise, and the only place the default runs.
+    /// </remarks>
+    [Test]
+    public async Task TheDefaultGroupDeleteListsTheGroupAndThenDeletesTheKeysItNamed()
+    {
+        GivenTheseJobsExist(FirstJob, SecondJob);
+        GivenTheseJobsAreInTheStore(FirstJob, SecondJob);
+
+        List<JobKey> deleted = await store.DeleteJobs(GroupMatcher<JobKey>.GroupEquals("jobs"));
+
+        deleted.Should().Equal([FirstJob, SecondJob], "the default answers with what the delete deleted");
+
+        A.CallTo(() => store.DeleteJobs(
+                A<IReadOnlyCollection<JobKey>>.That.IsSameSequenceAs(FirstJob, SecondJob),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task TheDefaultGroupUnscheduleListsTheGroupAndThenDeletesTheKeysItNamed()
+    {
+        GivenTheseTriggersExist(FirstTrigger, SecondTrigger);
+        GivenTheseTriggersAreInTheStore(FirstTrigger, SecondTrigger);
+
+        List<TriggerKey> deleted = await store.DeleteTriggers(GroupMatcher<TriggerKey>.GroupEquals("triggers"));
+
+        deleted.Should().Equal([FirstTrigger, SecondTrigger]);
+
+        A.CallTo(() => store.DeleteTriggers(
+                A<IReadOnlyCollection<TriggerKey>>.That.IsSameSequenceAs(FirstTrigger, SecondTrigger),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    /// <summary>
+    /// The listing the default performs asks for the whole group, not a page of it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="PagedQuery.Take" /> defaults to 250 precisely so that an unpaged call cannot
+    /// materialize an unbounded result by accident. A delete that inherited that default would empty
+    /// the first 250 of a group and report success, which is the one thing worse than being slow.
+    /// </remarks>
+    [Test]
+    public async Task TheDefaultGroupDeleteAsksForEveryMatchRatherThanAPage()
+    {
+        GivenTheseJobsAreInTheStore(FirstJob);
+        GivenTheseTriggersAreInTheStore(FirstTrigger);
+
+        GroupMatcher<JobKey> jobs = GroupMatcher<JobKey>.GroupStartsWith("jo");
+        GroupMatcher<TriggerKey> triggers = GroupMatcher<TriggerKey>.GroupStartsWith("tri");
+
+        await store.DeleteJobs(jobs);
+        await store.DeleteTriggers(triggers);
+
+        A.CallTo(() => store.QueryJobs(
+                A<JobQuery>.That.Matches(query => query.Group == jobs && query.Take == int.MaxValue),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => store.QueryTriggers(
+                A<TriggerQuery>.That.Matches(query => query.Group == triggers && query.Take == int.MaxValue),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task ADefaultAnswersNothingForAGroupThatMatchesNothing()
+    {
+        GivenTheseJobsAreInTheStore();
+        GivenTheseTriggersAreInTheStore();
+
+        (await store.DeleteJobs(GroupMatcher<JobKey>.GroupEquals("empty"))).Should().BeEmpty();
+        (await store.DeleteTriggers(GroupMatcher<TriggerKey>.GroupEquals("empty"))).Should().BeEmpty();
+
+        A.CallTo(() => store.DeleteJob(A<JobKey>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => store.DeleteTrigger(A<TriggerKey>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task AGroupMatcherIsRequiredEvenOfADefault()
+    {
+        Func<Task> deletingNothing = async () => await store.DeleteJobs((GroupMatcher<JobKey>) null!);
+        await deletingNothing.Should().ThrowAsync<ArgumentNullException>();
+
+        Func<Task> unschedulingNothing = async () => await store.DeleteTriggers((GroupMatcher<TriggerKey>) null!);
+        await unschedulingNothing.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    /// <summary>
+    /// What the listing the group default runs would answer.
+    /// </summary>
+    private void GivenTheseJobsAreInTheStore(params JobKey[] present)
+    {
+        List<JobHeader> headers = [.. present.Select(key => new JobHeader(
+            key,
+            Description: null,
+            JobTypeName: "Quartz.Simpl.NoOpJob, Quartz",
+            Durable: false,
+            ConcurrentExecutionDisallowed: false,
+            PersistJobDataAfterExecution: false,
+            RequestsRecovery: false))];
+
+        A.CallTo(() => store.QueryJobs(A<JobQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobHeader>(headers, HasMore: false));
+    }
+
+    /// <inheritdoc cref="GivenTheseJobsAreInTheStore" />
+    private void GivenTheseTriggersAreInTheStore(params TriggerKey[] present)
+    {
+        List<TriggerHeader> headers = [.. present.Select(key => new TriggerHeader(
+            key,
+            JobKey: FirstJob,
+            Description: null,
+            TriggerType: "SIMPLE",
+            State: TriggerState.Normal,
+            StartTimeUtc: DateTimeOffset.UnixEpoch,
+            EndTimeUtc: null,
+            NextFireTimeUtc: null,
+            PreviousFireTimeUtc: null,
+            CalendarName: null,
+            Priority: 5,
+            ExecutionGroup: null))];
+
+        A.CallTo(() => store.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>(headers, HasMore: false));
     }
 
     private void GivenTheseJobsExist(params JobKey[] existing)

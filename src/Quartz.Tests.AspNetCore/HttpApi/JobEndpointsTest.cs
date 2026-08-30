@@ -513,6 +513,44 @@ public class JobEndpointsTest : WebApiTest
     }
 
     [Test]
+    public async Task DeleteJobsByGroupShouldCarryEveryMatcherAndAnswerWithTheKeys()
+    {
+        var matchers = new[]
+        {
+            GroupMatcher<JobKey>.AnyGroup(),
+            GroupMatcher<JobKey>.GroupContains("contains"),
+            GroupMatcher<JobKey>.GroupEquals("equals"),
+            GroupMatcher<JobKey>.GroupEndsWith("ends"),
+            GroupMatcher<JobKey>.GroupStartsWith("starts")
+        };
+
+        foreach (var matcher in matchers)
+        {
+            Fake.ClearRecordedCalls(FakeScheduler);
+            A.CallTo(() => FakeScheduler.DeleteJobs(matcher, A<CancellationToken>._))
+                .Returns(new List<JobKey> { jobKeyOne, jobKeyTwo });
+
+            List<JobKey> deleted = await HttpScheduler.DeleteJobs(matcher);
+
+            deleted.Should().Equal([jobKeyOne, jobKeyTwo],
+                "the group form answers with the keys it removed, not with the group names — there is "
+                + "no deleted group left to name");
+            A.CallTo(() => FakeScheduler.DeleteJobs(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+        }
+    }
+
+    [Test]
+    public async Task DeleteJobsByGroupShouldAnswerWithAnEmptyListWhenNothingMatched()
+    {
+        A.CallTo(() => FakeScheduler.DeleteJobs(A<GroupMatcher<JobKey>>._, A<CancellationToken>._))
+            .Returns(new List<JobKey>());
+
+        List<JobKey> deleted = await HttpScheduler.DeleteJobs(GroupMatcher<JobKey>.GroupEquals("nothing"));
+
+        deleted.Should().BeEmpty("an empty group is not an error over the wire any more than it is in process");
+    }
+
+    [Test]
     public async Task AddJobShouldWork()
     {
         await HttpScheduler.AddJob(TestData.JobDetail, new AddJobOptions { Replace = true });

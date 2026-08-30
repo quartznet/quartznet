@@ -622,6 +622,44 @@ public class TriggerEndpointsTest : WebApiTest
     }
 
     [Test]
+    public async Task UnscheduleJobsByGroupShouldCarryEveryMatcherAndAnswerWithTheKeys()
+    {
+        var matchers = new[]
+        {
+            GroupMatcher<TriggerKey>.AnyGroup(),
+            GroupMatcher<TriggerKey>.GroupContains("contains"),
+            GroupMatcher<TriggerKey>.GroupEquals("equals"),
+            GroupMatcher<TriggerKey>.GroupEndsWith("ends"),
+            GroupMatcher<TriggerKey>.GroupStartsWith("starts")
+        };
+
+        foreach (var matcher in matchers)
+        {
+            Fake.ClearRecordedCalls(FakeScheduler);
+            A.CallTo(() => FakeScheduler.UnscheduleJobs(matcher, A<CancellationToken>._))
+                .Returns(new List<TriggerKey> { triggerKeyOne, triggerKeyTwo });
+
+            List<TriggerKey> unscheduled = await HttpScheduler.UnscheduleJobs(matcher);
+
+            unscheduled.Should().Equal([triggerKeyOne, triggerKeyTwo],
+                "the group form answers with the keys it removed, not with the group names — there is "
+                + "no unscheduled group left to name");
+            A.CallTo(() => FakeScheduler.UnscheduleJobs(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+        }
+    }
+
+    [Test]
+    public async Task UnscheduleJobsByGroupShouldAnswerWithAnEmptyListWhenNothingMatched()
+    {
+        A.CallTo(() => FakeScheduler.UnscheduleJobs(A<GroupMatcher<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey>());
+
+        List<TriggerKey> unscheduled = await HttpScheduler.UnscheduleJobs(GroupMatcher<TriggerKey>.GroupEquals("nothing"));
+
+        unscheduled.Should().BeEmpty("an empty group is not an error over the wire any more than it is in process");
+    }
+
+    [Test]
     public async Task RescheduleJobShouldWork()
     {
         var firstFireTime = DateTimeOffset.Now;

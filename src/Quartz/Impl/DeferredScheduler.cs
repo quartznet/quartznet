@@ -225,6 +225,12 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.UnscheduleJobs(triggerKeys, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<List<TriggerKey>> UnscheduleJobs(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.UnscheduleJobs(matcher, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
@@ -265,6 +271,12 @@ internal sealed class DeferredScheduler : IScheduler
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.DeleteJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<List<JobKey>> DeleteJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.DeleteJobs(matcher, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask TriggerJob(JobKey jobKey, JobDataMap? data = null, CancellationToken cancellationToken = default)

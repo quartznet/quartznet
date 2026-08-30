@@ -115,6 +115,11 @@ public class DelegatingScheduler : IScheduler
         return scheduler.UnscheduleJobs(triggerKeys, cancellationToken);
     }
 
+    public virtual ValueTask<List<TriggerKey>> UnscheduleJobs(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    {
+        return scheduler.UnscheduleJobs(matcher, cancellationToken);
+    }
+
     public virtual ValueTask<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger, CancellationToken cancellationToken = default)
     {
         return scheduler.RescheduleJob(triggerKey, newTrigger, cancellationToken);
@@ -148,6 +153,11 @@ public class DelegatingScheduler : IScheduler
     public virtual ValueTask<List<JobKey>> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         return scheduler.DeleteJobs(jobKeys, cancellationToken);
+    }
+
+    public virtual ValueTask<List<JobKey>> DeleteJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    {
+        return scheduler.DeleteJobs(matcher, cancellationToken);
     }
 
     public virtual ValueTask TriggerJob(JobKey jobKey, JobDataMap? data = null, CancellationToken cancellationToken = default)

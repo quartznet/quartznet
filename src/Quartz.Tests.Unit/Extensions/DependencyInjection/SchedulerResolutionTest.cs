@@ -145,6 +145,44 @@ public sealed class SchedulerResolutionTest
         provider.GetRequiredService<IScheduler>().SchedulerName.Should().Be("configured");
     }
 
+    /// <summary>
+    /// The handle replays a group delete onto the scheduler it resolves, rather than answering it.
+    /// </summary>
+    /// <remarks>
+    /// Every member of the handle is a replay, and a member added to <see cref="IScheduler" /> that
+    /// nobody remembers to add here still compiles - the handle would simply not have it, and the
+    /// container would refuse to build. These two are asserted because they are new, and because
+    /// "cancel the whole correlation" is the call an integrator makes through exactly this handle:
+    /// resolved from the container, before anything has started the scheduler.
+    /// </remarks>
+    [Test]
+    public async Task GroupDeletes_AreReplayedOntoTheResolvedScheduler()
+    {
+        JobKey deletedJob = new JobKey("job", "saga-17");
+        TriggerKey removedTrigger = new TriggerKey("trigger", "saga-17");
+
+        IScheduler built = A.Fake<IScheduler>();
+        A.CallTo(() => built.DeleteJobs(A<GroupMatcher<JobKey>>._, A<CancellationToken>._))
+            .Returns(new List<JobKey> { deletedJob });
+        A.CallTo(() => built.UnscheduleJobs(A<GroupMatcher<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey> { removedTrigger });
+
+        ISchedulerFactory factory = A.Fake<ISchedulerFactory>();
+        A.CallTo(() => factory.GetScheduler(A<CancellationToken>._)).Returns(new ValueTask<IScheduler>(built));
+
+        DeferredScheduler scheduler = new DeferredScheduler(factory, OptionsFor(new QuartzSchedulerOptions()), new SchedulerKey("reporting"));
+
+        GroupMatcher<JobKey> jobs = GroupMatcher<JobKey>.GroupEquals("saga-17");
+        GroupMatcher<TriggerKey> triggers = GroupMatcher<TriggerKey>.GroupEquals("saga-17");
+
+        (await scheduler.DeleteJobs(jobs)).Should().Equal([deletedJob],
+            "the handle answers with what the scheduler it resolved answered, not with something of its own");
+        (await scheduler.UnscheduleJobs(triggers)).Should().Equal([removedTrigger]);
+
+        A.CallTo(() => built.DeleteJobs(jobs, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => built.UnscheduleJobs(triggers, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
     private static IOptionsMonitor<QuartzSchedulerOptions> OptionsFor(QuartzSchedulerOptions options)
     {
         var monitor = A.Fake<IOptionsMonitor<QuartzSchedulerOptions>>();

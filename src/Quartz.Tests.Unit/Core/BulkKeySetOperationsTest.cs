@@ -30,15 +30,23 @@ using Quartz.Listeners;
 namespace Quartz.Tests.Unit.Core;
 
 /// <summary>
-/// What a key-set pause, resume, error-state reset, delete or unschedule tells the outside world.
+/// What a bulk pause, resume, error-state reset, delete or unschedule tells the outside world —
+/// whether the bulk was named as a key set or as a group matcher.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The answers themselves belong to the job store contract; what belongs here is the part only the
 /// scheduler can get wrong. A key set is neither one key nor one group, so the notification shape
 /// had to be chosen: the events stay per key, because <c>TriggersPaused(null)</c> means every group
 /// and would read to a monitoring listener as a total outage. The scheduling change, in contrast, is
 /// raised once for the call — the scheduler thread treats it as a level, not an edge, so one signal
 /// covers the whole set. That is why the scheduler must reach the store once, and never loop.
+/// </para>
+/// <para>
+/// The group-matcher delete and unschedule answer the same way, and for a reason of their own: a
+/// group event says which group changed, and a delete leaves no group behind to say anything about.
+/// So they too report the keys they removed, one listener event each.
+/// </para>
 /// </remarks>
 [NonParallelizable]
 public class BulkKeySetOperationsTest
@@ -186,6 +194,70 @@ public class BulkKeySetOperationsTest
     }
 
     /// <summary>
+    /// The correlation case: everything scheduled for one saga goes in one call, and the caller is
+    /// told what went rather than which groups it named.
+    /// </summary>
+    [Test]
+    public async Task DeletingAGroupOfJobsAnswersWithTheKeysItDeletedAndRaisesOneEventEach()
+    {
+        await Schedule("first", durable: true, jobGroup: "saga-17");
+        await Schedule("second", durable: true, jobGroup: "saga-17");
+        await Schedule("elsewhere", durable: true, jobGroup: "saga-18");
+
+        JobKey firstJob = new JobKey("first", "saga-17");
+        JobKey secondJob = new JobKey("second", "saga-17");
+        JobKey untouched = new JobKey("elsewhere", "saga-18");
+
+        List<JobKey> deleted = await scheduler.DeleteJobs(GroupMatcher<JobKey>.GroupEquals("saga-17"));
+
+        deleted.Should().BeEquivalentTo([firstJob, secondJob],
+            "the answer is the keys the call removed — a group has nothing left to say about itself "
+            + "once it is empty, which is why this is not the group-name answer that pause gives");
+        listener.DeletedJobs.Should().BeEquivalentTo(deleted,
+            "the events follow the keys, exactly as the key-set form's do");
+
+        store.GroupDeleteJobCalls.Should().Be(1,
+            "one call into the store is what makes one scheduling signal possible");
+        store.BulkDeleteJobCalls.Should().Be(0,
+            "the store resolves the group itself — listing the keys first is the race the group form exists to close");
+        store.SingleDeleteJobCalls.Should().Be(0);
+
+        (await scheduler.Exists(untouched)).Should().BeTrue("a group that was not matched is not touched");
+    }
+
+    [Test]
+    public async Task UnschedulingAGroupOfTriggersAnswersWithTheKeysItRemovedAndRaisesOneEventEach()
+    {
+        TriggerKey first = await Schedule("first", durable: true, triggerGroup: "saga-17");
+        TriggerKey second = await Schedule("second", durable: true, triggerGroup: "saga-17");
+        TriggerKey untouched = await Schedule("elsewhere", durable: true, triggerGroup: "saga-18");
+
+        List<TriggerKey> unscheduled = await scheduler.UnscheduleJobs(GroupMatcher<TriggerKey>.GroupEquals("saga-17"));
+
+        unscheduled.Should().BeEquivalentTo([first, second]);
+        listener.UnscheduledTriggers.Should().BeEquivalentTo(unscheduled);
+
+        store.GroupDeleteTriggerCalls.Should().Be(1);
+        store.BulkDeleteTriggerCalls.Should().Be(0);
+        store.SingleDeleteTriggerCalls.Should().Be(0);
+
+        (await scheduler.Exists(untouched)).Should().BeTrue();
+    }
+
+    [Test]
+    public async Task AGroupThatMatchedNothingAnnouncesNothing()
+    {
+        await Schedule("kept", durable: true);
+
+        (await scheduler.DeleteJobs(GroupMatcher<JobKey>.GroupEquals("no-such-group"))).Should().BeEmpty();
+        (await scheduler.UnscheduleJobs(GroupMatcher<TriggerKey>.GroupEquals("no-such-group"))).Should().BeEmpty();
+
+        listener.DeletedJobs.Should().BeEmpty(
+            "an empty group was never deleted, and saying otherwise misinforms every listener");
+        listener.UnscheduledTriggers.Should().BeEmpty();
+    }
+
+    /// <summary>
     /// A key that named nothing used to be announced as deleted anyway.
     /// </summary>
     /// <remarks>
@@ -244,18 +316,41 @@ public class BulkKeySetOperationsTest
         Func<Task> pausingNothing = async () => await scheduler.PauseTriggers((IReadOnlyCollection<TriggerKey>) null!);
         await pausingNothing.Should().ThrowAsync<ArgumentNullException>();
 
-        Func<Task> deletingNothing = async () => await scheduler.DeleteJobs(null!);
+        Func<Task> deletingNothing = async () => await scheduler.DeleteJobs((IReadOnlyCollection<JobKey>) null!);
         await deletingNothing.Should().ThrowAsync<ArgumentNullException>();
 
-        Func<Task> unschedulingNothing = async () => await scheduler.UnscheduleJobs(null!);
+        Func<Task> unschedulingNothing = async () => await scheduler.UnscheduleJobs((IReadOnlyCollection<TriggerKey>) null!);
         await unschedulingNothing.Should().ThrowAsync<ArgumentNullException>();
     }
 
-    private async Task<TriggerKey> Schedule(string name, bool durable = false)
+    /// <summary>
+    /// A group is required too, and for a stronger reason than a key set is.
+    /// </summary>
+    /// <remarks>
+    /// The pause and resume group forms read a <see langword="null" /> matcher as "the default
+    /// group", which is a harmless guess when the operation is reversible. It is not one here: a
+    /// caller whose group variable came back null would silently delete every job in the default
+    /// group instead of being told the call was malformed.
+    /// </remarks>
+    [Test]
+    public async Task AGroupMatcherIsRequired()
     {
-        IJobDetail job = JobBuilder.Create<NoOpBulkJob>().WithIdentity(name, "jobs").StoreDurably(durable).Build();
+        Func<Task> deletingNothing = async () => await scheduler.DeleteJobs((GroupMatcher<JobKey>) null!);
+        await deletingNothing.Should().ThrowAsync<ArgumentNullException>();
+
+        Func<Task> unschedulingNothing = async () => await scheduler.UnscheduleJobs((GroupMatcher<TriggerKey>) null!);
+        await unschedulingNothing.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    private async Task<TriggerKey> Schedule(
+        string name,
+        bool durable = false,
+        string jobGroup = "jobs",
+        string triggerGroup = "triggers")
+    {
+        IJobDetail job = JobBuilder.Create<NoOpBulkJob>().WithIdentity(name, jobGroup).StoreDurably(durable).Build();
         ITrigger trigger = TriggerBuilder.Create()
-            .WithIdentity(name, "triggers")
+            .WithIdentity(name, triggerGroup)
             .ForJob(job)
             .StartAt(DateTimeOffset.UtcNow.AddYears(1))
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
@@ -290,6 +385,8 @@ public class BulkKeySetOperationsTest
         public int BulkResetCalls { get; private set; }
         public int BulkDeleteJobCalls { get; private set; }
         public int BulkDeleteTriggerCalls { get; private set; }
+        public int GroupDeleteJobCalls { get; private set; }
+        public int GroupDeleteTriggerCalls { get; private set; }
 
         public override ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
         {
@@ -313,6 +410,18 @@ public class BulkKeySetOperationsTest
         {
             BulkDeleteTriggerCalls++;
             return base.DeleteTriggers(triggerKeys, cancellationToken);
+        }
+
+        public override ValueTask<List<JobKey>> DeleteJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+        {
+            GroupDeleteJobCalls++;
+            return base.DeleteJobs(matcher, cancellationToken);
+        }
+
+        public override ValueTask<List<TriggerKey>> DeleteTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+        {
+            GroupDeleteTriggerCalls++;
+            return base.DeleteTriggers(matcher, cancellationToken);
         }
 
         public override ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
