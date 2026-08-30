@@ -434,11 +434,32 @@ concerns belong in a listener instead.
 
 ## Retry
 
-There is no retry policy attached to a trigger on 4.0. `Quartz.RetryPolicy` exists as a value — `Fixed`,
-`Exponential`, `Explicit`, with the storage columns reserved — but nothing on a trigger carries one and
-nothing acts on one yet. It is [#3520](https://github.com/quartznet/quartznet/issues/3520).
+A trigger carries its own retry policy, so a library that wants a failed job re-attempted asks the
+trigger for it rather than building the loop itself:
 
-Until then, be clear about what the one existing mechanism is:
+<!-- snippet: sample_embedding_retry_policy -->
+```csharp
+services.AddQuartz(q =>
+{
+    q.AddJob<DrainOutboxJob>(j => j.WithIdentity(DrainOutboxJob.Key).StoreDurably());
+    q.AddTrigger<DrainOutboxJob>(t => t
+        .ForJob(DrainOutboxJob.Key)
+        .WithIdentity("drain-outbox", "acme.outbox")
+        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever())
+        // Four attempts, backing off 10s, 20s, 40s, 80s - but never past the next minute's
+        // occurrence, which supersedes a retry that would collide with it.
+        .WithRetryPolicy(RetryPolicy.Exponential(4, TimeSpan.FromSeconds(10))));
+});
+```
+<!-- endSnippet -->
+
+Throwing is what asks for a retry; there is nothing to opt into beyond the policy. The waits are
+persisted with the trigger, so they survive a process restart and a failover, and the job can read
+`context.RetryAttempt` to tell a first attempt from a fifth. The whole of it — including why a retry
+never displaces the trigger's next scheduled occurrence, and why running out of attempts is not an
+error — is in [Retrying Failed Jobs](retrying-failed-jobs.md).
+
+Be clear about what the other mechanism is:
 
 ```csharp
 throw new JobExecutionException(ex) { RefireImmediately = true };
@@ -447,13 +468,13 @@ throw new JobExecutionException(ex) { RefireImmediately = true };
 **`RefireImmediately` is not a retry.** It re-executes the job on the same thread, with no delay, no
 ceiling and no backoff, until it stops throwing — which against a database that is down is a tight loop
 that holds a worker thread and hammers the dependency. It is the right answer to "this failed for a reason
-that has already gone away", and the wrong answer to everything else.
+that has already gone away", and the wrong answer to everything else. It also outranks the trigger's
+policy: a job that asks for it is not retried on the policy as well.
 
-A library that needs real retry today has two honest options: put a resilience pipeline
-([Polly](https://www.pollydocs.org/) or `Microsoft.Extensions.Http.Resilience`) inside the job, where the
-retries are yours and bounded; or make the retry a schedule, by having the failing job schedule its own
-next attempt with a computed delay and an attempt count in the payload. The first is right for a fault that
-will clear in seconds, the second for one that will not — and only the second survives a process restart.
+A resilience pipeline inside the job ([Polly](https://www.pollydocs.org/) or
+`Microsoft.Extensions.Http.Resilience`) is still the better answer for a fault that will clear in
+milliseconds — a retry is a fresh firing, and going back to the scheduler for a transient socket error is
+more machinery than the problem needs. Use the trigger's policy for a fault that outlives the firing.
 
 ## Trace context across the scheduled gap
 

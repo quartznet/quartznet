@@ -12,6 +12,7 @@ Short, task-shaped recipes. Each page answers one question; the
 
 * [One-Off Job](one-off-job.md) — fire a job once, now or at a given time
 * [Rescheduling Jobs](rescheduling-jobs.md) — change a live schedule, retry a firing, recover a failed trigger
+* [Retrying Failed Jobs](retrying-failed-jobs.md) — give a trigger a retry policy, and what it does and does not do
 * [Multiple Triggers](multiple-triggers.md) — drive one job from several triggers, and give each its own data
 * [Job Template](job-template.md) — the recommended skeleton for a job class
 * [Running Quartz under Aspire](aspire.md) — telemetry, health and the database, wired to an AppHost

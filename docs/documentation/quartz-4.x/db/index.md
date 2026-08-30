@@ -83,7 +83,7 @@ lives in one of the sibling tables — `QRTZ_CRON_TRIGGERS`, `QRTZ_SIMPLE_TRIGGE
 | `MISFIRE_ORIG_FIRE_TIME` | The fire time a misfire handler moved the trigger away from, so a job can see what it missed. |
 | `EXECUTION_GROUP` | The [execution group](../tutorial/execution-groups.md) this trigger's work belongs to. |
 | `PREFERRED_NODE`, `PREFERRED_NODE_AUTO` | [Node affinity](../tutorial/node-affinity.md): which node should acquire this trigger, and whether it claimed the pin itself. |
-| `RETRY_POLICY`, `RETRY_ATTEMPT` | Reserved for a trigger's retry policy ([#3520](https://github.com/quartznet/quartznet/issues/3520)) — the policy in its stored form, and how many retries of the occurrence being executed have been made. Nothing writes them yet, so both are `NULL` on every row. |
+| `RETRY_POLICY`, `RETRY_ATTEMPT` | The trigger's [retry policy](../how-tos/retrying-failed-jobs.md) in its stored string form, and how many retries of the occurrence being executed have already been made. `RETRY_POLICY` is `NULL` on a trigger that does not retry, which is the default; `RETRY_ATTEMPT` is `0` on a row this release wrote and `NULL` on one an upgrade brought across, and the store reads both as "no retries behind it". |
 | `JOB_DATA` | The trigger's own `JobDataMap`, serialized. |
 
 ### Trigger states

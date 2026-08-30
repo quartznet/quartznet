@@ -268,6 +268,25 @@ public static class EmbeddingSamples
 
         #endregion
     }
+
+    public static void RetryPolicyOnATrigger(IServiceCollection services)
+    {
+        #region sample_embedding_retry_policy
+
+        services.AddQuartz(q =>
+        {
+            q.AddJob<DrainOutboxJob>(j => j.WithIdentity(DrainOutboxJob.Key).StoreDurably());
+            q.AddTrigger<DrainOutboxJob>(t => t
+                .ForJob(DrainOutboxJob.Key)
+                .WithIdentity("drain-outbox", "acme.outbox")
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever())
+                // Four attempts, backing off 10s, 20s, 40s, 80s - but never past the next minute's
+                // occurrence, which supersedes a retry that would collide with it.
+                .WithRetryPolicy(RetryPolicy.Exponential(4, TimeSpan.FromSeconds(10))));
+        });
+
+        #endregion
+    }
 }
 
 /// <summary>

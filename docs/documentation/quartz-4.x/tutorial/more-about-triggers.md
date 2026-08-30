@@ -69,6 +69,21 @@ Every family has `SmartPolicy`, which is the default, and `IgnoreMisfires`, whic
 fast as it can once the scheduler is back. `SmartPolicy` has dynamic behaviour chosen by the trigger type and its
 configuration; what it resolves to is described in the lesson for each trigger type.
 
+## Retry Policies
+
+A misfire is a firing that never happened. Its opposite — a firing that happened and *failed* — is what a
+**retry policy** is for. A trigger carrying one is re-fired after its job throws, on a fixed, exponential or
+explicitly tabulated schedule of waits:
+
+```csharp
+.WithRetryPolicy(RetryPolicy.Exponential(maxAttempts: 3, initialDelay: TimeSpan.FromSeconds(30)))
+```
+
+A retry never displaces the trigger's next scheduled occurrence, burns no repeat count, and running out of
+attempts puts the trigger back on its ordinary schedule rather than into an error state. See
+[Retrying Failed Jobs](../how-tos/retrying-failed-jobs.md) for the whole of it — including why
+`RefireImmediately` is not a zero-delay retry.
+
 ## Execution Groups
 
 Triggers can optionally be assigned an **execution group** -- a tag that characterizes the resource

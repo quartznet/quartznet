@@ -161,7 +161,9 @@ pagination, each row a link to a detail page.
   delete.
 - **Triggers** lists triggers with their state, their next and previous fire times and their execution
   group. `?state=` opens it already narrowed, which is what the overview's histogram counts link to. The
-  detail page shows the trigger's own `JobDataMap`, and outside read-only mode offers pause, resume,
+  detail page shows the trigger's own `JobDataMap`, its
+  [retry policy](../how-tos/retrying-failed-jobs.md) and how many retries of the occurrence in flight
+  have already been made, and outside read-only mode offers pause, resume,
   unschedule, *reset error state* — the one that clears an `ERROR` trigger once the reason for it is
   fixed — and, for a cron trigger, an editor that reschedules it with a preview of its next five fires.
 - **Calendars** lists the calendars by name; the detail page shows one, and outside read-only mode a
