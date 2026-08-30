@@ -717,6 +717,13 @@ public class XMLSchedulingDataProcessor
 
         IDictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFQJobNameMap(triggers);
 
+        // The keys of the triggers the per-job loop below deals with. Those lists are built from
+        // `triggers` but are not backed by it, so taking a trigger out of its job's list leaves it in
+        // `triggers` for the trailing loop to meet a second time - which is how a trigger loaded beside
+        // its own job used to be scheduled and then immediately rescheduled, the reschedule restoring
+        // the fire times the first scheduling had already computed (#3554).
+        HashSet<TriggerKey> handledTriggerKeys = new HashSet<TriggerKey>();
+
         // add each job, and it's associated triggers
         while (jobs.Count > 0)
         {
@@ -808,6 +815,7 @@ public class XMLSchedulingDataProcessor
                     IMutableTrigger trigger = triggersOfJob[0];
                     // remove triggers as we handle them...
                     triggersOfJob.Remove(trigger);
+                    handledTriggerKeys.Add(trigger.Key);
 
                     ITrigger? dupeT = await sched.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
                     if (dupeT != null)
@@ -872,9 +880,14 @@ public class XMLSchedulingDataProcessor
             }
         }
 
-        // add triggers that weren't associated with a new job... (those we already handled were removed above)
+        // add triggers that weren't associated with a new job... (those we already handled are skipped)
         foreach (IMutableTrigger trigger in triggers)
         {
+            if (handledTriggerKeys.Contains(trigger.Key))
+            {
+                continue;
+            }
+
             ITrigger? dupeT = await sched.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
             if (dupeT != null)
             {
