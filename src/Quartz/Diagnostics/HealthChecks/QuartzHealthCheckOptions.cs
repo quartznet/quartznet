@@ -4,7 +4,7 @@ namespace Quartz;
 
 /// <summary>
 /// Options for the Quartz scheduler health check registered by
-/// <see cref="QuartzAspNetCoreConfigurationExtensions.AddQuartzHealthChecks(Microsoft.Extensions.DependencyInjection.IServiceCollection, Action{QuartzHealthCheckOptions})" />.
+/// <see cref="QuartzHealthCheckExtensions.AddQuartzHealthChecks(Microsoft.Extensions.DependencyInjection.IServiceCollection, Action{QuartzHealthCheckOptions})" />.
 /// </summary>
 public sealed class QuartzHealthCheckOptions
 {

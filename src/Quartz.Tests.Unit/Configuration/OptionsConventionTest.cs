@@ -64,9 +64,10 @@ namespace Quartz.Tests.Unit.Configuration;
 /// own use site rather than centrally.
 /// </para>
 /// <para>
-/// Scope is the <c>Quartz</c> assembly's exported types. The satellite packages carry options of
-/// their own — including <c>QuartzHealthCheckOptions</c>, whose <c>Tags</c> setter the finalization
-/// campaign flagged for an S6 re-check — and they are not covered here.
+/// Scope is the <c>Quartz</c> assembly's exported types, which since #3532 includes
+/// <c>QuartzHealthCheckOptions</c> — the type the finalization campaign flagged for an S6 re-check of
+/// its <c>Tags</c> setter, and which the move brought under this test rather than leaving it to be
+/// re-checked by eye. The satellite packages carry options of their own and are not covered here.
 /// </para>
 /// </remarks>
 public class OptionsConventionTest

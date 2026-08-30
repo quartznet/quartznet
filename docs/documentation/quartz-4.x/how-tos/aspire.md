@@ -207,9 +207,10 @@ builder.Services.AddQuartzHealthChecks();
 ```
 <!-- endSnippet -->
 
-It comes from the `Quartz.AspNetCore` package; see
-[ASP.NET Core Integration](../packages/aspnet-core-integration.md). Point the AppHost at the endpoint to
-have the result reach the dashboard — which means a web project, since the probe is an HTTP request:
+It comes from the core `Quartz` package, so a worker needs no web reference to register it; see
+[Hosted Services Integration](../packages/hosted-services-integration.md#health-checks). Point the AppHost
+at the endpoint to have the result reach the dashboard — which means a web project, since the probe is an
+HTTP request:
 
 <!-- Not a compiled sample: `WithHttpHealthCheck` is an `Aspire.Hosting` method. -->
 

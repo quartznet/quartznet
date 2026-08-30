@@ -9,8 +9,8 @@ system that can be used from the smallest apps to large scale enterprise systems
 dotnet add package Quartz
 ```
 
-That is everything a scheduler needs: dependency injection, hosting and System.Text.Json serialization
-are part of this package, where Quartz 3 shipped them as three separate ones.
+That is everything a scheduler needs: dependency injection, hosting, the scheduler health check and
+System.Text.Json serialization are part of this package, where Quartz 3 shipped them separately.
 
 ## Quick start
 
@@ -56,7 +56,7 @@ await scheduler.Start();
 
 | Package | For |
 |---|---|
-| [Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore) | health checks and the HTTP API |
+| [Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore) | the HTTP API |
 | [Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) | the web dashboard |
 | [Quartz.HttpClient](https://www.nuget.org/packages/Quartz.HttpClient) | driving a remote scheduler over the HTTP API |
 | [Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) | ready-made jobs: file scanning, sending mail, running a process |

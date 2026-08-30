@@ -843,14 +843,15 @@ source: count `QRTZ_TRIGGERS` grouped by `TRIGGER_STATE` and alert on `ERROR` an
 older than your longest job, and count `QRTZ_FIRED_TRIGGERS` to see what the cluster believes is
 running. In 4.x, `IScheduler.QueryFireInstances` answers the latter for the whole cluster without SQL.
 
-**A health check** ships with the ASP.NET Core integration, and it asserts less than its name
-suggests: that the scheduler is in a state that can fire, and that the job store answers a query. It
-does **not** assert that any trigger is actually firing, so pair it with an alert on a job you expect
-to see regularly. In Quartz 4.x you register it explicitly —
-`services.AddHealthChecks().AddQuartz()`, or `AddQuartzHealthChecks()` per named scheduler — and it
+**A health check** ships with Quartz, and it asserts less than its name suggests: that the scheduler
+is in a state that can fire, and that the job store answers a query. It does **not** assert that any
+trigger is actually firing, so pair it with an alert on a job you expect to see regularly. In Quartz
+4.x it is in the core package — no web stack required — and you register it explicitly:
+`services.AddHealthChecks().AddQuartz()`, or `AddQuartzHealthChecks()` per named scheduler. It
 distinguishes the states, reporting a standby scheduler as *degraded* rather than healthy or dead.
-On 3.x it is registered for you by `AddQuartzServer()` and only reports healthy or unhealthy, from
-`IsStarted` alone, which means a scheduler sitting in standby passes.
+On 3.x it lives in `Quartz.AspNetCore`, is registered for you by `AddQuartzServer()`, and only
+reports healthy or unhealthy, from `IsStarted` alone — which means a scheduler sitting in standby
+passes.
 
 **Logging is the first diagnostic step**, not the last. Misfire handling and every cluster-recovery
 decision are logged at information level when they do anything at all, and trigger acquisition at

@@ -75,41 +75,6 @@ public static class AspNetCoreSamples
         #endregion
     }
 
-    public static void HealthCheckOptionsSample(WebApplicationBuilder builder)
-    {
-        #region sample_aspnetcore_health_check_options
-
-        builder.Services.AddHealthChecks().AddQuartz(options =>
-        {
-            options.Name = "quartz-scheduler";   // the default, or quartz-scheduler-<name> for a named scheduler
-            options.Tags.AddRange(["ready", "live"]);
-            options.FailureStatus = HealthStatus.Unhealthy;
-        });
-
-        #endregion
-    }
-
-    public static void NamedSchedulerHealthCheck(WebApplicationBuilder builder)
-    {
-        #region sample_aspnetcore_named_health_check
-
-        builder.Services.AddHealthChecks().AddQuartz("reporting", options => options.Tags.Add("ready"));
-
-        // or, where the scheduler is configured
-        builder.Services.AddQuartz("reporting", q => q.AddQuartzHealthChecks());
-
-        #endregion
-    }
-
-    public static void NamedHealthCheckOptions(WebApplicationBuilder builder)
-    {
-        #region sample_aspnetcore_named_health_check_options
-
-        builder.Services.Configure<QuartzHealthCheckOptions>("reporting", options => options.Tags.Add("ready"));
-
-        #endregion
-    }
-
     public static void MapHealthChecks(WebApplication app)
     {
         #region sample_aspnetcore_map_health_checks

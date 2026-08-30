@@ -24,8 +24,9 @@ You can host the scheduler by invoking `AddQuartzHostedService` on the web appli
 This adds a hosted Quartz server into the ASP.NET Core process that is started and stopped based on the application's lifetime.
 
 ::: tip
-`AddQuartzHostedService` lives in the core `Quartz` package. Quartz 3's `AddQuartzServer`, which registered the
-hosted service and a health check together, is gone — call `AddQuartzHealthChecks` for the health check.
+`AddQuartzHostedService` lives in the core `Quartz` package, and so does `AddQuartzHealthChecks`. Quartz 3's
+`AddQuartzServer`, which registered the hosted service and a health check together, is gone — call each by
+its own name.
 :::
 
 ::: tip
@@ -120,57 +121,13 @@ syntax itself the [Cron Expression Reference](../cron-expressions.md).
 
 ## Health checks
 
-Quartz registers an
-[ASP.NET Core health check](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks)
-that reports unhealthy when the scheduler is not running or cannot reach its store. Add it alongside
-your application's other checks:
+The scheduler's health check is in the core `Quartz` package rather than this one. It reads
+`IScheduler.Status` and probes the job store, and needs nothing from ASP.NET Core to do either — so
+registering it, naming it, and choosing which probes it belongs to are all covered by
+[Hosted Services Integration](hosted-services-integration.md#health-checks).
 
-```csharp
-builder.Services.AddHealthChecks()
-    .AddSqlServer(connectionString)
-    .AddQuartz();
-```
-
-`services.AddQuartzHealthChecks()` is the same thing for an application that has no other checks to
-compose with.
-
-The registration can be customized via the optional configuration callback, for example to attach
-tags so the check can be filtered into separate liveness and readiness probes:
-
-<!-- snippet: sample_aspnetcore_health_check_options -->
-```csharp
-builder.Services.AddHealthChecks().AddQuartz(options =>
-{
-    options.Name = "quartz-scheduler";   // the default, or quartz-scheduler-<name> for a named scheduler
-    options.Tags.AddRange(["ready", "live"]);
-    options.FailureStatus = HealthStatus.Unhealthy;
-});
-```
-<!-- endSnippet -->
-
-The callback is one source of `QuartzHealthCheckOptions` among several: the settings go through the
-options pipeline, so `services.Configure<QuartzHealthCheckOptions>(...)` and a bound configuration
-section mean the same thing, whichever order they are written in.
-
-A named scheduler has a check of its own, reporting on *its* scheduler. Name it on the health checks
-builder, or ask for one from inside `AddQuartz`:
-
-<!-- snippet: sample_aspnetcore_named_health_check -->
-```csharp
-builder.Services.AddHealthChecks().AddQuartz("reporting", options => options.Tags.Add("ready"));
-
-// or, where the scheduler is configured
-builder.Services.AddQuartz("reporting", q => q.AddQuartzHealthChecks());
-```
-<!-- endSnippet -->
-
-Its options are that scheduler's, so they are configured under its name:
-
-<!-- snippet: sample_aspnetcore_named_health_check_options -->
-```csharp
-builder.Services.Configure<QuartzHealthCheckOptions>("reporting", options => options.Tags.Add("ready"));
-```
-<!-- endSnippet -->
+What this package's framework adds is the endpoint that serves the report, and the mapping from a
+status to a response code:
 
 <!-- snippet: sample_aspnetcore_map_health_checks -->
 ```csharp
@@ -180,3 +137,8 @@ app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
 });
 ```
 <!-- endSnippet -->
+
+`Degraded` maps to **200** by default, exactly as `Healthy` does, so a scheduler in standby looks
+healthy to anything that reads only the status code. Map it to 503 in
+[`HealthCheckOptions.ResultStatusCodes`](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks)
+if a standby node should leave the rotation.

@@ -1,15 +1,15 @@
 # Quartz.AspNetCore
 
-[Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore) adds the two things a Quartz.NET
-scheduler wants from an ASP.NET Core application: an
+[Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore) adds what a Quartz.NET scheduler
+wants from an ASP.NET Core application: an
 [HTTP API](https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/http-api.html) that exposes
-scheduler management endpoints, and a
-[health check](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks) that reports
-unhealthy when the scheduler is not running or cannot reach its store.
+scheduler management endpoints.
 
-Hosting itself is in the core [Quartz](https://www.nuget.org/packages/Quartz) package — `AddQuartz` and
-`AddQuartzHostedService` need no extra reference. Quartz 3's `AddQuartzServer`, which registered the
-hosted service and a health check together, is gone.
+Hosting and the scheduler's health check are both in the core
+[Quartz](https://www.nuget.org/packages/Quartz) package — `AddQuartz`, `AddQuartzHostedService` and
+`AddQuartzHealthChecks` need no extra reference. This package brings ASP.NET Core along with it, so take
+it for the HTTP API rather than for the check. Quartz 3's `AddQuartzServer`, which registered the hosted
+service and a health check together, is gone.
 
 ## Installation
 
@@ -36,8 +36,8 @@ app.MapHealthChecks("/healthz");
 <!-- endSnippet -->
 
 The API manages jobs and triggers, so authorize it: `MapQuartzHttpApi` returns the endpoint convention
-builder to say so on. The health check takes tags, so it can be filtered into separate liveness and
-readiness probes, and a named scheduler gets a check of its own.
+builder to say so on. `AddQuartz` and the health check beside it come from the core package; serving the
+health report at `/healthz` is what needs ASP.NET Core.
 
 ## Documentation
 

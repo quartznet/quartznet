@@ -75,6 +75,14 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <!--
+      The scheduler's health check. It is here rather than in Quartz.AspNetCore because it needs
+      nothing from ASP.NET Core: a worker on a dotnet/runtime image referencing Quartz.AspNetCore for
+      the check alone inherited that package's FrameworkReference and failed to start (issue #3532).
+      The package brings HealthCheckService and IHealthChecksBuilder; the endpoint that serves a
+      report over HTTP is MapHealthChecks, which stays ASP.NET Core's.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
