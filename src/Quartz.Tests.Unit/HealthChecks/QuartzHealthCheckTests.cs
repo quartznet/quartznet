@@ -1,17 +1,25 @@
+#nullable enable
+
 using FakeItEasy;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace Quartz.Tests.AspNetCore.HealthChecks;
+namespace Quartz.Tests.Unit.HealthChecks;
 
 /// <summary>
 /// What the health check reports for each state a scheduler can be in.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The check used to read one boolean, which made a scheduler in standby healthy — it had been started
 /// once — and a shut-down one fall through to the store probe, where the failure was reported as a
 /// connectivity problem rather than as the scheduler being gone.
+/// </para>
+/// <para>
+/// This lives in <c>Quartz.Tests.Unit</c>, which references no ASP.NET Core anything, so the project
+/// failing to compile is what says the check still needs none of it (issue #3532).
+/// </para>
 /// </remarks>
 public class QuartzHealthCheckTests
 {

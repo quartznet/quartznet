@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 
 namespace Quartz.Documentation.Samples.Packages;
@@ -47,6 +48,50 @@ public static class HostedServicesSamples
         #region sample_hosted_configuration_section
 
         builder.Services.AddQuartz(builder.Configuration.GetSection("Scheduling"), q => { });
+
+        #endregion
+    }
+
+    public static void HealthCheck(IHostApplicationBuilder builder)
+    {
+        #region sample_hosted_health_check
+
+        builder.Services.AddHealthChecks().AddQuartz();
+
+        #endregion
+    }
+
+    public static void HealthCheckOptions(IHostApplicationBuilder builder)
+    {
+        #region sample_hosted_health_check_options
+
+        builder.Services.AddHealthChecks().AddQuartz(options =>
+        {
+            options.Name = "quartz-scheduler";   // the default, or quartz-scheduler-<name> for a named scheduler
+            options.Tags.AddRange(["ready", "live"]);
+            options.FailureStatus = HealthStatus.Unhealthy;
+        });
+
+        #endregion
+    }
+
+    public static void NamedSchedulerHealthCheck(IHostApplicationBuilder builder)
+    {
+        #region sample_hosted_named_health_check
+
+        builder.Services.AddHealthChecks().AddQuartz("reporting", options => options.Tags.Add("ready"));
+
+        // or, where the scheduler is configured
+        builder.Services.AddQuartz("reporting", q => q.AddQuartzHealthChecks());
+
+        #endregion
+    }
+
+    public static void NamedHealthCheckOptions(IHostApplicationBuilder builder)
+    {
+        #region sample_hosted_named_health_check_options
+
+        builder.Services.Configure<QuartzHealthCheckOptions>("reporting", options => options.Tags.Add("ready"));
 
         #endregion
     }

@@ -87,6 +87,64 @@ registers a scheduler called `reporting`, reading its settings from `Quartz:Sche
 the section describes several. `builder.AddQuartzSchedulers()` registers one per child of that
 sub-section.
 
+## Health checks
+
+The scheduler's health check ships in the core `Quartz` package and registers on the standard
+`IHealthChecksBuilder`, so a worker with no web stack at all can carry it. It reports *healthy* while
+the scheduler is running and can reach its store, *degraded* while it is in standby, and *unhealthy*
+otherwise. Add it alongside an application's other checks:
+
+<!-- snippet: sample_hosted_health_check -->
+```csharp
+builder.Services.AddHealthChecks().AddQuartz();
+```
+<!-- endSnippet -->
+
+`services.AddQuartzHealthChecks()` is the same thing for an application that has no other checks to
+compose with.
+
+The registration can be customized via the optional configuration callback, for example to attach tags
+so the check can be filtered into separate liveness and readiness probes:
+
+<!-- snippet: sample_hosted_health_check_options -->
+```csharp
+builder.Services.AddHealthChecks().AddQuartz(options =>
+{
+    options.Name = "quartz-scheduler";   // the default, or quartz-scheduler-<name> for a named scheduler
+    options.Tags.AddRange(["ready", "live"]);
+    options.FailureStatus = HealthStatus.Unhealthy;
+});
+```
+<!-- endSnippet -->
+
+The callback is one source of `QuartzHealthCheckOptions` among several: the settings go through the
+options pipeline, so `services.Configure<QuartzHealthCheckOptions>(...)` and a bound configuration
+section mean the same thing, whichever order they are written in.
+
+A named scheduler has a check of its own, reporting on *its* scheduler. Name it on the health checks
+builder, or ask for one from inside `AddQuartz`:
+
+<!-- snippet: sample_hosted_named_health_check -->
+```csharp
+builder.Services.AddHealthChecks().AddQuartz("reporting", options => options.Tags.Add("ready"));
+
+// or, where the scheduler is configured
+builder.Services.AddQuartz("reporting", q => q.AddQuartzHealthChecks());
+```
+<!-- endSnippet -->
+
+Its options are that scheduler's, so they are configured under its name:
+
+<!-- snippet: sample_hosted_named_health_check_options -->
+```csharp
+builder.Services.Configure<QuartzHealthCheckOptions>("reporting", options => options.Tags.Add("ready"));
+```
+<!-- endSnippet -->
+
+Serving the report over HTTP is `MapHealthChecks`, which is ASP.NET Core's —
+[ASP.NET Core Integration](aspnet-core-integration.md#health-checks) has that half, including what
+becomes of *degraded* at an HTTP probe.
+
 ## Shutdown has a budget
 
 The host gives `StopAsync` a token that fires after `HostOptions.ShutdownTimeout` — thirty seconds by

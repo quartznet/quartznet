@@ -15,9 +15,10 @@ Welcome to the Quick Start Guide for Quartz.NET. As you read this guide, expect 
 dotnet add package Quartz
 ```
 
-That is everything a scheduler needs. Dependency injection, hosting and System.Text.Json serialization are
-part of the core package — 3.x shipped them as `Quartz.Extensions.DependencyInjection`,
-`Quartz.Extensions.Hosting` and `Quartz.Serialization.Json`.
+That is everything a scheduler needs. Dependency injection, hosting, the scheduler
+[health check](packages/hosted-services-integration.md#health-checks) and System.Text.Json serialization
+are part of the core package — 3.x shipped them as `Quartz.Extensions.DependencyInjection`,
+`Quartz.Extensions.Hosting`, `Quartz.AspNetCore` and `Quartz.Serialization.Json`.
 
 The optional packages, added the same way when you want them:
 
@@ -26,7 +27,7 @@ The optional packages, added the same way when you want them:
 | [Quartz.Serialization.Newtonsoft](packages/json-serialization.md) | persisting with Newtonsoft.Json instead of System.Text.Json |
 | [Quartz.Jobs](packages/quartz-jobs.md) | the ready-made jobs — file scanning, sending mail, running a process |
 | [Quartz.Plugins](packages/quartz-plugins.md) | history logging, XML/JSON schedule files, the interrupt monitor |
-| [Quartz.AspNetCore](packages/aspnet-core-integration.md) | health checks and the HTTP API |
+| [Quartz.AspNetCore](packages/aspnet-core-integration.md) | the HTTP API |
 | [Quartz.Dashboard](packages/dashboard.md) | the web dashboard |
 
 ## Configuration

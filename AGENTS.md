@@ -212,7 +212,11 @@ internals behind them.
 - `QuartzSchedulerBuilder` — builds a scheduler with no application container, by creating its own. It
   implements `IQuartzBuilder`, so there is one configuration API rather than two that resemble each
   other; it adds only `Build()` / `BuildScheduler()` and `UseProperties(NameValueCollection)`.
-- `Quartz.AspNetCore` — ASP.NET Core health checks and HTTP API.
+- `AddQuartzHealthChecks()` / `AddHealthChecks().AddQuartz()` — the scheduler health check, in
+  `src/Quartz/Diagnostics/HealthChecks/`. It needs only `Microsoft.Extensions.Diagnostics.HealthChecks`,
+  so it is core rather than `Quartz.AspNetCore`, whose `FrameworkReference` a `dotnet/runtime` image
+  cannot satisfy (#3532).
+- `Quartz.AspNetCore` — the HTTP API, and `MapHealthChecks` territory such as `ResultStatusCodes`.
 
 The container constructs the scheduler; there is no reflective instantiation from type-name strings, and
 there is no properties-based `StdSchedulerFactory` any more. Legacy flat `quartz.*` keys are translated

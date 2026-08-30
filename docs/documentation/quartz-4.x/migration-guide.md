@@ -114,6 +114,43 @@ instead — see [OpenTelemetry Integration](packages/opentelemetry-integration.m
 + <PackageReference Include="OpenTelemetry.Instrumentation.Quartz" Version="1.*" />
 ```
 
+### The health check is in `Quartz`, not `Quartz.AspNetCore`
+
+`Quartz.AspNetCore` carries `<FrameworkReference Include="Microsoft.AspNetCore.App" />` for the HTTP API,
+a framework reference reaches the nuspec, and so a worker on a `dotnet/runtime` image that referenced the
+package for the health check alone failed to start
+([#3532](https://github.com/quartznet/quartznet/issues/3532)). The check reads `IScheduler.Status` and
+probes the job store, and never wanted ASP.NET Core for either, so it moved into the core package. It
+registers on the standard `IHealthChecksBuilder`, as it always did.
+
+This is a break between one 4.0 alpha and the next — through `4.0.0-alpha.3` everything below was in
+`Quartz.AspNetCore`, and from `4.0.0-alpha.4` it is in `Quartz`:
+
+| Member | Through alpha.3 | From alpha.4 |
+|---|---|---|
+| `QuartzHealthCheckOptions` | `Quartz.AspNetCore` | `Quartz` |
+| `IServiceCollection.AddQuartzHealthChecks(Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
+| `IQuartzBuilder.AddQuartzHealthChecks(Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
+| `IHealthChecksBuilder.AddQuartz(Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
+| `IHealthChecksBuilder.AddQuartz(string, Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
+| `QuartzHealthCheck`, `SchedulerHealthCheckTarget` | internal to `Quartz.AspNetCore` | internal to `Quartz` |
+
+Nothing at a call site changes: the namespace is `Quartz` on both sides, and the four methods are
+extension methods, so the class holding them is not named where they are called. What changes is which
+package has to be referenced — and if the check was the only reason for `Quartz.AspNetCore`, that
+reference can go:
+
+```diff
+- <PackageReference Include="Quartz.AspNetCore" Version="4.0.0-alpha.3" />
++ <PackageReference Include="Quartz" Version="4.0.0-alpha.4" />
+```
+
+Keep `Quartz.AspNetCore` if you also serve the [HTTP API](packages/http-api.md) or the
+[dashboard](packages/dashboard.md); it keeps its framework reference for those. `MapHealthChecks`, and the
+`HealthCheckOptions.ResultStatusCodes` mapping that decides what a *degraded* scheduler answers over HTTP,
+are ASP.NET Core's and stay documented on
+[ASP.NET Core Integration](packages/aspnet-core-integration.md#health-checks).
+
 ## Documentation pages that moved
 
 The documentation was reorganised alongside the API. The old URLs redirect, so an existing bookmark still
@@ -2031,7 +2068,9 @@ updated; the `Starting`/`Started`/`Stopping`/`Stopped` overrides are unchanged. 
 + app.MapQuartzHttpApi().RequireAuthorization();
 ```
 
-The health check composes with an application's other checks rather than needing a call of its own:
+The health check is no longer one of them — it ships in the core `Quartz` package (see
+[The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore)),
+and it composes with an application's other checks rather than needing a call of its own:
 
 ```csharp
 services.AddHealthChecks()
@@ -2064,9 +2103,9 @@ reports on. Assigning a name still overrides that.
 ## `AddQuartzServer` is `AddQuartzHostedService`
 
 `Quartz.AspNetCore.AddQuartzServer` did two unrelated things behind one name: it registered the
-hosted service that starts the scheduler, and — on frameworks that had them — an ASP.NET Core health
-check. Both are separately available, and the hosted service was never specific to ASP.NET Core, so
-the combined method is gone and each half is called by its own name:
+hosted service that starts the scheduler, and — on frameworks that had them — a health check. Both
+are separately available, and neither was ever specific to ASP.NET Core, so the combined method is
+gone and each half is called by its own name:
 
 ```diff
   services.AddQuartz(q => { /* ... */ });
@@ -2076,11 +2115,14 @@ the combined method is gone and each half is called by its own name:
 + services.AddQuartzHealthChecks();
 ```
 
-`AddQuartzHostedService` lives in the core `Quartz` package, so an application that only wants the
-scheduler started with the host no longer needs `Quartz.AspNetCore` at all — see
-[The hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler) for what it
-now starts, and [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once)
-for the rest of that package.
+Both halves live in the core `Quartz` package, so an application replacing `AddQuartzServer` needs no
+`Quartz.AspNetCore` reference at all — see
+[The hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler) for what the
+hosted service now starts,
+[The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore)
+for where the check went, and
+[The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once) for what is left
+in that package.
 
 The health-check overload that took `IEnumerable<string> healthCheckTags` is gone with it; tags are
 `QuartzHealthCheckOptions.Tags`, which is added to rather than assigned:
@@ -5839,7 +5881,7 @@ above cover configuration strings.
 | `Quartz.Plugin.History`, `Quartz.Plugin.Interrupt`, `Quartz.Plugin.Json`, `Quartz.Plugin.Management`, `Quartz.Plugin.Xml`, `Quartz.Plugin.TimeZoneConverter` | `Quartz.Plugins.*` | Same rule as the jobs: the packages are `Quartz.Plugins` and `Quartz.Plugins.TimeZoneConverter`. A `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning. The **configuration key** prefix is still `quartz.plugin.`, singular — it is not a namespace |
 | `Quartz.Listener` | `Quartz.Listeners` | A `quartz.jobListener.<name>.type` or `quartz.triggerListener.<name>.type` naming the old spelling still resolves, with a warning — but see [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone): three of the seven types are not there under either name |
 | `Quartz.Impl.Matchers` | `Quartz` | See [Matchers moved to `Quartz`](#matchers-moved-to-quartz). No shim is needed: a matcher is passed as an object and is never named by a configuration string |
-| `Quartz.AspNetCore`, `Quartz.AspNetCore.HealthChecks`, `Quartz.AspNetCore.HttpApi` | `Quartz` | The package is still `Quartz.AspNetCore`; only the namespaces are gone. `AddQuartzHealthChecks`, `AddQuartzHttpApi` and `MapQuartzHttpApi` are extension methods and resolve through the `Quartz` you already have, so a `using Quartz.AspNetCore;` can simply be deleted. The class that hosts them is `QuartzAspNetCoreConfigurationExtensions`, renamed from `QuartzServiceCollectionExtensions` because the core package now has a class of that name in the same namespace |
+| `Quartz.AspNetCore`, `Quartz.AspNetCore.HealthChecks`, `Quartz.AspNetCore.HttpApi` | `Quartz` | Only the namespaces are gone; `AddQuartzHealthChecks`, `AddQuartzHttpApi` and `MapQuartzHttpApi` are extension methods and resolve through the `Quartz` you already have, so a `using Quartz.AspNetCore;` can simply be deleted. The **packages** differ: the HTTP API is still `Quartz.AspNetCore`, hosted by `QuartzAspNetCoreConfigurationExtensions` (renamed from `QuartzServiceCollectionExtensions` because the core package now has a class of that name in the same namespace), while the health check is in `Quartz` from `4.0.0-alpha.4`, hosted by `QuartzHealthCheckExtensions` — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
 | `Quartz.HttpClient` | `Quartz` | `HttpScheduler` and `HttpClientException`; the package is still `Quartz.HttpClient`. The namespace had to go because it shadowed `System.Net.Http.HttpClient` for every file under `Quartz.*`, including Quartz's own. `HttpScheduler` is also `sealed` now |
 | `Quartz.Serialization.Json`, `Quartz.Serialization.Json.Calendars`, `Quartz.Serialization.Json.Triggers` | `Quartz.Serialization.SystemTextJson[.Calendars\|.Triggers]` | These are the System.Text.Json types, which merged into the core package; the namespace was named after the *retired 3.x Newtonsoft package*. `Quartz.JsonConfigurationExtensions` is `Quartz.SystemTextJsonConfigurationExtensions` to match — the extension methods on it are unaffected. **Read the warning below before changing a `using` on a ported serializer** |
 | `Quartz.Impl.Redis` | `Quartz.Extensions.Redis` | One type, `RedisSemaphore`, filed under `Impl` as if it were part of the core; it is `RedisLockHandler` now. Namespace, assembly and package are the same string now; the **package id is unchanged**. A `quartz.jobStore.lockHandler.type` naming the old namespace or the old type name still resolves, with a warning |
@@ -8303,6 +8345,7 @@ Parameters and behavior are unchanged:
 | `AddQuartzHostedService(string schedulerName, …)` added | `QuartzHostedServiceOptions` are named options; the unnamed call still configures every scheduler |
 | `IQuartzBuilder.AddHttpApi` / `MapQuartzApi` renamed | `services.AddQuartzHttpApi()` / `MapQuartzHttpApi`, the first of them on the service collection rather than a scheduler's builder; `AddQuartzHealthChecks` gained an `IQuartzBuilder` overload, which it keeps because a health check really is one scheduler's |
 | The health check is added on `IHealthChecksBuilder` | `AddHealthChecks().AddQuartz()` / `.AddQuartz("reporting")`, so it composes with an application's other checks. `AddQuartzHealthChecks()` is shorthand for the first — see [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once) |
+| The health check ships in `Quartz` | It was in `Quartz.AspNetCore` through `4.0.0-alpha.3`, whose `FrameworkReference` a worker on a `dotnet/runtime` image cannot satisfy. No call site changes; drop the package reference if the check was the only reason for it — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
 | `QuartzHealthCheckOptions` goes through the options pipeline | It was constructed and read inside the registration call, so `services.Configure<QuartzHealthCheckOptions>(...)` did nothing. `Name` is nullable and defaults to the scheduler's check name |
 | `QuartzHealthCheckOptions.Tags` is a get-only `List<string>` | It was a settable `IReadOnlyCollection<string>`. Add to it — `options.Tags.AddRange(["ready", "live"])` — rather than assigning; one `configure` callback can no longer discard the tags another added — see [A shipped component is configured through its options type, and only there](#a-shipped-component-is-configured-through-its-options-type-and-only-there) |
 | `QuartzSchedulerBuilder.Build()` returns `StandaloneSchedulerFactory` | It is an `ISchedulerFactory` that is also `IAsyncDisposable` and `IDisposable`, so disposing the container needs no cast |
