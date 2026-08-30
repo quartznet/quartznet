@@ -89,6 +89,11 @@ public sealed class TriggeredJobCompleteTest
             FiredTriggerState = TriggerState.None,
             DeletesTrigger = true,
         };
+        // A retry leaves the trigger waiting, exactly as a plain completion does — the difference is
+        // which instant it waits for, and that is written through UpdateTriggerForRetry rather than
+        // through the state transitions this matrix watches. A failed occurrence with attempts left
+        // is not a broken trigger, so nothing here goes to Error or Complete.
+        yield return new CompletionCase(SchedulerInstruction.RetryTrigger);
     }
 
     /// <summary>

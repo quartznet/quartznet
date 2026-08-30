@@ -274,6 +274,20 @@ internal sealed class JobRunShell
                     {
                         logger.TriggerInstructionDecided(instructionCode);
                     }
+
+                    if (instructionCode == SchedulerInstruction.RetryTrigger)
+                    {
+                        // Reported at Information, unlike the instruction itself: a job that keeps
+                        // failing and retrying is the thing an operator wants in the log without
+                        // turning Debug on, and the retry instant is what tells them when to look.
+                        logger.TriggerRetryScheduled(
+                            trigger.Key,
+                            trigger.RetryAttempt,
+                            trigger.RetryPolicy?.MaxAttempts ?? 0,
+                            trigger.NextFireTimeUtc.GetValueOrDefault());
+
+                        qs.resources.Meters.TriggerRetryScheduled(qs.resources.Name, qs.resources.InstanceId, trigger);
+                    }
                 }
                 catch (Exception e)
                 {

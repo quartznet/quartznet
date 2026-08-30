@@ -52,6 +52,25 @@ public interface IJobExecutionContext
     int RefireCount { get; }
 
     /// <summary>
+    /// How many times this occurrence has already been retried under the trigger's
+    /// <see cref="ITrigger.RetryPolicy" />: <c>0</c> on a regular fire, <c>n</c> on the <c>n</c>-th
+    /// retry.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Distinct from <see cref="RefireCount" />, which counts iterations of the in-process refire
+    /// loop within a single firing — same context, same thread, nothing persisted. A retry is a
+    /// fresh firing at a later instant, recorded in the job store, and it releases the execution
+    /// slot while it waits.
+    /// </para>
+    /// <para>
+    /// <c>0</c> for every trigger with no retry policy, which is the default.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="Quartz.RetryPolicy" />
+    int RetryAttempt { get; }
+
+    /// <summary>
     /// Get the convenience <see cref="JobDataMap" /> of this execution context.
     /// </summary>
     /// <remarks>

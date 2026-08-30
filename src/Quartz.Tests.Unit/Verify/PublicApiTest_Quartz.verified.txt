@@ -524,6 +524,7 @@ namespace Quartz
         Quartz.TriggerKey? RecoveringTriggerKey { get; }
         int RefireCount { get; }
         object? Result { get; set; }
+        int RetryAttempt { get; }
         System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         Quartz.IScheduler Scheduler { get; }
         Quartz.ITrigger Trigger { get; }
@@ -1593,6 +1594,7 @@ namespace Quartz
         SetAllJobTriggersComplete = 4,
         SetAllJobTriggersError = 5,
         SetTriggerError = 6,
+        RetryTrigger = 7,
     }
     public static class SchedulerJobExtensions
     {
@@ -2603,6 +2605,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<bool> CalendarIsReferenced(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ClearData(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ClearMisfireOriginalFireTime(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> ClearTriggerRetryAttempt(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> CountMisfiredTriggersInState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.StoredTriggerState state, System.DateTimeOffset misfireTime, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> CountTriggersForJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask CreateSchema(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default);
@@ -2677,6 +2680,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask UpdateMisfiredTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyList<Quartz.Impl.AdoJobStore.MisfiredTriggerUpdate> updates, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> UpdateSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceId, System.DateTimeOffset checkInTime, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> UpdateTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> UpdateTriggerForRetry(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState newState, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.GroupMatcher<Quartz.TriggerKey> matcher, Quartz.Extensibility.StoredTriggerState newState, Quartz.Extensibility.StoredTriggerState oldState, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherStates(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.GroupMatcher<Quartz.TriggerKey> matcher, Quartz.Extensibility.StoredTriggerState newState, System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.StoredTriggerState> oldStates, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> UpdateTriggerPreferredNodeConditional(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, Quartz.Impl.AdoJobStore.PreferredNodeTransition transition, System.Threading.CancellationToken cancellationToken = default);
@@ -2953,6 +2957,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<bool> CalendarIsReferenced(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ClearData(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ClearMisfireOriginalFireTime(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<int> ClearTriggerRetryAttempt(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Collections.Generic.Dictionary<string, object?> ConvertFromProperty(System.Collections.Specialized.NameValueCollection properties) { }
         protected virtual System.Collections.Specialized.NameValueCollection ConvertToProperty(System.Collections.Generic.IDictionary<string, object?> data) { }
         public virtual System.Threading.Tasks.ValueTask<int> CountMisfiredTriggersInState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.StoredTriggerState state, System.DateTimeOffset misfireTime, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3060,6 +3065,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask UpdateMisfiredTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyList<Quartz.Impl.AdoJobStore.MisfiredTriggerUpdate> updates, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceId, System.DateTimeOffset checkInTime, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerForRetry(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, Quartz.Extensibility.StoredTriggerState newState, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.GroupMatcher<Quartz.TriggerKey> matcher, Quartz.Extensibility.StoredTriggerState newState, Quartz.Extensibility.StoredTriggerState oldState, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherStates(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.GroupMatcher<Quartz.TriggerKey> matcher, Quartz.Extensibility.StoredTriggerState newState, System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.StoredTriggerState> oldStates, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerPreferredNodeConditional(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, Quartz.Impl.AdoJobStore.PreferredNodeTransition transition, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3525,6 +3531,7 @@ namespace Quartz.Impl
         public Quartz.TriggerKey? RecoveringTriggerKey { get; }
         public int RefireCount { get; }
         public object? Result { get; set; }
+        public int RetryAttempt { get; }
         public System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         public Quartz.IScheduler Scheduler { get; }
         public Quartz.ITrigger Trigger { get; }
@@ -3764,6 +3771,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? ComputeFirstFireTimeUtc(Quartz.ICalendar? calendar) { }
         public override System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTime) { }
         public override Quartz.IScheduleBuilder GetScheduleBuilder() { }
+        public override void RetryFired(Quartz.ICalendar? calendar) { }
         public override void Triggered(Quartz.ICalendar? calendar) { }
         public override void UpdateAfterMisfire(Quartz.ICalendar? calendar) { }
         public override void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold) { }
@@ -3853,6 +3861,7 @@ namespace Quartz.Impl.Triggers
         public override int GetHashCode() { }
         public abstract Quartz.IScheduleBuilder GetScheduleBuilder();
         public Quartz.TriggerBuilder<Quartz.IJob> GetTriggerBuilder() { }
+        public virtual void RetryFired(Quartz.ICalendar? calendar) { }
         public override string ToString() { }
         public abstract void Triggered(Quartz.ICalendar? calendar);
         public abstract void UpdateAfterMisfire(Quartz.ICalendar? calendar);

@@ -34,6 +34,7 @@ internal sealed class Meters
     private readonly UpDownCounter<long> jobExecuteInProgress;
     private readonly Histogram<double> jobExecuteDuration;
     private readonly Counter<long> triggerMisfires;
+    private readonly Counter<long> triggerRetries;
     private readonly Histogram<double> triggerAcquisitionDuration;
     private readonly Counter<long> triggersAcquired;
     private readonly Histogram<double> clusterCheckinDuration;
@@ -61,6 +62,12 @@ internal sealed class Meters
         // wants an alert on. Counted once per trigger the scheduler is told misfired, wherever the store
         // noticed it: the notification is what every store has in common.
         triggerMisfires = meter.CreateCounter<long>("quartz.trigger.misfire", "{trigger}", "Number of trigger misfires the scheduler was notified of");
+
+        // A retry is a fire that happened, failed, and is being attempted again — the other half of the
+        // picture a misfire count gives, and the number that says whether a job is limping along on its
+        // retries rather than working. Counted once per retry the scheduler schedules, not per attempt
+        // configured, so a policy that never has to be used contributes nothing.
+        triggerRetries = meter.CreateCounter<long>("quartz.trigger.retry", "{trigger}", "Number of trigger retries the scheduler scheduled after a job failed");
 
         // How long the scheduling loop waits on its store for the next batch. This is the round trip the
         // loop cannot overlap with anything, so it is what a slow or contended store shows up as.
@@ -160,6 +167,33 @@ internal sealed class Meters
         }
 
         triggerMisfires.Add(1, tags);
+    }
+
+    /// <summary>
+    /// One retry the scheduler has just scheduled for a trigger whose job failed.
+    /// </summary>
+    internal void TriggerRetryScheduled(string schedulerName, string schedulerId, ITrigger trigger)
+    {
+        if (!triggerRetries.Enabled)
+        {
+            return;
+        }
+
+        // The same tags a misfire carries, and for the same reason: one series per trigger is a
+        // cardinality nobody can alert on, and retries cluster by group and by execution group.
+        TagList tags = new()
+        {
+            { ActivityTags.SchedulerName, schedulerName },
+            { ActivityTags.SchedulerId, schedulerId },
+            { ActivityTags.TriggerGroup, trigger.Key.Group },
+        };
+
+        if (trigger.ExecutionGroup is { } executionGroup)
+        {
+            tags.Add(ActivityTags.ExecutionGroup, executionGroup);
+        }
+
+        triggerRetries.Add(1, tags);
     }
 
     /// <summary>
