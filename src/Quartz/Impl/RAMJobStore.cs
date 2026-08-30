@@ -805,7 +805,7 @@ public sealed class RAMJobStore : IJobStore
 
             if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
                 && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode
-                && !update.HasExecutionGroup)
+                && !update.HasExecutionGroup && !update.HasRetryPolicy)
             {
                 return true;
             }
@@ -867,6 +867,13 @@ public sealed class RAMJobStore : IJobStore
             if (update.HasExecutionGroup)
             {
                 trigger.ExecutionGroup = update.ExecutionGroup;
+            }
+
+            if (update.HasRetryPolicy)
+            {
+                // Policy only. The attempt belongs to the occurrence in flight, and the stored
+                // instance is the one the scheduler is counting on.
+                trigger.RetryPolicy = update.RetryPolicy;
             }
 
             return true;
@@ -1414,7 +1421,9 @@ public sealed class RAMJobStore : IJobStore
             match.Trigger.PreviousFireTimeUtc,
             match.Trigger.CalendarName,
             match.Trigger.Priority,
-            match.Trigger.ExecutionGroup));
+            match.Trigger.ExecutionGroup,
+            match.Trigger.RetryPolicy?.ToStoredString(),
+            match.Trigger.RetryAttempt));
     }
 
     private void CollectMatchingTriggersNoLock(

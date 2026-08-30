@@ -18,6 +18,8 @@
   "nextFireTimeUtc": "2024-08-01T12:30:00+00:00",
   "previousFireTimeUtc": "2024-08-01T06:30:00+00:00",
   "executionGroup": null,
+  "retryPolicy": "exp;3;00:00:10;2;00:05:00",
+  "retryAttempt": 2,
   "preferredNode": null,
   "preferredNodeAuto": false,
   "cronExpressionString": "0/25 * * * * ?",

@@ -523,6 +523,11 @@ public class StdAdoDelegateGroupMatcherTest
         TriggerHeader header = result.Items.Should().ContainSingle().Subject;
         header.Key.Should().Be(new TriggerKey("trigger1", "group1"));
         header.State.Should().Be(expected);
+
+        // The retry columns sit between the execution group and the computed flag, so reading them
+        // from the wrong place is the same mistake as reading the flag from the wrong place.
+        header.RetryPolicy.Should().Be("fixed;3;00:00:30");
+        header.RetryAttempt.Should().Be(2);
     }
 
     [Test]
@@ -722,7 +727,8 @@ public class StdAdoDelegateGroupMatcherTest
             [5] = "SIMPLE",
             [6] = triggerState,
             [11] = "calendar",
-            [13] = "executionGroup"
+            [13] = "executionGroup",
+            [14] = "fixed;3;00:00:30"
         };
 
         DbDataReader reader = A.Fake<DbDataReader>();
@@ -734,17 +740,19 @@ public class StdAdoDelegateGroupMatcherTest
             return first;
         });
 
-        A.CallTo(() => reader.GetString(A<int>._)).ReturnsLazily((int i) => strings[i]);
-        A.CallTo(() => reader.IsDBNull(A<int>._)).ReturnsLazily((int i) => !strings.ContainsKey(i));
-
-        // Date columns come back as DBNull so the reader's own null handling applies; priority and the
-        // executing flag are the two the reader converts.
-        A.CallTo(() => reader.GetValue(A<int>._)).ReturnsLazily((int i) => i switch
+        // Date columns are absent from both maps, so they come back as DBNull and the reader's own null
+        // handling applies; priority, the retry attempt and the executing flag are the three numbers the
+        // reader converts.
+        var numbers = new Dictionary<int, object>
         {
-            12 => 5,
-            14 => executingFlag,
-            _ => DBNull.Value
-        });
+            [12] = 5,
+            [15] = 2,
+            [16] = executingFlag
+        };
+
+        A.CallTo(() => reader.GetString(A<int>._)).ReturnsLazily((int i) => strings[i]);
+        A.CallTo(() => reader.IsDBNull(A<int>._)).ReturnsLazily((int i) => !strings.ContainsKey(i) && !numbers.ContainsKey(i));
+        A.CallTo(() => reader.GetValue(A<int>._)).ReturnsLazily((int i) => numbers.TryGetValue(i, out object value) ? value : DBNull.Value);
 
         A.CallTo(command)
             .Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")

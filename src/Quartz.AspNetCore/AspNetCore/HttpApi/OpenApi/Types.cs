@@ -115,6 +115,19 @@ internal interface Trigger
     bool PreferredNodeAuto { get; }
 
     /// <summary>
+    /// How the scheduler re-fires this trigger when its job fails, in the stored form the RETRY_POLICY
+    /// column carries — for example "fixed;3;00:00:30", "exp;5;00:00:10;2;00:10:00" or
+    /// "list;00:00:01;00:00:05". Null when the trigger does not retry
+    /// </summary>
+    string? RetryPolicy { get; }
+
+    /// <summary>
+    /// How many times the occurrence currently being executed has already been retried; 0 when it has
+    /// not. Read-only: the scheduler advances and clears it, and a value sent when scheduling is ignored
+    /// </summary>
+    int RetryAttempt { get; }
+
+    /// <summary>
     /// Should be present when TriggerType is CalendarIntervalTrigger, CronTrigger, DailyTimeIntervalTrigger or RecurrenceTrigger
     /// </summary>
     string? TimeZone { get; }

@@ -382,6 +382,66 @@ public class UpdateTriggerDetailsTest
     }
 
     [Test]
+    public async Task RetryPolicy_UpdatedOnItsOwn()
+    {
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
+        IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
+        trigger.ComputeFirstFireTimeUtc(null);
+        await jobStore.AddTrigger(trigger, false);
+
+        DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
+
+        bool result = await jobStore.UpdateTriggerDetails(
+            trigger.Key,
+            new TriggerDetailsUpdate().WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30))));
+
+        result.Should().BeTrue();
+        IOperableTrigger retrieved = (await jobStore.GetTrigger(trigger.Key))!;
+        retrieved.RetryPolicy.Should().Be(RetryPolicy.Fixed(3, TimeSpan.FromSeconds(30)),
+            "an update carrying only a retry policy must still apply it");
+        retrieved.NextFireTimeUtc.Should().Be(nextFireBefore,
+            "a retry policy is configuration; adopting one does not reschedule the trigger");
+    }
+
+    [Test]
+    public async Task RetryPolicy_NullStopsTheTriggerRetrying()
+    {
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
+        IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
+        trigger.RetryPolicy = RetryPolicy.Exponential(4, TimeSpan.FromSeconds(5));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await jobStore.AddTrigger(trigger, false);
+
+        (await jobStore.GetTrigger(trigger.Key))!.RetryPolicy.Should().NotBeNull();
+
+        (await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithRetryPolicy(null)))
+            .Should().BeTrue();
+
+        (await jobStore.GetTrigger(trigger.Key))!.RetryPolicy.Should().BeNull();
+    }
+
+    [Test]
+    public async Task RetryPolicy_LeavesTheAttemptAlone()
+    {
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
+        IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
+        trigger.RetryPolicy = RetryPolicy.Fixed(5, TimeSpan.FromSeconds(1));
+        trigger.RetryAttempt = 2;
+        trigger.ComputeFirstFireTimeUtc(null);
+        await jobStore.AddTrigger(trigger, false);
+
+        await jobStore.UpdateTriggerDetails(
+            trigger.Key,
+            new TriggerDetailsUpdate().WithRetryPolicy(RetryPolicy.Fixed(9, TimeSpan.FromMinutes(1))));
+
+        IOperableTrigger retrieved = (await jobStore.GetTrigger(trigger.Key))!;
+        retrieved.RetryPolicy.Should().Be(RetryPolicy.Fixed(9, TimeSpan.FromMinutes(1)));
+        retrieved.RetryAttempt.Should().Be(2,
+            "the attempt belongs to the occurrence in flight, and re-policying a trigger neither grants it "
+            + "extra attempts nor takes away ones it has already spent");
+    }
+
+    [Test]
     public async Task PreferredNode_UpdatedOnItsOwn()
     {
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();

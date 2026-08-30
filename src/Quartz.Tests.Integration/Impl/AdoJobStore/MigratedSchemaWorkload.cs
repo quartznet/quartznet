@@ -43,9 +43,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// accepts — which makes the pin observable as a fire rather than only as a stored string.
 /// </para>
 /// <para>
-/// The 4.0 migration also adds <c>RETRY_POLICY</c> and <c>RETRY_ATTEMPT</c>, which nothing in the API
-/// reaches yet, so no trigger here can carry them. They are asserted directly against the migrated
-/// table instead — see <see cref="AssertRetryColumnsArePresent" />.
+/// The 4.0 migration also adds <c>RETRY_POLICY</c> and <c>RETRY_ATTEMPT</c>, and a trigger carries a
+/// retry policy through them, so one of the triggers below has one. It is asserted through the
+/// scheduler that read it back and against the migrated column itself, and so is what a row holds when
+/// a trigger has <em>no</em> policy — see <see cref="AssertRetryColumns" />.
 /// </para>
 /// <para>
 /// Everything runs under the migrated table prefix while the fresh <c>QRTZ_</c> schema sits in the
@@ -55,6 +56,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 internal static class MigratedSchemaWorkload
 {
     private static readonly TimeSpan FireTimeout = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// The policy the "retrying" trigger carries. Never exercised — <see cref="MigratedSchemaJob" />
+    /// does not throw — which is the point: what is under test here is the column round trip, while
+    /// what the engine does with a policy belongs to <c>RetryMatrixTest</c>.
+    /// </summary>
+    private static readonly RetryPolicy RetryPolicyUnderTest = RetryPolicy.Fixed(2, TimeSpan.FromMinutes(5));
 
     public static async Task RunAsync(DbConnection connection, string dialect, string connectionString, string tablePrefix)
     {
@@ -93,7 +101,8 @@ internal static class MigratedSchemaWorkload
         scheduler.Status.Should().Be(SchedulerStatus.Shutdown, "the scheduler has to come down cleanly on the migrated schema");
 
         await AssertPrefixIsolation(connection, tablePrefix, schedulerName, triggers.Count);
-        await AssertRetryColumnsArePresent(connection, tablePrefix, schedulerName, triggers.Count);
+        await AssertRetryColumns(connection, tablePrefix, schedulerName, triggers.Count);
+        await AssertAMigratedRowWithNoAttemptStillWorks(connection, dialect, connectionString, tablePrefix, schedulerName, instanceId, group);
     }
 
     /// <summary>
@@ -160,17 +169,27 @@ internal static class MigratedSchemaWorkload
                 .WithExecutionGroup("migrated-execution-group")
                 .WithPreferredNode(PreferredNode.For(instanceId))
                 .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(1)).RepeatForever())
+                .Build(),
+
+            // RETRY_POLICY and RETRY_ATTEMPT (4.0). The job succeeds, so nothing is ever retried; what
+            // is under test is that the policy survives the migrated column and comes back equal.
+            TriggerBuilder.Create()
+                .WithIdentity("retrying", group)
+                .ForJob(jobKey)
+                .StartAt(startAt)
+                .WithRetryPolicy(RetryPolicyUnderTest)
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(1)).RepeatForever())
                 .Build()
         ];
     }
 
-    private static async Task WaitForEveryTriggerToFire(List<ITrigger> triggers)
+    private static async Task WaitForEveryTriggerToFire(IReadOnlyList<ITrigger> triggers)
     {
         Stopwatch elapsed = Stopwatch.StartNew();
 
         while (elapsed.Elapsed < FireTimeout)
         {
-            if (triggers.TrueForAll(t => MigratedSchemaJob.HasFired(t.Key)))
+            if (triggers.All(t => MigratedSchemaJob.HasFired(t.Key)))
             {
                 return;
             }
@@ -214,6 +233,13 @@ internal static class MigratedSchemaWorkload
         pinned.PreferredNode.Node.Should().Be(instanceId,
             "PREFERRED_NODE is one of the columns the migration adds, so the pin has to survive being stored");
         pinned.PreferredNode.IsAutomatic.Should().BeFalse("an explicit pin is not an automatic one");
+
+        ITrigger retrying = await scheduler.GetTrigger(new TriggerKey("retrying", group));
+        retrying.Should().NotBeNull();
+        retrying.RetryPolicy.Should().Be(RetryPolicyUnderTest,
+            "RETRY_POLICY is one of the columns the migration adds, so a policy written to it has to come "
+            + "back as the same policy — same shape and same waits, not merely a string that parsed");
+        retrying.RetryAttempt.Should().Be(0, "the job succeeds, so no occurrence has ever been retried");
     }
 
     /// <summary>
@@ -230,23 +256,97 @@ internal static class MigratedSchemaWorkload
     }
 
     /// <summary>
-    /// RETRY_POLICY and RETRY_ATTEMPT are the two columns the 4.0 migration adds that no API member
-    /// reaches yet, so they are asserted where they live rather than through a trigger.
+    /// What RETRY_POLICY and RETRY_ATTEMPT hold on the migrated table, for a trigger that carries a
+    /// policy and for the ones that do not.
     /// </summary>
     /// <remarks>
-    /// Naming both columns is the existence check: the statement does not parse when one of them is
-    /// missing, whatever the rows say. Requiring them null on every row the scheduler just wrote is
-    /// the rest of the contract — nullable, no default — which a column that migrated as NOT NULL
-    /// with a default would satisfy the first half of and fail here.
+    /// <para>
+    /// Naming both columns is still the existence check: the statement does not parse when one of them
+    /// is missing, whatever the rows say.
+    /// </para>
+    /// <para>
+    /// What the rows say is now the engine's contract rather than the migration's. A trigger with no
+    /// policy stores <c>RETRY_POLICY</c> null and <c>RETRY_ATTEMPT</c> <em>zero</em> — not null,
+    /// because every INSERT this release writes names the attempt explicitly. Null is what a row an
+    /// upgrade brought across holds, and the read path treats it as zero
+    /// (<c>StdAdoDelegate.ReadTriggerRow</c> checks <c>IsDBNull</c> before converting), which
+    /// <see cref="AssertAMigratedRowWithNoAttemptStillWorks" /> exercises against a row put back into
+    /// exactly that state.
+    /// </para>
+    /// <para>
+    /// The column still has to be nullable to hold that: one that migrated as NOT NULL would pass the
+    /// counts here and fail there.
+    /// </para>
     /// </remarks>
-    private static async Task AssertRetryColumnsArePresent(DbConnection connection, string tablePrefix, string schedulerName, int triggerCount)
+    private static async Task AssertRetryColumns(DbConnection connection, string tablePrefix, string schedulerName, int triggerCount)
     {
-        long unset = await Count(connection,
+        long withoutPolicy = await Count(connection,
             $"SELECT COUNT(*) FROM {tablePrefix}TRIGGERS WHERE SCHED_NAME = '{schedulerName}' "
-            + "AND RETRY_POLICY IS NULL AND RETRY_ATTEMPT IS NULL");
+            + "AND RETRY_POLICY IS NULL AND RETRY_ATTEMPT = 0");
 
-        unset.Should().Be(triggerCount,
-            "the migration has to leave RETRY_POLICY and RETRY_ATTEMPT on the migrated QRTZ_TRIGGERS, nullable and without a default");
+        withoutPolicy.Should().Be(triggerCount - 1,
+            "every trigger but the retrying one has no policy, and a row this release wrote carries a zero attempt rather than a null one");
+
+        long withPolicy = await Count(connection,
+            $"SELECT COUNT(*) FROM {tablePrefix}TRIGGERS WHERE SCHED_NAME = '{schedulerName}' "
+            + $"AND TRIGGER_NAME = 'retrying' AND RETRY_POLICY = '{RetryPolicyUnderTest.ToStoredString()}' AND RETRY_ATTEMPT = 0");
+
+        withPolicy.Should().Be(1,
+            "the retrying trigger's row has to hold the policy's stored form verbatim: it is what another node "
+            + "parses, and a column that truncated or re-encoded it would still round trip through this scheduler's own cache");
+    }
+
+    /// <summary>
+    /// A row as an upgrade leaves it: <c>RETRY_ATTEMPT</c> null, because nothing on 3.x ever wrote it.
+    /// </summary>
+    /// <remarks>
+    /// The workload has no such row of its own — every trigger here was written by this release, which
+    /// fills the column — so one is put back into that state directly, and then read and fired. This is
+    /// the only place the <c>IsDBNull</c> branch of the attempt read is exercised on a real dialect;
+    /// a store that read null as anything but "no retries behind it" would either throw here or hand
+    /// the scheduler a trigger it treats as mid-retry.
+    /// </remarks>
+    private static async Task AssertAMigratedRowWithNoAttemptStillWorks(
+        DbConnection connection,
+        string dialect,
+        string connectionString,
+        string tablePrefix,
+        string schedulerName,
+        string instanceId,
+        string group)
+    {
+        await Execute(connection,
+            $"UPDATE {tablePrefix}TRIGGERS SET RETRY_ATTEMPT = NULL WHERE SCHED_NAME = '{schedulerName}' AND TRIGGER_NAME = 'simple'");
+
+        TriggerKey key = new TriggerKey("simple", group);
+        MigratedSchemaJob.Reset();
+
+        IScheduler scheduler = await BuildScheduler(dialect, connectionString, tablePrefix, schedulerName, instanceId);
+
+        try
+        {
+            ITrigger restored = await scheduler.GetTrigger(key);
+
+            restored.Should().NotBeNull("a row whose RETRY_ATTEMPT is null is still a trigger");
+            restored.RetryAttempt.Should().Be(0,
+                "a null attempt is what an upgraded row holds, and it means the occurrence has no retries behind it");
+            restored.RetryPolicy.Should().BeNull();
+
+            await scheduler.Start();
+            await WaitForEveryTriggerToFire([restored]);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    private static async Task Execute(DbConnection connection, string sql)
+    {
+        await using DbCommand command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task<long> Count(DbConnection connection, string sql)

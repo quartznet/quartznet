@@ -426,6 +426,11 @@ public class LegacyJsonPayloadTest
         simple.JobDataMap.GetString("environment").Should().Be("staging");
         simple.JobDataMap.GetInt("retryCount").Should().Be(3);
         simple.JobDataMap.GetBoolean("enabled").Should().BeTrue();
+
+        // This payload predates retry policies and says nothing about them, which is what every stored
+        // trigger written before 4.0 looks like: no policy, and an occurrence that has retried nothing.
+        simple.RetryPolicy.Should().BeNull();
+        simple.RetryAttempt.Should().Be(0);
     }
 
     [Test]
@@ -440,6 +445,8 @@ public class LegacyJsonPayloadTest
         cron.Priority.Should().Be(7);
         cron.MisfireInstructionCode.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
         cron.EndTimeUtc.Should().BeNull();
+        cron.RetryPolicy.Should().BeNull();
+        cron.RetryAttempt.Should().Be(0);
     }
 
     [Test(Description = "https://github.com/quartznet/quartznet/issues/3294")]

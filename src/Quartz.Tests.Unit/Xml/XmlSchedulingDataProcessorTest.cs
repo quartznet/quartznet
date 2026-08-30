@@ -1696,6 +1696,8 @@ public class XmlSchedulingDataProcessorTest
             null,
             null,
             TriggerConstants.DefaultPriority,
-            null);
+            ExecutionGroup: null,
+            RetryPolicy: null,
+            RetryAttempt: 0);
     }
 }

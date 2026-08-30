@@ -21,6 +21,14 @@ internal sealed class JsonTriggerDefinition
     public int? Priority { get; set; }
     public string? CalendarName { get; set; }
     public string? ExecutionGroup { get; set; }
+
+    /// <summary>
+    /// The trigger's retry policy in its stored form, for example <c>fixed;3;00:00:30</c>. Spelled as
+    /// the stored string rather than as an object, so that the configuration, the column and a
+    /// serialized trigger all say the same thing.
+    /// </summary>
+    public string? RetryPolicy { get; set; }
+
     public DateTimeOffset? StartTime { get; set; }
     public int? StartTimeSecondsInFuture { get; set; }
     public DateTimeOffset? EndTime { get; set; }

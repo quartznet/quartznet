@@ -369,6 +369,9 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.TriggerPreferredNode, (object?) preferredNode.StoredNode ?? DBNull.Value);
         AddCommandParameter(cmd, SqlParameters.TriggerPreferredNodeAuto, GetDbBooleanValue(preferredNode.StoredAutomatic));
 
+        AddCommandParameter(cmd, SqlParameters.TriggerRetryPolicy, (object?) trigger.RetryPolicy?.ToStoredString() ?? DBNull.Value);
+        AddCommandParameter(cmd, SqlParameters.TriggerRetryAttempt, trigger.RetryAttempt);
+
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
         if (tDel is null)
@@ -516,6 +519,11 @@ public partial class StdAdoDelegate
         }
 
         parameters.Add(new SqlStatementParameter(SqlParameters.TriggerExecutionGroup, (object?) trigger.ExecutionGroup ?? DBNull.Value));
+
+        // Statement order: the retry clause sits between EXECUTION_GROUP and the optional pin in
+        // every flavour of the UPDATE, so these two are added here whichever one was picked.
+        parameters.Add(new SqlStatementParameter(SqlParameters.TriggerRetryPolicy, (object?) trigger.RetryPolicy?.ToStoredString() ?? DBNull.Value));
+        parameters.Add(new SqlStatementParameter(SqlParameters.TriggerRetryAttempt, trigger.RetryAttempt));
 
         if (writePreferredNode)
         {
@@ -1002,6 +1010,8 @@ public partial class StdAdoDelegate
         public string? ExecutionGroup;
         public string? PreferredNode;
         public bool PreferredNodeAuto;
+        public string? RetryPolicy;
+        public int RetryAttempt;
 
         /// <summary>Populated from the joined row for SIMPLE and CRON triggers, <c>null</c> otherwise.</summary>
         public TriggerPropertyBundle? Props;
@@ -1044,6 +1054,8 @@ public partial class StdAdoDelegate
             ExecutionGroup = rs.GetOrdinal(AdoConstants.ColumnExecutionGroup);
             PreferredNode = rs.GetOrdinal(AdoConstants.ColumnPreferredNode);
             PreferredNodeAuto = rs.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto);
+            RetryPolicy = rs.GetOrdinal(AdoConstants.ColumnRetryPolicy);
+            RetryAttempt = rs.GetOrdinal(AdoConstants.ColumnRetryAttempt);
         }
 
         public int TriggerName { get; }
@@ -1063,6 +1075,8 @@ public partial class StdAdoDelegate
         public int ExecutionGroup { get; }
         public int PreferredNode { get; }
         public int PreferredNodeAuto { get; }
+        public int RetryPolicy { get; }
+        public int RetryAttempt { get; }
 
         public TriggerKey ReadKey(DbDataReader rs) => new(rs.GetString(TriggerName), rs.GetString(TriggerGroup));
     }
@@ -1104,6 +1118,11 @@ public partial class StdAdoDelegate
         row.PreferredNode = ReadNullableString(rs, ordinals.PreferredNode);
         row.PreferredNodeAuto = !rs.IsDBNull(ordinals.PreferredNodeAuto) && GetBooleanFromDbValue(rs.GetValue(ordinals.PreferredNodeAuto));
 
+        row.RetryPolicy = ReadNullableString(rs, ordinals.RetryPolicy);
+        // Not GetInt32: Oracle hands back a decimal for a NUMBER column, and the column is nullable
+        // on every dialect - a row migrated from 3.x has never been written by anything that fills it.
+        row.RetryAttempt = rs.IsDBNull(ordinals.RetryAttempt) ? 0 : Convert.ToInt32(rs.GetValue(ordinals.RetryAttempt), CultureInfo.InvariantCulture);
+
         return row;
     }
 
@@ -1127,12 +1146,18 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
-    /// Applies the routing state carried on the TRIGGERS row. Applied last, so that it cannot be
-    /// overwritten by a persistence delegate's state properties.
+    /// Applies the routing and retry state carried on the TRIGGERS row. Applied last, so that it
+    /// cannot be overwritten by a persistence delegate's state properties.
     /// </summary>
     private static void ApplyTriggerRoutingState(IOperableTrigger trigger, TriggerRow row)
     {
         trigger.ExecutionGroup = row.ExecutionGroup;
+
+        // A policy string the current code cannot read is treated as no policy rather than failing
+        // the whole read: the row is still a schedule, and refusing to materialize the trigger would
+        // take a job out of service over a column nothing else depends on.
+        trigger.RetryPolicy = RetryPolicy.TryParse(row.RetryPolicy, out RetryPolicy? retryPolicy) ? retryPolicy : null;
+        trigger.RetryAttempt = row.RetryAttempt;
 
         // Populating from the trigger's own row — not a change, so it must not mark the pin
         // dirty (that would make the next store write it back and clobber concurrent re-pins).

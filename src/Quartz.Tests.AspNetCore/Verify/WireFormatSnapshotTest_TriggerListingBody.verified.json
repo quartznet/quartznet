@@ -14,7 +14,9 @@
       "previousFireTimeUtc": "2024-08-01T06:30:00+00:00",
       "calendarName": "SomeCalendar",
       "priority": 1,
-      "executionGroup": null
+      "executionGroup": null,
+      "retryPolicy": "exp;3;00:00:10;2;00:05:00",
+      "retryAttempt": 2
     }
   ],
   "hasMore": false,

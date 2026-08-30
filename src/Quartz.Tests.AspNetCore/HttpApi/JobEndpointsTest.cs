@@ -671,7 +671,9 @@ public class JobEndpointsTest : WebApiTest
         PreviousFireTimeUtc: null,
         CalendarName: trigger.CalendarName,
         Priority: trigger.Priority,
-        ExecutionGroup: null);
+        ExecutionGroup: null,
+        RetryPolicy: null,
+        RetryAttempt: 0);
 
     private static JobHeader HeaderFor(JobKey jobKey) => new(
         jobKey,

@@ -111,6 +111,36 @@ public interface ITrigger
     PreferredNode PreferredNode { get; }
 
     /// <summary>
+    /// How the scheduler re-fires this trigger when its job fails, or <see langword="null" /> —
+    /// the default — when a failed job is simply reported and the trigger waits for its next
+    /// scheduled occurrence.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A retry never displaces the next scheduled occurrence: one that would land at or within a
+    /// second of it is dropped and the ordinary schedule wins.
+    /// </para>
+    /// <para>
+    /// This is not <see cref="JobExecutionException.RefireImmediately" />, which re-runs the job on
+    /// the same thread in the same firing, with no delay, no ceiling and nothing persisted.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="Quartz.RetryPolicy" />
+    RetryPolicy? RetryPolicy { get; }
+
+    /// <summary>
+    /// How many times the occurrence currently being executed has already been retried. <c>0</c> on
+    /// a regular fire, <c>n</c> on the <c>n</c>-th retry.
+    /// </summary>
+    /// <remarks>
+    /// Reset to <c>0</c> as soon as the occurrence succeeds, exhausts its
+    /// <see cref="RetryPolicy" />, or misfires. Distinct from
+    /// <see cref="IJobExecutionContext.RefireCount" />, which counts iterations of the in-process
+    /// refire loop within a single firing.
+    /// </remarks>
+    int RetryAttempt { get; }
+
+    /// <summary>
     /// Get or set  the <see cref="ICalendar" /> with the given name with
     /// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
     /// </summary>

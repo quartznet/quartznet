@@ -422,14 +422,16 @@ public partial class StdAdoDelegate
             new JobKey(rs.GetString(2), rs.GetString(3)),
             rs.IsDBNull(4) ? null : rs.GetString(4),
             rs.GetString(5),
-            TriggerStateMapping.ToTriggerState(rs.GetString(6), Convert.ToInt32(rs.GetValue(14), CultureInfo.InvariantCulture) != 0),
+            TriggerStateMapping.ToTriggerState(rs.GetString(6), Convert.ToInt32(rs.GetValue(16), CultureInfo.InvariantCulture) != 0),
             GetDateTimeFromDbValue(rs.GetValue(7)) ?? DateTimeOffset.MinValue,
             GetDateTimeFromDbValue(rs.GetValue(8)),
             GetDateTimeFromDbValue(rs.GetValue(9)),
             GetDateTimeFromDbValue(rs.GetValue(10)),
             rs.IsDBNull(11) ? null : rs.GetString(11),
             Convert.ToInt32(rs.GetValue(12), CultureInfo.InvariantCulture),
-            rs.IsDBNull(13) ? null : rs.GetString(13));
+            rs.IsDBNull(13) ? null : rs.GetString(13),
+            rs.IsDBNull(14) ? null : rs.GetString(14),
+            rs.IsDBNull(15) ? 0 : Convert.ToInt32(rs.GetValue(15), CultureInfo.InvariantCulture));
     }
 
     /// <inheritdoc />
