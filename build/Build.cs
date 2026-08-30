@@ -442,6 +442,44 @@ partial class Build : FalloutBuild, ICompile, IPack
             );
         });
 
+    /// <summary>
+    /// Runs the Wolverine example end to end, so a recipe that compiles is also a recipe that works.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>Quartz.Examples.Wolverine</c> is in the solution, so <c>Compile</c> catches the calls it makes
+    /// going away. What compiling cannot catch is the part of the integration that is about two runtimes
+    /// agreeing: hosted-service ordering, a scheduler started by something other than its own hosted
+    /// service, a trigger group used as a correlation axis, and a serialized envelope handed back to a
+    /// message bus. <c>--smoke</c> asserts each of those produced its effect and returns non-zero when
+    /// one did not; <c>src/Quartz.Examples.Wolverine/Smoke.cs</c> is the list.
+    /// </para>
+    /// <para>
+    /// Nothing external is needed — Wolverine's in-memory local transport and Quartz's in-memory store.
+    /// The example's Postgres mode is reached through an environment variable and is deliberately not
+    /// exercised here; it needs a database, which is what the <c>pr-integration-*</c> workflows are for.
+    /// </para>
+    /// <para>
+    /// Beside <see cref="BenchmarkSmoke" /> and after the unit tests, for the same reason: both want the
+    /// machine, and a failing test is the one worth reading first.
+    /// </para>
+    /// </remarks>
+    Target WolverineSmoke => _ => _
+        .DependsOn<ICompile>()
+        .After(UnitTest)
+        .Before<IPack>()
+        .Executes(() =>
+        {
+            var solution = ((IHasSolution) this).Solution;
+            var configuration = ((ICompile) this).Configuration;
+
+            DotNetRun(s => s
+                .SetProjectFile(solution.AllProjects.First(x => x.Name == "Quartz.Examples.Wolverine"))
+                .SetConfiguration(configuration)
+                .SetApplicationArguments("--smoke")
+            );
+        });
+
     static readonly string[] DatabaseCategories =
         ["db-postgres", "db-sqlserver", "db-mysql", "db-oracle", "db-firebird", "db-sqlite", "db-redis"];
 

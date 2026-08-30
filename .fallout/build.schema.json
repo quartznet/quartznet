@@ -42,7 +42,8 @@
         "UnitTest",
         "VerifyDocsSnippets",
         "VerifyMigrations",
-        "VerifySchema"
+        "VerifySchema",
+        "WolverineSmoke"
       ]
     },
     "Verbosity": {

@@ -145,6 +145,7 @@ export const sidebarEn: SidebarConfig = [
               "/documentation/quartz-4.x/how-tos/multiple-triggers",
               "/documentation/quartz-4.x/how-tos/job-template",
               "/documentation/quartz-4.x/how-tos/aspire",
+              "/documentation/quartz-4.x/how-tos/wolverine",
               "/documentation/quartz-4.x/how-tos/trimming-and-native-aot",
               "/documentation/quartz-4.x/how-tos/custom-job-store",
               "/documentation/quartz-4.x/how-tos/dialect-delegate",

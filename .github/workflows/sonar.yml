@@ -109,6 +109,11 @@ jobs:
           # analysis, so the bug and code-smell rules still apply to code people paste into their
           # own applications.
           #
+          # Quartz.Examples.Wolverine is excused for a third reason again: it *is* exercised, by the
+          # WolverineSmoke target on the pull-request leg, which runs it end to end and fails on a
+          # non-zero exit. That run happens out of process and under no coverage collector, so the
+          # gate would read a project with a working liveness check as a project with none.
+          #
           # The older src/Quartz.Examples.* projects are not listed, and that is not an oversight:
           # they carry no coverage either, but the condition that fails here measures new code, so
           # the gate has never asked about them. Adding a new example is what surfaces it. Listing
@@ -153,7 +158,7 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**" \
             /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,database/**" \
-            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**" \
+            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**,src/Quartz.Examples.Wolverine/**" \
             /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.resourceKey="database/migrations/**/*.sql" \

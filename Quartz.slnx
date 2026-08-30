@@ -4,6 +4,7 @@
     <Project Path="src/Quartz.Examples.Aspire.Worker/Quartz.Examples.Aspire.Worker.csproj" />
     <Project Path="src/Quartz.Examples.AspNetCore/Quartz.Examples.AspNetCore.csproj" />
     <Project Path="src/Quartz.Examples.HttpClient/Quartz.Examples.HttpClient.csproj" />
+    <Project Path="src/Quartz.Examples.Wolverine/Quartz.Examples.Wolverine.csproj" />
     <Project Path="src/Quartz.Examples.Worker/Quartz.Examples.Worker.csproj" />
     <Project Path="src/Quartz.Examples/Quartz.Examples.csproj" />
   </Folder>

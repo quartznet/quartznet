@@ -72,6 +72,12 @@ updates:
       aspire:
         patterns:
           - "Aspire.*"
+      # Wolverine, used by the Wolverine example. The core package and its extensions ship as one
+      # version on JasperFx's own cadence, and a mismatched pair fails at startup rather than at
+      # restore, so they move together.
+      wolverine:
+        patterns:
+          - "WolverineFx*"
       # Everything else shipped out of dotnet/runtime and dotnet/aspnetcore.
       microsoft:
         patterns:

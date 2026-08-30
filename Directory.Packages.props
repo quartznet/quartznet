@@ -89,6 +89,9 @@
     <PackageVersion Include="TimeZoneConverter" Version="7.2.0" />
     <PackageVersion Include="Topshelf" Version="4.3.0" />
     <PackageVersion Include="Verify.NUnit" Version="32.0.0" />
+    <PackageVersion Include="WolverineFx" Version="6.30.3" />
+    <PackageVersion Include="WolverineFx.Postgresql" Version="6.30.3" />
+    <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.30.3" />
   </ItemGroup>
   <ItemGroup>
     <GlobalPackageReference Include="GitHubActionsTestLogger" Version="3.0.5" />
