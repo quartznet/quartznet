@@ -1,0 +1,277 @@
+--
+-- Quartz.NET schema -- SQL Server
+--
+-- GENERATED FILE. Describe the schema in build/Build.DatabaseSchema.cs and run
+-- 'dotnet fallout GenerateSchema'; edits made here are overwritten.
+--
+-- This is what AdoJobStore runs for itself when SchemaProvisioning.CreateIfMissing is
+-- configured. It is not the script to run by hand -- use
+-- database/tables/tables_sqlServer.sql for that, which is written for a person with a
+-- database client and drops an existing schema before it recreates one.
+--
+-- Every statement creates only what is missing, and nothing here ever drops anything.
+-- So it is safe to run against a schema that already exists, and safe to run twice.
+--
+-- '{0}' is the configured table prefix and '{1}' is the same prefix with any schema
+-- qualifier removed, for the identifiers that cannot carry one -- index, constraint and
+-- catalog-lookup names. They are substituted at runtime, so a schema provisioned under a
+-- prefix of its own collides with nothing.
+--
+-- Statements are separated by a line reading exactly '--;;'. The job store splits on
+-- it and sends each piece to the provider as one command, which is why no dialect's batch
+-- separator appears: no GO, no lone '/', no SET TERM.
+--
+-- Tables are named without a [dbo] qualifier, exactly as the rest of Quartz's SQL names
+-- them, so they are created in the connection's own default schema and a table prefix
+-- that carries a schema of its own is honoured.
+--
+-- The memory-optimized (tables_sqlServerMOT.sql) and pre-2016 (tables_sqlServer_Below2016.sql)
+-- variants have no counterpart here: both are deliberate departures from the standard
+-- schema, chosen by a human for a particular deployment, and neither is something a
+-- scheduler should decide to create on its own. Run those by hand and leave
+-- SchemaProvisioning at Validate.
+--
+--;;
+-- {0}JOB_DETAILS
+IF OBJECT_ID(N'{0}JOB_DETAILS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}JOB_DETAILS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    JOB_NAME nvarchar(150) NOT NULL,
+    JOB_GROUP nvarchar(150) NOT NULL,
+    DESCRIPTION nvarchar(250) NULL,
+    JOB_CLASS_NAME nvarchar(250) NOT NULL,
+    IS_DURABLE bit NOT NULL,
+    IS_NONCONCURRENT bit NOT NULL,
+    IS_UPDATE_DATA bit NOT NULL,
+    REQUESTS_RECOVERY bit NOT NULL,
+    JOB_DATA varbinary(max) NULL,
+    CONSTRAINT PK_{1}JOB_DETAILS PRIMARY KEY (SCHED_NAME,JOB_NAME,JOB_GROUP)
+  );
+END
+--;;
+-- {0}TRIGGERS
+IF OBJECT_ID(N'{0}TRIGGERS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}TRIGGERS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    TRIGGER_NAME nvarchar(150) NOT NULL,
+    TRIGGER_GROUP nvarchar(150) NOT NULL,
+    JOB_NAME nvarchar(150) NOT NULL,
+    JOB_GROUP nvarchar(150) NOT NULL,
+    DESCRIPTION nvarchar(250) NULL,
+    NEXT_FIRE_TIME bigint NULL,
+    PREV_FIRE_TIME bigint NULL,
+    PRIORITY int NULL,
+    TRIGGER_STATE nvarchar(16) NOT NULL,
+    TRIGGER_TYPE nvarchar(8) NOT NULL,
+    START_TIME bigint NOT NULL,
+    END_TIME bigint NULL,
+    CALENDAR_NAME nvarchar(200) NULL,
+    MISFIRE_INSTR int NULL,
+    MISFIRE_ORIG_FIRE_TIME bigint NULL,
+    EXECUTION_GROUP nvarchar(200) NULL,
+    PREFERRED_NODE nvarchar(200) NULL,
+    PREFERRED_NODE_AUTO bit NOT NULL DEFAULT 0,
+    RETRY_POLICY nvarchar(250) NULL,
+    RETRY_ATTEMPT int NULL,
+    JOB_DATA varbinary(max) NULL,
+    CONSTRAINT PK_{1}TRIGGERS PRIMARY KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP),
+    CONSTRAINT FK_{1}TRIGGERS_{1}JOB_DETAILS FOREIGN KEY (SCHED_NAME,JOB_NAME,JOB_GROUP) REFERENCES {0}JOB_DETAILS (SCHED_NAME,JOB_NAME,JOB_GROUP)
+  );
+END
+--;;
+-- {0}SIMPLE_TRIGGERS
+IF OBJECT_ID(N'{0}SIMPLE_TRIGGERS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}SIMPLE_TRIGGERS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    TRIGGER_NAME nvarchar(150) NOT NULL,
+    TRIGGER_GROUP nvarchar(150) NOT NULL,
+    REPEAT_COUNT int NOT NULL,
+    REPEAT_INTERVAL bigint NOT NULL,
+    TIMES_TRIGGERED int NOT NULL,
+    CONSTRAINT PK_{1}SIMPLE_TRIGGERS PRIMARY KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP),
+    CONSTRAINT FK_{1}SIMPLE_TRIGGERS_{1}TRIGGERS FOREIGN KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP) REFERENCES {0}TRIGGERS (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP) ON DELETE CASCADE
+  );
+END
+--;;
+-- {0}CRON_TRIGGERS
+IF OBJECT_ID(N'{0}CRON_TRIGGERS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}CRON_TRIGGERS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    TRIGGER_NAME nvarchar(150) NOT NULL,
+    TRIGGER_GROUP nvarchar(150) NOT NULL,
+    CRON_EXPRESSION nvarchar(120) NOT NULL,
+    TIME_ZONE_ID nvarchar(80),
+    CONSTRAINT PK_{1}CRON_TRIGGERS PRIMARY KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP),
+    CONSTRAINT FK_{1}CRON_TRIGGERS_{1}TRIGGERS FOREIGN KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP) REFERENCES {0}TRIGGERS (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP) ON DELETE CASCADE
+  );
+END
+--;;
+-- {0}SIMPROP_TRIGGERS
+IF OBJECT_ID(N'{0}SIMPROP_TRIGGERS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}SIMPROP_TRIGGERS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    TRIGGER_NAME nvarchar(150) NOT NULL,
+    TRIGGER_GROUP nvarchar(150) NOT NULL,
+    STR_PROP_1 nvarchar(512) NULL,
+    STR_PROP_2 nvarchar(512) NULL,
+    STR_PROP_3 nvarchar(512) NULL,
+    INT_PROP_1 int NULL,
+    INT_PROP_2 int NULL,
+    LONG_PROP_1 bigint NULL,
+    LONG_PROP_2 bigint NULL,
+    DEC_PROP_1 numeric(13,4) NULL,
+    DEC_PROP_2 numeric(13,4) NULL,
+    BOOL_PROP_1 bit NULL,
+    BOOL_PROP_2 bit NULL,
+    TIME_ZONE_ID nvarchar(80) NULL,
+    CONSTRAINT PK_{1}SIMPROP_TRIGGERS PRIMARY KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP),
+    CONSTRAINT FK_{1}SIMPROP_TRIGGERS_{1}TRIGGERS FOREIGN KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP) REFERENCES {0}TRIGGERS (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP) ON DELETE CASCADE
+  );
+END
+--;;
+-- {0}BLOB_TRIGGERS
+IF OBJECT_ID(N'{0}BLOB_TRIGGERS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}BLOB_TRIGGERS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    TRIGGER_NAME nvarchar(150) NOT NULL,
+    TRIGGER_GROUP nvarchar(150) NOT NULL,
+    BLOB_DATA varbinary(max) NULL,
+    CONSTRAINT PK_{1}BLOB_TRIGGERS PRIMARY KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP),
+    CONSTRAINT FK_{1}BLOB_TRIGGERS_{1}TRIGGERS FOREIGN KEY (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP) REFERENCES {0}TRIGGERS (SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP) ON DELETE CASCADE
+  );
+END
+--;;
+-- {0}CALENDARS
+IF OBJECT_ID(N'{0}CALENDARS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}CALENDARS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    CALENDAR_NAME nvarchar(200) NOT NULL,
+    CALENDAR varbinary(max) NOT NULL,
+    CONSTRAINT PK_{1}CALENDARS PRIMARY KEY (SCHED_NAME,CALENDAR_NAME)
+  );
+END
+--;;
+-- {0}PAUSED_TRIGGER_GRPS
+IF OBJECT_ID(N'{0}PAUSED_TRIGGER_GRPS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}PAUSED_TRIGGER_GRPS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    TRIGGER_GROUP nvarchar(150) NOT NULL,
+    CONSTRAINT PK_{1}PAUSED_TRIGGER_GRPS PRIMARY KEY (SCHED_NAME,TRIGGER_GROUP)
+  );
+END
+--;;
+-- {0}PAUSED_JOB_GRPS
+IF OBJECT_ID(N'{0}PAUSED_JOB_GRPS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}PAUSED_JOB_GRPS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    JOB_GROUP nvarchar(150) NOT NULL,
+    CONSTRAINT PK_{1}PAUSED_JOB_GRPS PRIMARY KEY (SCHED_NAME,JOB_GROUP)
+  );
+END
+--;;
+-- {0}FIRED_TRIGGERS
+IF OBJECT_ID(N'{0}FIRED_TRIGGERS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}FIRED_TRIGGERS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    ENTRY_ID nvarchar(140) NOT NULL,
+    TRIGGER_NAME nvarchar(150) NOT NULL,
+    TRIGGER_GROUP nvarchar(150) NOT NULL,
+    INSTANCE_NAME nvarchar(200) NOT NULL,
+    FIRED_TIME bigint NOT NULL,
+    SCHED_TIME bigint NOT NULL,
+    PRIORITY int NOT NULL,
+    STATE nvarchar(16) NOT NULL,
+    JOB_NAME nvarchar(150) NULL,
+    JOB_GROUP nvarchar(150) NULL,
+    IS_NONCONCURRENT bit NULL,
+    REQUESTS_RECOVERY bit NULL,
+    EXECUTION_GROUP nvarchar(200) NULL,
+    CONSTRAINT PK_{1}FIRED_TRIGGERS PRIMARY KEY (SCHED_NAME,ENTRY_ID)
+  );
+END
+--;;
+-- {0}SCHEDULER_STATE
+IF OBJECT_ID(N'{0}SCHEDULER_STATE', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}SCHEDULER_STATE (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    INSTANCE_NAME nvarchar(200) NOT NULL,
+    LAST_CHECKIN_TIME bigint NOT NULL,
+    CHECKIN_INTERVAL bigint NOT NULL,
+    CONSTRAINT PK_{1}SCHEDULER_STATE PRIMARY KEY (SCHED_NAME,INSTANCE_NAME)
+  );
+END
+--;;
+-- {0}LOCKS
+IF OBJECT_ID(N'{0}LOCKS', N'U') IS NULL
+BEGIN
+  CREATE TABLE {0}LOCKS (
+    SCHED_NAME nvarchar(120) NOT NULL,
+    LOCK_NAME nvarchar(40) NOT NULL,
+    CONSTRAINT PK_{1}LOCKS PRIMARY KEY (SCHED_NAME,LOCK_NAME)
+  );
+END
+--;;
+-- IDX_{1}J_G_N
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_{1}J_G_N' AND object_id = OBJECT_ID('{0}JOB_DETAILS'))
+BEGIN
+  CREATE INDEX IDX_{1}J_G_N ON {0}JOB_DETAILS(SCHED_NAME, JOB_GROUP, JOB_NAME);
+END
+--;;
+-- IDX_{1}T_J
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_{1}T_J' AND object_id = OBJECT_ID('{0}TRIGGERS'))
+BEGIN
+  CREATE INDEX IDX_{1}T_J ON {0}TRIGGERS(SCHED_NAME, JOB_NAME, JOB_GROUP);
+END
+--;;
+-- IDX_{1}T_G_N
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_{1}T_G_N' AND object_id = OBJECT_ID('{0}TRIGGERS'))
+BEGIN
+  CREATE INDEX IDX_{1}T_G_N ON {0}TRIGGERS(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME);
+END
+--;;
+-- IDX_{1}T_C
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_{1}T_C' AND object_id = OBJECT_ID('{0}TRIGGERS'))
+BEGIN
+  CREATE INDEX IDX_{1}T_C ON {0}TRIGGERS(SCHED_NAME, CALENDAR_NAME);
+END
+--;;
+-- IDX_{1}T_NFT_ST
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_{1}T_NFT_ST' AND object_id = OBJECT_ID('{0}TRIGGERS'))
+BEGIN
+  CREATE INDEX IDX_{1}T_NFT_ST ON {0}TRIGGERS(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME);
+END
+--;;
+-- IDX_{1}T_NFT_ST_MISFIRE
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_{1}T_NFT_ST_MISFIRE' AND object_id = OBJECT_ID('{0}TRIGGERS'))
+BEGIN
+  CREATE INDEX IDX_{1}T_NFT_ST_MISFIRE ON {0}TRIGGERS(SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE);
+END
+--;;
+-- IDX_{1}FT_INST_JOB_REQ_RCVRY
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_{1}FT_INST_JOB_REQ_RCVRY' AND object_id = OBJECT_ID('{0}FIRED_TRIGGERS'))
+BEGIN
+  CREATE INDEX IDX_{1}FT_INST_JOB_REQ_RCVRY ON {0}FIRED_TRIGGERS(SCHED_NAME, INSTANCE_NAME, REQUESTS_RECOVERY);
+END
+--;;
+-- IDX_{1}FT_J_G
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_{1}FT_J_G' AND object_id = OBJECT_ID('{0}FIRED_TRIGGERS'))
+BEGIN
+  CREATE INDEX IDX_{1}FT_J_G ON {0}FIRED_TRIGGERS(SCHED_NAME, JOB_NAME, JOB_GROUP);
+END
+--;;
+-- IDX_{1}FT_T_G
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_{1}FT_T_G' AND object_id = OBJECT_ID('{0}FIRED_TRIGGERS'))
+BEGIN
+  CREATE INDEX IDX_{1}FT_T_G ON {0}FIRED_TRIGGERS(SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP);
+END

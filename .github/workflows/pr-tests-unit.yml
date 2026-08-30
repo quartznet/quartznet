@@ -48,8 +48,8 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: VerifyMigrations, Compile, UnitTest, BenchmarkSmoke, PublishTrimmed, PublishAot'
-        run: dotnet fallout VerifyMigrations Compile UnitTest BenchmarkSmoke PublishTrimmed PublishAot
+      - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, PublishTrimmed, PublishAot'
+        run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke PublishTrimmed PublishAot
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
@@ -62,8 +62,8 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: VerifyMigrations, Compile, UnitTest, BenchmarkSmoke, PublishTrimmed, PublishAot'
-        run: dotnet fallout VerifyMigrations Compile UnitTest BenchmarkSmoke PublishTrimmed PublishAot
+      - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, PublishTrimmed, PublishAot'
+        run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke PublishTrimmed PublishAot
   macos-latest:
     name: macos-latest
     runs-on: macos-latest
@@ -76,5 +76,5 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: VerifyMigrations, Compile, UnitTest, BenchmarkSmoke, PublishTrimmed, PublishAot'
-        run: dotnet fallout VerifyMigrations Compile UnitTest BenchmarkSmoke PublishTrimmed PublishAot
+      - name: 'Run: VerifyMigrations, VerifySchema, Compile, UnitTest, BenchmarkSmoke, PublishTrimmed, PublishAot'
+        run: dotnet fallout VerifyMigrations VerifySchema Compile UnitTest BenchmarkSmoke PublishTrimmed PublishAot

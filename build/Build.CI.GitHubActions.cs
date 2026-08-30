@@ -24,7 +24,7 @@ using Quartz.Build;
     // BenchmarkSmoke is on this workflow alone. Every change reaches main through a pull request, so
     // this is where a broken benchmark is caught while somebody is still looking; the push and release
     // legs have ten-minute budgets and nothing to do with the benchmarks.
-    InvokedTargets = [nameof(VerifyMigrations), nameof(ICompile.Compile), nameof(UnitTest), nameof(BenchmarkSmoke), nameof(PublishTrimmed), nameof(PublishAot)],
+    InvokedTargets = [nameof(VerifyMigrations), nameof(VerifySchema), nameof(ICompile.Compile), nameof(UnitTest), nameof(BenchmarkSmoke), nameof(PublishTrimmed), nameof(PublishAot)],
     CacheKeyFiles = [],
     // Generating native code is minutes rather than seconds, and it happens after everything else here.
     TimeoutMinutes = 20,
