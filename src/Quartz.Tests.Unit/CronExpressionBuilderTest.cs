@@ -229,6 +229,11 @@ public class CronExpressionBuilderTest
 
         CronExpressionBuilder.Create()
             .AtTime(new TimeOnly(9, 30))
+            .WithDaysOfWeek(DayOfWeek.Monday, DayOfWeek.Thursday)
+            .ToString().Should().Be("0 30 9 ? * MON,THU");
+
+        CronExpressionBuilder.Create()
+            .AtTime(new TimeOnly(9, 30))
             .WithDayOfMonth(15)
             .ToString().Should().Be("0 30 9 15 * ?");
     }
