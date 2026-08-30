@@ -4334,6 +4334,43 @@ and no attempt.
 A string that is not a policy is refused where the file is read, rather than scheduling a trigger that
 would never retry.
 
+### What happens when a job fails
+
+A job fails, for retry purposes, when `Execute` throws anything other than a `JobExecutionException`
+that asks for something itself. On failure with attempts left the scheduler sets the trigger's next
+fire time to `now + policy.DelayFor(attempt + 1)`, increments the attempt and hands the job store a new
+instruction, `SchedulerInstruction.RetryTrigger`. Everything else about the trigger is untouched.
+
+| Member | What it is |
+|---|---|
+| `SchedulerInstruction.RetryTrigger` | New enum member, appended — no existing value moved. `ITriggerListener.TriggerComplete` sees it; there is no new listener member |
+| `IJobExecutionContext.RetryAttempt` | `0` on a regular fire, *n* on the *n*-th retry |
+| `TriggerBase.RetryFired(ICalendar?)` | `public virtual`, and only on `TriggerBase` — `IOperableTrigger` is unchanged |
+| `IDriverDelegate.UpdateTriggerForRetry` / `ClearTriggerRetryAttempt` | **Breaking for anything implementing `IDriverDelegate`**; `StdAdoDelegate` implements both `virtual` |
+
+Four rules are worth knowing:
+
+* **A retry never displaces the next scheduled occurrence.** If `retryAt + 1s >= NextFireTimeUtc` the
+  retry is dropped and the occurrence supersedes it, attempt reset. The one-second margin exists because
+  `CalendarIntervalTriggerImpl.GetFireTimeAfter` and `DailyTimeIntervalTriggerImpl.GetFireTimeAfter` add
+  a second before searching. A retry is also never scheduled past the trigger's `EndTimeUtc`.
+* **A retry fire is not a `Triggered()` call.** `RetryFired` advances past the retry instant with the
+  same calendar-skip loop, but touches no counter and leaves `PreviousFireTimeUtc` alone — so a retry
+  burns no repeat count and no RRULE `COUNT` slot, and reports the *original* occurrence as its
+  `ScheduledFireTimeUtc`.
+* **Exhausted attempts go back to the ordinary schedule, not to `TriggerState.Error`.** One bad hour
+  must not kill a cron trigger. A misfired retry gets the trigger's own misfire instruction and the
+  attempt is cleared; there is no retry-specific misfire policy.
+* **`RefireImmediately` is not a zero-delay retry.** It re-runs the job on the same thread inside the
+  same firing, with no delay, no ceiling, nothing persisted and no slot released, and it does not touch
+  `RetryAttempt`. An explicit `RefireImmediately` or `Unschedule*` wins over the trigger's policy. An
+  `OperationCanceledException` from the scheduler's own token never retries — shutdown and interrupt are
+  operator decisions, and a node vanishing mid-execution is what `RequestsRecovery` is for.
+
+One meter, `quartz.trigger.retry`, counts each retry the scheduler schedules, tagged like
+`quartz.trigger.misfire`. Log event `1056` reports the trigger, the attempt and the retry instant at
+`Information`.
+
 ## Trimming annotations
 
 `ScheduleJob<T>`, `AddTrigger<TJob>` and `TriggerBuilder.Create<TJob>()` gained

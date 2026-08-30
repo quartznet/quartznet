@@ -392,6 +392,23 @@ public class DailyTimeIntervalTriggerImpl : TriggerBase, IDailyTimeIntervalTrigg
         }
     }
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// Overridden for the same reason <see cref="Triggered" /> ends the way it does: this trigger
+    /// records having run out of schedule in a flag of its own, which <see cref="GetFireTimeAfter" />
+    /// then short-circuits on. Without setting it here, a trigger whose last occurrence failed and
+    /// then retried would go on answering as though it had a schedule left.
+    /// </remarks>
+    public override void RetryFired(ICalendar? calendar)
+    {
+        base.RetryFired(calendar);
+
+        if (NextFireTimeUtc is null)
+        {
+            complete = true;
+        }
+    }
+
     /// <summary>
     ///
     /// </summary>

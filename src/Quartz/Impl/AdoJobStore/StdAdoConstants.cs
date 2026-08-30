@@ -1047,14 +1047,26 @@ internal static class StdAdoConstants
     public static readonly string SqlUpdateTriggerStatesFromOtherStatesPrefix =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @{SqlParameters.NewState} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND ");
 
+    // A retry, written at completion. Narrow on purpose: the trigger's schedule has not changed, only
+    // where it fires next and how many attempts at the current occurrence are behind it. The state
+    // goes with them because the completing trigger is leaving whatever state its firing left it in.
+    public static readonly string SqlUpdateTriggerForRetry =
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnRetryAttempt} = @{SqlParameters.TriggerRetryAttempt}, {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
+
+    // The other end of a retry: the occurrence is done with, so the count goes back to zero and
+    // nothing else about the trigger is touched — its state and fire times are whatever its firing
+    // already made them.
+    public static readonly string SqlClearTriggerRetryAttempt =
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnRetryAttempt} = 0 WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
+
     public static readonly string SqlUpdateMisfireOrigFireTime =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnMisfireOriginalFireTime} = @{SqlParameters.MisfireOrigFireTime} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     // Targeted misfire recovery UPDATE — only touches columns that change during UpdateAfterMisfire.
     // START_TIME is included because SimpleTrigger's RescheduleNowWith* policies modify it.
     public static readonly string SqlUpdateTriggerMisfire =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime}, {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime}, {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnRetryAttempt} = @{SqlParameters.TriggerRetryAttempt} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 
     public static readonly string SqlUpdateTriggerMisfireWithOrigFireTime =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime}, {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnMisfireOriginalFireTime} = @{SqlParameters.TriggerMisfireOrigFireTime} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnNextFireTime} = @{SqlParameters.TriggerNextFireTime}, {AdoConstants.ColumnPreviousFireTime} = @{SqlParameters.TriggerPreviousFireTime}, {AdoConstants.ColumnTriggerState} = @{SqlParameters.TriggerState}, {AdoConstants.ColumnStartTime} = @{SqlParameters.TriggerStartTime}, {AdoConstants.ColumnRetryAttempt} = @{SqlParameters.TriggerRetryAttempt}, {AdoConstants.ColumnMisfireOriginalFireTime} = @{SqlParameters.TriggerMisfireOrigFireTime} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnTriggerName} = @{SqlParameters.TriggerName} AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.TriggerGroup}");
 }

@@ -1318,6 +1318,47 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Writes the retry a completing trigger has just scheduled for itself: where it fires next, how
+    /// many attempts at the current occurrence are behind it, and the state it waits in.
+    /// </summary>
+    /// <remarks>
+    /// Narrow on purpose. The trigger's schedule has not changed — only which instant it fires at
+    /// next — so the generic trigger UPDATE would write a row's worth of columns to move one, and
+    /// would write back a preferred node and a job data map this path has no business touching.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="trigger">
+    /// The completing trigger, carrying the retry instant as its next fire time and the incremented
+    /// attempt.
+    /// </param>
+    /// <param name="newState">The state to leave the trigger in — waiting, or paused if its group is.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>How many rows were updated.</returns>
+    /// <seealso cref="SchedulerInstruction.RetryTrigger" />
+    ValueTask<int> UpdateTriggerForRetry(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        StoredTriggerState newState,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Puts a trigger's retry attempt back to zero, leaving everything else about the row alone.
+    /// </summary>
+    /// <remarks>
+    /// The other end of <see cref="UpdateTriggerForRetry" />: the occurrence is done with, whether it
+    /// succeeded or spent its attempts. Issued only when the attempt was actually non-zero, so an
+    /// ordinary completion still costs no extra statement.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="triggerKey">The trigger to clear.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>How many rows were updated.</returns>
+    ValueTask<int> ClearTriggerRetryAttempt(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Selects the misfired triggers to recover as fully populated triggers, rather than as keys that the
     /// caller then has to read back one at a time. Same predicate and ordering as
     /// <see cref="CountMisfiredTriggersInState" />.

@@ -569,8 +569,7 @@ public sealed class RAMJobStore : IJobStore
         // add to triggers by FQN map
         triggersByKey[tw.TriggerKey] = tw;
 
-        if (pausedTriggerGroups.Contains(tw.TriggerKey.Group) ||
-            (pausedJobGroups.Contains(tw.JobKey.Group) && !resumedJobsInPausedGroups.Contains(tw.JobKey)))
+        if (IsTriggerGroupPausedNoLock(tw))
         {
             tw.state = StoredTriggerState.Paused;
             if (blockedJobs.Contains(tw.JobKey))
@@ -586,6 +585,19 @@ public sealed class RAMJobStore : IJobStore
         {
             timeTriggers.Add(tw);
         }
+    }
+
+    /// <summary>
+    /// Whether the trigger is in a group that is paused, either directly or through its job's group.
+    /// </summary>
+    /// <remarks>
+    /// A job group resumed for this particular job does not count as paused, which is what
+    /// <c>resumedJobsInPausedGroups</c> records.
+    /// </remarks>
+    private bool IsTriggerGroupPausedNoLock(TriggerWrapper tw)
+    {
+        return pausedTriggerGroups.Contains(tw.TriggerKey.Group)
+               || (pausedJobGroups.Contains(tw.JobKey.Group) && !resumedJobsInPausedGroups.Contains(tw.JobKey));
     }
 
     /// <summary>
@@ -2536,6 +2548,12 @@ public sealed class RAMJobStore : IJobStore
 
         tw.Trigger.UpdateAfterMisfire(calendar);
 
+        // The occurrence that was waiting to be retried has been missed, and misfire handling has just
+        // recomputed the trigger from its schedule. Whatever it fires next is a fresh occurrence, so
+        // it starts with no retries behind it; the trigger's own misfire instruction decides what that
+        // fire is, and there is deliberately no retry-specific misfire policy.
+        tw.Trigger.RetryAttempt = 0;
+
         // Only save for "fire now" misfire policies (FireOnceNow, FireNow, RescheduleNowWith*).
         // These set nextFireTimeUtc to ~now. "Reschedule next" policies (DoNothing,
         // RescheduleNextWith*) set it to a future schedule time where the existing code
@@ -2856,9 +2874,21 @@ public sealed class RAMJobStore : IJobStore
                 // execution listing reports it, and Triggered() is about to move it on.
                 DateTimeOffset? firingScheduledTime = trigger.NextFireTimeUtc;
 
-                // call triggered on our copy, and the scheduler's copy
-                tw.Trigger.Triggered(calendar);
-                trigger.Triggered(calendar);
+                // call triggered on our copy, and the scheduler's copy. A trigger carrying a retry
+                // attempt is being fired for a retry rather than for a scheduled occurrence, so it
+                // advances past the retry instant without burning a count or moving its previous fire
+                // time - the same dispatch on TriggerBase the misfire original fire time uses above.
+                bool firingRetry = trigger.RetryAttempt > 0 && tw.Trigger is TriggerBase && trigger is TriggerBase;
+                if (firingRetry)
+                {
+                    ((TriggerBase) tw.Trigger).RetryFired(calendar);
+                    ((TriggerBase) trigger).RetryFired(calendar);
+                }
+                else
+                {
+                    tw.Trigger.Triggered(calendar);
+                    trigger.Triggered(calendar);
+                }
                 // Deliberately not an "executing" state: this field decides whether the trigger can be
                 // acquired and fired again, and TriggersFired/ReleaseAcquiredTrigger/the blocking fan-out
                 // below all depend on it being Waiting or Blocked here. Executions are tracked separately,
@@ -3043,6 +3073,14 @@ public sealed class RAMJobStore : IJobStore
             // check for trigger deleted during execution...
             if (triggersByKey.TryGetValue(trigger.Key, out var tw))
             {
+                // The occurrence is done with its retries — it succeeded, spent them, or was never
+                // going to get one — so the stored trigger stops counting. Only when the count was
+                // actually non-zero, which is what RetryAttemptCleared says.
+                if (trigger is TriggerBase completed && completed.RetryAttemptCleared)
+                {
+                    tw.Trigger.RetryAttempt = 0;
+                }
+
                 if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
                 {
                     logger.TriggerDeleting();
@@ -3090,6 +3128,32 @@ public sealed class RAMJobStore : IJobStore
                 else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
                     SetAllTriggersOfJobToState(trigger.JobKey, StoredTriggerState.Complete);
+                    pending.RecordSchedulingChange();
+                }
+                else if (triggerInstructionCode == SchedulerInstruction.RetryTrigger)
+                {
+                    // The stored trigger is written, not the clone the scheduler was handed: reads
+                    // hand out clones of this instance, and the retry has to be what every later
+                    // reader — and the next acquisition — sees.
+                    //
+                    // Removed from the sorted set before its fire time moves and re-added after,
+                    // because the set is ordered by that time and mutating a member in place would
+                    // leave it in the wrong place. It may already be in there: the unblock loop above
+                    // puts a DisallowConcurrentExecution trigger back when its job finishes.
+                    timeTriggers.Remove(tw);
+
+                    tw.Trigger.NextFireTimeUtc = trigger.NextFireTimeUtc;
+                    tw.Trigger.RetryAttempt = trigger.RetryAttempt;
+
+                    // Whatever the trigger was, it is waiting for the retry now — unless its group is
+                    // paused, in which case a retry waits with everything else in the group.
+                    tw.state = IsTriggerGroupPausedNoLock(tw) ? StoredTriggerState.Paused : StoredTriggerState.Waiting;
+
+                    if (tw.state == StoredTriggerState.Waiting)
+                    {
+                        timeTriggers.Add(tw);
+                    }
+
                     pending.RecordSchedulingChange();
                 }
                 else if (tw.Trigger.NextFireTimeUtc is null)

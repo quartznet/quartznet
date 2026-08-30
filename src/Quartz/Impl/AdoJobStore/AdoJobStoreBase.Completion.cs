@@ -20,6 +20,7 @@
 #endregion
 
 using Quartz.Extensibility;
+using Quartz.Impl.Triggers;
 
 namespace Quartz.Impl.AdoJobStore;
 
@@ -135,6 +136,24 @@ public abstract partial class AdoJobStoreBase
                     await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
                     conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
+                else if (triggerInstructionCode == SchedulerInstruction.RetryTrigger)
+                {
+                    // The occurrence failed and the trigger has attempts left, so its next fire time is
+                    // the retry instant ExecutionComplete put on it. The row goes back to waiting - or
+                    // to paused, if the group is, because a retry waits with everything else in it.
+                    //
+                    // Written before the DisallowConcurrentExecution unblock below, which transitions
+                    // from BLOCKED and PAUSED_BLOCKED and so leaves this row alone now that it holds
+                    // the state it is going to wait in.
+                    StoredTriggerState retryState = await ApplyPausedTriggerGroupState(
+                        conn,
+                        trigger.Key.Group,
+                        StoredTriggerState.Waiting,
+                        cancellationToken).ConfigureAwait(false);
+
+                    await Delegate.UpdateTriggerForRetry(conn, trigger, retryState, cancellationToken).ConfigureAwait(false);
+                    conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
+                }
                 else if (!trigger.NextFireTimeUtc.HasValue)
                 {
                     // Every instruction that settles the trigger is above, so what reaches here is a
@@ -155,6 +174,14 @@ public abstract partial class AdoJobStoreBase
                         // trigger with a fire time ahead of it is nobody's leftover.
                         await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
                     }
+                }
+
+                // The occurrence is done with its retries — it succeeded, spent them, or was never going
+                // to get one — so the row stops counting. Only when the count was actually non-zero,
+                // which is what RetryAttemptCleared says, so an ordinary completion costs no statement.
+                if (trigger is TriggerBase completed && completed.RetryAttemptCleared)
+                {
+                    await Delegate.ClearTriggerRetryAttempt(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (jobDetail.ConcurrentExecutionDisallowed)

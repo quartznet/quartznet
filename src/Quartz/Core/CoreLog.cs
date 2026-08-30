@@ -136,6 +136,9 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1055, Level = LogLevel.Debug, Message = "Rescheduling trigger to reexecute")]
     public static partial void TriggerRefiring(this ILogger logger);
 
+    [LoggerMessage(EventId = 1056, Level = LogLevel.Information, Message = "Job of trigger {TriggerKey} failed; retry {Attempt} of {MaxAttempts} scheduled for {RetryTimeUtc}")]
+    public static partial void TriggerRetryScheduled(this ILogger logger, TriggerKey triggerKey, int attempt, int maxAttempts, DateTimeOffset retryTimeUtc);
+
     [LoggerMessage(EventId = 1070, Level = LogLevel.Information, Message = "Initialized Scheduler Signaller of type: {Type}")]
     public static partial void SchedulerSignalerInitialized(this ILogger logger, Type type);
 

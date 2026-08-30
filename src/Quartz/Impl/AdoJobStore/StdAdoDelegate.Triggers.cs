@@ -2141,6 +2141,41 @@ public partial class StdAdoDelegate
         }
     }
 
+    /// <inheritdoc />
+    public virtual async ValueTask<int> UpdateTriggerForRetry(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        StoredTriggerState newState,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerForRetry));
+
+        // Statement order.
+        AddCommandParameter(cmd, SqlParameters.TriggerNextFireTime, GetDbDateTimeValue(trigger.NextFireTimeUtc));
+        AddCommandParameter(cmd, SqlParameters.TriggerRetryAttempt, trigger.RetryAttempt);
+        AddCommandParameter(cmd, SqlParameters.TriggerState, newState.ToStoredValue());
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.TriggerName, trigger.Key.Name);
+        AddCommandParameter(cmd, SqlParameters.TriggerGroup, trigger.Key.Group);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<int> ClearTriggerRetryAttempt(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlClearTriggerRetryAttempt));
+
+        AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
+        AddCommandParameter(cmd, SqlParameters.TriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, SqlParameters.TriggerGroup, triggerKey.Group);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     //---------------------------------------------------------------------------
     // batched misfire recovery
     //---------------------------------------------------------------------------
@@ -2493,7 +2528,10 @@ public partial class StdAdoDelegate
             new(SqlParameters.TriggerNextFireTime, GetDbDateTimeValue(trigger.NextFireTimeUtc)),
             new(SqlParameters.TriggerPreviousFireTime, GetDbDateTimeValue(trigger.PreviousFireTimeUtc)),
             new(SqlParameters.TriggerState, update.NewState.ToStoredValue()),
-            new(SqlParameters.TriggerStartTime, GetDbDateTimeValue(trigger.StartTimeUtc))
+            new(SqlParameters.TriggerStartTime, GetDbDateTimeValue(trigger.StartTimeUtc)),
+            // Misfire handling recomputed the trigger from its schedule, so the occurrence that was
+            // waiting to be retried is gone and the attempt goes with it.
+            new(SqlParameters.TriggerRetryAttempt, trigger.RetryAttempt)
         ];
 
         if (writeMisfireOrigFireTime)
