@@ -175,8 +175,27 @@ without naming `CronScheduleBuilder`; call `Build()` yourself when you want the 
 value.
 
 Each field offers a single value, list, range and increment form (e.g. `WithHour`,
-`WithHours`, `WithHourRange`, `WithHourIncrements`), and the special characters are
-available through dedicated methods:
+`WithHours`, `WithHourRange`, `WithHourIncrements`). A schedule that fires once a day sets three of
+those fields to say one thing, so `AtTime` sets them together from a `TimeOnly` — add the days it
+applies to beside it:
+
+<!-- snippet: sample_cron_expressions_at_time -->
+```csharp
+CronExpressionBuilder.Create().AtTime(new TimeOnly(9, 30));            // "0 30 9 ? * *"
+
+CronExpressionBuilder.Create()
+    .AtTime(new TimeOnly(9, 30))
+    .WithDaysOfWeek(DayOfWeek.Monday, DayOfWeek.Thursday);            // "0 30 9 ? * MON,THU"
+
+CronExpressionBuilder.Create()
+    .AtTime(new TimeOnly(9, 30))
+    .WithDayOfMonth(15);                                              // "0 30 9 15 * ?"
+```
+<!-- endSnippet -->
+
+Cron resolves to a whole second, so any sub-second part of the `TimeOnly` is ignored.
+
+The special characters are available through dedicated methods:
 
 <!-- snippet: sample_cron_expressions_day_rules -->
 ```csharp

@@ -53,6 +53,23 @@ public static class CronExpressionsSamples
         #endregion
     }
 
+    public static void ATimeOfDay()
+    {
+        #region sample_cron_expressions_at_time
+
+        CronExpressionBuilder.Create().AtTime(new TimeOnly(9, 30));            // "0 30 9 ? * *"
+
+        CronExpressionBuilder.Create()
+            .AtTime(new TimeOnly(9, 30))
+            .WithDaysOfWeek(DayOfWeek.Monday, DayOfWeek.Thursday);            // "0 30 9 ? * MON,THU"
+
+        CronExpressionBuilder.Create()
+            .AtTime(new TimeOnly(9, 30))
+            .WithDayOfMonth(15);                                              // "0 30 9 15 * ?"
+
+        #endregion
+    }
+
     public static void TheAwkwardDayRules()
     {
         #region sample_cron_expressions_day_rules
