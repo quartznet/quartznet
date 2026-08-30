@@ -19,13 +19,14 @@ next: false
 * [Lesson 10: Time and TimeProvider](time-and-timeprovider.md)
 * [Lesson 11: TriggerListeners & JobListeners](trigger-and-job-listeners.md)
 * [Lesson 12: SchedulerListeners](scheduler-listeners.md)
-* [Lesson 13: JobStores](job-stores.md)
-* [Lesson 14: Configuration, Resource Usage and Building a Scheduler](configuration-resource-usage-and-scheduler-factory.md)
-* [Lesson 15: Building a Scheduler Without a Host](standalone-scheduler.md)
-* [Lesson 16: Clustering](advanced-enterprise-features.md)
-* [Lesson 17: Execution Groups](execution-groups.md)
-* [Lesson 18: Node Affinity (Preferred Node)](node-affinity.md)
-* [Lesson 19: Testing](testing.md)
+* [Lesson 13: Job Execution Middleware](job-execution-middleware.md)
+* [Lesson 14: JobStores](job-stores.md)
+* [Lesson 15: Configuration, Resource Usage and Building a Scheduler](configuration-resource-usage-and-scheduler-factory.md)
+* [Lesson 16: Building a Scheduler Without a Host](standalone-scheduler.md)
+* [Lesson 17: Clustering](advanced-enterprise-features.md)
+* [Lesson 18: Execution Groups](execution-groups.md)
+* [Lesson 19: Node Affinity (Preferred Node)](node-affinity.md)
+* [Lesson 20: Testing](testing.md)
 
 The cron expression syntax the CronTriggers lesson builds on has its own page:
 [Cron Expression Reference](../cron-expressions.md).

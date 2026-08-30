@@ -110,6 +110,7 @@ export const sidebarEn: SidebarConfig = [
               "/documentation/quartz-4.x/tutorial/time-and-timeprovider",
               "/documentation/quartz-4.x/tutorial/trigger-and-job-listeners",
               "/documentation/quartz-4.x/tutorial/scheduler-listeners",
+              "/documentation/quartz-4.x/tutorial/job-execution-middleware",
               "/documentation/quartz-4.x/tutorial/job-stores",
               "/documentation/quartz-4.x/tutorial/configuration-resource-usage-and-scheduler-factory",
               "/documentation/quartz-4.x/tutorial/standalone-scheduler",
