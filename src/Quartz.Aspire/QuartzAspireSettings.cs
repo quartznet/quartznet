@@ -82,14 +82,18 @@ public sealed class QuartzAspireSettings
     /// Whether this scheduler takes part in a cluster with every other scheduler sharing the database.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Aspire makes replicas cheap — <c>WithReplicas(2)</c> is one call — and two schedulers on one
     /// database that are not clustered will both fire every trigger. Turning this on turns database
     /// locking on with it, as <c>UseClustering()</c> always has.
+    /// </para>
     /// <para>
-    /// It does <em>not</em> give the replicas distinct instance ids, and clustering needs them: a node
-    /// recognises its own check-in row and its own fired triggers by that id, and every replica keeps
-    /// the default <c>NON_CLUSTERED</c> until something says otherwise. Say it once, beside the
-    /// scheduler: <c>builder.AddQuartz(q =&gt; q.ConfigureScheduler(o =&gt; o.GenerateInstanceId = true))</c>.
+    /// It also makes the scheduler derive its <c>InstanceId</c>, because a cluster needs distinct ids and
+    /// a replica set has none of its own to borrow: a node recognises its own check-in row and its own
+    /// fired triggers by that id, and every replica starts life carrying
+    /// <see cref="QuartzSchedulerOptions.DefaultInstanceId"/> — <c>NON_CLUSTERED</c>. An application that
+    /// already set <c>GenerateInstanceId</c>, or that named its nodes by setting <c>InstanceId</c>, keeps
+    /// what it said; this only fills the gap.
     /// </para>
     /// </remarks>
     public bool Clustered { get; set; }

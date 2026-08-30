@@ -9,7 +9,7 @@
           "properties": {
             "Clustered": {
               "type": "boolean",
-              "description": "Gets or sets whether this scheduler takes part in a cluster with every other scheduler sharing the database. Turning it on turns database locking on with it. It does not give replicas distinct instance ids, which clustering also needs.",
+              "description": "Gets or sets whether this scheduler takes part in a cluster with every other scheduler sharing the database. Turning it on turns database locking on with it, and makes the scheduler derive its InstanceId - a cluster needs distinct ids and every scheduler starts life as NON_CLUSTERED. An InstanceId or a GenerateInstanceId the application set itself is left alone.",
               "default": false
             },
             "ConnectionString": {

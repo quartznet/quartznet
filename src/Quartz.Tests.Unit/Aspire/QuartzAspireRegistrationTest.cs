@@ -103,6 +103,75 @@ public class QuartzAspireRegistrationTest
             "clustering has never worked without database locking, and UseClustering() enables both");
     }
 
+    /// <summary>
+    /// The other half of what a cluster needs, which an Aspire replica set cannot supply for itself.
+    /// </summary>
+    /// <remarks>
+    /// A node recognises its own check-in row and its own fired triggers by <c>InstanceId</c>, and every
+    /// scheduler starts life carrying <c>NON_CLUSTERED</c>. <c>WithReplicas(2)</c> is one call in an
+    /// AppHost and gives the copies no identity of their own, so a cluster whose nodes all answer to one
+    /// id is not a hypothetical — it is what asking for clustering and nothing else would have produced.
+    /// </remarks>
+    [Test]
+    public void ClusteredGeneratesTheInstanceId()
+    {
+        using IHost host = Host(builder =>
+        {
+            builder.AddQuartzPersistentStore("quartz", settings => settings.Clustered = true);
+            builder.AddQuartz();
+        });
+
+        Scheduler(host).GenerateInstanceId.Should().BeTrue(
+            "an Aspire replica has no identity of its own to borrow, and every node keeping "
+            + "NON_CLUSTERED is the worst failure clustering has");
+    }
+
+    [Test]
+    public void AnUnclusteredSchedulerIsLeftAsItWas()
+    {
+        using IHost host = Host(Standard);
+
+        Scheduler(host).GenerateInstanceId.Should().BeFalse(
+            "a single-node scheduler needs no derived id, and deriving one would change what SCHED_NAME's "
+            + "companion column says for no reason");
+    }
+
+    [Test]
+    public void ClusteredKeepsAnExplicitInstanceId()
+    {
+        using IHost host = Host(builder =>
+        {
+            builder.AddQuartzPersistentStore("quartz", settings => settings.Clustered = true);
+            builder.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceId = "orders-0"));
+        });
+
+        QuartzSchedulerOptions scheduler = Scheduler(host);
+
+        scheduler.InstanceId.Should().Be("orders-0");
+        scheduler.GenerateInstanceId.Should().BeFalse(
+            "an application that named its nodes has said what they are called - an ordinal deployment, or "
+            + "a hostname it trusts - and deriving one instead would ignore it");
+    }
+
+    [Test]
+    public void ClusteredKeepsAnInstanceIdThatCameFromConfiguration()
+    {
+        HostApplicationBuilder builder = AspireApplication.Worker(
+            ("ConnectionStrings:quartz", AspireApplication.Postgres),
+            ("Quartz:Scheduler:InstanceId", "orders-1"));
+
+        builder.AddQuartzPersistentStore("quartz", settings => settings.Clustered = true);
+        builder.AddQuartz();
+
+        using IHost host = builder.Build();
+
+        Scheduler(host).InstanceId.Should().Be("orders-1",
+            "this runs from ConfigureAllQuartzSchedulers, which AddQuartz applies after the configuration "
+            + "binding as well as after the scheduler's own callback, so what it reads is everything the "
+            + "application said");
+        Scheduler(host).GenerateInstanceId.Should().BeFalse();
+    }
+
     [Test]
     public void SchedulerNameLimitsTheStoreToOneScheduler()
     {
@@ -288,6 +357,12 @@ public class QuartzAspireRegistrationTest
         HostApplicationBuilder builder = AspireApplication.WorkerWith(AspireApplication.Postgres);
         configure(builder);
         return builder.Services;
+    }
+
+    private static QuartzSchedulerOptions Scheduler(IHost host, string? schedulerName = null)
+    {
+        return host.Services.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>()
+            .Get(schedulerName ?? Options.DefaultName);
     }
 
     private static ClusteringOptions Clustering(IHost host, string? schedulerName = null)
