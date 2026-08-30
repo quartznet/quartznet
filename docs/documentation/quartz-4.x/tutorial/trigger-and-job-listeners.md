@@ -177,5 +177,21 @@ A listener is handed the context and can keep it for the duration of the executi
 be matched up. The migration guide has the whole thing in about thirty lines, under
 [what is running is a listing](/documentation/quartz-4.x/migration-guide.html#what-is-running-is-a-listing-not-a-list-of-contexts).
 
+## A listener or a middleware?
+
+Listeners are notification-only, and that is the whole distinction. A listener is *told* that a job is
+about to run and *told* what it did; the execution happens between the two notifications rather than
+inside them. So a listener cannot wrap the call in a scope or a stopwatch, cannot decline to make it,
+and cannot catch or translate what it threw — the exception it is handed has already been classified,
+and the trigger's fate has already been decided.
+
+Code that needs to *surround* the execution is a
+[job execution middleware](job-execution-middleware.md): a log scope, a tenant context, a timing, a
+translation of what a third-party library throws. Code that needs to *observe* one — audit a
+completion, chain the next job, count failures — is a listener, and gets matchers to choose which jobs
+and triggers it hears about, which middleware has no equivalent of. Vetoing stays a listener's job:
+`ITriggerListener.VetoJobExecution` is the scheduler's own refusal, and it raises `JobExecutionVetoed`,
+whereas a middleware that declines to run the job is invisible from outside the pipeline.
+
 Listeners are not used by most users of Quartz.NET, but are handy when application requirements create the need
 for the notification of events, without the Job itself explicitly notifying the application.

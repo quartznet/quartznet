@@ -1950,6 +1950,49 @@ The entry was Quartz's plumbing in a map that belongs to the application, and th
 ([#3408](https://github.com/quartznet/quartznet/issues/3408)). That endpoint renders every value as
 text now, so a context entry of any type reads back.
 
+## Cross-cutting concerns run as middleware
+
+A log scope, a tenant context, a metric or a translation of what a library throws has to *surround* the
+call to the job, and on 3.x nothing could. `IJobListener` is notification-only — it is told a job is
+about to run and told what it did, with the execution happening between the two notifications rather
+than inside them — so the only place left was a job that wrapped another job. That adapter is what ABP,
+Elsa and Brighter each ship, and asking for the seam has been open since 2021
+([#988](https://github.com/quartznet/quartznet/discussions/988)).
+
+4.0 adds it:
+
+```csharp
+public delegate ValueTask JobExecutionDelegate(IJobExecutionContext context, CancellationToken cancellationToken);
+
+public interface IJobExecutionMiddleware
+{
+    ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default);
+}
+```
+
+registered on the scheduler's builder in the three shapes listeners already have:
+
+```csharp
+q.AddJobMiddleware<LogScopeMiddleware>();
+q.AddJobMiddleware(provider => new MeteredMiddleware(provider.GetRequiredService<IMeterFactory>()));
+q.AddJobMiddleware(new TenantScopeMiddleware());
+```
+
+Middleware is keyed per scheduler, so a named scheduler's is its own; it runs in registration order,
+outermost first; and the chain is composed once when the scheduler is built, so one instance serves
+every firing and per-firing state belongs in an `AsyncLocal<T>` or in the job's scope rather than in a
+field. A scheduler with no middleware has no pipeline at all, so nothing changes for an application
+that adds none.
+
+It runs inside the execution span and the duration measurement — what a middleware costs is part of
+what the firing cost — and outside the run shell's exception handling, so a `JobExecutionException` a
+middleware throws is honoured exactly like one the job raised, `RefireImmediately` and all.
+
+**Nothing about listeners changed.** They stay notification-only, `VetoJobExecution` stays the way to
+refuse a fire, and matchers stay a listener's way of choosing which jobs it hears about. The tutorial's
+[Job Execution Middleware](tutorial/job-execution-middleware.md) lesson has the whole of it, including
+which of the two a given concern belongs in.
+
 ## Registered schedulers can be listed without being started
 
 `ISchedulerFactory.GetAllSchedulers()` — `GetAllSchedulers()` on 3.x too — lists the schedulers
@@ -4012,6 +4055,7 @@ already have them.
 * **`ISchedulerListener.TriggerInError` / `TriggersInError`** — observe a trigger being moved to `TriggerState.Error`, including two ADO store transitions that reached nothing at all before (see [Triggers entering the error state are reported](#triggers-entering-the-error-state-are-reported))
 * **Every listener callback names its scheduler** — one listener can serve several schedulers in one host and still say which of them paused a trigger or failed, and `SchedulerError` carries the trigger, job and firing it was raised for. A listener still carrying a signature from 3.x or from alpha.1 is refused when it is registered, with a message naming the member, rather than being attached and never called (see [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling))
 * **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.ConfigureStore(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
+* **Job execution middleware** — `IJobExecutionMiddleware` wraps every firing a scheduler performs, which is where a log scope, a tenant context, a metric or a translation of a library's exceptions belongs. A listener could never do it: it is notified before and after the execution rather than around it. Registered with `AddJobMiddleware<T>()` and its factory and instance overloads (see [Cross-cutting concerns run as middleware](#cross-cutting-concerns-run-as-middleware))
 * **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
 * **An `IJobDetail` of your own** — the interface no longer declares a member only Quartz can implement, so an application can supply its own job detail type and have `RAMJobStore` hand it back rather than quietly swapping it for Quartz's (see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own))
 * **Pause, resume and reset a set of keys in one call** — `PauseTriggers`, `ResumeTriggers`, `PauseJobs`, `ResumeJobs` and `ResetTriggersFromErrorState` take a key collection, do the whole set in one lock and one transaction, and answer with the keys they applied to (see [A set of keys pauses, resumes or resets in one call](#a-set-of-keys-pauses-resumes-or-resets-in-one-call))
