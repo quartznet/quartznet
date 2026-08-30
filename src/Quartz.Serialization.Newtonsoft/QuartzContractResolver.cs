@@ -38,6 +38,12 @@ namespace Quartz.Serialization.Newtonsoft;
 /// <see cref="object" />-typed slots exactly as they were.
 /// </para>
 /// <para>
+/// <b>A property typed as a <see cref="RetryPolicy" /> travels as its stored string.</b> Same shape of
+/// problem, one step worse: a policy has no public constructor, so the default contract could write one
+/// out and then had nothing to read it back with, failing the whole trigger.
+/// <see cref="RetryPolicyConverter" /> is attached here for the same reason and in the same way.
+/// </para>
+/// <para>
 /// This is a resolver rather than a <c>JsonConverter</c> on purpose: a converter registered on the serializer
 /// is not consulted for a value whose type came from a <c>$type</c> property — a key held in a job data map,
 /// say — and the rules here apply on every path.
@@ -46,6 +52,7 @@ namespace Quartz.Serialization.Newtonsoft;
 internal sealed class QuartzContractResolver : DefaultContractResolver
 {
     private static readonly TimeZoneInfoConverter timeZoneInfoConverter = new();
+    private static readonly RetryPolicyConverter retryPolicyConverter = new();
 
     public QuartzContractResolver()
     {
@@ -82,6 +89,11 @@ internal sealed class QuartzContractResolver : DefaultContractResolver
         if (property.PropertyType == typeof(TimeZoneInfo))
         {
             property.Converter = timeZoneInfoConverter;
+        }
+
+        if (property.PropertyType == typeof(RetryPolicy))
+        {
+            property.Converter = retryPolicyConverter;
         }
 
         return property;

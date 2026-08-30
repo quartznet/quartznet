@@ -40,6 +40,9 @@ public sealed class TriggerDetailsUpdate
     internal bool HasExecutionGroup { get; private set; }
     internal string? ExecutionGroup { get; private set; }
 
+    internal bool HasRetryPolicy { get; private set; }
+    internal RetryPolicy? RetryPolicy { get; private set; }
+
     /// <summary>
     /// Set the trigger's description.
     /// </summary>
@@ -185,6 +188,31 @@ public sealed class TriggerDetailsUpdate
     {
         HasExecutionGroup = true;
         ExecutionGroup = executionGroup;
+        return this;
+    }
+
+    /// <summary>
+    /// Set how the scheduler re-fires the trigger when its job fails, or <see langword="null" /> to
+    /// stop retrying it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The policy is configuration and is the only half of the retry state an update touches. How
+    /// many times the occurrence in flight has already been retried is the scheduler's to advance
+    /// and clear, so there is deliberately no way to set it here: doing so would either grant a
+    /// running job extra attempts or take away ones it has not used.
+    /// </para>
+    /// <para>
+    /// A new policy applies from the next failure. An occurrence already waiting on a retry keeps
+    /// the schedule it was given.
+    /// </para>
+    /// </remarks>
+    /// <param name="retryPolicy">the retry policy, or <see langword="null" /> for no retries</param>
+    /// <seealso cref="Quartz.RetryPolicy" />
+    public TriggerDetailsUpdate WithRetryPolicy(RetryPolicy? retryPolicy)
+    {
+        HasRetryPolicy = true;
+        RetryPolicy = retryPolicy;
         return this;
     }
 }

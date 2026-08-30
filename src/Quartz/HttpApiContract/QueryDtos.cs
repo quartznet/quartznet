@@ -85,7 +85,9 @@ internal sealed record TriggerHeaderDto(
     DateTimeOffset? PreviousFireTimeUtc,
     string? CalendarName,
     int Priority,
-    string? ExecutionGroup)
+    string? ExecutionGroup,
+    string? RetryPolicy,
+    int RetryAttempt)
 {
     public static TriggerHeaderDto Create(TriggerHeader header)
     {
@@ -105,7 +107,9 @@ internal sealed record TriggerHeaderDto(
             PreviousFireTimeUtc: header.PreviousFireTimeUtc,
             CalendarName: header.CalendarName,
             Priority: header.Priority,
-            ExecutionGroup: header.ExecutionGroup
+            ExecutionGroup: header.ExecutionGroup,
+            RetryPolicy: header.RetryPolicy,
+            RetryAttempt: header.RetryAttempt
         );
     }
 
@@ -123,7 +127,9 @@ internal sealed record TriggerHeaderDto(
             PreviousFireTimeUtc,
             CalendarName,
             Priority,
-            ExecutionGroup
+            ExecutionGroup,
+            RetryPolicy,
+            RetryAttempt
         );
     }
 }

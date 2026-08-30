@@ -296,7 +296,9 @@ internal sealed class EmptyReader : TableReader
 /// </summary>
 /// <remarks>
 /// The column order is <c>StdAdoConstants.TriggerSelectColumns</c>'s, because JOB_DATA is read at
-/// ordinal 11 positionally rather than by name.
+/// ordinal 11 positionally rather than by name. A column appended to that list has to be appended
+/// here too: the reader answers by ordinal, so a shorter row is an IndexOutOfRangeException inside
+/// <c>ReadTriggerRow</c> rather than a missing value.
 /// </remarks>
 internal static class TriggerRows
 {
@@ -323,6 +325,8 @@ internal static class TriggerRows
         AdoConstants.ColumnExecutionGroup,
         AdoConstants.ColumnPreferredNode,
         AdoConstants.ColumnPreferredNodeAuto,
+        AdoConstants.ColumnRetryPolicy,
+        AdoConstants.ColumnRetryAttempt,
         AdoConstants.ColumnTriggerName,
         AdoConstants.ColumnTriggerGroup
     ];
@@ -362,6 +366,8 @@ internal static class TriggerRows
         DBNull.Value,
         DBNull.Value,
         DBNull.Value,
+        DBNull.Value,
+        0,
         name,
         "g1"
     ];

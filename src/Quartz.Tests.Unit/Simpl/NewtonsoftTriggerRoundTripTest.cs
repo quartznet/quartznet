@@ -186,6 +186,52 @@ public class NewtonsoftTriggerRoundTripTest
             "the rule is evaluated in the stored zone, so a lost zone is a silently rewritten schedule");
     }
 
+    /// <summary>
+    /// A retry policy has no public constructor, so the object-graph path cannot rebuild one from its
+    /// properties the way it rebuilds everything else. It travels as its stored string in both shapes.
+    /// </summary>
+    [Test]
+    public void RetryPolicySurvivesTheRoundTrip()
+    {
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("retrying", "group"),
+            JobKey = new JobKey("job", "jobGroup"),
+            StartTimeUtc = startTime,
+            EndTimeUtc = startTime.AddDays(1),
+            RepeatCount = 3,
+            RepeatInterval = TimeSpan.FromMinutes(1),
+            RetryPolicy = RetryPolicy.Exponential(4, TimeSpan.FromSeconds(10), 2, TimeSpan.FromMinutes(5)),
+            RetryAttempt = 2
+        };
+
+        SimpleTriggerImpl restored = RoundTrip(trigger);
+
+        restored.RetryPolicy.Should().Be(RetryPolicy.Exponential(4, TimeSpan.FromSeconds(10), 2, TimeSpan.FromMinutes(5)),
+            "a stored trigger that was given a retry policy has to come back with it, or a failing job silently stops retrying");
+        restored.RetryAttempt.Should().Be(2,
+            "the attempt is the occurrence's progress through its policy, and a trigger read back mid-retry has to keep it");
+    }
+
+    [Test]
+    public void ATriggerWithNoRetryPolicySurvivesTheRoundTrip()
+    {
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("plain", "group"),
+            JobKey = new JobKey("job", "jobGroup"),
+            StartTimeUtc = startTime,
+            EndTimeUtc = startTime.AddDays(1),
+            RepeatCount = 1,
+            RepeatInterval = TimeSpan.FromMinutes(1)
+        };
+
+        SimpleTriggerImpl restored = RoundTrip(trigger);
+
+        restored.RetryPolicy.Should().BeNull();
+        restored.RetryAttempt.Should().Be(0);
+    }
+
     private T RoundTrip<T>(T trigger) where T : class, IOperableTrigger
     {
         byte[] bytes = ((IObjectSerializer) serializer).Serialize(trigger);

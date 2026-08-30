@@ -59,6 +59,14 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
             {
                 writer.WritePropertyName("ExecutionGroup");
                 writer.WriteValue(abstractTrigger.ExecutionGroup);
+
+                // The policy travels as the string the RETRY_POLICY column holds, so a trigger read
+                // out of a blob and one read out of the row carry the same value in the same shape.
+                writer.WritePropertyName("RetryPolicy");
+                writer.WriteValue(abstractTrigger.RetryPolicy?.ToStoredString());
+
+                writer.WritePropertyName("RetryAttempt");
+                writer.WriteValue(abstractTrigger.RetryAttempt);
             }
 
             // The pin travels as the pair the triggers table holds - the node name (or the auto-pin
@@ -153,6 +161,11 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
             if (trigger is Quartz.Impl.Triggers.TriggerBase abstractTrigger)
             {
                 abstractTrigger.ExecutionGroup = source.Value<string>("ExecutionGroup");
+
+                // Both absent from payloads written before triggers could retry: no policy string
+                // reads back as no policy, and no attempt as an occurrence that has not been retried.
+                abstractTrigger.RetryPolicy = RetryPolicy.TryParse(source.Value<string>("RetryPolicy"), out RetryPolicy? retryPolicy) ? retryPolicy : null;
+                abstractTrigger.RetryAttempt = source.Value<int?>("RetryAttempt") ?? 0;
             }
 
             triggerSerializer.DeserializeFields(trigger, source);

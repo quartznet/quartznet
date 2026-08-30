@@ -42,6 +42,11 @@ namespace Quartz;
 /// <param name="CalendarName">The name of the calendar the trigger observes, if any.</param>
 /// <param name="Priority">The trigger's priority.</param>
 /// <param name="ExecutionGroup">The trigger's execution group, if any.</param>
+/// <param name="RetryPolicy">The trigger's retry policy in its stored form, if it has one. A string
+/// rather than a <see cref="Quartz.RetryPolicy" /> because a listing reports the column: a row whose
+/// policy a newer node wrote in a shape this one cannot read still has to list.</param>
+/// <param name="RetryAttempt">How many times the occurrence currently being executed has already been
+/// retried; <c>0</c> when it has not.</param>
 public sealed record TriggerHeader(
     TriggerKey Key,
     JobKey JobKey,
@@ -54,4 +59,6 @@ public sealed record TriggerHeader(
     DateTimeOffset? PreviousFireTimeUtc,
     string? CalendarName,
     int Priority,
-    string? ExecutionGroup);
+    string? ExecutionGroup,
+    string? RetryPolicy,
+    int RetryAttempt);

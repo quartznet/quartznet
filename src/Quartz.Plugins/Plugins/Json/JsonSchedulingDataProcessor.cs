@@ -333,6 +333,7 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
                 .WithPriority(priority)
                 .WithCalendarName(NormalizeEmpty(triggerDef.CalendarName))
                 .WithExecutionGroup(NormalizeEmpty(triggerDef.ExecutionGroup))
+                .WithRetryPolicy(ParseRetryPolicy(NormalizeEmpty(triggerDef.RetryPolicy), triggerName))
                 .WithSchedule(schedule)
                 .Build();
 
@@ -445,4 +446,23 @@ internal sealed class JsonSchedulingDataProcessor : XmlSchedulingDataProcessor
     }
 
     private static string? NormalizeEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    /// <summary>
+    /// Reads a retry policy out of a scheduling file, refusing one that cannot be read rather than
+    /// silently scheduling a trigger that will never retry.
+    /// </summary>
+    private static RetryPolicy? ParseRetryPolicy(string? value, string triggerName)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (!RetryPolicy.TryParse(value, out RetryPolicy? policy))
+        {
+            throw new SchedulerConfigException($"Trigger '{triggerName}': '{value}' is not a retry policy.");
+        }
+
+        return policy;
+    }
 }

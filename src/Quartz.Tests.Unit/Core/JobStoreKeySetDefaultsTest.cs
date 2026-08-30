@@ -247,7 +247,9 @@ public class JobStoreKeySetDefaultsTest
             PreviousFireTimeUtc: null,
             CalendarName: null,
             Priority: 5,
-            ExecutionGroup: null))];
+            ExecutionGroup: null,
+            RetryPolicy: null,
+            RetryAttempt: 0))];
 
         A.CallTo(() => store.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<TriggerHeader>(headers, HasMore: false));

@@ -808,6 +808,8 @@ namespace Quartz
         Quartz.PreferredNode PreferredNode { get; }
         System.DateTimeOffset? PreviousFireTimeUtc { get; }
         int Priority { get; }
+        int RetryAttempt { get; }
+        Quartz.RetryPolicy? RetryPolicy { get; }
         System.DateTimeOffset StartTimeUtc { get; }
         Quartz.ITrigger Clone();
         System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTime);
@@ -839,6 +841,7 @@ namespace Quartz
         Quartz.ITriggerConfigurator<TJob> WithIdentity(string name, string group);
         Quartz.ITriggerConfigurator<TJob> WithPreferredNode(Quartz.PreferredNode preferredNode);
         Quartz.ITriggerConfigurator<TJob> WithPriority(int priority);
+        Quartz.ITriggerConfigurator<TJob> WithRetryPolicy(Quartz.RetryPolicy? retryPolicy);
         Quartz.ITriggerConfigurator<TJob> WithSchedule(Quartz.IScheduleBuilder scheduleBuilder);
     }
     public interface ITriggerListener
@@ -1814,6 +1817,7 @@ namespace Quartz
         public Quartz.TriggerBuilder<TJob> WithIdentity(string name, string group) { }
         public Quartz.TriggerBuilder<TJob> WithPreferredNode(Quartz.PreferredNode preferredNode) { }
         public Quartz.TriggerBuilder<TJob> WithPriority(int priority) { }
+        public Quartz.TriggerBuilder<TJob> WithRetryPolicy(Quartz.RetryPolicy? retryPolicy) { }
         public Quartz.TriggerBuilder<TJob> WithSchedule(Quartz.IScheduleBuilder scheduleBuilder) { }
     }
     public static class TriggerConfiguratorExtensions
@@ -1864,6 +1868,7 @@ namespace Quartz
         public Quartz.TriggerDetailsUpdate WithMisfireInstructionCode(int misfireInstructionCode) { }
         public Quartz.TriggerDetailsUpdate WithPreferredNode(Quartz.PreferredNode preferredNode) { }
         public Quartz.TriggerDetailsUpdate WithPriority(int priority) { }
+        public Quartz.TriggerDetailsUpdate WithRetryPolicy(Quartz.RetryPolicy? retryPolicy) { }
     }
     public sealed class TriggerGroup : System.IEquatable<Quartz.TriggerGroup>
     {
@@ -1879,7 +1884,7 @@ namespace Quartz
     }
     public sealed class TriggerHeader : System.IEquatable<Quartz.TriggerHeader>
     {
-        public TriggerHeader(Quartz.TriggerKey Key, Quartz.JobKey JobKey, string? Description, string TriggerType, Quartz.TriggerState State, System.DateTimeOffset StartTimeUtc, System.DateTimeOffset? EndTimeUtc, System.DateTimeOffset? NextFireTimeUtc, System.DateTimeOffset? PreviousFireTimeUtc, string? CalendarName, int Priority, string? ExecutionGroup) { }
+        public TriggerHeader(Quartz.TriggerKey Key, Quartz.JobKey JobKey, string? Description, string TriggerType, Quartz.TriggerState State, System.DateTimeOffset StartTimeUtc, System.DateTimeOffset? EndTimeUtc, System.DateTimeOffset? NextFireTimeUtc, System.DateTimeOffset? PreviousFireTimeUtc, string? CalendarName, int Priority, string? ExecutionGroup, string? RetryPolicy, int RetryAttempt) { }
         public string? CalendarName { get; init; }
         public string? Description { get; init; }
         public System.DateTimeOffset? EndTimeUtc { get; init; }
@@ -1889,6 +1894,8 @@ namespace Quartz
         public System.DateTimeOffset? NextFireTimeUtc { get; init; }
         public System.DateTimeOffset? PreviousFireTimeUtc { get; init; }
         public int Priority { get; init; }
+        public int RetryAttempt { get; init; }
+        public string? RetryPolicy { get; init; }
         public System.DateTimeOffset StartTimeUtc { get; init; }
         public Quartz.TriggerState State { get; init; }
         public string TriggerType { get; init; }
@@ -2095,6 +2102,8 @@ namespace Quartz.Extensibility
         new Quartz.PreferredNode PreferredNode { get; set; }
         new System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         new int Priority { get; set; }
+        new int RetryAttempt { get; set; }
+        new Quartz.RetryPolicy? RetryPolicy { get; set; }
         new System.DateTimeOffset StartTimeUtc { get; set; }
     }
     public interface IObjectSerializer
@@ -3840,6 +3849,8 @@ namespace Quartz.Impl.Triggers
         public Quartz.PreferredNode PreferredNode { get; set; }
         public abstract System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public virtual int Priority { get; set; }
+        public int RetryAttempt { get; set; }
+        public Quartz.RetryPolicy? RetryPolicy { get; set; }
         public virtual System.DateTimeOffset StartTimeUtc { get; set; }
         public virtual Quartz.ITrigger Clone() { }
         public abstract System.DateTimeOffset? ComputeFirstFireTimeUtc(Quartz.ICalendar? calendar);

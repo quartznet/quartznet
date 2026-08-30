@@ -110,6 +110,8 @@ internal static class SqlParameters
     public const string TriggerPriority = "triggerPriority";
     public const string TriggerJobJobDataMap = "triggerJobJobDataMap";
     public const string TriggerExecutionGroup = "triggerExecutionGroup";
+    public const string TriggerRetryPolicy = "triggerRetryPolicy";
+    public const string TriggerRetryAttempt = "triggerRetryAttempt";
     public const string TriggerRepeatCount = "triggerRepeatCount";
     public const string TriggerRepeatInterval = "triggerRepeatInterval";
     public const string TriggerTimesTriggered = "triggerTimesTriggered";
