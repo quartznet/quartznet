@@ -19,9 +19,6 @@
 
 #endregion
 
-using Microsoft.Extensions.Logging;
-
-using Quartz.Diagnostics;
 using Quartz.Util;
 
 namespace Quartz;
@@ -364,13 +361,14 @@ public static class TimeZones
     public static TimeZoneInfo FindById(string id)
     {
         TimeZoneInfo? info = null;
+        string? attemptedAlias = null;
         try
         {
             info = TimeZoneInfo.FindSystemTimeZoneById(id);
         }
         catch (TimeZoneNotFoundException ex)
         {
-            if (timeZoneIdAliases.TryGetValue(id, out var aliasedId))
+            if (timeZoneIdAliases.TryGetValue(id, out string? aliasedId))
             {
                 try
                 {
@@ -378,8 +376,10 @@ public static class TimeZones
                 }
                 catch
                 {
-                    var logger = LogProvider.CreateLogger(nameof(TimeZones));
-                    logger.TimeZoneAliasNotFound(aliasedId);
+                    // Not logged: this file depends on the BCL alone, so that the time zone and cron
+                    // code can be split into a package of its own without dragging logging with it.
+                    // The alias travels in the message of the failure below instead.
+                    attemptedAlias = aliasedId;
                 }
             }
 
@@ -425,12 +425,22 @@ public static class TimeZones
             if (info is null)
             {
                 // we tried our best
-                throw new TimeZoneNotFoundException(
-                    $"Could not find time zone with id {id}, consider using Quartz.Plugins.TimeZoneConverter for resolving more time zones ids",
-                    ex);
+                throw new TimeZoneNotFoundException(NotFoundMessage(id, attemptedAlias), ex);
             }
         }
 
         return info;
+    }
+
+    /// <summary>
+    /// The message a lookup that ran out of fallbacks carries. <paramref name="attemptedAlias" /> is the
+    /// other spelling this id is known by, when one was tried and did not resolve either: it is the
+    /// second id the search gave up on, and naming it is the only trace left that the alias table was
+    /// consulted at all.
+    /// </summary>
+    internal static string NotFoundMessage(string id, string? attemptedAlias)
+    {
+        string alsoTried = attemptedAlias is null ? "" : $" (nor under its alias {attemptedAlias})";
+        return $"Could not find time zone with id {id}{alsoTried}, consider using Quartz.Plugins.TimeZoneConverter for resolving more time zones ids";
     }
 }

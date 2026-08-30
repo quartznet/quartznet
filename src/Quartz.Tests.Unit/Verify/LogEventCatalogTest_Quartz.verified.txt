@@ -390,8 +390,6 @@
     "Deleting trigger: {Key}"
 5100  Warning  UtilityLog.MisfireInstructionFromAnotherFamily
     "Misfire instruction '{MisfireInstruction}' is not one of the {Family} trigger names. It resolves to code {Code}, which for this trigger means {Policy}; spell it '{Canonical}'"
-5101  Error  UtilityLog.TimeZoneAliasNotFound
-    "Could not find time zone using alias id {AliasId}"
 5102  Warning  UtilityLog.TypeFoundUnderNewName
     "Type '{OldName}' was found as '{NewName}'; the type moved in Quartz 4.0. Update the configuration, as this fallback will not last forever."
 5103  Warning  UtilityLog.UnrecognizedCronMisfirePolicy
