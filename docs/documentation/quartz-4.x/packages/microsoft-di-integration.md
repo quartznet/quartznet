@@ -290,6 +290,27 @@ q.AddTrigger<ExampleJob>(t => t
 ```
 <!-- endSnippet -->
 
+The generic overloads construct the calendar with `new T()`, so a calendar that needs a dependency —
+a holiday list read from a database, a clock — takes a factory instead. It is handed the
+scheduler-scoped service provider, so a named scheduler's calendar is given that scheduler's parts:
+
+<!-- snippet: sample_di_calendar_factory -->
+```csharp
+// A calendar that needs a dependency cannot be built by the generic overloads, which
+// construct it with new T(). This one is handed the scheduler's service provider.
+q.AddCalendar("businessDays", serviceProvider =>
+{
+    HolidayCalendar calendar = new() { TimeZone = TimeZoneInfo.Utc };
+    foreach (DateOnly day in serviceProvider.GetRequiredService<IHolidayList>().Days)
+    {
+        calendar.AddExcludedDay(day);
+    }
+
+    return calendar;
+});
+```
+<!-- endSnippet -->
+
 **Plugins**, including a schedule kept in a file and watched for changes:
 
 <!-- snippet: sample_di_plugins -->

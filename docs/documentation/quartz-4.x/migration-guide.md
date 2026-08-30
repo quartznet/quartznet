@@ -302,6 +302,37 @@ Set `quartz.checkConfiguration` to `false` to allow keys of your own. The `IConf
 are still unchecked, because flattening a section invents `quartz.*` keys whether Quartz reads them
 or not.
 
+### A property key without the `quartz.` prefix is refused
+
+The check above is on the bag handed to `AddQuartz`. The other way into that bag is
+`services.Configure<QuartzOptions>(…)`, and it was not checked at all. `QuartzOptions.Properties` holds
+the flat `quartz.*` keys and `QuartzPropertyBridge` is its only reader, so a key without that prefix is
+provably read by nobody — and unlike a misspelling, it has no symptom at all: the scheduler runs as if
+the application had said nothing. An `IValidateOptions<QuartzOptions>` now refuses one, at host startup
+along with the rest of the options validation:
+
+```diff
+  services.Configure<QuartzOptions>(options =>
+  {
+-     options.Properties["scheduler.instanceName"] = "svc";
++     options.Properties["quartz.scheduler.instanceName"] = "svc";
+  });
+```
+
+The commonest way to produce such a key is `services.Configure<QuartzOptions>(section)` against a
+section written for the 3.x `QuartzOptions`, which *was* a dictionary — a section already named
+`Quartz` does not supply the prefix, so `Quartz:Properties:scheduler.instanceName` lands as
+`scheduler.instanceName`. Note that the check cannot catch the whole of that mis-bind: a section whose
+keys match no property on `QuartzOptions` binds to nothing at all, and an options instance that came
+out empty is indistinguishable from one nobody configured. What is decidable is the keys that did
+arrive, and that is what is checked. Bind the section with `AddQuartz(configuration)` — the call that
+understands its shape — rather than with `Configure<QuartzOptions>`.
+
+Unlike the registration-time check, this one does **not** compare the key against the ones Quartz
+reads: a configuration section is flattened into this bag with every sub-section turned into a
+`quartz.*` key whether Quartz reads it or not, so the stricter check would fail an `appsettings.json`
+holding settings for something else. `quartz.checkConfiguration = false` turns it off too.
+
 ### A property bag is any dictionary
 
 `NameValueCollection` is a .NET Framework type from the `<appSettings>` era, and requiring it at the
@@ -1944,6 +1975,30 @@ than `calendarName`:
 Both the options and the configurator are optional in the type-based overload, so
 `q.AddCalendar<HolidayCalendar>("holidays")` is a valid registration of an empty calendar.
 
+### A calendar can be built from the container
+
+Both generic `AddCalendar<T>` overloads are constrained `where T : ICalendar, new()` and construct the
+calendar themselves, so a calendar that needs a dependency — a holiday list read from a database, a
+clock, an options snapshot — could not be registered at all. There is a factory overload for that:
+
+```csharp
+q.AddCalendar("holidays", serviceProvider =>
+{
+    AnnualCalendar calendar = new() { TimeZone = TimeZoneInfo.Utc };
+    foreach (MonthDay day in serviceProvider.GetRequiredService<IHolidayList>().Days)
+    {
+        calendar.AddExcludedDay(day);
+    }
+
+    return calendar;
+});
+```
+
+The factory is handed the scheduler-scoped `IServiceProvider`, so a calendar registered for a named
+scheduler is given that scheduler's parts rather than the default scheduler's, and it runs once, when
+the scheduler's content is resolved. `AddCalendarOptions` is the optional third parameter as it is on
+the other overloads. `QuartzSchedulerBuilder` mirrors it, so a standalone chain stays a chain.
+
 ## Plugins are registered like listeners
 
 `AddPlugin` had four shapes, one of which took the plugin's name first and the rest of which could not
@@ -1965,6 +2020,29 @@ The name is how the scheduler refers to the plugin and the name a `quartz.plugin
 configures it under — some plugins derive persisted job and trigger keys from it — so it is part of the
 deployment's identity rather than a label. Left unset, the plugin's type name is used, exactly as
 before.
+
+### A plugin implements only what it has to say
+
+`ISchedulerPlugin.Start` and `ISchedulerPlugin.Shutdown` have default implementations that do nothing.
+Most plugins do all their work in `Initialize` — attaching a listener, registering a resolver — and had
+to write two empty members to say so:
+
+```diff
+  public sealed class MyPlugin : ISchedulerPlugin
+  {
+      public ValueTask Initialize(string name, IScheduler scheduler, CancellationToken ct = default) { … }
+-
+-     public ValueTask Start(CancellationToken ct = default) => default;
+-
+-     public ValueTask Shutdown(CancellationToken ct = default) => default;
+  }
+```
+
+Nothing about the lifecycle changes: the scheduler still calls both, through the interface, at the same
+two moments. An existing plugin that declares them keeps working and needs no change. Seven of the
+plugins shipped here dropped eleven such members between them, which is the only visible effect in the
+public API — a member that did nothing is no longer on the concrete type. Call the plugin through
+`ISchedulerPlugin` if you were invoking one of those directly.
 
 ### The container is not in the scheduler context
 
@@ -4121,6 +4199,9 @@ already have them.
 * **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.ConfigureStore(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
 * **Job execution middleware** — `IJobExecutionMiddleware` wraps every firing a scheduler performs, which is where a log scope, a tenant context, a metric or a translation of a library's exceptions belongs. A listener could never do it: it is notified before and after the execution rather than around it. Registered with `AddJobMiddleware<T>()` and its factory and instance overloads (see [Cross-cutting concerns run as middleware](#cross-cutting-concerns-run-as-middleware))
 * **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
+* **A plugin implements only what it has to say** — `ISchedulerPlugin.Start` and `Shutdown` have default implementations, so a plugin that does its work in `Initialize` writes one member rather than three (see [A plugin implements only what it has to say](#a-plugin-implements-only-what-it-has-to-say))
+* **A calendar can have dependencies** — `AddCalendar(name, serviceProvider => …)` builds the calendar from the container, which the `where T : ICalendar, new()` generic overloads cannot (see [A calendar can be built from the container](#a-calendar-can-be-built-from-the-container))
+* **A `quartz.*` key that lost its prefix is refused** — `QuartzOptions.Properties` is read only through the `quartz.` prefix, so a key without one produced no symptom at all; it now fails options validation at startup (see [A property key without the `quartz.` prefix is refused](#a-property-key-without-the-quartz-prefix-is-refused))
 * **An `IJobDetail` of your own** — the interface no longer declares a member only Quartz can implement, so an application can supply its own job detail type and have `RAMJobStore` hand it back rather than quietly swapping it for Quartz's (see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own))
 * **Pause, resume and reset a set of keys in one call** — `PauseTriggers`, `ResumeTriggers`, `PauseJobs`, `ResumeJobs` and `ResetTriggersFromErrorState` take a key collection, do the whole set in one lock and one transaction, and answer with the keys they applied to (see [A set of keys pauses, resumes or resets in one call](#a-set-of-keys-pauses-resumes-or-resets-in-one-call))
 * **`TriggerDetailsUpdate.WithExecutionGroup`** — move a stored trigger into an execution group, or out of every group, without rescheduling it. `QRTZ_TRIGGERS.EXECUTION_GROUP` was already written by the generic trigger update, and `RAMJobStore` applies it in place the same way it applies a preferred node, so both stores behave alike
@@ -8290,6 +8371,39 @@ the `true` meant. The four that remain mirror every other exception's shape — 
 An exception's instructions are fixed at the throw site, which is what init-only says; nothing could
 meaningfully flip them on a caught instance in flight. `JobDetail` — which the scheduler fills in on the
 way to the listeners — is read-only outside Quartz for the same reason.
+
+### It is sealed, and `Exception.Data` is what a subclass was for
+
+`JobExecutionException` is `sealed` in 4.0. What it says is three instructions to the scheduler, and the
+scheduler reads exactly those three: a subclass adding a fourth would be a directive nothing acts on.
+Frameworks that subclassed it were not adding a directive — they were carrying their own state past the
+scheduler to their own listener, and `Exception.Data` does that:
+
+```diff
+- public sealed class ImportJobException : JobExecutionException
+- {
+-     public string TenantId { get; init; }
+- }
+- throw new ImportJobException(ex) { TenantId = tenantId, RefireImmediately = true };
++ throw new JobExecutionException(ex) { RefireImmediately = true, Data = { ["tenant"] = tenantId } };
+```
+
+An instance a job throws is handed to `IJobListener.JobWasExecuted` **unchanged** — the run shell only
+fills in `JobDetail` — so the listener reads `jobException.Data["tenant"]` straight off it.
+
+Wrapping an exception of your own as the cause carries typed state just as well, and is the closer
+replacement for a subclass:
+
+```csharp
+throw new JobExecutionException(new ImportFailed(tenantId)) { RefireImmediately = true };
+
+// in the listener
+if (jobException?.InnerException is ImportFailed failure) { … }
+```
+
+One shape to know when you write that listener: an exception that is *not* a `JobExecutionException`
+arrives wrapped twice — `JobExecutionException` → `JobExecutionProcessException` → your exception — so a
+listener that wants to handle both routes walks `InnerException` until it finds what it knows.
 
 ## The two exceptions moved out of `Quartz.Core`
 

@@ -496,3 +496,69 @@ internal sealed class DataSourceOptionsValidator : IValidateOptions<DataSourceOp
         return QuartzSchedulerOptionsValidator.Result(failures);
     }
 }
+
+/// <summary>
+/// Refuses a key in <see cref="QuartzOptions.Properties"/> that is not a <c>quartz.*</c> key, because
+/// nothing will ever read it.
+/// </summary>
+/// <remarks>
+/// <para>
+/// <see cref="QuartzOptions.Properties"/> is the flat legacy format, and <c>QuartzPropertyBridge</c> is
+/// its only reader: it hands the bag to a <c>PropertyReader</c> that looks up <c>quartz.</c>-prefixed
+/// keys and nothing else. A key without that prefix is therefore provably read by nobody, and today it
+/// is accepted in silence — the scheduler runs as if the application had said nothing.
+/// </para>
+/// <para>
+/// The commonest way to produce one is <c>services.Configure&lt;QuartzOptions&gt;(section)</c> against a
+/// section written for a type that used to <em>be</em> a dictionary. That mis-bind is only partly
+/// visible from here: a section whose keys match no property at all binds to nothing, and an options
+/// instance that ended up empty is indistinguishable from one nobody configured — which is why the
+/// check is on the keys that did arrive rather than on emptiness. What it catches is the half that is
+/// decidable: <c>Quartz:Properties:scheduler.instanceName</c>, a key that lost its prefix on the way
+/// through a section already called <c>Quartz</c>.
+/// </para>
+/// <para>
+/// It deliberately does not check the key against the ones Quartz reads, which is what
+/// <c>LegacyPropertyKeys.Validate</c> does for a bag a caller hands in directly. A configuration section
+/// is flattened into this bag with every sub-section turned into a <c>quartz.*</c> key whether Quartz
+/// reads it or not, so the stricter check would fail an <c>appsettings.json</c> holding settings for
+/// something else. <c>quartz.checkConfiguration = false</c> turns this off too, since it is the existing
+/// way to say "these keys are mine".
+/// </para>
+/// </remarks>
+internal sealed class QuartzOptionsValidator : IValidateOptions<QuartzOptions>
+{
+    public ValidateOptionsResult Validate(string? name, QuartzOptions options)
+    {
+        if (options.Properties.Count == 0)
+        {
+            return ValidateOptionsResult.Success;
+        }
+
+        if (options.Properties.TryGetValue(LegacyPropertyKeys.CheckConfiguration, out string? check)
+            && bool.TryParse(check, out bool enabled)
+            && !enabled)
+        {
+            return ValidateOptionsResult.Skip;
+        }
+
+        List<string>? failures = null;
+
+        foreach (string key in options.Properties.Keys)
+        {
+            if (key.StartsWith(LegacyPropertyKeys.Prefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            (failures ??= []).Add(
+                $"'{key}' is in QuartzOptions.Properties, which holds the flat {LegacyPropertyKeys.Prefix}* keys and is read "
+                + $"by nothing else, so a key without that prefix is never read. Spell it '{LegacyPropertyKeys.Prefix}{key}' "
+                + "if it is a Quartz setting — a section already named Quartz does not supply the prefix — or set "
+                + $"'{LegacyPropertyKeys.CheckConfiguration}' to false if the key is yours. Settings that have a typed "
+                + "option belong on that option rather than here; see the migration guide.");
+        }
+
+        return QuartzSchedulerOptionsValidator.Result(failures);
+    }
+}

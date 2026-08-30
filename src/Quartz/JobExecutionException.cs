@@ -38,6 +38,26 @@ namespace Quartz;
 /// Note that if the flag for 'refire immediately' is set, the flags for
 /// unscheduling the Job are ignored.
 /// </para>
+/// <para>
+/// The type is <see langword="sealed" />, and deliberately: what it says is three instructions to the
+/// scheduler, and the scheduler reads exactly those three. A subclass adding a fourth would be a
+/// directive nothing acts on, and a framework that subclassed it did so to carry its own state past the
+/// scheduler to its own listener. <see cref="Exception.Data" /> is the supported carrier for that. An
+/// instance a job throws is handed to <see cref="IJobListener.JobWasExecuted" /> unchanged — the run
+/// shell only fills in <see cref="JobDetail" /> — so whatever is in <see cref="Exception.Data" /> is
+/// there when the listener reads it:
+/// </para>
+/// <code>
+/// throw new JobExecutionException("import failed", ex) { Data = { ["tenant"] = tenantId } };
+/// </code>
+/// <para>
+/// Wrapping an exception of your own as the cause carries typed state just as well:
+/// <c>throw new JobExecutionException(new ImportFailed(tenantId));</c>, read back with
+/// <c>jobException.InnerException is ImportFailed failure</c>. An exception that is <em>not</em> a
+/// <see cref="JobExecutionException" /> reaches the listener two hops down instead, wrapped as
+/// <c>JobExecutionException</c> → <c>JobExecutionProcessException</c> → your exception, so a listener
+/// that wants either shape unwraps until it finds what it knows.
+/// </para>
 /// </remarks>
 /// <seealso cref="IJob" />
 /// <seealso cref="IJobExecutionContext" />

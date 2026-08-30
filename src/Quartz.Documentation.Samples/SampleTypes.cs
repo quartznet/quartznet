@@ -114,6 +114,15 @@ public interface IMyPluginDependency;
 
 public sealed class MyPluginDependency : IMyPluginDependency;
 
+/// <summary>
+/// Stands in for the holiday source a calendar would be built from — a database, a configuration
+/// section, a service — which is what the generic <c>AddCalendar&lt;T&gt;</c> overloads cannot supply.
+/// </summary>
+public interface IHolidayList
+{
+    IReadOnlyList<DateOnly> Days { get; }
+}
+
 public sealed class MyPlugin : ISchedulerPlugin
 {
     public MyPlugin()
@@ -126,10 +135,8 @@ public sealed class MyPlugin : ISchedulerPlugin
 
     public string? SomeSetting { get; set; }
 
+    // Start and Shutdown are the interface's defaults, so a plugin that does its work in Initialize
+    // declares one member rather than three.
     public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default) => default;
-
-    public ValueTask Start(CancellationToken cancellationToken = default) => default;
-
-    public ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
 }
 

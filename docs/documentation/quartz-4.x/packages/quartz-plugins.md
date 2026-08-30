@@ -290,6 +290,11 @@ watching for changes is never handed a sibling scheduler's configuration as thou
 
 ## Authoring plugin configuration extensions
 
+`ISchedulerPlugin` declares three members, but only `Initialize` has to be written: `Start` and
+`Shutdown` have default implementations that do nothing, for the common plugin that does all its work
+at initialization — attaching a listener, registering a resolver. Implement them when there is
+something that cannot happen until the scheduler is running, or resources to release when it stops.
+
 When you write your own `ISchedulerPlugin`, offer the same experience as the built-in plugins with an
 extension method on `IQuartzBuilder`. Take an options object of your own, apply it to the plugin, and
 register the plugin under its conventional name:

@@ -564,6 +564,37 @@ public static class QuartzBuilderExtensions
     }
 
     /// <summary>
+    /// Adds a calendar built from the container.
+    /// </summary>
+    /// <remarks>
+    /// The generic forms above create the calendar with <c>new T()</c>, so a calendar that needs a
+    /// dependency — a holiday list read from a database, a clock, an options snapshot — cannot use them.
+    /// This one hands the factory the scheduler-scoped <see cref="IServiceProvider" />, so a calendar
+    /// registered for a named scheduler is given that scheduler's parts. The factory runs once, when the
+    /// scheduler's content is resolved.
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="name">The name triggers refer to the calendar by.</param>
+    /// <param name="factory">Builds the calendar from the container.</param>
+    /// <param name="options">How the calendar is added: whether it replaces one of the same name, and
+    /// whether triggers using that name are recomputed. Defaults to replacing nothing.</param>
+    public static IQuartzBuilder AddCalendar(
+        this IQuartzBuilder builder,
+        string name,
+        Func<IServiceProvider, ICalendar> factory,
+        AddCalendarOptions options = default)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        SchedulerContentRegistration.Add(
+            builder,
+            serviceProvider => new CalendarConfiguration(name, factory(serviceProvider), options));
+        return builder;
+    }
+
+    /// <summary>
     /// Adds a calendar the caller has already built.
     /// </summary>
     /// <param name="builder">The builder.</param>

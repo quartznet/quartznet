@@ -6,7 +6,6 @@ namespace Quartz.Plugins.TimeZoneConverter
         public TimeZoneConverterPlugin() { }
         public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace Quartz

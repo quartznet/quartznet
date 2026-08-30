@@ -219,14 +219,12 @@ public sealed class SchedulerPluginKeyingTest
 
         public string Tenant { get; set; } = "";
 
+        // Start and Shutdown are the interface's defaults; the scheduler calls both through the
+        // interface, so a plugin that has nothing to say at those two moments says nothing.
         public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             log.Record(this, scheduler.SchedulerName, pluginName);
             return default;
         }
-
-        public ValueTask Start(CancellationToken cancellationToken = default) => default;
-
-        public ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
     }
 }

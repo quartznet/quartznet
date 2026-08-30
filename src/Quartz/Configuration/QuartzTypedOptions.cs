@@ -43,6 +43,7 @@ internal static class QuartzTypedOptions
         // scheduler's options would fail to construct its own validator.
         SchedulerNameRegistry.For(services);
 
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QuartzOptions>, QuartzOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QuartzSchedulerOptions>, QuartzSchedulerOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QuartzSchedulerOptions>, DefaultSchedulerNameValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ThreadPoolOptions>, ThreadPoolOptionsValidator>());

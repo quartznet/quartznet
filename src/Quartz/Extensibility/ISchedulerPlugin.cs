@@ -75,12 +75,19 @@ public interface ISchedulerPlugin
     /// to let the plug-in know it can now make calls into the scheduler if it
     /// needs to.
     /// </summary>
-    ValueTask Start(CancellationToken cancellationToken = default);
+    /// <remarks>
+    /// Does nothing unless the plugin says otherwise. Most plugins do all their work in
+    /// <see cref="Initialize" /> — attaching a listener, registering a resolver — and have nothing to say
+    /// at the two lifecycle moments; implement this only when there is something that cannot happen until
+    /// the scheduler is running.
+    /// </remarks>
+    ValueTask Start(CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
     /// should free up all of it's resources because the scheduler is shutting
     /// down.
     /// </summary>
-    ValueTask Shutdown(CancellationToken cancellationToken = default);
+    /// <inheritdoc cref="Start" path="/remarks" />
+    ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
 }

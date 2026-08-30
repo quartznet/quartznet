@@ -113,6 +113,32 @@ public class PluginOptionsRegistrationTest
         }
     }
 
+    /// <summary>
+    /// A plugin that declares <c>Initialize</c> and nothing else is started and shut down like any
+    /// other: the scheduler calls both through the interface, and the interface answers. Before
+    /// <see cref="ISchedulerPlugin.Start" /> and <see cref="ISchedulerPlugin.Shutdown" /> had defaults,
+    /// such a plugin did not compile.
+    /// </summary>
+    [Test]
+    public async Task APluginThatOnlyImplementsInitializeRunsTheWholeLifecycle()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q =>
+        {
+            q.UseInMemoryStore();
+            q.AddPlugin<RecordingPlugin, RecordingPluginOptions>(options => options.Setting = "configured", "recorder");
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        await scheduler.Start();
+        await scheduler.Shutdown(waitForJobsToComplete: false);
+
+        Plugin(provider, key: null).PluginName.Should().Be("recorder",
+            "the plugin went through the whole lifecycle, and the two members it does not declare are the interface's");
+    }
+
     private static RecordingPlugin Plugin(IServiceProvider provider, string? key)
     {
         IEnumerable<ISchedulerPlugin> plugins = key is null
@@ -127,6 +153,12 @@ public class PluginOptionsRegistrationTest
         public string Setting { get; set; } = "default-setting";
     }
 
+    /// <summary>
+    /// Declares <see cref="ISchedulerPlugin.Initialize" /> and nothing else, which is what most plugins
+    /// have to say. The scheduler still calls <c>Start</c> and <c>Shutdown</c> on it through the
+    /// interface, so this compiling and the scheduler above running is the assertion that the interface's
+    /// defaults are reached.
+    /// </summary>
     public sealed class RecordingPlugin : ISchedulerPlugin
     {
         public RecordingPlugin(IOptions<RecordingPluginOptions> options)
@@ -143,9 +175,5 @@ public class PluginOptionsRegistrationTest
             PluginName = pluginName;
             return default;
         }
-
-        public ValueTask Start(CancellationToken cancellationToken = default) => default;
-
-        public ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
     }
 }

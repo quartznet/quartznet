@@ -259,17 +259,6 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
         return jobTriggerName;
     }
 
-    /// <summary>
-    /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
-    /// should free up all of it's resources because the scheduler is shutting
-    /// down.
-    /// </summary>
-    public ValueTask Shutdown(CancellationToken cancellationToken = default)
-    {
-        // nothing to do
-        return default;
-    }
-
     private async ValueTask NotifySchedulerListenersOfError(
         string message,
         SchedulerException schedulerException,
