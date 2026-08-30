@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    The worker half of the Aspire example, and the reason it is `Microsoft.NET.Sdk.Web` rather than
+    `Microsoft.NET.Sdk.Worker`: a scheduler that runs no HTTP is still a resource the AppHost wants to
+    poll, and `WithHttpHealthCheck` needs something serving the probe. Swapping the SDK and starting
+    from `WebApplication.CreateBuilder` is the whole of that change — the application still hosts
+    nothing but the scheduler. See docs/documentation/quartz-4.x/how-tos/aspire.md, "Health".
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz.Aspire\Quartz.Aspire.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Aspire's own PostgreSQL client integration, which brings the Npgsql driver with it. It is here
+      so the example shows the ordering that matters: register the data source first and Quartz takes
+      its connections from it, rather than opening its own from the connection string.
+    -->
+    <PackageReference Include="Aspire.Npgsql" />
+  </ItemGroup>
+
+</Project>

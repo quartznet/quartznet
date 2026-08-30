@@ -2,8 +2,22 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <!--
+      Aspire ships its AppHost SDK, its hosting packages and its client integrations as one version,
+      so the example pins all four from one property — including the MSBuild SDK, which the AppHost
+      names with the <Sdk> element form for exactly that reason.
+
+      This is the only version in the file that is a property rather than a PackageVersion, and the
+      reason is that the SDK reference is not a PackageReference and so cannot be centrally managed.
+      Note also that `aspire update` does not work in a repository using central package management
+      (microsoft/aspire#15476); move these by hand, or let the `aspire` dependabot group do it.
+    -->
+    <AspireVersion>13.5.3</AspireVersion>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="$(AspireVersion)" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="$(AspireVersion)" />
+    <PackageVersion Include="Aspire.Npgsql" Version="$(AspireVersion)" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="8.0.2" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.1" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="9.0.0" />

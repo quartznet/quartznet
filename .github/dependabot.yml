@@ -65,6 +65,13 @@ updates:
           - "OpenTelemetry*"
           - "OpenTracing"
           - "System.Diagnostics.DiagnosticSource"
+      # Aspire's AppHost SDK and hosting packages, used by the Aspire example. They ship as one
+      # version on Aspire's own release cadence rather than the .NET runtime's, so they move
+      # together. Declared ahead of `microsoft` because Aspire also publishes under
+      # `Microsoft.Extensions.*` names, and the first matching group here is the one that wins.
+      aspire:
+        patterns:
+          - "Aspire.*"
       # Everything else shipped out of dotnet/runtime and dotnet/aspnetcore.
       microsoft:
         patterns:
