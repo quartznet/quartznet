@@ -142,6 +142,7 @@ export const sidebarEn: SidebarConfig = [
             children: [
               "/documentation/quartz-4.x/how-tos/one-off-job",
               "/documentation/quartz-4.x/how-tos/rescheduling-jobs",
+              "/documentation/quartz-4.x/how-tos/retrying-failed-jobs",
               "/documentation/quartz-4.x/how-tos/multiple-triggers",
               "/documentation/quartz-4.x/how-tos/job-template",
               "/documentation/quartz-4.x/how-tos/aspire",
