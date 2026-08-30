@@ -42,6 +42,30 @@ JobStore implementation for Quartz.NET scheduler using MongoDb.
 
 Autofac integration package for Quartz.Net.
 
+## Dashboards
+
+### [CrystalQuartz](https://github.com/guryanovev/CrystalQuartz)
+
+A pluggable web UI for Quartz.NET, hosted inside the application whose scheduler it watches.
+
+### [SilkierQuartz](https://github.com/MaiKeBing/SilkierQuartz)
+
+Web management tools for Quartz.NET, with an execution-history plugin of its own and EF Core stores to
+keep that history in.
+
+::: warning Neither has a Quartz.NET 4.0 release yet
+As with everything else on this page, 4.0 support is theirs to state — and when this page was last
+checked, on 2026-08-30, neither had published a release built against it: SilkierQuartz 10.0.0 depends on
+`Quartz` 3.18.0, and CrystalQuartz 7.3.0's Quartz 3 adapter is compiled against the 3.x interface. Both
+read `IScheduler.GetMetaData()`, `IScheduler.GetCurrentlyExecutingJobs()` and the `IsStarted` /
+`InStandbyMode` / `IsShutdown` triple, every one of which 4.0 renamed or removed — the
+[appendix to the migration guide](../migration-guide.md#appendix-what-happened-to-a-name) says what each
+became. Both bind to whichever `Quartz` assembly the host loaded rather than to one of their own, so the
+mismatch shows itself when the dashboard is served, not when the application compiles.
+
+[`Quartz.Dashboard`](dashboard.md), which ships from this repository, is built against 4.0.
+:::
+
 ## Schedules
 
 ### [NaturalCron.Quartz](https://github.com/hugoj0s3/NaturalCron)
