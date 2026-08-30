@@ -1059,7 +1059,7 @@ internal sealed class QuartzScheduler
         }
 
         DateTimeOffset? ft;
-        if (trigger.NextFireTimeUtc is not null)
+        if (trigger.NextFireTimeUtc is not null && trigger.NextFireTimeUtc >= trigger.StartTimeUtc)
         {
             // use a cloned trigger so that we don't lose possible forcefully set next fire time
             var clonedTrigger = (IOperableTrigger) trigger.Clone();
@@ -1067,6 +1067,12 @@ internal sealed class QuartzScheduler
         }
         else
         {
+            // Either the trigger carries no fire times yet, or the ones it carries are behind the start
+            // time it now has - which is what AdjustSimpleTriggerStartTimeIfInPast above leaves behind
+            // when the caller passes an instance that was already scheduled once. A trigger stored that
+            // way fires at the stale next fire time and then, because GetFireTimeAfter answers with the
+            // start time for anything before it, immediately again at its own start; the job store keeps
+            // whichever next fire time it is handed, so this is the only place that can say no to it.
             ft = trigger.ComputeFirstFireTimeUtc(calendar);
         }
 
