@@ -93,6 +93,28 @@ public sealed class QuartzSchedulerOptions
     public ShutdownJobInterruption ShutdownJobInterruption { get; set; }
 
     /// <summary>
+    /// Whether the scheduler records the trace context of the call that scheduled a trigger, so that the
+    /// firing links back to it. On by default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A scheduled job runs minutes, hours or days after the call that asked for it, quite possibly on
+    /// another node. With this on, a scheduling call made inside an activity leaves the W3C
+    /// <c>traceparent</c> on the trigger — under <see cref="SchedulerConstants.TraceParent" /> and
+    /// <see cref="SchedulerConstants.TraceState" /> — and the firing's <c>Quartz.Job.Execute</c> span
+    /// carries an <see cref="System.Diagnostics.ActivityLink" /> to it. A link and not a parent: the
+    /// firing is its own trace root, because a trace spanning the wait would be a trace nothing could
+    /// display.
+    /// </para>
+    /// <para>
+    /// Turn it off to keep the two reserved keys out of trigger data entirely — for a store whose rows
+    /// are read by something that does not expect them, or where the extra two entries per trigger are
+    /// not worth what they buy. Nothing else changes: the execute span is emitted either way.
+    /// </para>
+    /// </remarks>
+    public bool PropagateTraceContext { get; set; } = true;
+
+    /// <summary>
     /// Values seeded into <see cref="SchedulerContext"/> when the scheduler is created.
     /// </summary>
     /// <remarks>Replaces the <c>quartz.context.key.*</c> property keys.</remarks>

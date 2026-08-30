@@ -21,6 +21,7 @@
 
 #pragma warning disable CA2012
 
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -689,8 +690,8 @@ internal sealed class QuartzScheduler
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
 
-        NormalizeInput(jobDetail.JobDataMap);
-        NormalizeInput(trig.JobDataMap);
+        PrepareJobData(jobDetail.JobDataMap);
+        PrepareTriggerData(trig);
 
         ICalendar? calendar = null;
         if (trigger.CalendarName is not null)
@@ -750,7 +751,7 @@ internal sealed class QuartzScheduler
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
 
-        NormalizeInput(trig.JobDataMap);
+        PrepareTriggerData(trig);
 
         ICalendar? calendar = null;
         if (trigger.CalendarName is not null)
@@ -802,7 +803,7 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException("Jobs added with no trigger must be durable.");
         }
 
-        NormalizeInput(jobDetail.JobDataMap);
+        PrepareJobData(jobDetail.JobDataMap);
 
         await resources.JobStore.AddJob(jobDetail, options.Replace, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
@@ -887,7 +888,7 @@ internal sealed class QuartzScheduler
             {
                 continue;
             }
-            NormalizeInput(job.JobDataMap);
+            PrepareJobData(job.JobDataMap);
 
             if (triggers is null) // this is possible because the job may be durable, and not yet be having triggers
             {
@@ -904,7 +905,7 @@ internal sealed class QuartzScheduler
                 AdjustSimpleTriggerStartTimeIfInPast(trigger);
                 trigger.Validate();
 
-                NormalizeInput(trigger.JobDataMap);
+                PrepareTriggerData(trigger);
 
                 ICalendar? calendar = null;
                 if (trigger.CalendarName is not null)
@@ -1045,6 +1046,8 @@ internal sealed class QuartzScheduler
         AdjustSimpleTriggerStartTimeIfInPast(trigger);
         trigger.Validate();
 
+        PrepareTriggerData(trigger);
+
         ICalendar? calendar = null;
         if (newTrigger.CalendarName is not null)
         {
@@ -1115,6 +1118,14 @@ internal sealed class QuartzScheduler
         ArgumentNullException.ThrowIfNull(triggerKey);
         ArgumentNullException.ThrowIfNull(update);
 
+        // The input half only. A map that reaches a store has to have its typed input normalized
+        // whichever call carried it there, so this is the same rule as everywhere else — but the trace
+        // context is deliberately not written here, because this is not a scheduling call. It updates
+        // metadata on a trigger that is already scheduled and keeps its fire times, so the trace that
+        // asked for the firing is the one that scheduled it, not the one that later edited its
+        // description. Re-pointing the link at whoever ran an edit would make it say something false.
+        PrepareJobData(update.JobDataMap);
+
         return await resources.JobStore.UpdateTriggerDetails(triggerKey, update, cancellationToken).ConfigureAwait(false);
     }
 
@@ -1132,30 +1143,97 @@ internal sealed class QuartzScheduler
     internal ExecutionLimits? GetExecutionLimits() => executionLimits;
 
     /// <summary>
-    /// The scheduler and the job stores operate on <see cref="IOperableTrigger" />, and Quartz owns
-    /// the implementations of <see cref="ITrigger" /> — so a trigger that implements only the read
-    /// model is rejected with a clear error rather than an invalid-cast exception.
-    /// </summary>
-    /// <summary>
-    /// Turns a job input that is not yet a string into the string a store can hold, on its way in.
+    /// Makes a job's data map ready to be stored.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is the write half of a typed job's round trip, and it lives here because here is the only
-    /// place the value's <em>runtime</em> type is known — which is what has to be serialized. The read
-    /// half is the default implementation of <see cref="IJob{TInput}" />, where the <em>static</em> type
-    /// is known instead. Neither can do the other's job, which is why they are apart.
+    /// Today that is one thing: turning a job input that is not yet a string into the string a store can
+    /// hold. This is the write half of a typed job's round trip, and it lives here because here is the
+    /// only place the value's <em>runtime</em> type is known — which is what has to be serialized. The
+    /// read half is the default implementation of <see cref="IJob{TInput}" />, where the <em>static</em>
+    /// type is known instead. Neither can do the other's job, which is why they are apart.
     /// </para>
     /// <para>
-    /// Every entry point that takes a <see cref="JobDataMap" /> to be stored passes through here, so an
-    /// input reaches a store as a string whichever way it was scheduled.
+    /// Every entry point that takes a <see cref="JobDataMap" /> to be stored passes through here or
+    /// through <see cref="PrepareTriggerData" />, so an input reaches a store as a string whichever way
+    /// it was scheduled.
     /// </para>
     /// </remarks>
-    private void NormalizeInput(JobDataMap? map)
+    private void PrepareJobData(JobDataMap? map)
     {
         JobInput.Normalize(map, resources.JobInputSerializer);
     }
 
+    /// <summary>
+    /// Makes a trigger's data map ready to be stored: everything <see cref="PrepareJobData" /> does, plus
+    /// the trace context of whoever is scheduling it.
+    /// </summary>
+    /// <remarks>
+    /// The trigger's map and not the job's, because a firing is what the trace is about and a job is
+    /// fired by many triggers. It also keeps the two writes from ever meeting:
+    /// <see cref="PersistJobDataAfterExecutionAttribute" /> writes back the job's map alone, so a
+    /// persisted job can never carry a <c>traceparent</c> forward from the firing that wrote it.
+    /// </remarks>
+    private void PrepareTriggerData(IMutableTrigger trigger)
+    {
+        JobDataMap map = trigger.JobDataMap;
+        JobInput.Normalize(map, resources.JobInputSerializer);
+        WriteTraceContext(map);
+    }
+
+    /// <summary>
+    /// Records the W3C trace context of the activity this trigger is being scheduled from, so that the
+    /// firing — minutes, hours or days later, quite possibly on another node — can link back to it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Write-<em>or-remove</em>: the scheduler stores the trigger object it was handed rather than a copy
+    /// of it, so a trigger re-scheduled outside an activity would otherwise keep pointing at the trace
+    /// that scheduled it the first time — the worst of the three answers, because a stale link is read
+    /// as a true one.
+    /// </para>
+    /// <para>
+    /// An activity whose id is not in the W3C format has no <c>traceparent</c> to record and is treated
+    /// as no activity at all. Opting out with
+    /// <see cref="QuartzSchedulerOptions.PropagateTraceContext" /> leaves the two keys entirely alone,
+    /// including one an application wrote itself.
+    /// </para>
+    /// </remarks>
+    private void WriteTraceContext(JobDataMap map)
+    {
+        if (!resources.PropagateTraceContext)
+        {
+            return;
+        }
+
+        // Read once: Activity.Current is an AsyncLocal, and the traceparent and the tracestate written
+        // below have to come from the same activity.
+        Activity? scheduledFrom = Activity.Current;
+
+        if (scheduledFrom is not { IdFormat: ActivityIdFormat.W3C, Id: { } traceParent })
+        {
+            map.Remove(SchedulerConstants.TraceParent);
+            map.Remove(SchedulerConstants.TraceState);
+            return;
+        }
+
+        map[SchedulerConstants.TraceParent] = traceParent;
+
+        if (scheduledFrom.TraceStateString is { Length: > 0 } traceState)
+        {
+            map[SchedulerConstants.TraceState] = traceState;
+        }
+        else
+        {
+            map.Remove(SchedulerConstants.TraceState);
+        }
+    }
+
+    /// <summary>
+    /// The scheduler and the job stores operate on <see cref="IOperableTrigger" />, and Quartz owns
+    /// the implementations of <see cref="ITrigger" /> — so a trigger that implements only the read
+    /// model is rejected with a clear error rather than an invalid-cast exception.
+    /// </summary>
     private static IOperableTrigger AsOperableTrigger(ITrigger trigger)
     {
         if (trigger is not IOperableTrigger operableTrigger)
@@ -1246,9 +1324,12 @@ internal sealed class QuartzScheduler
         trig.ComputeFirstFireTimeUtc(null);
         if (data is not null)
         {
-            NormalizeInput(data);
             trig.JobDataMap = data;
         }
+
+        // After the map has been attached, and unconditionally: a fire-now with no data of its own is
+        // still a firing worth linking back to whoever asked for it.
+        PrepareTriggerData(trig);
 
         bool collision = true;
         while (collision)
@@ -1279,7 +1360,7 @@ internal sealed class QuartzScheduler
 
         trigger.ComputeFirstFireTimeUtc(null);
 
-        NormalizeInput(trigger.JobDataMap);
+        PrepareTriggerData(trigger);
 
         bool collision = true;
         while (collision)

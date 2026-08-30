@@ -293,6 +293,13 @@ internal sealed class QuartzSchedulerResources
 
     public ShutdownJobInterruption ShutdownJobInterruption { get; set; }
 
+    /// <summary>
+    /// Whether a trigger carries the trace context of the call that scheduled it. Mirrors
+    /// <see cref="QuartzSchedulerOptions.PropagateTraceContext" />, and defaults to the same value, so a
+    /// scheduler assembled without the container behaves the way one assembled with it does.
+    /// </summary>
+    public bool PropagateTraceContext { get; set; } = true;
+
     public TimeProvider TimeProvider { get; set; }
 
     /// <summary>

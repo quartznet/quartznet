@@ -75,6 +75,31 @@ and are constants on `Quartz.Diagnostics.ActivityTags`:
 | `quartz.jobstore.trigger.count` | `Quartz.JobStore.AcquireNextTriggers` (how many came back) and `.TriggersFired` (how many were fired) |
 | `error.type` | any span that ended in a failure |
 
+### Linking a firing to what scheduled it
+
+A job runs minutes, hours or days after the call that scheduled it, quite possibly on another node. When
+that call was made inside an `Activity`, the scheduler records its W3C trace context on the trigger — under
+the reserved keys `SchedulerConstants.TraceParent` and `SchedulerConstants.TraceState` — and the firing's
+`Quartz.Job.Execute` span carries an `ActivityLink` back to it. Nothing needs configuring, and an HTTP API
+request gets it without asking, because the endpoint runs inside ASP.NET Core's server span.
+
+It is a **link** rather than a parent on purpose: the firing is its own trace root, so a trace never has to
+stay open across the wait. That is the shape OpenTelemetry gives an asynchronous producer and the consumer
+that eventually picks the work up, and every backend that renders links will walk from the firing back to
+the request that asked for it.
+
+The cost is two string entries on each trigger's data map, visible wherever trigger data is —
+`MergedJobDataMap`, the dashboard, `GET /triggers`. Turn it off with:
+
+```csharp
+q.ConfigureScheduler(options => options.PropagateTraceContext = false);
+```
+
+::: tip The trigger's map, never the job's
+`[PersistJobDataAfterExecution]` writes back only the job's map, so the two never interact — a persisted
+job cannot carry a `traceparent` forward into its next firing.
+:::
+
 ## Metrics
 
 Eight instruments, all on the `Quartz` meter. **Every measurement carries `quartz.scheduler.name` and

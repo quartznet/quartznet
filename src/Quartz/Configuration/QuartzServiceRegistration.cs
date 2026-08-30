@@ -213,6 +213,7 @@ internal static class QuartzServiceRegistration
                 MaxBatchSize = options.MaxBatchSize,
                 BatchTimeWindow = options.BatchTriggerAcquisitionFireAheadTimeWindow,
                 ShutdownJobInterruption = options.ShutdownJobInterruption,
+                PropagateTraceContext = options.PropagateTraceContext,
                 TimeProvider = timeProvider,
                 LoggerFactory = provider.GetSchedulerLoggerFactory(),
                 Meters = meters,

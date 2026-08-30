@@ -503,6 +503,280 @@ public sealed class JobExecutionObservabilityTest
             + "of them being silent");
     }
 
+    // ---------------------------------------------------------------------------------------------
+    // The gap between scheduling a job and running it
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// The whole of #3524: a firing can be walked back to the call that asked for it, however long ago
+    /// that was and whichever node it happened on.
+    /// </summary>
+    [Test]
+    public async Task TheExecuteSpan_LinksBackToTheActivityThatScheduledTheTrigger()
+    {
+        using Activity scheduling = StartDetachedActivity();
+        scheduling.TraceStateString = "quartz=alpha4";
+
+        Execution execution = await RunJob<SucceedingJob>(scheduledUnder: scheduling);
+
+        Activity activity = ActivityFor(execution.JobKey);
+
+        ActivityLink link = activity.Links.Should().ContainSingle(
+            "one scheduling call produced this firing, so there is exactly one thing to link back to")
+            .Subject;
+
+        link.Context.TraceId.Should().Be(scheduling.TraceId,
+            "walking from the firing to the request that asked for it is the point, and the trace id is "
+            + "what a backend searches by");
+        link.Context.SpanId.Should().Be(scheduling.SpanId,
+            "the link names the scheduling span itself, not merely its trace");
+        link.Context.TraceState.Should().Be("quartz=alpha4",
+            "tracestate is vendor routing information that travels with the context, and dropping it "
+            + "silently sends the linked span to a different backend than the one that recorded it");
+        link.Context.IsRemote.Should().BeTrue(
+            "the context was parsed from stored data rather than created in this process — the same "
+            + "thing a server span's context is when it came off the wire");
+
+        activity.ParentSpanId.Should().NotBe(scheduling.SpanId,
+            "the scheduling call and the firing are separated by however long the schedule said, and a "
+            + "span whose parent is a week away makes a trace no backend can render");
+    }
+
+    /// <summary>
+    /// The trigger's map, never the job's — so a <c>[PersistJobDataAfterExecution]</c> job can never
+    /// write a <c>traceparent</c> forward into its next firing.
+    /// </summary>
+    [Test]
+    public async Task TheTraceContext_IsWrittenOntoTheTriggerUnderTheReservedKeys()
+    {
+        using Activity scheduling = StartDetachedActivity();
+
+        Execution execution = await RunJob<SucceedingJob>(scheduledUnder: scheduling);
+
+        execution.MergedJobData.Should().ContainKey(SchedulerConstants.TraceParent)
+            .WhoseValue.Should().Be(scheduling.Id,
+                "the stored value is the W3C traceparent verbatim, so anything that can parse a "
+                + "traceparent header can read it");
+        execution.MergedJobData.Should().NotContainKey(SchedulerConstants.TraceState,
+            "the scheduling activity carried no tracestate, and an empty entry per trigger would be "
+            + "storage spent on nothing");
+    }
+
+    [Test]
+    public async Task AJobScheduledOutsideAnyActivity_CarriesNoLinkAndNoReservedKeys()
+    {
+        Execution execution = await RunJob<SucceedingJob>();
+
+        Activity activity = ActivityFor(execution.JobKey);
+
+        activity.Links.Should().BeEmpty(
+            "there was nothing to link to — a link to a context nobody recorded is worse than none");
+        execution.MergedJobData.Should().NotContainKey(SchedulerConstants.TraceParent,
+            "an application that never traces must not pay two map entries per trigger for the feature");
+    }
+
+    [Test]
+    public async Task TurningPropagationOff_LeavesTheTriggerAndTheSpanAlone()
+    {
+        using Activity scheduling = StartDetachedActivity();
+
+        Execution execution = await RunJob<SucceedingJob>(propagateTraceContext: false, scheduledUnder: scheduling);
+
+        execution.MergedJobData.Should().NotContainKey(SchedulerConstants.TraceParent,
+            "opting out is about what reaches the store, so the key is never written in the first place");
+        ActivityFor(execution.JobKey).Links.Should().BeEmpty(
+            "with nothing stored there is nothing to link to, and the execute span is emitted either way");
+    }
+
+    /// <summary>
+    /// The reason the write is a write-<em>or-remove</em>.
+    /// </summary>
+    /// <remarks>
+    /// <c>AsOperableTrigger</c> hands the store the very object the caller passed rather than a copy of
+    /// it, so a trigger scheduled once inside a request and again outside one would otherwise keep
+    /// pointing at the first request's trace — and a stale link reads exactly like a true one.
+    /// </remarks>
+    [Test]
+    public async Task ReschedulingTheSameTriggerObjectOutsideAnActivity_DropsTheStaleTraceParent()
+    {
+        string id = Guid.NewGuid().ToString("N");
+        JobKey jobKey = new($"job-{id}", $"job-group-{id}");
+
+        ServiceCollection services = new();
+        services.AddQuartz(quartz =>
+        {
+            quartz.ConfigureScheduler(options => options.InstanceName = $"stale-traceparent-{id}");
+            quartz.AddJob<SucceedingJob>(job => job.WithIdentity(jobKey).StoreDurably());
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        // Never started: this is about what the scheduling call writes, and a firing would delete the
+        // one-shot trigger out from under the second half of the test.
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity($"trigger-{id}", $"trigger-group-{id}")
+            .ForJob(jobKey)
+            .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+            .Build();
+
+        using (Activity scheduling = StartDetachedActivity())
+        {
+            Activity previous = Activity.Current;
+            Activity.Current = scheduling;
+            try
+            {
+                await scheduler.ScheduleJob(trigger);
+            }
+            finally
+            {
+                Activity.Current = previous;
+            }
+
+            trigger.JobDataMap.Should().ContainKey(SchedulerConstants.TraceParent)
+                .WhoseValue.Should().Be(scheduling.Id, "the first scheduling call happened inside a trace");
+        }
+
+        await scheduler.ScheduleJob(trigger, new ScheduleJobOptions { Replace = true });
+
+        trigger.JobDataMap.Should().NotContainKey(SchedulerConstants.TraceParent,
+            "the second call was made outside any activity, and the scheduler stores the trigger object "
+            + "it was handed rather than a copy — leaving the old value would link every future firing "
+            + "back to a trace that has nothing to do with it");
+    }
+
+    /// <summary>
+    /// Rescheduling is a scheduling call, so the firing links to the call that moved it rather than to
+    /// the one that first put it there.
+    /// </summary>
+    [Test]
+    public async Task ReschedulingInsideAnActivity_LinksTheFiringToTheReschedule()
+    {
+        using Activity first = StartDetachedActivity();
+        using Activity second = StartDetachedActivity();
+
+        Execution execution = await RescheduleAndRun(scheduledUnder: first, rescheduledUnder: second);
+
+        ActivityLink link = ActivityFor(execution.JobKey).Links.Should().ContainSingle(
+            "one call decided when this firing happens, so there is one thing to link back to").Subject;
+
+        link.Context.SpanId.Should().Be(second.SpanId,
+            "the reschedule is what decided when this firing happens, and that is the call worth "
+            + "walking back to");
+        link.Context.TraceId.Should().NotBe(first.TraceId,
+            "a replacement trigger rebuilt from the original carries the original's job data map, "
+            + "reserved keys included — so the traceparent the first call left has to be overwritten "
+            + "rather than kept, or the firing points at a trace that did not schedule it");
+    }
+
+    [Test]
+    public async Task ReschedulingOutsideAnyActivity_DropsTheLinkTheFirstSchedulingLeft()
+    {
+        using Activity first = StartDetachedActivity();
+
+        Execution execution = await RescheduleAndRun(scheduledUnder: first, rescheduledUnder: null);
+
+        ActivityFor(execution.JobKey).Links.Should().BeEmpty(
+            "nothing traced the call that decided when this firing happens, and inheriting the earlier "
+            + "call's trace would be a link that reads true and is not");
+        execution.MergedJobData.Should().NotContainKey(SchedulerConstants.TraceParent,
+            $"the replacement carried the first call's key over, so {nameof(SchedulerConstants.TraceParent)} has to be removed rather than left");
+    }
+
+    /// <summary>
+    /// Schedules a trigger for an hour away under one activity, moves it to now under another, and runs
+    /// the firing that results.
+    /// </summary>
+    /// <remarks>
+    /// The replacement is rebuilt from the original with <c>GetTriggerBuilder</c>, which is how an
+    /// application reschedules one — and which copies the original's job data map, reserved keys
+    /// included. That copy is what makes these tests about overwriting a stale context rather than about
+    /// writing to an empty map.
+    /// </remarks>
+    private static async Task<Execution> RescheduleAndRun(Activity scheduledUnder, Activity rescheduledUnder)
+    {
+        string id = Guid.NewGuid().ToString("N");
+        JobKey jobKey = new($"job-{id}", $"job-group-{id}");
+        TriggerKey triggerKey = new($"trigger-{id}", $"trigger-group-{id}");
+
+        ExecutionCompletionListener completion = new();
+
+        ServiceCollection services = new();
+        services.AddQuartz(quartz =>
+        {
+            quartz.ConfigureScheduler(options => options.InstanceName = $"reschedule-{id}");
+            quartz.AddJobListener(completion);
+            quartz.AddJob<SucceedingJob>(job => job.WithIdentity(jobKey).StoreDurably());
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            ITrigger original = TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(jobKey)
+                .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+                .Build();
+
+            await Under(scheduledUnder, () => scheduler.ScheduleJob(original).AsTask());
+
+            ITrigger replacement = original.GetTriggerBuilder().StartNow().Build();
+
+            await Under(rescheduledUnder, () => scheduler.RescheduleJob(triggerKey, replacement).AsTask());
+
+            await scheduler.Start();
+
+            Task finished = await Task.WhenAny(completion.Executed, Task.Delay(TimeSpan.FromSeconds(30)));
+            finished.Should().BeSameAs(completion.Executed, "the rescheduled job should have run");
+
+            return new Execution(
+                jobKey,
+                triggerKey,
+                scheduler.SchedulerName,
+                scheduler.SchedulerInstanceId,
+                await completion.Executed,
+                completion.MergedJobData);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
+    /// Runs one call with a chosen ambient activity, and nothing else with it.
+    /// </summary>
+    /// <remarks>
+    /// An <c>AsyncLocal</c> written inside an async method does not escape it, so the assignment reaches
+    /// everything this awaits and nothing the caller goes on to do — which is what keeps the activity
+    /// from being current when the scheduler is started.
+    /// </remarks>
+    private static async Task Under(Activity activity, Func<Task> call)
+    {
+        Activity.Current = activity;
+        await call();
+    }
+
+    /// <summary>
+    /// A running W3C activity that is deliberately not ambient.
+    /// </summary>
+    /// <remarks>
+    /// It is the shape a caller's span has from the scheduler's point of view: the worker threads that
+    /// run the job never captured the caller's execution context, so nothing but the stored
+    /// <c>traceparent</c> connects the two. Starting an activity makes it current, so this puts
+    /// <see cref="Activity.Current" /> straight back — it cannot simply be stopped instead, because a
+    /// finished activity is one <see cref="Activity.Current" /> refuses to be set to.
+    /// </remarks>
+    private static Activity StartDetachedActivity()
+    {
+        Activity activity = new Activity("caller.schedules").SetIdFormat(ActivityIdFormat.W3C).Start();
+        Activity.Current = null;
+        return activity;
+    }
+
     /// <summary>
     /// Builds a scheduler the way an application does, runs the job its trigger fires exactly once, and
     /// shuts everything down before returning — so an assertion never races the execution it is about.
@@ -510,7 +784,9 @@ public sealed class JobExecutionObservabilityTest
     private static async Task<Execution> RunJob<TJob>(
         bool veto = false,
         string executionGroup = null,
-        IJobExecutionMiddleware middleware = null) where TJob : IJob
+        IJobExecutionMiddleware middleware = null,
+        bool propagateTraceContext = true,
+        Activity scheduledUnder = null) where TJob : IJob
     {
         string id = Guid.NewGuid().ToString("N");
         JobKey jobKey = new($"job-{id}", $"job-group-{id}");
@@ -523,7 +799,11 @@ public sealed class JobExecutionObservabilityTest
         ServiceCollection services = new();
         services.AddQuartz(quartz =>
         {
-            quartz.ConfigureScheduler(options => options.InstanceName = $"observability-{id}");
+            quartz.ConfigureScheduler(options =>
+            {
+                options.InstanceName = $"observability-{id}";
+                options.PropagateTraceContext = propagateTraceContext;
+            });
             quartz.AddJobListener(completion);
             if (veto)
             {
@@ -544,7 +824,7 @@ public sealed class JobExecutionObservabilityTest
 
         await using ServiceProvider provider = services.BuildServiceProvider();
 
-        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        IScheduler scheduler = await CreateScheduler(provider, scheduledUnder);
         try
         {
             await scheduler.Start();
@@ -558,11 +838,36 @@ public sealed class JobExecutionObservabilityTest
                 triggerKey,
                 scheduler.SchedulerName,
                 scheduler.SchedulerInstanceId,
-                await completion.Executed);
+                await completion.Executed,
+                completion.MergedJobData);
         }
         finally
         {
             await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+    }
+
+    /// <summary>
+    /// Resolves the scheduler — which is when the container's declared jobs and triggers are scheduled —
+    /// under a chosen ambient activity.
+    /// </summary>
+    /// <remarks>
+    /// Assigning <see cref="Activity.Current" /> around this one call rather than wrapping the whole of
+    /// <c>RunJob</c> in a <c>using</c> is what keeps the scheduling activity out of the execution: an
+    /// activity that was still current at <c>Start()</c> would be captured by the scheduler's worker and
+    /// become the execute span's *parent*, which is the very thing this feature refuses to do.
+    /// </remarks>
+    private static async Task<IScheduler> CreateScheduler(ServiceProvider provider, Activity scheduledUnder)
+    {
+        Activity previous = Activity.Current;
+        Activity.Current = scheduledUnder;
+        try
+        {
+            return await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        }
+        finally
+        {
+            Activity.Current = previous;
         }
     }
 
@@ -627,7 +932,8 @@ public sealed class JobExecutionObservabilityTest
         TriggerKey TriggerKey,
         string SchedulerName,
         string SchedulerInstanceId,
-        string FireInstanceId);
+        string FireInstanceId,
+        JobDataMap MergedJobData);
 
     /// <summary>
     /// Signals once the shell has finished with the execution, which is after both the activity and the
@@ -642,16 +948,24 @@ public sealed class JobExecutionObservabilityTest
 
         public Task<string> Executed => executed.Task;
 
+        /// <summary>
+        /// What the firing actually carried, which is how a test asserts on the reserved keys a scheduler
+        /// wrote onto the trigger without having to reach back into the store for the row.
+        /// </summary>
+        public JobDataMap MergedJobData { get; private set; }
+
         public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 
         public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
+            MergedJobData = context.MergedJobDataMap;
             executed.TrySetResult(context.FireInstanceId);
             return default;
         }
 
         public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException, CancellationToken cancellationToken = default)
         {
+            MergedJobData = context.MergedJobDataMap;
             executed.TrySetResult(context.FireInstanceId);
             return default;
         }
