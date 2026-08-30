@@ -110,4 +110,8 @@ worker waits for with `WaitForCompletion`. The scripts are in
 
 ## Documentation
 
+Every setting, the provider-inference table and the connection ladder in full:
+<https://www.quartz-scheduler.net/documentation/quartz-4.x/packages/aspire.html>
+
+The AppHost beside this worker, the health probe, the schema and the dashboard:
 <https://www.quartz-scheduler.net/documentation/quartz-4.x/how-tos/aspire.html>

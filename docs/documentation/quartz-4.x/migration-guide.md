@@ -132,8 +132,8 @@ builder.AddQuartz();
 It takes **no `Aspire.*` package dependency** — `IHostApplicationBuilder` is the whole of its contract — so
 it works in any generic-host application and is not tied to Aspire's release cadence. There is no hosting
 integration: the AppHost still declares its database resources itself. See
-[Running Quartz under Aspire](how-tos/aspire.md) for what the call expands to, and
-`QuartzAspireSettings` for the settings it reads from `Aspire:Quartz`.
+[Aspire Integration](packages/aspire.md) for every setting it reads from `Aspire:Quartz`, and
+[Running Quartz under Aspire](how-tos/aspire.md) for what the call expands to.
 
 ### The health check is in `Quartz`, not `Quartz.AspNetCore`
 

@@ -1,4 +1,8 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 
 using OpenTelemetry.Metrics;
@@ -9,12 +13,13 @@ using Quartz.Diagnostics;
 namespace Quartz.Documentation.Samples.HowTos;
 
 /// <summary>
-/// Samples for docs/documentation/quartz-4.x/how-tos/aspire.md.
+/// Samples for docs/documentation/quartz-4.x/how-tos/aspire.md and
+/// docs/documentation/quartz-4.x/packages/aspire.md.
 /// </summary>
 /// <remarks>
-/// Only the Quartz half of that page is compiled. The Aspire calls beside these — <c>AddServiceDefaults</c>,
-/// <c>AddNpgsqlDataSource</c>, and everything in the AppHost — come from packages this repository does not
-/// reference, so the page carries them as plain fences.
+/// Only the Quartz half of those pages is compiled. The Aspire calls beside these —
+/// <c>AddServiceDefaults</c>, <c>AddNpgsqlDataSource</c>, and everything in the AppHost — come from
+/// packages this repository does not reference, so the pages carry them as plain fences.
 /// </remarks>
 public static class AspireSamples
 {
@@ -25,6 +30,32 @@ public static class AspireSamples
         builder.AddQuartzPersistentStore("quartz");
         builder.AddQuartz();
         builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+        #endregion
+    }
+
+    public static void SettingsFromCode(IHostApplicationBuilder builder)
+    {
+        #region sample_aspire_settings
+
+        builder.AddQuartzPersistentStore("quartz", settings =>
+        {
+            settings.Provider = DataSourceOptions.Providers.Npgsql;
+            settings.Clustered = true;
+        });
+
+        #endregion
+    }
+
+    public static void TwoDatabasesOnTwoSchedulers(IHostApplicationBuilder builder)
+    {
+        #region sample_aspire_two_schedulers
+
+        builder.AddQuartz("orders");
+        builder.AddQuartz("billing");
+
+        builder.AddQuartzPersistentStore("orders-db", settings => settings.SchedulerName = "orders");
+        builder.AddQuartzPersistentStore("billing-db", settings => settings.SchedulerName = "billing");
 
         #endregion
     }
@@ -89,6 +120,65 @@ public static class AspireSamples
         #region sample_aspire_health_checks
 
         builder.Services.AddQuartzHealthChecks();
+
+        #endregion
+    }
+
+    public static void TagTheHealthCheck(IHostApplicationBuilder builder)
+    {
+        #region sample_aspire_health_check_tags
+
+        builder.Services.Configure<QuartzHealthCheckOptions>(options => options.Tags.Add("live"));
+
+        #endregion
+    }
+
+    public static void HealthEndpointFromAWorker(string[] args)
+    {
+        #region sample_aspire_health_endpoint
+
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+        builder.AddQuartzPersistentStore("quartz");
+        builder.AddQuartz();
+        builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+        WebApplication app = builder.Build();
+
+        app.MapHealthChecks("/health");
+
+        app.Run();
+
+        #endregion
+    }
+
+    public static void DegradedLeavesTheRotation(WebApplication app)
+    {
+        #region sample_aspire_degraded_is_503
+
+        app.MapHealthChecks("/health", new HealthCheckOptions
+        {
+            ResultStatusCodes =
+            {
+                [HealthStatus.Healthy] = StatusCodes.Status200OK,
+                [HealthStatus.Degraded] = StatusCodes.Status503ServiceUnavailable,
+                [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable,
+            },
+        });
+
+        #endregion
+    }
+
+    public static void TurnTheSignalsOff(IHostApplicationBuilder builder)
+    {
+        #region sample_aspire_disable_signals
+
+        builder.AddQuartzPersistentStore("quartz", settings =>
+        {
+            settings.DisableTracing = true;
+            settings.DisableMetrics = true;
+            settings.DisableHealthChecks = true;
+        });
 
         #endregion
     }

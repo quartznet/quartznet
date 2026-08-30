@@ -167,6 +167,7 @@ export const sidebarEn: SidebarConfig = [
               {
                 text: "Integrations",
                 children: [
+                  "/documentation/quartz-4.x/packages/aspire",
                   "/documentation/quartz-4.x/packages/aspnet-core-integration",
                   "/documentation/quartz-4.x/packages/http-api",
                   "/documentation/quartz-4.x/packages/http-client",
