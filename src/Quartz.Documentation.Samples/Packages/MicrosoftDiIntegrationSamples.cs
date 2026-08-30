@@ -199,6 +199,23 @@ public static class MicrosoftDiIntegrationSamples
 
             #endregion
 
+            #region sample_di_calendar_factory
+
+            // A calendar that needs a dependency cannot be built by the generic overloads, which
+            // construct it with new T(). This one is handed the scheduler's service provider.
+            q.AddCalendar("businessDays", serviceProvider =>
+            {
+                HolidayCalendar calendar = new() { TimeZone = TimeZoneInfo.Utc };
+                foreach (DateOnly day in serviceProvider.GetRequiredService<IHolidayList>().Days)
+                {
+                    calendar.AddExcludedDay(day);
+                }
+
+                return calendar;
+            });
+
+            #endregion
+
             #region sample_di_plugins
 
             q.UseXmlSchedulingConfiguration(x =>

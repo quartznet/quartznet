@@ -119,6 +119,10 @@ public class QuartzSchedulerBuilderForwardingTest
         new Case("AddCalendar", "AddCalendar(name, calendar, options)",
             builder => builder.AddCalendar("calendar-instance", new HolidayCalendar()),
             services => HasCalendar(services, "calendar-instance")),
+
+        new Case("AddCalendar", "AddCalendar(name, factory, options)",
+            builder => builder.AddCalendar("calendar-factory", _ => new HolidayCalendar()),
+            services => HasCalendar(services, "calendar-factory")),
     ];
 
     public static IEnumerable<TestCaseData> Cases()

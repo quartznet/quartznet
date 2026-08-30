@@ -773,6 +773,16 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         return this;
     }
 
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddCalendar(IQuartzBuilder, string, Func{IServiceProvider, ICalendar}, AddCalendarOptions)" />
+    public QuartzSchedulerBuilder AddCalendar(
+        string name,
+        Func<IServiceProvider, ICalendar> factory,
+        AddCalendarOptions options = default)
+    {
+        inner.AddCalendar(name, factory, options);
+        return this;
+    }
+
     /// <inheritdoc cref="QuartzBuilderExtensions.AddCalendar(IQuartzBuilder, string, ICalendar, AddCalendarOptions)" />
     public QuartzSchedulerBuilder AddCalendar(
         string name,

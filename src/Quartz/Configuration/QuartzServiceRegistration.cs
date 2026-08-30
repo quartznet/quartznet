@@ -121,10 +121,12 @@ internal static class QuartzServiceRegistration
             SchedulerNameRegistry.For(services).AddDefault();
         }
 
-        // Every scheduler resolves these two, so a bad value in either is a mistake the host can report
-        // at startup instead of leaving for whichever component reads it first. The store, clustering
-        // and data-source options are declared where they are chosen, since a scheduler that did not
-        // choose them never reads them.
+        // Every scheduler resolves these three, so a bad value in any of them is a mistake the host can
+        // report at startup instead of leaving for whichever component reads it first — and in
+        // QuartzOptions' case, instead of never reporting it at all, since a key nothing reads produces
+        // no symptom. The store, clustering and data-source options are declared where they are chosen,
+        // since a scheduler that did not choose them never reads them.
+        services.ValidateOnStart<QuartzOptions>(schedulerName);
         services.ValidateOnStart<QuartzSchedulerOptions>(schedulerName);
         services.ValidateOnStart<ThreadPoolOptions>(schedulerName);
 

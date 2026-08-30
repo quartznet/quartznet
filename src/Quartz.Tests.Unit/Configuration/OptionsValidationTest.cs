@@ -209,4 +209,60 @@ public class OptionsValidationTest
         act.Should().NotThrow();
         provider.GetRequiredService<IOptionsMonitor<ClusteringOptions>>().Get("solo").Enabled.Should().BeFalse();
     }
+
+    /// <summary>
+    /// A key in the flat bag without the <c>quartz.</c> prefix is read by nothing, so it has no symptom
+    /// at all — the scheduler simply runs as if the application had said nothing. Startup is the only
+    /// place it can be reported.
+    /// </summary>
+    [Test]
+    public void APropertyKeyNothingReadsFailsAtStartup()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.Configure<QuartzOptions>(options => options.Properties["scheduler.instanceName"] = "svc");
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage("*scheduler.instanceName*quartz.scheduler.instanceName*",
+                "the report has to name the key and the spelling that would have worked");
+    }
+
+    [Test]
+    public void APropertyKeyNothingReadsIsAllowedWhenTheConfigurationCheckIsOff()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.Configure<QuartzOptions>(options =>
+        {
+            options.Properties["quartz.checkConfiguration"] = "false";
+            options.Properties["myComponent.setting"] = "value";
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow("checkConfiguration is the existing way to say the keys are yours");
+    }
+
+    [Test]
+    public void TheFlatKeysASchedulerIsConfiguredWithPassValidation()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(new Dictionary<string, string?>
+        {
+            ["quartz.scheduler.instanceName"] = "svc",
+            ["quartz.threadPool.maxConcurrency"] = "4",
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow();
+    }
 }

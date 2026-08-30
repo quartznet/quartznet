@@ -7,6 +7,7 @@ using Quartz.Configuration;
 using Quartz.Core;
 using Quartz.Diagnostics;
 using Quartz.Impl;
+using Quartz.Impl.Calendar;
 using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Configuration;
@@ -280,5 +281,56 @@ public class QuartzSchedulerBuilderTest
         {
             await scheduler.Shutdown();
         }
+    }
+
+    /// <summary>
+    /// A calendar with a dependency could not be registered at all: both generic overloads demand
+    /// <c>new()</c> and construct the calendar themselves. The factory overload is handed the
+    /// scheduler-scoped provider, so what it resolves is this scheduler's parts.
+    /// </summary>
+    [Test]
+    public async Task ACalendarCanBeBuiltFromTheContainer()
+    {
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create()
+            .ConfigureScheduler(options => options.InstanceName = "standalone-calendar-factory");
+
+        builder.Services.AddSingleton(new ExcludedDays(new MonthDay(12, 25)));
+
+        IScheduler scheduler = await builder
+            .AddCalendar("from-container", serviceProvider =>
+            {
+                AnnualCalendar calendar = new AnnualCalendar { TimeZone = TimeZoneInfo.Utc };
+                foreach (MonthDay day in serviceProvider.GetRequiredService<ExcludedDays>().Days)
+                {
+                    calendar.AddExcludedDay(day);
+                }
+
+                return calendar;
+            })
+            .BuildScheduler();
+
+        try
+        {
+            ICalendar calendar = await scheduler.GetCalendar("from-container");
+
+            calendar.Should().BeOfType<AnnualCalendar>()
+                .Which.IsDayExcluded(new MonthDay(12, 25)).Should().BeTrue(
+                    "the factory's dependency decided what the calendar excludes, which is the whole point of the overload");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    /// <summary>
+    /// A dependency a calendar cannot construct for itself, standing in for the holiday list or clock a
+    /// real one would be given.
+    /// </summary>
+    private sealed class ExcludedDays
+    {
+        public ExcludedDays(params MonthDay[] days) => Days = days;
+
+        public MonthDay[] Days { get; }
     }
 }

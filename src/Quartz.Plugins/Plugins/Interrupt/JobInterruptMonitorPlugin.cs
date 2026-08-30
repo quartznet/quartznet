@@ -31,11 +31,6 @@ public sealed class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlug
     // active monitors
     private readonly ConcurrentDictionary<string, InterruptMonitor> interruptMonitors = new();
 
-    public ValueTask Start(CancellationToken cancellationToken = default)
-    {
-        return default;
-    }
-
     public ValueTask Shutdown(CancellationToken cancellationToken = default)
     {
         taskScheduler.Dispose();

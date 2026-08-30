@@ -1123,6 +1123,47 @@ public class ConfigurationIsNeverSilentlyDroppedTest
                 "a misspelling is a mistake in whichever shape of bag it was written in");
     }
 
+    /// <summary>
+    /// The bag handed to <c>AddQuartz</c> is checked against the keys Quartz reads; the bag reached
+    /// through <c>Configure&lt;QuartzOptions&gt;</c> was not checked at all, and a key without the
+    /// <c>quartz.</c> prefix there is read by nobody — <c>QuartzPropertyBridge</c> is its only reader and
+    /// it looks up prefixed keys.
+    /// </summary>
+    /// <remarks>
+    /// This is the mis-bound <c>Configure&lt;QuartzOptions&gt;(section)</c> case, as far as it is
+    /// decidable. The half that is not: a section whose keys match no property binds to nothing, and an
+    /// empty <see cref="QuartzOptions"/> is indistinguishable from one nobody configured. So the check
+    /// is on the keys that did arrive.
+    /// </remarks>
+    [Test]
+    public void APropertyKeyWithoutTheQuartzPrefixIsRefusedRatherThanIgnored()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.Configure<QuartzOptions>(options => options.Properties["threadPool.maxConcurrency"] = "4");
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage("*threadPool.maxConcurrency*",
+                "a key nothing reads produces no symptom at all, so silence here is indistinguishable from working");
+    }
+
+    [Test]
+    public void APrefixedKeyReachesTheBridgeThroughTheSameRoute()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.Configure<QuartzOptions>(options => options.Properties["quartz.threadPool.maxConcurrency"] = "4");
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<ThreadPoolOptions>>().Value.MaxConcurrency
+            .Should().Be(4, "the check must not stand between a correctly spelled key and its reader");
+    }
+
     public sealed class MarkedTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateBase
     {
         public override bool CanHandleTriggerType(Quartz.Extensibility.IOperableTrigger trigger) => false;

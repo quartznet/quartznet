@@ -78,26 +78,7 @@ public sealed class ShutdownHookPlugin : ISchedulerPlugin
         return default;
     }
 
-    /// <summary>
-    /// Called when the associated <see cref="IScheduler" /> is started, in order
-    /// to let the plug-in know it can now make calls into the scheduler if it
-    /// needs to.
-    /// </summary>
-    public ValueTask Start(CancellationToken cancellationToken = default)
-    {
-        // do nothing.
-        return default;
-    }
-
-    /// <summary>
-    /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
-    /// should free up all of it's resources because the scheduler is shutting
-    /// down.
-    /// </summary>
-    public ValueTask Shutdown(CancellationToken cancellationToken = default)
-    {
-        // nothing to do in this case (since the scheduler is already shutting
-        // down)
-        return default;
-    }
+    // Start and Shutdown are the interface's defaults: the hook is registered in Initialize, and by the
+    // time Shutdown runs the scheduler is already shutting down, which is the whole of what this plugin
+    // was going to do about it.
 }

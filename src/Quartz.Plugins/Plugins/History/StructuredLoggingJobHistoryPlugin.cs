@@ -112,26 +112,6 @@ public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobLi
     }
 
     /// <summary>
-    /// Called when the associated <see cref="IScheduler" /> is started, in order
-    /// to let the plug-in know it can now make calls into the scheduler if it
-    /// needs to.
-    /// </summary>
-    public ValueTask Start(CancellationToken cancellationToken = default)
-    {
-        return default;
-    }
-
-    /// <summary>
-    /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
-    /// should free up all of it's resources because the scheduler is shutting
-    /// down.
-    /// </summary>
-    public ValueTask Shutdown(CancellationToken cancellationToken = default)
-    {
-        return default;
-    }
-
-    /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" /> is
     /// about to be executed (an associated <see cref="ITrigger" /> has occurred).
     /// <para>
