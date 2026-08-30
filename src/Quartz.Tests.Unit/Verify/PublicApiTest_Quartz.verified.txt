@@ -1436,6 +1436,27 @@ namespace Quartz
         FireAndProceed = 1,
         DoNothing = 2,
     }
+    public sealed class RetryPolicy : System.IEquatable<Quartz.RetryPolicy>
+    {
+        public double BackoffFactor { get; }
+        public System.Collections.Immutable.ImmutableArray<System.TimeSpan> Delays { get; }
+        public System.TimeSpan InitialDelay { get; }
+        public int MaxAttempts { get; }
+        public System.TimeSpan? MaxDelay { get; }
+        public System.TimeSpan DelayFor(int attempt) { }
+        public bool Equals(Quartz.RetryPolicy? other) { }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public string ToStoredString() { }
+        public override string ToString() { }
+        public static Quartz.RetryPolicy Explicit([System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyList<System.TimeSpan> delays) { }
+        public static Quartz.RetryPolicy Exponential(int maxAttempts, System.TimeSpan initialDelay, double factor = 2, System.TimeSpan? maxDelay = default) { }
+        public static Quartz.RetryPolicy Fixed(int maxAttempts, System.TimeSpan delay) { }
+        public static Quartz.RetryPolicy Parse(string value) { }
+        public static bool TryParse(string? value, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.RetryPolicy? policy) { }
+        public static bool operator !=(Quartz.RetryPolicy? left, Quartz.RetryPolicy? right) { }
+        public static bool operator ==(Quartz.RetryPolicy? left, Quartz.RetryPolicy? right) { }
+    }
     public readonly struct ScheduleJobOptions : System.IEquatable<Quartz.ScheduleJobOptions>
     {
         public bool Replace { get; init; }
