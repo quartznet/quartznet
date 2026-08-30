@@ -65,6 +65,43 @@ public static class TriggerConfiguratorExtensions
     }
 
     /// <summary>
+    /// Set the trigger to fire on a fixed interval, repeating forever unless a repeat count is given.
+    /// </summary>
+    /// <remarks>
+    /// The shorthand for the schedule almost every fixed-interval trigger wants, so that
+    /// <c>WithSimpleSchedule(x =&gt; x.WithInterval(interval).RepeatForever())</c> can be written
+    /// <c>WithSimpleSchedule(interval)</c>. Reach for the delegate overload when the schedule needs
+    /// more than an interval and a count — a misfire instruction, say.
+    /// </remarks>
+    /// <param name="configurator">the trigger being configured.</param>
+    /// <param name="interval">the interval at which the trigger repeats.</param>
+    /// <param name="repeatCount">
+    /// How many times the trigger repeats <em>after</em> its first firing, so the total number of
+    /// firings is one more than this — the same number
+    /// <see cref="SimpleScheduleBuilder.WithRepeatCount" /> and
+    /// <see cref="ISimpleTrigger.RepeatCount" /> carry, with no arithmetic of its own.
+    /// <see langword="null" />, the default, repeats forever.
+    /// </param>
+    public static TConfigurator WithSimpleSchedule<TConfigurator>(
+        this TConfigurator configurator,
+        TimeSpan interval,
+        int? repeatCount = null) where TConfigurator : ITriggerConfigurator
+    {
+        SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create().WithInterval(interval);
+        if (repeatCount is null)
+        {
+            builder.RepeatForever();
+        }
+        else
+        {
+            builder.WithRepeatCount(repeatCount.Value);
+        }
+
+        configurator.WithSchedule(builder);
+        return configurator;
+    }
+
+    /// <summary>
     /// Set the trigger to fire on a cron schedule.
     /// </summary>
     /// <param name="configurator">the trigger being configured.</param>

@@ -5972,6 +5972,12 @@ taking an optional record whose defaults are the conservative choice (`Replace =
 | `AddCalendar(name, cal, false, false)` | `AddCalendar(name, cal)` |
 | `AddCalendar(name, cal, true, true)` | `AddCalendar(name, cal, new AddCalendarOptions { Replace = true, UpdateTriggers = true })` |
 
+`replace: true` on its own is nearly all of what these options are ever asked for, so each record names it:
+`AddJobOptions.Replacing`, `ScheduleJobOptions.Replacing`, `AddCalendarOptions.Replacing` and
+`AddCalendarOptions.ReplacingAndUpdatingTriggers` are the initializers above under a name — see
+[Five shorthands for the common case](#five-shorthands-for-the-common-case). The initializer stays the way to
+say anything else.
+
 `AddJobOptions` and `AddCalendarOptions` are both in the `Quartz` namespace. `IJobStore.AddCalendar` takes
 `AddCalendarOptions` too; `IJobStore.AddJob` keeps its single `bool replace`, because durability is a
 scheduler-level rule the store never sees.
@@ -7486,6 +7492,14 @@ Inside a `WithSimpleSchedule` delegate you never needed the factories at all:
 + .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever())
 ```
 
+And an interval overload shortens even that, which is as close as 4.x comes to bringing the factories back —
+see [Five shorthands for the common case](#five-shorthands-for-the-common-case):
+
+```csharp
+.WithSimpleSchedule(TimeSpan.FromMinutes(5))                   // the same schedule
+.WithSimpleSchedule(TimeSpan.FromMinutes(5), repeatCount: 2)   // three firings rather than forever
+```
+
 ## `CronScheduleBuilder`'s convenience factories are gone
 
 `CronSchedule(string)` and `CronSchedule(CronExpression)` stay, spelled `Create(...)` now (see
@@ -7500,19 +7514,81 @@ positional and special forms (`OnWeekdays`, `OnLastDayOfMonth`, `OnLastDayOfWeek
 `CronExpression` — directly through `WithCronSchedule`, so the chain closes without naming
 `CronScheduleBuilder`.
 
+The four that took a time of day take it as one `TimeOnly` now, through `AtTime` — which sets the second,
+minute and hour fields together, so the "at 09:30" half of each old factory is one call and the "on these
+days" half is `WithDaysOfWeek` or `WithDayOfMonth` beside it. Cron resolves to a whole second, so any
+sub-second part of the `TimeOnly` is ignored.
+
 | 3.x | 4.x |
 |---|---|
-| `CronScheduleBuilder.DailyAtHourAndMinute(h, m)` | `CronScheduleBuilder.Create($"0 {m} {h} ? * *")` |
-| `CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(h, m, days)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).WithDaysOfWeek(days).Build())` |
-| `CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(day, h, m)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).WithDaysOfWeek(day).Build())` |
-| `CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(dom, h, m)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).WithDayOfMonth(dom).Build())` |
+| `CronScheduleBuilder.DailyAtHourAndMinute(h, m)` | `CronExpressionBuilder.Create().AtTime(new TimeOnly(h, m))` |
+| `CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(h, m, days)` | `CronExpressionBuilder.Create().AtTime(new TimeOnly(h, m)).WithDaysOfWeek(days)` |
+| `CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(day, h, m)` | `CronExpressionBuilder.Create().AtTime(new TimeOnly(h, m)).WithDaysOfWeek(day)` |
+| `CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(dom, h, m)` | `CronExpressionBuilder.Create().AtTime(new TimeOnly(h, m)).WithDayOfMonth(dom)` |
 | `CronScheduleBuilder.CronScheduleWithHash(expr, hashKey)` | `CronScheduleBuilder.Create(new CronExpression(expr, hashKey))` |
 | `CronScheduleBuilder.CronScheduleWithHash(expr, hashSeed)` | `CronScheduleBuilder.Create(new CronExpression(expr, hashSeed))` |
+
+`WithCronSchedule` takes the builder, so nothing in the first four rows names `CronScheduleBuilder` at all:
+
+```diff
+- .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(9, 30))
++ .WithCronSchedule(CronExpressionBuilder.Create().AtTime(new TimeOnly(9, 30)))
+```
+
+A literal expression is still the shortest thing to write when you have one:
 
 ```diff
 - .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(9, 30))
 + .WithCronSchedule("0 30 9 ? * *")
 ```
+
+## Five shorthands for the common case
+
+Replacing a family of static factories with a builder makes the unusual call sayable and the usual one
+longer. Five additions give the usual one its short spelling back: an interval overload of
+`WithSimpleSchedule`, `CronExpressionBuilder.AtTime`, `IScheduler.ScheduleJob<TJob>`, a named static on each
+of the three option records, and `TriggerBuilder<TJob>.Key`. All are additive — nothing they shorten stopped
+working, and the longer form is still what to reach for the moment the call needs more than the shorthand
+says.
+
+| Instead of | Write |
+|---|---|
+| `WithSimpleSchedule(x => x.WithInterval(i).RepeatForever())` | `WithSimpleSchedule(i)` |
+| `WithSimpleSchedule(x => x.WithInterval(i).WithRepeatCount(n))` | `WithSimpleSchedule(i, n)` |
+| `CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h)` | `CronExpressionBuilder.Create().AtTime(new TimeOnly(h, m))` |
+| `scheduler.ScheduleJob(JobBuilder.Create<TJob>().WithIdentity(trigger.Key.Name, trigger.Key.Group).Build(), trigger)` | `scheduler.ScheduleJob<TJob>(trigger)` |
+| `new AddJobOptions { Replace = true }` | `AddJobOptions.Replacing` |
+| `new ScheduleJobOptions { Replace = true }` | `ScheduleJobOptions.Replacing` |
+| `new AddCalendarOptions { Replace = true }` | `AddCalendarOptions.Replacing` |
+| `new AddCalendarOptions { Replace = true, UpdateTriggers = true }` | `AddCalendarOptions.ReplacingAndUpdatingTriggers` |
+
+The repeat count in `WithSimpleSchedule(i, n)` is the trigger's own `RepeatCount`, so it fires `n + 1` times —
+the same number `WithRepeatCount` takes, with none of the `- 1` arithmetic the 3.x `ForTotalCount` factories
+did. Omitting it repeats forever.
+
+`IScheduler.ScheduleJob<TJob>(trigger, configure)` is the imperative twin of the container's
+`q.ScheduleJob<TJob>(...)`, and names the job the same way: whatever `configure` gave it, else the job the
+trigger already points at through `ForJob`, else the trigger's own key. So neither of these names a
+`JobBuilder`, and the two read alike:
+
+```csharp
+// at start-up, in AddQuartz
+q.ScheduleJob<ReportJob>(trigger => trigger.WithIdentity("nightly").WithCronSchedule("0 30 9 ? * *"));
+
+// at run time, against a scheduler
+ITrigger trigger = TriggerBuilder.Create()
+    .WithIdentity("nightly")
+    .WithCronSchedule("0 30 9 ? * *")
+    .Build();
+
+await scheduler.ScheduleJob<ReportJob>(trigger);
+```
+
+`TriggerBuilder<TJob>.Key` rounds out the same pass: it reports the identity the trigger was given, the way
+`JobBuilder<TJob>.Key` already did, so code that has to agree with a trigger can read its key rather than
+build the trigger to find it out. It differs in one way — a trigger builder keeps the key `Build()` generated
+when none was named, so building twice produces the same trigger, and reading `Key` after `Build()` reports
+that generated key rather than `null`.
 
 ## Day selection on `DailyTimeIntervalScheduleBuilder`
 

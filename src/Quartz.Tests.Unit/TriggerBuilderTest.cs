@@ -324,6 +324,188 @@ public class TriggerBuilderTest
     }
 
     /// <summary>
+    /// The shorthand builds the same schedule the delegate form spells out, so the 124 call sites
+    /// that say <c>x =&gt; x.WithInterval(i).RepeatForever()</c> can say <c>i</c>.
+    /// </summary>
+    [Test]
+    public void WithSimpleSchedule_TakingAnInterval_RepeatsForever()
+    {
+        ISimpleTrigger shorthand = (ISimpleTrigger) TriggerBuilder.Create()
+            .WithSimpleSchedule(TimeSpan.FromHours(1))
+            .Build();
+
+        ISimpleTrigger spelledOut = (ISimpleTrigger) TriggerBuilder.Create()
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .Build();
+
+        shorthand.RepeatInterval.Should().Be(spelledOut.RepeatInterval);
+        shorthand.RepeatCount.Should().Be(SimpleTriggerImpl.RepeatIndefinitely,
+            "omitting the repeat count is how a caller asks for the forever schedule the delegate form spells out")
+            .And.Be(spelledOut.RepeatCount);
+    }
+
+    /// <summary>
+    /// The count is the trigger's own <see cref="ISimpleTrigger.RepeatCount" />, not a total number of
+    /// firings — the "- 1" the 3.x <c>ForTotalCount</c> factories did is deliberately not repeated here.
+    /// </summary>
+    [Test]
+    public void WithSimpleSchedule_TakingARepeatCount_PassesItThroughUnchanged()
+    {
+        ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
+            .WithSimpleSchedule(TimeSpan.FromMinutes(5), repeatCount: 2)
+            .Build();
+
+        trigger.RepeatInterval.Should().Be(TimeSpan.FromMinutes(5));
+        trigger.RepeatCount.Should().Be(2,
+            "the argument is the repeat count the trigger carries, so this fires three times in all - "
+            + "the shorthand does no arithmetic the trigger would then have to be read back through");
+    }
+
+    /// <summary>
+    /// Zero is a repeat count, not "unset": it is how a caller says "fire once and stop", and it has to
+    /// survive the <see langword="null" /> that means forever.
+    /// </summary>
+    [Test]
+    public void WithSimpleSchedule_TakingARepeatCountOfZero_FiresOnce()
+    {
+        ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
+            .WithSimpleSchedule(TimeSpan.FromMinutes(5), repeatCount: 0)
+            .Build();
+
+        trigger.RepeatCount.Should().Be(0, "zero repeats is one firing, and is not the forever schedule");
+    }
+
+    [Test]
+    public void Key_IsNullUntilAnIdentityIsNamed()
+    {
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create();
+
+        builder.Key.Should().BeNull("nothing has named the trigger yet, so there is no identity to report");
+    }
+
+    [Test]
+    public void Key_IsTheIdentityTheCallerNamed()
+    {
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create().WithIdentity("nightly", "reports");
+
+        builder.Key.Should().Be(new TriggerKey("nightly", "reports"),
+            "code that has to agree with this trigger - a job, a registration - reads the key rather than "
+            + "building the trigger to find out");
+    }
+
+    /// <summary>
+    /// Unlike <see cref="JobBuilder{TJob}.Key" />, this one reports a generated key too: the trigger
+    /// builder keeps what <c>Build</c> generated, so building twice produces the same trigger.
+    /// </summary>
+    [Test]
+    public void Key_AfterBuild_IsTheGeneratedIdentityTheTriggerCarries()
+    {
+        TriggerBuilder<IJob> builder = TriggerBuilder.Create();
+
+        ITrigger trigger = builder.Build();
+
+        builder.Key.Should().Be(trigger.Key,
+            "Build keeps the identity it generated, so a caller can read back what it scheduled");
+        builder.Build().Key.Should().Be(trigger.Key,
+            "and a second Build is the same trigger rather than a second one");
+    }
+
+    /// <summary>
+    /// The imperative twin of the container's <c>q.ScheduleJob&lt;TJob&gt;</c>: the job detail is built
+    /// on the way through, and with nothing naming the job it takes the trigger's identity.
+    /// </summary>
+    [Test]
+    public async Task ScheduleJob_WithNoConfigurator_GivesTheJobTheTriggersIdentity()
+    {
+        IScheduler scheduler = await NewScheduler("schedule-job-borrows-identity");
+
+        try
+        {
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("nightly", "reports")
+                .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+                .Build();
+
+            DateTimeOffset firstFire = await scheduler.ScheduleJob<TestJob>(trigger);
+
+            firstFire.Should().Be(trigger.StartTimeUtc, "the trigger has not fired yet, so its start time is next");
+
+            IJobDetail job = await scheduler.GetJobDetail(new JobKey("nightly", "reports"));
+            job.Should().NotBeNull("the job was named after the trigger, exactly as the DI ScheduleJob<T> names it")
+                .And.Match<IJobDetail>(x => x.JobType.Type == typeof(TestJob));
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task ScheduleJob_WithAConfigurator_TakesTheIdentityItNames()
+    {
+        IScheduler scheduler = await NewScheduler("schedule-job-named-identity");
+
+        try
+        {
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("nightly", "reports")
+                .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+                .Build();
+
+            await scheduler.ScheduleJob<TestJob>(trigger, job => job.WithIdentity("compaction").WithDescription("nightly compaction"));
+
+            IJobDetail job = await scheduler.GetJobDetail(new JobKey("compaction"));
+            job.Should().NotBeNull("an identity the caller named beats the one borrowed from the trigger")
+                .And.Match<IJobDetail>(x => x.Description == "nightly compaction");
+
+            ITrigger stored = await scheduler.GetTrigger(new TriggerKey("nightly", "reports"));
+            stored.JobKey.Should().Be(new JobKey("compaction"), "the trigger named no job, so it took this one");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    /// <summary>
+    /// A trigger built with <c>ForJob</c> already says which job it is for, and that beats the trigger's
+    /// own key — otherwise the pair could not agree and the scheduler would reject them.
+    /// </summary>
+    [Test]
+    public async Task ScheduleJob_WithATriggerThatNamesItsJob_TakesThatJobsIdentity()
+    {
+        IScheduler scheduler = await NewScheduler("schedule-job-trigger-names-job");
+
+        try
+        {
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("nightly", "reports")
+                .ForJob("compaction", "maintenance")
+                .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+                .Build();
+
+            await scheduler.ScheduleJob<TestJob>(trigger);
+
+            IJobDetail job = await scheduler.GetJobDetail(new JobKey("compaction", "maintenance"));
+            job.Should().NotBeNull(
+                "the trigger already named the job it fires, so borrowing the trigger's own key instead "
+                + "would have scheduled a pair the scheduler rejects as not referring to each other");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    private static ValueTask<IScheduler> NewScheduler(string name)
+    {
+        return QuartzSchedulerBuilder.Create()
+            .ConfigureScheduler(options => options.InstanceName = name)
+            .UseInMemoryStore()
+            .BuildScheduler();
+    }
+
+    /// <summary>
     /// The five shipped schedules, each of which builds a different trigger implementation.
     /// </summary>
     private static IEnumerable<TestCaseData> EveryShippedSchedule()
