@@ -695,17 +695,18 @@ If you implement `IJobStore` or `ISchedulerPlugin` yourself, they take their col
 constructors now instead of being handed them afterwards.
 
 `IJobStore` loses `InstanceId`, `InstanceName`, `ThreadPoolSize` and `TimeProvider`, and `Initialize`
-loses its parameters:
+takes the scheduler's identity in place of its collaborators:
 
 ```diff
 - ValueTask Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default);
-+ ValueTask Initialize(CancellationToken cancellationToken = default);
++ ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default);
 ```
 
 Take what you need — `ISchedulerSignaler`, `ITypeLoader`, `TimeProvider`,
-`IOptions<QuartzSchedulerOptions>` — through your constructor. What remains in `Initialize` is work
-that has to happen before the scheduler runs and cannot be done while constructing, such as verifying
-a database schema.
+`IOptions<QuartzSchedulerOptions>` — through your constructor. The identity is the one thing a constructor
+cannot carry, for the reason [If you implement `IJobStore`](#if-you-implement-ijobstore) gives. What
+remains in `Initialize` is work that has to happen before the scheduler runs and cannot be done while
+constructing, such as verifying a database schema.
 
 Options arrive as the scheduler's own, whichever of the three interfaces you ask for.
 `IOptionsMonitor<QuartzSchedulerOptions>` and `IOptionsSnapshot<QuartzSchedulerOptions>` work as well
@@ -4156,12 +4157,12 @@ The scheduler body's `statistics` object gained `localExecutingJobs`, mirroring 
 
 Three members. `QueryFireInstances(FireInstanceQuery, CancellationToken)` is the listing, abstract like
 the rest of the query family; `QueryClusterNodes(CancellationToken)` is the node listing described in
-[The nodes of a cluster are a listing](#the-nodes-of-a-cluster-are-a-listing). And `Initialize` now
-takes a `SchedulerIdentity`:
+[The nodes of a cluster are a listing](#the-nodes-of-a-cluster-are-a-listing). And `Initialize` takes a
+`SchedulerIdentity`, which is the whole of what it takes — see
+[SPI changes](#spi-changes) for what its 3.x parameters became:
 
-```diff
-- ValueTask Initialize(CancellationToken cancellationToken = default);
-+ ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default);
+```csharp
+ValueTask Initialize(SchedulerIdentity identity, CancellationToken cancellationToken = default);
 ```
 
 The identity — the scheduler's name and this node's instance id — could not be a constructor argument,
