@@ -87,6 +87,18 @@ style `.config` files.
 If you are running on an older .NET version, you will need to upgrade your application to .NET 10
 before upgrading to Quartz 4.x.
 
+### If you are a library rather than an application
+
+An application can be told to upgrade. An integration package that serves `net8.0` and `net9.0`
+consumers cannot, and has to reference Quartz 3.x for those targets and Quartz 4 for `net10.0`. That is
+a conditional `PackageReference` plus `#if NET10_0_OR_GREATER` at the call sites that differ, and it
+works only while the difference stays *inside* the library — the moment your own public surface would
+differ per target framework, a separate `net10.0`-only package or dropping the old targets is the
+answer, not a deeper `#if`.
+
+[Embedding Quartz in a Library](how-tos/embedding-quartz-in-a-library.md#shipping-a-package-that-multi-targets)
+has the csproj fragment, the honest limit, and the table of renames a real port hit.
+
 ## Package Changes
 
 `Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting`, and `Quartz.Serialization.SystemTextJson` have been merged into the main `Quartz` package. You can remove these package references from your project:
@@ -105,13 +117,20 @@ resolve is retried against `Quartz`, with a warning naming both spellings.
 
 `Quartz.OpenTracing` is **dropped** and has no 4.x release. It consumed the `DiagnosticSource` events that
 4.x replaced with `System.Diagnostics.Activity`, and the OpenTracing project itself is archived. Remove the
-package reference and the `AddQuartzOpenTracing` call, and instrument with
-[OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz)
-instead — see [OpenTelemetry Integration](packages/opentelemetry-integration.md#coming-from-quartz-opentracing).
+package reference and the `AddQuartzOpenTracing` call, and subscribe to Quartz's activity source and meter
+directly — see [OpenTelemetry Integration](packages/opentelemetry-integration.md#coming-from-quartz-opentracing).
 
 ```diff
 - <PackageReference Include="Quartz.OpenTracing" Version="3.*" />
-+ <PackageReference Include="OpenTelemetry.Instrumentation.Quartz" Version="1.*" />
+```
+
+**`OpenTelemetry.Instrumentation.Quartz` is not the replacement.** It reads the same `DiagnosticSource`
+events, so on 4.x it produces no spans at all — silently. Remove that reference too, and add
+`AddSource(QuartzInstrumentation.ActivitySourceName)`; see
+[OpenTelemetry.Instrumentation.Quartz](packages/opentelemetry-integration.md#opentelemetry-instrumentation-quartz).
+
+```diff
+- <PackageReference Include="OpenTelemetry.Instrumentation.Quartz" Version="1.*" />
 ```
 
 ### `Quartz.Aspire` is new
@@ -282,6 +301,110 @@ can drive a scan from. PostgreSQL gets the largest change: several of its indexe
 a single-scheduler lookup at all.
 
 Full table creation scripts for fresh installations are available in [database/tables/](https://github.com/quartznet/quartznet/tree/main/database/tables).
+
+## Defaults that changed
+
+Almost none of them did. Every option that carried a default on 3.x carries the same one on 4.x — the
+thread pool's size, the ADO store's misfire threshold and misfire batch, the retry intervals, the table
+prefix, the cluster check-in interval, the hosted service's two switches. If a value matters to you and
+you set it, nothing here applies.
+
+Three effective defaults did change, and they change for one group of users only: those who never
+configured Quartz at all. `StdSchedulerFactory.Initialize()` seeded them from an embedded `quartz.config`
+that 4.x does not read, so a scheduler built by `new StdSchedulerFactory()` or
+`GetDefaultScheduler()` — and nothing else — was running on them.
+
+| Setting | 3.x, unconfigured | 4.x |
+|---|---|---|
+| `quartz.scheduler.instanceName` | `DefaultQuartzScheduler` | `QuartzScheduler` (`QuartzSchedulerOptions.InstanceName`). **Persistent stores key every row on this**, so an upgraded application that never named its scheduler stops seeing its own jobs and triggers until it sets the old name back |
+| `quartz.jobStore.misfireThreshold` | 60 seconds | 5 seconds (`InMemoryJobStoreOptions.MisfireThreshold`). This was always the in-memory store's *code* default on both branches; the embedded file was what raised it |
+| `quartz.threadPool.threadCount` | 10 | 10 (`ThreadPoolOptions.MaxConcurrency`) — unchanged, listed so the table is the whole of it |
+
+Handing the 3.x factory properties always bypassed the file, so `new StdSchedulerFactory(properties)`
+and `AddQuartz` already fell back to the typed defaults. See
+[The `quartz.config` file is no longer read](#the-quartz-config-file-is-no-longer-read).
+
+One default is new rather than changed: `QuartzSchedulerOptions.PropagateTraceContext` is on, so a
+trigger scheduled inside an `Activity` carries two extra entries in its data map. See
+[Silent behaviour changes](#silent-behaviour-changes).
+
+## Silent behaviour changes
+
+Most of this guide is about code that stops compiling, which is the easy half: the compiler says where to
+look. This section is the other half — **calls that still compile and now do something different**. Read
+it before the first run of the upgraded application rather than after it.
+
+### Reading job data
+
+Five of these are in one place, because 3.x had two overlapping accessor sets and 4.x kept the shorter
+names with the longer set's semantics. If you called `GetIntValue`, `GetBooleanValue` and friends, nothing
+here moved for you; if you called `GetInt` and `GetBoolean`, all of it did.
+
+* **The indexer throws on a missing key.** `map["absent"]` returned `null` on 3.x. On 4.x it goes straight
+  to the backing dictionary and throws `KeyNotFoundException`, on both `JobDataMap` and `SchedulerContext`.
+  The "read an optional entry" idiom has to become `TryGetValue` or a `TryGet…` accessor.
+* **`GetString` no longer throws.** 3.x threw `KeyNotFoundException` for an absent key and
+  `InvalidCastException` for a value that was not a string. 4.x returns `null` for both, so a mistyped key
+  and a wrongly-typed value are indistinguishable from "no value".
+* **The typed accessors throw a different exception for an absent key.** `GetInt`, `GetDouble`,
+  `GetBoolean` and the rest threw `KeyNotFoundException` on 3.x and throw `InvalidCastException` on 4.x.
+  A `catch (KeyNotFoundException)` around one stops catching.
+* **`GetBoolean` reads anything that is not `"true"` as `false`.** 3.x used `Convert.ToBoolean`, so a
+  stored `"1"` or `"yes"` threw `InvalidCastException`. 4.x compares against `"true"` case-insensitively
+  and *succeeds*, so a flag stored as `"1"` used to fail loudly and now quietly reads as off.
+  `TryGetBoolean` reports success for it too.
+* **Strings are parsed with the invariant culture.** `GetInt`, `GetDouble`, `GetFloat` and `GetDecimal`
+  used the current culture when the stored value was a string. On a comma-decimal culture `"3.14"` used to
+  read as `314` and now reads as `3.14`; `"3,14"` used to read as `3.14` and now throws. The new reading is
+  the correct one, and it is still a different number from the one the job saw yesterday.
+* **`TryGetDateTime` parses with `DateTimeStyles.RoundtripKind`**, so a stored string ending in `Z` comes
+  back as `Kind=Utc` rather than shifted to local time — see
+  [`PutAsString` writes round-trip formats now](#putasstring-writes-round-trip-formats-now).
+* **The scheduler context is no longer merged into job properties** — see
+  [Scheduler context entries are no longer injected into job properties](#scheduler-context-entries-are-no-longer-injected-into-job-properties).
+
+### Serialization and the store
+
+* **`quartz.serializer.type = json` means System.Text.Json now.** On 3.x the `json` alias expanded to the
+  Newtonsoft serializer, with a logged warning that the name was ambiguous. On 4.x `json` and `stj` both
+  resolve to `SystemTextJsonObjectSerializer`, and nothing warns. A configuration file carried over
+  verbatim therefore changes which serializer writes and reads the store's blobs, which is a different
+  payload shape and a different set of registered trigger and calendar serializers. Spell it `newtonsoft`
+  if Newtonsoft is what you meant.
+* **System.Text.Json refuses a job data value it cannot read back**, at write time rather than at the next
+  read — see [System.Text.Json refuses a job data value it cannot read back](#system-text-json-refuses-a-job-data-value-it-cannot-read-back).
+* **Five calendar types serialize to a new shape.** 4.x reads both forms and 3.x reads only its own, so
+  this is invisible on a clean cut-over and fatal in a mixed window — see
+  [A mixed 3.x and 4.0 window](operations.md#a-mixed-3-x-and-4-0-window).
+* **The formerly optional columns are required**, and an unmigrated schema fails at the first trigger load
+  or store with a provider-level missing-column error rather than at startup — see
+  [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone).
+* **The two stores now answer the same way** where they used to disagree, which changes what the ADO store
+  does in six places — see [The two job stores answer the same way](#the-two-job-stores-answer-the-same-way).
+
+### Lifecycle and telemetry
+
+* **`Standby()` after `Shutdown()` throws** instead of silently pausing something already stopped — see
+  [The transitions are honest about themselves](#the-transitions-are-honest-about-themselves).
+* **A trigger scheduled inside an `Activity` carries two extra job-data entries.**
+  `QuartzSchedulerOptions.PropagateTraceContext` is on by default, and the two reserved keys are visible
+  wherever trigger data is: `MergedJobDataMap`, the dashboard, `GET /triggers`. Turn it off with
+  `q.ConfigureScheduler(options => options.PropagateTraceContext = false)`.
+
+### Ordering
+
+* **`JobKey` and `TriggerKey` compare ordinally**, where 3.x compared with the current culture, so any
+  sorted listing of keys comes out in a different order — see
+  [`Key<T>` moved to `Quartz` and is immutable](#key-t-moved-to-quartz-and-is-immutable).
+
+### What is on nobody's list because it did not change
+
+Worth stating, because the reasonable fear is that everything moved. These were checked against both
+branches and are identical: every misfire instruction's numeric value, so a `MISFIRE_INSTR` column carried
+over still means what it meant; `TriggerState`'s existing values, with `Executing` appended; the misfire
+computation of every trigger family; the merge order and content of `MergedJobDataMap`; the rule that
+`[PersistJobDataAfterExecution]` writes back only a map that was modified; the lock handler a store picks
+for itself; `StringOperator`'s matching; and the effective default of `Shutdown(waitForJobsToComplete)`.
 
 ## Configuration
 
@@ -2691,6 +2814,74 @@ Under a host, the same call goes on the `AddQuartz` builder:
 services.AddQuartz(q => q.UseTimeProvider(new FakeTimeProvider()));
 ```
 
+### The clock is a construction parameter, which is an API-shape change
+
+`SystemTime.UtcNow` was a public mutable field: anything could assign it, from anywhere, at any time,
+and every scheduler in the process saw the result. `TimeProvider` is handed to a scheduler when it is
+built. That is the point — but it means anything of yours that *wraps* scheduler construction has to
+grow a way to be told which clock to use, because there is no longer a hook to reach in afterwards.
+Builders are the same story: a trigger built by `TriggerBuilder.Create()` with no argument reads
+`TimeProvider.System`, so a component that builds triggers outside the container needs the clock passed
+to it. See [The trap: triggers built outside the container](tutorial/time-and-timeprovider.md#the-trap-triggers-built-outside-the-container).
+
+### Replacing a `SystemTime` *offset*, not a freeze
+
+`FakeTimeProvider` — from `Microsoft.Extensions.TimeProvider.Testing` — is the right answer when a test
+owns the whole clock: it starts stopped and only moves when you advance it. It is the wrong answer when
+something else in the process still computes from the real clock, because the two then disagree by
+however long the test has been running, and it cannot be moved backwards at all.
+
+3.x code that assigned an *offset* — `SystemTime.UtcNow = () => DateTimeOffset.UtcNow + skew` — wants a
+clock that still runs, and that is about thirty lines:
+
+<!-- snippet: sample_migration_offset_time_provider -->
+```csharp
+/// <summary>
+/// A clock that runs at the system's speed, shifted by an offset that can be moved at will —
+/// forwards or backwards — without stopping.
+/// </summary>
+public sealed class OffsetTimeProvider(TimeProvider inner) : TimeProvider
+{
+    private long offsetTicks;
+
+    public TimeSpan Offset
+    {
+        get => TimeSpan.FromTicks(Interlocked.Read(ref offsetTicks));
+        set => Interlocked.Exchange(ref offsetTicks, value.Ticks);
+    }
+
+    public override DateTimeOffset GetUtcNow() => inner.GetUtcNow() + Offset;
+
+    public override TimeZoneInfo LocalTimeZone => inner.LocalTimeZone;
+
+    public override long GetTimestamp() => inner.GetTimestamp();
+
+    public override long TimestampFrequency => inner.TimestampFrequency;
+
+    // Left to the real clock deliberately: a timer that only fires when something advances the
+    // offset would deadlock every wait inside the scheduler.
+    public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        => inner.CreateTimer(callback, state, dueTime, period);
+}
+```
+<!-- endSnippet -->
+
+<!-- snippet: sample_migration_offset_time_provider_use -->
+```csharp
+OffsetTimeProvider clock = new(TimeProvider.System);
+services.AddQuartz(q => q.UseTimeProvider(clock));
+
+// ... and later, from the test or the diagnostic endpoint that owns it:
+clock.Offset = TimeSpan.FromHours(26);
+```
+<!-- endSnippet -->
+
+`CreateTimer` deliberately delegates to the real clock. A timer that only fires when something advances
+the offset would stall every wait inside the scheduler — which is exactly what `FakeTimeProvider` does,
+and why advancing it is not enough on its own. When you *do* want a frozen clock, advance it and then
+wait for the scheduler to react rather than sleeping; see
+[Controlling time](tutorial/testing.md#controlling-time).
+
 ### A clock belongs to one scheduler
 
 `UseTimeProvider` used to replace the container's `TimeProvider` registration, so calling it on one named
@@ -3743,6 +3934,7 @@ and `SchedulerContext`), so the call sites read the same:
 | every `TryGet…Value` / `TryGet…ValueFromString` | the matching `TryGet…` |
 | `GetNullableGuidValue` | `TryGetGuid`, or read the entry and test it yourself |
 | (none) | `GetString`, `TryGetString`, `GetDecimal`, `TryGetDecimal` |
+| your own `TryGetValue<T>` extension | **keep it.** 3.x's `JobDataMap` had no `TryGetValue<T>` either, so such a call was always the caller's own extension on `IDictionary<string, object>` — and `JobDataMap` still implements that interface, so it still binds. Do not substitute `TryGet<T>`, which is a different thing: see below |
 
 The `…FromString` half collapses because the retained accessors already convert: a value written as a
 string — which is what `StoreJobDataAsStrings` forces, and what `PutAsString` writes — is parsed on the way
@@ -3763,6 +3955,15 @@ the same test said as a question with one answer — it throws a `KeyNotFoundExc
 when there is no entry, and an `InvalidCastException` naming the key, the stored type and the
 requested one when there is one of the wrong type — and `GetValueOrDefault<T>(key, defaultValue)` is
 the same test with a fallback.
+
+::: warning `TryGet<T>` is not a converting reader
+The name invites it, so say it plainly: `TryGet<T>` is `stored is T` and nothing else. It does not parse,
+it does not convert, and it returns `false` rather than throwing when the type is wrong. A value written
+through `PutAsString`, or by any store running with `StoreJobDataAsStrings = true`, is a `string` — so
+`TryGet<int>` on it returns `false` where `TryGetInt` parses it and succeeds. If you are replacing a
+`TryGetValue<T>` extension of your own that used `Convert.ChangeType`, the named accessor is the
+equivalent; `TryGet<T>` is not.
+:::
 
 ### `PutAsString` writes round-trip formats now
 
@@ -4440,7 +4641,7 @@ re-fired.
 | `RetryPolicy.Exponential(maxAttempts, initialDelay, factor = 2, maxDelay = null)` | A wait multiplied by `factor` each time, optionally clamped |
 | `RetryPolicy.Explicit(params delays)` | A table of waits; `MaxAttempts` is its length and the last entry repeats |
 | `RetryPolicy.DelayFor(attempt)` | The wait before the given retry, counting from one |
-| `RetryPolicy.ToStoredString()` / `Parse` / `TryParse` | The form the `RETRY_POLICY` column, the JSON payload and a serialized trigger all carry |
+| `RetryPolicy.ToStoredString()` / `Parse` / `TryParse` | The single-string form the `RETRY_POLICY` column, the JSON payload and a serialized trigger are to carry |
 
 There is no public constructor, so a policy that could not be honoured — no attempts, a negative wait,
 a backoff that shrinks — cannot be built. A policy carries which of the three factories made it, so
@@ -4453,6 +4654,16 @@ round-tripping it through the `"R"` format guarantees.
 
 `MaxAttempts` counts retries *after* the first failure, not fires: `Fixed(2, …)` runs a persistently
 failing job three times in total.
+
+::: warning Nothing acts on a policy yet
+This is the value and its storage format, landed ahead of the engine so that no later release has to add
+a column to `QRTZ_TRIGGERS`. On this release nothing attaches a `RetryPolicy` to a trigger, no statement
+reads or writes `RETRY_POLICY` or `RETRY_ATTEMPT`, and no failed job is re-fired on one. Follow
+[#3520](https://github.com/quartznet/quartznet/issues/3520). Until it lands, `RefireImmediately` — an
+in-process loop with no delay and no ceiling — is still the only built-in re-execution, and it is not a
+retry; see
+[Retry](how-tos/embedding-quartz-in-a-library.md#retry).
+:::
 
 ## Trimming annotations
 
@@ -6328,6 +6539,75 @@ var scheduler = await builder.BuildScheduler();
 There is no by-hand path left: `QuartzScheduler` is internal, so the job factory is always configured through
 the builder or the container.
 
+#### When the factory's dependency does not exist yet
+
+Setting `IScheduler.JobFactory` late was how 3.x code handled a factory that needed something the
+application only has after startup — a connected bus, a tenant catalogue, an elected leader. Configuring
+the factory at build time does not mean *resolving* its dependency at build time. Two shapes cover it:
+
+**Resolve per firing.** `UseJobFactory<T>()` constructs the factory from the scheduler's own service
+provider, so a factory that takes `IServiceProvider` can resolve whatever it needs inside `CreateJob`,
+which runs once per firing rather than once per scheduler:
+
+<!-- snippet: sample_migration_late_bound_job_factory_use -->
+```csharp
+services.AddSingleton<LateBound<IMessageBus>>();
+services.AddQuartz(q => q.UseJobFactory<BusAwareJobFactory>());
+```
+<!-- endSnippet -->
+
+**Hand it a holder.** When the dependency is not in the container at all — because whatever produces it
+also runs at startup — register a holder the factory can read through, and fill it when the value exists.
+That is the late-bound-holder pattern, and it is what the standalone `QuartzSchedulerBuilder` needs too,
+since it builds its own container and there is nothing to add to afterwards:
+
+<!-- snippet: sample_migration_late_bound_job_factory -->
+```csharp
+/// <summary>
+/// Holds something the container cannot supply yet, so that a component built at startup can be
+/// given the handle now and read the value later.
+/// </summary>
+public sealed class LateBound<T> where T : class
+{
+    private T? value;
+
+    public T Value => value ?? throw new InvalidOperationException($"{typeof(T).Name} is not available yet.");
+
+    public void Set(T instance) => value = instance;
+}
+
+public sealed class BusAwareJobFactory(IServiceProvider provider, LateBound<IMessageBus> bus) : IJobFactory
+{
+    public ValueTask<JobScope> CreateJob(
+        TriggerFiredBundle bundle,
+        IScheduler scheduler,
+        CancellationToken cancellationToken = default)
+    {
+        IServiceScope scope = provider.GetRequiredService<IServiceScopeFactory>().CreateScope();
+
+        // Read per firing rather than captured per scheduler, which is what makes a dependency that
+        // only exists once the bus has connected reachable from a factory built long before it.
+        IJob job = (IJob) ActivatorUtilities.CreateInstance(
+            scope.ServiceProvider,
+            bundle.JobDetail.JobType.Type,
+            bus.Value);
+
+        return new ValueTask<JobScope>(new JobScope(job, scope));
+    }
+
+    public ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
+    {
+        (scope.State as IServiceScope)?.Dispose();
+        return default;
+    }
+}
+```
+<!-- endSnippet -->
+
+Keep `CreateJob` synchronous. An `async` method restores the caller's `ExecutionContext` when it
+resumes, which discards any `AsyncLocal<T>` the factory set while building the job — the job then runs
+without the ambient state the factory established.
+
 ## Trigger fire times are properties
 
 ```diff
@@ -7341,7 +7621,11 @@ Keys can also be sorted now. `JobKey` and `TriggerKey` implement `IComparable<Jo
 `Comparer<JobKey>.Default` finds a real comparison. On 3.x only `IComparable<Key<T>>` was there, which
 the default comparer does not recognise, and `keys.Sort()`, `keys.OrderBy(k => k)`,
 `SortedSet<JobKey>` and `SortedDictionary<JobKey, _>` all compiled and then threw at runtime. The
-ordering itself is unchanged: the default group first, then group and name ordinally.
+rule that puts the default group first is unchanged; the comparison under it is not. 3.x compared group
+and name with `CultureInfo.CurrentCulture.CompareInfo`, and 4.x compares them with
+`StringComparer.Ordinal` — so a sorted listing reorders, most visibly by putting every upper-case letter
+before every lower-case one. The order no longer depends on the machine's culture, which is the point,
+but it is a different order from the one 3.x produced.
 
 ## Listing queries can filter by name
 
@@ -9152,7 +9436,7 @@ across the two branches; package boundaries moved, so match the files up with th
 | `PublicApiTest_Quartz.Serialization.Json` | `PublicApiTest_Quartz.Serialization.Newtonsoft` |
 | `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.Plugins.TimeZoneConverter`, `Quartz.Extensions.Redis`, `Quartz.AspNetCore`, `Quartz.Dashboard` | same name on both sides |
 | `PublicApiTest_Quartz.OpenTracing` | dropped; there is no 4.x package |
-| (no 3.x baseline — its ancient `OpenTelemetry` dependency fails restore there) | dropped; use [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz) |
+| (no 3.x baseline — its ancient `OpenTelemetry` dependency fails restore there) | dropped; subscribe to the `Quartz` activity source directly |
 | — | `PublicApiTest_Quartz.HttpClient` — new in 4.x |
 
 3.x snapshots `net10.0` only, so its `net472` and `REMOTING` surface never appears in that diff.
@@ -9240,7 +9524,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Util.PropertiesParser` | Internal | No replacement; `QuartzPropertyBridge` is the only reader of flat `quartz.*` keys now — see [Flat keys still work](#flat-keys-still-work) |
 | `Quartz.PropertiesSetter` | Removed | Typed options — see [Removed](#removed) |
 | `Quartz.QuartzConfiguratorExecutionLimitsExtensions` | Removed | `IQuartzBuilder.UseExecutionLimits(Action<ExecutionLimitsBuilder>)` — see [Execution limits are built once, then frozen](#execution-limits-are-built-once-then-frozen) |
-| `Quartz.OpenTracing.QuartzDiagnosticOptions` | Removed with its package | [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz); job execution is on `Activity` through `QuartzActivitySource` |
+| `Quartz.OpenTracing.QuartzDiagnosticOptions` | Removed with its package | `AddSource(QuartzInstrumentation.ActivitySourceName)`; job execution is on `Activity` through `QuartzActivitySource` — see [Observability](packages/opentelemetry-integration.md) |
 | `Quartz.Util.QuartzEnvironment` | Internal | `System.Environment`, or `IConfiguration` for settings |
 | `Quartz.Core.QuartzRandom` | Internal | `System.Random` |
 | `Quartz.Core.QuartzScheduler` | Internal | Resolve `IScheduler` or `ISchedulerFactory` — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
@@ -9314,6 +9598,7 @@ removals on types that are still public and still open, which no section above n
 | `IScheduler.InStandbyMode` | Removed | `Status is SchedulerStatus.Created or SchedulerStatus.Standby or SchedulerStatus.ShuttingDown` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
 | `IScheduler.IsShutdown` | Removed | `Status is SchedulerStatus.Shutdown` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
 | `IScheduler.IsStarted` | Removed | `Status is not SchedulerStatus.Created` faithfully; `Status is SchedulerStatus.Running` if what you meant was "is running now", which it did not say — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
+| `IScheduler.JobFactory` (setter-only) | Removed, from `IScheduler`, `StdScheduler`, `DelegatingScheduler` and `HttpScheduler` | `IQuartzBuilder.UseJobFactory(IJobFactory)` or `UseJobFactory<T>()` where the scheduler is built; `ConfigureJobScope(...)` when all it did was seed the DI scope. A factory whose dependency does not exist yet resolves it in `CreateJob` — see [The factory is set where the scheduler is built](#the-factory-is-set-where-the-scheduler-is-built) |
 | `JobBuilder.CreateForAsync<T>()` | Removed | `JobBuilder.Create<T>()`; every job has been asynchronous since 3.0 |
 | `JobStoreSupport.calendarCache`, `.delegateType`, `.firstCheckIn` | Removed (`protected` fields) | No replacement; they are the base class's own bookkeeping |
 | `JobStoreSupport.GetTriggerNames(conn, matcher, ct)` | Removed (`protected`) | The listing members became queries — see [Job store listings became queries](#job-store-listings-became-queries) |
@@ -9329,3 +9614,78 @@ removals on types that are still public and still open, which no section above n
 | `StringKeyDirtyFlagMap.Put()` (eight overloads), `.PutAll()` | Removed; all were `[Obsolete]` in 3.x | `map[key] = value` |
 | `TaskSchedulingThreadPool.ThreadPriority` | Removed | No replacement; work runs on a `TaskScheduler`, which has no thread to prioritise — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
 | `ZeroSizeThreadPool.AvailableThreadCount` | Removed | `PoolSize`, which is `0` — the pool never had a thread to report |
+
+### Types 4.0 added to the `Quartz` namespace
+
+The two tables above answer "where did my type go". This one answers the opposite question, which a
+build only asks once and then asks loudly: **CS0104, "ambiguous reference"**, because a name Quartz now
+declares collides with one of yours under `using Quartz;`. Three packages folded into `Quartz` and the
+namespace absorbed the matchers, `Key<T>` and the options types, so the namespace is much larger than it
+was — and the errors it produces name the right members on the wrong type, which reads like your own code
+having gone wrong.
+
+Derived the same mechanical way as the tables above: types in the 4.x `Quartz` namespace that are in the
+3.x `Quartz` namespace of none of `Quartz`, `Quartz.Extensions.DependencyInjection` or
+`Quartz.Extensions.Hosting`. **Ninety-two names.** A project that also referenced
+`Quartz.Serialization.SystemTextJson` on 3.x already had `JsonSerializationException`.
+
+```text
+AddCalendarOptions                  AddJobOptions                              AdoJobStoreOptions
+AndMatcher<T>                       CalendarIntervalTriggerMisfireInstruction  CalendarNameMatcher
+CalendarQuery                       ClusteringOptions                          ClusterNode
+ClusterNodeState                    CronTriggerMisfireInstruction              DailyTimeIntervalTriggerMisfireInstruction
+DataMapExtensions                   DataSourceOptions                          EverythingMatcher<T>
+ExecutionGroupInFlight              ExecutionGroupLimit                        ExecutionGroupScope
+ExecutionLimitsBuilder              ExecutionLimitScope                        ExecutionSlots
+FireInstance                        FireInstanceQuery                          FireInstanceState
+GroupMatcher<T>                     IJob<T>                                    IJobConfigurator<T>
+IJobExecutionContextAccessor        IJobExecutionMiddleware                    InMemoryJobStoreOptions
+IPersistentStoreBuilder             IQuartzBuilder                             ISchedulerRegistry
+ITriggerConfigurator<T>             JobBuilder<T>                              JobDetailExtensions
+JobExecutionContextInputExtensions  JobExecutionDelegate                       JobExecutionProcessException
+JobGroup                            JobGroupQuery                              JobHeader
+JobInputBuilderExtensions           JobInstantiationException                  JobQuery
+JobType                             JsonSerializationException                 Key<T>
+KeyMatcher<T>                       Matchers                                   MonthDay
+NameMatcher<T>                      NotMatcher<T>                              OneOffJobOptions
+OrMatcher<T>                        PagedQuery                                 PagedResult<T>
+PersistentStoreBuilderExtensions    PreferredNode                              QuartzBuilderExtensions
+QuartzHealthCheckExtensions         QuartzHealthCheckOptions                   QuartzHostApplicationBuilderExtensions
+QuartzSchedulerBuilder              QuartzSchedulerOptions                     RecurrenceTriggerMisfireInstruction
+RetryPolicy                         ScheduleJobOptions                         SchedulerErrorContext
+SchedulerJobExtensions              SchedulerMetadata                          SchedulerOrigin
+SchedulerQueryExtensions            SchedulerRegistration                      SchedulerStatus
+SchedulingDataValidationException   SchemaProvisioning                         ShutdownJobInterruption
+SimpleTriggerMisfireInstruction     StandaloneSchedulerFactory                 StringMatcher<T>
+StringOperator                      SystemTextJsonConfigurationExtensions      ThreadPoolOptions
+TimeRange                           TimeZones                                  TriggerBuilder<T>
+TriggerConfiguratorExtensions       TriggerGroup                               TriggerGroupQuery
+TriggerHeader                       TriggerQuery
+```
+
+Most of those are unmistakably Quartz's. These are the ones a host application or an integration library
+plausibly declares itself, which makes them the ones to check first:
+
+| Name | Who else has one |
+|---|---|
+| `QuartzSchedulerOptions` | the known case — it shadowed MassTransit's own `QuartzSchedulerOptions`, producing six compile errors that named the right members on the wrong type. 3.x's equivalent was `Quartz.Core.QuartzSchedulerResources`, safely out of the way |
+| `JsonSerializationException` | **Newtonsoft.Json declares this exact name**, so a file with both `using Quartz;` and `using Newtonsoft.Json;` is ambiguous |
+| `RetryPolicy` | Polly, MassTransit, the Azure SDKs, and most in-house resilience code |
+| `TimeRange`, `MonthDay` | ordinary domain vocabulary; NodaTime has `MonthDay` |
+| `PagedResult<T>`, `PagedQuery` | near-universal in an API or repository layer |
+| `Key<T>` | was `Quartz.Util.Key<T>`; now a one-word name at the top level |
+| `Matchers`, `TimeZones` | one-word static helpers, previously `Quartz.Impl.Matchers` and `Quartz.Util.TimeZoneUtil` |
+| `ThreadPoolOptions`, `DataSourceOptions` | common options-class names |
+| `JobType`, `SchedulerStatus`, `ClusterNode`, `ClusterNodeState` | anything with a job or scheduler model of its own |
+| `StringOperator`, `ExecutionSlots`, `ExecutionGroupScope`, `ExecutionLimitScope` | generic concurrency and matching vocabulary |
+
+The fix is a using-alias in the affected file, which beats a namespace import and needs no change to
+either library:
+
+```csharp
+using QuartzSchedulerOptions = Acme.Bus.QuartzSchedulerOptions;
+```
+
+One collision went away: 3.x's `Quartz.ServiceCollectionExtensions` — the most common helper-class name in
+.NET — is not in the `Quartz` namespace on 4.x. Its members live on `QuartzServiceCollectionExtensions`
+and `QuartzBuilderExtensions`, and since both are extension methods, only a static-form call has to change.

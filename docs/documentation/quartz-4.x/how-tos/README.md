@@ -16,6 +16,8 @@ Short, task-shaped recipes. Each page answers one question; the
 * [Job Template](job-template.md) — the recommended skeleton for a job class
 * [Running Quartz under Aspire](aspire.md) — telemetry, health and the database, wired to an AppHost
 * [Quartz.NET with Wolverine](wolverine.md) — cron-publishing into a message bus, cancelling by correlation, and sharing the outbox's transaction
+* [Embedding Quartz in a Library](embedding-quartz-in-a-library.md) — for a package that has to fit into an application it does not own
+* [Running under an External Leader Election](external-leader.md) — one instance, started and stopped by somebody else's election
 * [Publishing Trimmed and Native AOT](trimming-and-native-aot.md) — what each package claims, what still warns, and what to do about it
 
 Extending Quartz — the four seams the `Quartz.Impl.AdoJobStore` types exist for:

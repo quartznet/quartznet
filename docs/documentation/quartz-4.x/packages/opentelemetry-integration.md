@@ -153,21 +153,51 @@ hosts in one test process, keep their measurements apart.
 ## OpenTelemetry.Instrumentation.Quartz
 
 [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz)
-is the OpenTelemetry community's Quartz instrumentation library. It subscribes to the same activity source
-and adds filtering — which operations to record — over doing it yourself:
+is the OpenTelemetry community's Quartz instrumentation library, and it was written for 3.x.
 
-```shell
-dotnet add package OpenTelemetry.Instrumentation.Quartz
+::: danger It produces nothing against 4.0, and does not say so
+`AddQuartzInstrumentation()` yields **zero spans** on Quartz 4.x. Nothing throws, nothing warns, and the
+call still compiles — an upgraded application simply stops seeing its job spans.
+:::
+
+The reason is that the two versions publish through different `System.Diagnostics` mechanisms. 3.x wrote
+to a `DiagnosticListener` named `Quartz`, creating each `Activity` with `new Activity(...)` and no
+`ActivitySource` behind it. The package subscribes to exactly that: a `DiagnosticSourceSubscriber` filtered
+to the listener named `Quartz`, plus `AddLegacySource("Quartz.Job.Execute")` and
+`AddLegacySource("Quartz.Job.Veto")` — and "legacy source" in the OpenTelemetry SDK means precisely an
+activity that has *no* `ActivitySource`.
+
+4.x emits from an `ActivitySource` named `Quartz`. Its activities are therefore not legacy activities, and
+nothing writes to a `DiagnosticListener` at all, so both halves of the subscription match nothing.
+
+The 4.0 way is the two lines at the top of this page — `AddSource(QuartzInstrumentation.ActivitySourceName)`
+and `AddMeter(QuartzInstrumentation.MeterName)`. There is no package to install:
+
+<!-- Not a compiled sample: the first block references a package this repository does not take, and
+     taking a NuGet dependency purely to compile a documentation sample is not worth it. -->
+
+```diff
+- builder.Services.AddOpenTelemetry()
+-     .WithTracing(tracing => tracing.AddQuartzInstrumentation());
++ builder.Services.AddOpenTelemetry()
++     .WithTracing(tracing => tracing.AddSource(QuartzInstrumentation.ActivitySourceName))
++     .WithMetrics(metrics => metrics.AddMeter(QuartzInstrumentation.MeterName));
 ```
 
-```csharp
-builder.Services.AddOpenTelemetry()
-    .WithTracing(tracing => tracing.AddQuartzInstrumentation());
+```diff
+- <PackageReference Include="OpenTelemetry.Instrumentation.Quartz" Version="1.*" />
 ```
+
+What is lost with the package is its `QuartzInstrumentationOptions.TracedOperations` filter. Subscribing
+directly records both `Quartz.Job.Execute` and `Quartz.Job.Veto`; drop one with an OpenTelemetry
+[processor or a sampler](https://opentelemetry.io/docs/languages/dotnet/) if a vetoed fire is not worth a
+span to you. What is gained is everything 4.0 added — the store spans and all eight metrics — none of
+which the package knows about.
 
 ## Older packages
 
-`Quartz.OpenTelemetry.Instrumentation` is obsolete and is not part of 4.x. Use the community package above.
+`Quartz.OpenTelemetry.Instrumentation` is obsolete and is not part of 4.x. Subscribe to the activity source
+directly, as at the top of this page.
 
 ### Coming from Quartz.OpenTracing
 
