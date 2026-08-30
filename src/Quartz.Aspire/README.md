@@ -67,7 +67,7 @@ builder.AddQuartzPersistentStore("quartz", settings =>
 | `Provider` | inferred | Which ADO.NET driver reaches the database |
 | `SchedulerName` | every scheduler | Which scheduler this store belongs to |
 | `TablePrefix` | `QRTZ_` | The prefix on the Quartz table names |
-| `Clustered` | `false` | Whether this scheduler joins a cluster on the database |
+| `Clustered` | `false` | Whether this scheduler joins a cluster on the database, deriving an instance id to do it with |
 | `DisableHealthChecks` | `false` | Leaves `AddQuartzHealthChecks()` unregistered |
 | `DisableTracing` | `false` | Leaves the `Quartz` activity source unsubscribed |
 | `DisableMetrics` | `false` | Leaves the `Quartz` meter unsubscribed |
@@ -75,8 +75,11 @@ builder.AddQuartzPersistentStore("quartz", settings =>
 No exporter is ever added. `AddServiceDefaults()` owns that, and `UseOtlpExporter()` may be called only
 once.
 
-`Clustered` does not give replicas distinct instance ids, and clustering needs them — say that beside the
-scheduler with `q.ConfigureScheduler(o => o.GenerateInstanceId = true)`.
+`Clustered` turns on database locking and makes the scheduler derive its `InstanceId`, because a cluster
+needs distinct ids and an Aspire replica set has none of its own to borrow — every replica otherwise starts
+life as `NON_CLUSTERED`, and a cluster whose nodes share one id is the worst failure this area has. An
+application that already set `GenerateInstanceId`, or that named its nodes with `InstanceId`, keeps what it
+said.
 
 ## Which database the connection string is for
 
