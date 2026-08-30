@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Quartz.NET beside Wolverine, as one runnable console application.
+
+    Wolverine can deliver a message later; it cannot say "every weekday at 03:00", and its maintainer
+    has said it never will (JasperFx/wolverine#1403). The gap is what this project fills, and the
+    accompanying page is docs/documentation/quartz-4.x/how-tos/wolverine.md. It is in Quartz.slnx so
+    that `Compile` fails the moment a call this page teaches stops compiling — which is the only
+    reason an example project exists.
+
+    Everything here runs with no external service: Wolverine's in-memory local transport and Quartz's
+    in-memory store. Set QUARTZ_WOLVERINE_POSTGRES to a connection string and the same program adds
+    the two parts that a durable store is a precondition for — Wolverine agents, and enlisting Quartz
+    in the outbox's transaction. Neither is needed to build, so CI never touches a database.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SignAssembly>false</SignAssembly>
+    <!--
+      MA0004 wants ConfigureAwait on every await. Application code does not need it and the samples on
+      the page would carry noise no reader benefits from; the other examples suppress it for the same
+      reason. MA0016 and MA0018 are about API shape in a library, which this is not.
+    -->
+    <NoWarn>$(NoWarn);MA0004</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WolverineFx" />
+    <!--
+      Wolverine 6 moved Roslyn out of the core package: a host in the default TypeLoadMode.Dynamic
+      throws at startup with "no IAssemblyGenerator (Roslyn) is registered" unless this is referenced
+      or handlers were pre-generated with the `codegen write` command (JasperFx/wolverine#2876).
+      An example is better off compiling handlers at startup than carrying generated code nobody reads.
+    -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
+    <!--
+      Only reached when QUARTZ_WOLVERINE_POSTGRES is set. It is an unconditional reference because a
+      conditional one would leave the durable half of the page uncompiled on every CI leg, which is
+      exactly the rot this project exists to catch.
+    -->
+    <PackageReference Include="WolverineFx.Postgresql" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+</Project>
