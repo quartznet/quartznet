@@ -1,0 +1,62 @@
+{
+  "type": "object",
+  "properties": {
+    "Aspire": {
+      "type": "object",
+      "properties": {
+        "Quartz": {
+          "type": "object",
+          "properties": {
+            "Clustered": {
+              "type": "boolean",
+              "description": "Gets or sets whether this scheduler takes part in a cluster with every other scheduler sharing the database. Turning it on turns database locking on with it. It does not give replicas distinct instance ids, which clustering also needs.",
+              "default": false
+            },
+            "ConnectionString": {
+              "type": "string",
+              "description": "Gets or sets the connection string reaching the database, when it is not the one Aspire injected. Left unset, ConnectionStrings:<connection name> supplies it."
+            },
+            "DisableHealthChecks": {
+              "type": "boolean",
+              "description": "Gets or sets whether the Quartz scheduler health check is left unregistered.",
+              "default": false
+            },
+            "DisableMetrics": {
+              "type": "boolean",
+              "description": "Gets or sets whether the Quartz meter is left unsubscribed. No exporter is added either way.",
+              "default": false
+            },
+            "DisableTracing": {
+              "type": "boolean",
+              "description": "Gets or sets whether the Quartz activity source is left unsubscribed. No exporter is added either way.",
+              "default": false
+            },
+            "Provider": {
+              "type": "string",
+              "description": "Gets or sets which ADO.NET driver reaches the database, as one of SqlServer, Npgsql, MySql, MySqlConnector, OracleODPManaged, SQLite-Microsoft, SQLite or Firebird - or a name the application registered a DbMetadataFactory for. Left unset, it is inferred from the connection string's shape, and an ambiguous or unrecognised shape is an error rather than a guess.",
+              "examples": [
+                "SqlServer",
+                "Npgsql",
+                "MySql",
+                "MySqlConnector",
+                "OracleODPManaged",
+                "SQLite-Microsoft",
+                "SQLite",
+                "Firebird"
+              ]
+            },
+            "SchedulerName": {
+              "type": "string",
+              "description": "Gets or sets which scheduler this store belongs to, for an application that registers more than one. Left unset, every scheduler in the container gets it."
+            },
+            "TablePrefix": {
+              "type": "string",
+              "description": "Gets or sets the prefix on the Quartz table names, when the schema was created with something other than QRTZ_."
+            }
+          },
+          "description": "Provides the client configuration settings for wiring a Quartz.NET persistent job store to a database an Aspire AppHost declared."
+        }
+      }
+    }
+  }
+}

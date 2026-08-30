@@ -1,0 +1,21 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public static class QuartzAspireHostApplicationBuilderExtensions
+    {
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(@"The database is chosen from the connection string or from QuartzAspireSettings.Provider, and on the connection-string path Quartz names the driver's connection, command and parameter types as strings, so a trimmed application has no guarantee they survived. Registering a DbDataSource in the container removes that: connections come from it, and only the half of the driver description that names no type is read. Otherwise configure the store directly, with the overload that takes the driver's DbProviderFactory.")]
+        public static Microsoft.Extensions.Hosting.IHostApplicationBuilder AddQuartzPersistentStore(this Microsoft.Extensions.Hosting.IHostApplicationBuilder builder, string connectionName, System.Action<Quartz.QuartzAspireSettings>? configureSettings = null) { }
+    }
+    public sealed class QuartzAspireSettings
+    {
+        public QuartzAspireSettings() { }
+        public bool Clustered { get; set; }
+        public string? ConnectionString { get; set; }
+        public bool DisableHealthChecks { get; set; }
+        public bool DisableMetrics { get; set; }
+        public bool DisableTracing { get; set; }
+        public string? Provider { get; set; }
+        public string? SchedulerName { get; set; }
+        public string? TablePrefix { get; set; }
+    }
+}

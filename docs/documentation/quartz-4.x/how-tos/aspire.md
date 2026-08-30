@@ -17,8 +17,15 @@ connections from a `DbDataSource` the container holds. What is left is naming th
 the pipeline ServiceDefaults built, and pointing the store at the database the AppHost started. This page is
 exactly that list, and it is short.
 
-There is no Quartz integration for Aspire — no `Aspire.Hosting.Quartz` package, no `AddQuartz` resource for
-the AppHost. Everything here is ordinary Quartz configuration in an application that Aspire happens to be
+[`Quartz.Aspire`](https://www.nuget.org/packages/Quartz.Aspire) does the database half of that list in one
+call: `builder.AddQuartzPersistentStore("quartz")` reads that connection name, chooses the driver delegate
+for the database behind it, takes connections from a `DbDataSource` the container holds, registers the
+health check and names both telemetry signals. It takes no `Aspire.*` package dependency. The rest of this
+page is what that call does, written out by hand — worth reading because every line of it is ordinary
+Quartz configuration, and an application that wants to say part of it itself still can.
+
+There is no *hosting* integration — no `Aspire.Hosting.Quartz` package, no `AddQuartz` resource for the
+AppHost. Everything below is ordinary Quartz configuration in an application that Aspire happens to be
 running.
 
 ## The two lines that do the integration

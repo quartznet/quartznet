@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Quartz</RootNamespace>
+    <Title>Quartz.NET Aspire Integration</Title>
+    <Description>Quartz.NET Aspire client integration - wires a persistent job store, its telemetry and its health check from an Aspire connection name; $(Description)</Description>
+    <PackageTags>$(PackageTags);aspire;aspire-integration</PackageTags>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!--
+      Binding is the compiler's job here, not the reflection binder's, for the same reason it is in
+      Quartz.csproj: ConfigurationBinder.Bind says both RequiresUnreferencedCode and RequiresDynamicCode,
+      and the generator intercepts the call sites in the project they are written in. The two Bind calls
+      that read QuartzAspireSettings are this package's, so this is where the property has to be set —
+      an application turning it on does nothing for them.
+
+      Turning it off is not a quiet change: the IL2026 and IL3050 those two calls raise come straight
+      back as errors, since nothing here suppresses them.
+    -->
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <!--
+      Trimmable, and the analyzers that make that a checked statement rather than a claim (issue #3431),
+      exactly as Quartz.AspNetCore and Quartz.Extensions.Redis have them.
+
+      There is one warning to report and it is deliberate: AddQuartzPersistentStore chooses the dialect
+      from a provider name, so it calls UsePostgres, UseSqlServer and their siblings — the overloads
+      that resolve the driver's connection, command and parameter types from strings and say
+      [RequiresUnreferencedCode] about it. The method repeats that annotation rather than swallowing it,
+      so the warning arrives at the application's own call site where the decision belongs. That is the
+      whole of it: there is no TrimAnalysisBaseline.cs beside this file, and any other warning appearing
+      here is a new one to fix rather than to baseline.
+    -->
+    <IsTrimmable>true</IsTrimmable>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <!--
+      The JSON schema an IDE reads to complete and validate an "Aspire" section in appsettings.json.
+      Aspire's own components generate this file from XML documentation with a source generator that has
+      never shipped (microsoft/aspire#3309), so it is written by hand and held to the settings type by
+      ConfigurationSchemaTest. It goes to the package root, which is where the targets below point.
+    -->
+    <None Include="ConfigurationSchema.json" Pack="true" PackagePath="\" />
+    <!--
+      What tells the SDK that the file above is a schema segment for appsettings.json. The item name and
+      the relative path are Aspire's convention, copied from src/Components/Common/Package.targets in
+      microsoft/aspire; buildTransitive means a project referencing this package transitively gets it too.
+    -->
+    <None Include="buildTransitive\net10.0\Quartz.Aspire.targets" Pack="true" PackagePath="buildTransitive\net10.0\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      No Aspire.* package reference, deliberately: a first-party client integration has none either, and
+      taking one would tie this package's supported versions to Aspire's monthly release cadence for no
+      type it actually needs. IHostApplicationBuilder is the whole of the contract, and it belongs to
+      Microsoft.Extensions.Hosting.Abstractions.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+  </ItemGroup>
+
+</Project>

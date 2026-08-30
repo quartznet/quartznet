@@ -18,6 +18,17 @@ namespace Quartz.Documentation.Samples.HowTos;
 /// </remarks>
 public static class AspireSamples
 {
+    public static void PersistentStoreFromAConnectionName(IHostApplicationBuilder builder)
+    {
+        #region sample_aspire_add_persistent_store
+
+        builder.AddQuartzPersistentStore("quartz");
+        builder.AddQuartz();
+        builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+        #endregion
+    }
+
     public static void SubscribeToQuartzSignals(IHostApplicationBuilder builder)
     {
         #region sample_aspire_subscribe
