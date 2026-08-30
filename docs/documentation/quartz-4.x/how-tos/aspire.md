@@ -357,7 +357,9 @@ builder.Services.Configure<QuartzHealthCheckOptions>(options => options.Tags.Add
 
 The registration is built when the health-check service is, and it reads
 `IOptionsMonitor<QuartzHealthCheckOptions>` at that moment — so a `Configure` call anywhere in startup
-reaches it, including the registration `AddQuartzPersistentStore` made.
+reaches it, including the registration `AddQuartzPersistentStore` made. A named scheduler's check reads the
+options registered under that scheduler's name, so configure `QuartzHealthCheckOptions` by name for one of
+those.
 
 ### A worker project has no health endpoint at all
 
