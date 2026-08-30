@@ -99,6 +99,22 @@ jobs:
           # happens out of process, in a different leg, over a trimmed self-contained publish. It
           # stays in analysis like everything else here.
           #
+          # The two Quartz.Examples.Aspire projects are excused from coverage for the canary's reason
+          # rather than the usual one: no test covers them because compiling them *is* the check.
+          # They exist so that `Compile` fails when a call on how-tos/aspire.md or packages/aspire.md
+          # stops compiling, and an AppHost cannot be exercised any other way here -- running one
+          # needs the Developer Control Plane and a container runtime, which no leg in this
+          # repository has. Unit-testing a sample would also change what it is for: it is written to
+          # be read and copied, and the shape a reader copies is the assertion. They stay in
+          # analysis, so the bug and code-smell rules still apply to code people paste into their
+          # own applications.
+          #
+          # The older src/Quartz.Examples.* projects are not listed, and that is not an oversight:
+          # they carry no coverage either, but the condition that fails here measures new code, so
+          # the gate has never asked about them. Adding a new example is what surfaces it. Listing
+          # them all would quietly raise the overall coverage figure on main by shrinking its
+          # denominator, which is a separate decision from this one.
+          #
           # database/ is excused from copy-paste detection and from two PL/SQL rules, and from
           # nothing else. Its bug and security rules still apply; these three are the ones that
           # have nothing true to say about it.
@@ -137,7 +153,7 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**" \
             /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,database/**" \
-            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**" \
+            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**" \
             /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.resourceKey="database/migrations/**/*.sql" \
