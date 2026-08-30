@@ -44,4 +44,29 @@ public sealed class QuartzHostedServiceOptions
     /// This avoids the running of jobs <em>during</em> application startup.
     /// </summary>
     public bool AwaitApplicationStarted { get; set; } = true;
+
+    /// <summary>
+    /// If <see langword="true" /> (the default) the hosted service starts the scheduler. Set it to
+    /// <see langword="false" /> to have the scheduler built, initialized and bound but left in
+    /// <see cref="SchedulerStatus.Created" />, for the application to start when it is ready.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A library that owns its own leader election, or a module that has work to do before anything
+    /// may fire, wants the container to produce a scheduler without the host pressing start. The
+    /// scheduler is still created and bound, so <see cref="ISchedulerRegistry" />, the dashboard and
+    /// the HTTP API all see it; it simply is not running until something calls
+    /// <see cref="IScheduler.Start" />.
+    /// </para>
+    /// <para>
+    /// This wins over <see cref="AwaitApplicationStarted" /> and <see cref="StartDelay" />: both
+    /// describe <em>when</em> the hosted service starts a scheduler, and it does not start this one at
+    /// all.
+    /// </para>
+    /// <para>
+    /// Shutdown is unaffected. The hosted service shuts down every scheduler it created, started or
+    /// not, so opting out of the start is not opting out of the stop.
+    /// </para>
+    /// </remarks>
+    public bool AutoStart { get; set; } = true;
 }

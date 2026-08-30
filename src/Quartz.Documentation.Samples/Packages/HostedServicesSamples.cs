@@ -52,6 +52,18 @@ public static class HostedServicesSamples
         #endregion
     }
 
+    public static void DeferredStart(IHostApplicationBuilder builder)
+    {
+        #region sample_hosted_deferred_start
+
+        builder.AddQuartz("reporting", q => { });
+
+        // Built, initialized and bound with the host, but left in Created for the application to start
+        builder.AddQuartzHostedService("reporting", options => options.AutoStart = false);
+
+        #endregion
+    }
+
     public static void HealthCheck(IHostApplicationBuilder builder)
     {
         #region sample_hosted_health_check

@@ -16,7 +16,9 @@ namespace Quartz;
 /// <para>
 /// Every scheduler in the container is started, the default one and each named one, and each is
 /// configured by <see cref="QuartzHostedServiceOptions"/> under its own name — so one scheduler can
-/// wait for application startup while another starts immediately.
+/// wait for application startup while another starts immediately, and one whose
+/// <see cref="QuartzHostedServiceOptions.AutoStart"/> is <see langword="false"/> is created and bound
+/// but left for the application to start.
 /// </para>
 /// <para>
 /// The schedulers are resolved when the host starts rather than when the service is registered, so
@@ -78,7 +80,9 @@ public class QuartzHostedService : IHostedLifecycleService
 
             // Sensible mode: proceed with startup, and have jobs start after application startup.
             // Follow the pattern from BackgroundService.StartAsync: https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Hosting.Abstractions/src/BackgroundService.cs
-            if (schedulers.Exists(static scheduler => scheduler.Options.AwaitApplicationStarted))
+            // A scheduler the application starts itself is not waited for: it is nothing this service
+            // will start once startup completes, so it must not be what keeps a startup task alive.
+            if (schedulers.Exists(static scheduler => scheduler.Options is { AutoStart: true, AwaitApplicationStarted: true }))
             {
                 startupTask = AwaitStartupCompletionAndStartSchedulers(cancellationToken);
 
@@ -178,6 +182,14 @@ public class QuartzHostedService : IHostedLifecycleService
 
         foreach (var hosted in schedulers)
         {
+            // Tested before the two settings that say *when* to start, because AutoStart says whether
+            // to at all: the scheduler was created and bound by CreateSchedulers, and that is all this
+            // service does for it. The application presses start.
+            if (!hosted.Options.AutoStart)
+            {
+                continue;
+            }
+
             if (hosted.Options.AwaitApplicationStarted != waitForApplicationStarted)
             {
                 continue;

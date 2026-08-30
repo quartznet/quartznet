@@ -60,6 +60,7 @@ await builder.Build().RunAsync();
 | `WaitForJobsToComplete` | `false` | Shutdown does not return until the jobs still executing have finished. Without it the host stops while they are still running. Whether they are also asked to stop is the scheduler's `ShutdownJobInterruption` setting. |
 | `AwaitApplicationStarted` | `true` | Jobs do not start until application startup has completed, so nothing fires while the rest of the application is still coming up. |
 | `StartDelay` | none | Starts the scheduler this long after it otherwise would. With `AwaitApplicationStarted`, the delay is counted from the completion of startup. |
+| `AutoStart` | `true` | Whether the hosted service starts the scheduler at all. `false` has it built, initialized and bound, but left for the application to start — see [A scheduler the application starts itself](#a-scheduler-the-application-starts-itself). |
 
 To take part in the lifecycle itself — a warm-up before the scheduler starts, a drain after it stops — derive
 from `QuartzHostedService` and register the subclass; its `StartingAsync`, `StartedAsync`, `StoppingAsync` and
@@ -87,12 +88,42 @@ registers a scheduler called `reporting`, reading its settings from `Quartz:Sche
 the section describes several. `builder.AddQuartzSchedulers()` registers one per child of that
 sub-section.
 
+## A scheduler the application starts itself
+
+A library that owns its own leader election, a message bus that has to be connected before anything may
+fire, a module that comes up after the rest of the application — each wants the container to build and
+bind its scheduler, and wants to press start itself. `AutoStart = false` says so:
+
+<!-- snippet: sample_hosted_deferred_start -->
+```csharp
+builder.AddQuartz("reporting", q => { });
+
+// Built, initialized and bound with the host, but left in Created for the application to start
+builder.AddQuartzHostedService("reporting", options => options.AutoStart = false);
+```
+<!-- endSnippet -->
+
+The scheduler is still resolved, initialized and bound when the host starts, so `ISchedulerRegistry`, the
+dashboard and `GET /schedulers` all see it; it simply sits in `Created` until something calls
+`scheduler.Start()`. Not registering the hosted service at all would have produced the same non-start
+and lost the shutdown handling with it, which is the reason this is a setting rather than an omission.
+
+`AutoStart` wins over `AwaitApplicationStarted` and `StartDelay`. Both of those say *when* the hosted
+service starts a scheduler; it does not start this one at all, so neither applies.
+
+Shutdown is unchanged. The hosted service shuts down every scheduler it created, started or not, so
+opting out of the start is not opting out of the stop.
+
+It is a per-scheduler setting like the rest, so one scheduler can be deferred while its siblings start
+with the host — the example above defers `reporting` and leaves every other scheduler in the container
+alone. A library embedding Quartz in someone else's application is the case this exists for.
+
 ## Health checks
 
 The scheduler's health check ships in the core `Quartz` package and registers on the standard
 `IHealthChecksBuilder`, so a worker with no web stack at all can carry it. It reports *healthy* while
-the scheduler is running and can reach its store, *degraded* while it is in standby, and *unhealthy*
-otherwise. Add it alongside an application's other checks:
+the scheduler is running and can reach its store, *degraded* while it is in standby or waiting for the
+application to start it, and *unhealthy* otherwise. Add it alongside an application's other checks:
 
 <!-- snippet: sample_hosted_health_check -->
 ```csharp
@@ -102,6 +133,13 @@ builder.Services.AddHealthChecks().AddQuartz();
 
 `services.AddQuartzHealthChecks()` is the same thing for an application that has no other checks to
 compose with.
+
+A scheduler whose `AutoStart` is `false` is *degraded* while it sits in `Created`, not *unhealthy*: it is
+doing what it was configured to do, and failing the probe would take a correctly configured node out of
+rotation for the whole window before the application presses start. The check reads that scheduler's own
+`QuartzHostedServiceOptions`, so a `Created` scheduler that nothing opted out of is *unhealthy* as
+before — including one in an application with no hosted service registered at all, where nothing is
+going to start it.
 
 The registration can be customized via the optional configuration callback, for example to attach tags
 so the check can be filtered into separate liveness and readiness probes:

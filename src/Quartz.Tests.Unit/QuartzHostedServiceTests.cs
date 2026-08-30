@@ -1,6 +1,8 @@
 using FakeItEasy;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
@@ -328,14 +330,27 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// How many times the hosted service asked for this scheduler to start, immediately or delayed.
+        /// </summary>
+        /// <remarks>
+        /// Counted rather than inferred from <see cref="Status" />, because a start that was asked for
+        /// with a long <c>StartDelay</c> leaves the scheduler in <see cref="SchedulerStatus.Created" />
+        /// too — and "asked to start in a minute" and "not asked at all" are exactly what
+        /// <c>AutoStart</c> has to tell apart.
+        /// </remarks>
+        public int StartAttempts { get; private set; }
+
         public ValueTask Start(CancellationToken cancellationToken = default)
         {
+            this.StartAttempts++;
             this.Status = SchedulerStatus.Running;
             return default;
         }
 
         public ValueTask StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default)
         {
+            this.StartAttempts++;
             _ = Task.Run(async () =>
             {
                 await Task.Delay(delay, cancellationToken)
@@ -501,6 +516,151 @@ public class QuartzHostedServiceTests
     }
 
     [Test]
+    [TestCase(false, false)]
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    [TestCase(true, true)]
+    [Parallelizable(ParallelScope.All)]
+    public async Task StartAsync_WithoutAutoStart_ShouldCreateTheSchedulerAndLeaveTheStartToTheApplication(
+        bool awaitApplicationStarted,
+        bool withStartDelay)
+    {
+        MockApplicationLifetime applicationLifetime = new();
+        MockSchedulerFactory schedulerFactory = new();
+        QuartzHostedService quartzHostedService = CreateHostedService(
+            applicationLifetime,
+            schedulerFactory,
+            awaitApplicationStarted,
+            withStartDelay,
+            autoStart: false);
+
+        using var startupCts = new CancellationTokenSource();
+
+        await quartzHostedService.StartAsync(startupCts.Token);
+
+        schedulerFactory.LastCreatedScheduler.Should().NotBeNull(
+            "the scheduler is still resolved, initialized and bound - only pressing start is the application's job");
+        schedulerFactory.LastCreatedScheduler.StartAttempts.Should().Be(
+            0,
+            "AutoStart wins over both AwaitApplicationStarted and StartDelay: neither says when to start a "
+            + "scheduler that this service does not start at all");
+        schedulerFactory.LastCreatedScheduler.Status.Should().Be(SchedulerStatus.Created);
+
+        quartzHostedService.startupTask?.IsCompleted.Should().BeTrue(
+            "nothing is left spinning on the application-started signal for a scheduler the application starts itself");
+
+        applicationLifetime.SetStarted();
+
+        if (quartzHostedService.startupTask is not null)
+        {
+            await quartzHostedService.startupTask
+                .ContinueWith(_ => { }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+        }
+
+        schedulerFactory.LastCreatedScheduler.StartAttempts.Should().Be(
+            0,
+            "application startup completing is not what starts this scheduler either");
+
+        // What the application does when its own leader election, warm-up or module load says so.
+        await schedulerFactory.LastCreatedScheduler.Start();
+        schedulerFactory.LastCreatedScheduler.Status.Should().Be(SchedulerStatus.Running);
+
+        await startupCts.CancelAsync().ConfigureAwait(false);
+
+        await quartzHostedService.StopAsync(CancellationToken.None);
+
+        schedulerFactory.LastCreatedScheduler.Status.Should().Be(
+            SchedulerStatus.Shutdown,
+            "shutdown ownership is unchanged: the hosted service shuts down every scheduler it created, started or not");
+    }
+
+    [Test]
+    public async Task StartAsync_WithoutAutoStart_ShouldBindTheSchedulerAndStartItsSiblingsAnyway()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+        services.AddSingleton<Lifetime>(new MockApplicationLifetime());
+
+        services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "Hosted"));
+        services.AddQuartz("Deferred", q => { });
+        services.AddQuartzHostedService(options => options.AwaitApplicationStarted = false);
+        services.AddQuartzHostedService("Deferred", options => options.AutoStart = false);
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        QuartzHostedService hostedService = provider.GetServices<IHostedService>().OfType<QuartzHostedService>().Single();
+
+        await hostedService.StartAsync(CancellationToken.None);
+
+        IScheduler deferred = await provider.GetRequiredKeyedService<ISchedulerFactory>("Deferred").GetScheduler();
+
+        try
+        {
+            deferred.Status.Should().Be(
+                SchedulerStatus.Created,
+                "a scheduler whose AutoStart is false is built by the container and left for the application to start");
+
+            (await provider.GetRequiredService<ISchedulerFactory>().GetScheduler()).Status.Should().Be(
+                SchedulerStatus.Running,
+                "AutoStart is one scheduler's setting, read from its own named options, so a sibling that did not "
+                + "opt out is unaffected");
+
+            List<SchedulerRegistration> registrations = await provider.GetRequiredService<ISchedulerRegistry>().QuerySchedulers();
+
+            registrations.Should().ContainSingle(registration => registration.Name == "Deferred")
+                .Which.Status.Should().Be(
+                    SchedulerStatus.Created,
+                    "the scheduler is bound to the repository, so the registry, the dashboard and GET /schedulers all "
+                    + "see it - that is the whole point of creating it without starting it");
+
+            await deferred.Start();
+
+            deferred.Status.Should().Be(SchedulerStatus.Running, "the application presses start when it is ready");
+        }
+        finally
+        {
+            await hostedService.StopAsync(CancellationToken.None);
+        }
+
+        deferred.Status.Should().Be(SchedulerStatus.Shutdown);
+    }
+
+    [Test]
+    public async Task StopAsync_WithASchedulerThatWasNeverStarted_ShouldShutItDownAnyway()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+        services.AddSingleton<Lifetime>(new MockApplicationLifetime());
+
+        services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "NeverStarted"));
+        services.AddQuartzHostedService(options =>
+        {
+            options.AutoStart = false;
+            options.AwaitApplicationStarted = false;
+        });
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+        QuartzHostedService hostedService = provider.GetServices<IHostedService>().OfType<QuartzHostedService>().Single();
+
+        await hostedService.StartAsync(CancellationToken.None);
+
+        IScheduler scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        scheduler.Status.Should().Be(SchedulerStatus.Created);
+
+        Func<Task> act = async () => await hostedService.StopAsync(CancellationToken.None);
+
+        await act.Should().NotThrowAsync(
+            "a scheduler that never ran still owns a job store, a thread pool and a scheduler thread, and the host "
+            + "is the only thing that will tear them down");
+
+        scheduler.Status.Should().Be(SchedulerStatus.Shutdown);
+
+        provider.GetRequiredService<ISchedulerRepository>().LookupAll().Should().BeEmpty(
+            "the shutdown unbinds it, exactly as it would a scheduler that had been running");
+    }
+
+    [Test]
     public async Task StopAsync_ShutsEverySchedulerDownAtOnceRatherThanInTurn()
     {
         var firstEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -607,12 +767,14 @@ public class QuartzHostedServiceTests
         Lifetime applicationLifetime,
         ISchedulerFactory schedulerFactory,
         bool awaitApplicationStarted,
-        bool withStartDelay)
+        bool withStartDelay,
+        bool autoStart = true)
     {
         var options = new QuartzHostedServiceOptions
         {
             AwaitApplicationStarted = awaitApplicationStarted,
             StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,
+            AutoStart = autoStart,
         };
 
         return new QuartzHostedService(

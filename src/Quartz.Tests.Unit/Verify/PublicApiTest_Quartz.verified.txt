@@ -1318,6 +1318,7 @@ namespace Quartz
     public sealed class QuartzHostedServiceOptions
     {
         public QuartzHostedServiceOptions() { }
+        public bool AutoStart { get; set; }
         public bool AwaitApplicationStarted { get; set; }
         public System.TimeSpan? StartDelay { get; set; }
         public bool WaitForJobsToComplete { get; set; }

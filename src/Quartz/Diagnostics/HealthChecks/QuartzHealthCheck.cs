@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
 namespace Quartz;
 
@@ -16,14 +17,20 @@ internal sealed class QuartzHealthCheck : IHealthCheck
 {
     private readonly IServiceProvider serviceProvider;
     private readonly SchedulerHealthCheckTarget target;
+    private readonly IOptionsMonitor<QuartzHostedServiceOptions> hostedServiceOptions;
 
-    public QuartzHealthCheck(IServiceProvider serviceProvider, SchedulerHealthCheckTarget target)
+    public QuartzHealthCheck(
+        IServiceProvider serviceProvider,
+        SchedulerHealthCheckTarget target,
+        IOptionsMonitor<QuartzHostedServiceOptions> hostedServiceOptions)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
         ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(hostedServiceOptions);
 
         this.serviceProvider = serviceProvider;
         this.target = target;
+        this.hostedServiceOptions = hostedServiceOptions;
     }
 
     async Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)
@@ -60,6 +67,13 @@ internal sealed class QuartzHealthCheck : IHealthCheck
             case SchedulerStatus.Standby:
                 return HealthCheckResult.Degraded($"Quartz scheduler '{name}' is in standby");
 
+            // The same argument as standby, one step earlier: a scheduler whose AutoStart is false was
+            // never meant to be started by the host, so its being Created is the configuration working
+            // rather than failing. Unhealthy here would take a correctly configured node out of
+            // rotation for the window between the host starting and the application pressing start.
+            case SchedulerStatus.Created when StartedByTheApplication():
+                return HealthCheckResult.Degraded($"Quartz scheduler '{name}' has been created and is started by the application");
+
             case SchedulerStatus.Created:
                 return HealthCheckResult.Unhealthy($"Quartz scheduler '{name}' has been created but never started");
 
@@ -84,5 +98,20 @@ internal sealed class QuartzHealthCheck : IHealthCheck
         }
 
         return HealthCheckResult.Healthy($"Quartz scheduler '{name}' is ready");
+    }
+
+    /// <summary>
+    /// Whether this check's scheduler is one the application starts itself rather than one the hosted
+    /// service starts.
+    /// </summary>
+    /// <remarks>
+    /// The scheduler's own options, read under its own name, the way every other per-scheduler setting
+    /// is. A container with no hosted service in it has nothing configuring these options at all, so
+    /// <see cref="QuartzHostedServiceOptions.AutoStart" /> is its default and a created scheduler stays
+    /// unhealthy — which is what it should be, since nothing is going to start it.
+    /// </remarks>
+    private bool StartedByTheApplication()
+    {
+        return !hostedServiceOptions.Get(target.SchedulerName ?? Options.DefaultName).AutoStart;
     }
 }

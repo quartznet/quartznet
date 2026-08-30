@@ -17,7 +17,8 @@ public static class QuartzHealthCheckExtensions
 {
     /// <summary>
     /// Registers a health check for the default Quartz scheduler: healthy while it is running and can
-    /// reach its store, degraded while it is in standby, and unhealthy otherwise.
+    /// reach its store, degraded while it is in standby or waiting for the application to start it
+    /// (<see cref="QuartzHostedServiceOptions.AutoStart" />), and unhealthy otherwise.
     /// </summary>
     /// <remarks>
     /// Shorthand for <c>services.AddHealthChecks().AddQuartz(configure)</c>, for an application that has
