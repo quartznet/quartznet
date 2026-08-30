@@ -38,12 +38,22 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma (.NET)</author>
 public abstract class SimplePropertiesTriggerPersistenceDelegateBase : ITriggerPersistenceDelegate
 {
-    // The table and column names are the schema contract a derived delegate reads its own values back
-    // from, so they stay protected. The four statements below are not: they name every column this base
-    // class writes, so a subclass replacing one would either be writing the same statement again or
-    // writing a statement this class's parameter binding does not match.
-    protected const string TableSimplePropertiesTriggers = "SIMPROP_TRIGGERS";
+    /// <summary>
+    /// The table this delegate persists into, kept here as the spelling a derived delegate writes.
+    /// </summary>
+    /// <remarks>
+    /// The value belongs to <see cref="AdoConstants" />, where every table the store reads or writes
+    /// is named, because that list is what startup schema validation probes. Declared only here, it
+    /// was a table validation did not know about: a database missing this one alone started, and
+    /// failed on the first calendar-interval, daily-time-interval or recurrence trigger written to
+    /// it (#3564).
+    /// </remarks>
+    protected const string TableSimplePropertiesTriggers = AdoConstants.TableSimplePropertiesTriggers;
 
+    // The column names are the schema contract a derived delegate reads its own values back from, so
+    // they stay protected. The four statements below are not: they name every column this base class
+    // writes, so a subclass replacing one would either be writing the same statement again or writing
+    // a statement this class's parameter binding does not match.
     protected const string ColumnStrProp1 = "STR_PROP_1";
     protected const string ColumnStrProp2 = "STR_PROP_2";
     protected const string ColumnStrProp3 = "STR_PROP_3";

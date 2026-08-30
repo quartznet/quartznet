@@ -177,7 +177,7 @@ internal static class StdAdoConstants
     /// single query covers them all — the per-row discriminator comes from TRIGGERS.TRIGGER_TYPE.
     /// </summary>
     public static readonly string SqlSelectSimpropTriggersByKeysPrefix =
-        Invariant($"SELECT {SimplePropertiesTriggerPersistenceDelegateBase.SelectColumns}, {TriggerKeySelectColumns} FROM {TablePrefixSubst}SIMPROP_TRIGGERS WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND ");
+        Invariant($"SELECT {SimplePropertiesTriggerPersistenceDelegateBase.SelectColumns}, {TriggerKeySelectColumns} FROM {TablePrefixSubst}{AdoConstants.TableSimplePropertiesTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND ");
 
     public static readonly string SqlSelectCalendar =
         Invariant($"SELECT {AdoConstants.ColumnCalendar} FROM {TablePrefixSubst}{AdoConstants.TableCalendars} WHERE {AdoConstants.ColumnSchedulerName} = @{SqlParameters.SchedulerName} AND {AdoConstants.ColumnCalendarName} = @{SqlParameters.CalendarName}");

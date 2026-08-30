@@ -3324,6 +3324,15 @@ The `Sql*` statement templates on `StdAdoConstants` are not visible at all any m
 statement is not a contract. Build the statement your dialect needs, or override the `GetSelect*Sql` hooks,
 which are unchanged.
 
+`AdoConstants` names **every** table the store reads or writes, which in 3.x it did not:
+`TableSimplePropertiesTriggers` (`"SIMPROP_TRIGGERS"`) was declared `protected` on
+`SimplePropertiesTriggerPersistenceDelegateSupport` and nowhere else. The startup schema validation walks
+the names on `AdoConstants`, so it never asked whether `QRTZ_SIMPROP_TRIGGERS` was there, and a database
+missing only that table started and failed later — on the first calendar-interval, daily-time-interval or
+recurrence trigger written to it. It is `public const` on `AdoConstants` in 4.x and validated with the other
+eleven. The `protected` spelling stays on `SimplePropertiesTriggerPersistenceDelegateBase` for a delegate
+that derives from it, so a subclass compiles unchanged.
+
 `DbLockHandler.AdoUtil` is `private protected` for the same reason, so a lock handler written outside Quartz
 no longer sees it. What such a handler needs from it — preparing a statement and binding a parameter — is
 `protected` on `DbLockHandler` itself:
@@ -8871,7 +8880,7 @@ Parameters and behavior are unchanged:
 | `AdoJobStoreOptions.CommandTimeout` added | Bounds every statement the store issues, the lock handler's included; it reaches them through `DriverDelegateContext.CommandTimeout` and `LockHandlerContext.CommandTimeout`. Unset keeps each provider's own default, so nothing changes for a store that does not set it. 3.x had no way to say this at all — there was no `quartz.*` key for it, so nothing needs translating |
 | `DbMetadataFactory` is internal | Every implementation was already internal and no public member accepted one; describe a driver through `UseGenericDatabase`'s metadata factory |
 | `DbProvider.PropertyDbProvider` and `.DbProviderResourceName` removed | Two `protected const`s nothing read, left over from the process-wide provider registry |
-| `SimplePropertiesTriggerPersistenceDelegateBase`'s four SQL statements are private | `SelectSimplePropsTrigger`, `DeleteSimplePropsTrigger`, `InsertSimplePropsTrigger` and `UpdateSimplePropsTrigger` name every column the base class binds, so replacing one could not work. The table and column name constants stay `protected` — they are the schema contract |
+| `SimplePropertiesTriggerPersistenceDelegateBase`'s four SQL statements are private | `SelectSimplePropsTrigger`, `DeleteSimplePropsTrigger`, `InsertSimplePropsTrigger` and `UpdateSimplePropsTrigger` name every column the base class binds, so replacing one could not work. The column name constants stay `protected` — they are the schema contract — and `TableSimplePropertiesTriggers` is `protected` still, now aliasing the `public` `AdoConstants.TableSimplePropertiesTriggers` that schema validation walks |
 | `RAMJobStore` is `sealed` and has no `virtual` members | Wrap it in a store deriving from the new `DelegatingJobStore` instead of deriving from it — see [`RAMJobStore` is sealed](#ramjobstore-is-sealed) |
 | `Quartz.Impl.DelegatingJobStore` added | Forwards every `IJobStore` member to a wrapped store, each one `virtual`, so a decorating store overrides only what it changes — see [`DelegatingJobStore` decorates a store](#delegatingjobstore-decorates-a-store) |
 | `HostnameInstanceIdGenerator` is `HostNameInstanceIdGenerator` | Casing matched to `HostNameBasedIdGenerator`. The type is internal; a `quartz.scheduler.instanceIdGenerator.type` still naming the old spelling resolves, with a warning |

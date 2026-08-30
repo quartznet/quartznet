@@ -212,12 +212,9 @@ they have no delegate of their own, so a store configured for either still provi
 schema, which is not what you asked for. Both are deliberate departures a person chose for a particular
 deployment. Run those by hand and leave `SchemaProvisioning` at `Validate`.
 
-Validation, whichever position you leave the setting at, checks *tables* — not columns. A database
-missing only a column gets past startup and fails on the first statement that names it, which is the
-other half of why the 4.0 migration is mandatory rather than merely recommended. It is eleven of the
-twelve tables, too: `QRTZ_SIMPROP_TRIGGERS` is not among the ones it queries, so a schema missing only
-that one starts and fails later, when something schedules a calendar-interval, daily-time-interval or
-recurrence trigger.
+Validation, whichever position you leave the setting at, checks *tables* — all twelve of them, and not
+their columns. A database missing only a column gets past startup and fails on the first statement that
+names it, which is the other half of why the 4.0 migration is mandatory rather than merely recommended.
 
 ### Storing job data as strings
 
