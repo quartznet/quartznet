@@ -18,9 +18,43 @@ internal static class QuartzActivitySource
 
         activity.SetStartTime(startTime.UtcDateTime);
         activity.EnrichFrom(context);
+        activity.LinkToScheduler(context);
         activity.Start();
 
         return new StartedActivity(activity);
+    }
+
+    /// <summary>
+    /// Links the firing back to the activity that scheduled it, when the trigger recorded one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A <see cref="ActivityLink" /> and not a parent. The scheduling call and the firing are related but
+    /// separated by however long the schedule said — minutes, days, a cron expression's next Sunday — and
+    /// a span whose parent is that far away makes a trace no backend can render and no operator can
+    /// read. A link is the shape OpenTelemetry gives exactly this: an asynchronous producer and the
+    /// consumer that eventually picks the work up. The firing is its own trace root, and the link is how
+    /// you walk back to the request that asked for it.
+    /// </para>
+    /// <para>
+    /// Added before <see cref="Activity.Start" />, so the link is on the activity by the time a listener
+    /// is told about it — a sampler that reads links reads them at start.
+    /// </para>
+    /// </remarks>
+    private static void LinkToScheduler(this Activity activity, JobExecutionContextImpl context)
+    {
+        if (!context.MergedJobDataMap.TryGetValue(SchedulerConstants.TraceParent, out object? stored)
+            || stored is not string traceParent)
+        {
+            return;
+        }
+
+        context.MergedJobDataMap.TryGetValue(SchedulerConstants.TraceState, out object? state);
+
+        if (ActivityContext.TryParse(traceParent, state as string, isRemote: true, out ActivityContext scheduledBy))
+        {
+            activity.AddLink(new ActivityLink(scheduledBy));
+        }
     }
 
     internal static void EnrichFrom(this Activity activity, IJobExecutionContext context)

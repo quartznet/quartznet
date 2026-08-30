@@ -1817,6 +1817,70 @@ conversation can share a group and be listed, paused or unscheduled together. Ca
 
 See [One-Off Job](how-tos/one-off-job.md#a-payload-and-a-time-in-one-call).
 
+## A scheduled job links back to the trace that scheduled it
+
+New in 4.0, and on by default: when a scheduling call is made inside an `Activity`, the scheduler
+records that activity's W3C trace context on the trigger, and the firing's `Quartz.Job.Execute` span
+carries an `ActivityLink` back to it. Nothing has to be configured, and no code changes.
+
+3.x propagated nothing, so every integrator that cared reached into the trigger's `JobDataMap` and
+invented a key of its own:
+
+```diff
+- trigger.UsingJobData("traceparent", Activity.Current?.Id);   // and a job that read it back by hand
++ // nothing — the scheduler writes it, and the execute span links to it
+```
+
+**A link, not a parent.** A job scheduled for next Tuesday runs a week after the request that asked for
+it, quite possibly on another node. Making the firing a *child* of the scheduling span would produce a
+trace that stays open for a week, which no backend can render and no operator can read. The firing is
+its own trace root and the link is how you walk back — the shape OpenTelemetry gives an asynchronous
+producer and the consumer that eventually picks the work up. The span name is unchanged.
+
+**The API added.** In `Quartz`: `SchedulerConstants.TraceParent` (`"QRTZ_TRACEPARENT"`),
+`SchedulerConstants.TraceState` (`"QRTZ_TRACESTATE"`), and
+`QuartzSchedulerOptions.PropagateTraceContext`, which defaults to `true`. There is no flat `quartz.*`
+key for it: nothing on 3.x did this, so there is no configuration to migrate — and `LegacyPropertyKeys`
+correctly rejects an invented one.
+
+```csharp
+q.ConfigureScheduler(options => options.PropagateTraceContext = false);
+```
+
+**Where it is written.** On the **trigger's** data map, by the scheduler, at every entry point that
+stores a trigger — both `ScheduleJob` overload pairs, `ScheduleJobs`, both `TriggerJob` forms and
+`RescheduleJob`. A reschedule counts because it is the call that decided when the firing happens, so the
+link follows the move: a replacement trigger rebuilt from the original carries the original's data map,
+reserved keys included, and the new context overwrites the old one rather than being kept beside it.
+
+`UpdateTriggerDetails` deliberately writes **no** trace context. It changes metadata on a trigger that
+stays scheduled and keeps its fire times, so the trace that asked for the firing is still the one that
+scheduled it — re-pointing the link at whoever later edited a description would make it say something
+false. (It does normalize a typed input in the map it is given, because that is about what a store can
+hold rather than about what scheduled anything.)
+
+Two consequences worth knowing:
+
+- **Two more entries per trigger row.** They are ordinary string job data, so they travel through
+  `StoreJobDataAsStrings`, the System.Text.Json write gate, the Newtonsoft serializer, the binary blob
+  column and the HTTP wire without any of them knowing about it — and they are visible in
+  `MergedJobDataMap`, in the dashboard and in `GET /triggers`, like every other `QRTZ_*` reserved key.
+  Turn the option off if that is not wanted.
+- **The trigger's map, never the job's.** `[PersistJobDataAfterExecution]` writes back only the job's
+  map, so the two never meet and a persisted job cannot carry a `traceparent` forward into its next
+  firing.
+
+**A stale context is removed rather than kept.** The scheduler stores the trigger object it was handed
+rather than a copy of it, so a trigger scheduled once inside a request and again outside one has the key
+*removed* on the second call. A stale link reads exactly like a true one, which makes leaving it the
+worst of the three answers.
+
+**Over HTTP it is free.** `POST /jobs/{group}/{name}/trigger` and the scheduling endpoints run inside
+ASP.NET Core's own server span, so the request's trace reaches the trigger without `Quartz.AspNetCore`
+mentioning tracing at all.
+
+See [Observability](packages/opentelemetry-integration.md#linking-a-firing-to-what-scheduled-it).
+
 ## A component of your own is chosen the same way a shipped one is
 
 Three seams that had no code-first spelling at all, and one that only worked through a type-name string:

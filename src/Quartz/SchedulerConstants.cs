@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Diagnostics;
+
 namespace Quartz;
 
 /// <summary>
@@ -131,4 +133,39 @@ public static class SchedulerConstants
     /// dashboard, a query or a clean-up can say which jobs it means without spelling the string.
     /// </remarks>
     public const string ScheduledJobGroup = "QRTZ_SCHEDULED";
+
+    /// <summary>
+    /// The <see cref="JobDataMap" /> key carrying the W3C <c>traceparent</c> of the activity that
+    /// scheduled a trigger, so that the firing can be linked back to it however much later it happens.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Written onto the <em>trigger's</em> map by the scheduler, on every entry point that stores a
+    /// trigger, whenever <see cref="Activity.Current" /> is a W3C activity and
+    /// <see cref="QuartzSchedulerOptions.PropagateTraceContext" /> is on. Read back when the firing's
+    /// span is opened, where it becomes an <see cref="ActivityLink" /> rather than a parent — a job
+    /// scheduled for next Tuesday is its own trace, and a trace that stays open for a week is not a
+    /// trace.
+    /// </para>
+    /// <para>
+    /// A trigger scheduled outside an activity has the key <em>removed</em> rather than left alone,
+    /// because the scheduler stores the trigger object it was handed rather than a copy of it: a trigger
+    /// re-scheduled outside an activity would otherwise keep pointing at the trace that scheduled it the
+    /// first time.
+    /// </para>
+    /// <para>
+    /// This is the trigger's map, never the job's, so
+    /// <see cref="PersistJobDataAfterExecutionAttribute" /> — which writes back only the job's map —
+    /// never sees it and the two cannot interact.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="TraceState" />
+    public const string TraceParent = "QRTZ_TRACEPARENT";
+
+    /// <summary>
+    /// The <see cref="JobDataMap" /> key carrying the W3C <c>tracestate</c> that accompanies
+    /// <see cref="TraceParent" />, present only when the scheduling activity had one.
+    /// </summary>
+    /// <seealso cref="TraceParent" />
+    public const string TraceState = "QRTZ_TRACESTATE";
 }

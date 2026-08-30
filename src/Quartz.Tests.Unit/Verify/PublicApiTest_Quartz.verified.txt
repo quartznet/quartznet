@@ -1454,6 +1454,7 @@ namespace Quartz
         public string InstanceId { get; set; }
         public string InstanceName { get; set; }
         public int MaxBatchSize { get; set; }
+        public bool PropagateTraceContext { get; set; }
         public Quartz.ShutdownJobInterruption ShutdownJobInterruption { get; set; }
     }
     public static class QuartzServiceCollectionExtensions
@@ -1529,6 +1530,8 @@ namespace Quartz
         public const string ForceJobDataMapDirty = "QRTZ_FORCE_JOB_DATAMAP_DIRTY";
         public const string JobInput = "QRTZ_JOB_INPUT";
         public const string ScheduledJobGroup = "QRTZ_SCHEDULED";
+        public const string TraceParent = "QRTZ_TRACEPARENT";
+        public const string TraceState = "QRTZ_TRACESTATE";
     }
     public sealed class SchedulerContext : System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IDictionary<string, object?>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IReadOnlyDictionary<string, object?>, System.Collections.IEnumerable
     {

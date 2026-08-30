@@ -119,6 +119,98 @@ public sealed class TypedJobInputTest
             .Which.Should().Be("""{"To":"someone@example.org","Subject":"hello"}""");
     }
 
+    /// <summary>
+    /// Rescheduling stores a trigger, so it normalizes one.
+    /// </summary>
+    /// <remarks>
+    /// <c>RescheduleJob</c> was the one call that stored a trigger without preparing its data map, so an
+    /// input placed on the replacement reached the store as whatever object the caller built. The
+    /// in-memory store hands the very object back and the job could not tell; a store that serializes
+    /// could, which is the asymmetry <see cref="TheStoredInputIsAString" /> exists to rule out.
+    /// </remarks>
+    [Test]
+    public async Task TheInputOnARescheduledTriggerIsStoredAsAString()
+    {
+        Recorder recorder = new();
+        await using SchedulerHarness harness = await SchedulerHarness.Start(recorder, nameof(TheInputOnARescheduledTriggerIsStoredAsAString), start: false);
+
+        TriggerKey key = new("later", "typed");
+
+        await harness.Scheduler.ScheduleJob(
+            JobBuilder.Create<SendEmailJob>().WithIdentity("email", "typed").Build(),
+            TriggerBuilder.Create().WithIdentity(key).StartAt(DateTimeOffset.UtcNow.AddHours(1)).Build());
+
+        await harness.Scheduler.RescheduleJob(key, TriggerBuilder.Create<SendEmailJob>()
+            .WithIdentity(key)
+            .StartAt(DateTimeOffset.UtcNow.AddHours(2))
+            .UsingInput(new SendEmail("rescheduled@example.org", "after the move"))
+            .Build());
+
+        ITrigger stored = await harness.Scheduler.GetTrigger(key);
+
+        stored.JobDataMap[SchedulerConstants.JobInput].Should().BeOfType<string>(
+            "a replacement trigger reaches a store by the same road as an original one, so its input has "
+            + "to be the string every store path can carry")
+            .Which.Should().Be("""{"To":"rescheduled@example.org","Subject":"after the move"}""");
+    }
+
+    [Test]
+    public async Task AnInputOnARescheduledTriggerReachesTheJob()
+    {
+        Recorder recorder = new();
+        await using SchedulerHarness harness = await SchedulerHarness.Start(recorder, nameof(AnInputOnARescheduledTriggerReachesTheJob));
+
+        TriggerKey key = new("later", "typed");
+
+        await harness.Scheduler.ScheduleJob(
+            JobBuilder.Create<SendEmailJob>().WithIdentity("email", "typed").Build(),
+            TriggerBuilder.Create().WithIdentity(key).StartAt(DateTimeOffset.UtcNow.AddHours(1)).Build());
+
+        await harness.Scheduler.RescheduleJob(key, TriggerBuilder.Create<SendEmailJob>()
+            .WithIdentity(key)
+            .StartNow()
+            .UsingInput(new SendEmail("rescheduled@example.org", "after the move"))
+            .Build());
+
+        object received = await recorder.Received;
+
+        received.Should().Be(new SendEmail("rescheduled@example.org", "after the move"),
+            "the firing a reschedule produces reads its input the same way any other firing does");
+    }
+
+    /// <summary>
+    /// Updating a trigger's data map is the third way a map reaches a store.
+    /// </summary>
+    /// <remarks>
+    /// It is not a scheduling call — fire times and trigger state are preserved — so it deliberately
+    /// does not touch the trace-context keys. The input still has to be normalized, because that is
+    /// about what a store can hold rather than about what scheduled anything.
+    /// </remarks>
+    [Test]
+    public async Task TheInputOnAnUpdatedTriggerIsStoredAsAString()
+    {
+        Recorder recorder = new();
+        await using SchedulerHarness harness = await SchedulerHarness.Start(recorder, nameof(TheInputOnAnUpdatedTriggerIsStoredAsAString), start: false);
+
+        TriggerKey key = new("later", "typed");
+
+        await harness.Scheduler.ScheduleJob(
+            JobBuilder.Create<SendEmailJob>().WithIdentity("email", "typed").Build(),
+            TriggerBuilder.Create().WithIdentity(key).StartAt(DateTimeOffset.UtcNow.AddHours(1)).Build());
+
+        JobDataMap replacement = new();
+        replacement[SchedulerConstants.JobInput] = new SendEmail("updated@example.org", "edited in place");
+
+        (await harness.Scheduler.UpdateTriggerDetails(key, new TriggerDetailsUpdate().WithJobDataMap(replacement)))
+            .Should().BeTrue("the trigger exists, so the update applies");
+
+        ITrigger stored = await harness.Scheduler.GetTrigger(key);
+
+        stored.JobDataMap[SchedulerConstants.JobInput].Should().BeOfType<string>(
+            "UpdateTriggerDetails replaces the whole map, so it is a way into the store like any other")
+            .Which.Should().Be("""{"To":"updated@example.org","Subject":"edited in place"}""");
+    }
+
     [Test]
     public async Task GetInputReadsTheInputFromAnUntypedJob()
     {
