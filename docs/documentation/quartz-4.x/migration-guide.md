@@ -4292,6 +4292,48 @@ round-tripping it through the `"R"` format guarantees.
 `MaxAttempts` counts retries *after* the first failure, not fires: `Fixed(2, …)` runs a persistently
 failing job three times in total.
 
+### Where a policy is set and read
+
+| Member | What it is |
+|---|---|
+| `ITrigger.RetryPolicy` | The trigger's policy, or `null` — the default — when it does not retry |
+| `ITrigger.RetryAttempt` | How many times the occurrence being executed has already been retried; `0` on a regular fire |
+| `IMutableTrigger.RetryPolicy` / `RetryAttempt` | The setters, for a job store restoring a trigger from its row |
+| `TriggerBuilder<TJob>.WithRetryPolicy(RetryPolicy?)` | Give a trigger a policy while building it |
+| `ITriggerConfigurator<TJob>.WithRetryPolicy(RetryPolicy?)` | The same, in the DI configuration API |
+| `TriggerDetailsUpdate.WithRetryPolicy(RetryPolicy?)` | Change a stored trigger's policy without rescheduling it |
+| `TriggerHeader.RetryPolicy` (string) / `RetryAttempt` | What a trigger listing reports |
+
+A builder-built trigger fully defines its retry policy, so a definition that says nothing clears a
+stored one when it replaces an existing trigger — the same rule `WithExecutionGroup` and
+`WithPreferredNode` follow. `TriggerDetailsUpdate` deliberately has no way to set the *attempt*: the
+policy is configuration, while the attempt belongs to the occurrence in flight, and setting it would
+either grant a running job extra attempts or take away ones it has already spent.
+
+`TriggerHeader` carries the policy as its stored string rather than as a `RetryPolicy`, because a
+listing reports the column: a row whose policy a newer node wrote in a shape this one cannot read still
+has to list. That makes `TriggerHeader`'s constructor two parameters longer, which is a breaking change
+for anything constructing one by hand.
+
+### Where a policy is stored
+
+The policy travels as its stored string everywhere: the `RETRY_POLICY` column, the `retryPolicy`
+property of a serialized trigger, and the `retryPolicy` field of a JSON scheduling file or
+configuration section. A payload written before 4.0 has neither property, and reads back as no policy
+and no attempt.
+
+```json
+{
+  "Name": "nightly-import",
+  "JobName": "import",
+  "RetryPolicy": "exp;3;00:00:30;2;00:10:00",
+  "Cron": { "Expression": "0 0 2 * * ?" }
+}
+```
+
+A string that is not a policy is refused where the file is read, rather than scheduling a trigger that
+would never retry.
+
 ## Trimming annotations
 
 `ScheduleJob<T>`, `AddTrigger<TJob>` and `TriggerBuilder.Create<TJob>()` gained

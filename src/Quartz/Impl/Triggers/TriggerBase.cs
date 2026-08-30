@@ -86,6 +86,17 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     // (ClusterRecover's failover reset, an UpdateTriggerDetails re-pin).
     private bool preferredNodeDirty;
 
+    // The retry policy is held as the string the RETRY_POLICY column carries rather than as the
+    // value, so that a [Serializable] trigger's blob holds a primitive. A blob written before
+    // triggers could retry simply has no such field and deserializes to null, which is "no policy".
+    private string? retryPolicy;
+    private int retryAttempt;
+
+    // Parsing the stored form once per trigger rather than once per read. Not serialized: it is
+    // derived from the field above, which is.
+    [NonSerialized]
+    private RetryPolicy? retryPolicyValue;
+
     [NonSerialized]
     private TimeProvider? timeProvider;
 
@@ -196,6 +207,10 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
             // trigger keeps it auto-pinned (so it is still released if that node dies) instead of
             // silently hardening into a pin the user named.
             .WithPreferredNode(PreferredNode)
+            // The policy is part of the definition and round-trips; the attempt is not - it counts
+            // retries of the occurrence being executed, and a rebuilt trigger has no occurrence in
+            // flight, exactly as it has no NextFireTimeUtc.
+            .WithRetryPolicy(RetryPolicy)
             .EndAt(EndTimeUtc)
             .WithIdentity(Key)
             .WithPriority(Priority)
@@ -295,6 +310,58 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
         preferredNode = value.StoredNode;
         preferredNodeAuto = value.StoredAutomatic;
         preferredNodeDirty = markDirty;
+    }
+
+    /// <summary>
+    /// Gets or sets how the scheduler re-fires this trigger when its job fails.
+    /// <see langword="null" /> — the default — means a failed job is reported and the trigger waits
+    /// for its next scheduled occurrence.
+    /// </summary>
+    /// <remarks>
+    /// Held as the policy's stored string form, which is what the trigger's row and a serialized
+    /// trigger both carry; the value is parsed on first read and kept for as long as the string
+    /// does not change.
+    /// </remarks>
+    /// <seealso cref="Quartz.RetryPolicy" />
+    public RetryPolicy? RetryPolicy
+    {
+        get
+        {
+            if (retryPolicyValue is null && retryPolicy is not null)
+            {
+                retryPolicyValue = Quartz.RetryPolicy.Parse(retryPolicy);
+            }
+
+            return retryPolicyValue;
+        }
+        set
+        {
+            retryPolicyValue = value;
+            retryPolicy = value?.ToStoredString();
+        }
+    }
+
+    /// <summary>
+    /// How many times the occurrence currently being executed has already been retried. <c>0</c> on
+    /// a regular fire.
+    /// </summary>
+    /// <remarks>
+    /// <b>The setter should not be used by client code.</b> The scheduler advances it as retries are
+    /// scheduled and clears it when the occurrence is done with; a job store assigns it when
+    /// restoring a trigger from its row.
+    /// </remarks>
+    public int RetryAttempt
+    {
+        get => retryAttempt;
+        set
+        {
+            if (value < 0)
+            {
+                Throw.ArgumentOutOfRangeException(nameof(value), $"A retry attempt count is never negative; {value} is not one.");
+            }
+
+            retryAttempt = value;
+        }
     }
 
     /// <summary>

@@ -120,6 +120,7 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     private readonly JobDataMap jobDataMap = new JobDataMap();
     private string? executionGroup;
     private PreferredNode preferredNode;
+    private RetryPolicy? retryPolicy;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -213,6 +214,11 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
         // trigger (consistent with how ExecutionGroup is persisted). The value carries the
         // auto-claim flag, so GetTriggerBuilder() round-trips an auto-pin faithfully.
         trig.PreferredNode = preferredNode;
+
+        // Assigned unconditionally for the same reason the pin is: a builder-built trigger fully
+        // defines its retry policy, so a definition without WithRetryPolicy clears a stored one when
+        // it replaces an existing trigger.
+        trig.RetryPolicy = retryPolicy;
 
         return trig;
     }
@@ -327,6 +333,25 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     public TriggerBuilder<TJob> WithPreferredNode(PreferredNode preferredNode)
     {
         this.preferredNode = preferredNode;
+        return this;
+    }
+
+    /// <summary>
+    /// Set how the scheduler re-fires this trigger when its job fails.
+    /// </summary>
+    /// <remarks>
+    /// A retry never displaces the trigger's next scheduled occurrence, so a policy whose waits are
+    /// longer than the gap between occurrences does nothing. This is not
+    /// <see cref="JobExecutionException.RefireImmediately" />, which re-runs the job on the same
+    /// thread within the same firing.
+    /// </remarks>
+    /// <param name="retryPolicy">the retry policy, or <see langword="null" /> for no retries</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <seealso cref="Quartz.RetryPolicy" />
+    /// <seealso cref="ITrigger.RetryPolicy" />
+    public TriggerBuilder<TJob> WithRetryPolicy(RetryPolicy? retryPolicy)
+    {
+        this.retryPolicy = retryPolicy;
         return this;
     }
 
@@ -604,6 +629,8 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithExecutionGroup(string? executionGroup) => WithExecutionGroup(executionGroup);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithPreferredNode(PreferredNode preferredNode) => WithPreferredNode(preferredNode);
+
+    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithRetryPolicy(RetryPolicy? retryPolicy) => WithRetryPolicy(retryPolicy);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithCalendarName(string? calendarName) => WithCalendarName(calendarName);
 

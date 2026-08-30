@@ -509,7 +509,7 @@ public abstract partial class AdoJobStoreBase
 
                 if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
                     && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode
-                    && !update.HasExecutionGroup)
+                    && !update.HasExecutionGroup && !update.HasRetryPolicy)
                 {
                     return true;
                 }
@@ -570,6 +570,14 @@ public abstract partial class AdoJobStoreBase
                     // EXECUTION_GROUP is part of the generic trigger UPDATE below, so nothing more is
                     // needed to persist it.
                     existing.ExecutionGroup = update.ExecutionGroup;
+                }
+
+                if (update.HasRetryPolicy)
+                {
+                    // RETRY_POLICY is part of the same generic UPDATE. RETRY_ATTEMPT is written by it
+                    // too, with the value just read back from the row - so a re-policy leaves an
+                    // occurrence that is mid-retry counting from where it was.
+                    existing.RetryPolicy = update.RetryPolicy;
                 }
 
                 StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);

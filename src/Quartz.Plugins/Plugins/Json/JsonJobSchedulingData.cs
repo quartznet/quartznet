@@ -108,6 +108,12 @@ internal sealed class JsonFileTriggerDefinition
     public int? Priority { get; set; }
     public string? CalendarName { get; set; }
     public string? ExecutionGroup { get; set; }
+
+    /// <summary>
+    /// The trigger's retry policy in its stored form, for example <c>fixed;3;00:00:30</c>.
+    /// </summary>
+    public string? RetryPolicy { get; set; }
+
     public string? StartTime { get; set; }
     public int? StartTimeSecondsInFuture { get; set; }
     public string? EndTime { get; set; }

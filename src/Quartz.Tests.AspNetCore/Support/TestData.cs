@@ -546,6 +546,9 @@ public static class TestData
                 .StartAt(StartTime)
                 .EndAt(EndTime)
                 .WithPriority(1)
+                // The one wire fixture carrying a retry policy, so the snapshots pin what a stored
+                // policy looks like on the wire and not only that the property is there.
+                .WithRetryPolicy(RetryPolicy.Exponential(3, TimeSpan.FromSeconds(10), 2, TimeSpan.FromMinutes(5)))
                 .Build());
 
             CalendarIntervalTrigger = WithFireTimes(TriggerBuilder.Create()
@@ -605,6 +608,14 @@ public static class TestData
             IMutableTrigger mutableTrigger = (IMutableTrigger) trigger;
             mutableTrigger.PreviousFireTimeUtc = PreviousFireTime;
             mutableTrigger.NextFireTimeUtc = NextFireTime;
+
+            // A trigger that has a policy is one the scheduler may be part-way through retrying, so the
+            // snapshot carries a non-zero attempt as well; 0 is the shape every other fixture pins.
+            if (mutableTrigger.RetryPolicy is not null)
+            {
+                mutableTrigger.RetryAttempt = 2;
+            }
+
             return trigger;
         }
     }

@@ -21,6 +21,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -56,6 +58,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -91,6 +95,8 @@ SELECT TOP 20
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -126,6 +132,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -161,6 +169,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -196,6 +206,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -231,6 +243,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -266,6 +280,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -301,6 +317,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -336,6 +354,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -371,6 +391,8 @@ SELECT * FROM (SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -406,6 +428,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -441,6 +465,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM
@@ -476,6 +502,8 @@ SELECT
                 t.EXECUTION_GROUP,
                 t.PREFERRED_NODE,
                 t.PREFERRED_NODE_AUTO,
+                t.RETRY_POLICY,
+                t.RETRY_ATTEMPT,
                 t.TRIGGER_NAME,
                 t.TRIGGER_GROUP
             FROM

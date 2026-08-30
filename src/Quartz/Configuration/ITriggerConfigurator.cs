@@ -127,6 +127,19 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     ITriggerConfigurator<TJob> WithPreferredNode(PreferredNode preferredNode);
 
     /// <summary>
+    /// Set how the scheduler re-fires this trigger when its job fails.
+    /// </summary>
+    /// <remarks>
+    /// A retry never displaces the trigger's next scheduled occurrence. This is not
+    /// <see cref="JobExecutionException.RefireImmediately" />, which re-runs the job on the same
+    /// thread within the same firing.
+    /// </remarks>
+    /// <param name="retryPolicy">the retry policy, or <see langword="null" /> for no retries</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <seealso cref="ITrigger.RetryPolicy" />
+    ITriggerConfigurator<TJob> WithRetryPolicy(RetryPolicy? retryPolicy);
+
+    /// <summary>
     /// Set the name of the <see cref="ICalendar" /> that should be applied to this
     /// Trigger's schedule.
     /// </summary>

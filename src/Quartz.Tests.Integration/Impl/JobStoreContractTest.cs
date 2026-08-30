@@ -810,6 +810,7 @@ public abstract class JobStoreContractTest
             .WithCalendarName(RoundTripCalendarName)
             .WithExecutionGroup("reports")
             .WithPreferredNode(PreferredNode.For("node-b"))
+            .WithRetryPolicy(RetryPolicy.Exponential(4, TimeSpan.FromSeconds(10), 2, TimeSpan.FromMinutes(5)))
             .StartAt(RoundTripStart)
             .EndAt(RoundTripEnd)
             // Strings only, deliberately: what a job data map does to a value of some other type is
@@ -924,6 +925,59 @@ public abstract class JobStoreContractTest
             "the store hands back the trigger type it was given, not a schedule it approximated");
 
         testCase.AssertSameTrigger(retrieved, expected);
+    }
+
+    /// <summary>
+    /// The two halves of a trigger's retry state, on every store. The round-trip case above carries
+    /// the policy through <c>BeEquivalentTo</c>, which compares it member by member; this asserts the
+    /// policy's own equality — so the <i>shape</i> survives too, not only the numbers — and covers the
+    /// attempt, which no builder can set because it belongs to the occurrence in flight.
+    /// </summary>
+    [Test]
+    public async Task ATriggerKeepsBothHalvesOfItsRetryStateAcrossAStoreRoundTrip()
+    {
+        RetryPolicy policy = RetryPolicy.Explicit(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(5));
+
+        IJobDetail job = CreateJob("retrying", JobGroupA);
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("retrying", TriggerGroupA)
+            .ForJob(job.Key)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .StartAt(RoundTripStart)
+            .WithRetryPolicy(policy)
+            .Build();
+        trigger.RetryAttempt = 2;
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        await Store.ScheduleJob(job, trigger);
+
+        IOperableTrigger retrieved = await Store.GetTrigger(trigger.Key);
+
+        retrieved.RetryPolicy.Should().Be(policy,
+            "a policy that came back as a different shape would hand out different waits from the ones the trigger was given");
+        retrieved.RetryAttempt.Should().Be(2,
+            "a node that picks up this trigger has to know how far through its policy the occurrence already is, "
+            + "or a failover restarts the retries from the beginning");
+    }
+
+    [Test]
+    public async Task ATriggerWithNoRetryPolicyComesBackWithoutOne()
+    {
+        IJobDetail job = CreateJob("not-retrying", JobGroupA);
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("not-retrying", TriggerGroupA)
+            .ForJob(job.Key)
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .StartAt(RoundTripStart)
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        await Store.ScheduleJob(job, trigger);
+
+        IOperableTrigger retrieved = await Store.GetTrigger(trigger.Key);
+
+        retrieved.RetryPolicy.Should().BeNull("a null column is no policy, not an empty one");
+        retrieved.RetryAttempt.Should().Be(0);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

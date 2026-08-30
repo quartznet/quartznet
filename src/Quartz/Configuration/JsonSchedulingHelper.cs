@@ -160,6 +160,7 @@ internal static class JsonSchedulingHelper
             var description = triggerSection[nameof(JsonTriggerDefinition.Description)];
             var calendarName = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.CalendarName)]);
             var executionGroup = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.ExecutionGroup)]);
+            var retryPolicy = ParseRetryPolicy(NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.RetryPolicy)]), name);
             var priorityStr = triggerSection[nameof(JsonTriggerDefinition.Priority)];
             var startTimeStr = triggerSection[nameof(JsonTriggerDefinition.StartTime)];
             var startTimeFutureStr = triggerSection[nameof(JsonTriggerDefinition.StartTimeSecondsInFuture)];
@@ -234,6 +235,7 @@ internal static class JsonSchedulingHelper
                 .WithPriority(priority)
                 .WithCalendarName(calendarName)
                 .WithExecutionGroup(executionGroup)
+                .WithRetryPolicy(retryPolicy)
                 .WithSchedule(schedule)
                 .Build();
 
@@ -516,4 +518,23 @@ internal static class JsonSchedulingHelper
     }
 
     private static string? NormalizeEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    /// <summary>
+    /// Reads a retry policy out of configuration, refusing one that cannot be read rather than
+    /// silently scheduling a trigger that will never retry.
+    /// </summary>
+    private static RetryPolicy? ParseRetryPolicy(string? value, string triggerName)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (!RetryPolicy.TryParse(value, out RetryPolicy? policy))
+        {
+            throw new SchedulerConfigException($"JSON trigger '{triggerName}': '{value}' is not a retry policy.");
+        }
+
+        return policy;
+    }
 }

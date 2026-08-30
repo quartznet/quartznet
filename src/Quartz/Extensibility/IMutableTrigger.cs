@@ -38,6 +38,24 @@ public interface IMutableTrigger : ITrigger
     new PreferredNode PreferredNode { get; set; }
 
     /// <summary>
+    /// Get or set how the scheduler re-fires this trigger when its job fails.
+    /// <see langword="null" /> means a failed job is reported and the trigger waits for its next
+    /// scheduled occurrence.
+    /// </summary>
+    /// <seealso cref="Quartz.RetryPolicy" />
+    new RetryPolicy? RetryPolicy { get; set; }
+
+    /// <summary>
+    /// How many times the occurrence currently being executed has already been retried.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not for client code.</b> The scheduler and job store advance and clear this as the
+    /// trigger's retries are scheduled and spent; it is settable so that a store can restore what
+    /// it read from its own row.
+    /// </remarks>
+    new int RetryAttempt { get; set; }
+
+    /// <summary>
     /// Associate the <see cref="ICalendar" /> with the given name with this Trigger. Use
     /// <see langword="null" /> - or a blank name, which the built-in triggers store as
     /// <see langword="null" /> - to dis-associate any calendar.

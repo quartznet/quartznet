@@ -701,5 +701,7 @@ public class TriggerEndpointsTest : WebApiTest
         PreviousFireTimeUtc: null,
         CalendarName: "SomeCalendar",
         Priority: 7,
-        ExecutionGroup: "imports");
+        ExecutionGroup: "imports",
+        RetryPolicy: "fixed;3;00:00:30",
+        RetryAttempt: 1);
 }

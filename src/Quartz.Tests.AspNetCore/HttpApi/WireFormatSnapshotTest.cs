@@ -511,7 +511,9 @@ public class WireFormatSnapshotTest : WebApiTest
         PreviousFireTimeUtc: trigger.PreviousFireTimeUtc,
         CalendarName: trigger.CalendarName,
         Priority: trigger.Priority,
-        ExecutionGroup: trigger.ExecutionGroup);
+        ExecutionGroup: trigger.ExecutionGroup,
+        RetryPolicy: trigger.RetryPolicy?.ToStoredString(),
+        RetryAttempt: trigger.RetryAttempt);
 
     private static JobHeader JobHeaderFor(IJobDetail jobDetail) => new(
         jobDetail.Key,
