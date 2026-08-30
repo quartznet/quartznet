@@ -47,6 +47,29 @@ public static class JobStoresSamples
         #endregion
     }
 
+    public static void ProvisionSchema(IHostApplicationBuilder builder, string connectionString)
+    {
+        #region sample_job_stores_provision_schema
+
+        builder.Services.AddQuartz(q =>
+        {
+            q.UsePersistentStore(store =>
+            {
+                store.UsePostgres(connectionString);
+                store.UseSystemTextJsonSerializer();
+
+                // outside production, where whatever applies the rest of the database's
+                // schema applies this one too
+                if (builder.Environment.IsDevelopment())
+                {
+                    store.ProvisionSchema();
+                }
+            });
+        });
+
+        #endregion
+    }
+
     public static void StoreJobDataAsStrings(IPersistentStoreBuilder store)
     {
         #region sample_job_stores_store_job_data_as_strings

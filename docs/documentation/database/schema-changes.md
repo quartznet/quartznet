@@ -5,8 +5,11 @@ title: Database Schema Changes
 Every Quartz.NET release that changed the database schema, in order, with the migration to run
 and what happens if you skip it.
 
-Quartz.NET never creates or migrates your schema automatically. Read from your current version
-down to your target version and apply what each section lists.
+Quartz.NET never migrates your schema. A 4.x store asked to
+[provision its own](../quartz-4.x/tutorial/job-stores.md#creating-the-schema) creates a schema that is
+missing, but it cannot move one forward: a guarded `CREATE TABLE` skips a table that is already there
+without looking inside it, so a table short of a column stays short of it. Everything below is yours to
+run. Read from your current version down to your target version and apply what each section lists.
 
 ::: warning
 Always run migration scripts in a test environment against a copy of your production database

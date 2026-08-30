@@ -2,7 +2,7 @@
 title: Database Schema
 ---
 
-When using ADO.NET-based job store (the usual being `LocalTransactionJobStore`), Quartz requires the creation of a set of tables. Creating the initial schema or migrating existing one is a manual step, as Quartz.NET does not create or migrate these automatically.
+When using an ADO.NET-based job store (the usual being `LocalTransactionJobStore`), Quartz requires a set of tables. Creating them can be automatic: `ProvisionSchema()` has the store run the DDL for its own database as it starts and create whatever is missing — see [Creating the schema](../tutorial/job-stores.md#creating-the-schema). It is opt-in rather than the default, because creating tables needs a permission a production database is often right not to grant. **Migrating** an existing schema is still a manual step, and nothing in Quartz does it for you.
 
 | Table | Brief Description |
 | -- | -- |
@@ -22,6 +22,27 @@ When using ADO.NET-based job store (the usual being `LocalTransactionJobStore`),
 The scripts to create these tables for various providers can be found [here](https://github.com/quartznet/quartznet/tree/main/database/tables).
 
 Upgrading an existing database instead? See [Database Schema Changes](../../database/schema-changes.md) — upgrading from 3.x to 4.x is **mandatory**, because 4.x no longer probes for the optional 3.x columns.
+
+## Creating it, and why migrating it is different
+
+A store can create a missing schema; nothing in Quartz upgrades one that already exists. The split is
+not arbitrary, and two neighbouring libraries show what decides it.
+[Hangfire](https://docs.hangfire.io/en/latest/configuration/using-sql-server.html) does both, on by
+default — `SqlServerStorageOptions.PrepareSchemaIfNecessary` and its `Hangfire.PostgreSql` namesake both
+default to `true` — and it can, because its schema records its own version: a `Schema` table with a
+single `Version` column that an incremental install script steps forward one release at a time. Even
+there the two expensive migrations of the 1.8 release are
+[held back](https://docs.hangfire.io/en/latest/upgrade-guides/upgrading-to-hangfire-1.8.html) behind
+`EnableHeavyMigrations`, which is off by default, "to prevent uncontrolled upgrades that may lead to
+extended downtime or deadlocks". [TickerQ](https://tickerq.net/docs/entity-framework/migrations) takes
+the opposite route: its schema is Entity Framework Core's, so the application generates the migrations
+with `dotnet ef migrations add` and applies them itself, and the library ships neither DDL nor an
+apply-at-startup switch. Quartz can only do the first of the two because its tables carry no version
+marker of any kind — a guarded `CREATE TABLE` skips a table that is already there without looking
+inside it, and there is nothing to read that would say which columns that table ought to have by now.
+Adding such a marker would itself be a migration, so provisioning stops at creation and
+[`database/migrations/`](https://github.com/quartznet/quartznet/tree/main/database/migrations), whose
+folder names are the version numbers, is what a deployment pipeline runs.
 
 ## Columns 4.x requires
 

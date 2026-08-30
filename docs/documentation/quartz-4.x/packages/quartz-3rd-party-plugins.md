@@ -12,6 +12,13 @@ maintained by the Quartz.NET project, and their compatibility with a given Quart
 
 This library handles schema creation and migrations for Quartz.NET using EntityFrameworkCore migrations toolkit with one line of configuration
 
+Since 4.0 the supported way to have a schema created for you is
+[built in](../tutorial/job-stores.md#creating-the-schema). The DDL it runs is compared object by object
+with `database/tables/` in the build, and provisioned against a real database of every dialect in the
+integration tests, so it cannot drift from the schema the release expects. A package that models the
+tables separately tracks them separately, so which Quartz version its schema matches is its own to
+state.
+
 ### [Weasel.Quartz](https://github.com/Hawxy/Weasel.Quartz)
 
 Runtime PostgreSQL migration support for non-EF & Marten projects.
