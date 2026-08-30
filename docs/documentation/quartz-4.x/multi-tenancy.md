@@ -598,7 +598,7 @@ Four rules:
 - **The prefix has to match the DDL.** Nothing derives one from the other; you run the DDL with the
   prefix substituted.
 - **A prefix pointing at tables that do not exist is caught at startup.**
-  `PerformSchemaValidation` is on by default, and a missing or mis-prefixed table is reported once, by
+  `SchemaProvisioning.Validate` is the default, and a missing or mis-prefixed table is reported once, by
   name, with a message telling you to run the schema scripts — rather than surfacing as the first failing
   operation an hour later.
 - **A prefix pointing at the *wrong* tables is reported too, as a warning.** Schema validation cannot

@@ -669,7 +669,12 @@ internal static class QuartzPropertyBridge
             "quartz.jobStore.txIsolationLevelSerializable",
             value => options.TransactionIsolationLevel = value ? IsolationLevel.Serializable : null);
         parser.Bool("quartz.jobStore.doubleCheckLockMisfireHandler", value => options.DoubleCheckLockMisfireHandler = value);
-        parser.Bool("quartz.jobStore.performSchemaValidation", value => options.PerformSchemaValidation = value);
+        // The 3.x key said only whether the store checked, which is two of the three things it can now
+        // do. Read first, so a file carrying both keys is decided by the one that can say all three.
+        parser.Bool(
+            "quartz.jobStore.performSchemaValidation",
+            value => options.SchemaProvisioning = value ? SchemaProvisioning.Validate : SchemaProvisioning.None);
+        parser.Enum<SchemaProvisioning>("quartz.jobStore.schemaProvisioning", value => options.SchemaProvisioning = value);
         parser.String("quartz.jobStore.selectWithLockSQL", value => options.SelectWithLockSql = value);
     }
 
@@ -963,6 +968,31 @@ internal static class QuartzPropertyBridge
             {
                 apply(bool.Parse(value));
             }
+        }
+
+        /// <summary>
+        /// Reads a value naming one of an enum's members, case-insensitively.
+        /// </summary>
+        /// <remarks>
+        /// A misspelled member is reported with the names that would have worked. <see cref="Enum.Parse{T}(string, bool)"/>
+        /// would otherwise say only that the value "was not found", and it accepts a bare number, which
+        /// in a configuration file is a value nobody meant to write.
+        /// </remarks>
+        public void Enum<TEnum>(string key, Action<TEnum> apply) where TEnum : struct, Enum
+        {
+            if (String(key) is not { } value)
+            {
+                return;
+            }
+
+            if (!System.Enum.TryParse(value, ignoreCase: true, out TEnum parsed)
+                || !System.Enum.IsDefined(parsed))
+            {
+                Throw.SchedulerConfigException(
+                    $"Value '{value}' of '{key}' is not one of {string.Join(", ", System.Enum.GetNames<TEnum>())}.");
+            }
+
+            apply(parsed);
         }
 
         /// <summary>

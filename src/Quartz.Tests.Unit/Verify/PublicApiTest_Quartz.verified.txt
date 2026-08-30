@@ -29,8 +29,8 @@ namespace Quartz
         public System.TimeSpan? MisfireHandlerFrequency { get; set; }
         public System.TimeSpan MisfireThreshold { get; set; }
         public bool OpenConnection { get; set; }
-        public bool PerformSchemaValidation { get; set; }
         public int RetryableActionErrorLogThreshold { get; set; }
+        public Quartz.SchemaProvisioning SchemaProvisioning { get; set; }
         public string? SelectWithLockSql { get; set; }
         public bool StoreJobDataAsStrings { get; set; }
         public string TablePrefix { get; set; }
@@ -580,6 +580,7 @@ namespace Quartz
         string SchedulerName { get; }
         Microsoft.Extensions.DependencyInjection.IServiceCollection Services { get; }
         Quartz.IPersistentStoreBuilder ConfigureStore(System.Action<Quartz.AdoJobStoreOptions> configure);
+        Quartz.IPersistentStoreBuilder ProvisionSchema();
         Quartz.IPersistentStoreBuilder UseClustering(System.Action<Quartz.ClusteringOptions>? configure = null);
         Quartz.IPersistentStoreBuilder UseConnectionProvider(System.Func<System.IServiceProvider, Quartz.Impl.AdoJobStore.Common.IDbProvider> factory);
         Quartz.IPersistentStoreBuilder UseConnectionProvider<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
@@ -1654,6 +1655,12 @@ namespace Quartz
         public bool OverwriteExistingData { get; set; }
         public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
     }
+    public enum SchemaProvisioning
+    {
+        None = 0,
+        Validate = 1,
+        CreateIfMissing = 2,
+    }
     public enum ShutdownJobInterruption
     {
         Never = 0,
@@ -2272,7 +2279,7 @@ namespace Quartz.Impl.AdoJobStore
         public System.TimeSpan MisfireThreshold { get; }
         protected System.DateTimeOffset MisfireTime { get; }
         protected Quartz.Extensibility.IObjectSerializer? ObjectSerializer { get; }
-        protected bool PerformSchemaValidation { get; }
+        protected Quartz.SchemaProvisioning SchemaProvisioning { get; }
         protected string? SelectWithLockSql { get; }
         protected System.TimeSpan StaleAcquiredTriggerThreshold { get; }
         public bool SupportsPersistence { get; }
@@ -2515,6 +2522,7 @@ namespace Quartz.Impl.AdoJobStore
     public class FirebirdDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
         public FirebirdDelegate() { }
+        protected override string? SchemaResourceName { get; }
         protected override Quartz.Impl.AdoJobStore.SqlRowLimit GetRowLimit(int count) { }
     }
     public sealed class FiredTriggerQuery : System.IEquatable<Quartz.Impl.AdoJobStore.FiredTriggerQuery>
@@ -2559,6 +2567,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask ClearMisfireOriginalFireTime(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> CountMisfiredTriggersInState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.StoredTriggerState state, System.DateTimeOffset misfireTime, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> CountTriggersForJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask CreateSchema(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteBlobTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteFiredTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string entryId, System.Threading.CancellationToken cancellationToken = default);
@@ -2707,6 +2716,7 @@ namespace Quartz.Impl.AdoJobStore
     public class MySQLDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
         public MySQLDelegate() { }
+        protected override string? SchemaResourceName { get; }
         protected override void AddPagingParameters(System.Data.Common.DbCommand cmd, int skip, int take, bool takeLimited) { }
         protected override string ApplyPaging(string sql, bool takeLimited) { }
         protected override string GetCountMisfiredTriggersInStateSql() { }
@@ -2722,6 +2732,7 @@ namespace Quartz.Impl.AdoJobStore
     public class OracleDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
         public OracleDelegate() { }
+        protected override string? SchemaResourceName { get; }
         public override bool GetBooleanFromDbValue(object columnValue) { }
         public override object GetDbBooleanValue(bool booleanValue) { }
         protected override Quartz.Impl.AdoJobStore.SqlRowLimit GetRowLimit(int count) { }
@@ -2729,6 +2740,7 @@ namespace Quartz.Impl.AdoJobStore
     public class PostgreSQLDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
         public PostgreSQLDelegate() { }
+        protected override string? SchemaResourceName { get; }
         protected override Quartz.Impl.AdoJobStore.SqlRowLimit GetRowLimit(int count) { }
     }
     public class PostgreSqlSelectForUpdateLockHandler : Quartz.Impl.AdoJobStore.SelectForUpdateLockHandler
@@ -2761,6 +2773,7 @@ namespace Quartz.Impl.AdoJobStore
     public class SQLiteDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
         public SQLiteDelegate() { }
+        protected override string? SchemaResourceName { get; }
         protected override void AddPagingParameters(System.Data.Common.DbCommand cmd, int skip, int take, bool takeLimited) { }
         protected override string ApplyPaging(string sql, bool takeLimited) { }
         protected override Quartz.Impl.AdoJobStore.SqlRowLimit GetRowLimit(int count) { }
@@ -2862,6 +2875,7 @@ namespace Quartz.Impl.AdoJobStore
     public class SqlServerDelegate : Quartz.Impl.AdoJobStore.StdAdoDelegate
     {
         public SqlServerDelegate() { }
+        protected override string? SchemaResourceName { get; }
         public override void AddCommandParameter(System.Data.Common.DbCommand cmd, string paramName, object? paramValue, System.Enum? dataType = null, int? size = default) { }
         protected override Quartz.Impl.AdoJobStore.SqlRowLimit GetRowLimit(int count) { }
     }
@@ -2889,6 +2903,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual bool CanUseProperties { get; }
         protected Quartz.Impl.AdoJobStore.Common.IDbProvider DbProvider { get; }
         public virtual bool FiltersAcquisitionJobTypeExclusions { get; }
+        protected virtual string? SchemaResourceName { get; }
         public virtual void AddCommandParameter(System.Data.Common.DbCommand cmd, string paramName, object? paramValue, System.Enum? dataType = null, int? size = default) { }
         protected virtual void AddDefaultTriggerPersistenceDelegates() { }
         protected virtual void AddPagingParameters(System.Data.Common.DbCommand cmd, int skip, int take, bool takeLimited) { }
@@ -2904,6 +2919,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual System.Collections.Specialized.NameValueCollection ConvertToProperty(System.Collections.Generic.IDictionary<string, object?> data) { }
         public virtual System.Threading.Tasks.ValueTask<int> CountMisfiredTriggersInState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.StoredTriggerState state, System.DateTimeOffset misfireTime, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> CountTriggersForJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask CreateSchema(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteBlobTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteFiredTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string entryId, System.Threading.CancellationToken cancellationToken = default) { }

@@ -174,7 +174,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `AcceptEnlistedTransactions` | bool | `false` | Lets the job store use a connection the application enlisted with `SchedulerEnlistmentExtensions.EnlistTransaction`, so scheduling commits with the application's own work. See [Joining an existing transaction](../tutorial/job-stores.md#joining-an-existing-transaction). |
 | `DoubleCheckLockMisfireHandler` | bool | `true` | Re-checks the lock before handling misfires. |
 | `UseBackgroundThreads` | bool | `false` | Runs the misfire handler and cluster manager on background threads, which do not keep the process alive. These two are the only real threads Quartz creates. |
-| `PerformSchemaValidation` | bool | `true` | Verifies the expected tables exist at startup. |
+| `SchemaProvisioning` | `SchemaProvisioning` | `Validate` | What the store does about its schema at startup: `None` does nothing, `Validate` verifies the expected tables exist, `CreateIfMissing` creates whatever is missing and then verifies. |
 | `SelectWithLockSql` | string? | none | Overrides the row-lock statement, defaulted to SQL Server's `WITH (UPDLOCK,ROWLOCK)` form when that is the database. Read only when the store builds a database-locking handler for itself — see [Locking](#locking). |
 | `OpenConnection` | bool | `false` | Whether `ExternalTransactionJobStore` opens the connections it creates; read only by that store. |
 

@@ -118,7 +118,7 @@ public class QuartzTypedOptionsTest
         options.TablePrefix.Should().Be("MY_");
         options.StoreJobDataAsStrings.Should().BeTrue();
         options.UseDbLocks.Should().BeTrue();
-        options.PerformSchemaValidation.Should().BeTrue("unset booleans keep their default");
+        options.SchemaProvisioning.Should().Be(SchemaProvisioning.Validate, "unset settings keep their default");
 
         var clustering = provider.GetRequiredService<IOptions<ClusteringOptions>>().Value;
 

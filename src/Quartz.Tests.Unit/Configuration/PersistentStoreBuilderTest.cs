@@ -131,6 +131,59 @@ public sealed class PersistentStoreBuilderTest
         act.Should().Throw<ArgumentNullException>();
     }
 
+    [Test]
+    public void ProvisionSchema_TurnsCreateIfMissingOn()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseSqlServer(ConnectionString);
+            store.ProvisionSchema();
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetSchedulerOptions<AdoJobStoreOptions>(null).SchemaProvisioning
+            .Should().Be(SchemaProvisioning.CreateIfMissing,
+                "the shorthand exists to spell the decision, so it has to reach the same setting "
+                + "ConfigureStore does");
+    }
+
+    [Test]
+    public void ProvisionSchema_IsNotWhatAStoreDoesUnasked()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.UseSqlServer(ConnectionString)));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetSchedulerOptions<AdoJobStoreOptions>(null).SchemaProvisioning
+            .Should().Be(SchemaProvisioning.Validate,
+                "creating tables needs DDL permission a production database is usually right not to "
+                + "grant, so provisioning is asked for rather than assumed");
+    }
+
+    [Test]
+    public void ProvisionSchema_AppliesToTheSchedulerThatAskedForIt()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.UseSqlServer(ConnectionString)));
+        services.AddQuartz("reporting", q => q.UsePersistentStore(store =>
+        {
+            store.UseSqlServer(ReportingConnectionString);
+            store.ProvisionSchema();
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetSchedulerOptions<AdoJobStoreOptions>("reporting").SchemaProvisioning
+            .Should().Be(SchemaProvisioning.CreateIfMissing);
+        provider.GetSchedulerOptions<AdoJobStoreOptions>(null).SchemaProvisioning
+            .Should().Be(SchemaProvisioning.Validate,
+                "a named scheduler's options are keyed by its name, so one scheduler granted DDL does "
+                + "not hand it to every other scheduler in the container");
+    }
+
     private sealed class CountingDriverDelegate : StdAdoDelegate
     {
         public IDbProvider? Provider { get; init; }

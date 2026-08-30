@@ -152,6 +152,31 @@ public interface IPersistentStoreBuilder
     IPersistentStoreBuilder UseClustering(Action<ClusteringOptions>? configure = null);
 
     /// <summary>
+    /// Creates whatever this store's schema is missing when the scheduler starts, instead of
+    /// requiring it to be there already.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Shorthand for <c>ConfigureStore(options =&gt; options.SchemaProvisioning =
+    /// SchemaProvisioning.CreateIfMissing)</c>, spelled as the decision it is.
+    /// </para>
+    /// <para>
+    /// Only ever creates. Nothing is altered and nothing is dropped, so this cannot turn a mis-typed
+    /// <see cref="AdoJobStoreOptions.TablePrefix"/> into data loss — but it will happily create a
+    /// second, empty schema under the mis-typed one, so the prefix is still worth reading twice.
+    /// Neither is it an upgrade: a schema that has every table but is missing a column a later
+    /// release added is left as it is. <c>database/migrations/</c> is what moves a schema forward.
+    /// </para>
+    /// <para>
+    /// The account the store connects with needs permission to create tables and indexes, which a
+    /// production database is usually right not to grant, and which is why this is opt-in rather than
+    /// the default. Several schedulers may call it against one database at once: whichever loses the
+    /// race finds the schema the winner created.
+    /// </para>
+    /// </remarks>
+    IPersistentStoreBuilder ProvisionSchema();
+
+    /// <summary>
     /// Uses a specific serializer for job data held in the database.
     /// </summary>
     IPersistentStoreBuilder UseSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()

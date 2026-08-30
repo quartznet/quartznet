@@ -263,7 +263,7 @@ public class Startup
                 });
                 s.ConfigureStore(options =>
                 {
-                    options.PerformSchemaValidation = true; // default
+                    options.SchemaProvisioning = SchemaProvisioning.Validate; // default
                     options.UseProperties = true; // preferred, but not default
                     options.DbRetryInterval = TimeSpan.FromSeconds(15);
 

@@ -195,7 +195,7 @@ builder.Services.AddQuartz(q =>
         {
             options.TablePrefix = "QRTZ_";        // the default
             options.StoreJobDataAsStrings = true; // preferred, but not the default
-            options.PerformSchemaValidation = true;
+            options.SchemaProvisioning = SchemaProvisioning.Validate; // the default
         });
 
         store.UseClustering(cluster =>

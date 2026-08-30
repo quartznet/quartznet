@@ -122,7 +122,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
         AcceptEnlistedTransactions = options.AcceptEnlistedTransactions;
         DoubleCheckLockMisfireHandler = options.DoubleCheckLockMisfireHandler;
         UseBackgroundThreads = options.UseBackgroundThreads;
-        PerformSchemaValidation = options.PerformSchemaValidation;
+        SchemaProvisioning = options.SchemaProvisioning;
         SelectWithLockSql = options.SelectWithLockSql;
         CommandTimeout = options.CommandTimeout;
 
@@ -429,10 +429,10 @@ public abstract partial class AdoJobStoreBase : IJobStore
     protected internal bool DoubleCheckLockMisfireHandler { get; }
 
     /// <summary>
-    /// Whether to perform a schema check on scheduler startup and try to determine if correct tables are in place.
-    /// Defaults to true.
+    /// What this store does about its schema when it starts: nothing, verify it, or create what is
+    /// missing and then verify it. Defaults to <see cref="Quartz.SchemaProvisioning.Validate" />.
     /// </summary>
-    protected internal bool PerformSchemaValidation { get; } = true;
+    protected internal SchemaProvisioning SchemaProvisioning { get; } = SchemaProvisioning.Validate;
 
     public TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
@@ -653,7 +653,12 @@ public abstract partial class AdoJobStoreBase : IJobStore
             LoggerFactory = LoggerFactory,
         });
 
-        if (PerformSchemaValidation)
+        if (SchemaProvisioning == SchemaProvisioning.CreateIfMissing)
+        {
+            await CreateSchema(cancellationToken).ConfigureAwait(false);
+        }
+
+        if (SchemaProvisioning != SchemaProvisioning.None)
         {
             try
             {
@@ -664,12 +669,122 @@ public abstract partial class AdoJobStoreBase : IJobStore
             {
                 const string error = "Database schema validation failed."
                                      + " Make sure you have created the database tables that Quartz requires using the database schema scripts."
-                                     + " You can disable this check by setting quartz.jobStore.performSchemaValidation to false";
+                                     + " You can disable this check by setting quartz.jobStore.schemaProvisioning to None";
 
                 throw new SchedulerException(error, ex);
             }
         }
 
+    }
+
+    /// <summary>How many times the schema is created before the failure is reported as one.</summary>
+    /// <remarks>
+    /// More than one because a create that failed is usually a race, and a retry is not passive
+    /// waiting: the script is guarded throughout, so re-running it skips whatever the other node
+    /// finished and makes whatever it has not reached yet. Two nodes converge in a round or two, and
+    /// ten of them are a few seconds of tolerance for a database that creates a table slowly.
+    /// </remarks>
+    private const int SchemaCreationAttempts = 10;
+
+    private static readonly TimeSpan SchemaCreationRetryDelay = TimeSpan.FromMilliseconds(500);
+
+    /// <summary>
+    /// Creates whatever the schema is missing, and treats a failure as a lost race until the schema
+    /// itself says otherwise.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Several nodes of a cluster start at once, and only one of them can be the node that creates a
+    /// given object — the rest see whatever their database says about that, which every dialect spells
+    /// differently and some spell the same way as a permission failure. Firebird does not even spell it
+    /// consistently with itself: it serializes DDL through its own catalog and answers the loser with a
+    /// primary-key violation on <c>RDB$RELATIONS</c> or with a deadlock, depending on timing. So the
+    /// outcome is decided by asking the schema rather than by reading the exception.
+    /// </para>
+    /// <para>
+    /// And asked more than once, because "the winner has finished" and "the winner is halfway through"
+    /// look identical from here: the first thing the loser sees is a table it could not create, and the
+    /// next thing is a table the winner has not created yet. Both are transient. Each attempt runs the
+    /// whole guarded script again, so the two nodes are not waiting for each other so much as filling
+    /// in each other's gaps, and they converge in a round or two.
+    /// </para>
+    /// <para>
+    /// Under the same <c>ExecuteWithoutLock</c> as validation, which takes no lock on any dialect but
+    /// SQLite. It cannot take one: <c>QRTZ_LOCKS</c> is one of the tables this is here to create.
+    /// </para>
+    /// </remarks>
+    private async ValueTask CreateSchema(CancellationToken cancellationToken)
+    {
+        Exception? creationFailure = null;
+        Exception? validationFailure = null;
+
+        for (int attempt = 1; attempt <= SchemaCreationAttempts; attempt++)
+        {
+            try
+            {
+                await ExecuteWithoutLock<object?>(async conn =>
+                {
+                    await Delegate.CreateSchema(conn, cancellationToken).ConfigureAwait(false);
+                    return null;
+                }, cancellationToken).ConfigureAwait(false);
+
+                Logger.SchemaCreated(TablePrefix);
+                return;
+            }
+            catch (Exception failure)
+            {
+                creationFailure = failure;
+            }
+
+            try
+            {
+                await ExecuteWithoutLock<int>(conn => Delegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+                Logger.SchemaCreatedByAnotherNode(TablePrefix, creationFailure);
+                return;
+            }
+            catch (Exception failure)
+            {
+                validationFailure = failure;
+            }
+
+            if (attempt < SchemaCreationAttempts)
+            {
+                Logger.SchemaCreationRetrying(TablePrefix, attempt, SchemaCreationAttempts, creationFailure);
+                await Task.Delay(SchemaCreationRetryDelay, timeProvider, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        throw new SchedulerException(
+            $"Could not create the database schema in {SchemaCreationAttempts} attempts, and the schema is"
+            + " not there to be used either."
+            + " Either grant the account Quartz connects with permission to create tables and indexes,"
+            + $" or run {SchemaScriptName()} by hand and drop back to SchemaProvisioning.Validate."
+            + " Why the creation failed is this exception's inner exception; why the schema is still"
+            + $" unusable is: {validationFailure?.Message}",
+            creationFailure);
+    }
+
+    /// <summary>
+    /// The fresh-install script for the database this store is talking to, named so that a reader who
+    /// cannot grant DDL knows exactly which file to run.
+    /// </summary>
+    /// <remarks>
+    /// Off the delegate rather than the provider, because the delegate is what the dialect was chosen
+    /// as. A delegate outside this list is somebody else's, and Quartz does not know which file its
+    /// database wants.
+    /// </remarks>
+    private string SchemaScriptName()
+    {
+        return Delegate switch
+        {
+            SqlServerDelegate => "database/tables/tables_sqlServer.sql",
+            PostgreSQLDelegate => "database/tables/tables_postgres.sql",
+            MySQLDelegate => "database/tables/tables_mysql_innodb.sql",
+            OracleDelegate => "database/tables/tables_oracle.sql",
+            SQLiteDelegate => "database/tables/tables_sqlite.sql",
+            FirebirdDelegate => "database/tables/tables_firebird.sql",
+            _ => "the script for your database under database/tables/",
+        };
     }
 
     /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />

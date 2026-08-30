@@ -181,9 +181,15 @@ public sealed class AdoJobStoreOptions
     public bool UseBackgroundThreads { get; set; }
 
     /// <summary>
-    /// Whether the expected schema objects are verified to exist at startup.
+    /// What the store does about its schema at startup: nothing, verify it, or create what is
+    /// missing and then verify it.
     /// </summary>
-    public bool PerformSchemaValidation { get; set; } = true;
+    /// <remarks>
+    /// Defaults to <see cref="Quartz.SchemaProvisioning.Validate"/>, which is what
+    /// <c>PerformSchemaValidation = true</c> meant. <see cref="Quartz.SchemaProvisioning.None"/> is
+    /// the old <see langword="false"/>.
+    /// </remarks>
+    public SchemaProvisioning SchemaProvisioning { get; set; } = SchemaProvisioning.Validate;
 
     /// <summary>
     /// Overrides the SQL statement used to acquire the row lock. Defaulted for SQL Server to its

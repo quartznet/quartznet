@@ -430,7 +430,7 @@ rather than an isolation one.
 | Groups and group matchers | Yes, `GroupMatcher<T>` | Yes, plus the paged query API |
 | `SCHED_NAME` row separation | Yes | Yes |
 | Per-scheduler table prefix | Yes | Yes |
-| Startup schema validation | Yes, `PerformSchemaValidation` on by default | Yes, `PerformSchemaValidation` on by default |
+| Startup schema validation | Yes, `PerformSchemaValidation` on by default | Yes, `SchemaProvisioning.Validate` by default |
 | Shared database, mismatched table prefix | No — silent; each scheduler sees an empty table set | Yes, warns naming both schedulers and both prefixes |
 | Listing tenants without starting them | No — the repository lists live schedulers only | Yes, `ISchedulerRegistry.QuerySchedulers()` |
 | Execution groups and per-node limits | Yes | Yes |
@@ -569,8 +569,9 @@ at twenty, a serious operational burden at a thousand. Groups scale where schedu
 
 **A shared database with a mismatched table prefix.** Nothing derives the prefix from the DDL or the
 DDL from the prefix; you run the scripts with the prefix substituted. A prefix pointing at tables
-that do not exist is caught at startup — `PerformSchemaValidation` is on by default on both versions,
-and it names the missing table rather than letting the first failing operation surface an hour later.
+that do not exist is caught at startup — 3.x has `PerformSchemaValidation` on by default and 4.x
+`SchemaProvisioning.Validate` — and it names the missing table rather than letting the first failing
+operation surface an hour later.
 What validation cannot catch is a prefix pointing at tables that *do* exist and belong to another
 tenant: that configuration is indistinguishable from a correct one, and it will run happily on the
 wrong data. Derive the prefix from the tenant id in code rather than pasting it into per-environment

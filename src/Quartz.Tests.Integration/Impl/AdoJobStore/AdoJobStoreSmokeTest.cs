@@ -280,7 +280,7 @@ public class AdoJobStoreSmokeTest
             store.ConfigureStore(o =>
             {
                 o.StoreJobDataAsStrings = false;
-                o.PerformSchemaValidation = true;
+                o.SchemaProvisioning = SchemaProvisioning.Validate;
                 o.MisfireThreshold = TimeSpan.FromSeconds(60);
             });
 

@@ -88,6 +88,20 @@ internal static partial class AdoJobStoreLog
     [LoggerMessage(EventId = 3014, Level = LogLevel.Information, Message = "Successfully validated presence of {SchemaObjectCount} schema objects")]
     public static partial void SchemaValidated(this ILogger logger, int schemaObjectCount);
 
+    [LoggerMessage(EventId = 3039, Level = LogLevel.Information, Message = "Created the schema objects missing under table prefix '{TablePrefix}'")]
+    public static partial void SchemaCreated(this ILogger logger, string tablePrefix);
+
+    // Debug: on a cluster starting together this is every node but one, every time, and it is not a
+    // problem -- the schema is there and the store is about to validate it.
+    [LoggerMessage(EventId = 3040, Level = LogLevel.Debug, Message = "Schema creation under table prefix '{TablePrefix}' failed, but the schema validates, so another node created it first")]
+    public static partial void SchemaCreatedByAnotherNode(this ILogger logger, string tablePrefix, Exception exception);
+
+    // Debug: on a cluster starting together this is the ordinary way round a race, and the attempt
+    // after it usually succeeds. It is here so that a few seconds spent converging is visible rather
+    // than being a stall nobody can account for.
+    [LoggerMessage(EventId = 3041, Level = LogLevel.Debug, Message = "Schema creation under table prefix '{TablePrefix}' failed on attempt {Attempt} of {Attempts} and the schema does not validate yet, retrying")]
+    public static partial void SchemaCreationRetrying(this ILogger logger, string tablePrefix, int attempt, int attempts, Exception exception);
+
     [LoggerMessage(EventId = 3015, Level = LogLevel.Error, Message = "Failure occurred during job recovery: {ExceptionMessage}")]
     public static partial void JobRecoveryFailed(this ILogger logger, string exceptionMessage, Exception exception);
 
