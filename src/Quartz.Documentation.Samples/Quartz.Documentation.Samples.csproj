@@ -41,6 +41,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <ProjectReference Include="..\Quartz.Aspire\Quartz.Aspire.csproj" />
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
     <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
     <ProjectReference Include="..\Quartz.Extensions.Redis\Quartz.Extensions.Redis.csproj" />

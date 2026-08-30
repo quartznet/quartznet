@@ -217,6 +217,12 @@ internals behind them.
   so it is core rather than `Quartz.AspNetCore`, whose `FrameworkReference` a `dotnet/runtime` image
   cannot satisfy (#3532).
 - `Quartz.AspNetCore` — the HTTP API, and `MapHealthChecks` territory such as `ResultStatusCodes`.
+- `Quartz.Aspire` — `builder.AddQuartzPersistentStore(connectionName)`, which turns an Aspire connection
+  name into a persistent store, its telemetry subscriptions and its health check. It takes **no `Aspire.*`
+  package dependency** — `IHostApplicationBuilder` is the whole contract — and contributes through
+  `ConfigureAllQuartzSchedulers`, so it is order-independent with `AddQuartz`. Its hand-written
+  `ConfigurationSchema.json` is held to `QuartzAspireSettings` by a test, because Aspire's generator for
+  that file has never shipped.
 
 The container constructs the scheduler; there is no reflective instantiation from type-name strings, and
 there is no properties-based `StdSchedulerFactory` any more. Legacy flat `quartz.*` keys are translated

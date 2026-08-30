@@ -38,6 +38,7 @@ public class LogCallSiteTest
     private static readonly string[] Converted =
     [
         "src/Quartz",
+        "src/Quartz.Aspire",
         "src/Quartz.AspNetCore",
         "src/Quartz.Dashboard",
         "src/Quartz.Extensions.Redis",

@@ -36,6 +36,7 @@
   <Project Path="build/_build.csproj">
     <Build Project="false" />
   </Project>
+  <Project Path="src/Quartz.Aspire/Quartz.Aspire.csproj" />
   <Project Path="src/Quartz.AspNetCore/Quartz.AspNetCore.csproj" />
   <Project Path="src/Quartz.Dashboard/Quartz.Dashboard.csproj" />
   <Project Path="src/Quartz.Documentation.Samples/Quartz.Documentation.Samples.csproj" />

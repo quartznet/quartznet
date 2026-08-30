@@ -23,6 +23,7 @@ public class PublicApiTest
     private static readonly Assembly[] shippedAssemblies =
     [
         typeof(global::Quartz.IScheduler).Assembly,
+        typeof(global::Quartz.QuartzAspireSettings).Assembly,
         typeof(global::Quartz.Jobs.DirectoryScanJob).Assembly,
         typeof(global::Quartz.Plugins.History.LoggingJobHistoryPlugin).Assembly,
         typeof(global::Quartz.Plugins.TimeZoneConverter.TimeZoneConverterPlugin).Assembly,

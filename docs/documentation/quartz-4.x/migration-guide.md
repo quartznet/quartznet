@@ -114,6 +114,27 @@ instead — see [OpenTelemetry Integration](packages/opentelemetry-integration.m
 + <PackageReference Include="OpenTelemetry.Instrumentation.Quartz" Version="1.*" />
 ```
 
+### `Quartz.Aspire` is new
+
+Nothing to migrate: it is a new package with no 3.x counterpart, listed here because this is where the
+package list lives.
+
+`Quartz.Aspire` is the client integration for [Aspire](https://aspire.dev/). It turns an Aspire connection
+name into a persistent job store: the driver delegate for the database behind that name, connections taken
+from a `DbDataSource` the container already holds, the scheduler's health check, and Quartz's two telemetry
+signals named to the OpenTelemetry pipeline your ServiceDefaults project built.
+
+```csharp
+builder.AddQuartzPersistentStore("quartz");
+builder.AddQuartz();
+```
+
+It takes **no `Aspire.*` package dependency** — `IHostApplicationBuilder` is the whole of its contract — so
+it works in any generic-host application and is not tied to Aspire's release cadence. There is no hosting
+integration: the AppHost still declares its database resources itself. See
+[Running Quartz under Aspire](how-tos/aspire.md) for what the call expands to, and
+`QuartzAspireSettings` for the settings it reads from `Aspire:Quartz`.
+
 ### The health check is in `Quartz`, not `Quartz.AspNetCore`
 
 `Quartz.AspNetCore` carries `<FrameworkReference Include="Microsoft.AspNetCore.App" />` for the HTTP API,
