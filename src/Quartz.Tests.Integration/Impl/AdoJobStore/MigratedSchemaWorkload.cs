@@ -293,7 +293,12 @@ internal static class MigratedSchemaWorkload
         return await builder.BuildScheduler();
     }
 
-    private static void UseDialect(IPersistentStoreBuilder store, string dialect, string connectionString)
+    /// <summary>
+    /// Points a store at the container running this dialect. Internal rather than private because
+    /// <see cref="SchemaProvisioningTest" /> builds schedulers of its own against the same containers,
+    /// and one mapping is one place for a dialect to be added.
+    /// </summary>
+    internal static void UseDialect(IPersistentStoreBuilder store, string dialect, string connectionString)
     {
         switch (dialect)
         {
