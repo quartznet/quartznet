@@ -154,7 +154,7 @@ internal sealed class JobRunShell
         {
             try
             {
-                context = new JobExecutionContextImpl(scheduler, firedTriggerBundle, jobScope.Job);
+                context = new JobExecutionContextImpl(scheduler, firedTriggerBundle, jobScope.Job, qs.resources.JobInputSerializer);
             }
             catch (Exception e)
             {

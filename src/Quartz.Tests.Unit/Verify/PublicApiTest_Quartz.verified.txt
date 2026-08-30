@@ -539,6 +539,10 @@ namespace Quartz
         System.Threading.Tasks.ValueTask JobToBeExecuted(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobWasExecuted(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? jobException, System.Threading.CancellationToken cancellationToken = default);
     }
+    public interface IJob<TInput> : Quartz.IJob
+    {
+        System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, TInput input, System.Threading.CancellationToken cancellationToken = default);
+    }
     public interface IListenerManager
     {
         void AddJobListener(Quartz.IJobListener jobListener, [System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>> matchers);
@@ -912,6 +916,10 @@ namespace Quartz
     {
         public static Quartz.JobBuilder<Quartz.IJob> GetJobBuilder(this Quartz.IJobDetail jobDetail) { }
     }
+    public static class JobExecutionContextInputExtensions
+    {
+        public static TInput? GetInput<TInput>(this Quartz.IJobExecutionContext context) { }
+    }
     public sealed class JobExecutionException : Quartz.SchedulerException
     {
         public JobExecutionException() { }
@@ -955,6 +963,17 @@ namespace Quartz
         public Quartz.JobKey Key { get; init; }
         public bool PersistJobDataAfterExecution { get; init; }
         public bool RequestsRecovery { get; init; }
+    }
+    public static class JobInputBuilderExtensions
+    {
+        public static Quartz.IJobConfigurator<TJob> UsingInput<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.IJobConfigurator<TJob> configurator, TInput input)
+            where TJob : Quartz.IJob<TInput> { }
+        public static Quartz.ITriggerConfigurator<TJob> UsingInput<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.ITriggerConfigurator<TJob> configurator, TInput input)
+            where TJob : Quartz.IJob<TInput> { }
+        public static Quartz.JobBuilder<TJob> UsingInput<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.JobBuilder<TJob> builder, TInput input)
+            where TJob : Quartz.IJob<TInput> { }
+        public static Quartz.TriggerBuilder<TJob> UsingInput<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.TriggerBuilder<TJob> builder, TInput input)
+            where TJob : Quartz.IJob<TInput> { }
     }
     public sealed class JobInstantiationException : Quartz.SchedulerException
     {
@@ -1476,6 +1495,7 @@ namespace Quartz
         public const string FailedJobOriginalTriggerName = "QRTZ_FAILED_JOB_ORIG_TRIGGER_NAME";
         public const string FailedJobOriginalTriggerScheduledFireTime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_SCHEDULED_FIRETIME_AS_STRING";
         public const string ForceJobDataMapDirty = "QRTZ_FORCE_JOB_DATAMAP_DIRTY";
+        public const string JobInput = "QRTZ_JOB_INPUT";
     }
     public sealed class SchedulerContext : System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IDictionary<string, object?>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<string, object?>>, System.Collections.Generic.IReadOnlyDictionary<string, object?>, System.Collections.IEnumerable
     {
@@ -1918,6 +1938,11 @@ namespace Quartz.Extensibility
     {
         System.Threading.Tasks.ValueTask<Quartz.Extensibility.JobScope> CreateJob(Quartz.Extensibility.TriggerFiredBundle bundle, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ReturnJob(Quartz.Extensibility.JobScope scope, System.Threading.CancellationToken cancellationToken = default);
+    }
+    public interface IJobInputSerializer
+    {
+        TInput? Deserialize<TInput>(string payload);
+        string Serialize(object input);
     }
     public interface IJobStore
     {
@@ -3386,7 +3411,7 @@ namespace Quartz.Impl
     }
     public sealed class JobExecutionContextImpl : Quartz.IJobExecutionContext, System.IDisposable
     {
-        public JobExecutionContextImpl(Quartz.IScheduler scheduler, Quartz.Extensibility.TriggerFiredBundle firedBundle, Quartz.IJob job) { }
+        public JobExecutionContextImpl(Quartz.IScheduler scheduler, Quartz.Extensibility.TriggerFiredBundle firedBundle, Quartz.IJob job, Quartz.Extensibility.IJobInputSerializer? inputSerializer = null) { }
         public Quartz.ICalendar? Calendar { get; }
         public System.Threading.CancellationToken CancellationToken { get; }
         public string FireInstanceId { get; }
@@ -3513,6 +3538,13 @@ namespace Quartz.Impl
         protected Quartz.IJob InstantiateJobCore(Quartz.Extensibility.TriggerFiredBundle bundle) { }
         public virtual System.Threading.Tasks.ValueTask ReturnJob(Quartz.Extensibility.JobScope scope, System.Threading.CancellationToken cancellationToken = default) { }
         protected static System.Threading.Tasks.ValueTask DisposeIfDisposable(object? target, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class SystemTextJsonJobInputSerializer : Quartz.Extensibility.IJobInputSerializer
+    {
+        public SystemTextJsonJobInputSerializer() { }
+        public SystemTextJsonJobInputSerializer(Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry registry) { }
+        public TInput? Deserialize<TInput>(string payload) { }
+        public string Serialize(object input) { }
     }
     public class SystemTextJsonObjectSerializer : Quartz.Extensibility.IObjectSerializer
     {

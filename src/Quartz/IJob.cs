@@ -67,3 +67,66 @@ public interface IJob
     /// </param>
     ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// A job that declares the type of the input it is scheduled with, so the payload arrives as a
+/// parameter instead of being dug out of a <see cref="JobDataMap" /> by key.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The input is put on the job or, more usually, on the trigger — <c>UsingInput</c> on either builder —
+/// and the scheduler stores it as a string under <see cref="SchedulerConstants.JobInput" />. The
+/// trigger's input wins over the job's, exactly as any other job data does.
+/// </para>
+/// <code>
+/// public sealed record SendEmail(string To, string Subject);
+///
+/// public sealed class SendEmailJob : IJob&lt;SendEmail&gt;
+/// {
+///     public ValueTask Execute(IJobExecutionContext context, SendEmail input, CancellationToken cancellationToken = default)
+///     {
+///         // input.To, input.Subject
+///         return default;
+///     }
+/// }
+/// </code>
+/// <para>
+/// <typeparamref name="TInput" /> exists at compile time in exactly one place: the default
+/// implementation of <see cref="IJob.Execute" /> below. Everything that runs a job — the job factory,
+/// <c>JobRunShell</c>, the listeners — sees an <see cref="IJob" />, and dispatching to a typed job from
+/// there would mean closing a generic method over a runtime type, which no trimmed or natively compiled
+/// application can do. Being a default interface method rather than a base class also leaves a job free
+/// to derive from whatever it likes.
+/// </para>
+/// <para>
+/// A job whose input is missing fails the firing with a <see cref="SchedulerException" /> naming the
+/// key, rather than running with a default payload.
+/// </para>
+/// </remarks>
+/// <typeparam name="TInput">The type of the payload this job is scheduled with.</typeparam>
+/// <seealso cref="JobInputBuilderExtensions" />
+/// <seealso cref="JobExecutionContextInputExtensions.GetInput{TInput}" />
+/// <seealso cref="Quartz.Extensibility.IJobInputSerializer" />
+public interface IJob<TInput> : IJob
+{
+    /// <summary>
+    /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" /> fires that is associated
+    /// with this job, with the input the job was scheduled with.
+    /// </summary>
+    /// <param name="context">The execution context.</param>
+    /// <param name="input">The payload this firing was scheduled with.</param>
+    /// <param name="cancellationToken">
+    /// Signalled when this execution is interrupted. The same token as
+    /// <see cref="IJobExecutionContext.CancellationToken" />, for the reason
+    /// <see cref="IJob.Execute" /> gives.
+    /// </param>
+    ValueTask Execute(IJobExecutionContext context, TInput input, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads the stored input and hands it to <see cref="Execute(IJobExecutionContext, TInput, CancellationToken)" />.
+    /// </summary>
+    ValueTask IJob.Execute(IJobExecutionContext context, CancellationToken cancellationToken)
+    {
+        return Execute(context, JobInput.Read<TInput>(context), cancellationToken);
+    }
+}

@@ -99,4 +99,25 @@ public static class SchedulerConstants
     /// Signals Quartz not to consider job data map as clean when deserialized - used in scenarios where data format needs to be converted.
     /// </summary>
     public const string ForceJobDataMapDirty = "QRTZ_FORCE_JOB_DATAMAP_DIRTY";
+
+    /// <summary>
+    /// The <see cref="JobDataMap" /> key an <see cref="IJob{TInput}" />'s input is carried under, on the
+    /// job's own map or — overriding it — on the trigger's.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The stored value is always a <see cref="string" />: the scheduler serializes anything else with
+    /// the scheduler's <see cref="Quartz.Extensibility.IJobInputSerializer" /> as the job or trigger is
+    /// stored. A string is what survives every path the value can take afterwards — AdoJobStore's
+    /// <c>StoreJobDataAsStrings</c> mode, the JSON write gate that refuses a job data value no reader
+    /// can produce, the Newtonsoft serializer, the binary blob column and the HTTP wire — so the round
+    /// trip does not depend on which of them the value went through.
+    /// </para>
+    /// <para>
+    /// Set it with <c>UsingInput</c> on a job or trigger builder rather than by spelling this key.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="IJob{TInput}" />
+    /// <seealso cref="JobInputBuilderExtensions" />
+    public const string JobInput = "QRTZ_JOB_INPUT";
 }

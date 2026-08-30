@@ -301,5 +301,15 @@ internal sealed class QuartzSchedulerResources
     /// </summary>
     internal Diagnostics.Meters Meters { get; set; } = Diagnostics.Meters.Shared;
 
+    /// <summary>
+    /// What an <see cref="IJob{TInput}" />'s input is written and read with. The container path replaces
+    /// this with the one built from this scheduler's own serializer registry.
+    /// </summary>
+    /// <remarks>
+    /// Scheduler-level rather than store-level, because a typed input is carried by every store — the
+    /// in-memory one has no serializer of its own and still round-trips one.
+    /// </remarks>
+    internal IJobInputSerializer JobInputSerializer { get; set; } = new Impl.SystemTextJsonJobInputSerializer();
+
     internal ISchedulerRepository SchedulerRepository { get; set; }
 }

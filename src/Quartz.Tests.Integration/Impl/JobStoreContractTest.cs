@@ -22,6 +22,7 @@
 using AwesomeAssertions.Execution;
 
 using Quartz.Extensibility;
+using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 
@@ -1949,6 +1950,62 @@ public abstract class JobStoreContractTest
         refired.JobDataMap["count"].Should().Be(1,
             "every firing of such a job starts from the same stored map");
     }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // A typed job's input
+    //
+    // The input is a string under a reserved key, chosen precisely so that no store has to know
+    // anything about it. That is a claim about every store, so it is asserted against every store:
+    // both maps come back holding what was put in them, and the firing hands the job the trigger's
+    // value rather than the job's.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task ATypedJobsInputSurvivesTheStoreAndTheTriggersWins()
+    {
+        IJobDetail job = CreateJob<ContractTestJob>("typed-input", JobGroupA, new JobDataMap
+        {
+            [SchedulerConstants.JobInput] = JobInputPayload,
+        });
+
+        IOperableTrigger trigger = CreateTrigger("typed-input", TriggerGroupA, job.Key,
+            startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        trigger.JobDataMap[SchedulerConstants.JobInput] = TriggerInputPayload;
+
+        await Store.ScheduleJob(job, trigger);
+
+        (await Store.GetJob(job.Key)).JobDataMap[SchedulerConstants.JobInput].Should().Be(JobInputPayload,
+            "the input is a string exactly so that every store carries it unchanged, whatever its data map format");
+        (await Store.GetTrigger(trigger.Key)).JobDataMap[SchedulerConstants.JobInput].Should().Be(TriggerInputPayload);
+
+        (IOperableTrigger firing, IJobDetail fired) = await FireOnce(trigger);
+
+        IJobExecutionContext context = new JobExecutionContextImpl(
+            scheduler: null,
+            new TriggerFiredBundle
+            {
+                JobDetail = fired,
+                Trigger = firing,
+                Recovering = false,
+                FireTimeUtc = DateTimeOffset.UtcNow,
+                ScheduledFireTimeUtc = null,
+                PreviousFireTimeUtc = null,
+                NextFireTimeUtc = null,
+            },
+            new ContractTestJob(),
+            new SystemTextJsonJobInputSerializer());
+
+        context.GetInput<ContractInput>().Should().Be(new ContractInput("trigger"),
+            "a firing reads the input out of the merged map, so the trigger's value overrides the job's on every store");
+    }
+
+    private const string JobInputPayload = """{"Source":"job"}""";
+    private const string TriggerInputPayload = """{"Source":"trigger"}""";
+
+    /// <summary>
+    /// A payload a typed job would declare, small enough that its JSON can be written out above.
+    /// </summary>
+    public sealed record ContractInput(string Source);
 
     /// <summary>
     /// Takes the given trigger through one acquisition and firing, handing back the trigger carrying

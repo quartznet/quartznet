@@ -20,10 +20,13 @@
 #endregion
 
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 using Microsoft.Data.Sqlite;
 
 using Microsoft.Extensions.DependencyInjection;
+
+using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz.Trimming.Canary;
 
@@ -54,6 +57,13 @@ internal static class StoreCheck
     private static readonly TaskCompletionSource fired = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
+    /// What the typed job was handed, which is the half of the input round trip that a compile cannot
+    /// stand in for: it is written as <see cref="object" /> and read back as its own type, both through
+    /// metadata the application declared rather than through reflection there is none of.
+    /// </summary>
+    private static readonly TaskCompletionSource<CanaryInput> typedInput = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
     /// Runs the check, returning <see langword="null" /> when it passed and a message when it did not.
     /// </summary>
     public static async Task<string?> Run()
@@ -66,6 +76,14 @@ internal static class StoreCheck
             await CreateSchema(connectionString).ConfigureAwait(false);
 
             ServiceCollection services = new();
+
+            // How an application with no reflection left declares a type of its own — here the typed
+            // job's payload. The same registry answers for job data values, so there is one place to
+            // declare a type and not two.
+            SystemTextJsonSerializerRegistry registry = new();
+            registry.AddTypeInfoResolver(CanaryJsonContext.Default);
+            services.AddSingleton(registry);
+
             services.AddQuartz(q =>
             {
                 q.ConfigureScheduler(options =>
@@ -104,6 +122,19 @@ internal static class StoreCheck
                     .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
                     .Build()).ConfigureAwait(false);
 
+            // A job that declares the type of its input, scheduled with a payload on the trigger. The
+            // payload goes into the database as the string the scheduler's IJobInputSerializer wrote,
+            // and comes back out as a CanaryInput — all of it out of a publish with no reflection.
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<TypedCanaryJob>()
+                    .WithIdentity("typed", "store")
+                    .Build(),
+                TriggerBuilder.Create<TypedCanaryJob>()
+                    .WithIdentity("typed", "store")
+                    .StartNow()
+                    .UsingInput(new CanaryInput("the typed input round-trips out of a trimmed publish", 7))
+                    .Build()).ConfigureAwait(false);
+
             await scheduler.Start().ConfigureAwait(false);
 
             // Signalled by the job itself. A sleep would pass on a machine slow enough to make it
@@ -112,6 +143,19 @@ internal static class StoreCheck
             if (completed != fired.Task)
             {
                 return "FAIL store: the job never fired within a minute, so the store never handed a trigger to the scheduler.";
+            }
+
+            Task typed = await Task.WhenAny(typedInput.Task, Task.Delay(TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+            if (typed != typedInput.Task)
+            {
+                return "FAIL store: the typed-input job never fired within a minute.";
+            }
+
+            CanaryInput received = await typedInput.Task.ConfigureAwait(false);
+            CanaryInput expected = new("the typed input round-trips out of a trimmed publish", 7);
+            if (received != expected)
+            {
+                return $"FAIL store: the typed job was handed '{received}' rather than '{expected}'.";
             }
 
             IJobDetail? job = await scheduler.GetJobDetail(jobKey).ConfigureAwait(false);
@@ -138,7 +182,7 @@ internal static class StoreCheck
 
             await scheduler.Shutdown(waitForJobsToComplete: true).ConfigureAwait(false);
 
-            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory.");
+            Console.WriteLine("PASS store: scheduled, fired and read back through a SQLite store reached by its DbProviderFactory, typed job input included.");
             return null;
         }
         catch (Exception e)
@@ -202,4 +246,33 @@ internal static class StoreCheck
             return default;
         }
     }
+
+    /// <summary>
+    /// A job that declares the type of its input, so the payload arrives as a parameter. The dispatch is
+    /// the default implementation of <see cref="IJob{TInput}" />, which is the whole reason there is no
+    /// <c>MakeGenericMethod</c> anywhere in the feature and therefore nothing here for ILCompiler to
+    /// report.
+    /// </summary>
+    public sealed class TypedCanaryJob : IJob<CanaryInput>
+    {
+        public ValueTask Execute(IJobExecutionContext context, CanaryInput input, CancellationToken cancellationToken = default)
+        {
+            typedInput.TrySetResult(input);
+            return default;
+        }
+    }
+
 }
+
+/// <summary>
+/// The typed job's payload: a type Quartz has never heard of, which is the case the input serializer
+/// has to answer for.
+/// </summary>
+public sealed record CanaryInput(string Note, int Attempt);
+
+/// <summary>
+/// The metadata for <see cref="CanaryInput" />, handed to the scheduler's registry. This is what an
+/// application published without reflection writes for its own payload types.
+/// </summary>
+[JsonSerializable(typeof(CanaryInput))]
+internal sealed partial class CanaryJsonContext : JsonSerializerContext;

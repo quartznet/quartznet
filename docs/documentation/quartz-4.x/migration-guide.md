@@ -1570,6 +1570,69 @@ It does **not** replace `ConfigureJobScope`. The execution context takes the job
 not exist while the job is being constructed: anything that needs the tenant *at construction time*
 still gets it from the hook.
 
+## A job can take a typed input
+
+New in 4.0, and purely additive: `IJob<TInput>` lets a job declare the type of the payload it is
+scheduled with, instead of digging it out of a stringly `JobDataMap`. 3.x had no such thing, so every
+framework that embedded Quartz wrote the same adapter job and payload-carrying context by hand.
+
+```diff
+- public sealed class SendEmailJob : IJob
+- {
+-     public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+-     {
+-         SendEmail input = JsonSerializer.Deserialize<SendEmail>(context.MergedJobDataMap.GetString("payload")!)!;
+-         // ...
+-     }
+- }
+- trigger.UsingJobData("payload", JsonSerializer.Serialize(new SendEmail(to, subject)));
++ public sealed class SendEmailJob : IJob<SendEmail>
++ {
++     public ValueTask Execute(IJobExecutionContext context, SendEmail input, CancellationToken cancellationToken = default)
++     {
++         // ...
++     }
++ }
++ trigger.UsingInput(new SendEmail(to, subject));
+```
+
+The whole of the dispatch is `IJob<TInput>`'s default implementation of `IJob.Execute`, so the job
+factory, `JobRunShell` and the listeners still see an `IJob` and nothing closes a generic method over a
+runtime type — which is what keeps this working in a trimmed or native-AOT publish.
+
+**The API added.** In `Quartz`: `IJob<TInput>`;
+`SchedulerConstants.JobInput` (`"QRTZ_JOB_INPUT"`);
+`JobExecutionContextInputExtensions.GetInput<TInput>(this IJobExecutionContext)`;
+and `JobInputBuilderExtensions.UsingInput<TJob, TInput>` on `JobBuilder<TJob>`, `TriggerBuilder<TJob>`,
+`IJobConfigurator<TJob>` and `ITriggerConfigurator<TJob>`. In `Quartz.Extensibility`:
+`IJobInputSerializer`. In `Quartz.Impl`: `SystemTextJsonJobInputSerializer`, and a fourth optional
+`IJobInputSerializer? inputSerializer = null` parameter on the `JobExecutionContextImpl` constructor —
+the one existing signature that moved, and source-compatible because it is optional.
+
+**Where the payload lives.** The value goes into the ordinary `JobDataMap` under
+`SchedulerConstants.JobInput`, and the scheduler serializes it to a **string** as the job or trigger is
+stored — so it survives `StoreJobDataAsStrings`, the System.Text.Json write gate, the Newtonsoft
+serializer, the binary blob column and the HTTP wire without any of them knowing about it. A trigger's
+input overrides a job's, which is the `MergedJobDataMap` rule everything else follows.
+
+`UsingInput` is offered only on a builder for a job that declares an input; it is an extension method
+rather than a builder member because a method cannot constrain its own type's type parameter (CS0699).
+`GetInput<TInput>()` is an extension on `IJobExecutionContext` rather than a member for the same kind of
+reason: a member would break every hand-written context in the wild.
+
+**Two things to know.** The input type is inferred from the argument's static type, so pass the type
+argument explicitly — `UsingInput<SendEmailJob, SendEmail>(payload)` — when the payload is held as a
+base type. And a `[PersistJobDataAfterExecution]` job whose *detail* carries the input writes it back
+after every firing; that is harmless, since it is already the string it will be read as, but an input
+that differs per firing belongs on the trigger.
+
+**Serialization.** `IJobInputSerializer` is registered per scheduler, keyed by name like every other
+component, and defaults to `SystemTextJsonJobInputSerializer` built from the same
+`SystemTextJsonSerializerRegistry` as the store's `IObjectSerializer`. An application published trimmed
+or natively declares its payload types with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver`,
+exactly as it declares a job data value type — there is no second registration to learn. See
+[Job Data](tutorial/job-data-map.md#a-typed-input-the-third-read-side).
+
 ## A component of your own is chosen the same way a shipped one is
 
 Three seams that had no code-first spelling at all, and one that only worked through a type-name string:
