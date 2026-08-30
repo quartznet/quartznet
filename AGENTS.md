@@ -33,8 +33,11 @@ binds this repository.
   `src/Quartz/ILLink.Suppressions.xml`, which the worker example's trimmed publish applies; ILCompiler takes no
   such file, so a native AOT publish still reports them). A warning in a type not listed there means new
   reflection — fix it rather than adding a line; that file explains the order to try fixes in. Neither file
-  ships, so consumers still see every warning. The package does **not** say `IsAotCompatible`, and
-  `src/Quartz/Quartz.csproj` says why. Tracked on #3341.
+  ships, so consumers still see every warning. The package **does** say `IsAotCompatible`, and the claim is
+  narrow: Quartz produces no `IL3050` at all, so nothing it does needs code generated at run time, while the
+  `IL2xxx` that remain are the string-named paths #3341 tracks and are unaffected by it. The property lands
+  in the assembly as `[AssemblyMetadata("IsAotCompatible", "True")]` and puts nothing in the nuspec, so its
+  audience is the analyzers and a reader of `src/Quartz/Quartz.csproj`, which spells all of this out.
 - **Allman brace style** — braces on new lines for methods, types, control blocks, properties, accessors, lambdas.
 - **No `DateTime.Now`/`DateTimeOffset.Now`** — banned via Roslyn analyzer (`BannedSymbols.txt`). Use `TimeProvider` instead.
 - **No implicit `DateTime` → `DateTimeOffset` cast** — also banned.
