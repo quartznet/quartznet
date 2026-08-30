@@ -77,6 +77,7 @@ reads them. What these settings decide is the handful of things that follow from
 | `Provider` | `string?` | inferred from the connection string | Which ADO.NET driver reaches the database |
 | `SchedulerName` | `string?` | every scheduler in the container | Which scheduler this store belongs to |
 | `TablePrefix` | `string?` | whatever `AdoJobStoreOptions.TablePrefix` already had | The prefix on the Quartz table names |
+| `ProvisionSchema` | `bool?` | unset — creates under `Development`, validates everywhere else | Whether the store creates whatever its schema is missing as it starts |
 | `Clustered` | `bool` | `false` | Whether this scheduler joins a cluster on the database, deriving an instance id to do it with |
 | `DisableHealthChecks` | `bool` | `false` | Leaves `AddQuartzHealthChecks()` unregistered |
 | `DisableTracing` | `bool` | `false` | Leaves the `Quartz` activity source unsubscribed |
@@ -86,6 +87,10 @@ The three flags are spelled `Disable*` rather than `Enable*` because Aspire's ru
 that a fresh instance — which is what binding an absent section produces — must already hold the
 recommended values. A `bool` bound from nothing is `false`, so the useful default has to be the `false` one.
 Every first-party integration has been spelled this way since Aspire 8.0.
+
+`ProvisionSchema` is the one `bool?`, for the same rule read the other way: the recommended value is not
+the same in every environment, so no `bool` could hold it. Unset is a third answer rather than a missing
+one — *ask the environment* — and `true` or `false` is how an application that knows better says so.
 
 Every setting here says something or says nothing; none of them says *no*. `TablePrefix` left unset keeps
 whatever `Quartz:JobStore:TablePrefix` or an earlier `ConfigureStore` said, rather than resetting it, and
@@ -217,6 +222,36 @@ implementation at all, and Aspire's SQL Server client integration registers a sc
 instead — so probing for an unkeyed `DbDataSource` would find some *other* database's, or nothing, and would
 fail at first use rather than at startup.
 
+## What happens to the schema
+
+The store is configured with `SchemaProvisioning.CreateIfMissing` when the application is running in
+`Development`, and left at the `Validate` default everywhere else. `builder.Environment` is read at the
+`AddQuartzPersistentStore` call rather than when the scheduler starts, so the answer is the environment
+the container was built in.
+
+| `ProvisionSchema` | `AdoJobStoreOptions.SchemaProvisioning` becomes |
+|---|---|
+| unset (the default) | `CreateIfMissing` under `Development`, `Validate` in every other environment |
+| `true` | `CreateIfMissing`, whatever the environment |
+| `false` | `Validate`, whatever the environment — which is what it already is, so nothing is set |
+
+An AppHost's database container comes up empty whenever its volume is new, which makes a first run that
+fails schema validation the ordinary outcome rather than an edge case; a production account, on the other
+hand, usually holds no DDL permission and is right not to. Neither is a fact about *this* application,
+which is why the environment answers rather than a default that would be wrong on one side.
+
+The store keeps its own word. A `SchemaProvisioning` the application set — through `ConfigureStore`, or
+through `Quartz:JobStore:SchemaProvisioning` — is read as a decision about this store and left alone,
+because this call runs from `ConfigureAllQuartzSchedulers` and would otherwise win merely by being last.
+`Validate` is the exception, being what an unconfigured store already holds and so indistinguishable from
+silence: `ProvisionSchema = false` is how an application in `Development` says it.
+
+Everything else about provisioning is the store's, not this package's:
+[Creating the schema](../tutorial/job-stores.md#creating-the-schema) covers what it runs, why it is safe
+under a cluster starting at once, and the two configurations that cannot provision or would provision the
+wrong schema. [Running Quartz under Aspire](../how-tos/aspire.md#getting-the-tables-there) has the
+production recipe.
+
 ## Clustering
 
 `Clustered = true` calls `UseClustering()`, which turns database locking on with it, **and makes the
@@ -294,9 +329,12 @@ See [Multiple Schedulers](multiple-schedulers.md) for what a named scheduler is 
   and a decision about *this application's* probe, not about Quartz;
   [the how-to](../how-tos/aspire.md#health) explains why the default mapping loses a standby scheduler and
   what to write instead.
-* **It creates no tables.** Quartz does not provision its schema under Aspire or anywhere else — see
-  [the how-to](../how-tos/aspire.md#the-tables-are-still-yours-to-create) for the migration-service recipe,
-  and [#3531](https://github.com/quartznet/quartznet/issues/3531) for the store learning to do it itself.
+* **It creates no tables in production.** The store provisions its own schema under `Development` and
+  validates it everywhere else, because that is what an AppHost's empty container and a production
+  account's permissions respectively call for — and it migrates a schema nowhere, because nothing in a
+  Quartz schema records which version it is.
+  [The how-to](../how-tos/aspire.md#getting-the-tables-there) has the migration-service recipe that
+  answers the production half.
 * **It adds no OpenTelemetry exporter**, for the reason above.
 
 One convention this package knowingly diverges from: Aspire's contributor guidance asks a client

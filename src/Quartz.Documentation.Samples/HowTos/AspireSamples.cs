@@ -47,6 +47,25 @@ public static class AspireSamples
         #endregion
     }
 
+    public static void ProvisionTheSchemaInEveryEnvironment(IHostApplicationBuilder builder)
+    {
+        #region sample_aspire_provision_schema
+
+        builder.AddQuartzPersistentStore("quartz", settings => settings.ProvisionSchema = true);
+
+        #endregion
+    }
+
+    public static void ChooseWhatHappensToTheSchemaByHand(IHostApplicationBuilder builder)
+    {
+        #region sample_aspire_schema_by_hand
+
+        builder.AddQuartz(q => q.UsePersistentStore(store =>
+            store.ConfigureStore(options => options.SchemaProvisioning = SchemaProvisioning.None)));
+
+        #endregion
+    }
+
     public static void TwoDatabasesOnTwoSchedulers(IHostApplicationBuilder builder)
     {
         #region sample_aspire_two_schedulers

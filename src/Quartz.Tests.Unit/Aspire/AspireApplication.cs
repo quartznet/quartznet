@@ -64,6 +64,30 @@ internal static class AspireApplication
     }
 
     /// <summary>
+    /// A worker running in a named environment, with one Postgres connection string.
+    /// </summary>
+    /// <remarks>
+    /// The environment is named rather than left to the default, on both sides of every test that reads
+    /// it: what <see cref="Host.CreateEmptyApplicationBuilder"/> falls back to when nothing names one is
+    /// not the subject, and a test that relied on it would be asserting the host's default rather than
+    /// Quartz's.
+    /// </remarks>
+    public static HostApplicationBuilder WorkerIn(
+        string environmentName,
+        params (string Key, string? Value)[] configuration)
+    {
+        HostApplicationBuilder builder = Host.CreateEmptyApplicationBuilder(
+            new HostApplicationBuilderSettings { EnvironmentName = environmentName });
+
+        builder.Configuration.AddInMemoryCollection(
+            configuration
+                .Select(entry => new KeyValuePair<string, string?>(entry.Key, entry.Value))
+                .Prepend(new KeyValuePair<string, string?>("ConnectionStrings:quartz", Postgres)));
+
+        return builder;
+    }
+
+    /// <summary>
     /// The data source settings the scheduler ended up with.
     /// </summary>
     /// <remarks>

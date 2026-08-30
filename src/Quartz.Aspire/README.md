@@ -67,6 +67,7 @@ builder.AddQuartzPersistentStore("quartz", settings =>
 | `Provider` | inferred | Which ADO.NET driver reaches the database |
 | `SchedulerName` | every scheduler | Which scheduler this store belongs to |
 | `TablePrefix` | `QRTZ_` | The prefix on the Quartz table names |
+| `ProvisionSchema` | unset | Whether the store creates whatever its schema is missing as it starts |
 | `Clustered` | `false` | Whether this scheduler joins a cluster on the database, deriving an instance id to do it with |
 | `DisableHealthChecks` | `false` | Leaves `AddQuartzHealthChecks()` unregistered |
 | `DisableTracing` | `false` | Leaves the `Quartz` activity source unsubscribed |
@@ -100,13 +101,19 @@ the drivers above them, so which of each pair to use is the application's choice
 A name Quartz ships no description for works there too — it selects the generic SQL dialect and whatever
 `DbMetadataFactory` you registered.
 
-## The tables are still yours to create
+## Getting the tables there
 
-Quartz does not create or migrate its schema, under Aspire or anywhere else, and neither
-`WithInitFiles` nor `WithCreationScript` closes that gap — both run against the server rather than the
-database. Apply the schema the way you would apply an Entity Framework Core migration: a small project the
-worker waits for with `WaitForCompletion`. The scripts are in
-[`database/tables`](https://github.com/quartznet/quartznet/tree/main/database/tables).
+Under `Development` the store creates whatever its schema is missing as it starts, because an AppHost's
+database container comes up empty whenever its volume is new. Everywhere else it validates the schema and
+creates nothing, because creating tables needs DDL permission a production account is usually right not to
+hold. `ProvisionSchema` set to `true` or `false` says it outright, and a `SchemaProvisioning` the
+application set on the store itself is kept either way.
+
+Nothing migrates a schema, here or anywhere else. In production apply it the way you would apply an Entity
+Framework Core migration — a small project the worker waits for with `WaitForCompletion` — from the scripts
+in [`database/tables`](https://github.com/quartznet/quartznet/tree/main/database/tables); neither
+`WithInitFiles` nor `WithCreationScript` closes that gap, as both run against the server rather than the
+database.
 
 ## Documentation
 

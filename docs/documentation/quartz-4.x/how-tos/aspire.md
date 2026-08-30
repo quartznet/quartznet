@@ -219,14 +219,44 @@ data-source probe entirely — otherwise it would resolve some other database's 
 all, and only find out at the first query. The same shape works for Postgres, and is the right one whenever
 the application has no data source of its own to share.
 
-## The tables are still yours to create
+## Getting the tables there
 
-Quartz does not create or migrate its schema, under Aspire or anywhere else — see
-[Database Schema](../db/) for what has to exist and
-[`database/tables`](https://github.com/quartznet/quartznet/tree/main/database/tables) for the scripts.
-Aspire's own hooks mostly do not close that gap. `AddDatabase` does create the *database* — on the server
-resource's `ResourceReadyEvent`, once its health check passes — but the two hooks that look like they would
-then run the DDL are narrower than they appear:
+Quartz never migrates its schema, and under Aspire as anywhere else the fresh-install scripts in
+[`database/tables`](https://github.com/quartznet/quartznet/tree/main/database/tables) are what a
+production database runs — see [Database Schema](../db/) for what has to exist. What is new in 4.0 is
+that a *development* database need not: `store.ProvisionSchema()` has the store create whatever is
+missing as it starts, which is exactly the case an AppHost tearing a Postgres container up and down
+represents. `AddQuartzPersistentStore` asks for it on your behalf, reading `builder.Environment` at the
+call: `CreateIfMissing` under `Development`, and the `Validate` default in every other environment,
+where the account the scheduler connects with usually cannot run DDL and is right not to be able to.
+[Creating the schema](../tutorial/job-stores.md#creating-the-schema) has the setting and its limits.
+
+`QuartzAspireSettings.ProvisionSchema` says it outright when the environment is not the right thing to
+ask — `true` creates in every environment, and `false` in none:
+
+<!-- snippet: sample_aspire_provision_schema -->
+```csharp
+builder.AddQuartzPersistentStore("quartz", settings => settings.ProvisionSchema = true);
+```
+<!-- endSnippet -->
+
+The store still has the last word. A `SchemaProvisioning` the application set itself — through
+`ConfigureStore`, or through `Quartz:JobStore:SchemaProvisioning` — is a decision about this store in
+particular, and this call fills the gap rather than overruling it:
+
+<!-- snippet: sample_aspire_schema_by_hand -->
+```csharp
+builder.AddQuartz(q => q.UsePersistentStore(store =>
+    store.ConfigureStore(options => options.SchemaProvisioning = SchemaProvisioning.None)));
+```
+<!-- endSnippet -->
+
+The one position that cannot be said that way is `Validate`, which is what an unconfigured store already
+holds and so cannot be told apart from having said nothing. `ProvisionSchema = false` is how to say it.
+
+That leaves the production question, and Aspire's own hooks mostly do not close it. `AddDatabase` does
+create the *database* — on the server resource's `ResourceReadyEvent`, once its health check passes —
+but the two hooks that look like they would then run the DDL are narrower than they appear:
 
 * `WithCreationScript` runs one command against the **server's** default database, on a connection whose
   `Database=postgres`. Its own documentation says it is for statements that apply to that database, such as
@@ -264,11 +294,10 @@ builder.AddProject<Projects.Orders_Worker>("orders")
 is up, not that `QRTZ_TRIGGERS` exists. `WaitForCompletion` waits for the migration project to exit, which
 is the thing the scheduler actually depends on.
 
-The store will eventually be able to do this itself:
-[#3531](https://github.com/quartznet/quartznet/issues/3531) tracks a `SchemaProvisioning` setting that would
-let a persistent store create its own tables. Half of it has landed — the schema each dialect needs is now
-generated as a script a provider can execute — but nothing reads those scripts yet, so the recipe above is
-the answer today.
+Provisioning does not replace that recipe in production, for the two reasons it is opt-in everywhere:
+the scheduler's account would need permission to create tables, and creating a missing schema is not the
+same as moving an existing one forward. `database/migrations/` is still what does that, and the 3.x →
+4.0 upgrade is still mandatory.
 
 ## Health
 

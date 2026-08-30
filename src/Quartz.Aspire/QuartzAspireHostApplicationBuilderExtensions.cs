@@ -21,9 +21,9 @@ namespace Quartz;
 /// This is the page <c>how-tos/aspire.md</c> already documented, turned into one call. An Aspire AppHost
 /// declares a database and hands the worker its connection string as <c>ConnectionStrings:&lt;name&gt;</c>;
 /// everything after that — which driver delegate speaks that database's SQL, whether connections come
-/// from a <c>DbDataSource</c> the container holds or from the string itself, and naming Quartz's two
-/// telemetry signals to the pipeline ServiceDefaults built — follows from the name, and is what this
-/// does.
+/// from a <c>DbDataSource</c> the container holds or from the string itself, whether a development
+/// database that came up empty has its tables created, and naming Quartz's two telemetry signals to the
+/// pipeline ServiceDefaults built — follows from the name, and is what this does.
 /// </para>
 /// <para>
 /// It is <em>additive</em> and order-independent. The store is contributed through
@@ -107,6 +107,11 @@ public static class QuartzAspireHostApplicationBuilderExtensions
         bool clustered = settings.Clustered;
         bool healthChecks = !settings.DisableHealthChecks;
 
+        // Decided here rather than in the callback, so that it is the environment the application was
+        // built in that answers, and so that a reader of this method can see what the unset setting
+        // resolved to at the one place the answer is known.
+        bool provisionSchema = settings.ProvisionSchema ?? builder.Environment.IsDevelopment();
+
         builder.Services.ConfigureAllQuartzSchedulers(quartz =>
         {
             // A settings object naming a scheduler is talking about that one. Naming none is the single
@@ -123,6 +128,14 @@ public static class QuartzAspireHostApplicationBuilderExtensions
                 if (tablePrefix is not null)
                 {
                     store.ConfigureStore(options => options.TablePrefix = tablePrefix);
+                }
+
+                // Only one side of this is written. Not provisioning is what an unconfigured store
+                // already does, so saying it would mean overwriting a store the application configured
+                // itself with the value it would have had anyway.
+                if (provisionSchema)
+                {
+                    ProvisionTheSchemaUnlessAPositionWasChosen(store);
                 }
 
                 if (clustered)
@@ -145,6 +158,37 @@ public static class QuartzAspireHostApplicationBuilderExtensions
         AddTelemetry(builder.Services, settings);
 
         return builder;
+    }
+
+    /// <summary>
+    /// Has the store create whatever its schema is missing, unless the application said what the store
+    /// should do about its schema.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="IPersistentStoreBuilder.ProvisionSchema"/> as a conditional. That method assigns
+    /// <see cref="SchemaProvisioning.CreateIfMissing"/> outright, and this delegate runs after
+    /// everything the application said — options are last-wins, and
+    /// <c>ConfigureAllQuartzSchedulers</c> is applied after the scheduler's own callback and after the
+    /// configuration binding — so calling it would overrule a store that had been told something else
+    /// rather than answering for one that was told nothing.
+    /// </para>
+    /// <para>
+    /// The gap it fills is <see cref="SchemaProvisioning.Validate"/>, which is what an unconfigured
+    /// store holds. An application that means that under <c>Development</c> says so with
+    /// <see cref="QuartzAspireSettings.ProvisionSchema"/> set to <see langword="false"/>, since setting
+    /// the option to the value it already has cannot be read as a decision.
+    /// </para>
+    /// </remarks>
+    private static void ProvisionTheSchemaUnlessAPositionWasChosen(IPersistentStoreBuilder store)
+    {
+        store.ConfigureStore(options =>
+        {
+            if (options.SchemaProvisioning == SchemaProvisioning.Validate)
+            {
+                options.SchemaProvisioning = SchemaProvisioning.CreateIfMissing;
+            }
+        });
     }
 
     /// <summary>

@@ -49,6 +49,33 @@ public class QuartzAspireSettingsBindingTest
             + "about keeps the shared value");
     }
 
+    /// <summary>
+    /// The one setting that is <see langword="null"/> rather than <see langword="false"/> when nothing
+    /// says anything, so binding has three answers to carry rather than two.
+    /// </summary>
+    [Test]
+    public void ATriStateSettingBindsAllThreeOfItsAnswers()
+    {
+        Capture(AspireApplication.WorkerWith(AspireApplication.Postgres), "quartz")
+            .ProvisionSchema.Should().BeNull(
+                "unset is what asks the environment, and a bool that bound to false could not say it");
+
+        Capture(
+            AspireApplication.Worker(
+                ("ConnectionStrings:quartz", AspireApplication.Postgres),
+                ("Aspire:Quartz:ProvisionSchema", "true")),
+            "quartz").ProvisionSchema.Should().BeTrue();
+
+        Capture(
+            AspireApplication.Worker(
+                ("ConnectionStrings:quartz", AspireApplication.Postgres),
+                ("Aspire:Quartz:ProvisionSchema", "true"),
+                ("Aspire:Quartz:quartz:ProvisionSchema", "false")),
+            "quartz").ProvisionSchema.Should().BeFalse(
+                "one database whose schema this creates and one it may not touch is exactly what the "
+                + "per-connection section is for");
+    }
+
     [Test]
     public void TheOverrideSectionIsThisConnectionsAlone()
     {

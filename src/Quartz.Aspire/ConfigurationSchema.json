@@ -45,6 +45,10 @@
                 "Firebird"
               ]
             },
+            "ProvisionSchema": {
+              "type": "boolean",
+              "description": "Gets or sets whether the store creates whatever its schema is missing when the scheduler starts. Left unset, the environment decides: it creates under Development, where the AppHost's database container comes up empty, and only validates everywhere else, where the account usually cannot run DDL. A SchemaProvisioning the application set on the job store itself is kept either way."
+            },
             "SchedulerName": {
               "type": "string",
               "description": "Gets or sets which scheduler this store belongs to, for an application that registers more than one. Left unset, every scheduler in the container gets it."
