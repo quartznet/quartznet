@@ -3956,6 +3956,33 @@ How far your own detail travels depends on what holds it:
   Whatever your type carries beyond the interface's members is gone by then, so anything that has to
   survive a persistent store belongs in the `JobDataMap`.
 
+## A trigger can carry a retry policy
+
+3.x had no retry policy. A job that failed either asked for `RefireImmediately` — an in-process loop
+with no delay and no ceiling — or scheduled a fresh trigger for itself from inside `Execute`. 4.x adds
+`Quartz.RetryPolicy`, a value describing how many times and how far apart a failed job's trigger is
+re-fired.
+
+| Member | What it is |
+|---|---|
+| `RetryPolicy.Fixed(maxAttempts, delay)` | The same wait before every retry |
+| `RetryPolicy.Exponential(maxAttempts, initialDelay, factor = 2, maxDelay = null)` | A wait multiplied by `factor` each time, optionally clamped |
+| `RetryPolicy.Explicit(params delays)` | A table of waits; `MaxAttempts` is its length and the last entry repeats |
+| `RetryPolicy.DelayFor(attempt)` | The wait before the given retry, counting from one |
+| `RetryPolicy.ToStoredString()` / `Parse` / `TryParse` | The form the `RETRY_POLICY` column, the JSON payload and a serialized trigger all carry |
+
+There is no public constructor, so a policy that could not be honoured — no attempts, a negative wait,
+a backoff that shrinks — cannot be built. A policy carries which of the three factories made it, so
+`Exponential(3, delay, factor: 1)` waits exactly as `Fixed(3, delay)` does but is a different value and
+stores as `exp;3;…;1`: the shape says what the trigger's author chose, and turning the rate up is a
+change to make on one and not on the other. Equality is written out by hand rather than left to a
+record, because the delay table is a collection and reference equality on it would make two policies
+built from the same numbers different values; the backoff factor is compared bit for bit, which is what
+round-tripping it through the `"R"` format guarantees.
+
+`MaxAttempts` counts retries *after* the first failure, not fires: `Fixed(2, …)` runs a persistently
+failing job three times in total.
+
 ## Trimming annotations
 
 `ScheduleJob<T>`, `AddTrigger<TJob>` and `TriggerBuilder.Create<TJob>()` gained
