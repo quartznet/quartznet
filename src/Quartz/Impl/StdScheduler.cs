@@ -238,6 +238,13 @@ internal sealed class StdScheduler : IScheduler
         return scheduler.DeleteJobs(jobKeys, cancellationToken);
     }
 
+    public ValueTask<List<JobKey>> DeleteJobs(
+        GroupMatcher<JobKey> matcher,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.DeleteJobs(matcher, cancellationToken);
+    }
+
     public ValueTask ScheduleJobs(
         IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
         ScheduleJobOptions options = default,
@@ -260,6 +267,13 @@ internal sealed class StdScheduler : IScheduler
         CancellationToken cancellationToken = default)
     {
         return scheduler.UnscheduleJobs(triggerKeys, cancellationToken);
+    }
+
+    public ValueTask<List<TriggerKey>> UnscheduleJobs(
+        GroupMatcher<TriggerKey> matcher,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.UnscheduleJobs(matcher, cancellationToken);
     }
 
     /// <summary>

@@ -179,6 +179,41 @@ to a generated identifier in a group named after the job type), `Description`, `
 `MisfireInstruction`, and `Replace`. **The group is the correlation axis** — everything scheduled for one saga,
 one tenant or one conversation shares a group and can be listed, paused or unscheduled together.
 
+## Calling off a whole correlation
+
+The group that made those firings findable is what cancels them:
+
+<!-- snippet: sample_one_off_job_cancel_by_group -->
+```csharp
+public async ValueTask<int> CustomerWentAway(IScheduler scheduler, string customerId, CancellationToken cancellationToken)
+{
+    // Every firing scheduled under this customer's group goes in one call: the group the one-liner
+    // put them in is the handle for calling all of them off, and nothing has to list the keys first.
+    List<TriggerKey> calledOff = await scheduler.UnscheduleJobs(
+        GroupMatcher<TriggerKey>.GroupEquals(customerId),
+        cancellationToken);
+
+    // The answer names what went, so "there was nothing left to cancel" is a count, not a guess.
+    return calledOff.Count;
+}
+```
+<!-- endSnippet -->
+
+`UnscheduleJobs(GroupMatcher<TriggerKey>)` removes every trigger in the matching groups in one call, and
+answers with the keys it removed — so a cancellation that found nothing is an empty list rather than
+something to infer. There is no listing step to lose a race against: the store resolves the group inside
+the same lock that empties it, so a firing scheduled by another node a moment earlier goes with the rest.
+
+`DeleteJobs(GroupMatcher<JobKey>)` is the same operation one level up, for jobs and every trigger that
+references them. The one-liner's durable job is shared by every firing of its type and is *not* what you
+want to delete to cancel a correlation — unschedule the trigger group instead.
+
+::: warning A matcher is required
+Both members throw `ArgumentNullException` on a `null` matcher rather than reading it as "the default
+group", which is what the pause and resume group forms do. A pause taken by mistake can be resumed; a
+delete cannot.
+:::
+
 ## Scheduling over a firing that is already there
 
 Replacing what is already scheduled is one call rather than three. The two `ScheduleJob` overloads that take a

@@ -128,6 +128,111 @@ public class AdoBulkDeleteTest
         deleted.Should().BeEmpty("nothing was there to delete, which is an answer rather than an error");
     }
 
+    /// <summary>
+    /// The group form resolves the keys itself, inside the lock it deletes them under.
+    /// </summary>
+    /// <remarks>
+    /// That is the whole reason the member exists rather than leaving a caller to list the group and
+    /// hand the keys back: between a listing and a delete another node can schedule one more thing
+    /// into the group, and the delete the caller believes emptied it would miss it. So the assertion
+    /// is not only the answer but where the keys came from - the store asked its delegate, inside the
+    /// same TriggerAccess scope, and made no second one.
+    /// </remarks>
+    [Test]
+    public async Task DeletingAGroupOfJobsResolvesTheKeysInsideTheSameLockThatDeletesThem()
+    {
+        GroupMatcher<JobKey> matcher = GroupMatcher<JobKey>.GroupEquals("jobs");
+        GivenTheseJobsAreInTheGroup(matcher, FirstJob, MissingJob, SecondJob);
+        GivenJobDetailDeleteAffectsRowsFor(FirstJob, SecondJob);
+
+        List<JobKey> deleted = await store.DeleteJobs(matcher);
+
+        deleted.Should().Equal([FirstJob, SecondJob],
+            "the answer is each delete's own outcome, exactly as the key-set form's is");
+
+        A.CallTo(() => driverDelegate.SelectJobKeysInGroup(
+                A<ConnectionAndTransactionHolder>._,
+                matcher,
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        store.LockScopes.Should().Be(1,
+            "resolving the group and emptying it are one scope and one transaction - two would be the "
+            + "race the group form exists to close");
+    }
+
+    [Test]
+    public async Task DeletingAGroupOfTriggersResolvesTheKeysInsideTheSameLockThatDeletesThem()
+    {
+        GroupMatcher<TriggerKey> matcher = GroupMatcher<TriggerKey>.GroupStartsWith("trig");
+        GivenTheseTriggersAreInTheGroup(matcher, FirstTrigger, MissingTrigger, SecondTrigger);
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(A<ConnectionAndTransactionHolder>._, A<TriggerKey>._, A<CancellationToken>._))
+            .Returns(0);
+        A.CallTo(() => driverDelegate.DeleteTrigger(A<ConnectionAndTransactionHolder>._, FirstTrigger, A<CancellationToken>._))
+            .Returns(1);
+        A.CallTo(() => driverDelegate.DeleteTrigger(A<ConnectionAndTransactionHolder>._, SecondTrigger, A<CancellationToken>._))
+            .Returns(1);
+
+        List<TriggerKey> deleted = await store.DeleteTriggers(matcher);
+
+        deleted.Should().Equal([FirstTrigger, SecondTrigger]);
+
+        A.CallTo(() => driverDelegate.SelectTriggerKeysInGroup(
+                A<ConnectionAndTransactionHolder>._,
+                matcher,
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+
+        store.LockScopes.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AGroupThatResolvedToNothingIsAnEmptyAnswerAndNoDeletes()
+    {
+        GivenTheseJobsAreInTheGroup(GroupMatcher<JobKey>.AnyGroup());
+        GivenTheseTriggersAreInTheGroup(GroupMatcher<TriggerKey>.AnyGroup());
+
+        (await store.DeleteJobs(GroupMatcher<JobKey>.AnyGroup())).Should().BeEmpty();
+        (await store.DeleteTriggers(GroupMatcher<TriggerKey>.AnyGroup())).Should().BeEmpty();
+
+        A.CallTo(() => driverDelegate.DeleteJobDetail(A<ConnectionAndTransactionHolder>._, A<JobKey>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+        A.CallTo(() => driverDelegate.DeleteTrigger(A<ConnectionAndTransactionHolder>._, A<TriggerKey>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task AGroupMatcherIsRequiredBeforeAnyLockIsTaken()
+    {
+        Func<Task> deletingNothing = async () => await store.DeleteJobs((GroupMatcher<JobKey>) null!);
+        await deletingNothing.Should().ThrowAsync<ArgumentNullException>();
+
+        Func<Task> unschedulingNothing = async () => await store.DeleteTriggers((GroupMatcher<TriggerKey>) null!);
+        await unschedulingNothing.Should().ThrowAsync<ArgumentNullException>();
+
+        store.LockScopes.Should().Be(0,
+            "a malformed call must not open a transaction, let alone take the scheduler's trigger lock");
+    }
+
+    private void GivenTheseJobsAreInTheGroup(GroupMatcher<JobKey> matcher, params JobKey[] present)
+    {
+        A.CallTo(() => driverDelegate.SelectJobKeysInGroup(
+                A<ConnectionAndTransactionHolder>._,
+                matcher,
+                A<CancellationToken>._))
+            .Returns(new List<JobKey>(present));
+    }
+
+    private void GivenTheseTriggersAreInTheGroup(GroupMatcher<TriggerKey> matcher, params TriggerKey[] present)
+    {
+        A.CallTo(() => driverDelegate.SelectTriggerKeysInGroup(
+                A<ConnectionAndTransactionHolder>._,
+                matcher,
+                A<CancellationToken>._))
+            .Returns(new List<TriggerKey>(present));
+    }
+
     private void GivenJobDetailDeleteAffectsRowsFor(params JobKey[] existing)
     {
         A.CallTo(() => driverDelegate.DeleteJobDetail(A<ConnectionAndTransactionHolder>._, A<JobKey>._, A<CancellationToken>._))

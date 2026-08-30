@@ -6672,6 +6672,60 @@ Over HTTP, `POST …/jobs/delete` and `POST …/triggers/unschedule` answer `{"j
 [the key-set family](packages/http-api.md#a-whole-set-of-keys-in-one-call) and removes the one
 exception to the flag-naming rule.
 
+## Jobs and triggers can be removed by group
+
+Pause has always had a group form and delete has not, so calling off everything that belonged to one
+saga, one tenant or one import meant listing the keys and then deleting them — two calls, and a window
+between them in which another node can schedule one more thing into the group that the delete will
+then miss. Both members now take a `GroupMatcher` as well as a key set:
+
+| New member (on `IScheduler`) | Returns |
+|---|---|
+| `DeleteJobs(GroupMatcher<JobKey>)` | `ValueTask<List<JobKey>>` of the jobs it deleted |
+| `UnscheduleJobs(GroupMatcher<TriggerKey>)` | `ValueTask<List<TriggerKey>>` of the triggers it removed |
+
+```csharp
+// Everything scheduled for one saga, called off in one call.
+List<TriggerKey> calledOff = await scheduler.UnscheduleJobs(GroupMatcher<TriggerKey>.GroupEquals(sagaId));
+```
+
+The answer is the **keys**, not the group names that `PauseJobs(matcher)` returns. A pause has
+something to remember per group — a group stays paused, and a job added to it later is born paused —
+and a delete has nothing: the group is simply emptier than it was. What a caller can still act on is
+what went, so that is what it gets.
+
+* **`null` is an `ArgumentNullException`, not "the default group".** `PauseJobs(null)` and
+  `ResumeJobs(null)` read a missing matcher as `GroupEquals(JobKey.DefaultGroup)`. These do not, and
+  will not: a pause taken by mistake can be resumed. A `null` literal now also needs a cast to pick an
+  overload, exactly as it did when the key-set forms arrived —
+  `DeleteJobs((IReadOnlyCollection<JobKey>) null!)`.
+* **One scheduling signal per call and one listener event per key**, the same shape the key-set forms
+  have: an `ISchedulerListener.JobDeleted` or `JobUnscheduled` for each key removed, nothing for an
+  empty group, and no group-level event — `JobsPaused(null)` means *every group* and a monitoring
+  listener would read it as a total outage.
+* **A non-durable job orphaned by `UnscheduleJobs(matcher)` is deleted, and is not named.** That is
+  what the single-key `UnscheduleJob` and the key-set `DeleteTriggers` already do; the answer is about
+  triggers.
+
+`IJobStore` gains `DeleteJobs(GroupMatcher<JobKey>)` and `DeleteTriggers(GroupMatcher<TriggerKey>)` as
+**default implementations** that list the matching keys and then delete them, so a store of your own
+keeps compiling and stays correct. What the default cannot be is atomic — the listing and the deletion
+are two operations — so both shipped stores override the pair to resolve the group inside the lock that
+empties it: `RAMJobStore` under its single lock, the ADO store inside one `SchedulerLock.TriggerAccess`
+scope and one transaction, using the `SelectJobKeysInGroup` / `SelectTriggerKeysInGroup` its driver
+delegate already had. `JobStoreContractTest` fails a shipped store that has left the default in place.
+
+The ADO store's walk stays per key once the group is resolved, for the reason
+[the key-set forms give](#the-key-set-delete-and-unschedule-answer-with-the-keys-they-removed): the
+answer has to name the keys it hit, and a set-based `DELETE … WHERE … IN (…)` reports a row count.
+
+Over HTTP the group forms are new endpoints, `POST …/jobs/delete-by-group` and
+`POST …/triggers/unschedule-by-group`, taking the same four `group*` query parameters as
+`…/jobs/pause` and answering with the same `{"jobs": […]}` / `{"triggers": […]}` bodies the key-set
+forms do — [described here](packages/http-api.md#a-whole-group-in-one-call). They carry `-by-group` in
+the path because the plain `delete` and `unschedule` paths were taken by the key-set forms before
+there was a group form to give them to.
+
 ## One wire contract, and its enums have names
 
 The DTOs that define the HTTP API's JSON used to live in `Quartz.HttpClient`, and `Quartz.AspNetCore`

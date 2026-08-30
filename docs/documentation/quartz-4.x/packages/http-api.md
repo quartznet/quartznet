@@ -99,7 +99,7 @@ one of them.
 | `POST` | `{ApiPath}/schedulers/{name}/execution-limits` | empty — replaces the whole set |
 | `DELETE` | `{ApiPath}/schedulers/{name}/execution-limits` | empty — the same as posting an empty set |
 
-### Jobs — 20
+### Jobs — 21
 
 Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 
@@ -122,11 +122,12 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/jobs/interrupt/{fireInstanceId}` | `{ applied }` — the one firing |
 | `DELETE` | `…/jobs/{jobGroup}/{jobName}` | `{ applied }` |
 | `POST` | `…/jobs/delete` | `{ jobs }` |
+| `POST` | `…/jobs/delete-by-group` | `{ jobs }` — selects by group matcher in the query string |
 | `POST` | `…/jobs` | empty — adds the job; `replace` and `storeNonDurableWhileAwaitingScheduling` are body fields |
 | `GET` | `…/jobs/groups` | paged job groups: `name`, `paused` |
 | `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused }` |
 
-### Triggers — 20
+### Triggers — 21
 
 | Method | Path | Answers |
 |---|---|---|
@@ -149,6 +150,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/schedule-multiple` | empty — several jobs and their triggers in one call |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/unschedule` | `{ applied }` |
 | `POST` | `…/triggers/unschedule` | `{ triggers }` |
+| `POST` | `…/triggers/unschedule-by-group` | `{ triggers }` — selects by group matcher in the query string |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/reschedule` | `{ firstFireTimeUtc }`, **`null`** when the trigger did not exist |
 
 ### Calendars — 4
@@ -530,8 +532,8 @@ were.
 
 The pause, resume and reset forms live under `keys/` because the collection-level `pause` and
 `resume` already belong to the group-matcher forms, which select by query string rather than by body.
-`delete` and `unschedule` have no group-matcher form to make room for, so they keep the plain path
-they have always had.
+`delete` and `unschedule` had no group-matcher form when they were named, so the plain path is theirs
+and the group form says which one it is: `delete-by-group` and `unschedule-by-group`.
 
 The server does the whole set in one pass — one lock and one transaction for the ADO store — and
 signals the scheduling change once for the call. Listener events stay per key: one `TriggerPaused` /
@@ -539,6 +541,27 @@ signals the scheduling change once for the call. Listener events stay per key: o
 operation applied to, and nothing at all for the rest. There is no key-set listener event,
 deliberately: `TriggersPaused(null)` means *every group*, and a monitoring listener would read it as
 a total outage.
+
+### A whole group in one call
+
+Deleting by group is how a caller calls off a correlation — a saga, a tenant, a conversation, all of
+whose firings share a trigger group — without listing its keys first, which is a window in which
+another node can add one more.
+
+| Endpoint | Selects by | Answers |
+|---|---|---|
+| `POST …/jobs/delete-by-group` | `?groupEquals=`, `?groupStartsWith=`, `?groupEndsWith=`, `?groupContains=` | `{ "jobs": [ … ] }` |
+| `POST …/triggers/unschedule-by-group` | the same four | `{ "triggers": [ … ] }` |
+
+The four query parameters are the ones `…/jobs/pause` and `…/triggers/pause` take, and naming none of
+them means *every group*. The answer is the keys, not the group names the pause endpoints return: a
+deleted group has nothing left to remember about it, so what a caller can act on is what went. A job
+left with no triggers and no durability goes with its triggers and is not named — the answer to an
+unschedule is about triggers.
+
+The server resolves the group inside the same lock that empties it, and signals the scheduling change
+once. Listener events are per key here too: one `JobDeleted` or `JobUnscheduled` for each key removed,
+and nothing when the group was empty.
 
 ## Configuration options
 

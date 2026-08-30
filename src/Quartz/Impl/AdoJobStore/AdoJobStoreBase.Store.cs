@@ -249,7 +249,42 @@ public abstract partial class AdoJobStoreBase
                 List<JobKey> deleted = new List<JobKey>(jobKeys.Count);
                 foreach (JobKey jobKey in jobKeys)
                 {
-                    if (await DeleteJob(conn, jobKey, true, cancellationToken).ConfigureAwait(false))
+                    if (await DeleteJob(conn, jobKey, activeDeleteSafe: true, cancellationToken).ConfigureAwait(false))
+                    {
+                        deleted.Add(jobKey);
+                    }
+                }
+
+                return deleted;
+            }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Delete the jobs in the matching groups, and the triggers that reference them, in one lock and
+    /// one transaction.
+    /// </summary>
+    /// <remarks>
+    /// The matching keys are resolved inside the lock rather than by the caller, which is the whole
+    /// point of the group form: a job stored between a listing and a deletion would survive a call
+    /// the caller believes emptied the group. Once the keys are in hand the walk is the one
+    /// <see cref="DeleteJobs(IReadOnlyCollection{JobKey}, CancellationToken)" /> does, for the reason
+    /// given there — the answer has to name the keys it hit, and a set-based delete reports a row
+    /// count instead.
+    /// </remarks>
+    public ValueTask<List<JobKey>> DeleteJobs(
+        GroupMatcher<JobKey> matcher,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess, async conn =>
+            {
+                List<JobKey> matching = await Delegate.SelectJobKeysInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+                List<JobKey> deleted = new List<JobKey>(matching.Count);
+                foreach (JobKey jobKey in matching)
+                {
+                    if (await DeleteJob(conn, jobKey, activeDeleteSafe: true, cancellationToken).ConfigureAwait(false))
                     {
                         deleted.Add(jobKey);
                     }
@@ -263,7 +298,7 @@ public abstract partial class AdoJobStoreBase
     /// Delete the identified triggers in one lock and one transaction.
     /// </summary>
     /// <remarks>
-    /// Per key for the same reason <see cref="DeleteJobs" /> is: removing a trigger also removes its
+    /// Per key for the same reason <see cref="DeleteJobs(IReadOnlyCollection{JobKey}, CancellationToken)" /> is: removing a trigger also removes its
     /// sub-table row, its fired-trigger rows, and the job it orphans when that job is not durable.
     /// </remarks>
     public ValueTask<List<TriggerKey>> DeleteTriggers(
@@ -276,6 +311,30 @@ public abstract partial class AdoJobStoreBase
             {
                 List<TriggerKey> deleted = new List<TriggerKey>(triggerKeys.Count);
                 foreach (TriggerKey triggerKey in triggerKeys)
+                {
+                    if (await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
+                    {
+                        deleted.Add(triggerKey);
+                    }
+                }
+
+                return deleted;
+            }, cancellationToken);
+    }
+
+    /// <inheritdoc cref="DeleteJobs(GroupMatcher{JobKey}, CancellationToken)" />
+    public ValueTask<List<TriggerKey>> DeleteTriggers(
+        GroupMatcher<TriggerKey> matcher,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+
+        return ExecuteInLock(
+            SchedulerLock.TriggerAccess, async conn =>
+            {
+                List<TriggerKey> matching = await Delegate.SelectTriggerKeysInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+                List<TriggerKey> deleted = new List<TriggerKey>(matching.Count);
+                foreach (TriggerKey triggerKey in matching)
                 {
                     if (await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
                     {

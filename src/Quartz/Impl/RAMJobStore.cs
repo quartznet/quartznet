@@ -411,6 +411,39 @@ public sealed class RAMJobStore : IJobStore
         return deleted;
     }
 
+    /// <summary>
+    /// Deletes the jobs in the matching groups, resolving the keys under the same lock that removes
+    /// them so that a job stored meanwhile cannot slip through the gap.
+    /// </summary>
+    public async ValueTask<List<JobKey>> DeleteJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+
+        PendingSignals pending = default;
+        List<JobKey> deleted;
+
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            List<JobKey> matching = GetJobKeysNoLock(matcher);
+            deleted = new List<JobKey>(matching.Count);
+            foreach (JobKey key in matching)
+            {
+                if (RemoveJobNoLock(key, ref pending))
+                {
+                    deleted.Add(key);
+                }
+            }
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return deleted;
+    }
+
     public async ValueTask<List<TriggerKey>> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
         PendingSignals pending = default;
@@ -420,6 +453,36 @@ public sealed class RAMJobStore : IJobStore
         try
         {
             foreach (TriggerKey key in triggerKeys)
+            {
+                if (RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, ref pending))
+                {
+                    deleted.Add(key);
+                }
+            }
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+
+        await pending.Raise(signaler, cancellationToken).ConfigureAwait(false);
+        return deleted;
+    }
+
+    /// <inheritdoc cref="DeleteJobs(GroupMatcher{JobKey}, CancellationToken)" />
+    public async ValueTask<List<TriggerKey>> DeleteTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+
+        PendingSignals pending = default;
+        List<TriggerKey> deleted;
+
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            List<TriggerKey> matching = GetTriggerKeysNoLock(matcher);
+            deleted = new List<TriggerKey>(matching.Count);
+            foreach (TriggerKey key in matching)
             {
                 if (RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, ref pending))
                 {

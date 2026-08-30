@@ -247,6 +247,19 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.DeleteJobs(s.jobKeys, s.cancellationToken));
     }
 
+    public override ValueTask<List<JobKey>> DeleteJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.DeleteJobs);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.DeleteJobs(matcher, cancellationToken);
+        }
+
+        operation.Start();
+        return Complete(operation, (InnerJobStore, matcher, cancellationToken),
+            static s => s.InnerJobStore.DeleteJobs(s.matcher, s.cancellationToken));
+    }
+
     public override ValueTask<bool> DeleteTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.DeleteTrigger);
@@ -271,6 +284,19 @@ internal sealed class TracingJobStore : DelegatingJobStore
         operation.Start();
         return Complete(operation, (InnerJobStore, triggerKeys, cancellationToken),
             static s => s.InnerJobStore.DeleteTriggers(s.triggerKeys, s.cancellationToken));
+    }
+
+    public override ValueTask<List<TriggerKey>> DeleteTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    {
+        StoreOperation operation = Begin(OperationName.JobStore.DeleteTriggers);
+        if (!operation.IsRecording)
+        {
+            return InnerJobStore.DeleteTriggers(matcher, cancellationToken);
+        }
+
+        operation.Start();
+        return Complete(operation, (InnerJobStore, matcher, cancellationToken),
+            static s => s.InnerJobStore.DeleteTriggers(s.matcher, s.cancellationToken));
     }
 
     public override ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)

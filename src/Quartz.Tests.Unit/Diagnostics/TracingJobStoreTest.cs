@@ -356,8 +356,10 @@ public sealed class TracingJobStoreTest
         await store.AddCalendar("calendar", new Quartz.Impl.Calendar.BaseCalendar());
         await store.DeleteJob(jobKey);
         await store.DeleteJobs([jobKey]);
+        await store.DeleteJobs(GroupMatcher<JobKey>.AnyGroup());
         await store.DeleteTrigger(triggerKey);
         await store.DeleteTriggers([triggerKey]);
+        await store.DeleteTriggers(GroupMatcher<TriggerKey>.AnyGroup());
         await store.DeleteCalendar("calendar");
         await store.ReplaceTrigger(triggerKey, trigger);
         await store.UpdateTriggerDetails(triggerKey, new TriggerDetailsUpdate());

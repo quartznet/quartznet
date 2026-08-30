@@ -615,6 +615,125 @@ public abstract class JobStoreContractTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Deleting a whole group
+    //
+    // The group form exists so that a caller can call off a correlation - a saga, a tenant, a
+    // conversation - without first listing its keys, because between the listing and the deletion
+    // another node can add one more. Whether the store honours that is invisible from outside; what
+    // is visible, and asserted here, is that both stores select the same groups and answer with the
+    // same keys. The in-memory store resolves the matcher against its own dictionaries and the ADO
+    // store turns it into a LIKE predicate, so "the same groups" is a real claim about two different
+    // implementations - a dialect that mangles an operator shows up here and nowhere else.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task DeletingAGroupOfJobsRemovesEveryJobInItAndNamesThem()
+    {
+        await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
+        await ScheduleJobWithTrigger("second", JobGroupA, TriggerGroupA);
+        await ScheduleJobWithTrigger("elsewhere", JobGroupB, TriggerGroupB);
+
+        JobKey firstJob = new JobKey("first", JobGroupA);
+        JobKey secondJob = new JobKey("second", JobGroupA);
+        JobKey survivor = new JobKey("elsewhere", JobGroupB);
+
+        List<JobKey> deleted = await Store.DeleteJobs(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+
+        deleted.Should().BeEquivalentTo([firstJob, secondJob],
+            "the answer names the jobs the call deleted — a group is not worth naming back, since a "
+            + "deleted group has nothing left to remember about it");
+
+        (await Store.Exists(firstJob)).Should().BeFalse();
+        (await Store.Exists(secondJob)).Should().BeFalse();
+        (await Store.Exists(survivor)).Should().BeTrue("a job in another group is not touched");
+
+        (await Store.QueryTriggers(new TriggerQuery { Group = GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA) }))
+            .Items.Should().BeEmpty("deleting a job takes the triggers that reference it, as the single-key form does");
+    }
+
+    [Test]
+    public async Task DeletingAGroupOfTriggersRemovesThemAndTheJobsTheyOrphan()
+    {
+        IOperableTrigger first = await ScheduleJobWithTrigger("first", JobGroupA, TriggerGroupA);
+        IOperableTrigger second = await ScheduleJobWithTrigger("second", JobGroupA, TriggerGroupA);
+        IOperableTrigger survivor = await ScheduleJobWithTrigger("elsewhere", JobGroupB, TriggerGroupB);
+
+        IJobDetail durable = JobBuilder.Create<ContractTestJob>()
+            .WithIdentity("durable", JobGroupA)
+            .StoreDurably()
+            .Build();
+        await Store.AddJob(durable, replace: false);
+        await Store.AddTrigger(CreateTrigger("durable", TriggerGroupA, durable.Key), replace: false);
+
+        List<TriggerKey> deleted = await Store.DeleteTriggers(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
+
+        deleted.Should().BeEquivalentTo([first.Key, second.Key, new TriggerKey("durable", TriggerGroupA)],
+            "the answer names triggers only — a job the removal orphaned went with it, but it is not "
+            + "a trigger and this call was about triggers");
+
+        (await Store.Exists(new JobKey("first", JobGroupA))).Should().BeFalse(
+            "the last trigger of a non-durable job takes the job with it, exactly as the single-key form does");
+        (await Store.Exists(durable.Key)).Should().BeTrue("a durable job survives losing its last trigger");
+        (await Store.Exists(survivor.Key)).Should().BeTrue("a trigger in another group is not touched");
+    }
+
+    [Test]
+    public async Task DeletingByGroupHonoursEveryMatcherOperator()
+    {
+        await ScheduleJobWithTrigger("one", "prefix-alpha", TriggerGroupA);
+        await ScheduleJobWithTrigger("two", "prefix-beta", TriggerGroupA);
+        await ScheduleJobWithTrigger("three", OtherGroup, TriggerGroupB);
+
+        List<JobKey> deleted = await Store.DeleteJobs(GroupMatcher<JobKey>.GroupStartsWith("prefix-"));
+
+        deleted.Should().BeEquivalentTo([new JobKey("one", "prefix-alpha"), new JobKey("two", "prefix-beta")],
+            "a starts-with matcher selects the same groups here as it does for a listing or a pause");
+        (await Store.Exists(new JobKey("three", OtherGroup))).Should().BeTrue();
+
+        List<TriggerKey> unscheduled = await Store.DeleteTriggers(GroupMatcher<TriggerKey>.AnyGroup());
+
+        unscheduled.Should().BeEquivalentTo([new TriggerKey("three", TriggerGroupB)],
+            "every group is a matcher like any other, and only the one trigger was left");
+    }
+
+    [Test]
+    public async Task AGroupThatMatchesNothingDeletesNothing()
+    {
+        await ScheduleJobWithTrigger("untouched", JobGroupA, TriggerGroupA);
+
+        (await Store.DeleteJobs(GroupMatcher<JobKey>.GroupEquals("no-such-group"))).Should().BeEmpty(
+            "an empty answer is the plural of the single-key false, not a failure");
+        (await Store.DeleteTriggers(GroupMatcher<TriggerKey>.GroupEquals("no-such-group"))).Should().BeEmpty();
+
+        (await Store.Exists(new JobKey("untouched", JobGroupA))).Should().BeTrue();
+    }
+
+    [Test]
+    public void TheGroupDeleteMembersAreImplementedRatherThanLeftToTheListThenDeleteDefault()
+    {
+        // The defaults on IJobStore list the matching keys and then delete them, which is correct but
+        // is two operations: a job stored in between survives a call the caller believes emptied the
+        // group. Both shipped stores resolve the keys inside the same lock or transaction that
+        // removes them, and that difference is invisible from the outside - which is why it is
+        // asserted structurally, here, rather than by trying to lose the race on purpose.
+        System.Reflection.InterfaceMapping map = Store.GetType().GetInterfaceMap(typeof(IJobStore));
+
+        for (int i = 0; i < map.InterfaceMethods.Length; i++)
+        {
+            System.Reflection.MethodInfo declared = map.InterfaceMethods[i];
+            if (declared.Name is not (nameof(IJobStore.DeleteJobs) or nameof(IJobStore.DeleteTriggers))
+                || declared.GetParameters()[0].ParameterType.GetGenericTypeDefinition() != typeof(GroupMatcher<>))
+            {
+                continue;
+            }
+
+            map.TargetMethods[i].DeclaringType.Should().NotBe(typeof(IJobStore),
+                $"{Store.GetType().Name}.{declared.Name} must resolve the group and delete it in one "
+                + "pass rather than inherit the list-then-delete default");
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // Error state
     //////////////////////////////////////////////////////////////////////////////////////////////
 

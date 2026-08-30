@@ -332,6 +332,20 @@ public sealed class HttpScheduler : IScheduler
         return [.. result.Triggers.Select(x => x.AsTriggerKey())];
     }
 
+    public async ValueTask<List<TriggerKey>> UnscheduleJobs(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+
+        var urlParams = matcher.ToUrlParameters();
+        var result = await httpClient.PostWithResponse<AppliedTriggerKeysResponse>(
+            $"{TriggerEndpointUrl()}/unschedule-by-group?{urlParams}",
+            jsonSerializerOptions,
+            cancellationToken
+        ).ConfigureAwait(false);
+
+        return [.. result.Triggers.Select(x => x.AsTriggerKey())];
+    }
+
     public async ValueTask<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(newTrigger);
@@ -439,6 +453,20 @@ public sealed class HttpScheduler : IScheduler
         var result = await httpClient.PostWithResponse<DeleteJobsRequest, AppliedJobKeysResponse>(
             $"{JobEndpointUrl()}/delete",
             new DeleteJobsRequest(jobKeys.Select(KeyDto.Create).ToArray()),
+            jsonSerializerOptions,
+            cancellationToken
+        ).ConfigureAwait(false);
+
+        return [.. result.Jobs.Select(x => x.AsJobKey())];
+    }
+
+    public async ValueTask<List<JobKey>> DeleteJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+
+        var urlParams = matcher.ToUrlParameters();
+        var result = await httpClient.PostWithResponse<AppliedJobKeysResponse>(
+            $"{JobEndpointUrl()}/delete-by-group?{urlParams}",
             jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);

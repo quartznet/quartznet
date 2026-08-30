@@ -109,6 +109,11 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
+        public ValueTask<List<JobKey>> DeleteJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask<ICalendar> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
@@ -375,6 +380,11 @@ public class QuartzHostedServiceTests
         }
 
         public ValueTask<List<TriggerKey>> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<List<TriggerKey>> UnscheduleJobs(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

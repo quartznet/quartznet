@@ -68,6 +68,11 @@ internal static class JobEndpoints
         yield return builder.MapPost(patternPrefix + "/delete", DeleteJobs)
             .WithQuartzDefaults(nameof(DeleteJobs), "Delete jobs");
 
+        // "delete" was taken by the key-set form before there was a group form, so the group form
+        // says so in its path rather than taking the plain one away from an endpoint that has it.
+        yield return builder.MapPost(patternPrefix + "/delete-by-group", DeleteJobsByGroup)
+            .WithQuartzDefaults(nameof(DeleteJobsByGroup), "Delete jobs by group");
+
         yield return builder.MapPost(patternPrefix, AddJob)
             .WithQuartzDefaults(nameof(AddJob), "Add job");
 
@@ -444,6 +449,33 @@ internal static class JobEndpoints
         {
             var jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
             var deleted = await scheduler.DeleteJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+            return new AppliedJobKeysResponse([.. deleted.Select(KeyDto.Create)]);
+        });
+    }
+
+    /// <summary>
+    /// Deletes every job in the matching groups, answering with the keys it deleted.
+    /// </summary>
+    /// <remarks>
+    /// The group matcher is the same one the pause and resume endpoints take, and the answer is the
+    /// keys rather than the group names: a delete leaves nothing behind to remember about a group,
+    /// so what a caller can use is what went.
+    /// </remarks>
+    [ProducesResponseType(typeof(AppliedJobKeysResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> DeleteJobsByGroup(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        string? groupContains = null,
+        string? groupEndsWith = null,
+        string? groupStartsWith = null,
+        string? groupEquals = null,
+        CancellationToken cancellationToken = default)
+    {
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
+            var deleted = await scheduler.DeleteJobs(matcher, cancellationToken).ConfigureAwait(false);
             return new AppliedJobKeysResponse([.. deleted.Select(KeyDto.Create)]);
         });
     }

@@ -130,3 +130,22 @@ public sealed class Invoicing
 }
 
 #endregion
+
+public sealed class InvoicingCancellation
+{
+    #region sample_one_off_job_cancel_by_group
+
+    public async ValueTask<int> CustomerWentAway(IScheduler scheduler, string customerId, CancellationToken cancellationToken)
+    {
+        // Every firing scheduled under this customer's group goes in one call: the group the one-liner
+        // put them in is the handle for calling all of them off, and nothing has to list the keys first.
+        List<TriggerKey> calledOff = await scheduler.UnscheduleJobs(
+            GroupMatcher<TriggerKey>.GroupEquals(customerId),
+            cancellationToken);
+
+        // The answer names what went, so "there was nothing left to cancel" is a count, not a guess.
+        return calledOff.Count;
+    }
+
+    #endregion
+}
