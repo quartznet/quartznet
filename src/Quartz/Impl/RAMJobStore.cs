@@ -959,6 +959,28 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
+    /// Determine whether an <see cref="ICalendar" /> with the given name already exists within the
+    /// store.
+    /// </summary>
+    /// <param name="calendarName">the name to check for</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>true if a calendar is stored under the given name</returns>
+    public async ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default)
+    {
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            // Deliberately not GetCalendar: that clones the calendar, which for an AnnualCalendar with a
+            // decade of excluded days copies every one of them to answer a yes-or-no question.
+            return calendarsByName.ContainsKey(calendarName);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+    }
+
+    /// <summary>
     /// Get the current state of the identified <see cref="ITrigger" />.
     /// </summary>
     /// <seealso cref="TriggerState.Normal" />

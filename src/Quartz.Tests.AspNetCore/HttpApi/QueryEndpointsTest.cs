@@ -310,6 +310,43 @@ public class QueryEndpointsTest : WebApiTest
         }
     }
 
+    /// <summary>
+    /// The parameterless shorthands are extension methods, so nothing about them is remote — what has
+    /// to hold is that the query record they default to is the one that goes on the wire, and that the
+    /// answer comes back the same as the spelled-out call's.
+    /// </summary>
+    [Test]
+    public async Task QueryShorthandsShouldRunOnTheQueryWire()
+    {
+        using (new AssertionScope())
+        {
+            (await client.QueryJobs()).Items.Select(x => x.Key).Should().Equal(
+                (await client.QueryJobs(new JobQuery())).Items.Select(x => x.Key));
+
+            (await client.QueryTriggers()).Items.Select(x => x.Key).Should().Equal(
+                alphaTriggerOne, alphaTriggerTwo, alphaTriggerThree, alphaTriggerFour, betaTriggerOne, betaTriggerTwo);
+
+            (await client.QueryTriggersInError()).Items.Should().BeEmpty(
+                "nothing in the seed has failed, and the state filter reached the server to say so");
+
+            (await client.QueryFireInstances()).Items.Should().BeEmpty(
+                "no job is running, and the fire instance query record's own default is Executing");
+
+            (await client.QueryFireInstancesOfJob(alphaJobOne)).Items.Should().BeEmpty();
+        }
+    }
+
+    [Test]
+    public async Task CalendarExistenceShouldBeAnsweredOverTheWire()
+    {
+        using (new AssertionScope())
+        {
+            (await client.Exists("cal-a")).Should().BeTrue();
+            (await client.Exists("cal-missing")).Should().BeFalse(
+                "a name nothing was stored under is an answer, not a 404");
+        }
+    }
+
     [Test]
     public async Task LegacyListingMembersShouldRunOnTheQueryWire()
     {

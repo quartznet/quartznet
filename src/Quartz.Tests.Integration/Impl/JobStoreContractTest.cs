@@ -1086,6 +1086,31 @@ public abstract class JobStoreContractTest
     }
 
     /// <summary>
+    /// Whether a calendar is there is a question every store answers the same way, and answers without
+    /// materializing the calendar — the ADO store selects a constant instead of the blob, and
+    /// <c>RAMJobStore</c> looks the name up instead of cloning what it finds. Only the answer is
+    /// observable through the contract, so what this pins is that the cheap path is also the correct
+    /// one on every dialect.
+    /// </summary>
+    [Test]
+    public async Task CalendarExistenceIsAnsweredByName()
+    {
+        AnnualCalendar calendar = new AnnualCalendar();
+        calendar.AddExcludedDay(new MonthDay(12, 25));
+
+        (await Store.Exists("holidays")).Should().BeFalse("nothing has been stored under that name yet");
+
+        await Store.AddCalendar("holidays", calendar);
+
+        (await Store.Exists("holidays")).Should().BeTrue();
+        (await Store.Exists(MissingCalendarName)).Should().BeFalse();
+
+        (await Store.DeleteCalendar("holidays")).Should().BeTrue();
+
+        (await Store.Exists("holidays")).Should().BeFalse("a deleted calendar stops existing for this member too");
+    }
+
+    /// <summary>
     /// Replacing a calendar and asking for its triggers to be updated moves the next fire time of a
     /// trigger the new calendar has just excluded, and leaves the trigger's state alone.
     /// </summary>

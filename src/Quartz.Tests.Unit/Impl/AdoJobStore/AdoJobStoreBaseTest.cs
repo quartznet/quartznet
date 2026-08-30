@@ -949,9 +949,60 @@ public class AdoJobStoreBaseTest
             .WithMessage("db error");
     }
 
+    /// <summary>
+    /// Asking whether a calendar exists reads no calendar. The whole point of the member is that
+    /// <c>GetCalendar(name) is not null</c> — the answer before it existed — selects the blob and
+    /// deserializes it to throw the result away.
+    /// </summary>
+    [Test]
+    public async Task CalendarExistence_IsAnsweredWithoutSelectingTheCalendar()
+    {
+        ConnectionExecutingAdoJobStore store = new() { DirectDelegate = driverDelegate };
+
+        A.CallTo(() => driverDelegate.CalendarExists(A<ConnectionAndTransactionHolder>.Ignored, "holidays", A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(true));
+
+        bool exists = await store.Exists("holidays");
+
+        exists.Should().BeTrue();
+
+        A.CallTo(() => driverDelegate.CalendarExists(A<ConnectionAndTransactionHolder>.Ignored, "holidays", A<CancellationToken>.Ignored))
+            .MustHaveHappened(1, Times.Exactly);
+        A.CallTo(() => driverDelegate.SelectCalendar(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task CalendarExistence_ReportsAbsenceRatherThanFailing()
+    {
+        ConnectionExecutingAdoJobStore store = new() { DirectDelegate = driverDelegate };
+
+        A.CallTo(() => driverDelegate.CalendarExists(A<ConnectionAndTransactionHolder>.Ignored, "gone", A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(false));
+
+        (await store.Exists("gone")).Should().BeFalse();
+    }
+
     private static RetryTestAdoJobStoreBase CreateRetryTestStore(int maxTransientRetries = 3)
     {
         return new RetryTestAdoJobStoreBase(maxTransientRetries);
+    }
+
+    /// <summary>
+    /// <see cref="TestAdoJobStoreBase" /> answers every locked call with <c>default</c> without running
+    /// the callback, which is what most of this fixture wants. A read whose point is <em>which</em>
+    /// statement it runs needs the callback to actually run, so this one hands it the fake connection.
+    /// </summary>
+    private sealed class ConnectionExecutingAdoJobStore : TestAdoJobStoreBase
+    {
+        protected override async ValueTask<T> ExecuteInLock<T>(
+            SchedulerLock? lockKind,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
+            CancellationToken cancellationToken = default)
+        {
+            ConnectionAndTransactionHolder conn = await GetLocalTransactionConnection(cancellationToken);
+            return await txCallback(conn);
+        }
     }
 
     public class TestAdoJobStoreBase : AdoJobStoreBase

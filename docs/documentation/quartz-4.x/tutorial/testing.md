@@ -258,12 +258,11 @@ shipped listeners is `Quartz.Listeners`, plural.
 
 ```csharp
 // what state did the trigger end in?
-PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers(
-    new TriggerQuery { State = TriggerState.Error });
+PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggersInError();
 triggers.Items.Should().BeEmpty();
 
 // what is running right now?
-PagedResult<FireInstance> running = await scheduler.QueryFireInstances(new FireInstanceQuery());
+PagedResult<FireInstance> running = await scheduler.QueryFireInstances();
 
 // what did the job produce?
 context.Result.Should().Be(42);
@@ -274,8 +273,8 @@ Remember that a query pages: `Take` defaults to 250, so an assertion on a large 
 [Querying Jobs and Triggers](querying-jobs-and-triggers.md#paging).
 
 ::: warning Changed in 4.x
-`GetCurrentlyExecutingJobs()` is gone; `QueryFireInstances(new FireInstanceQuery())` is the replacement,
-and it lists firings across the cluster rather than only on the node that answered.
+`GetCurrentlyExecutingJobs()` is gone; `QueryFireInstances()` is the replacement, and it lists firings
+across the cluster rather than only on the node that answered.
 :::
 
 ### Controlling time

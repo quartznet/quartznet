@@ -21,6 +21,9 @@ internal static class CalendarEndpoints
         yield return builder.MapGet(patternPrefix + "/{calendarName}", GetCalendar)
             .WithQuartzDefaults(nameof(GetCalendar), "Get calendar details");
 
+        yield return builder.MapGet(patternPrefix + "/{calendarName}/exists", CheckCalendarExists)
+            .WithQuartzDefaults(nameof(CheckCalendarExists), "Check calendar exists");
+
         yield return builder.MapPost(patternPrefix, AddCalendar)
             .WithQuartzDefaults(nameof(AddCalendar), "Add new calendar");
 
@@ -75,6 +78,21 @@ internal static class CalendarEndpoints
         {
             var calendar = await scheduler.GetCalendarOrThrow(calendarName, cancellationToken).ConfigureAwait(false);
             return calendar;
+        });
+    }
+
+    [ProducesResponseType(typeof(ExistsResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> CheckCalendarExists(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        string calendarName,
+        CancellationToken cancellationToken = default)
+    {
+        return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            bool exists = await scheduler.Exists(calendarName, cancellationToken).ConfigureAwait(false);
+            return new ExistsResponse(exists);
         });
     }
 

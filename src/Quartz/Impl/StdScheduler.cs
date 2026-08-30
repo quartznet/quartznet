@@ -371,6 +371,16 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
+    public ValueTask<bool> Exists(
+        string calendarName,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.Exists(calendarName, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
     public ValueTask<bool> PauseTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
