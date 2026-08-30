@@ -330,6 +330,39 @@ public class TimeZonesTest
     }
 
     [Test]
+    public void NotFoundMessage_NamesTheAliasThatWasTriedToo()
+    {
+        string message = TimeZones.NotFoundMessage("CET", attemptedAlias: "Central European Standard Time");
+
+        message.Should().Contain("CET").And.Contain("Central European Standard Time",
+            "an alias lookup that fails used to be logged, and the message is the only place that signal "
+            + "can live now that TimeZones carries no logger - without it a reader of the failure cannot "
+            + "tell that a second id was tried");
+    }
+
+    [Test]
+    public void NotFoundMessage_WithNoAliasTried_NamesOnlyTheIdAsked()
+    {
+        string message = TimeZones.NotFoundMessage("Quartz/Test-Unknown-Zone", attemptedAlias: null);
+
+        message.Should().Contain("Quartz/Test-Unknown-Zone").And.NotContain("alias",
+            "an id the alias table does not know was never looked up under a second name, so there is no "
+            + "second id to report");
+    }
+
+    [Test]
+    public void TimeZones_CarriesNoLoggingDependency()
+    {
+        // TimeZones is reached from CronExpression and from trigger deserialization, neither of which
+        // needs a scheduler; keeping it on the BCL alone is what lets that code be split into a package
+        // of its own later without taking Microsoft.Extensions.Logging along.
+        string source = File.ReadAllText(Path.Combine(RepositoryRoot.Find().FullName, "src", "Quartz", "TimeZones.cs"));
+
+        source.Should().NotContain("Microsoft.Extensions.Logging").And.NotContain("LogProvider").And.NotContain("ILogger",
+            "TimeZones.cs is deliberately free of any tie to logging, and one call site is all it takes to put it back");
+    }
+
+    [Test]
     public void AddResolver_MostRecentlyAddedWins_AndDisposalUnregisters()
     {
         const string id = "Quartz/Test-Resolver-Ordering";

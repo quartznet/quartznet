@@ -50,9 +50,6 @@ internal static partial class UtilityLog
         string policy,
         string canonical);
 
-    [LoggerMessage(EventId = 5101, Level = LogLevel.Error, Message = "Could not find time zone using alias id {AliasId}")]
-    public static partial void TimeZoneAliasNotFound(this ILogger logger, string aliasId);
-
     [LoggerMessage(EventId = 5102, Level = LogLevel.Warning, Message = "Type '{OldName}' was found as '{NewName}'; the type moved in Quartz 4.0. Update the configuration, as this fallback will not last forever.")]
     public static partial void TypeFoundUnderNewName(this ILogger logger, string oldName, string newName);
 
