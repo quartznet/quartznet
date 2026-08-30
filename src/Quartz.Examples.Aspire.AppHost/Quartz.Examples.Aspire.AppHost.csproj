@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Aspire AppHost for the example: it declares the Postgres server, the database on it and the
+    worker that uses them, and nothing else. It is in the solution so that `Compile` fails when the
+    documented AppHost wiring stops compiling — which is the whole reason it exists, since an AppHost
+    builds without a container runtime and without the Developer Control Plane.
+
+    The SDK version comes from $(AspireVersion) in Directory.Packages.props. That works because this is
+    the <Sdk> *element* form, which MSBuild evaluates as part of the project body; the attribute form,
+    <Project Sdk="Aspire.AppHost.Sdk/$(AspireVersion)">, is parsed before any property exists and would
+    look for a package literally named after the unexpanded string.
+
+    Restore pulls the dashboard and the Developer Control Plane as RID-specific packages (about 57 MB
+    compressed, half a gigabyte on disk) because Aspire.AppHost.Sdk adds them whenever
+    AspireUseCliBundle is false, which is its default. They are a run-time payload — none of it reaches
+    the build output — so a CI leg that only ever compiles this pays for them once per machine.
+    SkipAddAspireDefaultReferences=true drops them, at the cost of no longer being able to
+    `dotnet run` the AppHost; it is deliberately not set, because a sample nobody can run is half a
+    sample.
+  -->
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="$(AspireVersion)" />
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsAspireHost>true</IsAspireHost>
+    <IsPackable>false</IsPackable>
+    <SignAssembly>false</SignAssembly>
+    <!--
+      ASPIRE010 says the Aspire CLI bundle is not in use, and points at the features that need it.
+      Those features are all about running: `aspire run`, `aspire publish`, and the bundle's own copy
+      of the dashboard and DCP. Nothing in this repository runs the AppHost, so the warning has
+      nothing to tell CI, and the message it prints on all three legs is noise. Suppressing it is what
+      the diagnostic itself suggests for exactly this case.
+    -->
+    <NoWarn>$(NoWarn);ASPIRE010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz.Examples.Aspire.Worker\Quartz.Examples.Aspire.Worker.csproj" />
+  </ItemGroup>
+
+</Project>
