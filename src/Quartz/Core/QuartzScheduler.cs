@@ -659,6 +659,9 @@ internal sealed class QuartzScheduler
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
 
+        NormalizeInput(jobDetail.JobDataMap);
+        NormalizeInput(trig.JobDataMap);
+
         ICalendar? calendar = null;
         if (trigger.CalendarName is not null)
         {
@@ -703,6 +706,8 @@ internal sealed class QuartzScheduler
         IOperableTrigger trig = AsOperableTrigger(trigger);
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
+
+        NormalizeInput(trig.JobDataMap);
 
         ICalendar? calendar = null;
         if (trigger.CalendarName is not null)
@@ -751,6 +756,8 @@ internal sealed class QuartzScheduler
         {
             Throw.SchedulerException("Jobs added with no trigger must be durable.");
         }
+
+        NormalizeInput(jobDetail.JobDataMap);
 
         await resources.JobStore.AddJob(jobDetail, options.Replace, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
@@ -835,6 +842,8 @@ internal sealed class QuartzScheduler
             {
                 continue;
             }
+            NormalizeInput(job.JobDataMap);
+
             if (triggers is null) // this is possible because the job may be durable, and not yet be having triggers
             {
                 validated.Add(job, []);
@@ -849,6 +858,8 @@ internal sealed class QuartzScheduler
 
                 AdjustSimpleTriggerStartTimeIfInPast(trigger);
                 trigger.Validate();
+
+                NormalizeInput(trigger.JobDataMap);
 
                 ICalendar? calendar = null;
                 if (trigger.CalendarName is not null)
@@ -1074,6 +1085,26 @@ internal sealed class QuartzScheduler
     /// the implementations of <see cref="ITrigger" /> — so a trigger that implements only the read
     /// model is rejected with a clear error rather than an invalid-cast exception.
     /// </summary>
+    /// <summary>
+    /// Turns a job input that is not yet a string into the string a store can hold, on its way in.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the write half of a typed job's round trip, and it lives here because here is the only
+    /// place the value's <em>runtime</em> type is known — which is what has to be serialized. The read
+    /// half is the default implementation of <see cref="IJob{TInput}" />, where the <em>static</em> type
+    /// is known instead. Neither can do the other's job, which is why they are apart.
+    /// </para>
+    /// <para>
+    /// Every entry point that takes a <see cref="JobDataMap" /> to be stored passes through here, so an
+    /// input reaches a store as a string whichever way it was scheduled.
+    /// </para>
+    /// </remarks>
+    private void NormalizeInput(JobDataMap? map)
+    {
+        JobInput.Normalize(map, resources.JobInputSerializer);
+    }
+
     private static IOperableTrigger AsOperableTrigger(ITrigger trigger)
     {
         if (trigger is not IOperableTrigger operableTrigger)
@@ -1164,6 +1195,7 @@ internal sealed class QuartzScheduler
         trig.ComputeFirstFireTimeUtc(null);
         if (data is not null)
         {
+            NormalizeInput(data);
             trig.JobDataMap = data;
         }
 
@@ -1195,6 +1227,8 @@ internal sealed class QuartzScheduler
         ValidateState();
 
         trigger.ComputeFirstFireTimeUtc(null);
+
+        NormalizeInput(trigger.JobDataMap);
 
         bool collision = true;
         while (collision)

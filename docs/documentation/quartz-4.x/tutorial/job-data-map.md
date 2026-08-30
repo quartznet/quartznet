@@ -258,6 +258,71 @@ default.
 `UsingJobData(j => j.LookbackDays, 30)` is the write side of exactly this: name the property, get the
 key for free.
 
+## A typed input: the third read side
+
+A job whose data is really *one payload* — a message, a command, an event — can say so. `IJob<TInput>`
+declares the type, and the payload arrives as a parameter:
+
+<!-- snippet: sample_job_data_map_typed_input -->
+```csharp
+public sealed record SendEmail(string To, string Subject);
+
+public sealed class SendEmailJob : IJob<SendEmail>
+{
+    public ValueTask Execute(IJobExecutionContext context, SendEmail input, CancellationToken cancellationToken = default)
+    {
+        // input.To, input.Subject - no keys, no accessors, no casts
+        return default;
+    }
+}
+
+public static class TypedInputScheduling
+{
+    public static async ValueTask Schedule(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<SendEmailJob>()
+                .WithIdentity("welcome", "email")
+                .Build(),
+            TriggerBuilder.Create<SendEmailJob>()
+                .WithIdentity("welcome-3401", "email")
+                .StartNow()
+                .UsingInput(new SendEmail("someone@example.org", "Welcome"))
+                .Build(),
+            cancellationToken);
+    }
+}
+```
+<!-- endSnippet -->
+
+`UsingInput` is available on `JobBuilder<TJob>`, `TriggerBuilder<TJob>` and the two configurators
+`AddJob` and `AddTrigger` hand you, and it is only offered for a job that declares an input — putting
+one on a job that takes none is a compile error. The value lands in the ordinary `JobDataMap` under the
+reserved key `SchedulerConstants.JobInput` (`QRTZ_JOB_INPUT`), serialized to a **string** by the
+scheduler as the job or trigger is stored, so it survives `StoreJobDataAsStrings`, the JSON write gate
+above, the blob column and the HTTP API alike. Precedence is the ordinary one: an input on the trigger
+overrides an input on the job.
+
+A job that is not an `IJob<TInput>` can read the same payload with `context.GetInput<SendEmail>()`,
+which answers `null` when there is none. An `IJob<TInput>` whose input is missing fails the firing with
+a `SchedulerException` naming the key, rather than running on a default payload.
+
+Two things worth knowing:
+
+- **The input type is inferred from the argument.** `UsingInput(payload)` where `payload` is held as a
+  base type stores and reads it as that base type; pass the type argument explicitly —
+  `UsingInput<SendEmailJob, SendEmail>(payload)` — when the static type is not the one you mean.
+- **Put a per-firing input on the trigger.** A `[PersistJobDataAfterExecution]` job re-stores its own
+  map after every firing, so an input on the *job* is written back each time. That is harmless — it is
+  already the string it will be read as — but the trigger is where an input that differs per firing
+  belongs, and it is where one trigger per payload puts it anyway.
+
+The payload is written by the scheduler's `IJobInputSerializer`, which defaults to
+`SystemTextJsonJobInputSerializer` and is built from the same registry as the store's serializer — see
+[JSON Serialization](../packages/system-text-json.md). A trimmed or native-AOT application declares its
+payload types with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver`, exactly as it declares a job
+data value type.
+
 ## Persisting changes across fires
 
 By default a job's stored map is written once and read many times. `[PersistJobDataAfterExecution]`

@@ -135,6 +135,38 @@ public static class JobDataMapSamples
     }
 }
 
+#region sample_job_data_map_typed_input
+
+public sealed record SendEmail(string To, string Subject);
+
+public sealed class SendEmailJob : IJob<SendEmail>
+{
+    public ValueTask Execute(IJobExecutionContext context, SendEmail input, CancellationToken cancellationToken = default)
+    {
+        // input.To, input.Subject - no keys, no accessors, no casts
+        return default;
+    }
+}
+
+public static class TypedInputScheduling
+{
+    public static async ValueTask Schedule(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<SendEmailJob>()
+                .WithIdentity("welcome", "email")
+                .Build(),
+            TriggerBuilder.Create<SendEmailJob>()
+                .WithIdentity("welcome-3401", "email")
+                .StartNow()
+                .UsingInput(new SendEmail("someone@example.org", "Welcome"))
+                .Build(),
+            cancellationToken);
+    }
+}
+
+#endregion
+
 #region sample_job_data_map_persist_across_fires
 
 [PersistJobDataAfterExecution]

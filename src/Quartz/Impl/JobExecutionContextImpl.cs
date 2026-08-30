@@ -63,9 +63,11 @@ namespace Quartz.Impl;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 #pragma warning disable CA1708
-public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext, IDisposable
+public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext, IJobInputSource, IDisposable
 #pragma warning restore CA1708
 {
+    private readonly IJobInputSerializer? inputSerializer;
+
     private readonly ITrigger trigger;
     private readonly IJobDetail jobDetail;
 
@@ -92,9 +94,23 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     /// <summary>
     /// Create a JobExecutionContext with the given context data.
     /// </summary>
-    public JobExecutionContextImpl(IScheduler scheduler, TriggerFiredBundle firedBundle, IJob job)
+    /// <param name="scheduler">The scheduler this firing belongs to.</param>
+    /// <param name="firedBundle">What the job store handed back when the trigger fired.</param>
+    /// <param name="job">The job instance the factory built for this firing.</param>
+    /// <param name="inputSerializer">
+    /// What <see cref="JobExecutionContextInputExtensions.GetInput{TInput}" /> and an
+    /// <see cref="IJob{TInput}" /> read a stored input with. Quartz hands the scheduler's own; a context
+    /// built by hand without one reports a <see cref="SchedulerException" /> if a job asks it for a
+    /// stored input, rather than reflecting its way to an answer.
+    /// </param>
+    public JobExecutionContextImpl(
+        IScheduler scheduler,
+        TriggerFiredBundle firedBundle,
+        IJob job,
+        IJobInputSerializer? inputSerializer = null)
     {
         this.scheduler = scheduler;
+        this.inputSerializer = inputSerializer;
         trigger = firedBundle.Trigger;
         Calendar = firedBundle.Calendar;
         jobDetail = firedBundle.JobDetail;
@@ -111,6 +127,9 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     /// <see cref="IJob" />.
     /// </summary>
     public IScheduler Scheduler => scheduler;
+
+    /// <inheritdoc />
+    IJobInputSerializer? IJobInputSource.JobInputSerializer => inputSerializer;
 
     /// <summary>
     /// Get a handle to the <see cref="ITrigger" /> instance that fired the

@@ -191,6 +191,13 @@ internal static class QuartzServiceRegistration
             return serializer;
         });
 
+        // What a typed job's input is written and read with. Built the same way and from the same
+        // registry as the object serializer above, so an application that declared a payload type for
+        // one has declared it for both. It is not part of IPersistentStoreBuilder: a typed input is
+        // carried by the in-memory store too, which has no serializer of its own.
+        services.TryAddKeyed<IJobInputSerializer>(key, static (provider, key) =>
+            ActivatorUtilities.CreateInstance<SystemTextJsonJobInputSerializer>(Scoped(provider, key)));
+
         services.TryAddKeyed<QuartzSchedulerResources>(key, static (provider, key) =>
         {
             var options = provider.GetSchedulerOptions<QuartzSchedulerOptions>(key);
@@ -209,6 +216,7 @@ internal static class QuartzServiceRegistration
                 TimeProvider = timeProvider,
                 LoggerFactory = provider.GetSchedulerLoggerFactory(),
                 Meters = meters,
+                JobInputSerializer = provider.GetScheduler<IJobInputSerializer>(key),
                 ThreadPool = provider.GetScheduler<IThreadPool>(key),
                 JobStore = Instrument(provider.GetScheduler<IJobStore>(key), meters, timeProvider),
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
