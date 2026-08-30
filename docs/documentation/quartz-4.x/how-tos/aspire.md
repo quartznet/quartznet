@@ -266,7 +266,9 @@ is the thing the scheduler actually depends on.
 
 The store will eventually be able to do this itself:
 [#3531](https://github.com/quartznet/quartznet/issues/3531) tracks a `SchemaProvisioning` setting that would
-let a persistent store create its own tables. It has not shipped, so the recipe above is the answer today.
+let a persistent store create its own tables. Half of it has landed — the schema each dialect needs is now
+generated as a script a provider can execute — but nothing reads those scripts yet, so the recipe above is
+the answer today.
 
 ## Health
 
