@@ -58,6 +58,11 @@ internal sealed class StdScheduler : IScheduler
     public string SchedulerInstanceId => scheduler.SchedulerInstanceId;
 
     /// <summary>
+    /// The clock the proxied <see cref="QuartzScheduler" /> was built with.
+    /// </summary>
+    public TimeProvider TimeProvider => scheduler.resources.TimeProvider;
+
+    /// <summary>
     /// Get a <see cref="SchedulerMetadata"/> object describing the settings
     /// and capabilities of the scheduler instance.
     /// <para>
@@ -186,10 +191,33 @@ internal sealed class StdScheduler : IScheduler
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
     public ValueTask<DateTimeOffset> ScheduleJob(
+        IJobDetail jobDetail,
+        ITrigger trigger,
+        ScheduleJobOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.ScheduleJob(jobDetail, trigger, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public ValueTask<DateTimeOffset> ScheduleJob(
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ScheduleJob(trigger, cancellationToken);
+        return scheduler.ScheduleJob(trigger, cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public ValueTask<DateTimeOffset> ScheduleJob(
+        ITrigger trigger,
+        ScheduleJobOptions options,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.ScheduleJob(trigger, options, cancellationToken);
     }
 
     /// <summary>

@@ -78,6 +78,19 @@ public sealed class HttpScheduler : IScheduler
     public string SchedulerInstanceId => GetSchedulerDetailsSync().SchedulerInstanceId;
 
     /// <summary>
+    /// The system clock, which is the only honest answer a proxy can give.
+    /// </summary>
+    /// <remarks>
+    /// The clock that decides when a trigger fires is the remote scheduler's, and this process cannot
+    /// read it: the HTTP API reports times, not a <see cref="System.TimeProvider" />, and a
+    /// <see cref="System.TimeProvider" /> is not something that can be fetched over a wire. So a client
+    /// building a trigger for a remote scheduler measures "now" against its own clock, exactly as it
+    /// would have done writing <c>DateTimeOffset.UtcNow</c> by hand — the two machines agreeing about
+    /// the time is the assumption the whole wire format already makes.
+    /// </remarks>
+    public TimeProvider TimeProvider => TimeProvider.System;
+
+    /// <summary>
     /// The remote scheduler's lifecycle state, read over the network.
     /// </summary>
     /// <remarks>
@@ -233,22 +246,34 @@ public sealed class HttpScheduler : IScheduler
     {
         ArgumentNullException.ThrowIfNull(jobDetail);
 
-        return DoScheduleJob(jobDetail, trigger, cancellationToken);
+        return DoScheduleJob(jobDetail, trigger, replace: false, cancellationToken);
+    }
+
+    public ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobDetail);
+
+        return DoScheduleJob(jobDetail, trigger, options.Replace, cancellationToken);
     }
 
     public ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, CancellationToken cancellationToken = default)
     {
-        return DoScheduleJob(null, trigger, cancellationToken);
+        return DoScheduleJob(null, trigger, replace: false, cancellationToken);
     }
 
-    private async ValueTask<DateTimeOffset> DoScheduleJob(IJobDetail? jobDetail, ITrigger trigger, CancellationToken cancellationToken)
+    public ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    {
+        return DoScheduleJob(null, trigger, options.Replace, cancellationToken);
+    }
+
+    private async ValueTask<DateTimeOffset> DoScheduleJob(IJobDetail? jobDetail, ITrigger trigger, bool replace, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(trigger);
 
         var jobDetailsDto = jobDetail is not null ? JobDetailDto.Create(jobDetail) : null;
         var result = await httpClient.PostWithResponse<ScheduleJobRequest, ScheduleJobResponse>(
             $"{TriggerEndpointUrl()}/schedule",
-            new ScheduleJobRequest(trigger, jobDetailsDto),
+            new ScheduleJobRequest(trigger, jobDetailsDto, replace),
             jsonSerializerOptions,
             cancellationToken
         ).ConfigureAwait(false);

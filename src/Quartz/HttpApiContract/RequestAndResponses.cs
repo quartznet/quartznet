@@ -101,7 +101,7 @@ internal record DeleteJobsRequest(KeyDto[] Jobs) : IValidatable
 }
 
 // When updating this, make same changes also into Quartz.AspNetCore.HttpApi.OpenApi.ScheduleJobRequest
-internal record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job) : IValidatable
+internal record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job, bool Replace = false) : IValidatable
 {
     public IEnumerable<string> Validate()
     {

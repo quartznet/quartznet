@@ -122,6 +122,29 @@ public interface IScheduler : IAsyncDisposable
     string SchedulerInstanceId { get; }
 
     /// <summary>
+    /// The clock this scheduler reads: what it calls "now" when it decides a trigger is due, and what a
+    /// trigger built for it should compute its fire times from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A scheduler configured with a <see cref="System.TimeProvider" /> of its own — a test driving one
+    /// forward by hand, an application on a clock it controls — answers with that one. Code that builds
+    /// a trigger for a scheduler should read the clock from the scheduler rather than reach for
+    /// <see cref="System.TimeProvider.System" />, or it computes "in ten minutes" against a different
+    /// clock from the one the scheduling loop will compare the answer to. That includes a job
+    /// rescheduling itself from inside <c>Execute</c>, which reads
+    /// <c>context.Scheduler.TimeProvider</c>.
+    /// </para>
+    /// <para>
+    /// A default implementation answers <see cref="System.TimeProvider.System" />, so a scheduler
+    /// written outside this repository needs no change and reports what its triggers would have used
+    /// anyway. A proxy for a scheduler in another process answers the same, and cannot do better: the
+    /// clock that matters is the remote scheduler's, and it is not this process's to read.
+    /// </para>
+    /// </remarks>
+    TimeProvider TimeProvider => TimeProvider.System;
+
+    /// <summary>
     /// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
     /// </summary>
     SchedulerContext Context { get; }
@@ -321,12 +344,58 @@ public interface IScheduler : IAsyncDisposable
         ITrigger trigger,
         CancellationToken cancellationToken = default);
 
+    /// <inheritdoc cref="ScheduleJob(IJobDetail, ITrigger, CancellationToken)" />
+    /// <param name="jobDetail">The job to store.</param>
+    /// <param name="trigger">The trigger to store.</param>
+    /// <param name="options">
+    /// Whether an already stored job or trigger with the same key is over-written. The whole operation
+    /// is one store operation under one lock, so an upsert needs no read-then-write of its own and
+    /// cannot lose a race with another node doing the same thing.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <remarks>
+    /// <para>
+    /// <paramref name="options" /> has no default, unlike everywhere else it appears. Giving it one
+    /// would make <c>ScheduleJob(job, trigger)</c> ambiguous between this overload and the one above.
+    /// </para>
+    /// </remarks>
+    ValueTask<DateTimeOffset> ScheduleJob(
+        IJobDetail jobDetail,
+        ITrigger trigger,
+        ScheduleJobOptions options,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Schedule the given <see cref="ITrigger" /> with the
     /// <see cref="IJob" /> identified by the <see cref="ITrigger" />'s settings.
     /// </summary>
     ValueTask<DateTimeOffset> ScheduleJob(
         ITrigger trigger,
+        CancellationToken cancellationToken = default);
+
+    /// <inheritdoc cref="ScheduleJob(ITrigger, CancellationToken)" />
+    /// <param name="trigger">The trigger to store.</param>
+    /// <param name="options">
+    /// Whether an already stored trigger with the same key is over-written. Replacing is one store
+    /// operation under the store's own lock, so scheduling over an existing trigger needs no
+    /// <c>CheckExists</c> / <c>UnscheduleJob</c> / <c>ScheduleJob</c> dance and cannot lose a race with
+    /// another node doing the same thing.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <remarks>
+    /// <para>
+    /// A replaced trigger keeps its <see cref="ITrigger.PreviousFireTimeUtc" />, so a job that reads
+    /// <see cref="IJobExecutionContext.PreviousFireTimeUtc" /> is not told the schedule has never fired
+    /// merely because its trigger was rewritten.
+    /// </para>
+    /// <para>
+    /// <paramref name="options" /> has no default, unlike everywhere else it appears. Giving it one
+    /// would make <c>ScheduleJob(trigger)</c> ambiguous between this overload and the one above.
+    /// </para>
+    /// </remarks>
+    ValueTask<DateTimeOffset> ScheduleJob(
+        ITrigger trigger,
+        ScheduleJobOptions options,
         CancellationToken cancellationToken = default);
 
     /// <summary>

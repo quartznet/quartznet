@@ -120,4 +120,15 @@ public static class SchedulerConstants
     /// <seealso cref="IJob{TInput}" />
     /// <seealso cref="JobInputBuilderExtensions" />
     public const string JobInput = "QRTZ_JOB_INPUT";
+
+    /// <summary>
+    /// The <see cref="IJobDetail" /> group the one-call
+    /// <see cref="SchedulerJobExtensions.ScheduleJob{TJob, TInput}(IScheduler, TInput, DateTimeOffset, OneOffJobOptions, CancellationToken)" />
+    /// overloads keep their durable jobs in — one per job type, named after the type.
+    /// </summary>
+    /// <remarks>
+    /// Clients should not use this value for a job group of their own. It is named here so that a
+    /// dashboard, a query or a clean-up can say which jobs it means without spelling the string.
+    /// </remarks>
+    public const string ScheduledJobGroup = "QRTZ_SCHEDULED";
 }

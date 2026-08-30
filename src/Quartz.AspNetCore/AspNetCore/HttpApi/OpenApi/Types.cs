@@ -194,6 +194,7 @@ internal interface ScheduleJobRequest
 {
     Trigger Trigger { get; }
     HttpApiContract.JobDetailDto? Job { get; }
+    bool Replace { get; }
 }
 
 internal interface ScheduleJobsRequest

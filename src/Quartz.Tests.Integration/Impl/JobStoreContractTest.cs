@@ -1952,6 +1952,82 @@ public abstract class JobStoreContractTest
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
+    // Replacing a trigger
+    //
+    // Replacing is what makes scheduling over an existing trigger one call instead of an unschedule
+    // followed by a schedule, so what survives the replacement is part of the contract rather than an
+    // implementation detail of whichever store the author had in front of them. The previous fire time
+    // is the one that used to differ: the ADO store carried it over (#1834) and the in-memory store
+    // cloned the incoming trigger and lost it, so the same code reported "never fired" on one store and
+    // a real time on the other.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    [Test]
+    public async Task ReplacingATriggerKeepsThePreviousFireTimeItHad()
+    {
+        IJobDetail job = CreateJob("replaced", JobGroupA);
+        IOperableTrigger trigger = CreateTrigger("replaced", TriggerGroupA, job.Key,
+            startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(job, trigger);
+
+        (IOperableTrigger firing, IJobDetail fired) = await FireOnce(trigger);
+        await Store.TriggeredJobComplete(firing, fired, SchedulerInstruction.NoInstruction);
+
+        DateTimeOffset? previous = (await Store.GetTrigger(trigger.Key)).PreviousFireTimeUtc;
+        previous.Should().NotBeNull("a trigger that has fired knows when it last fired");
+
+        // What a caller rewriting a schedule hands the store: a freshly built trigger, which has never
+        // fired and says so.
+        IOperableTrigger replacement = CreateTrigger("replaced", TriggerGroupA, job.Key,
+            startAt: DateTimeOffset.UtcNow.AddHours(1));
+        replacement.PreviousFireTimeUtc.Should().BeNull("the replacement is a new object with no history of its own");
+
+        await Store.AddTrigger(replacement, replace: true);
+
+        (await Store.GetTrigger(trigger.Key)).PreviousFireTimeUtc.Should().Be(previous,
+            "a job reading context.PreviousFireTimeUtc must not be told the schedule has never fired merely "
+            + "because its trigger was rewritten");
+    }
+
+    [Test]
+    public async Task ReplacingATriggerHonoursAPreviousFireTimeTheCallerSupplied()
+    {
+        IJobDetail job = CreateJob("replaced", JobGroupA);
+        IOperableTrigger trigger = CreateTrigger("replaced", TriggerGroupA, job.Key,
+            startAt: DateTimeOffset.UtcNow.AddSeconds(5));
+        await Store.ScheduleJob(job, trigger);
+
+        (IOperableTrigger firing, IJobDetail fired) = await FireOnce(trigger);
+        await Store.TriggeredJobComplete(firing, fired, SchedulerInstruction.NoInstruction);
+
+        DateTimeOffset chosen = new(2020, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        IOperableTrigger replacement = CreateTrigger("replaced", TriggerGroupA, job.Key,
+            startAt: DateTimeOffset.UtcNow.AddHours(1));
+        replacement.PreviousFireTimeUtc = chosen;
+
+        await Store.AddTrigger(replacement, replace: true);
+
+        (await Store.GetTrigger(trigger.Key)).PreviousFireTimeUtc.Should().Be(chosen,
+            "carrying the old value over is a default for a caller who said nothing, not an override of one who did");
+    }
+
+    [Test]
+    public async Task ATriggerReplacedIntoAPausedGroupIsBornPaused()
+    {
+        IOperableTrigger trigger = await ScheduleJobWithTrigger("replaced", JobGroupA, TriggerGroupA);
+
+        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
+
+        IOperableTrigger replacement = CreateTrigger("replaced", TriggerGroupA, trigger.JobKey,
+            startAt: DateTimeOffset.UtcNow.AddHours(1));
+        await Store.AddTrigger(replacement, replace: true);
+
+        (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
+            "a paused group imposes the pause on what is written into it, whether that is an insert or a replace — "
+            + "otherwise an upsert is a way to escape a pause");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
     // A typed job's input
     //
     // The input is a string under a reserved key, chosen precisely so that no store has to know

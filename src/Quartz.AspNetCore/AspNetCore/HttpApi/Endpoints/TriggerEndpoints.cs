@@ -397,14 +397,16 @@ internal static class TriggerEndpoints
         EndpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
+            ScheduleJobOptions options = new() { Replace = request.Replace };
+
             if (request.Job is null)
             {
-                var firstFireTime = await scheduler.ScheduleJob(request.Trigger, cancellationToken).ConfigureAwait(false);
+                var firstFireTime = await scheduler.ScheduleJob(request.Trigger, options, cancellationToken).ConfigureAwait(false);
                 return new ScheduleJobResponse(firstFireTime);
             }
 
             IJobDetail jobDetail = RequestedJobDetail.From(request.Job);
-            var firstFireTimeWithJob = await scheduler.ScheduleJob(jobDetail, request.Trigger, cancellationToken).ConfigureAwait(false);
+            var firstFireTimeWithJob = await scheduler.ScheduleJob(jobDetail, request.Trigger, options, cancellationToken).ConfigureAwait(false);
             return new ScheduleJobResponse(firstFireTimeWithJob);
         });
     }
