@@ -147,6 +147,19 @@ Quartz 4.x requires four columns on `QRTZ_TRIGGERS` (and one on `QRTZ_FIRED_TRIG
 missing. **4.x removed those probes** and assumes all of them exist, so this migration is
 mandatory even if you never used misfire reporting, execution groups or node affinity.
 
+4.x also adds two columns 3.x never had:
+
+| Column | Table | Holds |
+|---|---|---|
+| `RETRY_POLICY` | `QRTZ_TRIGGERS` | A trigger's retry policy, as its stored string form |
+| `RETRY_ATTEMPT` | `QRTZ_TRIGGERS` | How many retries of the occurrence being executed have already been made |
+
+Both are nullable with no default, so every row an upgrade brings across reads as "no retry policy"
+and nothing has to be backfilled. They are in the 4.0 script because 4.x no longer probes for
+columns: a column added after 4.0 ships would be a required column, and so a mandatory migration in
+the middle of a major version. The names are on `AdoConstants` as `ColumnRetryPolicy` and
+`ColumnRetryAttempt`.
+
 4.x also adds a table 3.x never had:
 
 | Table | Holds |

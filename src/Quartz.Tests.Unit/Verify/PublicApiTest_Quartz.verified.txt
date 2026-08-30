@@ -2103,6 +2103,8 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnRepeatCount = "REPEAT_COUNT";
         public const string ColumnRepeatInterval = "REPEAT_INTERVAL";
         public const string ColumnRequestsRecovery = "REQUESTS_RECOVERY";
+        public const string ColumnRetryAttempt = "RETRY_ATTEMPT";
+        public const string ColumnRetryPolicy = "RETRY_POLICY";
         public const string ColumnScheduledTime = "SCHED_TIME";
         public const string ColumnSchedulerName = "SCHED_NAME";
         public const string ColumnStartTime = "START_TIME";

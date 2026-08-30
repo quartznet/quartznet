@@ -43,6 +43,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// accepts — which makes the pin observable as a fire rather than only as a stored string.
 /// </para>
 /// <para>
+/// The 4.0 migration also adds <c>RETRY_POLICY</c> and <c>RETRY_ATTEMPT</c>, which nothing in the API
+/// reaches yet, so no trigger here can carry them. They are asserted directly against the migrated
+/// table instead — see <see cref="AssertRetryColumnsArePresent" />.
+/// </para>
+/// <para>
 /// Everything runs under the migrated table prefix while the fresh <c>QRTZ_</c> schema sits in the
 /// same database, so the closing row counts also show the prefix actually isolated the two.
 /// </para>
@@ -88,6 +93,7 @@ internal static class MigratedSchemaWorkload
         scheduler.Status.Should().Be(SchedulerStatus.Shutdown, "the scheduler has to come down cleanly on the migrated schema");
 
         await AssertPrefixIsolation(connection, tablePrefix, schedulerName, triggers.Count);
+        await AssertRetryColumnsArePresent(connection, tablePrefix, schedulerName, triggers.Count);
     }
 
     /// <summary>
@@ -221,6 +227,26 @@ internal static class MigratedSchemaWorkload
 
         long fresh = await Count(connection, $"SELECT COUNT(*) FROM QRTZ_TRIGGERS WHERE SCHED_NAME = '{schedulerName}'");
         fresh.Should().Be(0, "the configured table prefix has to keep the scheduler out of the fresh schema");
+    }
+
+    /// <summary>
+    /// RETRY_POLICY and RETRY_ATTEMPT are the two columns the 4.0 migration adds that no API member
+    /// reaches yet, so they are asserted where they live rather than through a trigger.
+    /// </summary>
+    /// <remarks>
+    /// Naming both columns is the existence check: the statement does not parse when one of them is
+    /// missing, whatever the rows say. Requiring them null on every row the scheduler just wrote is
+    /// the rest of the contract — nullable, no default — which a column that migrated as NOT NULL
+    /// with a default would satisfy the first half of and fail here.
+    /// </remarks>
+    private static async Task AssertRetryColumnsArePresent(DbConnection connection, string tablePrefix, string schedulerName, int triggerCount)
+    {
+        long unset = await Count(connection,
+            $"SELECT COUNT(*) FROM {tablePrefix}TRIGGERS WHERE SCHED_NAME = '{schedulerName}' "
+            + "AND RETRY_POLICY IS NULL AND RETRY_ATTEMPT IS NULL");
+
+        unset.Should().Be(triggerCount,
+            "the migration has to leave RETRY_POLICY and RETRY_ATTEMPT on the migrated QRTZ_TRIGGERS, nullable and without a default");
     }
 
     private static async Task<long> Count(DbConnection connection, string sql)

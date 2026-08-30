@@ -52,8 +52,9 @@ Quartz.NET 3.x probes for `MISFIRE_ORIG_FIRE_TIME`, `EXECUTION_GROUP`, `PREFERRE
 `PREFERRED_NODE_AUTO` when the scheduler starts. If a column is missing it logs a warning and
 turns the corresponding feature off — which is why those migrations are optional on 3.x.
 
-**4.x removed those probes** and assumes all four columns exist. It also adds a table 3.x never
-had, `QRTZ_PAUSED_JOB_GRPS`, and checks at startup that every table it needs is queryable — so a
+**4.x removed those probes** and assumes all four columns exist. It also adds two columns 3.x never
+had, `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS`, and a table 3.x never had,
+`QRTZ_PAUSED_JOB_GRPS`, and checks at startup that every table it needs is queryable — so a
 database missing that table is refused there and then. So even a 3.x database that took every
 optional migration going will not work against 4.x until [4.0](#version-4-0) has been applied.
 
@@ -221,9 +222,9 @@ Neither can run inside a transaction block, so run those statements one at a tim
 - Scripts: [`migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) — all databases
 
 Applies everything from [3.17](#version-3-17), [3.18](#version-3-18), [3.19](#version-3-19) and
-[3.20](#version-3-20), plus the `QRTZ_PAUSED_JOB_GRPS` table and the 4.x index shape, in one
-pass. Run it whether or not you applied the optional migrations — every statement is guarded, so
-it is safe on a partially-migrated database.
+[3.20](#version-3-20), plus the retry columns, the `QRTZ_PAUSED_JOB_GRPS` table and the 4.x index
+shape, in one pass. Run it whether or not you applied the optional migrations — every statement is
+guarded, so it is safe on a partially-migrated database.
 
 Sections, in order:
 
@@ -232,13 +233,24 @@ Sections, in order:
 | 1 | `MISFIRE_ORIG_FIRE_TIME` column | required |
 | 2 | `EXECUTION_GROUP` columns | required |
 | 3 | `PREFERRED_NODE` / `PREFERRED_NODE_AUTO` columns | required |
-| 4 | `QRTZ_PAUSED_JOB_GRPS` table | required |
-| 5 | Index set aligned with the 4.x schema | optional |
+| 4 | `RETRY_POLICY` / `RETRY_ATTEMPT` columns | required |
+| 5 | `QRTZ_PAUSED_JOB_GRPS` table | required |
+| 6 | Index set aligned with the 4.x schema | optional |
 
-Run them in order — the drops in section 5 assume the creates above them have already succeeded.
+Run them in order — the drops in section 6 assume the creates above them have already succeeded.
 
-Sections 1–3 have 3.x counterparts and only fold them in. **Section 4 does not**: it is new in
-4.x, and it is why this migration is required even for a database that is fully migrated on 3.x.
+Sections 1–3 have 3.x counterparts and only fold them in. **Sections 4 and 5 do not**: they are new
+in 4.x, and they are why this migration is required even for a database that is fully migrated on
+3.x.
+
+`RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` back a trigger's retry policy
+([#3520](https://github.com/quartznet/quartznet/issues/3520)): the policy in its stored string form,
+and how many retries of the occurrence being executed have already been made. Both are nullable with
+no default, so every row an upgrade brings across reads as "no retry policy" and nothing has to be
+backfilled. They are added here rather than in a later 4.x release because 4.x no longer probes for
+columns — a column added after 4.0 ships would be a required column, and so a mandatory migration in
+the middle of a major version.
+
 `QRTZ_PAUSED_JOB_GRPS` holds one row per paused job group, mirroring `QRTZ_PAUSED_TRIGGER_GRPS`
 ([#3336](https://github.com/quartznet/quartznet/issues/3336)). 3.x pauses a job group without
 recording it anywhere, so `IsJobGroupPaused` answered `false` for every group and the pause was
@@ -248,12 +260,13 @@ holding no jobs, so this is a table rather than a column on `QRTZ_JOB_DETAILS` �
 rows has nothing to hang a flag on.
 
 If you already built a schema from an **earlier 4.0 preview**, run the script again: every statement
-is guarded, so the only thing it does the second time is create this table. On SQLite run section 4
-alone — the `ADD COLUMN` statements above it have no guard and fail on a database that already has
-those columns.
+is guarded, so all it does the second time is apply what that preview did not have — the retry
+columns, and this table on a preview old enough to predate it. On SQLite nothing above section 5 is
+guarded, so check `PRAGMA table_info(QRTZ_TRIGGERS)` and run only the sections whose columns are
+missing.
 
 The 4.x listing queries page with `ORDER BY JOB_GROUP, JOB_NAME` and
-`ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the primary keys are name-before-group, so section 5
+`ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the primary keys are name-before-group, so section 6
 adds `IDX_QRTZ_J_G_N` and `IDX_QRTZ_T_G_N` to serve those ordered scans. Without them each page
 is a scan plus a sort.
 

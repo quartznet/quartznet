@@ -359,7 +359,7 @@ partial class Build
         // Every dialect but SQLite guards its ADD COLUMN, so its script can land on a database that
         // already took some of the optional 3.x migrations. SQLite has no conditional DDL, so saying
         // the same thing there was a lie -- it fails on the first column that is already present
-        // (#3322). Sections 1-3 are the unguarded ones; section 4 is guarded on every dialect.
+        // (#3322). Sections 1-4 are the unguarded ones; section 5 is guarded on every dialect.
         string[] supersedes = dialect == "sqlite"
             ?
             [
@@ -388,16 +388,24 @@ partial class Build
             "  1. MISFIRE_ORIG_FIRE_TIME column                REQUIRED",
             "  2. EXECUTION_GROUP columns                      REQUIRED",
             "  3. PREFERRED_NODE / PREFERRED_NODE_AUTO         REQUIRED",
-            "  4. QRTZ_PAUSED_JOB_GRPS table                   REQUIRED",
-            "  5. Index set aligned with the 4.x schema        optional",
+            "  4. RETRY_POLICY / RETRY_ATTEMPT                 REQUIRED",
+            "  5. QRTZ_PAUSED_JOB_GRPS table                   REQUIRED",
+            "  6. Index set aligned with the 4.x schema        optional",
             "",
-            "Run the sections in order: the drops in section 5 assume the creates above them have",
+            "Run the sections in order: the drops in section 6 assume the creates above them have",
             "already succeeded.",
             "",
-            "Section 4 has no 3.x counterpart. 3.x pauses a job group without recording it anywhere,",
-            "so a paused job group could not be listed or asked about; 4.x keeps the group names in",
-            "QRTZ_PAUSED_JOB_GRPS, which is what makes JobGroup.Paused answer truthfully and what",
-            "carries the pause across a restart (#3336).",
+            "Sections 4 and 5 have no 3.x counterpart at all, so nothing you ran on 3.x can have",
+            "applied them.",
+            "",
+            "RETRY_POLICY holds a trigger's retry policy and RETRY_ATTEMPT how many retries of the",
+            "occurrence being executed have already been made. Both are nullable with no default, so",
+            "every existing row reads as \"no retry policy\" and no data migration is needed (#3520).",
+            "",
+            "3.x pauses a job group without recording it anywhere, so a paused job group could not be",
+            "listed or asked about; 4.x keeps the group names in QRTZ_PAUSED_JOB_GRPS, which is what",
+            "makes JobGroup.Paused answer truthfully and what carries the pause across a restart",
+            "(#3336).",
         ];
 
         if (dialect == "mysql_innodb")
@@ -414,8 +422,9 @@ partial class Build
                 "4.x removed those probes and assumes all four exist, so a 3.x database that never",
                 "ran the optional migrations will fail against 4.x until this script has run.",
                 "",
-                "4.x also adds a table 3.x never had, QRTZ_PAUSED_JOB_GRPS, and validates its whole",
-                "schema at startup -- so this script is required even for a 3.x database that took",
+                "4.x also adds columns and a table 3.x never had -- RETRY_POLICY and RETRY_ATTEMPT",
+                "on QRTZ_TRIGGERS, and the whole QRTZ_PAUSED_JOB_GRPS table -- and validates its",
+                "schema at startup, so this script is required even for a 3.x database that took",
                 "every optional migration going.",
             ],
             extra,
@@ -437,13 +446,20 @@ partial class Build
                 + AddColumn(dialect, TableTriggers, "PREFERRED_NODE", PreferredNode[dialect])
                 + "\n\n" + AddColumn(dialect, TableTriggers, "PREFERRED_NODE_AUTO", PreferredNodeAuto[dialect]),
 
-            "-- === 4. QRTZ_PAUSED_JOB_GRPS ===\n"
+            "-- === 4. RETRY_POLICY and RETRY_ATTEMPT on QRTZ_TRIGGERS ===\n"
+                + "-- REQUIRED for 4.x, and new in it -- 3.x has no equivalent, so on a database coming\n"
+                + "-- from 3.x both columns are always absent. Nullable with no default: an existing row\n"
+                + "-- reads as \"no retry policy\".\n\n"
+                + AddColumn(dialect, TableTriggers, "RETRY_POLICY", RetryPolicy[dialect])
+                + "\n\n" + AddColumn(dialect, TableTriggers, "RETRY_ATTEMPT", RetryAttempt[dialect]),
+
+            "-- === 5. QRTZ_PAUSED_JOB_GRPS ===\n"
                 + "-- REQUIRED for 4.x, and new in it -- 3.x has no equivalent. One row per paused job\n"
                 + "-- group, mirroring QRTZ_PAUSED_TRIGGER_GRPS. Guarded on every dialect, SQLite\n"
                 + "-- included: CREATE TABLE IF NOT EXISTS is conditional DDL SQLite does have.\n\n"
                 + CreateTable(dialect, TablePausedJobGroups, PausedJobGroupsTable[dialect]),
 
-            "-- === 5. Index set ===\n"
+            "-- === 6. Index set ===\n"
                 + "-- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a\n"
                 + "-- non-trivial number of triggers; the drops only reclaim write cost and storage.\n\n"
                 + Converge(dialect, Target4X(dialect)),

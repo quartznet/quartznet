@@ -34,8 +34,9 @@ These four columns are optional in Quartz.NET 3.x — the scheduler probes for t
 | `PREFERRED_NODE` | `QRTZ_TRIGGERS` | 3.19 |
 | `PREFERRED_NODE_AUTO` | `QRTZ_TRIGGERS` | 3.19 |
 
-4.x also needs a **table** 3.x never had: `QRTZ_PAUSED_JOB_GRPS`, which is what lets a job group be
-paused while it holds nothing and what makes a job group listing report `paused` truthfully.
+4.x also needs two **columns** 3.x never had, `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS`,
+and a **table** 3.x never had, `QRTZ_PAUSED_JOB_GRPS` — which is what lets a job group be paused
+while it holds nothing and what makes a job group listing report `paused` truthfully.
 
 Apply [`database/migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) to add whichever are missing — it covers the table as well as the columns. Every statement is guarded, so it is safe to run on a database that already has some of them. [Database Schema Changes](../../database/schema-changes.md#version-4-0) lists the whole 3.x → 4.x set.
 
@@ -61,6 +62,7 @@ lives in one of the sibling tables — `QRTZ_CRON_TRIGGERS`, `QRTZ_SIMPLE_TRIGGE
 | `MISFIRE_ORIG_FIRE_TIME` | The fire time a misfire handler moved the trigger away from, so a job can see what it missed. |
 | `EXECUTION_GROUP` | The [execution group](../tutorial/execution-groups.md) this trigger's work belongs to. |
 | `PREFERRED_NODE`, `PREFERRED_NODE_AUTO` | [Node affinity](../tutorial/node-affinity.md): which node should acquire this trigger, and whether it claimed the pin itself. |
+| `RETRY_POLICY`, `RETRY_ATTEMPT` | Reserved for a trigger's retry policy ([#3520](https://github.com/quartznet/quartznet/issues/3520)) — the policy in its stored form, and how many retries of the occurrence being executed have been made. Nothing writes them yet, so both are `NULL` on every row. |
 | `JOB_DATA` | The trigger's own `JobDataMap`, serialized. |
 
 ### Trigger states
