@@ -321,6 +321,46 @@ public sealed class TriggerListModel(IScheduler scheduler)
 
 Nothing here loops over keys, and nothing loads a `JobDataMap` the list does not show.
 
+## Shorthands for the query nobody wants to name
+
+A query record that filters nothing is noise, so the five commonest ones have a name of their own. Each
+is the query member with the record filled in, and each pages exactly as the member does — the first
+`PagedQuery.DefaultTake` items, with `HasMore` reporting the rest:
+
+<!-- snippet: sample_querying_shorthands -->
+```csharp
+PagedResult<JobHeader> jobs = await scheduler.QueryJobs();
+PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers();
+PagedResult<FireInstance> running = await scheduler.QueryFireInstances();
+PagedResult<FireInstance> runningOneJob = await scheduler.QueryFireInstancesOfJob(jobKey);
+PagedResult<TriggerHeader> failed = await scheduler.QueryTriggersInError();
+```
+<!-- endSnippet -->
+
+Two more sit beside them. Resetting the failed triggers of a group was a listing plus a key-set reset;
+it is one call:
+
+<!-- snippet: sample_querying_reset_group_from_error -->
+```csharp
+List<TriggerKey> reset = await scheduler.ResetTriggersFromErrorState(
+    GroupMatcher<TriggerKey>.GroupEquals("imports"));
+```
+<!-- endSnippet -->
+
+That is still the two calls underneath — a listing filtered by `State = TriggerState.Error` and the
+group, then `ResetTriggersFromErrorState(keys)` — so it is not one atomic operation, and a trigger that
+fails between them is left for the next call. What resetting a trigger does is unchanged.
+
+And asking whether a calendar is registered no longer means loading it. `GetCalendar` deserializes the
+stored blob to hand you an `ICalendar` you were going to throw away; `Exists` asks the store for the
+name:
+
+<!-- snippet: sample_querying_calendar_exists -->
+```csharp
+bool haveHolidays = await scheduler.Exists("holidays");
+```
+<!-- endSnippet -->
+
 ## The compatibility layer
 
 The old call shapes still compile. `SchedulerQueryExtensions` puts eight of them back as extension

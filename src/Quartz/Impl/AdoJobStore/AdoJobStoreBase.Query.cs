@@ -218,6 +218,28 @@ public abstract partial class AdoJobStoreBase
             "check for existence of trigger");
     }
 
+    /// <summary>
+    /// Determine whether an <see cref="ICalendar" /> with the given name already exists within the
+    /// store.
+    /// </summary>
+    /// <remarks>
+    /// Runs <c>CalendarExists</c>, which selects a constant rather than the calendar blob, so the answer
+    /// costs an index probe instead of a read and a deserialization. The calendar cache is deliberately
+    /// not consulted: it holds what <see cref="GetCalendar(string, CancellationToken)" /> loaded, so it can answer "yes" but never
+    /// "no", and a member that had to fall through to the database half the time would be two code paths
+    /// where one indexed statement does.
+    /// </remarks>
+    /// <param name="calendarName">the name to check for</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>true if a calendar is stored under the given name</returns>
+    public ValueTask<bool> Exists(
+        string calendarName,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteWithoutLock( // no locks necessary for read...
+            conn => CalendarExists(conn, calendarName, cancellationToken), cancellationToken);
+    }
+
     protected ValueTask<List<string>> GetTriggerGroupNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         return Guarded(

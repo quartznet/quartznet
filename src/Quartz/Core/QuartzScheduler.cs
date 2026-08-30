@@ -1946,6 +1946,25 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Determine whether an <see cref="ICalendar" /> with the given name already exists within the
+    /// scheduler.
+    /// </summary>
+    /// <param name="calendarName">the name to check for</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>true if a calendar is registered under the given name</returns>
+    public ValueTask<bool> Exists(
+        string calendarName,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateState();
+
+        // A name nobody registered answers false, and a blank name is one of those — the same shape
+        // GetCalendar and DeleteCalendar have, which is what "a blank calendar name is no calendar
+        // name" means on this side of the store.
+        return resources.JobStore.Exists(calendarName, cancellationToken);
+    }
+
+    /// <summary>
     /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar" />s.
     /// </summary>

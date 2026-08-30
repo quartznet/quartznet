@@ -336,6 +336,20 @@ public interface IJobStore
     ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Determine whether an <see cref="ICalendar" /> with the given name already exists within the
+    /// store.
+    /// </summary>
+    /// <remarks>
+    /// Answer this without materializing the calendar. <see cref="GetCalendar" /> can answer it too, but
+    /// only by reading the stored blob and deserializing it to throw it away — which is what a store
+    /// implementing this member as <c>GetCalendar(name) is not null</c> would go on doing.
+    /// </remarks>
+    /// <param name="calendarName">the name to check for</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>true if a calendar is stored under the given name</returns>
+    ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar" />s.
     /// </summary>

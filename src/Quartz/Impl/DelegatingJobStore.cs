@@ -171,6 +171,11 @@ public class DelegatingJobStore : IJobStore
         return jobStore.Exists(triggerKey, cancellationToken);
     }
 
+    public virtual ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default)
+    {
+        return jobStore.Exists(calendarName, cancellationToken);
+    }
+
     public virtual ValueTask Clear(CancellationToken cancellationToken = default)
     {
         return jobStore.Clear(cancellationToken);

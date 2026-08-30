@@ -483,6 +483,12 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.Exists(triggerKey, cancellationToken).ConfigureAwait(false);
     }
 
+    public async ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default)
+    {
+        var target = await Resolve(cancellationToken).ConfigureAwait(false);
+        return await target.Exists(calendarName, cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask Clear(CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);

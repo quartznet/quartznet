@@ -1123,6 +1123,20 @@ public interface IScheduler : IAsyncDisposable
     ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Determine whether an <see cref="ICalendar" /> with the given name already exists within the
+    /// scheduler.
+    /// </summary>
+    /// <remarks>
+    /// Asks the store for the name alone. <see cref="GetCalendar" /> answers the same question, but only
+    /// by loading and deserializing the calendar — an exclusion set that can run to thousands of dates —
+    /// to throw it away again.
+    /// </remarks>
+    /// <param name="calendarName">the name to check for</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>true if a calendar is registered under the given name</returns>
+    ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar"/>s.
     /// </summary>

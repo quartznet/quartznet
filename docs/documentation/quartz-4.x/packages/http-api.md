@@ -70,7 +70,7 @@ validated against.
 
 ## Every endpoint
 
-Fifty-seven routes in four groups. `{ApiPath}` is `/quartz-api` unless you said otherwise, and
+Sixty routes in four groups. `{ApiPath}` is `/quartz-api` unless you said otherwise, and
 `{name}` is the scheduler the request is for — every route but the first carries one, and every route
 that carries one is subject to
 [`SchedulerAuthorizationPolicy`](#authorizing-per-scheduler) when it is set.
@@ -153,12 +153,13 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/unschedule-by-group` | `{ triggers }` — selects by group matcher in the query string |
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/reschedule` | `{ firstFireTimeUtc }`, **`null`** when the trigger did not exist |
 
-### Calendars — 4
+### Calendars — 5
 
 | Method | Path | Answers |
 |---|---|---|
 | `GET` | `…/calendars` | paged calendar names |
 | `GET` | `…/calendars/{calendarName}` | The calendar |
+| `GET` | `…/calendars/{calendarName}/exists` | `{ exists }` |
 | `POST` | `…/calendars` | empty — adds or replaces; `replace` and `updateTriggers` are body fields |
 | `DELETE` | `…/calendars/{calendarName}` | `{ applied }` |
 

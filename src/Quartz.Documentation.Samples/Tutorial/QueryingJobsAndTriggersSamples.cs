@@ -113,6 +113,38 @@ public static class QueryingJobsAndTriggersSamples
         #endregion
     }
 
+    public static async ValueTask Shorthands(IScheduler scheduler, JobKey jobKey)
+    {
+        #region sample_querying_shorthands
+
+        PagedResult<JobHeader> jobs = await scheduler.QueryJobs();
+        PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers();
+        PagedResult<FireInstance> running = await scheduler.QueryFireInstances();
+        PagedResult<FireInstance> runningOneJob = await scheduler.QueryFireInstancesOfJob(jobKey);
+        PagedResult<TriggerHeader> failed = await scheduler.QueryTriggersInError();
+
+        #endregion
+    }
+
+    public static async ValueTask ResettingAGroupFromError(IScheduler scheduler)
+    {
+        #region sample_querying_reset_group_from_error
+
+        List<TriggerKey> reset = await scheduler.ResetTriggersFromErrorState(
+            GroupMatcher<TriggerKey>.GroupEquals("imports"));
+
+        #endregion
+    }
+
+    public static async ValueTask CalendarExists(IScheduler scheduler)
+    {
+        #region sample_querying_calendar_exists
+
+        bool haveHolidays = await scheduler.Exists("holidays");
+
+        #endregion
+    }
+
     public static void ReservedVersusRunning()
     {
         #region sample_querying_fire_instance_state

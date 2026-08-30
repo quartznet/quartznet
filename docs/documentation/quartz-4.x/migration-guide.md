@@ -4283,6 +4283,7 @@ already have them.
 * **A calendar can have dependencies** — `AddCalendar(name, serviceProvider => …)` builds the calendar from the container, which the `where T : ICalendar, new()` generic overloads cannot (see [A calendar can be built from the container](#a-calendar-can-be-built-from-the-container))
 * **A `quartz.*` key that lost its prefix is refused** — `QuartzOptions.Properties` is read only through the `quartz.` prefix, so a key without one produced no symptom at all; it now fails options validation at startup (see [A property key without the `quartz.` prefix is refused](#a-property-key-without-the-quartz-prefix-is-refused))
 * **An `IJobDetail` of your own** — the interface no longer declares a member only Quartz can implement, so an application can supply its own job detail type and have `RAMJobStore` hand it back rather than quietly swapping it for Quartz's (see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own))
+* **A one-word question needs no query object** — `QueryJobs()`, `QueryTriggers()`, `QueryFireInstances()`, `QueryFireInstancesOfJob(jobKey)` and `QueryTriggersInError()` are the query members with the query record filled in, `ResetTriggersFromErrorState(GroupMatcher<TriggerKey>)` resets the failed triggers of a group, `Exists(string calendarName)` answers whether a calendar is there without deserializing it, and `ISchedulerFactory.GetRequiredScheduler(name)` throws where `LookupScheduler` returns null (see [Asking a one-word question does not need a query object](#asking-a-one-word-question-does-not-need-a-query-object))
 * **Pause, resume and reset a set of keys in one call** — `PauseTriggers`, `ResumeTriggers`, `PauseJobs`, `ResumeJobs` and `ResetTriggersFromErrorState` take a key collection, do the whole set in one lock and one transaction, and answer with the keys they applied to (see [A set of keys pauses, resumes or resets in one call](#a-set-of-keys-pauses-resumes-or-resets-in-one-call))
 * **`TriggerDetailsUpdate.WithExecutionGroup`** — move a stored trigger into an execution group, or out of every group, without rescheduling it. `QRTZ_TRIGGERS.EXECUTION_GROUP` was already written by the generic trigger update, and `RAMJobStore` applies it in place the same way it applies a preferred node, so both stores behave alike
 * **A chain can fan out** — `JobChainingJobListener` takes more than one follow-up for a job, either by calling `AddJobChainLink` again with the same first job or with the new `AddJobChainLinks(firstJob, followUpJobs)`. Each follow-up is triggered as its own firing, so they run concurrently rather than one after another, and one that cannot be triggered is logged without costing its siblings theirs. On 3.x the second link threw, so a chain could only be sequential (see [How do I chain Job execution?](../faq.md#how-do-i-chain-job-execution-or-how-do-i-create-a-workflow))
@@ -4599,7 +4600,7 @@ that this process happened to be holding, so it could only ever answer for one n
 
 ```diff
 - List<IJobExecutionContext> running = await scheduler.GetCurrentlyExecutingJobs();
-+ PagedResult<FireInstance> running = await scheduler.QueryFireInstances(new FireInstanceQuery());
++ PagedResult<FireInstance> running = await scheduler.QueryFireInstances();
 ```
 
 With a persistent job store the answer now covers the whole cluster, because a firing is a row rather
@@ -4707,9 +4708,11 @@ The scheduler body's `statistics` object gained `localExecutingJobs`, mirroring 
 
 ### If you implement `IJobStore`
 
-Three members. `QueryFireInstances(FireInstanceQuery, CancellationToken)` is the listing, abstract like
+Four members. `QueryFireInstances(FireInstanceQuery, CancellationToken)` is the listing, abstract like
 the rest of the query family; `QueryClusterNodes(CancellationToken)` is the node listing described in
-[The nodes of a cluster are a listing](#the-nodes-of-a-cluster-are-a-listing). And `Initialize` takes a
+[The nodes of a cluster are a listing](#the-nodes-of-a-cluster-are-a-listing);
+`Exists(string calendarName, CancellationToken)` is what replaced `CalendarExists` and is meant to be
+answered without materializing the calendar. And `Initialize` takes a
 `SchedulerIdentity`, which is the whole of what it takes — see
 [SPI changes](#spi-changes) for what its 3.x parameters became:
 
@@ -5069,7 +5072,7 @@ soften it — if you implement a job store, you implement the query members:
 | `GetCalendarNames` | `QueryCalendarNames` |
 | `IsJobGroupPaused`, `IsTriggerGroupPaused` | the matching `Query*Groups` with `Name` and `Paused = true` |
 | `GetNumberOfJobs`, `GetNumberOfTriggers`, `GetNumberOfCalendars` | the matching query with `Take = 0, IncludeTotalCount = true` |
-| `CalendarExists(name)` | `await GetCalendar(name) is not null` — `GetCalendar` returns `ICalendar?` and answers `null` for a name that is not there |
+| `CalendarExists(name)` | `Exists(string calendarName)`, which is the same question under the name the job and trigger overloads already use — see [Asking a one-word question does not need a query object](#asking-a-one-word-question-does-not-need-a-query-object) |
 
 Two members are new on both interfaces: **`GetJobDetails(jobKeys)`** and **`GetTriggers(triggerKeys)`**
 retrieve many by key in one round trip. Keys that do not exist are simply absent, duplicates fold away, and
@@ -5263,6 +5266,88 @@ detected such an override; 4.0 removes the half-open door). A delegate for a dat
 Finally, `ITriggerPersistenceDelegate` gained a batch `LoadExtendedTriggerProperties` taking several trigger
 keys. It is a **default interface method** that loops the single-key overload, so a third-party trigger
 persistence delegate needs no change; override it only to turn a batch into one round trip.
+
+## Asking a one-word question does not need a query object
+
+The paged query objects are the right primitive for a listing, and they are staying. What they cost is
+the trivial case, where the replacement for a parameterless call was
+`QueryFireInstances(new FireInstanceQuery())` — a record whose only job was to be the shape the member
+takes. Five shorthands close that, and none of them changes what the member behind it does.
+
+| Instead of | Write |
+|---|---|
+| `QueryJobs(new JobQuery())` | `QueryJobs()` |
+| `QueryTriggers(new TriggerQuery())` | `QueryTriggers()` |
+| `QueryFireInstances(new FireInstanceQuery())` | `QueryFireInstances()` |
+| `QueryFireInstances(new FireInstanceQuery { Job = jobKey })` | `QueryFireInstancesOfJob(jobKey)` |
+| `QueryTriggers(new TriggerQuery { State = TriggerState.Error })` | `QueryTriggersInError()` |
+
+They are extension methods in `SchedulerQueryExtensions`, beside the 3.x-compatible listings — but they
+belong to the *other* family in that class, and page the way the member they call pages:
+`PagedQuery.DefaultTake` items, with `HasMore` reporting the rest. Name the query record when you want a
+different page, a total count, or a filter.
+
+### Resetting the triggers that failed is one call each way
+
+`ResetTriggerFromErrorState(TriggerKey)` and `ResetTriggersFromErrorState(IReadOnlyCollection<TriggerKey>)`
+were already there, and `TriggerQuery.State` could already select the failed ones. What was missing was a
+way to say "the ones in this group":
+
+```csharp
+// Before
+PagedResult<TriggerHeader> failed = await scheduler.QueryTriggers(new TriggerQuery
+{
+    Group = GroupMatcher<TriggerKey>.GroupEquals("imports"),
+    State = TriggerState.Error,
+    Take = int.MaxValue
+});
+await scheduler.ResetTriggersFromErrorState(failed.Items.Select(x => x.Key).ToList());
+
+// After
+await scheduler.ResetTriggersFromErrorState(GroupMatcher<TriggerKey>.GroupEquals("imports"));
+```
+
+It is that pair of calls, not a new store operation: two round trips, not one transaction, and a trigger
+that enters the error state between them is left for the next call. What resetting a trigger *does* is
+unchanged. Passing `null` throws rather than quietly meaning every group.
+
+### `Exists` has a calendar overload
+
+`IScheduler.Exists` and `IJobStore.Exists` took a `JobKey` or a `TriggerKey`. Asking the same question
+about a calendar meant loading it:
+
+```diff
+- bool exists = await scheduler.GetCalendar("holidays") is not null;
++ bool exists = await scheduler.Exists("holidays");
+```
+
+The difference is not spelling. `GetCalendar` reads the stored blob and deserializes it — an
+`AnnualCalendar` holding a decade of excluded days, materialized to be thrown away. The overload asks the
+store for the name: `RAMJobStore` looks it up without cloning, and the ADO.NET store runs the existence
+statement that selects a constant rather than the calendar column. **No new `IDriverDelegate` member** —
+`CalendarExists` has been on that interface all along, used by `AddCalendar` and by the trigger update
+that validates a calendar reference; it simply had nothing above it.
+
+Over HTTP it is `GET {ApiPath}/schedulers/{name}/calendars/{calendarName}/exists`, answering
+`{ "exists": … }` like the job and trigger routes it mirrors.
+
+### A scheduler can be required rather than looked up
+
+`ISchedulerFactory.LookupScheduler` answers `null` for a name this container does not know, so every
+caller that treats absence as a bug wrote the same throw:
+
+```diff
+- IScheduler scheduler = await factory.LookupScheduler("reporting")
+-     ?? throw new InvalidOperationException("No scheduler named 'reporting'");
++ IScheduler scheduler = await factory.GetRequiredScheduler("reporting");
+```
+
+`GetRequiredScheduler` throws `SchedulerNotFoundException`, which is a `SchedulerException` carrying the
+`SchedulerName` that was asked for. It is an extension method rather than a member of `ISchedulerFactory`,
+for two reasons: it is composition over `LookupScheduler` that no factory could implement better, and an
+extension also resolves on a concrete receiver such as `StandaloneSchedulerFactory`, where a default
+interface method would need a cast. `LookupScheduler` is unchanged and stays the right call when a
+missing scheduler is an answer rather than a failure.
 
 ## Trigger states are typed on the driver delegate
 

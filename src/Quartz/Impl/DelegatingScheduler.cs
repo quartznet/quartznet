@@ -330,6 +330,11 @@ public class DelegatingScheduler : IScheduler
         return scheduler.Exists(triggerKey, cancellationToken);
     }
 
+    public virtual ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default)
+    {
+        return scheduler.Exists(calendarName, cancellationToken);
+    }
+
     public virtual ValueTask Clear(CancellationToken cancellationToken = default)
     {
         return scheduler.Clear(cancellationToken);

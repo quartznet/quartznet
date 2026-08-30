@@ -842,6 +842,12 @@ public sealed class HttpScheduler : IScheduler
         return result.Exists;
     }
 
+    public async ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default)
+    {
+        var result = await httpClient.Get<ExistsResponse>($"{CalendarEndpointUrl(calendarName)}/exists", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Exists;
+    }
+
     public ValueTask Clear(CancellationToken cancellationToken = default)
     {
         return httpClient.Post($"{SchedulerEndpointUrl()}/clear", jsonSerializerOptions, cancellationToken);

@@ -192,6 +192,11 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
+        public ValueTask<bool> Exists(string calendarName, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask Clear(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();

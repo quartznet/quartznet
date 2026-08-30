@@ -127,4 +127,29 @@ public class CalendarEndpointsTest : WebApiTest
         await HttpScheduler.DeleteCalendar("MyOldCalendar");
         A.CallTo(() => FakeScheduler.DeleteCalendar("MyOldCalendar", A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
+
+    /// <summary>
+    /// The calendar existence route mirrors the job and trigger ones, and — the point of the member —
+    /// it asks the scheduler the existence question rather than fetching the calendar to look at it.
+    /// </summary>
+    [Test]
+    public async Task CalendarExistsShouldRoundTripTheAnswerWithoutFetchingTheCalendar()
+    {
+        A.CallTo(() => FakeScheduler.Exists("AnnualCalendar", A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => FakeScheduler.Exists("NonExistingCalendar", A<CancellationToken>._)).Returns(false);
+
+        (await HttpScheduler.Exists("AnnualCalendar")).Should().BeTrue();
+        (await HttpScheduler.Exists("NonExistingCalendar")).Should().BeFalse();
+
+        A.CallTo(() => FakeScheduler.GetCalendar(A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task CalendarExistsShouldRejectABlankNameBeforeTheRequestIsMade()
+    {
+        Func<Task> blank = async () => await HttpScheduler.Exists("  ");
+
+        await blank.Should().ThrowAsync<ArgumentException>()
+            .WithParameterName("calendarName", "a blank name would produce a URL that means a different route");
+    }
 }

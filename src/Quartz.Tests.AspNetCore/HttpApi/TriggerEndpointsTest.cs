@@ -727,6 +727,50 @@ public class TriggerEndpointsTest : WebApiTest
             .WithMessage("*HttpScheduler.UpdateTriggerDetails*");
     }
 
+    /// <summary>
+    /// The group-matcher reset is an extension over two routes that already exist, so what has to hold
+    /// remotely is that both halves reach the server: the listing that names the set, with the error
+    /// state and the group on it, and the key-set reset that acts on what came back.
+    /// </summary>
+    [Test]
+    public async Task ResetTriggersFromErrorStateByGroupShouldRunOnTheRoutesItComposes()
+    {
+        GroupMatcher<TriggerKey> matcher = GroupMatcher<TriggerKey>.GroupEquals("group1");
+
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>([HeaderFor(triggerKeyOne)], HasMore: false));
+        A.CallTo(() => FakeScheduler.ResetTriggersFromErrorState(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<TriggerKey> { triggerKeyOne });
+
+        List<TriggerKey> reset = await HttpScheduler.ResetTriggersFromErrorState(matcher);
+
+        reset.Should().Equal([triggerKeyOne]);
+
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((TriggerQuery query, CancellationToken _) =>
+                query.State == TriggerState.Error && Equals(query.Group, matcher))
+            .MustHaveHappened(1, Times.Exactly);
+
+        A.CallTo(() => FakeScheduler.ResetTriggersFromErrorState(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IReadOnlyCollection<TriggerKey> keys, CancellationToken _) => keys.SequenceEqual([triggerKeyOne]))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task ResetTriggersFromErrorStateByGroupShouldNotPostWhenNothingIsInError()
+    {
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>([], HasMore: false));
+
+        List<TriggerKey> reset = await HttpScheduler.ResetTriggersFromErrorState(GroupMatcher<TriggerKey>.AnyGroup());
+
+        reset.Should().BeEmpty();
+
+        // An empty set is not a request worth making, remotely least of all.
+        A.CallTo(() => FakeScheduler.ResetTriggersFromErrorState(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .MustNotHaveHappened();
+    }
+
     private static TriggerHeader HeaderFor(TriggerKey triggerKey) => new(
         triggerKey,
         JobKey: new JobKey("job_of_" + triggerKey.Name, triggerKey.Group),
