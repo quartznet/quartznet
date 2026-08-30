@@ -415,6 +415,34 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return this;
     }
 
+    /// <remarks>
+    /// Registered as content rather than as a service, for the reason a listener is: a middleware that
+    /// was also resolvable as <c>IJobExecutionMiddleware</c> would be a second source the pipeline would
+    /// have to deduplicate against, and there is no name to deduplicate by.
+    /// </remarks>
+    public IQuartzBuilder AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IJobExecutionMiddleware
+    {
+        AddContent(new JobExecutionMiddlewareRegistration(typeof(T)));
+        return this;
+    }
+
+    public IQuartzBuilder AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Func<IServiceProvider, T> factory) where T : class, IJobExecutionMiddleware
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        AddContent(new JobExecutionMiddlewareRegistration(typeof(T), middlewareFactory: provider => factory(provider)));
+        return this;
+    }
+
+    public IQuartzBuilder AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        T middleware) where T : class, IJobExecutionMiddleware
+    {
+        ArgumentNullException.ThrowIfNull(middleware);
+        AddContent(new JobExecutionMiddlewareRegistration(typeof(T), middlewareInstance: middleware));
+        return this;
+    }
+
     public IQuartzBuilder UseExecutionLimits(Action<ExecutionLimitsBuilder> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);

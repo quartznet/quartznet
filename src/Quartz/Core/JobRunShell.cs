@@ -220,10 +220,18 @@ internal sealed class JobRunShell
                 Instrumentation instrumentation = qs.resources.Meters.StartJobExecute(context);
 
 
-                // Execute the job
+                // Execute the job, through this scheduler's middleware when it has any. Inside the
+                // activity and the instrumentation above, so what a middleware costs is part of what the
+                // firing cost, and outside the classification below, so an exception a middleware throws
+                // is treated exactly as one the job threw.
                 try
                 {
-                    await jobScope.Job.Execute(context, context.CancellationToken).ConfigureAwait(false);
+                    JobExecutionDelegate? pipeline = qs.resources.JobExecutionPipeline;
+                    ValueTask execution = pipeline is null
+                        ? jobScope.Job.Execute(context, context.CancellationToken)
+                        : pipeline(context, context.CancellationToken);
+
+                    await execution.ConfigureAwait(false);
                     endTimestamp = timeProvider.GetTimestamp();
                 }
                 catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)

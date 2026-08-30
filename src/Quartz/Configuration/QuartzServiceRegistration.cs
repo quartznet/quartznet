@@ -221,6 +221,7 @@ internal static class QuartzServiceRegistration
                 JobStore = Instrument(provider.GetScheduler<IJobStore>(key), meters, timeProvider),
                 JobRunShellFactory = provider.GetScheduler<IJobRunShellFactory>(key),
                 SchedulerRepository = provider.GetRequiredService<ISchedulerRepository>(),
+                JobExecutionPipeline = ComposeJobExecutionPipeline(provider, key),
             };
 
             // Plugins are added by the scheduler factory rather than here, because those named by
@@ -281,6 +282,37 @@ internal static class QuartzServiceRegistration
         {
             services.TryAddKeyedSingleton(key, (provider, serviceKey) => factory(provider, serviceKey));
         }
+    }
+
+    /// <summary>
+    /// Builds this scheduler's middleware and folds it around the job, once, on the way into the
+    /// resources.
+    /// </summary>
+    /// <remarks>
+    /// Here rather than in <see cref="SchedulerContentInitializer" /> because the pipeline is part of
+    /// what the scheduler <em>is</em> rather than content applied to it once it exists: the run shell
+    /// reads it out of the resources on every firing, so it has to be there before the first one. Each
+    /// middleware is built from this scheduler's own view of the container, so a middleware that takes a
+    /// scheduler's parts is handed that scheduler's.
+    /// </remarks>
+    private static JobExecutionDelegate? ComposeJobExecutionPipeline(IServiceProvider provider, object? key)
+    {
+        List<JobExecutionMiddlewareRegistration> registrations =
+            [.. provider.GetSchedulerServices<JobExecutionMiddlewareRegistration>(key)];
+
+        if (registrations.Count == 0)
+        {
+            return null;
+        }
+
+        IServiceProvider scoped = Scoped(provider, key);
+        List<IJobExecutionMiddleware> middleware = new(registrations.Count);
+        foreach (JobExecutionMiddlewareRegistration registration in registrations)
+        {
+            middleware.Add(registration.CreateMiddleware(scoped));
+        }
+
+        return JobExecutionPipeline.Compose(middleware);
     }
 
     /// <summary>
