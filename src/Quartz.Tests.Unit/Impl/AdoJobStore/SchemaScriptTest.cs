@@ -23,6 +23,8 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 
+using Quartz.Impl.AdoJobStore;
+
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <summary>
@@ -66,6 +68,26 @@ public class SchemaScriptTest
             $"a table in database/tables/tables_{dialect}.sql and not in the generated script is one "
             + "SchemaProvisioning.CreateIfMissing leaves out, and one the store validates for immediately "
             + "afterwards");
+    }
+
+    /// <summary>
+    /// The third file in the pair's conversation: the list the store probes at startup.
+    /// </summary>
+    /// <remarks>
+    /// The two scripts agreeing with each other is not enough, because both can create a table the
+    /// store never asks about. <c>AdoConstants.AllTableNames</c> is what
+    /// <see cref="SchemaProvisioning.Validate" /> runs a <c>SELECT 1</c> against, so a table in the
+    /// scripts and not in that list is one a database can be missing while startup reports the schema
+    /// good — which is what #3564 was, about <c>QRTZ_SIMPROP_TRIGGERS</c>.
+    /// </remarks>
+    [TestCaseSource(nameof(Dialects))]
+    public void EveryTableTheFreshInstallScriptCreatesIsOneTheStoreValidates(string dialect)
+    {
+        SqlObjects fresh = SqlObjects.Parse(FreshInstallScript(dialect));
+
+        fresh.Tables.Keys.Should().BeEquivalentTo(AdoConstants.AllTableNames,
+            $"database/tables/tables_{dialect}.sql and AdoConstants.AllTableNames describe the same "
+            + "schema — one creates it, the other is the whole of what startup checks is there");
     }
 
     [TestCaseSource(nameof(Dialects))]
