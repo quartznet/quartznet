@@ -2137,6 +2137,30 @@ options object. Subclasses registered with `AddQuartzHostedService<T>()` need th
 updated; the `Starting`/`Started`/`Stopping`/`Stopped` overrides are unchanged. The internal
 `NamedSchedulerHostedService` is gone, its work having moved into the one service.
 
+### A hosted scheduler can be started by the application
+
+New in 4.x, with nothing to migrate. `QuartzHostedServiceOptions.AutoStart` defaults to `true`, which is
+what the hosted service has always done; setting it to `false` has the scheduler resolved, initialized
+and bound with the host but left in `SchedulerStatus.Created` for the application to start:
+
+```csharp
+services.AddQuartzHostedService("Reporting", options => options.AutoStart = false);
+```
+
+On 3.x the only way not to start a scheduler was not to register the hosted service, which lost the
+shutdown handling with it. The scheduler is bound, so `ISchedulerRegistry`, the dashboard and
+`GET /schedulers` all report it, and it is still shut down when the host stops — opting out of the start
+is not opting out of the stop. `AutoStart` wins over `AwaitApplicationStarted` and `StartDelay`, both of
+which say *when* the hosted service starts a scheduler that it does not start at all.
+
+The health check follows: a scheduler in `Created` whose `AutoStart` is `false` is reported **degraded**
+rather than **unhealthy**, on the same argument as standby — it is doing what it was told, and failing
+the probe would take a correctly configured node out of rotation. A `Created` scheduler that nothing
+opted out of is unhealthy as before.
+
+A library embedding Quartz in someone else's application is what this is for, and the how-to page on
+embedding Quartz in a library covers the whole pattern.
+
 ## The ASP.NET Core methods say Quartz once
 
 | Before | After |
@@ -8530,6 +8554,7 @@ Parameters and behavior are unchanged:
 | `AddQuartzSchedulers(IConfiguration, …)` added | `AddQuartz(configuration)` no longer fans out over a `Schedulers` section; it throws and points here |
 | `QuartzHostedService` takes an `IServiceProvider` and an `IOptionsMonitor` | It resolves every scheduler in the container when the host starts — see [The hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler) |
 | `AddQuartzHostedService(string schedulerName, …)` added | `QuartzHostedServiceOptions` are named options; the unnamed call still configures every scheduler |
+| `QuartzHostedServiceOptions.AutoStart` added | Defaults to `true`, so nothing changes for an existing application. `false` has the scheduler resolved, initialized and bound but left in `Created` for the application to start, and the health check reports it degraded rather than unhealthy — see [A hosted scheduler can be started by the application](#a-hosted-scheduler-can-be-started-by-the-application) |
 | `IQuartzBuilder.AddHttpApi` / `MapQuartzApi` renamed | `services.AddQuartzHttpApi()` / `MapQuartzHttpApi`, the first of them on the service collection rather than a scheduler's builder; `AddQuartzHealthChecks` gained an `IQuartzBuilder` overload, which it keeps because a health check really is one scheduler's |
 | The health check is added on `IHealthChecksBuilder` | `AddHealthChecks().AddQuartz()` / `.AddQuartz("reporting")`, so it composes with an application's other checks. `AddQuartzHealthChecks()` is shorthand for the first — see [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once) |
 | The health check ships in `Quartz` | It was in `Quartz.AspNetCore` through `4.0.0-alpha.3`, whose `FrameworkReference` a worker on a `dotnet/runtime` image cannot satisfy. No call site changes; drop the package reference if the check was the only reason for it — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |

@@ -65,6 +65,64 @@ public class QuartzHealthCheckTests
     }
 
     /// <summary>
+    /// A scheduler the application starts itself is in <see cref="SchedulerStatus.Created" /> by design,
+    /// so the probe reports what standby reports rather than taking the node out of rotation.
+    /// </summary>
+    [Test]
+    public async Task ACreatedSchedulerTheApplicationStartsIsDegradedRatherThanUnhealthy()
+    {
+        HealthReportEntry result = await Check(SchedulerStatus.Created, hostedService: options => options.AutoStart = false);
+
+        result.Status.Should().Be(
+            HealthStatus.Degraded,
+            "AutoStart = false says the application presses start, so a created scheduler is the configuration "
+            + "working rather than failing - and unhealthy would take a correctly configured node out of rotation");
+        result.Description.Should().Contain("created").And.Contain("application").And.Contain("core");
+    }
+
+    /// <summary>
+    /// The other side of the same branch: a scheduler the hosted service was going to start, and has
+    /// not, is a fault.
+    /// </summary>
+    [Test]
+    public async Task ACreatedSchedulerTheHostedServiceWasGoingToStartIsStillUnhealthy()
+    {
+        HealthReportEntry result = await Check(SchedulerStatus.Created, hostedService: _ => { });
+
+        result.Status.Should().Be(
+            HealthStatus.Unhealthy,
+            "nothing opted out of the automatic start, so a scheduler still sitting in Created is the failure it "
+            + "always was");
+        result.Description.Should().Contain("never started");
+    }
+
+    /// <summary>
+    /// <c>AutoStart</c> is one scheduler's setting, and the check has to read the options registered under
+    /// the name of the scheduler it reports on.
+    /// </summary>
+    [Test]
+    public async Task ACheckReadsTheAutoStartOfItsOwnSchedulerRatherThanAnothers()
+    {
+        ServiceCollection services = new();
+        services.AddLogging();
+        services.AddSingleton(FactoryFor("core", SchedulerStatus.Created));
+        services.AddKeyedSingleton(typeof(ISchedulerFactory), "reporting", (_, _) => FactoryFor("reporting", SchedulerStatus.Created));
+        services.AddQuartzHealthChecks();
+        services.AddHealthChecks().AddQuartz("reporting");
+        services.AddQuartzHostedService("reporting", options => options.AutoStart = false);
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        (await Run(provider, "quartz-scheduler-reporting")).Status.Should().Be(
+            HealthStatus.Degraded,
+            "'reporting' is the scheduler that opted out");
+
+        (await Run(provider, "quartz-scheduler")).Status.Should().Be(
+            HealthStatus.Unhealthy,
+            "the default scheduler's options are its own, and nothing set AutoStart on them");
+    }
+
+    /// <summary>
     /// A container whose schedulers are all named has no default one, and the check for it must say so
     /// rather than throw.
     /// </summary>
@@ -93,7 +151,16 @@ public class QuartzHealthCheckTests
             "the message has to name the way out, since the check cannot know which scheduler was meant");
     }
 
-    private static async Task<HealthReportEntry> Check(SchedulerStatus status, SchedulerException? storeFailure = null)
+    /// <param name="status">The state the scheduler reports.</param>
+    /// <param name="storeFailure">What the store probe throws, when the test is about that.</param>
+    /// <param name="hostedService">
+    /// Registers the hosted service and configures it. Left <see langword="null" /> there is none in the
+    /// container at all, which is the case that leaves <c>AutoStart</c> at its default.
+    /// </param>
+    private static async Task<HealthReportEntry> Check(
+        SchedulerStatus status,
+        SchedulerException? storeFailure = null,
+        Action<QuartzHostedServiceOptions>? hostedService = null)
     {
         IScheduler scheduler = A.Fake<IScheduler>();
         A.CallTo(() => scheduler.SchedulerName).Returns("core");
@@ -112,9 +179,25 @@ public class QuartzHealthCheckTests
         services.AddSingleton(factory);
         services.AddQuartzHealthChecks();
 
+        if (hostedService is not null)
+        {
+            services.AddQuartzHostedService(hostedService);
+        }
+
         await using ServiceProvider provider = services.BuildServiceProvider();
 
         return await Run(provider, "quartz-scheduler");
+    }
+
+    private static ISchedulerFactory FactoryFor(string name, SchedulerStatus status)
+    {
+        IScheduler scheduler = A.Fake<IScheduler>();
+        A.CallTo(() => scheduler.SchedulerName).Returns(name);
+        A.CallTo(() => scheduler.Status).Returns(status);
+
+        ISchedulerFactory factory = A.Fake<ISchedulerFactory>();
+        A.CallTo(() => factory.GetScheduler(A<CancellationToken>._)).Returns(new ValueTask<IScheduler>(scheduler));
+        return factory;
     }
 
     private static async Task<HealthReportEntry> Run(ServiceProvider provider, string checkName)
