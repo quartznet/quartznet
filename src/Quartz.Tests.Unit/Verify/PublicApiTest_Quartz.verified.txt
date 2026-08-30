@@ -532,6 +532,10 @@ namespace Quartz
     {
         Quartz.IJobExecutionContext? Current { get; }
     }
+    public interface IJobExecutionMiddleware
+    {
+        System.Threading.Tasks.ValueTask Invoke(Quartz.IJobExecutionContext context, Quartz.JobExecutionDelegate next, System.Threading.CancellationToken cancellationToken = default);
+    }
     public interface IJobListener
     {
         string Name { get; }
@@ -605,6 +609,12 @@ namespace Quartz
             where T :  class, Quartz.IJobListener;
         Quartz.IQuartzBuilder AddJobListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(T listener, [System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>> matchers)
             where T :  class, Quartz.IJobListener;
+        Quartz.IQuartzBuilder AddJobMiddleware<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
+            where T :  class, Quartz.IJobExecutionMiddleware;
+        Quartz.IQuartzBuilder AddJobMiddleware<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Func<System.IServiceProvider, T> factory)
+            where T :  class, Quartz.IJobExecutionMiddleware;
+        Quartz.IQuartzBuilder AddJobMiddleware<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(T middleware)
+            where T :  class, Quartz.IJobExecutionMiddleware;
         Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(string? name = null)
             where T :  class, Quartz.Extensibility.ISchedulerPlugin;
         Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Func<System.IServiceProvider, T> factory, string? name = null)
@@ -920,6 +930,7 @@ namespace Quartz
     {
         public static TInput? GetInput<TInput>(this Quartz.IJobExecutionContext context) { }
     }
+    public delegate System.Threading.Tasks.ValueTask JobExecutionDelegate(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken);
     public sealed class JobExecutionException : Quartz.SchedulerException
     {
         public JobExecutionException() { }
@@ -1326,6 +1337,12 @@ namespace Quartz
             where T :  class, Quartz.IJobListener { }
         public Quartz.QuartzSchedulerBuilder AddJobListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(T listener, [System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>> matchers)
             where T :  class, Quartz.IJobListener { }
+        public Quartz.QuartzSchedulerBuilder AddJobMiddleware<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
+            where T :  class, Quartz.IJobExecutionMiddleware { }
+        public Quartz.QuartzSchedulerBuilder AddJobMiddleware<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Func<System.IServiceProvider, T> factory)
+            where T :  class, Quartz.IJobExecutionMiddleware { }
+        public Quartz.QuartzSchedulerBuilder AddJobMiddleware<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(T middleware)
+            where T :  class, Quartz.IJobExecutionMiddleware { }
         public Quartz.QuartzSchedulerBuilder AddJobType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>()
             where TJob :  class, Quartz.IJob { }
         public Quartz.QuartzSchedulerBuilder AddJobType<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>(Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime)

@@ -402,6 +402,54 @@ public sealed class JobExecutionObservabilityTest
     }
 
     /// <summary>
+    /// The span is opened around the whole pipeline, not around the job alone.
+    /// </summary>
+    /// <remarks>
+    /// Middleware is invoked inside the activity and the meter bracket on purpose: what a log scope, a
+    /// tenant lookup or a timeout costs is part of what the firing cost, and a trace that showed the job
+    /// but not the middleware wrapped around it would attribute that time to nothing.
+    /// </remarks>
+    [Test]
+    public async Task TheExecutionSpanWrapsTheWholeMiddlewareChain()
+    {
+        ActivityReadingMiddleware middleware = new();
+
+        Execution execution = await RunJob<SucceedingJob>(middleware: middleware);
+
+        Activity activity = ActivityFor(execution.JobKey);
+
+        middleware.OnTheWayIn.Should().BeSameAs(activity,
+            "a middleware is entered after the span has been started, so anything it traces is a child "
+            + "of the execution rather than an orphan");
+        middleware.OnTheWayOut.Should().BeSameAs(activity,
+            "and the span is still open while a middleware's finally block runs, which is where a "
+            + "timing or a cleanup middleware does its work");
+    }
+
+    /// <summary>
+    /// A middleware runs outside the run shell's exception handling, so what it throws is classified as
+    /// though the job had thrown it.
+    /// </summary>
+    [Test]
+    public async Task AMiddlewareThatThrows_FailsTheSpanTheWayAJobDoes()
+    {
+        Execution execution = await RunJob<SucceedingJob>(middleware: new ThrowingMiddleware());
+
+        Activity activity = ActivityFor(execution.JobKey);
+
+        activity.Status.Should().Be(ActivityStatusCode.Error,
+            "the job itself succeeded, but the firing did not — and the firing is what the span is about");
+        activity.GetTagItem(ErrorTypeTag).Should().Be(typeof(InvalidOperationException).FullName,
+            "an exception a middleware lets out is unwrapped and reported exactly like one the job threw");
+
+        MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteDuration)
+            .Tags.Should().ContainKey(ErrorTypeTag)
+            .WhoseValue.Should().Be(typeof(InvalidOperationException).FullName,
+                "the histogram and the span agree about what failed, whether the failure came from the "
+                + "job or from something wrapped around it");
+    }
+
+    /// <summary>
     /// A vetoed fire is a span of its own, and nothing an execution histogram ever hears about.
     /// </summary>
     /// <remarks>
@@ -459,7 +507,10 @@ public sealed class JobExecutionObservabilityTest
     /// Builds a scheduler the way an application does, runs the job its trigger fires exactly once, and
     /// shuts everything down before returning — so an assertion never races the execution it is about.
     /// </summary>
-    private static async Task<Execution> RunJob<TJob>(bool veto = false, string executionGroup = null) where TJob : IJob
+    private static async Task<Execution> RunJob<TJob>(
+        bool veto = false,
+        string executionGroup = null,
+        IJobExecutionMiddleware middleware = null) where TJob : IJob
     {
         string id = Guid.NewGuid().ToString("N");
         JobKey jobKey = new($"job-{id}", $"job-group-{id}");
@@ -477,6 +528,11 @@ public sealed class JobExecutionObservabilityTest
             if (veto)
             {
                 quartz.AddTriggerListener(new VetoingTriggerListener());
+            }
+
+            if (middleware is not null)
+            {
+                quartz.AddJobMiddleware(middleware);
             }
             quartz.AddJob<TJob>(job => job.WithIdentity(jobKey));
             quartz.AddTrigger<TJob>(trigger => trigger
@@ -598,6 +654,40 @@ public sealed class JobExecutionObservabilityTest
         {
             executed.TrySetResult(context.FireInstanceId);
             return default;
+        }
+    }
+
+    /// <summary>
+    /// Reads the ambient <see cref="Activity" /> on both sides of the rest of the pipeline.
+    /// </summary>
+    public sealed class ActivityReadingMiddleware : IJobExecutionMiddleware
+    {
+        public Activity OnTheWayIn { get; private set; }
+
+        public Activity OnTheWayOut { get; private set; }
+
+        public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
+        {
+            OnTheWayIn = Activity.Current;
+            try
+            {
+                await next(context, cancellationToken);
+            }
+            finally
+            {
+                OnTheWayOut = Activity.Current;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Fails the firing without the job having anything to do with it.
+    /// </summary>
+    public sealed class ThrowingMiddleware : IJobExecutionMiddleware
+    {
+        public ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("this middleware fails on purpose");
         }
     }
 

@@ -551,6 +551,30 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         return this;
     }
 
+    /// <inheritdoc cref="IQuartzBuilder.AddJobMiddleware{T}()" />
+    public QuartzSchedulerBuilder AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IJobExecutionMiddleware
+    {
+        inner.AddJobMiddleware<T>();
+        return this;
+    }
+
+    /// <inheritdoc cref="IQuartzBuilder.AddJobMiddleware{T}(Func{IServiceProvider, T})" />
+    public QuartzSchedulerBuilder AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Func<IServiceProvider, T> factory) where T : class, IJobExecutionMiddleware
+    {
+        inner.AddJobMiddleware(factory);
+        return this;
+    }
+
+    /// <inheritdoc cref="IQuartzBuilder.AddJobMiddleware{T}(T)" />
+    public QuartzSchedulerBuilder AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        T middleware) where T : class, IJobExecutionMiddleware
+    {
+        inner.AddJobMiddleware(middleware);
+        return this;
+    }
+
     /// <inheritdoc cref="IQuartzBuilder.UseExecutionLimits" />
     public QuartzSchedulerBuilder UseExecutionLimits(Action<ExecutionLimitsBuilder> configure)
     {
@@ -849,6 +873,14 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
 
     IQuartzBuilder IQuartzBuilder.AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) => AddTriggerListener(factory, matchers);
+
+    IQuartzBuilder IQuartzBuilder.AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() => AddJobMiddleware<T>();
+
+    IQuartzBuilder IQuartzBuilder.AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Func<IServiceProvider, T> factory) => AddJobMiddleware(factory);
+
+    IQuartzBuilder IQuartzBuilder.AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        T middleware) => AddJobMiddleware(middleware);
 
     IQuartzBuilder IQuartzBuilder.UseExecutionLimits(Action<ExecutionLimitsBuilder> configure) => UseExecutionLimits(configure);
 }

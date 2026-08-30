@@ -311,5 +311,17 @@ internal sealed class QuartzSchedulerResources
     /// </remarks>
     internal IJobInputSerializer JobInputSerializer { get; set; } = new Impl.SystemTextJsonJobInputSerializer();
 
+    /// <summary>
+    /// The <see cref="IJobExecutionMiddleware" /> chain wrapped around this scheduler's job executions,
+    /// or <see langword="null" /> when it has none.
+    /// </summary>
+    /// <remarks>
+    /// Composed once here rather than per firing, because the chain is the same for every firing a
+    /// scheduler performs — see <see cref="Core.JobExecutionPipeline.Compose" />. Null rather than a
+    /// chain that is only the job, so a scheduler with no middleware runs the job through exactly the
+    /// call it always did.
+    /// </remarks>
+    internal JobExecutionDelegate? JobExecutionPipeline { get; set; }
+
     internal ISchedulerRepository SchedulerRepository { get; set; }
 }

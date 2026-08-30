@@ -391,6 +391,44 @@ public interface IQuartzBuilder
         Func<IServiceProvider, T> factory, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers) where T : class, ITriggerListener;
 
     /// <summary>
+    /// Adds a middleware the container builds, which wraps every job this scheduler executes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Middleware is where a cross-cutting concern lives — a log scope, a tenant context, a timeout, a
+    /// translation of what a library throws. A listener cannot do any of those: it is notified before
+    /// and after the job rather than around it, so it can neither wrap the call, decline to make it, nor
+    /// see what it threw. See <see cref="IJobExecutionMiddleware" /> for what a middleware may and may
+    /// not decide.
+    /// </para>
+    /// <para>
+    /// Middleware runs in registration order, outermost first, so the first registered is the first to
+    /// see a firing and the last to see its result. Each call adds a stage: registering the same type
+    /// twice puts it in the chain twice, the same way registering the same job twice schedules it twice.
+    /// </para>
+    /// <para>
+    /// One instance is built per scheduler and shared by every firing, so a middleware must keep no
+    /// per-firing state in a field. It is registered for this scheduler alone, like its listeners and
+    /// its job store, so a named scheduler's middleware wraps only its own executions.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="T">The middleware's type.</typeparam>
+    IQuartzBuilder AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IJobExecutionMiddleware;
+
+    /// <inheritdoc cref="AddJobMiddleware{T}()" path="/remarks" />
+    /// <typeparam name="T">The middleware's type.</typeparam>
+    /// <param name="factory">Builds the middleware from this scheduler's view of the container.</param>
+    IQuartzBuilder AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Func<IServiceProvider, T> factory) where T : class, IJobExecutionMiddleware;
+
+    /// <inheritdoc cref="AddJobMiddleware{T}()" path="/remarks" />
+    /// <typeparam name="T">The middleware's type.</typeparam>
+    /// <param name="middleware">The middleware, already built.</param>
+    IQuartzBuilder AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        T middleware) where T : class, IJobExecutionMiddleware;
+
+    /// <summary>
     /// Configures execution group limits, so resource-hungry jobs cannot saturate every thread. Each
     /// limit is counted on this node or across the cluster, as its <see cref="ExecutionLimitScope"/> says.
     /// </summary>
