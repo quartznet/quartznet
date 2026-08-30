@@ -15,6 +15,11 @@ builder.AddNpgsqlDataSource("quartz");
 
 // Everything the Aspire connection named "quartz" is evidence of: which database it is, the driver
 // delegate that speaks its SQL, where connections come from, and the scheduler's health check.
+//
+// The tables come with it here. This profile runs in Development, where the store creates whatever
+// its schema is missing rather than refusing to start against the empty database a fresh Postgres
+// volume hands it. Anywhere else it would validate instead, and something else would apply the
+// schema; settings.ProvisionSchema says which without asking the environment.
 builder.AddQuartzPersistentStore("quartz");
 
 builder.AddQuartz(q => q.ScheduleJob<HeartbeatJob>(trigger => trigger

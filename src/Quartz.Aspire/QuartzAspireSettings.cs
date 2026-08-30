@@ -79,6 +79,39 @@ public sealed class QuartzAspireSettings
     public string? TablePrefix { get; set; }
 
     /// <summary>
+    /// Whether the store creates whatever its schema is missing when the scheduler starts.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Left unset — the default — the environment decides, read from
+    /// <see cref="Microsoft.Extensions.Hosting.IHostApplicationBuilder.Environment"/> at the
+    /// <c>AddQuartzPersistentStore</c> call: <see cref="SchemaProvisioning.CreateIfMissing"/> under
+    /// <c>Development</c>, and <see cref="SchemaProvisioning.Validate"/> everywhere else. The two halves
+    /// of that are the same observation from opposite ends — the AppHost's database container comes up
+    /// empty on every start that has no data volume behind it, so a development scheduler that refuses
+    /// to start until somebody applies a script is refusing on every first run; and a production account
+    /// usually cannot run DDL at all, which it is right not to be able to.
+    /// </para>
+    /// <para>
+    /// <see langword="true"/> creates in every environment, <see langword="false"/> in none — which is
+    /// what a deployment that applies its own schema wants to say once, in the shared
+    /// <c>Aspire:Quartz</c> section, rather than per environment. Creating only ever creates: no object
+    /// is altered and none is dropped, so it cannot turn a mis-typed <see cref="TablePrefix"/> into data
+    /// loss, and it is equally not an upgrade — <c>database/migrations/</c> is still what moves a schema
+    /// forward.
+    /// </para>
+    /// <para>
+    /// It fills a gap rather than overruling one. An <c>AdoJobStoreOptions.SchemaProvisioning</c> the
+    /// application set itself — from <c>ConfigureStore</c> or from
+    /// <c>Quartz:JobStore:SchemaProvisioning</c> — is a decision made about this store in particular and
+    /// is kept. The one thing that cannot be said that way is <see cref="SchemaProvisioning.Validate"/>,
+    /// which is what an unconfigured store already holds and so is indistinguishable from having said
+    /// nothing; <see langword="false"/> here is how to say it.
+    /// </para>
+    /// </remarks>
+    public bool? ProvisionSchema { get; set; }
+
+    /// <summary>
     /// Whether this scheduler takes part in a cluster with every other scheduler sharing the database.
     /// </summary>
     /// <remarks>

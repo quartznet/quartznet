@@ -15,6 +15,7 @@ namespace Quartz
         public bool DisableMetrics { get; set; }
         public bool DisableTracing { get; set; }
         public string? Provider { get; set; }
+        public bool? ProvisionSchema { get; set; }
         public string? SchedulerName { get; set; }
         public string? TablePrefix { get; set; }
     }

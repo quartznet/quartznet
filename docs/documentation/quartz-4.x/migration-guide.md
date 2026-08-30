@@ -135,6 +135,13 @@ integration: the AppHost still declares its database resources itself. See
 [Aspire Integration](packages/aspire.md) for every setting it reads from `Aspire:Quartz`, and
 [Running Quartz under Aspire](how-tos/aspire.md) for what the call expands to.
 
+One of those settings decides something the rest of Quartz leaves off by default, so it is worth reading
+before the first run:
+
+| Setting | Default | What it decides |
+|---|---|---|
+| `QuartzAspireSettings.ProvisionSchema` | unset — `SchemaProvisioning.CreateIfMissing` under `Development`, the `Validate` default in every other environment | Whether the store creates whatever its schema is missing as it starts. `true` creates in every environment and `false` in none; a `SchemaProvisioning` the application set on the store itself is kept either way. See [`PerformSchemaValidation` became `SchemaProvisioning`](#performschemavalidation-became-schemaprovisioning-which-has-a-third-position) |
+
 ### The health check is in `Quartz`, not `Quartz.AspNetCore`
 
 `Quartz.AspNetCore` carries `<FrameworkReference Include="Microsoft.AspNetCore.App" />` for the HTTP API,
