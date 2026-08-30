@@ -157,7 +157,7 @@ public static class MicrosoftDiIntegrationSamples
                 .WithIdentity("Simple Trigger")
                 .ForJob(jobKey)
                 .StartNow()
-                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever()));
+                .WithSimpleSchedule(TimeSpan.FromSeconds(10)));
 
             q.AddTrigger<ExampleJob>(t => t
                 .WithIdentity("Cron Trigger")
@@ -219,7 +219,7 @@ public static class MicrosoftDiIntegrationSamples
                 trigger => trigger
                     .WithIdentity("slowJobTrigger")
                     .StartNow()
-                    .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever()),
+                    .WithSimpleSchedule(TimeSpan.FromSeconds(5)),
                 job => job
                     .WithIdentity("slowJob")
                     .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)

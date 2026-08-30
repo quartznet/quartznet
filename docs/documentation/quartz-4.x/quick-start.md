@@ -225,20 +225,19 @@ IJobDetail job = JobBuilder.Create<HelloJob>()
     .WithIdentity("job1", "group1")
     .Build();
 
-// Trigger the job to run now, and then repeat every 10 seconds
+// Trigger the job to run now, and then repeat every 10 seconds forever
+// (pass a repeat count as the second argument to stop after a while)
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger1", "group1")
     .StartNow()
-    .WithSimpleSchedule(x => x
-        .WithInterval(TimeSpan.FromSeconds(10))
-        .RepeatForever())
+    .WithSimpleSchedule(TimeSpan.FromSeconds(10))
     .Build();
 
 // Tell Quartz to schedule the job using our trigger
 await scheduler.ScheduleJob(job, trigger);
 
 // several triggers for one job go together, in one call
-// await scheduler.ScheduleJob(job, [trigger1, trigger2], new ScheduleJobOptions { Replace = true });
+// await scheduler.ScheduleJob(job, [trigger1, trigger2], ScheduleJobOptions.Replacing);
 ```
 <!-- endSnippet -->
 

@@ -130,6 +130,18 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     }
 
     /// <summary>
+    /// The key that identifies the trigger uniquely, or <see langword="null" /> when none was set.
+    /// </summary>
+    /// <remarks>
+    /// Readable so that code building a trigger and something that has to agree with it — a job, a
+    /// registration — can tell an identity the caller chose from the one <see cref="Build" /> would
+    /// generate. Unlike <see cref="JobBuilder{TJob}.Key" />, reading it after <c>Build</c> reports a
+    /// generated key too: <c>Build</c> keeps the key it generated, so building the same builder twice
+    /// produces the same trigger rather than two.
+    /// </remarks>
+    public TriggerKey? Key => key;
+
+    /// <summary>
     /// Produce the <see cref="ITrigger" />.
     /// </summary>
     /// <remarks>

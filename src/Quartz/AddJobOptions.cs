@@ -34,6 +34,13 @@ namespace Quartz;
 public readonly record struct AddJobOptions
 {
     /// <summary>
+    /// Over-write an already stored job with the same key. The name for
+    /// <c>new AddJobOptions { Replace = true }</c>, which is what nearly every call that passes these
+    /// options at all is saying.
+    /// </summary>
+    public static AddJobOptions Replacing => new() { Replace = true };
+
+    /// <summary>
     /// Whether an already stored job with the same key is over-written. When false, storing a job
     /// whose key already exists throws <see cref="ObjectAlreadyExistsException" />.
     /// </summary>

@@ -203,6 +203,65 @@ public class CronExpressionBuilderTest
         Invoking(x => x.WithYear(2030).WithYearRange(2031, 2032)).Should().Throw<InvalidOperationException>().WithMessage("Year has already been configured.");
     }
 
+    /// <summary>
+    /// <c>AtTime</c> is the whole of a "daily at 09:30" schedule, and is what replaces the 3.x
+    /// <c>DailyAtHourAndMinute</c> — one argument that says which number is which, rather than three
+    /// that only their order distinguishes.
+    /// </summary>
+    [Test]
+    public void TestAtTimeSetsSecondMinuteAndHour()
+    {
+        CronExpressionBuilder.Create().AtTime(new TimeOnly(9, 30)).ToString().Should().Be("0 30 9 ? * *");
+        CronExpressionBuilder.Create().AtTime(new TimeOnly(23, 59, 59)).ToString().Should().Be("59 59 23 ? * *");
+        CronExpressionBuilder.Create().AtTime(TimeOnly.MinValue).ToString().Should().Be("0 0 0 ? * *");
+    }
+
+    /// <summary>
+    /// The two 3.x factories that took a time and a day are the two calls composed.
+    /// </summary>
+    [Test]
+    public void TestAtTimeComposesWithDaySelection()
+    {
+        CronExpressionBuilder.Create()
+            .AtTime(new TimeOnly(9, 30))
+            .WithDaysOfWeek(DayOfWeek.Monday)
+            .ToString().Should().Be("0 30 9 ? * MON");
+
+        CronExpressionBuilder.Create()
+            .AtTime(new TimeOnly(9, 30))
+            .WithDayOfMonth(15)
+            .ToString().Should().Be("0 30 9 15 * ?");
+    }
+
+    /// <summary>
+    /// Cron resolves to a whole second, so a time carrying more than that keeps only the second.
+    /// </summary>
+    [Test]
+    public void TestAtTimeIgnoresSubSecondPrecision()
+    {
+        CronExpressionBuilder.Create().AtTime(new TimeOnly(9, 30, 15, 500)).ToString().Should().Be("15 30 9 ? * *");
+    }
+
+    /// <summary>
+    /// The three fields are checked together, so a builder that already carries one of them is left as
+    /// it was rather than half-updated by the throw.
+    /// </summary>
+    [Test]
+    public void TestAtTimeCannotOverwriteAFieldThatIsAlreadyConfigured()
+    {
+        Invoking(x => x.WithSecond(0).AtTime(new TimeOnly(9, 30))).Should().Throw<InvalidOperationException>().WithMessage("Second has already been configured.");
+        Invoking(x => x.WithMinute(0).AtTime(new TimeOnly(9, 30))).Should().Throw<InvalidOperationException>().WithMessage("Minute has already been configured.");
+        Invoking(x => x.WithHour(0).AtTime(new TimeOnly(9, 30))).Should().Throw<InvalidOperationException>().WithMessage("Hour has already been configured.");
+        Invoking(x => x.AtTime(new TimeOnly(9, 30)).AtTime(new TimeOnly(10, 0))).Should().Throw<InvalidOperationException>().WithMessage("Second has already been configured.");
+
+        CronExpressionBuilder builder = CronExpressionBuilder.Create().WithHour(0);
+        Action act = () => builder.AtTime(new TimeOnly(9, 30));
+
+        act.Should().Throw<InvalidOperationException>();
+        builder.ToString().Should().Be("* * 0 ? * *",
+            "the hour was rejected before the second and minute were written, so nothing was left half-applied");
+    }
+
     [Test]
     public void TestDayOfMonthAndDayOfWeekAreMutuallyExclusive()
     {

@@ -251,6 +251,34 @@ public sealed class CronExpressionBuilder
     }
 
     /// <summary>
+    /// Set the second, minute and hour fields to one time of day, so the expression fires once a day
+    /// — or once on each day the day-of-week or day-of-month field selects.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the whole of a "daily at 09:30" schedule: <c>AtTime(new TimeOnly(9, 30))</c> is
+    /// "0 30 9 ? * *". Add <see cref="WithDaysOfWeek(ReadOnlySpan{DayOfWeek})" />,
+    /// <see cref="OnWeekdays" /> or a day-of-month method for the days it applies to.
+    /// </para>
+    /// <para>
+    /// Cron resolves to a whole second, so any sub-second part of
+    /// <paramref name="time" /> is ignored.
+    /// </para>
+    /// </remarks>
+    /// <param name="time">the time of day to fire at.</param>
+    /// <returns>the updated CronExpressionBuilder</returns>
+    public CronExpressionBuilder AtTime(TimeOnly time)
+    {
+        // Checked before anything is written, so a builder that already carries one of the three
+        // fields is left as it was rather than half-updated by the throw.
+        ThrowIfConfigured(second, "Second");
+        ThrowIfConfigured(minute, "Minute");
+        ThrowIfConfigured(hour, "Hour");
+
+        return WithSecond(time.Second).WithMinute(time.Minute).WithHour(time.Hour);
+    }
+
+    /// <summary>
     /// Set the day-of-month field to a single value. Cannot be combined with
     /// configuring the day-of-week field.
     /// </summary>
@@ -624,13 +652,17 @@ public sealed class CronExpressionBuilder
 
     private CronExpressionBuilder SetField(ref string? field, string fieldName, string value)
     {
+        ThrowIfConfigured(field, fieldName);
+        field = value;
+        return this;
+    }
+
+    private static void ThrowIfConfigured(string? field, string fieldName)
+    {
         if (field is not null)
         {
             throw new InvalidOperationException($"{fieldName} has already been configured.");
         }
-
-        field = value;
-        return this;
     }
 
     private static string GetDayName(DayOfWeek dayOfWeek, string paramName)

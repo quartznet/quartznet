@@ -40,7 +40,7 @@ public static class PackageReadmeSamples
 
             builder.AddQuartz(q => q.ScheduleJob<HelloJob>(trigger => trigger
                 .WithIdentity("hello")
-                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())));
+                .WithSimpleSchedule(TimeSpan.FromSeconds(10))));
 
             builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 

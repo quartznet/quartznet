@@ -38,6 +38,13 @@ namespace Quartz;
 public readonly record struct ScheduleJobOptions
 {
     /// <summary>
+    /// Over-write already stored jobs and triggers with the same keys. The name for
+    /// <c>new ScheduleJobOptions { Replace = true }</c>, which is what nearly every call that passes
+    /// these options at all is saying.
+    /// </summary>
+    public static ScheduleJobOptions Replacing => new() { Replace = true };
+
+    /// <summary>
     /// Whether already stored jobs and triggers with the same keys are over-written. When false,
     /// scheduling a job or trigger whose key already exists throws
     /// <see cref="ObjectAlreadyExistsException" />.

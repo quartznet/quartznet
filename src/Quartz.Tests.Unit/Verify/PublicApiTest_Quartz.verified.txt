@@ -5,11 +5,14 @@ namespace Quartz
     {
         public bool Replace { get; init; }
         public bool UpdateTriggers { get; init; }
+        public static Quartz.AddCalendarOptions Replacing { get; }
+        public static Quartz.AddCalendarOptions ReplacingAndUpdatingTriggers { get; }
     }
     public readonly struct AddJobOptions : System.IEquatable<Quartz.AddJobOptions>
     {
         public bool Replace { get; init; }
         public bool StoreNonDurableWhileAwaitingScheduling { get; init; }
+        public static Quartz.AddJobOptions Replacing { get; }
     }
     public sealed class AdoJobStoreOptions
     {
@@ -135,6 +138,7 @@ namespace Quartz
     }
     public sealed class CronExpressionBuilder
     {
+        public Quartz.CronExpressionBuilder AtTime(System.TimeOnly time) { }
         public Quartz.CronExpression Build() { }
         public Quartz.CronExpressionBuilder OnLastDayOfMonth() { }
         public Quartz.CronExpressionBuilder OnLastDayOfWeek() { }
@@ -1421,6 +1425,7 @@ namespace Quartz
     public readonly struct ScheduleJobOptions : System.IEquatable<Quartz.ScheduleJobOptions>
     {
         public bool Replace { get; init; }
+        public static Quartz.ScheduleJobOptions Replacing { get; }
     }
     public sealed class SchedulerConfigException : Quartz.SchedulerException
     {
@@ -1485,6 +1490,11 @@ namespace Quartz
         SetAllJobTriggersComplete = 4,
         SetAllJobTriggersError = 5,
         SetTriggerError = 6,
+    }
+    public static class SchedulerJobExtensions
+    {
+        public static System.Threading.Tasks.ValueTask<System.DateTimeOffset> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>(this Quartz.IScheduler scheduler, Quartz.ITrigger trigger, System.Action<Quartz.IJobConfigurator<TJob>>? configure = null, System.Threading.CancellationToken cancellationToken = default)
+            where TJob : Quartz.IJob { }
     }
     public sealed class SchedulerMetadata : System.IEquatable<Quartz.SchedulerMetadata>
     {
@@ -1662,6 +1672,7 @@ namespace Quartz
     public sealed class TriggerBuilder<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob> : Quartz.ITriggerConfigurator, Quartz.ITriggerConfigurator<TJob>
         where TJob : Quartz.IJob
     {
+        public Quartz.TriggerKey? Key { get; }
         public Quartz.ITrigger Build() { }
         public Quartz.TriggerBuilder<TJob> EndAt(System.DateTimeOffset? endTimeUtc) { }
         public Quartz.TriggerBuilder<TJob> ForJob(Quartz.IJobDetail jobDetail) { }
@@ -1708,6 +1719,8 @@ namespace Quartz
         public static TConfigurator WithSimpleSchedule<TConfigurator>(this TConfigurator configurator, Quartz.SimpleScheduleBuilder schedule)
             where TConfigurator : Quartz.ITriggerConfigurator { }
         public static TConfigurator WithSimpleSchedule<TConfigurator>(this TConfigurator configurator, System.Action<Quartz.SimpleScheduleBuilder>? configure = null)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithSimpleSchedule<TConfigurator>(this TConfigurator configurator, System.TimeSpan interval, int? repeatCount = default)
             where TConfigurator : Quartz.ITriggerConfigurator { }
     }
     public static class TriggerConstants

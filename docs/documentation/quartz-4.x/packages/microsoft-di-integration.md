@@ -253,7 +253,7 @@ builder.Services.AddQuartz(q =>
         .WithIdentity("Simple Trigger")
         .ForJob(jobKey)
         .StartNow()
-        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever()));
+        .WithSimpleSchedule(TimeSpan.FromSeconds(10)));
 
     q.AddTrigger<ExampleJob>(t => t
         .WithIdentity("Cron Trigger")
@@ -312,7 +312,7 @@ q.ScheduleJob<SlowJob>(
     trigger => trigger
         .WithIdentity("slowJobTrigger")
         .StartNow()
-        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever()),
+        .WithSimpleSchedule(TimeSpan.FromSeconds(5)),
     job => job
         .WithIdentity("slowJob")
         .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)

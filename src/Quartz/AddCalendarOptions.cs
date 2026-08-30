@@ -32,6 +32,20 @@ namespace Quartz;
 public readonly record struct AddCalendarOptions
 {
     /// <summary>
+    /// Over-write an already registered calendar with the same name, leaving the triggers that
+    /// reference it alone. The name for <c>new AddCalendarOptions { Replace = true }</c>.
+    /// </summary>
+    public static AddCalendarOptions Replacing => new() { Replace = true };
+
+    /// <summary>
+    /// Over-write an already registered calendar with the same name and re-compute the next fire
+    /// time of every trigger that references it. The name for
+    /// <c>new AddCalendarOptions { Replace = true, UpdateTriggers = true }</c>, which is what
+    /// replacing a calendar whose exclusions have actually moved calls for.
+    /// </summary>
+    public static AddCalendarOptions ReplacingAndUpdatingTriggers => new() { Replace = true, UpdateTriggers = true };
+
+    /// <summary>
     /// Whether an already registered calendar with the same name is over-written. When false,
     /// adding a calendar whose name already exists throws <see cref="ObjectAlreadyExistsException" />.
     /// </summary>
