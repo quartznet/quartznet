@@ -92,6 +92,12 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     private string? retryPolicy;
     private int retryAttempt;
 
+    // Whether ExecutionComplete has just cleared a non-zero attempt, so the stores know they have a
+    // write to make on a completion that otherwise writes nothing. Not serialized: it says something
+    // about this completion, not about the trigger.
+    [NonSerialized]
+    private bool retryAttemptCleared;
+
     // Parsing the stored form once per trigger rather than once per read. Not serialized: it is
     // derived from the field above, which is.
     [NonSerialized]
@@ -599,6 +605,9 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     {
         if (result is not null && result.RefireImmediately)
         {
+            // An explicit directive wins over the trigger's retry policy, and the two are different
+            // things: this re-runs the job on the same thread inside the same firing, with no delay,
+            // no ceiling and nothing persisted. It does not touch the retry attempt.
             return SchedulerInstruction.ReExecuteJob;
         }
 
@@ -612,12 +621,141 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
             return SchedulerInstruction.SetAllJobTriggersComplete;
         }
 
+        // The retry decision sits after the explicit directives, which win, and before the
+        // nothing-left-to-fire check below, which a scheduled retry has to be able to postpone: a
+        // one-shot trigger waiting to retry may still fire again, and announcing it as finalized
+        // here would be announcing it twice.
+        if (result is not null && RetryPolicy is { } policy && RetryAttempt < policy.MaxAttempts && TryScheduleRetry(policy))
+        {
+            return SchedulerInstruction.RetryTrigger;
+        }
+
+        // Everything else settles the occurrence: it succeeded, the trigger has no policy, its
+        // attempts are spent, or the retry would have landed on top of the next scheduled
+        // occurrence. All of them go back to the ordinary schedule, and none of them is an error —
+        // one bad hour must not kill a cron trigger.
+        ClearRetryAttempt();
+
         if (!MayFireAgain)
         {
             return SchedulerInstruction.DeleteTrigger;
         }
 
         return SchedulerInstruction.NoInstruction;
+    }
+
+    /// <summary>
+    /// How close to the next scheduled occurrence a retry may be scheduled before the occurrence
+    /// supersedes it.
+    /// </summary>
+    /// <remarks>
+    /// One second, because <c>CalendarIntervalTriggerImpl.GetFireTimeAfter</c> and
+    /// <c>DailyTimeIntervalTriggerImpl.GetFireTimeAfter</c> both add a second before searching: a
+    /// retry closer than that to the next occurrence could not be told apart from it, and
+    /// <see cref="RetryFired" /> would answer with the occurrence after it instead — losing a fire.
+    /// </remarks>
+    internal static readonly TimeSpan RetrySupersedeMargin = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// Moves the trigger's next fire time to the retry instant, if there is room for one before the
+    /// next scheduled occurrence.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true" /> when the retry was scheduled, and the trigger now carries its instant
+    /// and the incremented attempt.
+    /// </returns>
+    private bool TryScheduleRetry(RetryPolicy policy)
+    {
+        // The trigger's own clock, so a retry instant and the fire times it is compared with are two
+        // readings of the same one.
+        DateTimeOffset retryAt = TimeProvider.GetUtcNow() + policy.DelayFor(RetryAttempt + 1);
+
+        // What the schedule says comes next, which the fire that just completed advanced this to.
+        DateTimeOffset? regularNext = NextFireTimeUtc;
+
+        if (regularNext is not null && retryAt + RetrySupersedeMargin >= regularNext.Value)
+        {
+            // The occurrence wins. Retrying at or beside it would fire the job twice for what is
+            // really one late attempt, and a policy whose waits are longer than the gap between
+            // occurrences would do that on every failure.
+            return false;
+        }
+
+        if (EndTimeUtc is not null && retryAt > EndTimeUtc.Value)
+        {
+            // A trigger does not fire after its end time, and a retry is a fire.
+            return false;
+        }
+
+        NextFireTimeUtc = retryAt;
+        RetryAttempt++;
+        retryAttemptCleared = false;
+        return true;
+    }
+
+    /// <summary>
+    /// Puts the occurrence's retry count back to zero, recording whether that changed anything so a
+    /// job store knows whether it has a write to make.
+    /// </summary>
+    private void ClearRetryAttempt()
+    {
+        if (retryAttempt != 0)
+        {
+            retryAttempt = 0;
+            retryAttemptCleared = true;
+        }
+    }
+
+    /// <summary>
+    /// Whether <see cref="ExecutionComplete" /> has just put a non-zero <see cref="RetryAttempt" />
+    /// back to zero, and so left the trigger's stored attempt behind.
+    /// </summary>
+    /// <remarks>
+    /// The job stores write the attempt only when it changed. A completion that settles an
+    /// occurrence which was never retried is by far the common case, and it costs nothing.
+    /// </remarks>
+    internal bool RetryAttemptCleared => retryAttemptCleared;
+
+    /// <summary>
+    /// This method should not be used by the Quartz client.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Called by a job store when it is firing a retry rather than a scheduled occurrence — that is,
+    /// when the trigger's next fire time is a retry instant <see cref="ExecutionComplete" /> put
+    /// there. It advances <see cref="NextFireTimeUtc" /> past the retry to the occurrence the
+    /// schedule actually calls for, applying the trigger's calendar exactly as
+    /// <see cref="Triggered" /> does.
+    /// </para>
+    /// <para>
+    /// Unlike <see cref="Triggered" /> it touches no counter and does not move
+    /// <see cref="PreviousFireTimeUtc" />: a retry is another attempt at an occurrence that has
+    /// already been counted, so it must not burn a repeat count or a recurrence rule's <c>COUNT</c>
+    /// slot, and it reports the original occurrence as its scheduled fire time.
+    /// </para>
+    /// </remarks>
+    /// <param name="calendar">The calendar the trigger observes, if any.</param>
+    /// <seealso cref="Triggered" />
+    public virtual void RetryFired(ICalendar? calendar)
+    {
+        NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
+
+        while (NextFireTimeUtc is not null && calendar is not null && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
+        {
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
+
+            if (NextFireTimeUtc is null)
+            {
+                break;
+            }
+
+            // avoid infinite loop
+            if (NextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+            {
+                NextFireTimeUtc = null;
+                break;
+            }
+        }
     }
 
     /// <summary>

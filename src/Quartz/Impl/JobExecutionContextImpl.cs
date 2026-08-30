@@ -172,6 +172,16 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     public int RefireCount => numRefires;
 
     /// <summary>
+    /// How many times this occurrence has already been retried under the trigger's retry policy.
+    /// </summary>
+    /// <remarks>
+    /// Read from the trigger this firing was handed, which is the copy the job store fired: the store
+    /// wrote the attempt when it scheduled the retry and read it back when it acquired the trigger, so
+    /// this is the count as the store has it and not something the run shell keeps.
+    /// </remarks>
+    public int RetryAttempt => Trigger.RetryAttempt;
+
+    /// <summary>
     /// Get the convenience <see cref="JobDataMap" /> of this execution context.
     /// </summary>
     /// <remarks>

@@ -64,6 +64,8 @@
     "Trigger instruction : {InstructionCode}"
 1055  Debug  CoreLog.TriggerRefiring
     "Rescheduling trigger to reexecute"
+1056  Information  CoreLog.TriggerRetryScheduled
+    "Job of trigger {TriggerKey} failed; retry {Attempt} of {MaxAttempts} scheduled for {RetryTimeUtc}"
 1070  Information  CoreLog.SchedulerSignalerInitialized
     "Initialized Scheduler Signaller of type: {Type}"
 1071  Error  CoreLog.ListenerNotificationOfMisfireFailed

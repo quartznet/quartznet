@@ -185,6 +185,12 @@ public abstract partial class AdoJobStoreBase
 
         trigger.UpdateAfterMisfire(calendar);
 
+        // The occurrence that was waiting to be retried has been missed, and misfire handling has just
+        // recomputed the trigger from its schedule. Whatever it fires next is a fresh occurrence, so it
+        // starts with no retries behind it; the trigger's own misfire instruction decides what that
+        // fire is, and there is deliberately no retry-specific misfire policy.
+        trigger.RetryAttempt = 0;
+
         // Determine new state.
         DateTimeOffset? newFireTime = trigger.NextFireTimeUtc;
         StoredTriggerState newState = newFireTime.HasValue ? newStateIfNotComplete : StoredTriggerState.Complete;

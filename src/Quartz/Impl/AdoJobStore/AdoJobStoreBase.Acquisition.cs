@@ -574,8 +574,18 @@ public abstract partial class AdoJobStoreBase
 
         DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
 
-        // call triggered - to update the trigger's next-fire-time state...
-        trigger.Triggered(calendar);
+        // call triggered - to update the trigger's next-fire-time state. A trigger carrying a retry
+        // attempt is being fired for a retry rather than for a scheduled occurrence, so it advances
+        // past the retry instant without burning a count or moving its previous fire time - the same
+        // dispatch on TriggerBase the misfire original fire time above uses.
+        if (trigger.RetryAttempt > 0 && trigger is TriggerBase retryingTrigger)
+        {
+            retryingTrigger.RetryFired(calendar);
+        }
+        else
+        {
+            trigger.Triggered(calendar);
+        }
 
         StoredTriggerState state2 = StoredTriggerState.Waiting;
         bool force = true;

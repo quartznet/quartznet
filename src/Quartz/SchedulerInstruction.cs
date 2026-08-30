@@ -70,5 +70,25 @@ public enum SchedulerInstruction
     /// Instructs the <see cref="IScheduler" /> that the <see cref="ITrigger" />
     /// should be put in the <see cref="TriggerState.Error" /> state.
     /// </summary>
-    SetTriggerError
+    SetTriggerError,
+
+    /// <summary>
+    /// Instructs the <see cref="IScheduler" /> that the <see cref="ITrigger" /> has scheduled a
+    /// retry of the occurrence that just failed, and that the job store should store the retry
+    /// instant and the attempt count it now carries.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A retry needs an instruction of its own because <see cref="NoInstruction" /> means the
+    /// opposite: neither store writes the trigger at completion, since the regular next fire time
+    /// was already written when the trigger fired. A retry moves that time, so it has to be said.
+    /// </para>
+    /// <para>
+    /// The trigger is left waiting, not in error — a failed occurrence with attempts left is not a
+    /// broken trigger. It is decided by <c>TriggerBase.ExecutionComplete</c> from the trigger's
+    /// <see cref="ITrigger.RetryPolicy" />, and never returned by a trigger that has none.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="Quartz.RetryPolicy" />
+    RetryTrigger
 }
