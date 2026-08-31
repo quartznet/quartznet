@@ -145,6 +145,28 @@ public sealed class SchemaProvisioningSqliteTest
                 "the delegate that has no script is the thing to change, so it is named");
     }
 
+    /// <summary>
+    /// The other way a script can be missing: named, and embedded nowhere the delegate's hierarchy
+    /// reaches. The lookup walks the base chain — which is what lets a delegate subclassing a shipped
+    /// dialect inherit that dialect's script — so the failure has to say it looked further than the
+    /// delegate's own assembly, or a reader goes hunting for a resource they never named.
+    /// </summary>
+    [Test]
+    public async Task ADelegateNamingAScriptNobodyEmbeddedSaysWhereItLooked()
+    {
+        Func<Task> act = () => ScheduleFireAndReadBack(
+            nameof(ADelegateNamingAScriptNobodyEmbeddedSaysWhereItLooked),
+            configure: store => store.UseDriverDelegate<MissingScriptDelegate>());
+
+        SchedulerException failure = (await act.Should().ThrowAsync<SchedulerException>()).Which;
+
+        failure.InnerException.Should().BeOfType<JobPersistenceException>()
+            .Which.Message.Should()
+            .Contain(MissingScriptDelegate.ScriptThatIsNowhere, "the reader has to be told which name failed")
+            .And.Contain("Quartz.Tests.Unit", "the delegate's own assembly is the first place it looked")
+            .And.Contain("derives from", "and the base chain is the second, which is not obvious");
+    }
+
     private async Task ScheduleFireAndReadBack(
         string schedulerName,
         bool provision = true,
@@ -222,6 +244,17 @@ public sealed class SchemaProvisioningSqliteTest
     private sealed class ScriptlessDelegate : SQLiteDelegate
     {
         protected override string? SchemaResourceName => null;
+    }
+
+    /// <summary>
+    /// One that names a script and embeds it nowhere — a typo, or a resource that failed to be
+    /// embedded, which looks identical from here.
+    /// </summary>
+    private sealed class MissingScriptDelegate : SQLiteDelegate
+    {
+        internal const string ScriptThatIsNowhere = "Quartz.Tests.Unit.Schema.create_nowhere.sql";
+
+        protected override string? SchemaResourceName => ScriptThatIsNowhere;
     }
 
     /// <summary>
