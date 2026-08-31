@@ -315,9 +315,9 @@ q.AddCalendar("businessDays", serviceProvider =>
 
 <!-- snippet: sample_di_plugins -->
 ```csharp
-q.UseXmlSchedulingConfiguration(x =>
+q.UseJsonSchedulingConfiguration(x =>
 {
-    x.Files.Add("~/quartz_jobs.config");
+    x.Files.Add("~/quartz_jobs.json");
     x.ScanInterval = TimeSpan.FromSeconds(2);
     x.FailOnFileNotFound = true;
     x.FailOnSchedulingError = true;

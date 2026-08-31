@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 using Quartz.Extensibility;
-using Quartz.Plugins.Xml;
+using Quartz.Plugins.Json;
 
 namespace Quartz.Documentation.Samples.Tenancy;
 
@@ -142,8 +142,8 @@ public static class MultiTenancySamples
 
         builder.Services.AddQuartz("acme", new NameValueCollection
         {
-            ["quartz.plugin.xml.type"] = typeof(XmlSchedulingDataProcessorPlugin).AssemblyQualifiedName,
-            ["quartz.plugin.xml.fileNames"] = "acme-jobs.xml",
+            ["quartz.plugin.json.type"] = typeof(JsonSchedulingDataProcessorPlugin).AssemblyQualifiedName,
+            ["quartz.plugin.json.fileNames"] = "acme-jobs.json",
         });
 
         #endregion

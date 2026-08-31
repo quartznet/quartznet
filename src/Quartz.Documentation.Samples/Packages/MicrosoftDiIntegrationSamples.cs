@@ -218,9 +218,9 @@ public static class MicrosoftDiIntegrationSamples
 
             #region sample_di_plugins
 
-            q.UseXmlSchedulingConfiguration(x =>
+            q.UseJsonSchedulingConfiguration(x =>
             {
-                x.Files.Add("~/quartz_jobs.config");
+                x.Files.Add("~/quartz_jobs.json");
                 x.ScanInterval = TimeSpan.FromSeconds(2);
                 x.FailOnFileNotFound = true;
                 x.FailOnSchedulingError = true;

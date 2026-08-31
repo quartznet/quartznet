@@ -76,9 +76,9 @@ public static class QuartzPluginsSamples
 
         // A plugin's options are the scheduler's own named options, so a configuration section binds
         // onto them like any other. The callback below is applied over whatever the section said.
-        services.Configure<FileSchedulingOptions>(configuration.GetSection("Quartz:Xml"));
+        services.Configure<FileSchedulingOptions>(configuration.GetSection("Quartz:Json"));
 
-        services.AddQuartz(q => q.UseXmlSchedulingConfiguration(x => x.ScanInterval = TimeSpan.FromMinutes(1)));
+        services.AddQuartz(q => q.UseJsonSchedulingConfiguration(x => x.ScanInterval = TimeSpan.FromMinutes(1)));
 
         #endregion
     }

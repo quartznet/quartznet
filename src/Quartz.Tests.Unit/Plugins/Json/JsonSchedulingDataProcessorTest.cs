@@ -345,6 +345,49 @@ public class JsonSchedulingDataProcessorTest
             "the trigger has to survive the comments and the trailing commas around it, not merely the job");
     }
 
+    /// <summary>
+    /// The <c>quartz_jobs.json</c> the quick start prints, read by the reader that reads it. The only
+    /// substitution is the job type, which the page names as the reader's own <c>MyApp.HelloJob</c>.
+    /// </summary>
+    [Test]
+    public void TheQuickStartFileIsReadable()
+    {
+        var json = """
+        {
+          "Schedule": {
+            "Jobs": [
+              {
+                "Name": "helloJob",
+                "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs",
+                "Durable": true
+              }
+            ],
+            "Triggers": [
+              {
+                "Name": "helloTrigger",
+                "JobName": "helloJob",
+                "Simple": {
+                  "RepeatCount": -1,
+                  "Interval": "00:00:10"
+                }
+              }
+            ]
+          }
+        }
+        """;
+
+        var processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+
+        processor.ParsedJobs.Should().ContainSingle()
+            .Which.Key.Name.Should().Be("helloJob", "a documented file that does not parse is worse than none");
+
+        var trigger = (ISimpleTrigger) processor.ParsedTriggers.Should().ContainSingle().Which;
+        trigger.RepeatInterval.Should().Be(TimeSpan.FromSeconds(10));
+        trigger.RepeatCount.Should().Be(-1);
+        trigger.JobKey.Name.Should().Be("helloJob");
+    }
+
     [Test]
     public async Task DeleteInAllGroups_SkipsProtectedGroups()
     {

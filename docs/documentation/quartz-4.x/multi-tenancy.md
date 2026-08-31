@@ -259,14 +259,14 @@ Two things worth knowing before reaching for it:
 ### Plugins named by properties
 
 A `quartz.plugin.<name>.*` entry is read from the property bag of the scheduler it was configured on,
-so two tenants each configuring an XML plugin get two instances with their own files:
+so two tenants each configuring a scheduling-data plugin get two instances with their own files:
 
 <!-- snippet: sample_tenancy_plugin_by_properties -->
 ```csharp
 builder.Services.AddQuartz("acme", new NameValueCollection
 {
-    ["quartz.plugin.xml.type"] = typeof(XmlSchedulingDataProcessorPlugin).AssemblyQualifiedName,
-    ["quartz.plugin.xml.fileNames"] = "acme-jobs.xml",
+    ["quartz.plugin.json.type"] = typeof(JsonSchedulingDataProcessorPlugin).AssemblyQualifiedName,
+    ["quartz.plugin.json.fileNames"] = "acme-jobs.json",
 });
 ```
 <!-- endSnippet -->
