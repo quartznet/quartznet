@@ -143,11 +143,18 @@
 
         try
         {
-            await Api.DeleteCalendar(schedulerName, CalendarName);
-            ActionLog.Record(schedulerName, "DeleteCalendar", CalendarName, succeeded: true);
-            Toasts.Success("Deleted calendar " + CalendarName + ".");
+            bool deleted = await Api.DeleteCalendar(schedulerName, CalendarName);
+            ActionLog.Record(schedulerName, "DeleteCalendar", CalendarName, succeeded: deleted);
             _showDeleteConfirm = false;
-            Navigation.NavigateTo(DashboardLink.To(Options.Value, "calendars"));
+            if (deleted)
+            {
+                Toasts.Success("Deleted calendar " + CalendarName + ".");
+                Navigation.NavigateTo(DashboardLink.To(Options.Value, "calendars"));
+            }
+            else
+            {
+                Toasts.Info("Calendar " + CalendarName + " was not deleted - it no longer exists.");
+            }
         }
         catch (Exception ex)
         {

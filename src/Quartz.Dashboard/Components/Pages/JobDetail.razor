@@ -242,13 +242,14 @@
 
     private async Task DeleteAsync()
     {
-        bool succeeded = await ExecuteMutatingActionAsync(
+        bool deleted = await ExecuteMutatingActionAsync(
             () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, JobKey),
             "Deleted job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            "Job " + DisplayValueHelper.FormatKey(Group, Name) + " was not deleted - it no longer exists.",
             actionName: "DeleteJob",
             target: DisplayValueHelper.FormatKey(Group, Name));
         _showDeleteConfirm = false;
-        if (succeeded)
+        if (deleted)
         {
             Navigation.NavigateTo(DashboardLink.To(Options.Value, "jobs"));
         }

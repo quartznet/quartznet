@@ -221,9 +221,17 @@
 
         try
         {
-            await Api.DeleteCalendar(schedulerName, _pendingCalendarName);
-            ActionLog.Record(schedulerName, "DeleteCalendar", _pendingCalendarName, succeeded: true);
-            Toasts.Success("Deleted calendar " + _pendingCalendarName + ".");
+            bool deleted = await Api.DeleteCalendar(schedulerName, _pendingCalendarName);
+            ActionLog.Record(schedulerName, "DeleteCalendar", _pendingCalendarName, succeeded: deleted);
+            if (deleted)
+            {
+                Toasts.Success("Deleted calendar " + _pendingCalendarName + ".");
+            }
+            else
+            {
+                Toasts.Info("Calendar " + _pendingCalendarName + " was not deleted - it no longer exists.");
+            }
+
             _showDeleteConfirm = false;
             await LoadDataAsync();
         }

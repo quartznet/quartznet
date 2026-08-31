@@ -146,6 +146,7 @@ public class JobsPageTest
     public void DeletingAJobAsksFirstAndRecordsTheAction()
     {
         GivenJobs(TestData.Dashboard.JobKeys("reports", 1));
+        A.CallTo(() => context.Api.DeleteJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._)).Returns(true);
         IRenderedComponent<Jobs> page = context.Render<Jobs>();
 
         page.FindAll("button").First(button => button.TextContent.Trim() == "Delete").Click();
@@ -161,6 +162,26 @@ public class JobsPageTest
             .MustHaveHappened();
         context.ActionLog.GetLatest(1).Should().ContainSingle()
             .Which.Target.Should().Be("reports.job-1");
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Deleted job reports.job-1.");
+    }
+
+    [Test]
+    public void DeletingAJobThatIsAlreadyGoneSaysSoRatherThanClaimingItDeletedOne()
+    {
+        GivenJobs(TestData.Dashboard.JobKeys("reports", 1));
+        A.CallTo(() => context.Api.DeleteJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._)).Returns(false);
+        IRenderedComponent<Jobs> page = context.Render<Jobs>();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Delete").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Job reports.job-1 was not deleted - it no longer exists.",
+                "the scheduler says whether it found the job, and a listing that is one refresh out of "
+                + "date is exactly when it matters");
+        context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Succeeded.Should().BeFalse();
     }
 
     [Test]

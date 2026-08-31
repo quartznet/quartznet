@@ -6,6 +6,7 @@
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject ToastService Toasts
 @inject IOptions<QuartzDashboardOptions> Options
 
 <div class="qz-page">
@@ -206,7 +207,15 @@
         {
             // The one execution the row shows, not every execution of its job: the fire instance id is
             // what tells them apart.
-            await Api.InterruptFireInstance(Scheduler.ActiveSchedulerName, fireInstanceId);
+            bool interrupted = await Api.InterruptFireInstance(Scheduler.ActiveSchedulerName, fireInstanceId);
+            if (!interrupted)
+            {
+                // The row is a snapshot of a list that moves: by the time the button is pressed the
+                // firing may have finished, and a page that said nothing would look as though the
+                // interrupt had been delivered.
+                Toasts.Info("Execution " + fireInstanceId + " was not interrupted - it is no longer running on this node.");
+            }
+
             await LoadDataAsync();
         }
         catch (Exception ex)

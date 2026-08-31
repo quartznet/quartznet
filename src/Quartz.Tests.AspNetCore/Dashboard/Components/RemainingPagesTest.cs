@@ -4,6 +4,9 @@ using Bunit;
 
 using FakeItEasy;
 
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
+
 using Quartz.Dashboard.Components.Layout;
 using Quartz.Dashboard.Components.Pages;
 using Quartz.Dashboard.Services;
@@ -95,6 +98,61 @@ public class RemainingPagesTest
     }
 
     [Test]
+    public void InterruptingAFiringThatHasFinishedSaysSoRatherThanLookingLikeItWorked()
+    {
+        A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+            .Returns(TestData.Dashboard.Page<FireInstanceDto>([
+                new FireInstanceDto(
+                    "fire-1",
+                    new TriggerKeyDto("nightly", "trigger-1"),
+                    new JobKeyDto("reports", "job-1"),
+                    "node-a",
+                    FireInstanceState.Executing,
+                    TestData.Dashboard.FiredAt,
+                    TestData.Dashboard.FiredAt,
+                    "batch")
+            ]));
+        A.CallTo(() => context.Api.InterruptFireInstance(A<string>._, "fire-1", A<CancellationToken>._))
+            .Returns(false);
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Interrupt").Click();
+
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be(
+                "Execution fire-1 was not interrupted - it is no longer running on this node.",
+                "the listing refreshes every second, so the firing behind the button is routinely gone "
+                + "by the time it is pressed");
+    }
+
+    [Test]
+    public void InterruptingARunningFiringSaysNothingBeyondRefreshingTheListing()
+    {
+        A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+            .Returns(TestData.Dashboard.Page<FireInstanceDto>([
+                new FireInstanceDto(
+                    "fire-1",
+                    new TriggerKeyDto("nightly", "trigger-1"),
+                    new JobKeyDto("reports", "job-1"),
+                    "node-a",
+                    FireInstanceState.Executing,
+                    TestData.Dashboard.FiredAt,
+                    TestData.Dashboard.FiredAt,
+                    "batch")
+            ]));
+        A.CallTo(() => context.Api.InterruptFireInstance(A<string>._, "fire-1", A<CancellationToken>._))
+            .Returns(true);
+
+        IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Interrupt").Click();
+
+        A.CallTo(() => context.Api.InterruptFireInstance(TestData.SchedulerName, "fire-1", A<CancellationToken>._))
+            .MustHaveHappened();
+        context.Toasts.Messages.Should().BeEmpty(
+            "the interrupt was delivered, and the row leaving the listing is the whole of the news");
+    }
+
+    [Test]
     public void TheJobDetailPageShowsTheJobAndItsTriggers()
     {
         GivenJob();
@@ -168,6 +226,76 @@ public class RemainingPagesTest
         page.Markup.Should().Contain("holidays");
         page.Markup.Should().Contain("Test HolidayCalendar",
             "the calendar arrives as itself, so its description is readable without parsing JSON");
+    }
+
+    [Test]
+    public void DeletingAJobFromItsPageReturnsToTheListingOnlyWhenItWasThere()
+    {
+        GivenJob();
+        A.CallTo(() => context.Api.DeleteJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._)).Returns(false);
+
+        IRenderedComponent<JobDetail> page = RenderJobDetail();
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Delete").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Job reports.job-1 was not deleted - it no longer exists.");
+        context.Services.GetRequiredService<NavigationManager>().Uri.Should().NotEndWith("/quartz/jobs",
+            "the page navigates away because the job is gone, and nothing went anywhere here");
+
+        A.CallTo(() => context.Api.DeleteJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._)).Returns(true);
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Delete").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Services.GetRequiredService<NavigationManager>().Uri.Should().EndWith("/quartz/jobs",
+            "the job the page was showing is gone, so staying on it would show a not-found page");
+    }
+
+    [Test]
+    public void DeletingACalendarSaysWhetherThereWasOneToDelete()
+    {
+        A.CallTo(() => context.Api.GetCalendarNames(A<string>._, A<CancellationToken>._))
+            .Returns(new List<string> { "holidays" });
+        A.CallTo(() => context.Api.DeleteCalendar(A<string>._, "holidays", A<CancellationToken>._)).Returns(true);
+
+        IRenderedComponent<Calendars> page = context.Render<Calendars>();
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Delete").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Deleted calendar holidays.");
+
+        A.CallTo(() => context.Api.DeleteCalendar(A<string>._, "holidays", A<CancellationToken>._)).Returns(false);
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Delete").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Toasts.Messages[^1].Message.Should().Be(
+            "Calendar holidays was not deleted - it no longer exists.",
+            "a calendar another node removed is the case the flag exists for");
+    }
+
+    [Test]
+    public void ACalendarDetailPageReturnsToTheListingOnlyWhenItDeletedSomething()
+    {
+        A.CallTo(() => context.Api.GetCalendar(A<string>._, "holidays", A<CancellationToken>._))
+            .Returns(TestData.HolidayCalendar);
+        A.CallTo(() => context.Api.DeleteCalendar(A<string>._, "holidays", A<CancellationToken>._)).Returns(false);
+
+        IRenderedComponent<CalendarDetail> page = context.Render<CalendarDetail>(parameters => parameters
+            .Add(x => x.CalendarName, "holidays"));
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Delete calendar").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Calendar holidays was not deleted - it no longer exists.");
+        context.Services.GetRequiredService<NavigationManager>().Uri.Should().NotEndWith("/quartz/calendars");
+
+        A.CallTo(() => context.Api.DeleteCalendar(A<string>._, "holidays", A<CancellationToken>._)).Returns(true);
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Delete calendar").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Services.GetRequiredService<NavigationManager>().Uri.Should().EndWith("/quartz/calendars",
+            "the calendar the page was showing is gone");
     }
 
     [Test]

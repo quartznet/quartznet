@@ -133,6 +133,32 @@ public class TriggersPageTest
     }
 
     [Test]
+    public void UnschedulingFromTheListingSaysWhetherTheTriggerWasStillThere()
+    {
+        GivenTriggers(TestData.Dashboard.TriggerHeaders("nightly", 1));
+        A.CallTo(() => context.Api.UnscheduleJob(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(true);
+        IRenderedComponent<Triggers> page = context.Render<Triggers>();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Unschedule").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be("Unscheduled trigger nightly.trigger-1.");
+
+        A.CallTo(() => context.Api.UnscheduleJob(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(false);
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Unschedule").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Toasts.Messages[^1].Message.Should().Be(
+            "Trigger nightly.trigger-1 was not unscheduled - it no longer exists.",
+            "a listing is a snapshot, so the answer to 'was it still there' is the one thing the page "
+            + "cannot work out for itself");
+    }
+
+    [Test]
     public void ATriggerWithNoExecutionGroupSaysSoRatherThanShowingNothing()
     {
         GivenTriggers([new TriggerHeaderDto("nightly", "trigger-1", "Cron", "0/5 * * * * ?", TriggerState.Normal, null)]);

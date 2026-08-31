@@ -319,6 +319,7 @@
         await ExecuteMutatingActionAsync(
             () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, new JobKeyDto(_pendingDeleteGroup, _pendingDeleteName)),
             "Deleted job " + DisplayValueHelper.FormatKey(_pendingDeleteGroup, _pendingDeleteName) + ".",
+            "Job " + DisplayValueHelper.FormatKey(_pendingDeleteGroup, _pendingDeleteName) + " was not deleted - it no longer exists.",
             actionName: "DeleteJob",
             target: DisplayValueHelper.FormatKey(_pendingDeleteGroup, _pendingDeleteName));
         _showDeleteConfirm = false;

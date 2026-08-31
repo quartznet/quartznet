@@ -41,6 +41,12 @@ namespace Quartz.Dashboard.Services;
 /// execution history — names itself.
 /// </para>
 /// <para>
+/// A mutation that can find nothing to act on answers with the scheduler's own <see cref="bool" />:
+/// whether it applied. Every such member reports it, because a name shared with
+/// <see cref="IScheduler" /> that dropped the answer would read as the same operation and quietly not
+/// be one — and a page cannot tell "deleted" from "was already gone" without it.
+/// </para>
+/// <para>
 /// A trigger and a calendar arrive as themselves because Quartz already owns the polymorphism they
 /// need: the serializer registry maps each kind to its own serializer, custom kinds an application
 /// registered included, and the wire format is that discriminated shape. A DTO family of the
@@ -140,19 +146,34 @@ public interface IQuartzApiClient
     /// </remarks>
     ValueTask TriggerJob(string schedulerName, JobKeyDto jobKey, JobDataMap? jobDataMap = null, CancellationToken cancellationToken = default);
 
-    ValueTask Interrupt(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Interrupts every execution of the job on this node. Returns <see langword="true" /> when at
+    /// least one execution was asked to stop, <see langword="false" /> when the job was not running
+    /// here.
+    /// </summary>
+    /// <remarks>
+    /// A job that does not watch its cancellation token runs to completion regardless, so the flag says
+    /// the interrupt was delivered rather than that the work stopped.
+    /// </remarks>
+    ValueTask<bool> Interrupt(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Interrupts one execution, named by its fire instance id.
+    /// Interrupts one execution, named by its fire instance id. Returns <see langword="true" /> when
+    /// that execution was found and asked to stop, <see langword="false" /> when it had already
+    /// finished or belongs to another node.
     /// </summary>
     /// <remarks>
     /// The single-execution form of <see cref="Interrupt" />, which interrupts every execution of the
     /// job. Node-local on the server side: a firing owned by another node is interrupted by asking that
     /// node.
     /// </remarks>
-    ValueTask InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default);
+    ValueTask<bool> InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default);
 
-    ValueTask DeleteJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Deletes the job and every trigger that fires it. Returns <see langword="true" /> when the job
+    /// existed and was deleted, <see langword="false" /> when there was nothing to delete.
+    /// </summary>
+    ValueTask<bool> DeleteJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
     ValueTask AddJob(string schedulerName, AddJobRequest request, CancellationToken cancellationToken = default);
 
@@ -190,7 +211,12 @@ public interface IQuartzApiClient
 
     ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default);
 
-    ValueTask UnscheduleJob(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Removes the trigger, and the job it fired if that job is not durable and has no triggers left.
+    /// Returns <see langword="true" /> when the trigger existed and was removed,
+    /// <see langword="false" /> when there was nothing to remove.
+    /// </summary>
+    ValueTask<bool> UnscheduleJob(string schedulerName, TriggerKeyDto triggerKey, CancellationToken cancellationToken = default);
 
     ValueTask RescheduleJob(string schedulerName, TriggerKeyDto triggerKey, RescheduleRequest request, CancellationToken cancellationToken = default);
 
@@ -203,7 +229,11 @@ public interface IQuartzApiClient
 
     ValueTask AddCalendar(string schedulerName, AddCalendarRequest request, CancellationToken cancellationToken = default);
 
-    ValueTask DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Deletes the calendar. Returns <see langword="true" /> when it existed and was deleted,
+    /// <see langword="false" /> when there was nothing to delete.
+    /// </summary>
+    ValueTask<bool> DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns one page of execution history, newest first.
