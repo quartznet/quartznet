@@ -74,21 +74,18 @@ public sealed class SchedulerAcrossDstTransitionTest
     private const string TablePrefix = "QRTZ_";
 
     /// <summary>
-    /// Ten minutes short of four hours of elapsed time, starting one hour before the transition
-    /// instant.
+    /// Four hours of elapsed time, starting one hour before the transition instant.
     /// </summary>
     /// <remarks>
-    /// The ten minutes are missing so that no schedule here lands exactly on the far edge of the
-    /// window, where the two sides of the comparison would have to agree about whether the edge is
-    /// inside it - and they do not. <see cref="TriggerFireTimes.ComputeBetween" /> bounds the walk by
-    /// assigning <c>EndTimeUtc = to</c>, and an end time is inclusive for
-    /// <see cref="Quartz.Impl.Triggers.DailyTimeIntervalTriggerImpl" /> and exclusive for
-    /// <see cref="Quartz.Impl.Triggers.SimpleTriggerImpl" />, so a fire at exactly <c>to</c> is
-    /// counted for one and not the other. A scheduler has no end time and fires both. That
-    /// disagreement is about <c>EndAt</c> rather than about daylight saving, so this fixture steps
-    /// around it rather than arbitrating it.
+    /// A whole number of hours, so the half-hourly and quarter-hourly schedules here land exactly on
+    /// the far edge of the window and the two sides of the comparison have to agree about whether
+    /// that edge is inside it. They do: <see cref="TriggerFireTimes.ComputeBetween" /> bounds the
+    /// walk by assigning <c>EndTimeUtc = to</c>, and an end time is the last instant at which a
+    /// trigger may fire, so a fire at exactly <c>to</c> is one every trigger type produces - which is
+    /// what a running scheduler, having no end time at all, does with it too. This window was ten
+    /// minutes shorter until #3458 arbitrated that boundary.
     /// </remarks>
-    private static readonly TimeSpan WindowLength = TimeSpan.FromMinutes(230);
+    private static readonly TimeSpan WindowLength = TimeSpan.FromHours(4);
 
     /// <summary>How far the fake clock moves per step. Eight steps span the window.</summary>
     private static readonly TimeSpan Step = TimeSpan.FromMinutes(30);

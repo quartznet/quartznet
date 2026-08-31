@@ -113,7 +113,8 @@ public class SimpleTriggerImplTest
 
         var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-        Assert.That(actual, Is.Null);
+        actual.Should().Be(endTimeUtc,
+            "the next repeat lands on the end time, which is the last instant at which a trigger may fire");
     }
 
     [Test]
@@ -370,6 +371,7 @@ public class SimpleTriggerImplTest
 
         var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-        Assert.That(actual, Is.Null);
+        actual.Should().Be(startTimeUtc.AddDays(2),
+            "a fire time that lands exactly on the end time is one the trigger fires");
     }
 }

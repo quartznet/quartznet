@@ -103,6 +103,7 @@ public interface IMutableTrigger : ITrigger
     /// </para>
     /// </summary>
     /// <remarks>
+    /// The end time is inclusive: it is the last instant at which the trigger may fire.
     /// </remarks>
     new DateTimeOffset? EndTimeUtc { get; set; }
 

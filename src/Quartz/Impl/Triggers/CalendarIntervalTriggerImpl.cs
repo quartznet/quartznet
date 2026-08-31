@@ -465,6 +465,10 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
     /// after the given time. If the trigger will not fire after the given time,
     /// <see langword="null" /> will be returned.
     /// </summary>
+    /// <remarks>
+    /// A fire time that lands exactly on <see cref="EndTimeUtc" /> is one the trigger fires: the
+    /// end time is the last instant at which a trigger may fire.
+    /// </remarks>
     public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
     {
         return GetFireTimeAfter(afterTime, false);
@@ -487,7 +491,10 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
         DateTimeOffset afterMillis = afterTime.Value;
         DateTimeOffset endMillis = EndTimeUtc ?? DateTimeOffset.MaxValue;
 
-        if (!ignoreEndTime && endMillis <= afterMillis)
+        // afterMillis is already a second past the time asked about, so a fire time landing on the
+        // end time is still reachable from the second before it; only a question asked past the end
+        // time has nothing left to answer with.
+        if (!ignoreEndTime && endMillis < afterMillis)
         {
             return null;
         }
@@ -643,7 +650,7 @@ public class CalendarIntervalTriggerImpl : TriggerBase, ICalendarIntervalTrigger
                 time = sTime;
             }
         } // case of interval of a day or greater
-        if (!ignoreEndTime && endMillis <= time)
+        if (!ignoreEndTime && endMillis < time)
         {
             return null;
         }

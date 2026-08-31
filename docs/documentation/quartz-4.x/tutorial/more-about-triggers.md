@@ -25,6 +25,8 @@ This means you can store a trigger with a schedule such as "every 5th day of the
  it will be a few months before the first firing.
 * The `EndTimeUtc` property indicates when the trigger's schedule should no longer be in effect.
 In other words, a trigger with a schedule of "every 5th day of the month" and with an end time of July 1st will fire for it's last time on June 5th.
+The end time is the last instant at which a trigger may fire: a fire time exactly equal to it is one the trigger fires, and the first instant after it is where the schedule stops.
+This is the same rule for every trigger type.
 
 Other properties, which take a bit more explanation are discussed in the following sub-sections.
 
