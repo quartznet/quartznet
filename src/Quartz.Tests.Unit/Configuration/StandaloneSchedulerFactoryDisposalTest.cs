@@ -152,9 +152,10 @@ public class StandaloneSchedulerFactoryDisposalTest
         A.CallTo(() => store.Shutdown(A<CancellationToken>._))
             .Throws(new InvalidOperationException("the store refused to shut down"));
 
-        StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = nameof(AFailedShutdownIsReportedAndTheContainerIsDisposedAnyway))
-            .UseJobStore(store)
+        StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = nameof(AFailedShutdownIsReportedAndTheContainerIsDisposedAnyway))
+                .UseJobStore(store))
             .Build();
 
         await factory.GetScheduler();
@@ -173,12 +174,13 @@ public class StandaloneSchedulerFactoryDisposalTest
     public async Task DisposingAFactoryThatNeverBuiltASchedulerBuildsNothing()
     {
         bool listenerConstructed = false;
-        StandaloneSchedulerFactory factory = Builder(nameof(DisposingAFactoryThatNeverBuiltASchedulerBuildsNothing))
-            .AddSchedulerListener(_ =>
-            {
-                listenerConstructed = true;
-                return new ProbeListener();
-            })
+        StandaloneSchedulerFactory factory = Builder(
+                nameof(DisposingAFactoryThatNeverBuiltASchedulerBuildsNothing),
+                q => q.AddSchedulerListener(_ =>
+                {
+                    listenerConstructed = true;
+                    return new ProbeListener();
+                }))
             .Build();
 
         Func<Task> act = async () => await factory.DisposeAsync();
@@ -188,24 +190,28 @@ public class StandaloneSchedulerFactoryDisposalTest
             "nothing asked for a scheduler, so disposal must not build one just to tear it down");
     }
 
-    private static QuartzSchedulerBuilder Builder(string instanceName)
+    private static QuartzSchedulerBuilder Builder(string instanceName, Action<IQuartzBuilder> also = null)
     {
-        return QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = instanceName)
-            .UseDefaultThreadPool(maxConcurrency: 2)
-            // Nothing on the firing path may need the container, or "still firing" stops being
-            // observable the moment the container is disposed — which is the state under test. The
-            // default factory builds each job from a dependency injection scope, so a scheduler left
-            // running by a broken disposal would fail every firing rather than count it, and the test
-            // would pass for the wrong reason.
-            .UseJobFactory<SimpleJobFactory>()
-            .UseInMemoryStore();
+        return QuartzSchedulerBuilder.Create(q =>
+        {
+            q.ConfigureScheduler(options => options.InstanceName = instanceName)
+                .UseDefaultThreadPool(maxConcurrency: 2)
+                // Nothing on the firing path may need the container, or "still firing" stops being
+                // observable the moment the container is disposed — which is the state under test. The
+                // default factory builds each job from a dependency injection scope, so a scheduler left
+                // running by a broken disposal would fail every firing rather than count it, and the test
+                // would pass for the wrong reason.
+                .UseJobFactory<SimpleJobFactory>()
+                .UseInMemoryStore();
+
+            also?.Invoke(q);
+        });
     }
 
     private static QuartzSchedulerBuilder BuilderWithSchedulerAwareListener(string instanceName)
     {
-        return Builder(instanceName)
-            .AddSchedulerListener(provider => new SchedulerAwareListener(provider.GetRequiredService<IScheduler>()));
+        return Builder(instanceName, q => q
+            .AddSchedulerListener(provider => new SchedulerAwareListener(provider.GetRequiredService<IScheduler>())));
     }
 
     /// <summary>

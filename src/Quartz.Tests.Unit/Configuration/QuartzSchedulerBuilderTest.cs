@@ -29,10 +29,10 @@ public class QuartzSchedulerBuilderTest
     [Test]
     public async Task BuildsAWorkingSchedulerWithoutAnApplicationContainer()
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-        builder.ConfigureScheduler(options => options.InstanceName = "standalone-builds")
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q => q
+            .ConfigureScheduler(options => options.InstanceName = "standalone-builds")
             .UseDefaultThreadPool(maxConcurrency: 2)
-            .UseInMemoryStore();
+            .UseInMemoryStore());
 
         IScheduler scheduler = await builder.BuildScheduler();
 
@@ -57,18 +57,19 @@ public class QuartzSchedulerBuilderTest
     }
 
     /// <summary>
-    /// The chain keeps its concrete type, so it reaches <c>BuildScheduler</c>. This compiling at all is
-    /// the assertion: before the explicit interface implementation, every configuration member returned
-    /// <see cref="IQuartzBuilder"/> and a standalone scheduler took two statements.
+    /// The callback is handed an <see cref="IQuartzBuilder"/>, so a chain written for
+    /// <c>AddQuartz(q =&gt; …)</c> is the same chain here and reaches <c>BuildScheduler</c> in one
+    /// expression. This compiling at all is the assertion.
     /// </summary>
     [Test]
     public async Task ConfigurationMembersChainIntoTheTerminalMethods()
     {
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "standalone-chains")
-            .UseDefaultThreadPool(maxConcurrency: 2)
-            .UseInMemoryStore()
-            .UseTimeProvider(TimeProvider.System)
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "standalone-chains")
+                .UseDefaultThreadPool(maxConcurrency: 2)
+                .UseInMemoryStore()
+                .UseTimeProvider(TimeProvider.System))
             .BuildScheduler();
 
         try
@@ -132,8 +133,9 @@ public class QuartzSchedulerBuilderTest
             ["quartz.threadPool.threadCount"] = "6",
         };
 
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create().UseProperties(properties);
-        builder.ConfigureScheduler(options => options.InstanceName = "named-by-code");
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(options => options.InstanceName = "named-by-code"))
+            .UseProperties(properties);
 
         IScheduler scheduler = await builder.BuildScheduler();
 
@@ -157,9 +159,9 @@ public class QuartzSchedulerBuilderTest
     {
         // Build() validates on build, so a missing or mis-scoped registration fails here rather than
         // at first use.
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-        builder.ConfigureScheduler(options => options.InstanceName = "validated")
-            .UseInMemoryStore();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q => q
+            .ConfigureScheduler(options => options.InstanceName = "validated")
+            .UseInMemoryStore());
 
         var act = () => builder.Build();
 
@@ -253,22 +255,22 @@ public class QuartzSchedulerBuilderTest
     }
 
     /// <summary>
-    /// The whole point of the builder's covariant returns: a scheduler is described and built in one
-    /// expression. Adding a job or a trigger goes through what is an extension method on
-    /// <see cref="IQuartzBuilder" /> for everybody else, and an extension method cannot preserve the
-    /// receiver's type — so this compiling is the assertion, and the scheduler it produces is the proof
-    /// the mirrored members do the same work.
+    /// What a scheduler <em>carries</em> — jobs, triggers, calendars — is added by extension methods
+    /// over <see cref="IQuartzBuilder" />, and the callback is handed exactly that, so they are
+    /// reachable here without the standalone builder declaring a single one of them. This compiling is
+    /// half the assertion; the scheduler it produces is the other half.
     /// </summary>
     [Test]
-    public async Task TheContentMembersKeepTheBuildersTypeThroughOneExpression()
+    public async Task TheContentMembersAreReachableThroughTheCallback()
     {
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "standalone-chained")
-            .UseInMemoryStore()
-            .UseSimpleTypeLoader()
-            .AddJob<SignallingJob>(job => job.WithIdentity("chained-job").StoreDurably())
-            .AddTrigger(trigger => trigger.WithIdentity("chained-trigger").ForJob("chained-job").StartAt(DateTimeOffset.UtcNow.AddHours(1)))
-            .AddCalendar<Quartz.Impl.Calendar.HolidayCalendar>("chained-calendar")
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "standalone-chained")
+                .UseInMemoryStore()
+                .UseSimpleTypeLoader()
+                .AddJob<SignallingJob>(job => job.WithIdentity("chained-job").StoreDurably())
+                .AddTrigger(trigger => trigger.WithIdentity("chained-trigger").ForJob("chained-job").StartAt(DateTimeOffset.UtcNow.AddHours(1)))
+                .AddCalendar<HolidayCalendar>("chained-calendar"))
             .BuildScheduler();
 
         try
@@ -291,21 +293,21 @@ public class QuartzSchedulerBuilderTest
     [Test]
     public async Task ACalendarCanBeBuiltFromTheContainer()
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "standalone-calendar-factory");
-
-        builder.Services.AddSingleton(new ExcludedDays(new MonthDay(12, 25)));
-
-        IScheduler scheduler = await builder
-            .AddCalendar("from-container", serviceProvider =>
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q =>
             {
-                AnnualCalendar calendar = new AnnualCalendar { TimeZone = TimeZoneInfo.Utc };
-                foreach (MonthDay day in serviceProvider.GetRequiredService<ExcludedDays>().Days)
+                q.ConfigureScheduler(options => options.InstanceName = "standalone-calendar-factory");
+                q.Services.AddSingleton(new ExcludedDays(new MonthDay(12, 25)));
+                q.AddCalendar("from-container", serviceProvider =>
                 {
-                    calendar.AddExcludedDay(day);
-                }
+                    AnnualCalendar calendar = new AnnualCalendar { TimeZone = TimeZoneInfo.Utc };
+                    foreach (MonthDay day in serviceProvider.GetRequiredService<ExcludedDays>().Days)
+                    {
+                        calendar.AddExcludedDay(day);
+                    }
 
-                return calendar;
+                    return calendar;
+                });
             })
             .BuildScheduler();
 

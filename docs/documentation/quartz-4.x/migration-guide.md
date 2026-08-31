@@ -1223,11 +1223,10 @@ reaching for one of them. Each had a reason that the container now covers direct
 
 ## The standalone builder is the same builder
 
-`QuartzSchedulerBuilder` now implements `IQuartzBuilder` — the interface `AddQuartz` hands out — rather
-than offering five methods of its own that happened to have the same names, plus a
-`Configure(Action<IQuartzBuilder>)` hatch for everything else. There is one configuration API with two
-front doors: `AddQuartz` for an application that has a container, `QuartzSchedulerBuilder` for one that
-does not.
+`QuartzSchedulerBuilder.Create` takes the callback `AddQuartz` takes, and hands it the same
+`IQuartzBuilder`. There is one configuration API with two front doors: `AddQuartz` for an application
+that has a container, `QuartzSchedulerBuilder` for one that does not, and the callback in between reads
+identically either way.
 
 ```diff
 - var scheduler = await QuartzSchedulerBuilder.Create()
@@ -1238,39 +1237,48 @@ does not.
 -     })
 -     .UseDefaultThreadPool(maxConcurrency: 20)
 -     .BuildScheduler();
-+ var scheduler = await QuartzSchedulerBuilder.Create()
-+     .UseDefaultThreadPool(maxConcurrency: 20)
-+     .UsePersistentStore(store => store.UseSqlServer(connectionString))
++ IScheduler scheduler = await QuartzSchedulerBuilder
++     .Create(q => q
++         .UseDefaultThreadPool(maxConcurrency: 20)
++         .UsePersistentStore(store => store.UseSqlServer(connectionString))
++         .AddJob<ReportJob>(j => j.WithIdentity("report").StoreDurably()))
 +     .BuildScheduler();
 ```
 
-Everything on `IQuartzBuilder` — jobs, triggers, calendars, listeners, plugins, execution limits — is
-now available on the standalone builder without a wrapper, which is the point.
+Everything on `IQuartzBuilder` — jobs, triggers, calendars, listeners, plugins, execution limits — and
+every extension a package contributes is available to the callback, which is the point. The builder
+itself declares five members and no more: `Create(configure)`, `Build()`, `BuildScheduler()`,
+`UseConfiguration(IConfiguration)` and the two `UseProperties` overloads. It re-declares nothing, so
+nothing can fall behind what `IQuartzBuilder` grows.
 
-Each of those members is declared on `QuartzSchedulerBuilder` returning `QuartzSchedulerBuilder`, with
-`IQuartzBuilder` implemented explicitly underneath — which is how C# spells a covariant return on an
-interface implementation. So the chain keeps its concrete type and reaches `Build()` and
-`BuildScheduler()`, and a standalone scheduler is one expression. A local typed `IQuartzBuilder` still
-works; a `var` local now holds the concrete type, which is strictly more useful.
+The callback is optional, exactly as `AddQuartz()`'s is, so a scheduler described entirely by
+configuration or by flat keys is still `Create().UseConfiguration(section)` or
+`Create().UseProperties(properties)`.
 
-The `IQuartzBuilder` **extension** methods — `AddJob`, `AddTrigger`, `ScheduleJob`, `AddCalendar`,
-`AddJobType`, `ConfigureJobScope`, `UseSimpleTypeLoader` — are mirrored on `QuartzSchedulerBuilder` as
-instance methods returning `QuartzSchedulerBuilder`, so they chain too:
+::: warning For 4.0 alpha users
+Through 4.0.0-alpha.4 the builder re-declared every `IQuartzBuilder` member and every builder extension
+with a covariant return — roughly sixty signatures — so that a chain could be written directly on it.
+That facade is gone. The fix is mechanical: whatever was chained between `Create()` and the terminal
+call moves into `Create(q => q…)`.
 
-```csharp
-var scheduler = await QuartzSchedulerBuilder.Create()
-    .UseDefaultThreadPool(maxConcurrency: 20)
-    .UseInMemoryStore()
-    .AddJob<ReportJob>(j => j.WithIdentity("report").StoreDurably())
-    .AddTrigger(t => t.ForJob("report").WithCronSchedule("0 0 2 * * ?"))
-    .BuildScheduler();
+```diff
+- IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+-     .ConfigureScheduler(o => o.InstanceName = "reporting")
+-     .UseInMemoryStore()
+-     .AddJob<ReportJob>(j => j.WithIdentity("report").StoreDurably())
+-     .BuildScheduler();
++ IScheduler scheduler = await QuartzSchedulerBuilder
++     .Create(q => q
++         .ConfigureScheduler(o => o.InstanceName = "reporting")
++         .UseInMemoryStore()
++         .AddJob<ReportJob>(j => j.WithIdentity("report").StoreDurably()))
++     .BuildScheduler();
 ```
 
-An extension method cannot be covariant in its receiver, and making it generic in the receiver is not
-open to us either: `AddJob<MyJob>(…)` names one type argument, and C# has no partial type-argument
-inference, so neither `AddJob<TBuilder, TJob>` nor an `extension<TBuilder>` block can be called that
-way. The mirrors are how the chain keeps its type; an extension of your own over `IQuartzBuilder`
-behaves as before, and goes in a statement of its own.
+`Services` and `SchedulerName` went with it, since they are `IQuartzBuilder`'s: read them off the
+callback's argument as `q.Services` and `q.SchedulerName`. `UseProperties`, `UseConfiguration`,
+`Build()` and `BuildScheduler()` are unchanged, and a `Create()` with no callback still compiles.
+:::
 
 ### `Build()` returns something you can dispose
 
@@ -1299,8 +1307,8 @@ registered with `AddQuartz` can also be given a part that was built rather than 
 
 | Removed from `QuartzSchedulerBuilder` | Use instead |
 |---|---|
-| `Configure(Action<IQuartzBuilder>)` | call the members directly on the builder |
-| `ConfigureScheduler`, `UseDefaultThreadPool` ×2, `UseJobFactory(IJobFactory)`, `UseInMemoryStore` | the identical `IQuartzBuilder` members, which the builder now implements |
+| `Configure(Action<IQuartzBuilder>)` | `Create(Action<IQuartzBuilder>)`, which is the same callback moved to where the builder is created |
+| `ConfigureScheduler`, `UseDefaultThreadPool` ×2, `UseJobFactory(IJobFactory)`, `UseInMemoryStore` | the identical `IQuartzBuilder` members, inside the `Create` callback |
 
 ## `IScheduler` is `IAsyncDisposable`
 
@@ -2338,7 +2346,8 @@ q.AddCalendar("holidays", serviceProvider =>
 The factory is handed the scheduler-scoped `IServiceProvider`, so a calendar registered for a named
 scheduler is given that scheduler's parts rather than the default scheduler's, and it runs once, when
 the scheduler's content is resolved. `AddCalendarOptions` is the optional third parameter as it is on
-the other overloads. `QuartzSchedulerBuilder` mirrors it, so a standalone chain stays a chain.
+the other overloads. It is an `IQuartzBuilder` extension, so it reads the same inside
+`QuartzSchedulerBuilder.Create(q => …)`.
 
 ## Plugins are registered like listeners
 
@@ -3044,9 +3053,9 @@ For more information on `ValueTask` please see [Microsoft docs](https://learn.mi
 SystemTime.UtcNow = () => new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
 // 4.x — use TimeProvider
-var builder = QuartzSchedulerBuilder.Create();
-builder.UseTimeProvider(new FakeTimeProvider());
-var scheduler = await builder.BuildScheduler();
+IScheduler scheduler = await QuartzSchedulerBuilder
+    .Create(q => q.UseTimeProvider(new FakeTimeProvider()))
+    .BuildScheduler();
 ```
 
 Under a host, the same call goes on the `AddQuartz` builder:
@@ -7257,9 +7266,9 @@ always been there, but an already-constructed factory had nowhere to go:
 
 ```csharp
 // standalone
-var builder = QuartzSchedulerBuilder.Create();
-builder.UseJobFactory(new MyJobFactory());
-var scheduler = await builder.BuildScheduler();
+IScheduler scheduler = await QuartzSchedulerBuilder
+    .Create(q => q.UseJobFactory(new MyJobFactory()))
+    .BuildScheduler();
 ```
 
 There is no by-hand path left: `QuartzScheduler` is internal, so the job factory is always configured through
@@ -10079,7 +10088,7 @@ Parameters and behavior are unchanged:
 | `TriggerFiredResult` is made by three factories | `TriggerFiredResult.Fired(bundle)`, `TriggerFiredResult.NotFired` and `TriggerFiredResult.Failed(exception)` replace the two constructors, which between them could build a result carrying both a bundle and an exception, or neither by accident — `new TriggerFiredResult((TriggerFiredBundle?) null)` was how a store said "this trigger turned out not to be firable". The three outcomes are now named, and the cast that used to be needed to pick a constructor overload is gone |
 | `StdSchedulerFactory` removed | `QuartzSchedulerBuilder.Create().UseProperties(properties)` — see [`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone) for every removed constant |
 | `GetScheduler()` after `Shutdown()` throws | 3.x built a fresh scheduler, because the factory constructed every part itself. The container owns those lifetimes now, so the same call would re-initialize the thread pool and job store the shutdown just tore down and hand back the same closed instance. It throws `SchedulerException` instead. Use `Standby()`/`Start()` to pause and resume a scheduler, or build a new host or container for a fresh one |
-| `QuartzSchedulerBuilder` implements `IQuartzBuilder` | Its five duplicated members and `Configure(Action<IQuartzBuilder>)` are gone, and configuration members return `IQuartzBuilder`, so `Build()` is called on a builder held in a variable — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
+| `QuartzSchedulerBuilder.Create` takes the `AddQuartz` callback | Its five duplicated members and `Configure(Action<IQuartzBuilder>)` are gone; configuration is written in `Create(q => …)`, against the same `IQuartzBuilder` `AddQuartz` hands out, and the builder itself declares only `Create`, `Build`, `BuildScheduler`, `UseConfiguration` and `UseProperties` ×2 — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
 | `IQuartzBuilder` gained `UseThreadPool(IThreadPool)` and `UseJobStore(IJobStore)` | A pre-built part can be handed to a scheduler registered with `AddQuartz`, not only to a standalone one |
 | `IQuartzBuilder.ConfigureJobScope(...)` | The `ConfigureScope` hook as a delegate, so preparing a job's scope no longer needs a job factory of your own — see [The job scope is prepared without writing a job factory](#the-job-scope-is-prepared-without-writing-a-job-factory) |
 | `IQuartzBuilder` gained `UseJobStore<T>` / `<T, TOptions>` / factory | The seam for a job store of your own, built by the container with its scheduler's collaborators — see [A component of your own is chosen the same way a shipped one is](#a-component-of-your-own-is-chosen-the-same-way-a-shipped-one-is) |
@@ -10386,7 +10395,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Impl.RemoteScheduler` | Removed | `Quartz.HttpClient` — see [Remoting a scheduler is not a Quartz concern](#remoting-a-scheduler-is-not-a-quartz-concern) |
 | `Quartz.Simpl.RemotingSchedulerProxyFactory` | Removed | As above — see [Remoting a scheduler is not a Quartz concern](#remoting-a-scheduler-is-not-a-quartz-concern) |
 | `Quartz.ScheduleBuilder<T>` | Removed | Implement `IScheduleBuilder` directly — see [`ScheduleBuilder<T>` is gone](#schedulebuilder-t-is-gone) |
-| `Quartz.SchedulerBuilder` | Renamed `QuartzSchedulerBuilder` | And it implements `IQuartzBuilder`, so its configuration members return that — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
+| `Quartz.SchedulerBuilder` | Renamed `QuartzSchedulerBuilder` | And `Create` takes the `AddQuartz` callback, so configuration is written against `IQuartzBuilder` — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
 | `Quartz.SchedulerExtensions` | Removed | Its three members are on `IScheduler` itself: `GetExecutionLimits`, `SetExecutionLimits`, `UpdateTriggerDetails` |
 | `Quartz.SchedulerMetaData` | Renamed `SchedulerMetadata` | A `sealed record`, returned by `IScheduler.GetMetadata()` — see [`SchedulerMetadata` replaces `SchedulerMetaData`](#schedulermetadata-replaces-schedulermetadata) |
 | `Quartz.SchedulerPluginConfigurationExtensions` | Removed | `IQuartzBuilder.AddPlugin<T>()` — see [Plugins are registered like listeners](#plugins-are-registered-like-listeners) |

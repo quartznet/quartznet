@@ -37,8 +37,8 @@ spelling of the same thing and still work.
 | `JsonSchedulingDataProcessorPlugin` | `UseJsonSchedulingConfiguration(…)` | `FileSchedulingOptions` |
 | `XmlSchedulingDataProcessorPlugin` | `UseXmlSchedulingConfiguration(…)` | `FileSchedulingOptions` |
 
-They hang off `IQuartzBuilder`, so they work the same under `AddQuartz` and on a standalone
-`QuartzSchedulerBuilder`. See the
+They hang off `IQuartzBuilder`, so they work the same under `AddQuartz` and inside
+`QuartzSchedulerBuilder.Create(q => …)`. See the
 [configuration reference](../configuration/reference.md#listeners-calendars-and-plugins) for how a plugin
 is registered and named.
 
@@ -418,11 +418,10 @@ The same extension method works wherever an `IQuartzBuilder` does, which is both
 // under a host
 services.AddQuartz(q => q.UseMyPlugin(options => options.SomeSetting = "value"));
 
-// standalone, without an application container
-var builder = QuartzSchedulerBuilder.Create();
-builder.UseMyPlugin(options => options.SomeSetting = "value");
-
-var scheduler = await builder.BuildScheduler();
+// standalone, without an application container — the same callback, a different receiver
+IScheduler scheduler = await QuartzSchedulerBuilder
+    .Create(q => q.UseMyPlugin(options => options.SomeSetting = "value"))
+    .BuildScheduler();
 ```
 <!-- endSnippet -->
 

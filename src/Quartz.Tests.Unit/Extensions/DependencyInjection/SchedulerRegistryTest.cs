@@ -112,8 +112,8 @@ public sealed class SchedulerRegistryTest
     {
         using ServiceProvider provider = Container(services => services.AddQuartz("acme", _ => { }));
 
-        IScheduler standalone = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(o => o.InstanceName = "bound-by-hand")
+        IScheduler standalone = await QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(o => o.InstanceName = "bound-by-hand"))
             .BuildScheduler();
 
         try
@@ -139,8 +139,8 @@ public sealed class SchedulerRegistryTest
     {
         using ServiceProvider provider = Container(services => services.AddQuartz("Acme", _ => { }));
 
-        IScheduler standalone = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(o => o.InstanceName = "ACME")
+        IScheduler standalone = await QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(o => o.InstanceName = "ACME"))
             .BuildScheduler();
 
         try

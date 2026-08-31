@@ -38,23 +38,22 @@ public sealed class TriggerInErrorNotificationAdoTest
     {
         ErrorStateListener listener = new ErrorStateListener();
 
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-
-        builder.ConfigureScheduler(options =>
-        {
-            options.InstanceName = SchedulerName;
-            options.GenerateInstanceId = true;
-        });
-        builder.UseDefaultThreadPool();
-        builder.UseJobFactory(new ThrowingJobFactory());
-        builder.UsePersistentStore(store =>
-        {
-            store.UsePostgres(TestConstants.PostgresConnectionString);
-            store.UseNewtonsoftJsonSerializer();
-            store.ConfigureStore(options => options.TablePrefix = SchedulerHelper.TablePrefix);
-        });
-
-        IScheduler scheduler = await builder.BuildScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options =>
+                {
+                    options.InstanceName = SchedulerName;
+                    options.GenerateInstanceId = true;
+                })
+                .UseDefaultThreadPool()
+                .UseJobFactory(new ThrowingJobFactory())
+                .UsePersistentStore(store =>
+                {
+                    store.UsePostgres(TestConstants.PostgresConnectionString);
+                    store.UseNewtonsoftJsonSerializer();
+                    store.ConfigureStore(options => options.TablePrefix = SchedulerHelper.TablePrefix);
+                }))
+            .BuildScheduler();
 
         TriggerKey triggerKey = new TriggerKey("trigger1", "errorstate");
 

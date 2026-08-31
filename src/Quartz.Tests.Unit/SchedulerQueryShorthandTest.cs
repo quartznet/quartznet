@@ -107,8 +107,8 @@ public class SchedulerQueryShorthandTest
     [Test]
     public async Task TriggersInErrorAreListedAndResetByGroup()
     {
-        IScheduler failing = await QuartzSchedulerBuilder.Create()
-            .UseJobFactory(new ThrowingJobFactory())
+        IScheduler failing = await QuartzSchedulerBuilder
+            .Create(q => q.UseJobFactory(new ThrowingJobFactory()))
             .BuildScheduler();
 
         try

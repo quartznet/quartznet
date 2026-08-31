@@ -409,8 +409,7 @@ These packages have been merged into the main `Quartz` package in 4.x. You can r
      which this repository does not reference outside its test projects. -->
 
 ```csharp
-QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-builder.UseTimeProvider(new FakeTimeProvider());
+QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q => q.UseTimeProvider(new FakeTimeProvider()));
 ```
 
 This is particularly useful for unit testing where you need to control the passage of time.

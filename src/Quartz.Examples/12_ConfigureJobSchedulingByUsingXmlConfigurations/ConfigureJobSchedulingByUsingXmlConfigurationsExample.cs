@@ -41,26 +41,25 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
 
         // This example configures its own scheduler rather than using the shared one, because the
         // plugins are the thing it is about
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-
-        builder.ConfigureScheduler(options => options.InstanceName = "XmlConfiguredInstance")
-            .UseDefaultThreadPool(maxConcurrency: 5)
-            // the job initialization plugin handles our xml reading; without it, defaults are used
-            .UseXmlSchedulingConfiguration(x =>
-            {
-                x.Files.Add("~/quartz_jobs.xml");
-                // this is the default
-                x.FailOnFileNotFound = true;
-                // this is not the default
-                x.FailOnSchedulingError = true;
-                // and neither is this: zero means "read it once", anything else means "keep looking"
-                x.ScanInterval = TimeSpan.FromSeconds(10);
-            })
-            // every job about to run and every job that finished, logged by a plugin rather than by
-            // anything the jobs themselves do
-            .UseJobHistoryLogging();
-
-        IScheduler scheduler = await builder.BuildScheduler(cancellationToken);
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "XmlConfiguredInstance")
+                .UseDefaultThreadPool(maxConcurrency: 5)
+                // the job initialization plugin handles our xml reading; without it, defaults are used
+                .UseXmlSchedulingConfiguration(x =>
+                {
+                    x.Files.Add("~/quartz_jobs.xml");
+                    // this is the default
+                    x.FailOnFileNotFound = true;
+                    // this is not the default
+                    x.FailOnSchedulingError = true;
+                    // and neither is this: zero means "read it once", anything else means "keep looking"
+                    x.ScanInterval = TimeSpan.FromSeconds(10);
+                })
+                // every job about to run and every job that finished, logged by a plugin rather than by
+                // anything the jobs themselves do
+                .UseJobHistoryLogging())
+            .BuildScheduler(cancellationToken);
 
         // calendars are not part of the XML schedule, so this one is added in code
         DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(0, 1), new TimeOnly(23, 59));

@@ -344,37 +344,40 @@ public sealed class SchedulerAcrossDstTransitionTest
 
     private StandaloneSchedulerFactory BuildFactory(DstStore store, TimeProvider clock)
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create()
-            .UseTimeProvider(clock)
-            .ConfigureScheduler(options =>
-            {
-                options.InstanceName = $"dst-{Guid.NewGuid():N}";
-                options.IdleWaitTime = IdleWaitTime;
-            });
-
-        if (store == DstStore.InMemory)
-        {
-            builder.UseInMemoryStore(options => options.MisfireThreshold = MisfireThreshold);
-        }
-        else
+        if (store == DstStore.Sqlite)
         {
             PrepareDatabase();
-
-            builder.UsePersistentStore(persistent =>
-            {
-                persistent.UseSqlite(ConnectionString);
-                persistent.ConfigureStore(options =>
-                {
-                    options.TablePrefix = TablePrefix;
-                    options.MisfireThreshold = MisfireThreshold;
-                    // The handler scans on the store's own clock, which is the fake one; a frequency
-                    // wider than the window keeps its scans out of the way of the advances below.
-                    options.MisfireHandlerFrequency = MisfireThreshold;
-                });
-            });
         }
 
-        return builder.Build();
+        return QuartzSchedulerBuilder.Create(q =>
+        {
+            q.UseTimeProvider(clock)
+                .ConfigureScheduler(options =>
+                {
+                    options.InstanceName = $"dst-{Guid.NewGuid():N}";
+                    options.IdleWaitTime = IdleWaitTime;
+                });
+
+            if (store == DstStore.InMemory)
+            {
+                q.UseInMemoryStore(options => options.MisfireThreshold = MisfireThreshold);
+            }
+            else
+            {
+                q.UsePersistentStore(persistent =>
+                {
+                    persistent.UseSqlite(ConnectionString);
+                    persistent.ConfigureStore(options =>
+                    {
+                        options.TablePrefix = TablePrefix;
+                        options.MisfireThreshold = MisfireThreshold;
+                        // The handler scans on the store's own clock, which is the fake one; a frequency
+                        // wider than the window keeps its scans out of the way of the advances below.
+                        options.MisfireHandlerFrequency = MisfireThreshold;
+                    });
+                });
+            }
+        }).Build();
     }
 
     private string ConnectionString => $"Data Source={databaseFile};";

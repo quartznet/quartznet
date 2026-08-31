@@ -120,10 +120,11 @@ whole chain is one expression:
 
 <!-- snippet: sample_quick_start_standalone -->
 ```csharp
-IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-    .ConfigureScheduler(options => options.InstanceName = "MyScheduler")
-    .UseDefaultThreadPool(maxConcurrency: 5)
-    .UseInMemoryStore()
+IScheduler scheduler = await QuartzSchedulerBuilder
+    .Create(q => q
+        .ConfigureScheduler(options => options.InstanceName = "MyScheduler")
+        .UseDefaultThreadPool(maxConcurrency: 5)
+        .UseInMemoryStore())
     .BuildScheduler();
 
 await scheduler.Start();

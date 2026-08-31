@@ -189,9 +189,7 @@ public sealed class JobTimeoutMiddlewareTest
     [TestCase(-1)]
     public void ANonPositiveSchedulerDefaultIsRefused(int seconds)
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-
-        Action act = () => builder.AddJobTimeout(TimeSpan.FromSeconds(seconds));
+        Action act = () => QuartzSchedulerBuilder.Create(q => q.AddJobTimeout(TimeSpan.FromSeconds(seconds)));
 
         act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName("defaultTimeout");
     }

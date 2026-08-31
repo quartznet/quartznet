@@ -45,13 +45,13 @@ public static class NewtonsoftJsonSamples
     {
         #region sample_newtonsoft_standalone
 
-        await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
-            .UsePersistentStore(store =>
+        await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
+            .Create(q => q.UsePersistentStore(store =>
             {
                 store.UseGenericDatabase("MyProvider", "my connection string");
                 store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
                 store.UseNewtonsoftJsonSerializer();
-            })
+            }))
             .Build();
 
         #endregion

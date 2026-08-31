@@ -62,13 +62,14 @@ public sealed class ThrowingJobListenerTest
         ErrorRecordingSchedulerListener errors = new();
 
         CompletionWatchingJobStore store = null;
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "throws-before-the-job")
-            .UseJobStore(provider =>
-            {
-                store = new CompletionWatchingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
-                return store;
-            })
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "throws-before-the-job")
+                .UseJobStore(provider =>
+                {
+                    store = new CompletionWatchingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+                    return store;
+                }))
             .BuildScheduler();
 
         try
@@ -151,13 +152,14 @@ public sealed class ThrowingJobListenerTest
         RecordingTriggerListener triggerListener = new();
 
         CompletionWatchingJobStore store = null;
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "throws-after-the-job")
-            .UseJobStore(provider =>
-            {
-                store = new CompletionWatchingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
-                return store;
-            })
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "throws-after-the-job")
+                .UseJobStore(provider =>
+                {
+                    store = new CompletionWatchingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+                    return store;
+                }))
             .BuildScheduler();
 
         try

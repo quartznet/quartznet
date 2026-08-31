@@ -218,9 +218,12 @@ internals behind them.
 - `IServiceCollection.AddQuartz()` — registers a scheduler's object graph. `AddQuartz(name, ...)`
   registers a named scheduler, whose parts are keyed by that name.
 - `AddQuartzHostedService()` — `IHostedService` integration.
-- `QuartzSchedulerBuilder` — builds a scheduler with no application container, by creating its own. It
-  implements `IQuartzBuilder`, so there is one configuration API rather than two that resemble each
-  other; it adds only `Build()` / `BuildScheduler()` and `UseProperties(NameValueCollection)`.
+- `QuartzSchedulerBuilder` — builds a scheduler with no application container, by creating its own.
+  `Create(Action<IQuartzBuilder>)` hands the callback the same `IQuartzBuilder` `AddQuartz` does, so
+  there is one configuration API rather than two that resemble each other. The type re-declares none of
+  it: it adds only `Create`, `Build()` / `BuildScheduler()`, `UseConfiguration` and `UseProperties` ×2.
+  Do not give it a member that `IQuartzBuilder` or a `QuartzBuilderExtensions` extension already has —
+  #3597 deleted a ~60-signature covariant facade that existed to do exactly that.
 - `AddQuartzHealthChecks()` / `AddHealthChecks().AddQuartz()` — the scheduler health check, in
   `src/Quartz/Diagnostics/HealthChecks/`. It needs only `Microsoft.Extensions.Diagnostics.HealthChecks`,
   so it is core rather than `Quartz.AspNetCore`, whose `FrameworkReference` a `dotnet/runtime` image

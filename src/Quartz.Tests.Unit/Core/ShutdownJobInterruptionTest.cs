@@ -71,13 +71,14 @@ public sealed class ShutdownJobInterruptionTest
         RunningJob.Gate gate = new();
         TeardownAnnouncingThreadPool pool = new();
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options =>
-            {
-                options.InstanceName = $"{Group}-{setting}-{waitForJobsToComplete}";
-                options.ShutdownJobInterruption = setting;
-            })
-            .UseThreadPool(pool)
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options =>
+                {
+                    options.InstanceName = $"{Group}-{setting}-{waitForJobsToComplete}";
+                    options.ShutdownJobInterruption = setting;
+                })
+                .UseThreadPool(pool))
             .BuildScheduler();
 
         IJobDetail job = JobBuilder.Create<RunningJob>()

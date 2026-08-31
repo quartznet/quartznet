@@ -18,10 +18,11 @@ public static class StandaloneSchedulerSamples
     {
         #region sample_standalone_scheduler
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(o => o.InstanceName = "reporting")
-            .UseDefaultThreadPool(maxConcurrency: 20)
-            .UseInMemoryStore()
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(o => o.InstanceName = "reporting")
+                .UseDefaultThreadPool(maxConcurrency: 20)
+                .UseInMemoryStore())
             .BuildScheduler();
 
         await scheduler.Start();
@@ -33,9 +34,10 @@ public static class StandaloneSchedulerSamples
     {
         #region sample_standalone_one_expression
 
-        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-            .UseInMemoryStore()
-            .UseDefaultThreadPool(10)
+        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+            .Create(q => q
+                .UseInMemoryStore()
+                .UseDefaultThreadPool(10))
             .Build();
 
         #endregion
@@ -46,7 +48,7 @@ public static class StandaloneSchedulerSamples
         #region sample_standalone_build_scheduler_ending
 
         // I want the scheduler
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseInMemoryStore().BuildScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create(q => q.UseInMemoryStore()).BuildScheduler();
 
         #endregion
     }
@@ -56,7 +58,7 @@ public static class StandaloneSchedulerSamples
         #region sample_standalone_build_ending
 
         // I want to own the lifetime
-        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseInMemoryStore().Build();
+        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create(q => q.UseInMemoryStore()).Build();
         IScheduler scheduler = await factory.GetScheduler();
 
         #endregion
@@ -66,8 +68,8 @@ public static class StandaloneSchedulerSamples
     {
         #region sample_standalone_factory_owns_the_container
 
-        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-            .UseInMemoryStore()
+        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+            .Create(q => q.UseInMemoryStore())
             .Build();
 
         IScheduler scheduler = await factory.GetScheduler();
@@ -93,14 +95,15 @@ public static class StandaloneSchedulerSamples
     {
         #region sample_standalone_jobs_triggers_and_calendars
 
-        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-            .UseInMemoryStore()
-            .AddJob<ReportJob>(j => j.WithIdentity("nightly", "reports").StoreDurably())
-            .AddTrigger<ReportJob>(t => t
-                .ForJob("nightly", "reports")
-                .WithIdentity("nightly-trigger", "reports")
-                .WithCronSchedule("0 30 2 * * ?"))
-            .AddCalendar<HolidayCalendar>("holidays", configure: c => c.AddExcludedDay(new DateOnly(2026, 12, 25)))
+        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+            .Create(q => q
+                .UseInMemoryStore()
+                .AddJob<ReportJob>(j => j.WithIdentity("nightly", "reports").StoreDurably())
+                .AddTrigger<ReportJob>(t => t
+                    .ForJob("nightly", "reports")
+                    .WithIdentity("nightly-trigger", "reports")
+                    .WithCronSchedule("0 30 2 * * ?"))
+                .AddCalendar<HolidayCalendar>("holidays", configure: c => c.AddExcludedDay(new DateOnly(2026, 12, 25))))
             .Build();
 
         #endregion
@@ -110,10 +113,12 @@ public static class StandaloneSchedulerSamples
     {
         #region sample_standalone_registering_services
 
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-        builder.Services.AddSingleton<IReportRenderer, PdfReportRenderer>();
-        builder.Services.AddHttpClient();
-        builder.UseInMemoryStore().AddJob<ReportJob>(j => j.WithIdentity("nightly"));
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q =>
+        {
+            q.Services.AddSingleton<IReportRenderer, PdfReportRenderer>();
+            q.Services.AddHttpClient();
+            q.UseInMemoryStore().AddJob<ReportJob>(j => j.WithIdentity("nightly"));
+        });
 
         #endregion
     }
@@ -153,18 +158,19 @@ public static class StandaloneSchedulerSamples
     {
         #region sample_standalone_persistent_and_clustered
 
-        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(o =>
-            {
-                o.InstanceName = "orders";
-                o.InstanceId = Environment.MachineName;
-            })
-            .UsePersistentStore(s =>
-            {
-                s.UseSqlServer(connectionString);
-                s.UseClustering(c => c.CheckinInterval = TimeSpan.FromSeconds(10));
-                s.ConfigureStore(o => o.TablePrefix = "QRTZ_");
-            })
+        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(o =>
+                {
+                    o.InstanceName = "orders";
+                    o.InstanceId = Environment.MachineName;
+                })
+                .UsePersistentStore(s =>
+                {
+                    s.UseSqlServer(connectionString);
+                    s.UseClustering(c => c.CheckinInterval = TimeSpan.FromSeconds(10));
+                    s.ConfigureStore(o => o.TablePrefix = "QRTZ_");
+                }))
             .Build();
 
         #endregion
@@ -176,11 +182,8 @@ public static class StandaloneSchedulerSamples
 
         ISchedulerRepository shared = new SchedulerRepository();
 
-        QuartzSchedulerBuilder first = QuartzSchedulerBuilder.Create();
-        first.Services.AddSingleton(shared);
-
-        QuartzSchedulerBuilder second = QuartzSchedulerBuilder.Create();
-        second.Services.AddSingleton(shared);
+        QuartzSchedulerBuilder first = QuartzSchedulerBuilder.Create(q => q.Services.AddSingleton(shared));
+        QuartzSchedulerBuilder second = QuartzSchedulerBuilder.Create(q => q.Services.AddSingleton(shared));
 
         #endregion
     }

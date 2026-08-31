@@ -365,32 +365,30 @@ internal static class MigratedSchemaWorkload
         string schedulerName,
         string instanceId)
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        return await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(o =>
+                {
+                    o.InstanceName = schedulerName;
+                    o.InstanceId = instanceId;
+                })
+                .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
+                .UsePersistentStore(store =>
+                {
+                    store.ConfigureStore(o =>
+                    {
+                        o.TablePrefix = tablePrefix;
 
-        builder.ConfigureScheduler(o =>
-        {
-            o.InstanceName = schedulerName;
-            o.InstanceId = instanceId;
-        });
+                        // The migrated tables have to pass the same startup check a fresh install does,
+                        // and a mis-prefixed or missing one is reported by name rather than as a later
+                        // failure.
+                        o.SchemaProvisioning = SchemaProvisioning.Validate;
+                    });
 
-        builder.UseDefaultThreadPool(x => x.MaxConcurrency = 5);
-
-        builder.UsePersistentStore(store =>
-        {
-            store.ConfigureStore(o =>
-            {
-                o.TablePrefix = tablePrefix;
-
-                // The migrated tables have to pass the same startup check a fresh install does, and a
-                // mis-prefixed or missing one is reported by name rather than as a later failure.
-                o.SchemaProvisioning = SchemaProvisioning.Validate;
-            });
-
-            UseDialect(store, dialect, connectionString);
-            store.UseSystemTextJsonSerializer();
-        });
-
-        return await builder.BuildScheduler();
+                    UseDialect(store, dialect, connectionString);
+                    store.UseSystemTextJsonSerializer();
+                }))
+            .BuildScheduler();
     }
 
     /// <summary>

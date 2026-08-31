@@ -89,13 +89,14 @@ public class SchedulerLifecycleStatusTest
     public async Task StandingANeverStartedSchedulerDownDoesNothingAtAll()
     {
         CountingJobStore store = null!;
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "standby-before-start")
-            .UseJobStore(provider =>
-            {
-                store = new CountingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
-                return store;
-            })
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "standby-before-start")
+                .UseJobStore(provider =>
+                {
+                    store = new CountingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+                    return store;
+                }))
             .BuildScheduler();
 
         try
@@ -123,13 +124,14 @@ public class SchedulerLifecycleStatusTest
     public async Task StartingASchedulerThatIsAlreadyRunningDoesNothingAtAll()
     {
         CountingJobStore store = null!;
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "start-twice-is-a-no-op")
-            .UseJobStore(provider =>
-            {
-                store = new CountingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
-                return store;
-            })
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "start-twice-is-a-no-op")
+                .UseJobStore(provider =>
+                {
+                    store = new CountingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+                    return store;
+                }))
             .BuildScheduler();
 
         try
@@ -188,13 +190,14 @@ public class SchedulerLifecycleStatusTest
     public async Task AWaitingShutdownIsShuttingDownUntilTheStoreIsDown()
     {
         StatusWatchingJobStore store = null!;
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "shutting-down-is-visible")
-            .UseJobStore(provider =>
-            {
-                store = new StatusWatchingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
-                return store;
-            })
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "shutting-down-is-visible")
+                .UseJobStore(provider =>
+                {
+                    store = new StatusWatchingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+                    return store;
+                }))
             .BuildScheduler();
 
         store.Scheduler = scheduler;
@@ -237,10 +240,11 @@ public class SchedulerLifecycleStatusTest
     [Test]
     public async Task AShutdownWhoseTeardownThrowsStillEndsShutDown()
     {
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "teardown-throws")
-            .UseJobStore(provider =>
-                new ThrowingShutdownJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider)))
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "teardown-throws")
+                .UseJobStore(provider =>
+                    new ThrowingShutdownJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider))))
             .BuildScheduler();
 
         await scheduler.Start();
@@ -257,8 +261,8 @@ public class SchedulerLifecycleStatusTest
 
     private static async Task<IScheduler> Build(string instanceName)
     {
-        return await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = instanceName)
+        return await QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(options => options.InstanceName = instanceName))
             .BuildScheduler();
     }
 

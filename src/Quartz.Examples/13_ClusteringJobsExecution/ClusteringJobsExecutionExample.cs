@@ -78,9 +78,7 @@ public class ClusteringJobsExecutionExample : IExample
 
         Console.WriteLine("------- Initializing ----------------------");
 
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-
-        builder
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q => q
             .ConfigureScheduler(options =>
             {
                 // every node in the cluster shares the instance name: it is what makes them one cluster
@@ -113,7 +111,7 @@ public class ClusteringJobsExecutionExample : IExample
                     options.StoreJobDataAsStrings = true;
                     options.MisfireThreshold = TimeSpan.FromSeconds(60);
                 });
-            });
+            }));
 
         IScheduler scheduler;
         try

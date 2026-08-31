@@ -60,12 +60,13 @@ public class BulkKeySetOperationsTest
     {
         listener = new RecordingSchedulerListener();
 
-        IScheduler built = await QuartzSchedulerBuilder.Create()
-            .UseJobStore(provider =>
-            {
-                store = new CountingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
-                return store;
-            })
+        IScheduler built = await QuartzSchedulerBuilder
+            .Create(q => q
+                .UseJobStore(provider =>
+                {
+                    store = new CountingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+                    return store;
+                }))
             .BuildScheduler();
 
         built.ListenerManager.AddSchedulerListener(listener);

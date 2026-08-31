@@ -260,10 +260,11 @@ public static class ReferenceSamples
     {
         #region sample_reference_without_a_container
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "reporting")
-            .UseDefaultThreadPool(maxConcurrency: 20)
-            .UseInMemoryStore()
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "reporting")
+                .UseDefaultThreadPool(maxConcurrency: 20)
+                .UseInMemoryStore())
             .BuildScheduler();
 
         #endregion

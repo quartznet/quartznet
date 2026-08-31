@@ -47,7 +47,7 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
-The same `UseRedisLockHandler` call works without a host, on `QuartzSchedulerBuilder.Create()`.
+The same `UseRedisLockHandler` call works without a host, inside `QuartzSchedulerBuilder.Create(q => …)`.
 
 ## Configuration
 

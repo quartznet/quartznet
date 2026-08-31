@@ -38,12 +38,11 @@ internal static class ExampleScheduler
         TimeSpan? misfireThreshold = null,
         CancellationToken cancellationToken = default)
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-
-        builder.ConfigureScheduler(options => options.InstanceName = instanceName)
-            .UseDefaultThreadPool(maxConcurrency)
-            .UseInMemoryStore(options => options.MisfireThreshold = misfireThreshold ?? TimeSpan.FromSeconds(60));
-
-        return builder.BuildScheduler(cancellationToken);
+        return QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = instanceName)
+                .UseDefaultThreadPool(maxConcurrency)
+                .UseInMemoryStore(options => options.MisfireThreshold = misfireThreshold ?? TimeSpan.FromSeconds(60)))
+            .BuildScheduler(cancellationToken);
     }
 }

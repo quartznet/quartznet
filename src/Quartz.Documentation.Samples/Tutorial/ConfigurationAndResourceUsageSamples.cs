@@ -17,10 +17,11 @@ public static class ConfigurationAndResourceUsageSamples
     {
         #region sample_configuration_building_a_scheduler
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "reporting")
-            .UseDefaultThreadPool(maxConcurrency: 10)
-            .UseInMemoryStore()
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "reporting")
+                .UseDefaultThreadPool(maxConcurrency: 10)
+                .UseInMemoryStore())
             .BuildScheduler();
 
         #endregion

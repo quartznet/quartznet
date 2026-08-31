@@ -49,8 +49,8 @@ public sealed class ListenerMatchingTest
         RecordingJobListener watched = new("watched", expected: 1);
         RecordingJobListener everything = new("everything", expected: 2);
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "job-listener-matching")
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(options => options.InstanceName = "job-listener-matching"))
             .BuildScheduler();
 
         try
@@ -80,8 +80,8 @@ public sealed class ListenerMatchingTest
         RecordingTriggerListener watched = new("watched", expected: 1);
         RecordingTriggerListener everything = new("everything", expected: 2);
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "trigger-listener-matching")
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(options => options.InstanceName = "trigger-listener-matching"))
             .BuildScheduler();
 
         try
@@ -111,8 +111,8 @@ public sealed class ListenerMatchingTest
         RecordingJobListener audit = new("audit", expected: 1);
         RecordingJobListener everything = new("everything", expected: 2);
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "matcher-replacement")
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(options => options.InstanceName = "matcher-replacement"))
             .BuildScheduler();
 
         try

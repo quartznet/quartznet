@@ -9,15 +9,14 @@ public class RAMSchedulerTest : AbstractSchedulerTest
 
     protected override ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize)
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-
-        builder.ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = name + "Scheduler"; })
-            .UseDefaultThreadPool(x =>
-            {
-                x.MaxConcurrency = threadPoolSize;
-            });
-
-        return builder.BuildScheduler();
+        return QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = name + "Scheduler"; })
+                .UseDefaultThreadPool(x =>
+                {
+                    x.MaxConcurrency = threadPoolSize;
+                }))
+            .BuildScheduler();
     }
 
     public RAMSchedulerTest(string provider) : base(provider, "default-serializer")

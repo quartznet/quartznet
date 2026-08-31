@@ -34,9 +34,10 @@ public static class JobExecutionMiddlewareSamples
     {
         #region sample_job_middleware_standalone
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .UseInMemoryStore()
-            .AddJobMiddleware<LogScopeMiddleware>()
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .UseInMemoryStore()
+                .AddJobMiddleware<LogScopeMiddleware>())
             .BuildScheduler();
 
         #endregion
