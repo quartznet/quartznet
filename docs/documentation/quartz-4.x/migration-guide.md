@@ -6534,7 +6534,9 @@ quartz.jobStore.type = Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz
 ```
 
 Code that names the type — `UsePersistentStore<JobStoreTX>()`, a subclass, a `typeof` — has to be updated.
-`UsePersistentStore()` with no type argument already picks the right store and needs no change.
+`UsePersistentStore()` with no type argument already picks the local-transaction store and needs no change,
+and the other store is chosen by `UsePersistentStore(store => store.UseAmbientTransactions())` — the type
+itself is internal, so it is the member rather than the name that selects it.
 
 ### The vocabulary follows
 
@@ -6554,8 +6556,9 @@ guarantee the write landed before `Initialize` ran:
 
 ```diff
 - ((ExternalTransactionJobStore) store).OpenConnection = true;
-+ services.AddQuartz(q => q.UsePersistentStore<ExternalTransactionJobStore>(store =>
-+     store.ConfigureStore(options => options.OpenConnection = true)));
++ services.AddQuartz(q => q.UsePersistentStore(store => store
++     .UseAmbientTransactions()
++     .ConfigureStore(options => options.OpenConnection = true)));
 ```
 
 ## Nine `Execute…Lock` overloads became four members
@@ -10525,7 +10528,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Listener.BroadcastTriggerListener` | Removed | As above |
 | `Quartz.CalendarIntervalTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.SchedulerBuilder.ClusterOptions` | Removed | `ClusteringOptions` — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
-| `Quartz.Impl.AdoJobStore.ExternalTransactionJobStore` (3.x `JobStoreCMT`) | Internal | Unchanged as a configuration string; `quartz.jobStore.type` still names it — see [The ADO.NET store is a store, not a base class](#the-ado-net-store-is-a-store-not-a-base-class) |
+| `Quartz.Impl.AdoJobStore.ExternalTransactionJobStore` (3.x `JobStoreCMT`) | Internal | `UsePersistentStore(store => store.UseAmbientTransactions())` selects it in code, and `quartz.jobStore.type` still names it as a configuration string — see [The ADO.NET store is a store, not a base class](#the-ado-net-store-is-a-store-not-a-base-class) |
 | `Quartz.Impl.AdoJobStore.LocalTransactionJobStore` (3.x `JobStoreTX`) | Internal | As above |
 | `Quartz.Impl.AdoJobStore.RecoverMisfiredJobsResult` | Internal | Nothing; it was a `protected` method's return type |
 | `Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory` | Internal | The metadata factory on `UseGenericDatabase` |

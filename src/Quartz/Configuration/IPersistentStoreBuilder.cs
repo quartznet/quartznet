@@ -152,6 +152,34 @@ public interface IPersistentStoreBuilder
     IPersistentStoreBuilder UseClustering(Action<ClusteringOptions>? configure = null);
 
     /// <summary>
+    /// Runs the schedule inside a transaction somebody else owns — an application server or another
+    /// framework that manages transactions — instead of one the store begins and commits itself.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is how the second of the two shipped ADO.NET stores is chosen. Left uncalled,
+    /// <c>UsePersistentStore</c> builds the local-transaction store, which begins the transaction each
+    /// operation runs in and commits or rolls it back; the ambient store does neither, because the
+    /// connections it creates enlist in the <see cref="System.Transactions.Transaction"/> already in
+    /// progress and its owner is what decides whether the scheduler's work is kept. It is
+    /// <c>quartz.jobStore.type = Quartz.Impl.AdoJobStore.ExternalTransactionJobStore, Quartz</c>
+    /// spelled in code — 3.x's <c>JobStoreCMT</c>.
+    /// </para>
+    /// <para>
+    /// Not the same thing as <see cref="AdoJobStoreOptions.AcceptEnlistedTransactions"/>, which leaves
+    /// the local store in charge and only lets an operation join a transaction the application enlisted
+    /// for that flow, managing its own whenever nothing is enlisted. This hands the whole store over.
+    /// </para>
+    /// <para>
+    /// The store requires database locking — an in-process lock would be released before its owner
+    /// commits — and turns it on for itself unless <see cref="UseLockHandler{T}"/> supplied one.
+    /// <see cref="AdoJobStoreOptions.OpenConnection"/>, which nothing else reads, says whether the
+    /// store opens the connections it creates or leaves that to the transaction's owner.
+    /// </para>
+    /// </remarks>
+    IPersistentStoreBuilder UseAmbientTransactions();
+
+    /// <summary>
     /// Creates whatever this store's schema is missing when the scheduler starts, instead of
     /// requiring it to be there already.
     /// </summary>

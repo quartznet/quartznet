@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
+using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 
@@ -182,6 +183,71 @@ public sealed class PersistentStoreBuilderTest
             .Should().Be(SchemaProvisioning.Validate,
                 "a named scheduler's options are keyed by its name, so one scheduler granted DDL does "
                 + "not hand it to every other scheduler in the container");
+    }
+
+    [Test]
+    public void UseAmbientTransactions_BuildsTheStoreThatRunsInSomebodyElsesTransaction()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseSqlServer(ConnectionString);
+            store.UseAmbientTransactions();
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IJobStore>().Should().BeOfType<ExternalTransactionJobStore>(
+            "the store that neither commits nor rolls back is one of the two Quartz ships, and this is "
+            + "the only way to choose it in code now that the type itself is internal");
+    }
+
+    [Test]
+    public void UsePersistentStore_WithoutIt_StillBuildsTheStoreThatManagesItsOwnTransaction()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.UseSqlServer(ConnectionString)));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IJobStore>().Should().BeOfType<LocalTransactionJobStore>(
+            "a store that commits its own work is what nearly everybody wants, so adding a way to ask "
+            + "for the other one must not change what asking for nothing means");
+    }
+
+    [Test]
+    public void UseAmbientTransactions_AppliesToTheSchedulerThatAskedForIt()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.UseSqlServer(ConnectionString)));
+        services.AddQuartz("reporting", q => q.UsePersistentStore(store =>
+        {
+            store.UseSqlServer(ReportingConnectionString);
+            store.UseAmbientTransactions();
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredKeyedService<IJobStore>("reporting").Should().BeOfType<ExternalTransactionJobStore>();
+        provider.GetRequiredService<IJobStore>().Should().BeOfType<LocalTransactionJobStore>(
+            "the store is registered under the scheduler's own key, so one scheduler handing its "
+            + "transactions to a container does not hand every scheduler's over");
+    }
+
+    [Test]
+    public void UseAmbientTransactions_InsideAStoreNamedByItsType_SaysSo()
+    {
+        var services = new ServiceCollection();
+        var act = () => services.AddQuartz(q => q.UsePersistentStore<LocalTransactionJobStore>(store =>
+        {
+            store.UseSqlServer(ConnectionString);
+            store.UseAmbientTransactions();
+        }));
+
+        act.Should().Throw<SchedulerConfigException>().WithMessage("*UseAmbientTransactions*",
+            "the type argument and the selector name different stores, and keeping the type argument "
+            + "silently would leave a scheduler committing transactions its caller believed somebody "
+            + "else owned");
     }
 
     private sealed class CountingDriverDelegate : StdAdoDelegate

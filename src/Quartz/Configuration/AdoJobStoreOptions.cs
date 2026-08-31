@@ -242,7 +242,13 @@ public sealed class AdoJobStoreOptions
     /// <summary>
     /// Whether <see cref="Impl.AdoJobStore.ExternalTransactionJobStore" /> opens the connections it
     /// creates before handing them to an operation. Defaults to <see langword="false" />, leaving the
-    /// opening to the externally managed transaction. Read only by that store.
+    /// opening to the externally managed transaction.
     /// </summary>
+    /// <remarks>
+    /// Read only by that store, which is the one
+    /// <see cref="IPersistentStoreBuilder.UseAmbientTransactions" /> selects — or
+    /// <c>quartz.jobStore.type = Quartz.Impl.AdoJobStore.ExternalTransactionJobStore, Quartz</c>. It
+    /// says nothing on the default local-transaction store.
+    /// </remarks>
     public bool OpenConnection { get; set; }
 }
