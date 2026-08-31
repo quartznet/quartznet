@@ -108,6 +108,19 @@ pass; do not "finish" any of them.
 - **The `AddQuartz(NameValueCollection, …)` overloads stay beside their dictionary twins.** They look
   like a duplicate pair; they are the 3.x on-ramp, because a `NameValueCollection` is what an
   application migrating from `StdSchedulerFactory` already holds.
+- **Reading has two altitudes, and both stay.** `IScheduler`'s `Query*` members take a query record —
+  filter, page, optional total — and answer with headers; `SchedulerQueryExtensions`' `Get*` conveniences
+  take none of that and answer with bare keys and names. Neither is the other's leftovers, and a
+  shorthand saving only the `new` earns nothing. The pause/resume matcher members are `*Groups` because
+  the group set is what they write and answer with: a paused group survives a restart and binds what is
+  added to it next, which no list of keys can say.
+- **`ISchedulerRepository` and `ISchedulerRegistry` answer different questions.** The repository is the
+  live-instance directory — bind, remove, look up. The registry lists what a container has *registered*,
+  built or not, so an operator can enumerate tenants without starting every one. Both stay.
+- **`NameMatcher` — the arity-free one — sits outside `IMatcher<T>` on purpose.** That interface and the
+  `Matchers.And`/`Or`/`Not` combinators are constrained to `Key<T>`, which is what lets a matcher reach
+  the scheduler members that take one; a calendar's or a group's name is not a key. It was
+  `CalendarNameMatcher`: it took the family's name without taking the family's interface.
 
 ### Overload sets audited and frozen in #3598
 
@@ -134,6 +147,48 @@ members themselves, so read the XML docs before reopening one.
   `TriggerFiredBundle`. Both are `Quartz.Extensibility` types on a mainstream path, and both are the
   only type that says the thing: the trigger builder must write onto what it is handed, and a firing
   before its job exists has no `IJobExecutionContext` yet.
+
+### Examined in the alpha.5 audit and kept (#3603)
+
+The rule above, for the things that are not names. The reason is on the member too.
+
+- **The two day fields follow Vixie, not Cronos.** A field written exactly `*` or `?` restricts nothing
+  and defers to the other; when both name days the expression fires on their *union*, so
+  `0 0 0 13 * FRI` is every Friday **and** the 13th. Cronos ANDs them and would fire only on Friday the
+  13th. The union is `crontab(5)`'s rule and what `cron-expressions.md` has always taught,
+  `UnixCronFormatTest` pins it, and "finishing" the alignment would halve every schedule that names
+  both fields. `*/n` is restricted here, unlike Vixie, whose parser reads the leading `*` first.
+- **`CronFormat` is stated, never sniffed.** A five-field string throws in the default `Quartz` format,
+  and the message names `CronFormat.Unix` and the rewritten expression. Auto-detect was rejected: the
+  suite already uses "five fields" to mean "invalid expression", a dropped middle field would change a
+  schedule in silence, and the same digit is a different day in each dialect. Detection can be added
+  later; removing it could not.
+- **Wrapping ranges and `H` are Quartz supersets over standard cron, and are identity.** A range whose
+  end is below its start wraps instead of sorting its endpoints — `22-2` is five hours, `FRI-MON` a long
+  weekend — and `H` spreads a firing deterministically from the trigger key or an explicit one.
+  `CronExpressionWrappingRangeTest` pins the wrap, and the Unix rewrite carries both into five fields.
+- **Every `ISchedulerListener` member leads with `IScheduler`.** A job or trigger listener reaches its
+  scheduler through the execution context; no scheduler-listener notification has one, so the scheduler
+  is the first argument instead — which is also what lets one instance serve several schedulers and say
+  which of them paused a trigger. `ITriggerListener` leads with the trigger, for the mirror reason.
+- **`SchedulerContext` and `JobDataMap` are not twins to align.** The map is persisted, dirty-tracked
+  and equatable, and its `PutAsString` writers are instance members because they take part in that
+  change tracking. The context is never persisted, is read and written concurrently, and has nothing to
+  track. Only the typed *read* accessors are shared, in `DataMapExtensions`.
+- **`LogProvider.SetLogProvider` is the one static escape hatch, kept knowingly.** Plenty of things that
+  log are never handed a logger by a container: a listener you constructed, a trigger deserialized out of
+  a job store, the static helpers, a standalone `QuartzSchedulerBuilder`. Nor is it seeded from the
+  container: the slot outlives any one container, and a host built, disposed and built again would leave
+  it pointing at a disposed `ILoggerFactory`.
+- **The built-in trigger serializers are public and unsealed, and so are all five `*TriggerImpl` types.**
+  That pairing is the subclassed-trigger seam: derive from the trigger, derive from its serializer, call
+  `base.SerializeFields`/`base.DeserializeFields`. Three of the trigger types were sealed during 4.x's
+  development and reopened for it; `BuiltInTriggerSerializerDerivationTest` fails if either half closes.
+- **A job's timeout is `[JobTimeout]`, not a builder member.** How long the work may take is a property
+  of the code that does it, and an attribute travels with the type through every job store, wire format
+  and way of scheduling — a builder value would have to be persisted, migrated and round-tripped to reach
+  the same places, or squat on a reserved data-map key. As with `[DisallowConcurrentExecution]`. Nothing
+  enforces it until `AddJobTimeout` registers the middleware.
 
 ## Build & Test
 
