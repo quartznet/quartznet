@@ -34,6 +34,11 @@
     <PackageReference Include="MELT" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Data.SQLite" />
+    <!--
+      Quartz itself only needs Microsoft.Extensions.Hosting.Abstractions. A scenario that stands a real
+      host up around a scheduler needs the host, which is this package.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="MySqlConnector" />
