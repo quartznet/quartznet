@@ -331,6 +331,7 @@
         await ExecuteMutatingActionAsync(
             () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, new TriggerKeyDto(_pendingGroup, _pendingName)),
             "Unscheduled trigger " + DisplayValueHelper.FormatKey(_pendingGroup, _pendingName) + ".",
+            "Trigger " + DisplayValueHelper.FormatKey(_pendingGroup, _pendingName) + " was not unscheduled - it no longer exists.",
             actionName: "UnscheduleTrigger",
             target: DisplayValueHelper.FormatKey(_pendingGroup, _pendingName));
         _showUnscheduleConfirm = false;

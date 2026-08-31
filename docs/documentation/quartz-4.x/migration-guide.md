@@ -8296,11 +8296,19 @@ The names went with the types. An operation `IQuartzApiClient` forwards to a sch
 | `GetMisfires(DashboardMisfireQuery)` → `PagedResult<DashboardMisfireEntry>?` | `QueryMisfires(…)` → `PagedResult<DashboardMisfireEntry>`, never null |
 | `CountMisfires(name, since)` → `int?` | → `int` |
 | `IDashboardHistoryStore.Add`, `GetPage`, `GetMisfires` | `AddExecution`, `QueryExecutions`, `QueryMisfires`; `AddMisfire` and `CountMisfires` are unchanged |
+| `Interrupt`, `InterruptFireInstance`, `DeleteJob`, `UnscheduleJob`, `DeleteCalendar` → `ValueTask` | → `ValueTask<bool>`, the flag `IScheduler` returns |
 
 `GetSchedulers`, `GetScheduler` and `GetCalendarNames` keep their names: the first two list and read the
 container's registrations, which is not an operation a scheduler has, and `GetCalendarNames` reads *every*
 page of `IScheduler.QueryCalendarNames` rather than one, so naming it `Query*` would promise a paged query
 it does not take.
+
+The five that answered with a bare `ValueTask` now answer with the applied flag their `IScheduler`
+counterparts always returned, so all ten mutations report it and none of them silently drop it: the HTTP
+API has always put it on the wire as `OperationAppliedResponse`, and a client member sharing a scheduler's
+verb has to share its answer or read as the same operation while not being one. An implementation of
+`IQuartzApiClient` returns what the scheduler told it; a page can now tell "deleted" from "was already
+gone" and says which.
 
 The three nullable returns were nullable because the deleted HTTP-backed client turned a 404 into "this
 data source keeps no history". Nothing in this process has that answer: `IDashboardHistoryStore` always

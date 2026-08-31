@@ -250,13 +250,14 @@
 
     private async Task UnscheduleAsync()
     {
-        bool succeeded = await ExecuteMutatingActionAsync(
+        bool unscheduled = await ExecuteMutatingActionAsync(
             () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, TriggerKey),
             "Unscheduled trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not unscheduled - it no longer exists.",
             actionName: "UnscheduleTrigger",
             target: DisplayValueHelper.FormatKey(Group, Name));
         _showUnscheduleConfirm = false;
-        if (succeeded)
+        if (unscheduled)
         {
             Navigation.NavigateTo(DashboardLink.To(Options.Value, "triggers"));
         }

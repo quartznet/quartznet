@@ -148,6 +148,8 @@ public class TriggerDetailPageTest
     public void UnschedulingAsksFirstAndThenReturnsToTheListing()
     {
         GivenTrigger(CronTrigger("0/25 * * * * ?"));
+        A.CallTo(() => context.Api.UnscheduleJob(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(true);
         IRenderedComponent<TriggerDetail> page = Render();
 
         page.FindAll("button").First(button => button.TextContent.Trim() == "Unschedule").Click();
@@ -169,6 +171,29 @@ public class TriggerDetailPageTest
         context.ActionLog.GetLatest(1).Should().ContainSingle()
             .Which.Action.Should().Be("UnscheduleTrigger",
                 "an action taken from the dashboard is recorded whether or not anyone was watching");
+    }
+
+    [Test]
+    public void UnschedulingATriggerSomebodyElseAlreadyRemovedSaysSoAndStays()
+    {
+        GivenTrigger(CronTrigger("0/25 * * * * ?"));
+        A.CallTo(() => context.Api.UnscheduleJob(A<string>._, A<TriggerKeyDto>._, A<CancellationToken>._))
+            .Returns(false);
+        IRenderedComponent<TriggerDetail> page = Render();
+
+        page.FindAll("button").First(button => button.TextContent.Trim() == "Unschedule").Click();
+        page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
+
+        context.Toasts.Messages.Should().ContainSingle()
+            .Which.Message.Should().Be(
+                "Trigger CronTriggerGroup.CronTriggerKey was not unscheduled - it no longer exists.",
+                "the scheduler answers whether the trigger was there, and a page that reported success "
+                + "either way would tell an operator a cluster peer's removal was their own");
+        context.Services.GetRequiredService<NavigationManager>().Uri.Should().NotEndWith("/quartz/triggers",
+            "nothing was removed, so there is nothing to return from");
+        context.ActionLog.GetLatest(1).Should().ContainSingle()
+            .Which.Succeeded.Should().BeFalse(
+                "the action log records what happened, and nothing happened");
     }
 
     private static ITrigger CronTrigger(string cronExpression)

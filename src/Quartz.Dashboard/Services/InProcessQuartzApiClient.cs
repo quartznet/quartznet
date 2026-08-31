@@ -336,25 +336,25 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.TriggerJob(AsJobKey(key), jobDataMap, cancellationToken);
     }
 
-    public async ValueTask Interrupt(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
+    public ValueTask<bool> Interrupt(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        _ = await scheduler.Interrupt(AsJobKey(key), cancellationToken).ConfigureAwait(false);
+        return scheduler.Interrupt(AsJobKey(key), cancellationToken);
     }
 
-    public async ValueTask InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default)
+    public ValueTask<bool> InterruptFireInstance(string schedulerName, string fireInstanceId, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        _ = await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
+        return scheduler.InterruptFireInstance(fireInstanceId, cancellationToken);
     }
 
-    public async ValueTask DeleteJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
+    public ValueTask<bool> DeleteJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        _ = await scheduler.DeleteJob(AsJobKey(key), cancellationToken).ConfigureAwait(false);
+        return scheduler.DeleteJob(AsJobKey(key), cancellationToken);
     }
 
     public ValueTask AddJob(string schedulerName, AddJobRequest request, CancellationToken cancellationToken = default)
@@ -463,11 +463,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return ScheduleJobWithTrigger(scheduler, jobDetail, request.Trigger, cancellationToken);
     }
 
-    public async ValueTask UnscheduleJob(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
+    public ValueTask<bool> UnscheduleJob(string schedulerName, TriggerKeyDto key, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        _ = await scheduler.UnscheduleJob(AsTriggerKey(key), cancellationToken).ConfigureAwait(false);
+        return scheduler.UnscheduleJob(AsTriggerKey(key), cancellationToken);
     }
 
     public ValueTask RescheduleJob(string schedulerName, TriggerKeyDto key, RescheduleRequest request, CancellationToken cancellationToken = default)
@@ -521,11 +521,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             cancellationToken);
     }
 
-    public async ValueTask DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
+    public ValueTask<bool> DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        _ = await scheduler.DeleteCalendar(calendarName, cancellationToken).ConfigureAwait(false);
+        return scheduler.DeleteCalendar(calendarName, cancellationToken);
     }
 
     public ValueTask<PagedResult<DashboardHistoryEntry>> QueryExecutions(DashboardHistoryQuery query, CancellationToken cancellationToken = default)
