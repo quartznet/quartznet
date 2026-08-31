@@ -69,6 +69,12 @@ internal static class JobDataValues
     /// <see cref="QuartzStoreJsonContext" /> too, so a trimmed publish can write them all;
     /// <c>StoreFormatSourceGenerationTest</c> is what fails when the two stop agreeing.
     /// </summary>
+    /// <remarks>
+    /// <c>Quartz.Serialization.Newtonsoft</c> refuses against this very field rather than a list of its
+    /// own, so the two serializers cannot come to accept different things: a blob written by one has to
+    /// be readable by the other, and a second list meaning to say the same thing is how the write and
+    /// read sides of *this* one came to disagree.
+    /// </remarks>
     internal static readonly FrozenSet<Type> Accepted = FrozenSet.ToFrozenSet(
     [
         // Read back as themselves.

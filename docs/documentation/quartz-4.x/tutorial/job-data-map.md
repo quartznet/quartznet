@@ -196,12 +196,16 @@ stay readable by the new version — a renamed property on a stored options clas
 its next fire, months after the deploy that renamed it. Standard framework types are safe; your own
 types are a versioning commitment.
 
-With System.Text.Json — the default — a persistent store accepts exactly the types the accessors above
-cover (`string`, `bool`, `char`, the numeric types, `DateTime`, `DateTimeOffset`, `TimeSpan`, `Guid`,
-`DateOnly`, `TimeOnly` and enums) plus `Dictionary<string, string>`, and refuses anything else when the
-job is stored rather than writing a blob that fails to load later. To store a type of your own, declare
-it with `SystemTextJsonSerializerRegistry.AddTypeInfoResolver` — the same registration a trimmed or
-native-AOT publish needs — or serialize it yourself and store the result as a string.
+A persistent store accepts exactly the types the accessors above cover (`string`, `bool`, `char`, the
+numeric types, `DateTime`, `DateTimeOffset`, `TimeSpan`, `Guid`, `DateOnly`, `TimeOnly` and enums) plus
+`Dictionary<string, string>`, and refuses anything else when the job is stored rather than writing a blob
+that fails to load later. Both serializers refuse the same set, so a value you can store is one either of
+them can be switched to. To store a type of your own, declare it — with
+`SystemTextJsonSerializerRegistry.AddTypeInfoResolver` on the default serializer, which is the same
+registration a trimmed or native-AOT publish needs, or with
+`NewtonsoftJsonSerializerRegistry.AddJobDataValueType<T>()` on the Newtonsoft one — or serialize it
+yourself and store the result as a string. A declared type is read back by the serializer that wrote it
+and by no other, so the string is the portable answer.
 
 **String mode.** `AdoJobStoreOptions.StoreJobDataAsStrings` (the flat key is still
 `quartz.jobStore.useProperties`) makes the store persist the map as name/value string pairs instead of

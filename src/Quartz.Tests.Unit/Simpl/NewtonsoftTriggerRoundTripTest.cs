@@ -288,20 +288,23 @@ public class NewtonsoftLegacyTimeZonePayloadTest
 }
 
 /// <summary>
-/// The converter is attached to typed <see cref="TimeZoneInfo" /> members by
-/// <c>QuartzContractResolver</c>, not registered on the serializer, and this is the difference that
-/// makes: a trigger's <c>TimeZone</c> property is written as its id, while a zone sitting in a job
-/// data map — where the slot is typed <see cref="object" /> — is written exactly as it always was.
+/// A <see cref="TimeZoneInfo" /> in a job data map is refused when it is written; the same zone on a
+/// trigger's <c>TimeZone</c> property travels as its id. The difference is that the converter for a
+/// zone is attached to typed members by <c>QuartzContractResolver</c> rather than registered on the
+/// serializer, so it never reaches an <see cref="object" />-typed slot — and what did reach one was a
+/// payload nothing could read back.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Scoping is what keeps that true: a converter on the serializer's list is consulted for a value's
-/// runtime type wherever it appears, so a global one would have written the zone as a bare string and
-/// dropped the <c>$type</c> that the object-typed path carries.
+/// Scoping is what keeps the trigger side true: a converter on the serializer's list is consulted for a
+/// value's runtime type wherever it appears, so a global one would have written a zone held as job data
+/// as a bare string and dropped the <c>$type</c> that the object-typed path carries. That left the job
+/// data side written and unreadable, which is the asymmetry #3500 closed — by refusing the value rather
+/// than by teaching the map to carry a zone, so that both serializers accept the same things.
 /// </para>
 /// <para>
-/// The written shape is asserted member by member rather than against a captured string, because most
-/// of what Json.NET writes for a zone is the running OS's own text: Windows says
+/// The trigger's written shape is asserted member by member rather than against a captured string,
+/// because most of what Json.NET writes for a zone is the running OS's own text: Windows says
 /// <c>"(UTC+09:00) Osaka, Sapporo, Tokyo"</c> where Linux says
 /// <c>"(UTC+09:00) Japan Standard Time (Tokyo)"</c>, and the standard and daylight names differ with
 /// them. Only <c>$type</c> and <c>Id</c> mean the same thing everywhere — and the id is compared
@@ -320,21 +323,19 @@ public class NewtonsoftJobDataTimeZoneTest
         """{"zone":{"$type":"System.TimeZoneInfo, System.Private.CoreLib","Id":"Tokyo Standard Time","HasIanaId":false,"DisplayName":"(UTC+09:00) Osaka, Sapporo, Tokyo","StandardName":"Tokyo Standard Time","DaylightName":"Tokyo Daylight Time","BaseUtcOffset":"09:00:00","SupportsDaylightSavingTime":false}}""";
 
     [Test]
-    public void AZoneInAJobDataMapIsWrittenAsItAlwaysWas()
+    public void AZoneInAJobDataMapIsRefusedOnWrite()
     {
         IObjectSerializer serializer = new NewtonsoftJsonObjectSerializer();
         TimeZoneInfo tokyo = TimeZones.FindById("Tokyo Standard Time");
         JobDataMap map = new JobDataMap { { "zone", tokyo } };
 
-        using JsonDocument written = JsonDocument.Parse(serializer.Serialize(map));
-        JsonElement zone = written.RootElement.GetProperty("zone");
+        Action write = () => serializer.Serialize(map);
 
-        zone.ValueKind.Should().Be(JsonValueKind.Object,
-            "the converter is scoped to typed members, so an object-typed slot is left alone - a global one would have collapsed the zone to a bare string");
-        zone.GetProperty("$type").GetString().Should().Be("System.TimeZoneInfo, System.Private.CoreLib",
-            "the $type is what every payload already in a JOB_DATA column carries, and losing it would change the shape of a stored blob");
-        zone.GetProperty("Id").GetString().Should().Be(tokyo.Id,
-            "the id is the one member of a written zone that means the same thing on every platform");
+        write.Should().Throw<JsonSerializationException>(
+                "the payload this used to write cannot be read by anything, so the write is where the story has to end")
+            .Which.Message.Should().Contain("zone", "the failure has to say which entry it is about")
+            .And.Contain("System.TimeZoneInfo", "and what was in it")
+            .And.Contain("AddJobDataValueType", "and how an application declares a type of its own");
     }
 
     [Test]
@@ -360,11 +361,45 @@ public class NewtonsoftJobDataTimeZoneTest
     }
 
     /// <summary>
-    /// Reading that job data payload back has never worked: <c>IgnoreSerializableInterface</c> keeps
-    /// Json.NET off <see cref="TimeZoneInfo" />'s <c>ISerializable</c> implementation, and every public
-    /// member it writes instead is read-only, so there is nothing to construct the zone from. Recorded
-    /// here because it is a limitation this change deliberately neither introduces nor repairs — the
-    /// scoping is what proves it unchanged, and a job that needs a zone in its data should store the id.
+    /// With <see cref="NewtonsoftJsonObjectSerializer.RegisterTriggerConverters" /> on, a trigger's own
+    /// job data is written by the trigger converter rather than by the map's, and that is a second way
+    /// into the same column — so it is gated too, and gated before the object is opened, so a trigger
+    /// carrying one unreadable value writes nothing at all.
+    /// </summary>
+    /// <remarks>
+    /// The converter wraps what goes wrong inside it in "Failed to serialize ITrigger to json", which
+    /// would bury the one message that says which entry to fix; a refusal is rethrown instead, exactly
+    /// as the System.Text.Json job data map converter rethrows its own.
+    /// </remarks>
+    [Test]
+    public void ATriggersOwnJobDataIsRefusedWithTheTriggerConvertersOnToo()
+    {
+        NewtonsoftJsonObjectSerializer serializer = new() { RegisterTriggerConverters = true };
+        CalendarIntervalTriggerImpl trigger = new()
+        {
+            Key = new TriggerKey("calendarInterval", "group"),
+            RepeatIntervalUnit = IntervalUnit.Hour,
+            StartTimeUtc = new DateTimeOffset(2024, 7, 1, 0, 0, 0, TimeSpan.Zero)
+        };
+        trigger.JobDataMap.Add("zone", TimeZones.FindById("Tokyo Standard Time"));
+
+        Action write = () => serializer.Serialize<ITrigger>(trigger);
+
+        write.Should().Throw<JsonSerializationException>(
+                "a trigger's job data lands in the same column as a job's, and neither reader can turn a written zone back into one")
+            .Which.Message.Should().Contain("zone", "the failure has to say which entry it is about")
+            .And.Contain("System.TimeZoneInfo", "and what was in it")
+            .And.NotContain("Failed to serialize ITrigger",
+                "the trigger converter's own wrapper would hide the only sentence that says what to change");
+    }
+
+    /// <summary>
+    /// Reading that job data payload back has never worked, and still does not:
+    /// <c>IgnoreSerializableInterface</c> keeps Json.NET off <see cref="TimeZoneInfo" />'s
+    /// <c>ISerializable</c> implementation, and every public member it writes instead is read-only, so
+    /// there is nothing to construct the zone from. That is the whole reason the write above is refused
+    /// — and a column that already holds one of these is why the read is left alone rather than taught
+    /// to guess, since the failure names the payload and a job that needs a zone should store the id.
     /// </summary>
     [Test]
     public void ReadingThatZoneBackHasNeverWorked()

@@ -47,6 +47,7 @@ namespace Quartz.Serialization.Newtonsoft
         public NewtonsoftJsonSerializerRegistry() { }
         public Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry AddCalendarSerializer<TCalendar>(Quartz.Serialization.Newtonsoft.Calendars.CalendarSerializer<TCalendar> serializer)
             where TCalendar : Quartz.ICalendar { }
+        public Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry AddJobDataValueType<T>() { }
         public Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry AddTriggerSerializer<TTrigger>(Quartz.Serialization.Newtonsoft.Triggers.ITriggerSerializer serializer)
             where TTrigger : Quartz.ITrigger { }
     }

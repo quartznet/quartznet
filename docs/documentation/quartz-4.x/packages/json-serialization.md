@@ -87,6 +87,38 @@ await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
 driver either, describe it in the same call — see
 [the configuration reference](../configuration/reference.md#describing-a-driver-quartz-does-not-know).
 
+### What a job data map may hold
+
+A job data value has to be one of the types `JobDataMap` declares an accessor for — `string`, `bool`,
+`char`, the numeric types, `DateTime`, `DateTimeOffset`, `TimeSpan`, `Guid`, `DateOnly`, `TimeOnly`, an
+enum — or a `Dictionary<string, string>`; anything else is refused when the job or trigger is stored,
+with a `Quartz.JsonSerializationException` naming the entry and the type, rather than written as a blob
+that fails to load on the next fire. That is the same set the System.Text.Json serializer accepts, and
+literally the same declaration, so a value one of them writes is a value the other's reader has an answer
+for.
+
+To store a type of your own, declare it — which is your word that Json.NET can build it back, and a
+versioning commitment for as long as the value sits in the database:
+
+<!-- snippet: sample_newtonsoft_job_data_value_type -->
+```csharp
+builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseNewtonsoftJsonSerializer(json =>
+    {
+        // Without this, a ReportOptions in a JobDataMap is refused when the job is stored.
+        json.AddJobDataValueType<ReportOptions>();
+    });
+}));
+```
+<!-- endSnippet -->
+
+A `JobKey` or `TriggerKey` held as a job data value takes the same declaration. A `TimeZoneInfo` and a
+nested `JobDataMap` are past declaring, because Json.NET cannot read either back out of what it writes —
+store a zone's `Id`, and serialize a nested structure in the job and keep the result as a string. A
+string is also the answer when the value has to survive a change of serializer, since a declared type is
+read back by the serializer that wrote it and by no other.
+
 ### Migrating from binary serialization
 
 Quartz 4 no longer ships the `BinaryObjectSerializer`: the underlying `BinaryFormatter`
@@ -123,6 +155,11 @@ serializer below can read the old binary payloads and write everything back as J
 could never be part of a blob lost those attributes in 4.0; see
 [the migration guide](../migration-guide.md#serializable-survives-only-where-a-database-blob-needs-it)
 for the full list.
+
+A blob whose job data holds a key, or a class of the application's own, needs that type declared with
+`AddJobDataValueType<T>()` on the registry the migrator's inner serializer is built from — otherwise the
+value reads out of the binary payload and is refused on the way back in, which is
+[the gate described above](#what-a-job-data-map-may-hold) doing its job at the one moment it is unwelcome.
 
 One column is the exception: `BLOB_TRIGGERS.BLOB_DATA` holds whole trigger objects, and
 `BinaryFormatter` records private base-class fields under the base class's *name* - which 4.0

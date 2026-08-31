@@ -28,11 +28,18 @@ namespace Quartz.Serialization.Newtonsoft;
 /// stays registered — and, when the serializer provides one, under its
 /// <see cref="ICalendarSerializer.CalendarTypeName"/> discriminator.
 /// </para>
+/// <para>
+/// A registry is also where an application declares a job data value type of its own, through
+/// <see cref="AddJobDataValueType{T}" />. The serializer writes the value types a
+/// <see cref="JobDataMap" /> has an accessor for and refuses the rest, so that a value nothing can read
+/// back is refused while there is still someone to tell rather than stored and failed on later.
+/// </para>
 /// </remarks>
 public sealed class NewtonsoftJsonSerializerRegistry
 {
     private readonly SerializerMap<ITriggerSerializer> triggerSerializers = new(StringComparer.OrdinalIgnoreCase);
     private readonly SerializerMap<ICalendarSerializer> calendarSerializers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<Type> jobDataValueTypes = [];
 
     /// <summary>
     /// Creates a registry holding the serializers for the built-in trigger and calendar types.
@@ -91,6 +98,48 @@ public sealed class NewtonsoftJsonSerializerRegistry
         }
 
         return this;
+    }
+
+    /// <summary>
+    /// Declares a job data value type of the application's own, which this serializer otherwise refuses
+    /// to write.
+    /// </summary>
+    /// <typeparam name="T">
+    /// The exact runtime type of the values to accept. A declaration does not extend to a derived type,
+    /// because it is the runtime type of the stored value that is looked up — declare each type you
+    /// actually put in a map.
+    /// </typeparam>
+    /// <remarks>
+    /// <para>
+    /// A <see cref="JobDataMap" /> accepts the types <see cref="DataMapExtensions" /> declares an
+    /// accessor for, plus a <c>Dictionary&lt;string, string&gt;</c>; anything else is refused when the
+    /// job or trigger is stored, rather than written as a blob that fails to load later. This is how an
+    /// application says a type of its own is one Json.NET can read back — a class with a constructor
+    /// Json.NET can call, and a versioning commitment for as long as the value sits in the database.
+    /// </para>
+    /// <para>
+    /// It is this package's counterpart to
+    /// <c>SystemTextJsonSerializerRegistry.AddTypeInfoResolver</c>, and the narrower of the two: Json.NET
+    /// needs no metadata handed to it, so nothing is registered here but the permission. A blob holding a
+    /// declared type is readable by this serializer only — the System.Text.Json reader hands any object
+    /// back as a <c>Dictionary&lt;string, string&gt;</c> — so a value that has to survive a change of
+    /// serializer belongs in a string the job writes itself.
+    /// </para>
+    /// </remarks>
+    public NewtonsoftJsonSerializerRegistry AddJobDataValueType<T>()
+    {
+        jobDataValueTypes.Add(typeof(T));
+        return this;
+    }
+
+    /// <summary>
+    /// Whether the application has declared <paramref name="type" /> through
+    /// <see cref="AddJobDataValueType{T}" />, which is what makes it a job data value this serializer
+    /// will write.
+    /// </summary>
+    internal bool DeclaresJobDataValueType(Type type)
+    {
+        return jobDataValueTypes.Contains(type);
     }
 
     internal ITriggerSerializer GetTriggerSerializer(string? typeName)

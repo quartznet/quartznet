@@ -100,6 +100,22 @@ public static class NewtonsoftJsonSamples
         }));
     }
 
+    public static void DeclareAJobDataValueType(IHostApplicationBuilder builder)
+    {
+        #region sample_newtonsoft_job_data_value_type
+
+        builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseNewtonsoftJsonSerializer(json =>
+            {
+                // Without this, a ReportOptions in a JobDataMap is refused when the job is stored.
+                json.AddJobDataValueType<ReportOptions>();
+            });
+        }));
+
+        #endregion
+    }
+
     public static void RegisterCalendarSerializer(IHostApplicationBuilder builder)
     {
         #region sample_newtonsoft_register_calendar_serializer
@@ -127,6 +143,15 @@ public static class NewtonsoftJsonSamples
 
         #endregion
     }
+}
+
+/// <summary>
+/// A job-data value type of the application's own, which no contract of Quartz's can name, and which the
+/// serializer therefore writes only once the application has declared it.
+/// </summary>
+public sealed class ReportOptions
+{
+    public string Format { get; set; } = "pdf";
 }
 
 #region sample_newtonsoft_custom_calendar

@@ -89,7 +89,7 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
             Converters = new List<JsonConverter>
             {
                 new NameValueCollectionConverter(),
-                new StringKeyDirtyFlagMapConverter(),
+                new StringKeyDirtyFlagMapConverter(Registry),
                 new CronExpressionConverter(),
                 new CalendarConverter(Registry)
             },
