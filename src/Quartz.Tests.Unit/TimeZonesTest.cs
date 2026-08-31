@@ -360,7 +360,7 @@ public class TimeZonesTest
         Func<TimeZoneInfo> act = () => TimeZones.FindById(id);
 
         act.Should().Throw<TimeZoneNotFoundException>()
-            .WithMessage("*Quartz.Plugins.TimeZoneConverter*", "the failure should point at the plugin that resolves more ids");
+            .WithMessage("*Quartz.Plugins.TimeZoneConverter*", "the failure should point at the package that resolves more ids");
     }
 
     [Test]

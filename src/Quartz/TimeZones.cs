@@ -88,8 +88,9 @@ public static class TimeZones
     /// places that have no scheduler in scope — parsing a <see cref="CronExpression" />, deserializing
     /// a trigger or calendar out of a job store blob — so there is nothing scheduler-scoped to hang a
     /// resolver on. Adding a resolver from one scheduler changes id resolution for every scheduler in
-    /// the process, which is what installing <c>Quartz.Plugins.TimeZoneConverter</c> does; each such
-    /// plugin disposes its own registration when its scheduler shuts down.
+    /// the process, which is what <c>Quartz.Plugins.TimeZoneConverter</c>'s <c>UseTimeZoneConverter</c>
+    /// does — once per process, and without ever removing it, so that a scheduler shutting down cannot
+    /// take resolution away from the ones still running.
     /// </para>
     /// <para>
     /// Resolvers are consulted most recently added first, so a later registration shadows an earlier

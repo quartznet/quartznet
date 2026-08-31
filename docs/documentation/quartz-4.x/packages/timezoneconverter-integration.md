@@ -16,8 +16,9 @@ whatever ids the machine happens to know: Windows ids on Windows, IANA ids on Li
 one and run on the other therefore throws `TimeZoneNotFoundException` at the point where a trigger is built or
 read back, and a schedule stored in a database is exactly the schedule that gets moved between them.
 
-Adding the plugin registers a resolver with `Quartz.TimeZones`, which is what Quartz's own lookups go through.
-Both spellings then resolve everywhere, and a stored trigger keeps firing after its scheduler moves host.
+`UseTimeZoneConverter` registers a resolver with `Quartz.TimeZones`, which is what Quartz's own lookups go
+through. Both spellings then resolve everywhere, and a stored trigger keeps firing after its scheduler moves
+host.
 
 ## Installation
 
@@ -47,17 +48,21 @@ await using StandaloneSchedulerFactory schedulerFactory = builder.Build();
 ```
 <!-- endSnippet -->
 
-**Classic property-based configuration**
+## There is no plugin, and no key
 
-<!-- snippet: sample_timezoneconverter_properties -->
-```csharp
-NameValueCollection properties = new()
-{
-    ["quartz.plugin.timeZoneConverter.type"] = "Quartz.Plugins.TimeZoneConverter.TimeZoneConverterPlugin, Quartz.Plugins.TimeZoneConverter"
-};
+3.x shipped this as an `ISchedulerPlugin`, named from configuration by
+`quartz.plugin.timeZoneConverter.type`. In 4.0 both are gone: `TimeZoneConverterPlugin` was one
+`TimeZones.AddResolver` call wearing a plugin's lifecycle — no per-scheduler state, no scheduler to
+depend on — so `UseTimeZoneConverter` performs the registration itself. A configuration file still
+naming the plugin type fails to load it; delete the key and call `UseTimeZoneConverter` instead.
 
-await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
-    .UseProperties(properties)
-    .Build();
-```
-<!-- endSnippet -->
+Two things follow from that, and both are improvements:
+
+* **It takes effect while you are configuring, not when the scheduler starts.** Time zone lookup is
+  reached from places that have no scheduler in scope — building a trigger, parsing a `CronExpression`,
+  deserializing a trigger out of a job store — so a trigger built before the host starts now resolves
+  its zone as well.
+* **Nothing removes it again.** The plugin disposed its registration when its scheduler shut down, and
+  had to be careful not to disturb the other schedulers in the process while doing so. One registration
+  that outlives every scheduler is the same guarantee with none of the bookkeeping. Calling
+  `UseTimeZoneConverter` for a second scheduler is a no-op.
