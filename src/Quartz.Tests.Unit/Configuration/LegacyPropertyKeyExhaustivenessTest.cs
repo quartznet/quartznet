@@ -23,7 +23,6 @@
 
 using System.Collections.Specialized;
 using System.Reflection;
-using System.Reflection.Emit;
 
 using Quartz.Configuration;
 
@@ -41,9 +40,10 @@ namespace Quartz.Tests.Unit.Configuration;
 /// here check that the guard fires; this one checks that it fires only on real mistakes.
 /// </para>
 /// <para>
-/// The key inventory is extracted mechanically rather than curated, by walking the IL of every type
-/// in the <c>Quartz.Configuration</c> namespace and collecting the <c>ldstr</c> literals that begin
-/// with <c>quartz.</c>. That is where every reader of the flat format lives — the bridge, the plugin
+/// The key inventory is extracted mechanically rather than curated, by asking
+/// <see cref="MethodBodyStrings" /> for the literals every type in the <c>Quartz.Configuration</c>
+/// namespace names and keeping the ones that begin with <c>quartz.</c>. That is where every reader of
+/// the flat format lives — the bridge, the plugin
 /// and listener factories, the execution-limit parser, the scheduler content initializer — and
 /// because <c>const</c> strings are inlined at their use sites, a key named through
 /// <see cref="LegacyPropertyKeys" /> shows up at the reader just as a literal one does.
@@ -61,11 +61,6 @@ public class LegacyPropertyKeyExhaustivenessTest
     private const string ConfigurationNamespace = "Quartz.Configuration";
 
     private static readonly Assembly quartzAssembly = typeof(IScheduler).Assembly;
-
-    // Declared before the scan: static field initializers run in textual order, and the walk needs
-    // these tables to know how long each instruction is.
-    private static readonly OpCode?[] singleByteOpCodes = BuildOpCodeTable(twoByte: false);
-    private static readonly OpCode?[] twoByteOpCodes = BuildOpCodeTable(twoByte: true);
 
     /// <summary>
     /// Every <c>quartz.*</c> key or key prefix the flat-format readers name, as found in their IL.
@@ -340,126 +335,16 @@ public class LegacyPropertyKeyExhaustivenessTest
                 continue;
             }
 
-            foreach (MethodBase method in DeclaredMethods(type))
+            foreach (string literal in MethodBodyStrings.In(type))
             {
-                foreach (string literal in StringLiterals(method))
+                // The bare prefix is manufactured by QuartzConfigurationHelper rather than read.
+                if (literal.Length > Prefix.Length && literal.StartsWith(Prefix, StringComparison.Ordinal))
                 {
-                    // The bare prefix is manufactured by QuartzConfigurationHelper rather than read.
-                    if (literal.Length > Prefix.Length && literal.StartsWith(Prefix, StringComparison.Ordinal))
-                    {
-                        keys.Add(literal);
-                    }
+                    keys.Add(literal);
                 }
             }
         }
 
         return keys.ToList();
     }
-
-    private static IEnumerable<MethodBase> DeclaredMethods(Type type)
-    {
-        const BindingFlags Declared = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
-                                      | BindingFlags.Static | BindingFlags.DeclaredOnly;
-
-        return type.GetMethods(Declared).Cast<MethodBase>().Concat(type.GetConstructors(Declared));
-    }
-
-    /// <summary>
-    /// The IL opcode table, read off <see cref="OpCodes" /> rather than transcribed, so that the
-    /// operand sizes the walk relies on come from the runtime's own definitions.
-    /// </summary>
-    private static OpCode?[] BuildOpCodeTable(bool twoByte)
-    {
-        OpCode?[] table = new OpCode?[0x100];
-        foreach (FieldInfo field in typeof(OpCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
-        {
-            if (field.GetValue(null) is not OpCode opCode)
-            {
-                continue;
-            }
-
-            ushort value = unchecked((ushort) opCode.Value);
-            if (twoByte && (value & 0xFF00) == 0xFE00)
-            {
-                table[value & 0xFF] = opCode;
-            }
-            else if (!twoByte && value < 0x100)
-            {
-                table[value] = opCode;
-            }
-        }
-
-        return table;
-    }
-
-    /// <summary>
-    /// Walks a method body instruction by instruction, resolving every <c>ldstr</c> against the
-    /// module's string heap. Stepping over operands properly is what keeps an operand byte from being
-    /// misread as an opcode and inventing keys that are not there.
-    /// </summary>
-    private static List<string> StringLiterals(MethodBase method)
-    {
-        List<string> literals = [];
-
-        byte[]? il;
-        try
-        {
-            il = method.GetMethodBody()?.GetILAsByteArray();
-        }
-        catch (Exception)
-        {
-            // abstract, extern or otherwise bodiless
-            return literals;
-        }
-
-        if (il is null)
-        {
-            return literals;
-        }
-
-        Module module = method.Module;
-        int position = 0;
-        while (position < il.Length)
-        {
-            if (ReadOpCode(il, ref position) is not { } instruction)
-            {
-                // An opcode this table does not know means the walk has lost the instruction boundary;
-                // stopping is honest, and TheScanFoundTheKeysTheReadersConsult notices if it happens often.
-                break;
-            }
-
-            if (instruction.OperandType == OperandType.InlineString && position + 4 <= il.Length)
-            {
-                literals.Add(module.ResolveString(BitConverter.ToInt32(il, position)));
-            }
-
-            position += OperandSize(instruction, il, position);
-        }
-
-        return literals;
-    }
-
-    private static OpCode? ReadOpCode(byte[] il, ref int position)
-    {
-        byte first = il[position++];
-        if (first != 0xFE)
-        {
-            return singleByteOpCodes[first];
-        }
-
-        return position < il.Length ? twoByteOpCodes[il[position++]] : null;
-    }
-
-    private static int OperandSize(OpCode opCode, byte[] il, int position) => opCode.OperandType switch
-    {
-        OperandType.InlineNone => 0,
-        OperandType.ShortInlineBrTarget or OperandType.ShortInlineI or OperandType.ShortInlineVar => 1,
-        OperandType.InlineVar => 2,
-        OperandType.InlineBrTarget or OperandType.InlineField or OperandType.InlineI or OperandType.InlineMethod
-            or OperandType.InlineSig or OperandType.InlineString or OperandType.InlineTok
-            or OperandType.InlineType or OperandType.ShortInlineR => 4,
-        OperandType.InlineI8 or OperandType.InlineR => 8,
-        OperandType.InlineSwitch => 4 + 4 * BitConverter.ToInt32(il, position),
-        _ => 0
-    };
 }

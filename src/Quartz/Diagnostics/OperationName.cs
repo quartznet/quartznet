@@ -18,6 +18,32 @@ public static class OperationName
         public const string Veto = "Quartz.Job.Veto";
     }
 
+    /// <summary>
+    /// The names of the spans a scheduler's calls into its store are traced under.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>A constant exists for every store operation that changes state or drives the fire cycle, and
+    /// for nothing else.</b> Reads are not traced — the <c>Get*</c> and <c>Query*</c> members and the
+    /// three <c>Exists</c> overloads — because a read is one database round trip whose cost the caller's
+    /// own span already covers, and a span saying "the store was asked" adds a frame rather than a fact.
+    /// Neither are the lifecycle members <c>Initialize</c>, <c>Shutdown</c>, <c>SchedulerStarted</c>,
+    /// <c>SchedulerPaused</c> and <c>SchedulerResumed</c>: each happens once, outside any request, so a
+    /// span for it is a root of its own with nothing to be a child of. Nor is <c>GetAcquireRetryDelay</c>,
+    /// which is advice a store gives out of its own configuration rather than an operation it performs.
+    /// </para>
+    /// <para>
+    /// The subset is therefore deliberate rather than half-finished, and it is exact in both directions
+    /// — every constant here names a span <c>TracingJobStore</c> begins, and every span it begins is
+    /// named here. <c>OperationNameTest</c> holds both halves, and separately holds every mutating
+    /// member of <see cref="Quartz.Extensibility.IJobStore" /> to having a constant, so a member added
+    /// to the interface without a span fails the build rather than going quietly untraced.
+    /// </para>
+    /// <para>
+    /// These strings are the telemetry contract: dashboards, alerts and sampling rules match on them, so
+    /// a rename is a breaking change for everyone watching and not a refactoring.
+    /// </para>
+    /// </remarks>
     public static class JobStore
     {
         // Tier 1: scheduler loop hot path
