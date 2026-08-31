@@ -28,11 +28,21 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma(.NET)</author>
 public class AdoConstants
 {
+    /// <summary>
+    /// Every table the store reads or writes, in the order the schema scripts create them.
+    /// </summary>
+    /// <remarks>
+    /// This is what <see cref="StdAdoDelegate.ValidateSchema" /> probes at startup, so a table missing
+    /// from here is a table a database can be missing and still start — the failure moves to the first
+    /// statement that names it, which is what validation exists to prevent. Every table name therefore
+    /// belongs on this class, whichever delegate writes to it.
+    /// </remarks>
     internal static readonly string[] AllTableNames = new[]
     {
         TableJobDetails,
         TableTriggers,
         TableSimpleTriggers,
+        TableSimplePropertiesTriggers,
         TableCronTriggers,
         TableBlobTriggers,
         TableFiredTriggers,
@@ -46,6 +56,7 @@ public class AdoConstants
     public const string TableJobDetails = "JOB_DETAILS";
     public const string TableTriggers = "TRIGGERS";
     public const string TableSimpleTriggers = "SIMPLE_TRIGGERS";
+    public const string TableSimplePropertiesTriggers = "SIMPROP_TRIGGERS";
     public const string TableCronTriggers = "CRON_TRIGGERS";
     public const string TableBlobTriggers = "BLOB_TRIGGERS";
     public const string TableFiredTriggers = "FIRED_TRIGGERS";
