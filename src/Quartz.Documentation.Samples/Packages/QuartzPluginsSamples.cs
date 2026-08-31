@@ -2,8 +2,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-using Quartz.Plugins.Interrupt;
-
 namespace Quartz.Documentation.Samples.Packages;
 
 /// <summary>
@@ -115,34 +113,6 @@ public static class QuartzPluginsSamples
                 x.FailOnSchedulingError = true;
             });
         });
-
-        #endregion
-    }
-
-    public static void JobAutoInterrupt(IServiceCollection services)
-    {
-        #region sample_plugins_job_auto_interrupt
-
-        services.AddQuartz(q => q.UseJobAutoInterrupt(options =>
-        {
-            // the default, applied to every job that opts in
-            options.DefaultMaxRunTime = TimeSpan.FromMinutes(5);
-        }));
-
-        #endregion
-    }
-
-    public static void JobAutoInterruptJobData()
-    {
-        #region sample_plugins_job_auto_interrupt_job_data
-
-        IJobDetail job = JobBuilder.Create<SlowJob>()
-            .WithIdentity("slowJob")
-            .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
-            // allow only five seconds for this job, overriding default configuration.
-            // the value is milliseconds, and either a number or a string holding one works
-            .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, "5000")
-            .Build();
 
         #endregion
     }

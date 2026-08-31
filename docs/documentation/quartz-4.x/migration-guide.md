@@ -694,7 +694,6 @@ assignable on a live instance with nothing saying which wins or when. The compon
 | `TaskSchedulingThreadPool.MaxConcurrency`, `.Scheduler` | `UseDefaultThreadPool(maxConcurrency: …)`; both setters are `protected internal`, so a pool of your own can still set them |
 | `RedisLockHandler.RedisConfiguration`, `.KeyPrefix`, `.LockTimeToLive`, `.LockRetryInterval` | `UseRedisLockHandler(o => …)` |
 | The history plugins' message templates | `UseJobHistoryLogging(o => …)`, `UseTriggerHistoryLogging(o => …)`, and now `UseStructuredJobLogging(o => …)` / `UseStructuredTriggerLogging(o => …)` |
-| `JobInterruptMonitorPlugin.DefaultMaxRunTime` | `UseJobAutoInterrupt(o => …)` |
 | The scheduling-data plugins' `FileNames`, `ScanInterval`, `FailOn*` (internal outright — see [one surface](#the-two-scheduling-data-plugins-have-one-surface)) | `UseXmlSchedulingConfiguration(o => …)` / `UseJsonSchedulingConfiguration(o => …)` |
 | `ShutdownHookPlugin.CleanShutdown` | `UseShutdownHook(o => o.CleanShutdown = …)` |
 
@@ -2476,6 +2475,40 @@ refuse a fire, and matchers stay a listener's way of choosing which jobs it hear
 [Job Execution Middleware](tutorial/job-execution-middleware.md) lesson has the whole of it, including
 which of the two a given concern belongs in.
 
+### `JobInterruptMonitorPlugin` is retired; a job timeout is middleware
+
+The plugin's opt-in surface was two `JobDataMap` strings the compiler never saw — `"AutoInterruptable"`
+to enable it at all, `"MaxRunTime"` for a number of milliseconds whose unit was documented only by the
+parse — and behind them a monitor task scheduled per firing. The middleware seam is where that belongs,
+so `JobInterruptMonitorPlugin`, `UseJobAutoInterrupt`, `JobAutoInterruptOptions` and both keys are gone.
+The replacement is in the core `Quartz` package and is typed end to end:
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `q.UseJobAutoInterrupt(o => o.DefaultMaxRunTime = TimeSpan.FromMinutes(5))` | `q.AddJobTimeout(TimeSpan.FromMinutes(5))` |
+| `q.UseJobAutoInterrupt()` and no per-job data | `q.AddJobTimeout()`, which bounds only the jobs that declare a budget |
+| `.UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)` | nothing — every job the scheduler runs is bounded by the default |
+| `.UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, "5000")` | `[JobTimeout("00:00:05")]` on the job class |
+| no way to exempt one job from the default | `[JobTimeout("00:00:00")]` on the job class |
+| `quartz.plugin.jobAutoInterrupt.type = Quartz.Plugin.Interrupt.JobInterruptMonitorPlugin, Quartz.Plugins` | remove the keys; the type no longer exists, so a configuration still naming it fails to load |
+| `JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable` / `.JobDataMapKeyMaxRunTime` | removed |
+
+The budget travels with the job type rather than with its stored data, which is why it moved to an
+attribute: `[JobTimeout]` is read the same way `[DisallowConcurrentExecution]` is, is inherited from a
+base class or an interface, and needs no schema column, no wire format and no migration of existing job
+data. Delete the two keys from any job or trigger data map that carries them — they mean nothing now.
+
+**One behaviour is deliberately different, and it is the point of the change.** The plugin interrupted
+the firing and stopped there, which the run shell classifies as a *completed* execution: no
+`JobExecutionException` reached a job listener, and a trigger's retry policy was never consulted. The
+middleware interrupts through the same public `IScheduler.InterruptFireInstance` path and then raises a
+`JobExecutionException` naming the budget, so a timeout is an ordinary failure — visible to listeners,
+counted as an error, and retried by the trigger's `RetryPolicy` if it has one. A job that swallows its
+cancellation and returns normally is reported as timed out too.
+
+What has *not* changed is that a job which ignores its `CancellationToken` cannot be stopped. That was
+the plugin's limit as well; `CA2016` is the mitigation.
+
 ## Registered schedulers can be listed without being started
 
 `ISchedulerFactory.GetAllSchedulers()` — `GetAllSchedulers()` on 3.x too — lists the schedulers
@@ -3914,7 +3947,7 @@ registration is one word different.
 ### The shipped plugins are sealed
 
 `LoggingJobHistoryPlugin`, `LoggingTriggerHistoryPlugin`, `StructuredLoggingJobHistoryPlugin`,
-`StructuredLoggingTriggerHistoryPlugin`, `ShutdownHookPlugin`, `JobInterruptMonitorPlugin`,
+`StructuredLoggingTriggerHistoryPlugin`, `ShutdownHookPlugin`,
 `XmlSchedulingDataProcessorPlugin`, `JsonSchedulingDataProcessorPlugin` and `TimeZoneConverterPlugin`
 are `sealed`, and so is `NoOpJob`. A plugin is an `ISchedulerPlugin` — four members, all of which a
 plugin of your own implements directly — so deriving from a shipped one only ever inherited a
@@ -4558,10 +4591,6 @@ interface:
 + ISchedulerListener listener = new MyListener();
 + scheduler.ListenerManager.RemoveSchedulerListener(listener.Name);
 ```
-
-`JobInterruptMonitorPlugin` declares `Name`, `TriggerFired` and `TriggerComplete` as class members
-rather than leaning on the default implementations, so that reading them off the concrete type keeps
-working. The plugin itself is `sealed` — see [The shipped plugins are sealed](#the-shipped-plugins-are-sealed).
 
 ### Scheduler listeners are identified by name
 
@@ -7308,7 +7337,7 @@ above cover configuration strings.
 | `Quartz.Job` | `Quartz.Jobs` | Namespace, assembly and package now agree. A configuration string or a stored `JOB_CLASS_NAME` naming the old spelling still resolves, with a warning |
 | `Quartz.Extensibility.IDirectoryProvider` | `Quartz.Jobs.IDirectoryProvider` | It exists for `DirectoryScanJob` alone, so it lives with it. It is resolved from `SchedulerContext` by key, never by type name. Its one member also changed shape: `GetDirectoriesToScan(JobDataMap)` returns `List<string>` rather than `IReadOnlyList<string>`, following the concrete-out convention, so an implementation returning an array or a `ToList()` result needs one edit |
 | `Quartz.Logging`, `Quartz.Logging.LogProviders` | `Quartz.Diagnostics` | `LogProvider`, `DiagnosticHeaders` (now `ActivityTags`) and `OperationName` moved; `ILogProvider`, `LogContext`, `LogLevel`, the `Logger` delegate, `IJobDiagnosticData` and `LogProviders.LibLogException` went with LibLog. A `using Quartz.Logging;` no longer resolves at all, and nothing names these namespaces in configuration, so there is no fallback — see [Logging](#logging) |
-| `Quartz.Plugin.History`, `Quartz.Plugin.Interrupt`, `Quartz.Plugin.Json`, `Quartz.Plugin.Management`, `Quartz.Plugin.Xml`, `Quartz.Plugin.TimeZoneConverter` | `Quartz.Plugins.*` | Same rule as the jobs: the packages are `Quartz.Plugins` and `Quartz.Plugins.TimeZoneConverter`. A `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning. The **configuration key** prefix is still `quartz.plugin.`, singular — it is not a namespace |
+| `Quartz.Plugin.History`, `Quartz.Plugin.Json`, `Quartz.Plugin.Management`, `Quartz.Plugin.Xml`, `Quartz.Plugin.TimeZoneConverter` | `Quartz.Plugins.*` | Same rule as the jobs: the packages are `Quartz.Plugins` and `Quartz.Plugins.TimeZoneConverter`. A `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning. The **configuration key** prefix is still `quartz.plugin.`, singular — it is not a namespace. `Quartz.Plugin.Interrupt` has no 4.x counterpart: its one type is gone — see [`JobInterruptMonitorPlugin` is retired; a job timeout is middleware](#jobinterruptmonitorplugin-is-retired-a-job-timeout-is-middleware) |
 | `Quartz.Listener` | `Quartz.Listeners` | A `quartz.jobListener.<name>.type` or `quartz.triggerListener.<name>.type` naming the old spelling still resolves, with a warning — but see [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone): three of the seven types are not there under either name |
 | `Quartz.Impl.Matchers` | `Quartz` | See [Matchers moved to `Quartz`](#matchers-moved-to-quartz). No shim is needed: a matcher is passed as an object and is never named by a configuration string |
 | `Quartz.AspNetCore`, `Quartz.AspNetCore.HealthChecks`, `Quartz.AspNetCore.HttpApi` | `Quartz` | Only the namespaces are gone; `AddQuartzHealthChecks`, `AddQuartzHttpApi` and `MapQuartzHttpApi` are extension methods and resolve through the `Quartz` you already have, so a `using Quartz.AspNetCore;` can simply be deleted. The **packages** differ: the HTTP API is still `Quartz.AspNetCore`, hosted by `QuartzAspNetCoreConfigurationExtensions` (renamed from `QuartzServiceCollectionExtensions` because the core package now has a class of that name in the same namespace), while the health check is in `Quartz` from `4.0.0-alpha.4`, hosted by `QuartzHealthCheckExtensions` — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
@@ -10050,7 +10079,7 @@ explaining it a second time.
 
 It is derived mechanically, by diffing the public API baselines both branches keep under
 `src/Quartz.Tests.Unit/Verify/` and `src/Quartz.Tests.AspNetCore/Verify/`, so it names **every**
-public type 3.x had and 4.0 does not — all 97, across every package — rather than the ones that came
+public type 3.x had and 4.0 does not — all 98, across every package — rather than the ones that came
 to mind. If you want the raw delta for one package rather than this summary, `git diff` its baseline
 across the two branches; package boundaries moved, so match the files up with this first:
 
@@ -10133,6 +10162,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Spi.ITypeLoadHelper` | Renamed `Quartz.Extensibility.ITypeLoader` | The last `*Helper` left in the public surface; the builder method `UseTypeLoader<T>()` already had the new spelling. `Initialize()` is gone; `LoadType` is the whole interface. `AdoJobStoreBase.TypeLoadHelper` and `DriverDelegateContext.TypeLoadHelper` are `TypeLoader` to match |
 | `Quartz.Impl.JobDetailImpl` | Internal | `JobBuilder.Create<TJob>()`; read an `IJobDetail` |
 | `Quartz.JobFactoryOptions` | Kept, but emptied and refilled | Its two 3.x properties — `AllowDefaultConstructor` and `CreateScope` — were already `[Obsolete]` no-ops and are gone. The type is `sealed` and carries `ConfigureScope`, the per-scheduler hook for a scope Quartz opens — see [The job factory hands out a scope](#the-job-factory-hands-out-a-scope) |
+| `Quartz.Plugin.Interrupt.JobInterruptMonitorPlugin` | Removed | `q.AddJobTimeout(TimeSpan)` and `[JobTimeout("hh:mm:ss")]`, both in the core package. Its `JobDataMapKeyAutoInterruptable` and `JobDataMapKeyMaxRunTime` constants go with it — see [`JobInterruptMonitorPlugin` is retired; a job timeout is middleware](#jobinterruptmonitorplugin-is-retired-a-job-timeout-is-middleware) |
 | `Quartz.Core.JobRunShell` | Internal | No replacement; use `IJobListener` to observe a fire |
 | `Quartz.Impl.AdoJobStore.JobStoreCMT` | Renamed `ExternalTransactionJobStore` | The old spelling still resolves in configuration, with a warning — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
 | `Quartz.Impl.AdoJobStore.JobStoreTX` | Renamed `LocalTransactionJobStore` | As above — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |

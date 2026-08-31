@@ -325,26 +325,31 @@ q.UseJsonSchedulingConfiguration(x =>
 
 // resolve Windows and IANA time zone ids on either operating system
 q.UseTimeZoneConverter();
+```
+<!-- endSnippet -->
 
-// interrupt a job that runs longer than it should
-q.UseJobAutoInterrupt(options => options.DefaultMaxRunTime = TimeSpan.FromMinutes(5));
+Every plugin Quartz ships has an extension like these; they are listed in
+[Plugins](quartz-plugins.md).
+
+**A timeout**, which is middleware rather than a plugin and lives in the core package:
+
+<!-- snippet: sample_di_job_timeout -->
+```csharp
+// interrupt a job that runs longer than it should; a job saying [JobTimeout("00:00:05")]
+// gets five seconds instead
+q.AddJobTimeout(TimeSpan.FromMinutes(5));
 
 q.ScheduleJob<SlowJob>(
     trigger => trigger
         .WithIdentity("slowJobTrigger")
         .StartNow()
         .WithSimpleSchedule(TimeSpan.FromSeconds(5)),
-    job => job
-        .WithIdentity("slowJob")
-        .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
-        // allow only five seconds for this job, overriding the plugin's default.
-        // the value is milliseconds, and either a number or a string holding one works
-        .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, "5000"));
+    job => job.WithIdentity("slowJob"));
 ```
 <!-- endSnippet -->
 
-Every plugin Quartz ships has an extension like these; they are listed in
-[Plugins](quartz-plugins.md).
+See [Job Execution Middleware](../tutorial/job-execution-middleware.md#timing-a-job-out) for what a
+timeout does to the trigger, and how a timed-out firing becomes a retryable failure.
 
 **Listeners**, constructed from the container and in place before the scheduler starts:
 

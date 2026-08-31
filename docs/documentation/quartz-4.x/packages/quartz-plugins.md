@@ -8,7 +8,7 @@ title: Plugins
 Quartz provides an interface (`ISchedulerPlugin`, in the `Quartz.Extensibility` namespace) for plugging-in additional functionality.
 
 The plugins that ship in this package live in the `Quartz.Plugins.*` namespaces — `Quartz.Plugins.History`,
-`Quartz.Plugins.Interrupt`, `Quartz.Plugins.Json`, `Quartz.Plugins.Management` and `Quartz.Plugins.Xml`, matching the
+`Quartz.Plugins.Json`, `Quartz.Plugins.Management` and `Quartz.Plugins.Xml`, matching the
 assembly and NuGet package name. In 3.x they were the singular `Quartz.Plugin.*`; a `quartz.plugin.<name>.type`
 naming the old spelling still resolves, with a warning.
 They provide functionality such as auto-scheduling of jobs upon scheduler startup, logging a history of job and trigger events,
@@ -37,7 +37,6 @@ spelling of the same thing and still work.
 | `ShutdownHookPlugin` | `UseShutdownHook(…)` | `ShutdownHookOptions` |
 | `JsonSchedulingDataProcessorPlugin` | `UseJsonSchedulingConfiguration(…)` | `FileSchedulingOptions` |
 | `XmlSchedulingDataProcessorPlugin` | `UseXmlSchedulingConfiguration(…)` | `FileSchedulingOptions` |
-| `JobInterruptMonitorPlugin` | `UseJobAutoInterrupt(…)` | `JobAutoInterruptOptions` |
 
 They hang off `IQuartzBuilder`, so they work the same under `AddQuartz` and on a standalone
 `QuartzSchedulerBuilder`. See the
@@ -251,38 +250,56 @@ not going away in 4.x**. A `quartz_jobs.xml` that worked on 3.x works here, and 
 needs the three trigger kinds above can stay in XML indefinitely. Write a new schedule as JSON, and
 move an XML one when it needs something the schema above cannot spell.
 
-### JobInterruptMonitorPlugin
+### JobInterruptMonitorPlugin — retired
 
-This plugin catches the event of job running for a long time (more than the configured max time) and tells the scheduler to "try" interrupting it if enabled.
+There is no plugin for job timeouts any more. `JobInterruptMonitorPlugin` was removed in 4.0 and
+replaced by
+[`AddJobTimeout(…)`](../tutorial/job-execution-middleware.md#timing-a-job-out) in the core `Quartz`
+package, which is a middleware rather than a plugin and needs no `JobDataMap` keys at all:
 
-<!-- snippet: sample_plugins_job_auto_interrupt -->
+<!-- snippet: sample_job_timeout_register -->
 ```csharp
-services.AddQuartz(q => q.UseJobAutoInterrupt(options =>
+builder.AddQuartz(q =>
 {
-    // the default, applied to every job that opts in
-    options.DefaultMaxRunTime = TimeSpan.FromMinutes(5);
-}));
+    // every job gets five minutes, unless it says otherwise
+    q.AddJobTimeout(TimeSpan.FromMinutes(5));
+
+    // or: no scheduler-wide budget, and only the jobs carrying [JobTimeout] are bounded
+    q.AddJobTimeout();
+});
 ```
 <!-- endSnippet -->
 
-Each job configuration needs to have `JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable` key's value set to true in order for plugin to monitor the execution timeout.
-Jobs can also define custom timeout value instead of global default by using key `JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime`.
+A job varies the budget by declaring one, the way it declares `[DisallowConcurrentExecution]`:
 
-<!-- snippet: sample_plugins_job_auto_interrupt_job_data -->
+<!-- snippet: sample_job_timeout_attribute -->
 ```csharp
-IJobDetail job = JobBuilder.Create<SlowJob>()
-    .WithIdentity("slowJob")
-    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
-    // allow only five seconds for this job, overriding default configuration.
-    // the value is milliseconds, and either a number or a string holding one works
-    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, "5000")
-    .Build();
+// Thirty seconds for this job, whatever the scheduler's default is.
+[JobTimeout("00:00:30")]
+public sealed class ReportJob : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        // Forward the token: a job that never looks at it cannot be stopped by anything, and is simply
+        // reported as having timed out once it finally returns.
+        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+    }
+}
+
+// No timeout at all, whatever the scheduler's default is.
+[JobTimeout("00:00:00")]
+public sealed class NightlyRebuildJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
 ```
 <!-- endSnippet -->
 
-Both `AutoInterruptable` and `MaxRunTime` are read from the merged job data map, so a trigger's data map can also enable interruption or override the timeout for its own fires.
-
-Only the execution that exceeded its allowed run time is interrupted — the plugin monitors each fire instance separately, so concurrent executions of the same job are unaffected. Executions vetoed by a trigger listener do not arm the interrupt timer.
+The two `JobDataMap` keys the plugin reserved — `"AutoInterruptable"` and `"MaxRunTime"` — mean nothing
+now and can be deleted from job and trigger data. See the
+[migration guide](../migration-guide.md) for the before-and-after, and
+[Job Execution Middleware](../tutorial/job-execution-middleware.md#timing-a-job-out) for what a timeout
+does to the trigger.
 
 ## Adding a plugin
 

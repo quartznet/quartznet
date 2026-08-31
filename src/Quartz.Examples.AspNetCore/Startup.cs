@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json.Serialization;
 
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -19,7 +18,6 @@ using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Calendar;
 using Quartz.Plugins.History;
-using Quartz.Plugins.Interrupt;
 
 using Serilog;
 
@@ -167,22 +165,16 @@ public class Startup
                 .WithDescription("my awesome cron trigger")
             );
 
-            // auto-interrupt long-running job
-            q.UseJobAutoInterrupt(options =>
-            {
-                // this is the default
-                options.DefaultMaxRunTime = TimeSpan.FromMinutes(5);
-            });
+            // interrupt a job that runs longer than it is allowed to. SlowJob says
+            // [JobTimeout("00:00:05")] for itself, so five seconds is what it gets rather than this
+            q.AddJobTimeout(TimeSpan.FromMinutes(5));
+
             q.ScheduleJob<SlowJob>(
                 triggerConfigurator => triggerConfigurator
                     .WithIdentity("slowJobTrigger")
                     .StartNow()
                     .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever()),
-                jobConfigurator => jobConfigurator
-                    .WithIdentity("slowJob")
-                    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, "true")
-                    // allow only five seconds for this job, overriding default configuration
-                    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture))
+                jobConfigurator => jobConfigurator.WithIdentity("slowJob")
             );
 
             // async disposable dependencies

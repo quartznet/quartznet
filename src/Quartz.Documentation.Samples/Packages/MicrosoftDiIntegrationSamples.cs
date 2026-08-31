@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl.Calendar;
-using Quartz.Plugins.Interrupt;
 
 namespace Quartz.Documentation.Samples.Packages;
 
@@ -229,20 +228,20 @@ public static class MicrosoftDiIntegrationSamples
             // resolve Windows and IANA time zone ids on either operating system
             q.UseTimeZoneConverter();
 
-            // interrupt a job that runs longer than it should
-            q.UseJobAutoInterrupt(options => options.DefaultMaxRunTime = TimeSpan.FromMinutes(5));
+            #endregion
+
+            #region sample_di_job_timeout
+
+            // interrupt a job that runs longer than it should; a job saying [JobTimeout("00:00:05")]
+            // gets five seconds instead
+            q.AddJobTimeout(TimeSpan.FromMinutes(5));
 
             q.ScheduleJob<SlowJob>(
                 trigger => trigger
                     .WithIdentity("slowJobTrigger")
                     .StartNow()
                     .WithSimpleSchedule(TimeSpan.FromSeconds(5)),
-                job => job
-                    .WithIdentity("slowJob")
-                    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
-                    // allow only five seconds for this job, overriding the plugin's default.
-                    // the value is milliseconds, and either a number or a string holding one works
-                    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, "5000"));
+                job => job.WithIdentity("slowJob"));
 
             #endregion
 

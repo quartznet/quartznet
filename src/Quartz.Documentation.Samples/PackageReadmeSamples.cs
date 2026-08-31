@@ -168,7 +168,7 @@ public static class PackageReadmeSamples
             {
                 q.UseStructuredJobLogging();
                 q.UseStructuredTriggerLogging();
-                q.UseJobAutoInterrupt(options => options.DefaultMaxRunTime = TimeSpan.FromMinutes(5));
+                q.UseShutdownHook();
             });
 
             #endregion
