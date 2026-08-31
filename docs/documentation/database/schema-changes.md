@@ -273,6 +273,20 @@ The 4.x listing queries page with `ORDER BY JOB_GROUP, JOB_NAME` and
 adds `IDX_QRTZ_J_G_N` and `IDX_QRTZ_T_G_N` to serve those ordered scans. Without them each page
 is a scan plus a sort.
 
+Section 6 also reshapes `IDX_QRTZ_T_NFT_ST`, the index acquisition runs on, from
+`(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME)` to
+`(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)`
+([#3510](https://github.com/quartznet/quartznet/issues/3510)). Acquisition orders by
+`NEXT_FIRE_TIME ASC, PRIORITY DESC`, and an index whose two directions match lets the engine take
+the first entry instead of reading every candidate and sorting: on SQL Server a round trip against
+5,000 due triggers goes from 21.6 ms and 20,395 logical reads to 0.6 ms and 8. `MISFIRE_INSTR` is
+there so that a backlog of misfired triggers sitting below the acquisition window is skipped inside
+the index rather than one table lookup at a time. Because the name is the same and the columns are
+not, the script drops the index before recreating it — a guarded `CREATE INDEX` would find the name
+taken and keep the old shape. **Firebird keeps the three-column index**: its indexes take a single
+direction for the whole index, so it cannot express this one, and the trailing columns would be
+write cost with nothing to buy.
+
 Node affinity needs no data migration: 3.x and 4.x store pins identically.
 
 ### SQLite trigger names

@@ -189,7 +189,7 @@ CREATE INDEX IF NOT EXISTS idx_{1}t_g_n ON {0}triggers (sched_name, trigger_grou
 CREATE INDEX IF NOT EXISTS idx_{1}t_c ON {0}triggers (sched_name, calendar_name);
 --;;
 -- IDX_{1}T_NFT_ST
-CREATE INDEX IF NOT EXISTS idx_{1}t_nft_st ON {0}triggers (sched_name, trigger_state, next_fire_time);
+CREATE INDEX IF NOT EXISTS idx_{1}t_nft_st ON {0}triggers (sched_name, trigger_state, next_fire_time asc, priority desc, misfire_instr);
 --;;
 -- IDX_{1}FT_INST_JOB_REQ_RCVRY
 CREATE INDEX IF NOT EXISTS idx_{1}ft_inst_job_req_rcvry ON {0}fired_triggers (sched_name, instance_name, requests_recovery);

@@ -99,6 +99,12 @@ CREATE TABLE IF NOT EXISTS QRTZ_PAUSED_JOB_GRPS (
 -- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a
 -- non-trivial number of triggers; the drops only reclaim write cost and storage.
 
+-- === Drop the indexes whose columns changed but whose name did not ============
+-- These have to go first: CREATE INDEX IF NOT EXISTS below would find the name
+-- already taken and silently keep the old, wrong column order.
+
+DROP INDEX IF EXISTS IDX_QRTZ_T_NFT_ST;
+
 -- === Create the indexes this version expects ===================================
 
 CREATE INDEX IF NOT EXISTS IDX_QRTZ_J_G_N ON QRTZ_JOB_DETAILS(SCHED_NAME,JOB_GROUP,JOB_NAME);
@@ -109,7 +115,7 @@ CREATE INDEX IF NOT EXISTS IDX_QRTZ_T_G_N ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_GR
 
 CREATE INDEX IF NOT EXISTS IDX_QRTZ_T_C ON QRTZ_TRIGGERS(SCHED_NAME,CALENDAR_NAME);
 
-CREATE INDEX IF NOT EXISTS IDX_QRTZ_T_NFT_ST ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_STATE,NEXT_FIRE_TIME);
+CREATE INDEX IF NOT EXISTS IDX_QRTZ_T_NFT_ST ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_STATE,NEXT_FIRE_TIME ASC,PRIORITY DESC,MISFIRE_INSTR);
 
 CREATE INDEX IF NOT EXISTS IDX_QRTZ_FT_INST_JOB_REQ_RCVRY ON QRTZ_FIRED_TRIGGERS(SCHED_NAME,INSTANCE_NAME,REQUESTS_RECOVERY);
 

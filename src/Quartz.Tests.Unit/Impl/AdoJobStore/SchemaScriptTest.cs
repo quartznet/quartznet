@@ -52,8 +52,18 @@ public class SchemaScriptTest
     private static readonly string[] Dialects =
         ["sqlServer", "postgres", "mysql_innodb", "oracle", "sqlite", "firebird"];
 
+    /// <summary>Every dialect but the one whose indexes take a single direction for the whole index.</summary>
+    private static readonly string[] DialectsThatIndexPerColumnDirection =
+        [.. Dialects.Where(d => d != "firebird")];
+
     /// <summary>The line the job store splits the script on.</summary>
     private const string StatementSeparator = "--;;";
+
+    /// <summary>The acquisition index, as the parser names it once the table prefix is off.</summary>
+    private const string AcquisitionIndexName = "IDX_T_NFT_ST";
+
+    private const string AcquisitionIndexColumns =
+        "SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR";
 
     [TestCaseSource(nameof(Dialects))]
     public void TheGeneratedScriptCreatesTheTablesTheFreshInstallScriptCreates(string dialect)
@@ -132,7 +142,65 @@ public class SchemaScriptTest
         generated.Indexes.Should().BeEquivalentTo(fresh.Indexes,
             "the index set is also the one the 3.x-to-4.0 migration converges onto, so a provisioned "
             + "schema, a migrated one and one installed from the script all have to end up with the same "
-            + "indexes");
+            + "indexes — over the same columns, in the same order, with the same directions, since an "
+            + "index that matches only by name serves a different set of plans");
+    }
+
+    /// <summary>
+    /// The acquisition index carries the order acquisition reads in
+    /// (<see href="https://github.com/quartznet/quartznet/issues/3510">#3510</see>).
+    /// </summary>
+    /// <remarks>
+    /// <c>SelectNextTriggerToAcquire</c> orders by <c>NEXT_FIRE_TIME ASC, PRIORITY DESC</c> and every
+    /// dialect splices its row limit into the statement, so the <c>ORDER BY</c> decides which rows
+    /// come back at all. An index whose two directions match lets the engine take the first entry
+    /// instead of reading every candidate and sorting; <c>MISFIRE_INSTR</c> keeps that ordered seek
+    /// from looking up a backlogged row it is only going to reject. Neither is visible from the
+    /// index's name, which is why this is asserted rather than left to the comparison above.
+    /// </remarks>
+    [TestCaseSource(nameof(DialectsThatIndexPerColumnDirection))]
+    public void TheAcquisitionIndexCarriesTheDirectionsAcquisitionOrdersBy(string dialect)
+    {
+        SqlObjects.Parse(FreshInstallScript(dialect)).Indexes
+            .Should().ContainKey(AcquisitionIndexName)
+            .WhoseValue.Should().Be(AcquisitionIndexColumns,
+                $"database/tables/tables_{dialect}.sql is what a person installs a schema from, and "
+                + "an acquisition index without the descending priority costs a sort of every due "
+                + "trigger on every acquisition attempt");
+
+        SqlObjects.Parse(GeneratedScript(dialect)).Indexes
+            .Should().ContainKey(AcquisitionIndexName)
+            .WhoseValue.Should().Be(AcquisitionIndexColumns,
+                "SchemaProvisioning.CreateIfMissing has to reach the same schema the fresh-install "
+                + "script reaches, and this index is the one that decides what acquisition costs");
+    }
+
+    /// <summary>
+    /// Firebird's acquisition index is the three-column one, deliberately.
+    /// </summary>
+    /// <remarks>
+    /// A Firebird index is ascending or descending as a whole, so <c>CREATE INDEX</c> rejects the
+    /// <c>ASC</c> token outright, and a <c>COMPUTED BY</c> column standing in for a negated priority
+    /// cannot be indexed either — <c>attempt to index COMPUTED BY column</c>. Acquisition there still
+    /// materialises its candidates and sorts them. <c>MISFIRE_INSTR</c> is left off with the
+    /// direction: measured, it buys Firebird nothing without an ordered seek in front of it, and it
+    /// would be a wider entry on every write. This asserts the difference so that a later sweep
+    /// aligning the dialects has to read why first.
+    /// </remarks>
+    [Test]
+    public void FirebirdKeepsTheThreeColumnAcquisitionIndex()
+    {
+        SqlObjects.Parse(FreshInstallScript("firebird")).Indexes
+            .Should().ContainKey(AcquisitionIndexName)
+            .WhoseValue.Should().Be("SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME",
+                "Firebird refuses both a per-column direction and an index over the computed column "
+                + "that would stand in for one, so this is the widest shape the server accepts");
+
+        SqlObjects.Parse(GeneratedScript("firebird")).Indexes
+            .Should().ContainKey(AcquisitionIndexName)
+            .WhoseValue.Should().Be("SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME",
+                "a provisioned Firebird schema has to be the one the fresh-install script installs, "
+                + "including where that differs from every other dialect");
     }
 
     [Test]
@@ -286,7 +354,7 @@ public class SchemaScriptTest
     /// </summary>
     private sealed record SqlObjects(
         Dictionary<string, List<string>> Tables,
-        List<string> Indexes,
+        Dictionary<string, string> Indexes,
         List<string> Triggers)
     {
         private static readonly Regex CreateTable = new(
@@ -295,9 +363,15 @@ public class SchemaScriptTest
 
         // MySQL declares its indexes inside CREATE TABLE, which is the one shape difference between
         // the two kinds of script; matching both spellings is what lets one comparison serve both.
+        // The column list comes along with the name, because a name says nothing about what an index
+        // can serve — IDX_QRTZ_T_NFT_ST carries a per-column direction, and a script that lost it
+        // would still name the index the other one names.
         private static readonly Regex CreateIndex = new(
-            @"(?:CREATE\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?|^\s*KEY\s+)\[?(?<name>\w+)\]?\s*[(\s]",
+            @"(?:CREATE\s+INDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?\[?(?<name>\w+)\]?\s+ON\s+[^(\n]+|^\s*KEY\s+\[?(?<name>\w+)\]?\s*)"
+            + @"\(\s*(?<columns>[^)]*?)\s*\)",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Multiline);
+
+        private static readonly Regex Whitespace = new(@"\s+", RegexOptions.CultureInvariant);
 
         private static readonly Regex CreateTrigger = new(
             @"CREATE\s+TRIGGER\s+(?:IF\s+NOT\s+EXISTS\s+)?\[?(?<name>\w+)\]?",
@@ -321,7 +395,7 @@ public class SchemaScriptTest
                 tables[Unprefixed(match.Groups["name"].Value)] = Columns(Body(normalized, match.Index + match.Length));
             }
 
-            return new SqlObjects(tables, Names(CreateIndex, normalized), Names(CreateTrigger, normalized));
+            return new SqlObjects(tables, IndexesWithColumns(normalized), Names(CreateTrigger, normalized));
         }
 
         private static List<string> Names(Regex declaration, string script) => declaration.Matches(script)
@@ -329,6 +403,19 @@ public class SchemaScriptTest
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
             .ToList();
+
+        /// <summary>Each index's name, and the columns it is declared over.</summary>
+        private static Dictionary<string, string> IndexesWithColumns(string script) => CreateIndex.Matches(script)
+            .GroupBy(m => Unprefixed(m.Groups["name"].Value), StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => ColumnList(g.First().Groups["columns"].Value), StringComparer.Ordinal);
+
+        /// <summary>
+        /// One spelling for a column list, so that the dialects whose scripts put a space after the
+        /// comma and the ones that do not compare directly. A direction keyword is part of the
+        /// column and stays where it is.
+        /// </summary>
+        private static string ColumnList(string columns) => string.Join(", ",
+            columns.Split(',').Select(c => Whitespace.Replace(c.Trim(), " ")));
 
         /// <summary>
         /// Puts both kinds of script into one vocabulary: comments go, since prose about a CREATE

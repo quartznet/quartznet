@@ -202,7 +202,7 @@ create index idx_qrtz_j_g_n on qrtz_job_details(SCHED_NAME,JOB_GROUP,JOB_NAME);
 create index idx_qrtz_t_j on qrtz_triggers(SCHED_NAME,JOB_NAME,JOB_GROUP);
 create index idx_qrtz_t_c on qrtz_triggers(SCHED_NAME,CALENDAR_NAME);
 create index idx_qrtz_t_g_n on qrtz_triggers(SCHED_NAME,TRIGGER_GROUP,TRIGGER_NAME);
-create index idx_qrtz_t_nft_st on qrtz_triggers(SCHED_NAME,TRIGGER_STATE,NEXT_FIRE_TIME);
+create index idx_qrtz_t_nft_st on qrtz_triggers(SCHED_NAME,TRIGGER_STATE,NEXT_FIRE_TIME ASC,PRIORITY DESC,MISFIRE_INSTR);
 create index idx_qrtz_t_nft_st_misfire on qrtz_triggers(SCHED_NAME,MISFIRE_INSTR,NEXT_FIRE_TIME,TRIGGER_STATE);
 
 create index idx_qrtz_ft_inst_job_req_rcvry on qrtz_fired_triggers(SCHED_NAME,INSTANCE_NAME,REQUESTS_RECOVERY);

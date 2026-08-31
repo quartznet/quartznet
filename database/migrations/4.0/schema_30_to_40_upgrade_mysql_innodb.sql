@@ -156,6 +156,20 @@ CREATE TABLE IF NOT EXISTS QRTZ_PAUSED_JOB_GRPS (
 -- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a
 -- non-trivial number of triggers; the drops only reclaim write cost and storage.
 
+-- === Drop the indexes whose columns changed but whose name did not ============
+-- These have to go first: CREATE INDEX IF NOT EXISTS below would find the name
+-- already taken and silently keep the old, wrong column order.
+
+SET @preparedStatement = (SELECT IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NFT_ST') > 0,
+  'DROP INDEX IDX_QRTZ_T_NFT_ST ON QRTZ_TRIGGERS',
+  'SELECT 1'
+));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- === Create the indexes this version expects ===================================
 
 SET @preparedStatement = (SELECT IF(
@@ -202,7 +216,7 @@ SET @preparedStatement = (SELECT IF(
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_NFT_ST') > 0,
   'SELECT 1',
-  'CREATE INDEX IDX_QRTZ_T_NFT_ST ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_STATE,NEXT_FIRE_TIME)'
+  'CREATE INDEX IDX_QRTZ_T_NFT_ST ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_STATE,NEXT_FIRE_TIME ASC,PRIORITY DESC,MISFIRE_INSTR)'
 ));
 PREPARE stmt FROM @preparedStatement;
 EXECUTE stmt;

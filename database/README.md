@@ -108,7 +108,7 @@ in each SQLite file.
 | [`3.18`](migrations/3.18) | `EXECUTION_GROUP` on `QRTZ_TRIGGERS` and `QRTZ_FIRED_TRIGGERS` (#3004) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.19`](migrations/3.19) | `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` on `QRTZ_TRIGGERS` (#3013, #3144) | Optional on 3.x, **required on 4.x** | all | both |
 | [`3.20`](migrations/3.20) | Index set realigned so every index leads with `SCHED_NAME`; prefix-redundant indexes dropped (#3203) | Optional, performance only | all | both |
-| [`4.0`](migrations/4.0) | Everything above, plus `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` (#3520), the `QRTZ_PAUSED_JOB_GRPS` table (#3336) and the 4.x index shape | **Mandatory for 4.x** | all | `main` only |
+| [`4.0`](migrations/4.0) | Everything above, plus `RETRY_POLICY` and `RETRY_ATTEMPT` on `QRTZ_TRIGGERS` (#3520), the `QRTZ_PAUSED_JOB_GRPS` table (#3336) and the 4.x index shape, in which `IDX_QRTZ_T_NFT_ST` is dropped and recreated as `(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` — Firebird excepted (#3510) | **Mandatory for 4.x** | all | `main` only |
 
 ### Upgrading 3.x → 4.x is mandatory
 
