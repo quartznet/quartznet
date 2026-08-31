@@ -4,6 +4,12 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 public class SqliteLockHandlerTest
 {
+    /// <summary>
+    /// How long an awaited handover may take before the test gives up. Not a timing assertion — it only
+    /// decides whether a handler that never answers is reported as a failure or hangs the run.
+    /// </summary>
+    private static readonly TimeSpan GiveUpAfter = TimeSpan.FromSeconds(30);
+
     private SqliteLockHandler lockHandler = null!;
 
     [SetUp]
@@ -40,9 +46,8 @@ public class SqliteLockHandlerTest
         obtained.Should().BeTrue();
 
         // Second requestor tries STATE_ACCESS — should block because it's the same global lock
-        using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(200));
-        bool obtained2 = await lockHandler.AcquireLock(requestor2, null, SchedulerLock.StateAccess, cts.Token);
-        obtained2.Should().BeFalse("the global lock is held by another requestor");
+        await ShouldQueueBehindTheGate(requestor2, SchedulerLock.StateAccess,
+            "the global lock is held by another requestor");
 
         await lockHandler.ReleaseLock(requestor1, SchedulerLock.TriggerAccess);
     }
@@ -56,10 +61,9 @@ public class SqliteLockHandlerTest
         bool obtained1 = await lockHandler.AcquireLock(requestor1, null, SchedulerLock.TriggerAccess);
         obtained1.Should().BeTrue();
 
-        // Second requestor should block and fail to acquire
-        using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(200));
-        bool blocked = await lockHandler.AcquireLock(requestor2, null, SchedulerLock.TriggerAccess, cts.Token);
-        blocked.Should().BeFalse("the lock is held by another requestor");
+        // Second requestor should block and never be granted the lock
+        await ShouldQueueBehindTheGate(requestor2, SchedulerLock.TriggerAccess,
+            "the lock is held by another requestor");
 
         // Release first, then second should succeed
         await lockHandler.ReleaseLock(requestor1, SchedulerLock.TriggerAccess);
@@ -87,9 +91,8 @@ public class SqliteLockHandlerTest
 
         // Another requestor should still be blocked
         Guid otherRequestor = Guid.NewGuid();
-        using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(200));
-        bool blocked = await lockHandler.AcquireLock(otherRequestor, null, SchedulerLock.TriggerAccess, cts.Token);
-        blocked.Should().BeFalse("the lock is still held after partial release");
+        await ShouldQueueBehindTheGate(otherRequestor, SchedulerLock.TriggerAccess,
+            "the lock is still held after partial release");
 
         // Release the remaining lock — the lock should now be free
         await lockHandler.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
@@ -116,9 +119,8 @@ public class SqliteLockHandlerTest
         await lockHandler.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
 
         Guid otherRequestor = Guid.NewGuid();
-        using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(200));
-        bool blocked = await lockHandler.AcquireLock(otherRequestor, null, SchedulerLock.TriggerAccess, cts.Token);
-        blocked.Should().BeFalse("the lock is still held after one of two releases");
+        await ShouldQueueBehindTheGate(otherRequestor, SchedulerLock.TriggerAccess,
+            "the lock is still held after one of two releases");
 
         // Release second time — the lock should now be free
         await lockHandler.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
@@ -145,15 +147,99 @@ public class SqliteLockHandlerTest
         await lockHandler.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
     }
 
+    /// <summary>
+    /// A cancelled acquire reports the cancellation. It used to answer <see langword="false" />, which
+    /// the job store reads as "this context already holds the lock, do not release it" — so the caller
+    /// would have gone on to run the operation the lock exists to guard with nothing holding it. #3583.
+    /// </summary>
     [Test]
-    public async Task AcquireLock_Cancelled_ShouldReturnFalse()
+    public async Task AcquireLock_Cancelled_ShouldThrowRatherThanAnswerFalse()
     {
         Guid requestorId = Guid.NewGuid();
 
-        using CancellationTokenSource cts = new();
-        cts.Cancel();
+        using CancellationTokenSource cancellation = new();
+        await cancellation.CancelAsync();
 
-        bool obtained = await lockHandler.AcquireLock(requestorId, null, SchedulerLock.TriggerAccess, cts.Token);
-        obtained.Should().BeFalse();
+        Task<bool> cancelled = lockHandler.AcquireLock(requestorId, null, SchedulerLock.TriggerAccess, cancellation.Token).AsTask();
+
+        Func<Task> act = () => cancelled;
+        await act.Should().ThrowAsync<OperationCanceledException>(
+            "false is reserved for a re-entrant acquire, and a caller told that runs unlocked");
+
+        cancelled.IsCanceled.Should().BeTrue(
+            "the caller asked to stop, so this is a cancelled task rather than a faulted one");
+    }
+
+    /// <summary>
+    /// And it leaves the gate as it found it, whether it was free or held: a cancelled wait takes no
+    /// hold and consumes no handover, so the next requestor is served exactly as it would have been.
+    /// </summary>
+    [Test]
+    public async Task AcquireLock_Cancelled_ShouldLeaveTheGateFreeForTheNextRequestor()
+    {
+        Guid abandoning = Guid.NewGuid();
+        Guid next = Guid.NewGuid();
+
+        using CancellationTokenSource cancellation = new();
+        await cancellation.CancelAsync();
+
+        Func<Task> act = async () => await lockHandler.AcquireLock(abandoning, null, SchedulerLock.TriggerAccess, cancellation.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
+
+        Task<bool> unclaimed = lockHandler.AcquireLock(next, null, SchedulerLock.TriggerAccess).AsTask();
+
+        unclaimed.IsCompleted.Should().BeTrue(
+            "the cancelled call took no hold on the gate, so there is nothing for this one to queue behind");
+        (await unclaimed).Should().BeTrue();
+
+        await lockHandler.ReleaseLock(next, SchedulerLock.TriggerAccess);
+    }
+
+    /// <summary>
+    /// And when the gate was held, a waiter that gives up leaves it with its owner rather than stealing
+    /// the handover on its way out.
+    /// </summary>
+    [Test]
+    public async Task AcquireLock_CancelledWhileQueued_ShouldLeaveTheGateWithItsOwner()
+    {
+        Guid owner = Guid.NewGuid();
+        Guid abandoning = Guid.NewGuid();
+        Guid patient = Guid.NewGuid();
+
+        (await lockHandler.AcquireLock(owner, null, SchedulerLock.TriggerAccess)).Should().BeTrue();
+
+        await ShouldQueueBehindTheGate(abandoning, SchedulerLock.TriggerAccess, "the gate is the owner's");
+
+        Task<bool> queued = lockHandler.AcquireLock(patient, null, SchedulerLock.TriggerAccess).AsTask();
+        queued.IsCompleted.Should().BeFalse("the gate is still the owner's, cancellation notwithstanding");
+
+        await lockHandler.ReleaseLock(owner, SchedulerLock.TriggerAccess);
+
+        (await queued.WaitAsync(GiveUpAfter)).Should().BeTrue(
+            "the abandoned waiter left without consuming the handover; had it taken the gate on its way "
+            + "out, this release would have gone to a caller that no longer exists");
+
+        await lockHandler.ReleaseLock(patient, SchedulerLock.TriggerAccess);
+    }
+
+    /// <summary>
+    /// Waits for the gate on <paramref name="requestorId" />'s behalf, and asserts the wait never
+    /// completes: it is still queued when the test cancels it, and the cancellation is what ends it.
+    /// </summary>
+    /// <remarks>
+    /// The handler's answer is never <see langword="false" />, so "blocked" cannot be asserted by
+    /// reading a return value — it is asserted by the request still being outstanding.
+    /// </remarks>
+    private async Task ShouldQueueBehindTheGate(Guid requestorId, SchedulerLock lockKind, string because)
+    {
+        using CancellationTokenSource cancellation = new();
+
+        Task<bool> queued = lockHandler.AcquireLock(requestorId, null, lockKind, cancellation.Token).AsTask();
+        queued.IsCompleted.Should().BeFalse(because);
+
+        await cancellation.CancelAsync();
+
+        Func<Task> act = () => queued.WaitAsync(GiveUpAfter);
+        await act.Should().ThrowAsync<OperationCanceledException>();
     }
 }

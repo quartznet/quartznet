@@ -6228,6 +6228,37 @@ with the same advice rather than reported as a typo. The store hands the handler
 `quartz.jobStore.tablePrefix` value, so the lock rows follow the store's table prefix without separate
 configuration.
 
+## A cancelled acquire throws, and `false` means only re-entry
+
+`ILockHandler.AcquireLock` returns a release obligation rather than a report of success: `true` says
+this call took the lock and its caller has to give it back, `false` says the calling context already
+held it and must not. That was the rule in 3.x too, and the store still reads the answer that way — what
+was never written down is that **re-entry is the only thing `false` may mean**, so an acquire that did
+not take the lock throws: `LockException` when it was refused, `OperationCanceledException` when the
+token fired.
+
+`SimpleSemaphore.ObtainLock` and `RedisSemaphore.ObtainLock` swallowed the cancellation and answered
+`false`, which the store reads as *already held, do not release* — it would then run the guarded
+operation with no lock and release nothing on the way out. Their 4.0 counterparts throw. Nothing ran
+unlocked in a shipped configuration, because both answer `false` to `RequiresConnection` and the
+connection open immediately after observes the same token, but that is statement ordering rather than a
+guarantee, and a handler of your own inherits the hole silently.
+
+A custom handler that caught `OperationCanceledException` around its wait rethrows instead, and gives
+back anything it had taken before the exception escapes:
+
+```diff
+  try
+  {
+      await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+  }
+  catch (OperationCanceledException)
+  {
+-     return false;
++     throw;
+  }
+```
+
 ## A job store of your own can join your transaction
 
 `AdoJobStoreBase` is public and abstract, but everything needed to honour an enlisted transaction was
@@ -9556,6 +9587,7 @@ Parameters and behavior are unchanged:
 | `ISemaphore` is `ILockHandler`, and every implementation says `LockHandler` | A semaphore is a counted permit; this is a mutual-exclusion lock with one holder. `DBSemaphore` is `DbLockHandler`, `SimpleSemaphore` is the internal `InProcessLockHandler`, `RedisSemaphore` is `RedisLockHandler` — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
 | `ISemaphore.ObtainLock` is `ILockHandler.AcquireLock` | `ReleaseLock` and `RequiresConnection` are unchanged; the verb pairs with the one that gives the lock back |
 | `SemaphoreContext` is `LockHandlerContext` | The record `Initialize` takes. Its members are unchanged |
+| `ILockHandler.AcquireLock` throws on cancellation instead of answering `false` | `false` means a re-entrant acquire and nothing else, so a cancelled acquire that answered it told the store the lock was already held. `SimpleSemaphore` and `RedisSemaphore` did; their 4.0 counterparts throw — see [A cancelled acquire throws, and `false` means only re-entry](#a-cancelled-acquire-throws-and-false-means-only-re-entry) |
 | `ILockHandler.Initialize(LockHandlerContext)` replaces `ITablePrefixAware` | Identity arrives through one initialization call instead of a property pair; the default implementation does nothing — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
 | `LockHandlerContext` also carries `TimeProvider` and `CommandTimeout` | The environment a handler locks in, beside the identity it locks under. `DbLockHandler` exposes the clock as a `protected TimeProvider` and both shipped row-lock handlers back off on it, so a retry is observable without waiting out the real second |
 | `LockHandlerContext.LoggerFactory` and `DriverDelegateContext.LoggerFactory` added | Where the handler and the delegate create their loggers, defaulting to `NullLoggerFactory.Instance`. The job store passes the factory its container gave it, so lock contention and statement failures reach an application that never called `LogProvider.SetLogProvider` — see [The ambient logger factory stays ambient](#the-ambient-logger-factory-stays-ambient) |

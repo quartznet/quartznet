@@ -184,12 +184,17 @@ public sealed class RedisLockHandler : ILockHandler
         }
         catch (OperationCanceledException)
         {
+            // Reported as itself rather than answered with false. False is the store's word for "you
+            // already hold this, do not release it", so a cancelled wait dressed up as false would send
+            // the caller on to run its guarded operation with no lock at all - see the contract on
+            // ILockHandler.AcquireLock. Nothing to undo here: a cancelled WaitAsync leaves the local
+            // gate for the next waiter, and no Redis key was ever written.
             if (isDebugEnabled)
             {
                 logger.LockNotObtainedCancelled(lockName, requestorId);
             }
 
-            return false;
+            throw;
         }
 
         try
@@ -221,6 +226,10 @@ public sealed class RedisLockHandler : ILockHandler
         }
         catch (OperationCanceledException)
         {
+            // The local gate is this handler's to give back before the exception escapes: it was taken
+            // above and no Redis key was written, so leaving it held would keep every other requestor in
+            // this process out of a lock nobody owns. The cancellation itself is reported as itself -
+            // false would tell the store the caller already held the lock and could proceed unlocked.
             lockHandle.Release();
 
             if (isDebugEnabled)
@@ -228,7 +237,7 @@ public sealed class RedisLockHandler : ILockHandler
                 logger.LockNotObtainedCancelled(lockName, requestorId);
             }
 
-            return false;
+            throw;
         }
         catch (Exception ex)
         {

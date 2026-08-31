@@ -120,11 +120,13 @@ public abstract class DbLockHandler : ILockHandler
         string expandedInsertSql,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Grants a lock on the identified resource to the calling thread (blocking
-    /// until it is available).
-    /// </summary>
-    /// <returns>true if the lock was obtained.</returns>
+    /// <inheritdoc />
+    /// <remarks>
+    /// Ownership is recorded only once <see cref="ExecuteSql" /> has returned, so a statement that
+    /// fails — including one the caller cancelled — leaves this handler holding nothing and the next
+    /// acquire by the same requestor is a fresh one rather than a re-entrant one. The row lock itself
+    /// belongs to <paramref name="conn" />'s transaction and is given back when that transaction ends.
+    /// </remarks>
     public async ValueTask<bool> AcquireLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,

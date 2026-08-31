@@ -125,16 +125,24 @@ public class RedisLockHandlerTest
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
-        var second = await lockHandler.AcquireLock(
+        // The lock is held, so this request never completes on its own; the token is what ends it, and
+        // that end is reported as cancellation rather than as the false that means re-entry (#3583).
+        Func<Task> second = async () => await lockHandler.AcquireLock(
             requestor2, null, SchedulerLock.TriggerAccess, cts.Token);
 
-        Assert.That(second, Is.False);
+        await second.Should().ThrowAsync<OperationCanceledException>(
+            "false would tell the store requestor2 already held the lock, and it would go on to write "
+            + "trigger rows while requestor1 was still inside");
 
         await lockHandler.ReleaseLock(requestor1, SchedulerLock.TriggerAccess);
     }
 
+    /// <summary>
+    /// A waiter that gives up leaves the lock where it was and takes nothing with it, so the requestor
+    /// that waits properly is still served.
+    /// </summary>
     [Test]
-    public async Task AcquireLock_Cancelled_ShouldReturnFalse()
+    public async Task AcquireLock_Cancelled_ShouldLeaveTheLockWithItsOwner()
     {
         var requestor1 = Guid.NewGuid();
         var requestor2 = Guid.NewGuid();
@@ -145,15 +153,21 @@ public class RedisLockHandlerTest
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
 
-            var result = await lockHandler.AcquireLock(
+            Func<Task> cancelled = async () => await lockHandler.AcquireLock(
                 requestor2, null, SchedulerLock.TriggerAccess, cts.Token);
 
-            Assert.That(result, Is.False);
+            await cancelled.Should().ThrowAsync<OperationCanceledException>();
         }
         finally
         {
             await lockHandler.ReleaseLock(requestor1, SchedulerLock.TriggerAccess);
         }
+
+        (await lockHandler.AcquireLock(requestor2, null, SchedulerLock.TriggerAccess)).Should().BeTrue(
+            "the abandoned waiter released nothing and kept nothing, so the lock is free once its owner "
+            + "gives it back");
+
+        await lockHandler.ReleaseLock(requestor2, SchedulerLock.TriggerAccess);
     }
 
     [Test]
@@ -268,9 +282,13 @@ public class RedisLockHandlerTest
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
-        var second = await lockHandler2.AcquireLock(
+        // The second handler has a local gate of its own, so this request gets past it and is cancelled
+        // inside the SET NX poll loop - the one cancellation path that needs a live server to reach. It
+        // is reported as cancellation, and the gate it had taken is given back before the exception
+        // escapes, which is what the third acquire below proves (#3583).
+        Func<Task> second = async () => await lockHandler2.AcquireLock(
             requestor2, null, SchedulerLock.TriggerAccess, cts.Token);
-        Assert.That(second, Is.False);
+        await second.Should().ThrowAsync<OperationCanceledException>();
 
         await lockHandler.ReleaseLock(requestor1, SchedulerLock.TriggerAccess);
 
