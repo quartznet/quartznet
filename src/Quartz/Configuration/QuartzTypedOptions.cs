@@ -54,6 +54,12 @@ internal static class QuartzTypedOptions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ClusteringOptions>, ClusteringOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<DataSourceOptions>, DataSourceOptionsValidator>());
 
+        // Not declared with ValidateOnStart: these options are per scheduler name, and the names are not
+        // all known here — a named scheduler may be registered after this runs. Registering the validator
+        // is enough, because the hosted service reads every scheduler's copy through the monitor while
+        // the host starts, and validation runs on that read.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QuartzHostedServiceOptions>, QuartzHostedServiceOptionsValidator>());
+
         return services;
     }
 

@@ -25,6 +25,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;
 
@@ -116,7 +117,19 @@ public class SelectForUpdateLockHandler : DbLockHandler
     /// reflection is concerned.
     /// </remarks>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan RetryPeriod { get; init; } = TimeSpan.FromMilliseconds(1000);
+    public TimeSpan RetryPeriod
+    {
+        get;
+
+        init
+        {
+            // Checked here because a lock handler has no options type and so no startup validator. Left
+            // unchecked, a period longer than a timer will wait out is refused by the first contended
+            // lock attempt instead — with the lock unacquired and nothing naming the setting.
+            TimerLimits.EnsureWaitable(value, nameof(RetryPeriod));
+            field = value;
+        }
+    } = TimeSpan.FromMilliseconds(1000);
 
     /// <summary>
     /// Execute the SQL select for update that will lock the proper database row.

@@ -3,6 +3,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.Util;
+
 namespace Quartz.Tests.Unit.Configuration;
 
 /// <summary>
@@ -247,6 +249,207 @@ public class OptionsValidationTest
         var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
 
         act.Should().NotThrow("checkConfiguration is the existing way to say the keys are yours");
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Durations that end up in a timer
+    //
+    // Each of these is handed to a wait whose own ceiling is lower than a TimeSpan's, so a value past
+    // it is refused by the BCL — in an ArgumentOutOfRangeException naming a parameter of whichever
+    // method happened to be running, from wherever that method happened to be called. #3577's arrived
+    // out of Shutdown. Startup is where a misconfigured duration can still be reported as one.
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// <summary>
+    /// #3577: the store used to start happily on a 90-day frequency, and the failure arrived later,
+    /// out of <c>Shutdown</c>, saying only that something called 'delay' was out of range.
+    /// </summary>
+    [Test]
+    public void AMisfireHandlerFrequencyPastTheTimerCeilingFailsAtStartup()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.MisfireHandlerFrequency = TimeSpan.FromDays(90);
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage("*MisfireHandlerFrequency*4294967294ms (49.7 days)*",
+                "the report has to name the option and the ceiling, and the one out of Task.Delay named neither");
+    }
+
+    [Test]
+    public void AMisfireHandlerFrequencyAtTheTimerCeilingIsFine()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.MisfireHandlerFrequency = TimerLimits.MaxDelay;
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow("the ceiling is the longest delay a timer accepts, not the first it refuses");
+    }
+
+    /// <summary>
+    /// Unset, the frequency <em>is</em> the threshold, so the threshold is what the misfire handler
+    /// sleeps for — and it is the setting the application wrote, so it is the one named.
+    /// </summary>
+    [Test]
+    public void AMisfireThresholdPastTheTimerCeilingFailsWhenItIsAlsoTheHandlerFrequency()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.MisfireThreshold = TimeSpan.FromDays(90);
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage("*MisfireThreshold*MisfireHandlerFrequency is unset*");
+    }
+
+    /// <summary>
+    /// With a frequency of its own the threshold never reaches a timer: it is only ever subtracted
+    /// from a clock reading, so it is bounded by nothing but the calendar.
+    /// </summary>
+    [Test]
+    public void AMisfireThresholdPastTheTimerCeilingIsFineOnceTheHandlerHasItsOwnFrequency()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.MisfireThreshold = TimeSpan.FromDays(90);
+            options.MisfireHandlerFrequency = TimeSpan.FromMinutes(1);
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow();
+    }
+
+    [Test]
+    public void ADbRetryIntervalPastTheTimerCeilingFailsAtStartup()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.DbRetryInterval = TimeSpan.FromDays(90);
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*DbRetryInterval*4294967294ms (49.7 days)*");
+    }
+
+    [Test]
+    public void ATransientRetryIntervalPastTheTimerCeilingFailsAtStartup()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store => store.ConfigureStore(options =>
+        {
+            options.DataSource = "test";
+            options.TransientRetryInterval = TimeSpan.FromDays(90);
+        })));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*TransientRetryInterval*4294967294ms (49.7 days)*");
+    }
+
+    [Test]
+    public void ACheckinIntervalPastTheTimerCeilingFailsAtStartup()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.ConfigureStore(options => options.DataSource = "test");
+            store.UseClustering(clustering => clustering.CheckinInterval = TimeSpan.FromDays(90));
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*CheckinInterval*4294967294ms (49.7 days)*");
+    }
+
+    /// <summary>
+    /// The idle wait is the one duration in the sweep that gets no ceiling. It is spent on a semaphore
+    /// rather than a timer, so that a scheduling change can cut it short, and a semaphore takes a
+    /// timeout of any length — so a wait past the timer ceiling is strange to configure but not a thing
+    /// that breaks, and refusing it would be inventing a limit.
+    /// </summary>
+    [Test]
+    public void AnIdleWaitTimePastTheTimerCeilingIsAllowedBecauseNoTimerWaitsItOut()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.ConfigureScheduler(options => options.IdleWaitTime = TimerLimits.MaxDelay + TimeSpan.FromDays(1)));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IStartupValidator>().Validate();
+
+        act.Should().NotThrow("TimerLimitsTest holds the semaphore behaviour this rests on");
+    }
+
+    /// <summary>
+    /// The start delay has the worst symptom of the lot: <c>StartDelayed</c> waits on a task nobody
+    /// observes, so a delay the timer refuses faults that task, is collected without a word, and leaves
+    /// a scheduler that was created, bound and reported healthy and simply never starts.
+    /// </summary>
+    /// <remarks>
+    /// Read through the monitor rather than <see cref="IStartupValidator"/>, because these options are
+    /// per scheduler name and the names are not known where the validator is registered. This is the
+    /// read the hosted service makes for every scheduler while the host starts.
+    /// </remarks>
+    [Test]
+    public void AStartDelayPastTheTimerCeilingFailsWhenTheHostedServiceReadsIt()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.AddQuartzHostedService(options => options.StartDelay = TimeSpan.FromDays(90));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IOptionsMonitor<QuartzHostedServiceOptions>>().Get(Options.DefaultName);
+
+        act.Should().Throw<OptionsValidationException>().WithMessage("*StartDelay*4294967294ms (49.7 days)*");
+    }
+
+    [Test]
+    public void AStartDelayShortEnoughToWaitOutIsFine()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.AddQuartzHostedService(options => options.StartDelay = TimeSpan.FromMinutes(5));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.GetRequiredService<IOptionsMonitor<QuartzHostedServiceOptions>>().Get(Options.DefaultName);
+
+        act.Should().NotThrow();
     }
 
     [Test]

@@ -24,6 +24,7 @@ using System.Data.Common;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;
 
@@ -70,7 +71,19 @@ public class UpdateRowLockHandler : DbLockHandler
     /// which an init accessor does not stop.
     /// </remarks>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan RetryPeriod { get; init; } = TimeSpan.FromMilliseconds(1000);
+    public TimeSpan RetryPeriod
+    {
+        get;
+
+        init
+        {
+            // Checked here because a lock handler has no options type and so no startup validator. Left
+            // unchecked, a period longer than a timer will wait out is refused by the first contended
+            // lock attempt instead — with the lock unacquired and nothing naming the setting.
+            TimerLimits.EnsureWaitable(value, nameof(RetryPeriod));
+            field = value;
+        }
+    } = TimeSpan.FromMilliseconds(1000);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UpdateRowLockHandler"/> class.
