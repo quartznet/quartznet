@@ -38,7 +38,7 @@ public class CronHashTokenBenchmark
     [Benchmark]
     public CronExpression ParseWithHashTokens()
     {
-        return new CronExpression(CronExpression, HashKey);
+        return Quartz.CronExpression.ParseWithHash(CronExpression, HashKey);
     }
 
     /// <summary>The resolution on its own, without the parse it feeds.</summary>

@@ -307,7 +307,7 @@ public class CronExpressionBuilderTest
 
         foreach (CronExpressionBuilder builder in builders)
         {
-            CronExpression.IsValidExpression(builder.ToString()).Should().BeTrue("expression '{0}' should be valid", builder.ToString());
+            CronExpression.TryParse(builder.ToString(), out _).Should().BeTrue("expression '{0}' should be valid", builder.ToString());
         }
     }
 

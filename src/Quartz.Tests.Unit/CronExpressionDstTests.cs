@@ -25,7 +25,7 @@ namespace Quartz.Tests.Unit;
 
 /// <summary>
 /// Daylight saving time corner cases for <see cref="CronExpression" /> itself, exercised through
-/// <see cref="CronExpression.GetTimeAfter" />, <see cref="CronExpression.GetTimeBefore" /> and
+/// <see cref="CronExpression.GetTimeAfter" />, <see cref="CronExpression.GetPreviousValidTimeBefore" /> and
 /// <see cref="CronExpression.IsSatisfiedBy" /> across zones with differing transition shapes
 /// (northern and southern hemisphere, a midnight gap, and a 30 minute delta).
 /// </summary>
@@ -200,7 +200,7 @@ public class CronExpressionDstTests
     }
 
     /// <summary>
-    /// <see cref="CronExpression.GetTimeBefore" /> is a binary search layered on top of
+    /// <see cref="CronExpression.GetPreviousValidTimeBefore" /> is a binary search layered on top of
     /// <see cref="CronExpression.GetTimeAfter" />, so it must agree with it around transitions.
     /// Asserted as properties rather than pinned instants: the returned time is strictly before the
     /// probe, it is a genuine fire time (asking for the next fire one second earlier reproduces it),
@@ -209,7 +209,7 @@ public class CronExpressionDstTests
     /// <remarks>
     /// The -5 minute probes on the fall-back transitions land just after a fire inside the repeated
     /// hour; they used to break the round trip until the sub-second demotion defect was fixed (see
-    /// <see cref="GetTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_ReturnsRealPrecedingFire" />).
+    /// <see cref="GetPreviousValidTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_ReturnsRealPrecedingFire" />).
     /// The fixed-time spring-forward rows are the ones the gap's end has to satisfy: the +5 minute
     /// probe returns the in-gap fire, and "asking one second earlier reproduces it" is exactly the
     /// property the delta shift could not have.
@@ -226,7 +226,7 @@ public class CronExpressionDstTests
     [TestCase("0 0 * * * ?", "CentralEuropean", "2018-03-25 01:00 +00:00", new int[] { -60, -5, 5, 60 })]
     [TestCase("0 * * * * ?", "CentralEuropean", "2018-10-28 01:00 +00:00", new int[] { -60, -5, 5, 60 })]
     [TestCase("0 0 * * * ?", "CentralEuropean", "2018-10-28 01:00 +00:00", new int[] { -60, -5, 5, 60 })]
-    public void GetTimeBefore_RoundTripsWithGetTimeAfter_AroundTransitions(
+    public void GetPreviousValidTimeBefore_RoundTripsWithGetTimeAfter_AroundTransitions(
         string cronExpression,
         string zoneKey,
         string transitionUtc,
@@ -242,10 +242,10 @@ public class CronExpressionDstTests
             DateTimeOffset probe = transition.AddMinutes(probeOffsetInMinutes);
             string context = $"probe {probe:O} ({probeOffsetInMinutes:+#;-#;0} min from the transition)";
 
-            DateTimeOffset? previous = cron.GetTimeBefore(probe);
+            DateTimeOffset? previous = cron.GetPreviousValidTimeBefore(probe);
 
             previous.Should().NotBeNull(context);
-            previous!.Value.Should().BeBefore(probe, "GetTimeBefore must return a time strictly before the probe; " + context);
+            previous!.Value.Should().BeBefore(probe, "GetPreviousValidTimeBefore must return a time strictly before the probe; " + context);
 
             cron.GetTimeAfter(previous.Value.AddSeconds(-1))
                 .Should().Be(previous.Value, "the time before must itself be a fire time; " + context);
@@ -549,7 +549,7 @@ public class CronExpressionDstTests
     /// Both properties are load-bearing. A result at or before the input would wedge
     /// <see cref="CronExpression.GetNextValidTimeAfter" /> into an endless fire; a result that fell
     /// as the input rose would break the binary search
-    /// <see cref="CronExpression.GetTimeBefore" /> layers on top of it. The rewind fires exactly
+    /// <see cref="CronExpression.GetPreviousValidTimeBefore" /> layers on top of it. The rewind fires exactly
     /// when the probe's whole-second floor is the transition instant, so this sweeps every second
     /// on either side of it.
     /// </remarks>
@@ -580,7 +580,7 @@ public class CronExpressionDstTests
             if (previousAnswer is not null)
             {
                 answer.Value.Should().BeOnOrAfter(previousAnswer.Value,
-                    $"a later probe may never answer earlier, or GetTimeBefore's binary search loses its predicate; probe {probe:O}");
+                    $"a later probe may never answer earlier, or GetPreviousValidTimeBefore's binary search loses its predicate; probe {probe:O}");
             }
 
             previousAnswer = answer;
@@ -633,7 +633,7 @@ public class CronExpressionDstTests
     }
 
     /// <summary>
-    /// Regression test: <see cref="CronExpression.GetTimeBefore" /> must return a real fire time
+    /// Regression test: <see cref="CronExpression.GetPreviousValidTimeBefore" /> must return a real fire time
     /// for probes just after a fire inside the repeated fall-back hour.
     /// </summary>
     /// <remarks>
@@ -647,7 +647,7 @@ public class CronExpressionDstTests
     [TestCase("0 0 * * * ?", "Eastern", "2024-11-03 05:55 +00:00", "2024-11-03 05:00:00 +00:00")]
     [TestCase("0 * * * * ?", "CentralEuropean", "2018-10-28 00:55 +00:00", "2018-10-28 00:54:00 +00:00")]
     [TestCase("0 0 * * * ?", "CentralEuropean", "2018-10-28 00:55 +00:00", "2018-10-28 00:00:00 +00:00")]
-    public void GetTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_ReturnsRealPrecedingFire(
+    public void GetPreviousValidTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_ReturnsRealPrecedingFire(
         string cronExpression,
         string zoneKey,
         string probeUtc,
@@ -663,10 +663,10 @@ public class CronExpressionDstTests
         cron.GetTimeAfter(expectedFire.AddSeconds(-1)).Should().Be(expectedFire);
         cron.IsSatisfiedBy(expectedFire).Should().BeTrue();
 
-        DateTimeOffset? previous = cron.GetTimeBefore(probe);
+        DateTimeOffset? previous = cron.GetPreviousValidTimeBefore(probe);
 
         previous.Should().NotBeNull();
         previous!.Value.Should().Be(expectedFire);
-        cron.IsSatisfiedBy(previous.Value).Should().BeTrue("GetTimeBefore must return a time the expression fires at");
+        cron.IsSatisfiedBy(previous.Value).Should().BeTrue("GetPreviousValidTimeBefore must return a time the expression fires at");
     }
 }

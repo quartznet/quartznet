@@ -182,9 +182,9 @@ Recorded rather than acted on — #3538 asks for the measurement, not for an opt
   field progressors are called directly rather than through a delegate array, so the ~3 KB a call is
   gone. There is no allocation left to hunt, and no follow-up issue is owed for one.
 - **`WithCronSchedule(string)` parses the expression twice.** `CronScheduleBuilder.Create(string)`
-  calls `CronExpression.ValidateExpression(cronExpression)` — whose whole body is
-  `var _ = new CronExpression(cronExpression);` — and then hands the same string to
-  `CronScheduleNoParseException`, which constructs a second one. Two parses at 307 ns and 576 B each
+  called the since-removed `CronExpression.ValidateExpression(cronExpression)` — whose whole body was
+  `var _ = new CronExpression(cronExpression);` — and then handed the same string to
+  `CronScheduleNoParseException`, which constructed a second one. Two parses at 307 ns and 576 B each
   account for most of `BuildCronTrigger`'s 1,024 ns and 1,824 B, against `BuildSimpleTrigger`'s 98 ns
   and 616 B. `CronTriggerImpl.GetScheduleBuilder()` goes down the same path.
   **Fixed in #3542** — see the next section.

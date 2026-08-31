@@ -39,7 +39,7 @@ namespace Quartz;
 /// <para>
 /// This is internal because only <see cref="TriggerBuilder{TJob}" /> is in a position to call it.
 /// Callers who want to choose the hash key themselves build the expression directly:
-/// <c>CronScheduleBuilder.Create(new CronExpression(expression, hashKey))</c>.
+/// <c>CronScheduleBuilder.Create(CronExpression.ParseWithHash(expression, hashKey))</c>.
 /// </para>
 /// </remarks>
 internal interface IHashKeyAwareScheduleBuilder
@@ -133,7 +133,7 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
             Throw.FormatException(
                 "Cron expression contains H (hash) tokens which require a trigger identity for resolution. "
                 + "Use TriggerBuilder with WithIdentity(), or provide an explicit hash key via "
-                + "CronScheduleBuilder.Create(new CronExpression(expression, hashKey)).");
+                + "CronScheduleBuilder.Create(CronExpression.ParseWithHash(expression, hashKey)).");
         }
 
         CronTriggerImpl ct = new CronTriggerImpl();
@@ -169,14 +169,13 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
             // built here cannot be kept - it only proves the expression parses, so that a malformed one
             // is refused by the call that named it rather than at Build. Which values H resolves to does
             // not decide whether the result parses, so any seed does; the real one is built in SetHashKey.
-            CronExpression.ValidateExpression(CronExpression.ResolveHash(cronExpression, 0));
+            _ = CronExpression.ParseWithHash(cronExpression, 0);
             return new CronScheduleBuilder(cronExpression);
         }
 
-        // Constructing the expression is what validating it does - CronExpression.ValidateExpression's
-        // whole body is a construction it discards - and this instance is the one every trigger built
-        // from this schedule keeps, so the expression is parsed once instead of twice. An invalid one
-        // still leaves through the parser's own FormatException, which is what it threw before.
+        // The expression built here is the one every trigger built from this schedule keeps, so it is
+        // parsed once rather than validated and then parsed again. An invalid one still leaves through
+        // the parser's own FormatException, which is what it threw before.
         return Create(new CronExpression(cronExpression));
     }
 
@@ -225,7 +224,7 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     {
         try
         {
-            return new CronExpression(presumedValidCronExpression, hashKey);
+            return CronExpression.ParseWithHash(presumedValidCronExpression, hashKey);
         }
         catch (FormatException e)
         {
@@ -240,7 +239,7 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     /// </summary>
     /// <remarks>
     /// This is also the way to resolve <c>H</c> (hash) tokens against something other than the
-    /// trigger's own key: <c>Create(new CronExpression(expression, hashKey))</c>.
+    /// trigger's own key: <c>Create(CronExpression.ParseWithHash(expression, hashKey))</c>.
     /// </remarks>
     /// <param name="cronExpression">the cron expression to base the schedule on.</param>
     /// <returns>the new CronScheduleBuilder</returns>

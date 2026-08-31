@@ -241,16 +241,18 @@ the `CronExpression`, and `WithCronSchedule` takes one directly:
 <!-- snippet: sample_cron_expressions_hash_key_on_expression -->
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
-    .WithCronSchedule(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup"))
+    .WithCronSchedule(CronExpression.ParseWithHash("0 H H(0-7) * * ?", "nightly-cleanup"))
     .Build();
 ```
 <!-- endSnippet -->
 
-Or construct a `CronExpression` directly:
+Or resolve the expression on its own with `CronExpression.ParseWithHash`, which is the parse the
+builder overload does for you. `CronExpression.TryParseWithHash` is the non-throwing form, for a key
+and an expression that both came from somewhere you do not control:
 
 <!-- snippet: sample_cron_expressions_hash_key -->
 ```csharp
-var expr = new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup");
+CronExpression expr = CronExpression.ParseWithHash("0 H H(0-7) * * ?", "nightly-cleanup");
 ```
 <!-- endSnippet -->
 

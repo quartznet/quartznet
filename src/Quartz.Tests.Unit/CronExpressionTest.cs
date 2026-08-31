@@ -482,7 +482,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [TestCase("H 12 * * MON", "respell numeric day-of-week values", "a day-of-week already spelled as a name needs no renumbering, so the generic advice stands")]
     public void TheFiveFieldMessageIsTheSameOnTheHashResolvingPath(string expression, string expectedInMessage, string reason)
     {
-        Action act = () => new CronExpression(expression, "a-trigger");
+        Action act = () => CronExpression.ParseWithHash(expression, "a-trigger");
 
         act.Should().Throw<FormatException>(reason)
             .WithMessage("*Unix/crontab*", "the two paths must not disagree about what a five-field expression is")
@@ -1155,15 +1155,15 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         Assert.Multiple(() =>
         {
-            Assert.That(CronExpression.IsValidExpression("* * * ? * *A&/5:"), Is.False);
-            Assert.That(CronExpression.IsValidExpression("* * * ? *14 "), Is.False);
-            Assert.That(CronExpression.IsValidExpression(" * * ? *A&/5 *"), Is.False);
-            Assert.That(CronExpression.IsValidExpression("* * ? */5 *"), Is.False);
-            Assert.That(CronExpression.IsValidExpression("* * ? */52 *"), Is.False);
+            Assert.That(CronExpression.TryParse("* * * ? * *A&/5:", out _), Is.False);
+            Assert.That(CronExpression.TryParse("* * * ? *14 ", out _), Is.False);
+            Assert.That(CronExpression.TryParse(" * * ? *A&/5 *", out _), Is.False);
+            Assert.That(CronExpression.TryParse("* * ? */5 *", out _), Is.False);
+            Assert.That(CronExpression.TryParse("* * ? */52 *", out _), Is.False);
 
-            Assert.That(CronExpression.IsValidExpression("0 0/30 * * * ?"), Is.True);
-            Assert.That(CronExpression.IsValidExpression("0 0/1 * * * ?"), Is.True);
-            Assert.That(CronExpression.IsValidExpression("0 0/30 * * */2 ?"), Is.True);
+            Assert.That(CronExpression.TryParse("0 0/30 * * * ?", out _), Is.True);
+            Assert.That(CronExpression.TryParse("0 0/1 * * * ?", out _), Is.True);
+            Assert.That(CronExpression.TryParse("0 0/30 * * */2 ?", out _), Is.True);
         });
     }
 
@@ -1172,21 +1172,23 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         Assert.Multiple(() =>
         {
-            Assert.That(CronExpression.IsValidExpression("0 0x 0/1 ? * * *"), Is.False);
-            Assert.That(CronExpression.IsValidExpression("0 1xdds0 0/1 ? * * *"), Is.False);
+            Assert.That(CronExpression.TryParse("0 0x 0/1 ? * * *", out _), Is.False);
+            Assert.That(CronExpression.TryParse("0 1xdds0 0/1 ? * * *", out _), Is.False);
         });
     }
 
     [Test]
     public void TestExtraCharactersAfterWeekDay()
     {
-        Assert.That(CronExpression.IsValidExpression("0 0 15 ? * FRI*"), Is.False);
+        Assert.That(CronExpression.TryParse("0 0 15 ? * FRI*", out _), Is.False);
     }
 
     [Test]
     public void TestHourRangeAndSlash()
     {
-        CronExpression.ValidateExpression("0 0 18-21/1 ? * MON,TUE,WED,THU,FRI,SAT,SUN");
+        Action act = () => CronExpression.Parse("0 0 18-21/1 ? * MON,TUE,WED,THU,FRI,SAT,SUN");
+
+        act.Should().NotThrow("a stepped hour range beside every day of the week is a valid expression");
     }
 
     [Test]
@@ -1229,26 +1231,19 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         expression.GetHashCode().Should().Be(expression2.GetHashCode());
     }
 
+    /// <summary>
+    /// The reason the hash constructors became <c>ParseWithHash</c>: with <c>(string, string)</c> and
+    /// <c>(string, int)</c> beside <c>(string, TimeZoneInfo?)</c>, the null literal was a CS0121
+    /// ambiguity, so the one overload whose parameter is documented as nullable could not be handed a
+    /// null. This test's whole subject is that it compiles.
+    /// </summary>
     [Test]
-    public void CanGetExpressionSummary()
+    public void ATimeZoneOfNullIsUnambiguousAndMeansTheLocalZone()
     {
-        CronExpression expression = new CronExpression("0 15 15 5 11 ?");
-        var sut = expression.GetExpressionSummary();
-        sut.Should().Be(
-            @"seconds: 0
-minutes: 15
-hours: 15
-daysOfMonth: 5
-months: 11
-daysOfWeek: *
-lastdayOfWeek: False
-nearestWeekday: False
-NthDayOfWeek: 0
-lastdayOfMonth: False
-calendardayOfWeek: False
-calendardayOfMonth: False
-years: *
-");
+        CronExpression expression = new CronExpression("0 15 15 5 11 ?", null);
+
+        expression.TimeZone.Should().Be(TimeZoneInfo.Local,
+            "a null time zone is the documented way to say 'the system's local zone'");
     }
 
     [TestCase("OCT", 10)]
@@ -1269,9 +1264,9 @@ years: *
     }
 
     [Test]
-    public void GetTimeBeforeDoesNotThrowForPositiveOffsetTimeZone()
+    public void GetPreviousValidTimeBeforeDoesNotThrowForPositiveOffsetTimeZone()
     {
-        // Issue #3046: GetTimeBefore threw ArgumentOutOfRangeException when the
+        // Issue #3046: GetPreviousValidTimeBefore threw ArgumentOutOfRangeException when the
         // timezone had a positive UTC offset, because the inverse binary search
         // stepped into year 1 where internal DateTimeOffset constructions inside
         // GetTimeAfter produced a UTC instant before year 1.
@@ -1281,7 +1276,7 @@ years: *
         DateTimeOffset time = new DateTimeOffset(2026, 4, 16, 0, 0, 0, TimeSpan.Zero);
 
         DateTimeOffset? before = null;
-        Assert.DoesNotThrow(() => before = cron.GetTimeBefore(time));
+        Assert.DoesNotThrow(() => before = cron.GetPreviousValidTimeBefore(time));
         Assert.That(before, Is.Not.Null);
         Assert.That(before!.Value, Is.LessThan(time));
     }
@@ -1403,7 +1398,7 @@ public class CronTestScenarios
     private readonly record struct FiringGaps(string Expression, long? MillisecondsBack, long? MillisecondsForward);
 
     /// <summary>
-    /// The expressions <see cref="TestGetTimeBefore" /> walks, and the gaps they describe. The last two
+    /// The expressions <see cref="TestGetPreviousValidTimeBefore" /> walks, and the gaps they describe. The last two
     /// are pinned to a year either side of the year the search starts in: the first of them has its
     /// whole schedule ahead, so the firing found is its very first and nothing precedes it, and the
     /// second has its whole schedule behind, so there is no firing after the instant at all.
@@ -1421,7 +1416,7 @@ public class CronTestScenarios
     ];
 
     /// <summary>
-    /// The instants <see cref="TestGetTimeBefore" /> searches from: an ordinary one, and one on each
+    /// The instants <see cref="TestGetPreviousValidTimeBefore" /> searches from: an ordinary one, and one on each
     /// boundary the search could round differently at.
     /// </summary>
     public static IEnumerable TimeBeforeSearchInstants =>
@@ -1436,7 +1431,7 @@ public class CronTestScenarios
         };
 
     /// <summary>
-    /// <see cref="CronExpression.GetTimeBefore" /> walks the schedule backwards to the gap the
+    /// <see cref="CronExpression.GetPreviousValidTimeBefore" /> walks the schedule backwards to the gap the
     /// expression describes: from the first firing after a given instant, back to the one before it.
     /// </summary>
     /// <remarks>
@@ -1450,7 +1445,7 @@ public class CronTestScenarios
     /// could not reach cron at all.
     /// </remarks>
     [TestCaseSource(nameof(TimeBeforeSearchInstants))]
-    public void TestGetTimeBefore(string origin, DateTimeOffset now)
+    public void TestGetPreviousValidTimeBefore(string origin, DateTimeOffset now)
     {
         foreach (FiringGaps gaps in FiringGapsAround(now.Year))
         {
@@ -1460,12 +1455,12 @@ public class CronTestScenarios
             DateTimeOffset? after = cron.GetTimeAfter(now);
             if (after is null)
             {
-                cron.GetTimeBefore(now).Should().NotBeNull(
+                cron.GetPreviousValidTimeBefore(now).Should().NotBeNull(
                     $"'{gaps.Expression}' fires only in a year already past, so every firing it has is before {searchedFrom}");
                 continue;
             }
 
-            DateTimeOffset? before = cron.GetTimeBefore(after.Value);
+            DateTimeOffset? before = cron.GetPreviousValidTimeBefore(after.Value);
             if (gaps.MillisecondsBack is null)
             {
                 before.Should().BeNull(
@@ -1489,7 +1484,7 @@ public class CronTestScenarios
     }
 
     /// <summary>
-    /// The half-minute that used to break <see cref="TestGetTimeBefore" />, pinned rather than avoided:
+    /// The half-minute that used to break <see cref="TestGetPreviousValidTimeBefore" />, pinned rather than avoided:
     /// an expression with two firings a day, searched from between them.
     /// </summary>
     /// <remarks>
@@ -1498,7 +1493,7 @@ public class CronTestScenarios
     /// forward search always landed on the first of the pair, which it does from everywhere but here.
     /// </remarks>
     [Test]
-    public void TestGetTimeBeforeSearchedFromInsideAPairOfFirings()
+    public void TestGetPreviousValidTimeBeforeSearchedFromInsideAPairOfFirings()
     {
         CronExpression cron = new CronExpression("0/30 1 2 * * ? *", TimeZoneInfo.Utc);
         DateTimeOffset insideThePair = new DateTimeOffset(2024, 3, 14, 2, 1, 10, TimeSpan.Zero);
@@ -1507,7 +1502,7 @@ public class CronTestScenarios
 
         after.Should().Be(new DateTimeOffset(2024, 3, 14, 2, 1, 30, TimeSpan.Zero),
             "the day's second firing is still ahead when the search starts ten seconds into the pair");
-        (after - cron.GetTimeBefore(after)!.Value).Should().Be(TimeSpan.FromSeconds(30),
+        (after - cron.GetPreviousValidTimeBefore(after)!.Value).Should().Be(TimeSpan.FromSeconds(30),
             "the firing behind it is the first of that same pair, half a minute earlier");
         (cron.GetTimeAfter(after)!.Value - after).Should().Be(TimeSpan.FromHours(24) - TimeSpan.FromSeconds(30),
             "the firing ahead of it is the first of tomorrow's pair, not another 24 hours away");

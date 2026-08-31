@@ -125,7 +125,7 @@ public static class TriggerConfiguratorExtensions
     /// <remarks>
     /// This is also the overload to reach for when the expression carries <c>H</c> (hash) tokens
     /// that should be spread by something other than the trigger's own key:
-    /// <c>WithCronSchedule(new CronExpression(expression, hashKey))</c>.
+    /// <c>WithCronSchedule(CronExpression.ParseWithHash(expression, hashKey))</c>.
     /// </remarks>
     /// <param name="configurator">the trigger being configured.</param>
     /// <param name="cronExpression">the cron expression the trigger fires on.</param>
