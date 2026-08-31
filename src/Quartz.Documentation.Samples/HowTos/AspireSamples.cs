@@ -51,7 +51,9 @@ public static class AspireSamples
     {
         #region sample_aspire_provision_schema
 
-        builder.AddQuartzPersistentStore("quartz", settings => settings.ProvisionSchema = true);
+        builder.AddQuartzPersistentStore(
+            "quartz",
+            settings => settings.SchemaProvisioning = SchemaProvisioning.CreateIfMissing);
 
         #endregion
     }
@@ -138,7 +140,7 @@ public static class AspireSamples
     {
         #region sample_aspire_health_checks
 
-        builder.Services.AddQuartzHealthChecks();
+        builder.Services.AddHealthChecks().AddQuartz();
 
         #endregion
     }

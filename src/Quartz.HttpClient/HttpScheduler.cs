@@ -242,26 +242,14 @@ public sealed class HttpScheduler : IScheduler
         return default;
     }
 
-    public ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(jobDetail);
-
-        return DoScheduleJob(jobDetail, trigger, replace: false, cancellationToken);
-    }
-
-    public ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    public ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(jobDetail);
 
         return DoScheduleJob(jobDetail, trigger, options.Replace, cancellationToken);
     }
 
-    public ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, CancellationToken cancellationToken = default)
-    {
-        return DoScheduleJob(null, trigger, replace: false, cancellationToken);
-    }
-
-    public ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    public ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         return DoScheduleJob(null, trigger, options.Replace, cancellationToken);
     }

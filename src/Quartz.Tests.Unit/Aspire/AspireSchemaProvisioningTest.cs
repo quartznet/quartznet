@@ -35,21 +35,38 @@ public class AspireSchemaProvisioningTest
     }
 
     [Test]
-    public void ProvisionSchemaTrueCreatesInEveryEnvironment()
+    public void CreateIfMissingCreatesInEveryEnvironment()
     {
-        Provisioning(Environments.Production, settings => settings.ProvisionSchema = true)
+        Provisioning(Environments.Production, settings => settings.SchemaProvisioning = SchemaProvisioning.CreateIfMissing)
             .Should().Be(SchemaProvisioning.CreateIfMissing,
                 "an application that says it outright has said it about this deployment, whatever the "
                 + "environment name happens to be");
     }
 
     [Test]
-    public void ProvisionSchemaFalseCreatesInNone()
+    public void ValidateCreatesInNone()
     {
-        Provisioning(Environments.Development, settings => settings.ProvisionSchema = false)
+        Provisioning(Environments.Development, settings => settings.SchemaProvisioning = SchemaProvisioning.Validate)
             .Should().Be(SchemaProvisioning.Validate,
                 "a deployment whose schema is applied by something else says so once, and the "
                 + "development database is the same schema as the production one");
+    }
+
+    /// <summary>
+    /// The expressiveness the bool could not reach: skipping the startup check entirely.
+    /// </summary>
+    /// <remarks>
+    /// <c>false</c> used to mean "do not create", which left the store validating - the only other
+    /// thing a two-valued setting could say. A store whose schema is known good and whose startup has
+    /// to be as short as possible wants neither, and had to reach past this call to
+    /// <c>Quartz:JobStore:SchemaProvisioning</c> to say so.
+    /// </remarks>
+    [Test]
+    public void NoneIsSayableFromTheAspireSection()
+    {
+        Provisioning(Environments.Development, settings => settings.SchemaProvisioning = SchemaProvisioning.None)
+            .Should().Be(SchemaProvisioning.None,
+                "the three-valued option is the vocabulary, so every value it has is sayable from here");
     }
 
     /// <summary>
@@ -82,13 +99,13 @@ public class AspireSchemaProvisioningTest
     {
         using IHost host = Host(Environments.Production, builder =>
         {
-            builder.AddQuartzPersistentStore("quartz", settings => settings.ProvisionSchema = false);
+            builder.AddQuartzPersistentStore("quartz", settings => settings.SchemaProvisioning = SchemaProvisioning.Validate);
             builder.AddQuartz(q => q.UsePersistentStore(store => store.ProvisionSchema()));
         });
 
         AspireApplication.StoreOf(host.Services).SchemaProvisioning.Should().Be(SchemaProvisioning.CreateIfMissing,
-            "ProvisionSchema = false is this call declining to decide, not an instruction to undo what "
-            + "the application decided for itself");
+            "SchemaProvisioning = Validate is this call declining to decide, not an instruction to undo "
+            + "what the application decided for itself");
     }
 
     [Test]
@@ -113,7 +130,7 @@ public class AspireSchemaProvisioningTest
     {
         HostApplicationBuilder shared = AspireApplication.WorkerIn(
             Environments.Production,
-            ("Aspire:Quartz:ProvisionSchema", "true"));
+            ("Aspire:Quartz:SchemaProvisioning", "CreateIfMissing"));
 
         shared.AddQuartzPersistentStore("quartz");
         shared.AddQuartz();
@@ -126,8 +143,8 @@ public class AspireSchemaProvisioningTest
 
         HostApplicationBuilder own = AspireApplication.WorkerIn(
             Environments.Development,
-            ("Aspire:Quartz:ProvisionSchema", "true"),
-            ("Aspire:Quartz:quartz:ProvisionSchema", "false"));
+            ("Aspire:Quartz:SchemaProvisioning", "CreateIfMissing"),
+            ("Aspire:Quartz:quartz:SchemaProvisioning", "Validate"));
 
         own.AddQuartzPersistentStore("quartz");
         own.AddQuartz();

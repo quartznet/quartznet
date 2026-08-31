@@ -206,7 +206,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
                         job.JobDataMap[FileScanJob.FileName] = jobFile.FilePath;
                         job.JobDataMap[FileScanJob.FileScanListenerName] = JobInitializationPluginName + '_' + Name;
 
-                        await Scheduler.ScheduleJob(job, trig, cancellationToken).ConfigureAwait(false);
+                        await Scheduler.ScheduleJob(job, trig, cancellationToken: cancellationToken).ConfigureAwait(false);
                         logger.FileScanJobScheduled(jobFile.FileName, ScanInterval);
                     }
 

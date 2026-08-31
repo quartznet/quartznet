@@ -731,7 +731,7 @@ public sealed class BusIntegrationScenarioTest
 
         // The scheduler is built, initialized and bound, and left in Created for the bus to start.
         builder.Services.AddQuartzHostedService(options => options.AutoStart = false);
-        builder.Services.AddQuartzHealthChecks();
+        builder.Services.AddHealthChecks().AddQuartz();
 
         return builder.Build();
     }

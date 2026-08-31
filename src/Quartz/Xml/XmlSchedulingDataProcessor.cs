@@ -851,12 +851,12 @@ internal class XmlSchedulingDataProcessor
                         {
                             if (addJobWithFirstSchedule)
                             {
-                                await scheduler.ScheduleJob(detail, trigger, cancellationToken).ConfigureAwait(false); // add the job if it's not in yet...
+                                await scheduler.ScheduleJob(detail, trigger, cancellationToken: cancellationToken).ConfigureAwait(false); // add the job if it's not in yet...
                                 addJobWithFirstSchedule = false;
                             }
                             else
                             {
-                                await scheduler.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
+                                await scheduler.ScheduleJob(trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
                             }
                         }
                         catch (ObjectAlreadyExistsException)
@@ -919,7 +919,7 @@ internal class XmlSchedulingDataProcessor
 
                 try
                 {
-                    await scheduler.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
+                    await scheduler.ScheduleJob(trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
                 catch (ObjectAlreadyExistsException)
                 {

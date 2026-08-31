@@ -89,7 +89,7 @@ public sealed class OneOffJobScheduledOnce
             .StartAt(DateTimeOffset.UtcNow.AddMinutes(5))
             .Build();
 
-        await scheduler.ScheduleJob(job, trigger, cancellationToken);
+        await scheduler.ScheduleJob(job, trigger, cancellationToken: cancellationToken);
     }
 
     #endregion
@@ -166,7 +166,7 @@ public sealed class InvoicingOnASchedule
             .UsingInput(new SendInvoice("all", 0m))
             .Build();
 
-        await scheduler.ScheduleJob(nightly, cancellationToken);
+        await scheduler.ScheduleJob(nightly, cancellationToken: cancellationToken);
     }
 
     #endregion

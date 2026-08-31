@@ -96,8 +96,8 @@ public class XmlSchedulingDataProcessorTest
         // triggers are scheduled on their own, and so are the second and third of the non-durable job's
         // three, whose first carries its job in. This used to count seven, because every trigger loaded
         // beside its own job was scheduled again by the trailing loop (#3554).
-        A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(4, Times.Exactly);
-        A.CallTo(() => mockScheduler.ScheduleJob(A<IJobDetail>.That.Not.IsNull(), A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+        A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<ScheduleJobOptions>._, A<CancellationToken>._)).MustHaveHappened(4, Times.Exactly);
+        A.CallTo(() => mockScheduler.ScheduleJob(A<IJobDetail>.That.Not.IsNull(), A<ITrigger>.That.Not.IsNull(), A<ScheduleJobOptions>._, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]
@@ -109,7 +109,7 @@ public class XmlSchedulingDataProcessorTest
             A<IJobDetail>.That.Not.IsNull(),
             A<AddJobOptions>.That.Matches(o => o.StoreNonDurableWhileAwaitingScheduling),
             A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
-        A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
+        A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<ScheduleJobOptions>._, A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
     }
 
     [Test]
@@ -305,9 +305,11 @@ public class XmlSchedulingDataProcessorTest
         A.CallTo(() => mockScheduler.ScheduleJob(
             A<IJobDetail>.That.Matches(p => p.Key.Name == "sched2_job"),
             A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"),
+            A<ScheduleJobOptions>._,
             A<CancellationToken>._)).MustHaveHappenedOnceExactly();
         A.CallTo(() => mockScheduler.ScheduleJob(
             A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"),
+            A<ScheduleJobOptions>._,
             A<CancellationToken>._)).MustNotHaveHappened();
     }
 

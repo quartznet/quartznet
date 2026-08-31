@@ -79,7 +79,7 @@ public static class SchedulerJobExtensions
             jobBuilder.WithIdentity(borrowed);
         }
 
-        return scheduler.ScheduleJob(jobBuilder.Build(), trigger, cancellationToken);
+        return scheduler.ScheduleJob(jobBuilder.Build(), trigger, cancellationToken: cancellationToken);
     }
 
     // -------------------------------------------------------------------------------------------

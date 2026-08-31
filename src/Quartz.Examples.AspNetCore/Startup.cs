@@ -295,7 +295,7 @@ public class Startup
         services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
 
         // Add health checks
-        services.AddQuartzHealthChecks();
+        services.AddHealthChecks().AddQuartz();
 
         // Add Quartz.NET Dashboard
         services.AddQuartzDashboard();

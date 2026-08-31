@@ -82,7 +82,7 @@ public class SchedulingJobsSettingMisfireInstructionsExample : IExample
             // means "carry on from now, and forget the firings that were missed"
             .Build();
 
-        DateTimeOffset firstFireTime1 = await scheduler.ScheduleJob(job1, trigger1, cancellationToken);
+        DateTimeOffset firstFireTime1 = await scheduler.ScheduleJob(job1, trigger1, cancellationToken: cancellationToken);
         Console.WriteLine($"{job1.Key} will run at {firstFireTime1.LocalDateTime:HH:mm:ss}, every {trigger1.RepeatInterval.TotalSeconds:0} seconds, smart misfire policy");
 
         // job2 is the same in every respect but one
@@ -100,7 +100,7 @@ public class SchedulingJobsSettingMisfireInstructionsExample : IExample
                 .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount))
             .Build();
 
-        DateTimeOffset firstFireTime2 = await scheduler.ScheduleJob(job2, trigger2, cancellationToken);
+        DateTimeOffset firstFireTime2 = await scheduler.ScheduleJob(job2, trigger2, cancellationToken: cancellationToken);
         Console.WriteLine($"{job2.Key} will run at {firstFireTime2.LocalDateTime:HH:mm:ss}, every {trigger2.RepeatInterval.TotalSeconds:0} seconds, misfires fire immediately");
 
         Console.WriteLine("------- Starting Scheduler ----------------");

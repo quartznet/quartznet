@@ -339,12 +339,6 @@ public interface IScheduler : IAsyncDisposable
     /// If the given Trigger does not reference any <see cref="IJob" />, then it
     /// will be set to reference the Job passed with it into this method.
     /// </remarks>
-    ValueTask<DateTimeOffset> ScheduleJob(
-        IJobDetail jobDetail,
-        ITrigger trigger,
-        CancellationToken cancellationToken = default);
-
-    /// <inheritdoc cref="ScheduleJob(IJobDetail, ITrigger, CancellationToken)" />
     /// <param name="jobDetail">The job to store.</param>
     /// <param name="trigger">The trigger to store.</param>
     /// <param name="options">
@@ -353,27 +347,16 @@ public interface IScheduler : IAsyncDisposable
     /// cannot lose a race with another node doing the same thing.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <remarks>
-    /// <para>
-    /// <paramref name="options" /> has no default, unlike everywhere else it appears. Giving it one
-    /// would make <c>ScheduleJob(job, trigger)</c> ambiguous between this overload and the one above.
-    /// </para>
-    /// </remarks>
     ValueTask<DateTimeOffset> ScheduleJob(
         IJobDetail jobDetail,
         ITrigger trigger,
-        ScheduleJobOptions options,
+        ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Schedule the given <see cref="ITrigger" /> with the
     /// <see cref="IJob" /> identified by the <see cref="ITrigger" />'s settings.
     /// </summary>
-    ValueTask<DateTimeOffset> ScheduleJob(
-        ITrigger trigger,
-        CancellationToken cancellationToken = default);
-
-    /// <inheritdoc cref="ScheduleJob(ITrigger, CancellationToken)" />
     /// <param name="trigger">The trigger to store.</param>
     /// <param name="options">
     /// Whether an already stored trigger with the same key is over-written. Replacing is one store
@@ -383,19 +366,13 @@ public interface IScheduler : IAsyncDisposable
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <remarks>
-    /// <para>
     /// A replaced trigger keeps its <see cref="ITrigger.PreviousFireTimeUtc" />, so a job that reads
     /// <see cref="IJobExecutionContext.PreviousFireTimeUtc" /> is not told the schedule has never fired
     /// merely because its trigger was rewritten.
-    /// </para>
-    /// <para>
-    /// <paramref name="options" /> has no default, unlike everywhere else it appears. Giving it one
-    /// would make <c>ScheduleJob(trigger)</c> ambiguous between this overload and the one above.
-    /// </para>
     /// </remarks>
     ValueTask<DateTimeOffset> ScheduleJob(
         ITrigger trigger,
-        ScheduleJobOptions options,
+        ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -59,7 +59,7 @@ public class TriggeringAJobUsingJobListenersExample : IExample
         Console.WriteLine($"Listener '{listener.Name}' added for {job.Key}");
 
         // schedule the job to run
-        DateTimeOffset firstFireTime = await scheduler.ScheduleJob(job, trigger, cancellationToken);
+        DateTimeOffset firstFireTime = await scheduler.ScheduleJob(job, trigger, cancellationToken: cancellationToken);
         Console.WriteLine($"{job.Key} will run at {firstFireTime.LocalDateTime:HH:mm:ss}, once, and job2 follows from the listener");
 
         // the job has been added to the scheduler, but it will not run

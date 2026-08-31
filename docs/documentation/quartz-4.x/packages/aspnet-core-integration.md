@@ -24,7 +24,7 @@ You can host the scheduler by invoking `AddQuartzHostedService` on the web appli
 This adds a hosted Quartz server into the ASP.NET Core process that is started and stopped based on the application's lifetime.
 
 ::: tip
-`AddQuartzHostedService` lives in the core `Quartz` package, and so does `AddQuartzHealthChecks`. Quartz 3's
+`AddQuartzHostedService` lives in the core `Quartz` package, and so does the health check. Quartz 3's
 `AddQuartzServer`, which registered the hosted service and a health check together, is gone — call each by
 its own name.
 :::

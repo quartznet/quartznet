@@ -161,7 +161,7 @@ public static class TypedInputScheduling
                 .StartNow()
                 .UsingInput(new SendEmail("someone@example.org", "Welcome"))
                 .Build(),
-            cancellationToken);
+            cancellationToken: cancellationToken);
     }
 }
 

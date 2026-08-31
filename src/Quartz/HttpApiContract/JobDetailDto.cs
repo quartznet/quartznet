@@ -74,11 +74,11 @@ internal record JobDetailDto(
             return (null, "Missing or malformed job type");
         }
 
-        // The name is carried as a name. OfType(string) stores it unresolved, so building the detail
-        // neither loads nor probes for an assembly - the side the job actually runs on resolves it
-        // through the type load path, when it needs the type.
+        // The name is carried as a name. The cast stores it unresolved, so building the detail neither
+        // loads nor probes for an assembly - the side the job actually runs on resolves it through the
+        // type load path, when it needs the type. Explicit because that deferral is the leap being made.
         IJobDetail jobDetail = JobBuilder.Create()
-            .OfType(JobType)
+            .OfType((JobType) JobType)
             .WithIdentity(Name, Group)
             .WithDescription(Description)
             .StoreDurably(Durable)

@@ -60,7 +60,7 @@ public class InterruptingJobsInProgressExample : IExample
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
             .Build();
 
-        DateTimeOffset firstFireTime = await scheduler.ScheduleJob(job, trigger, cancellationToken);
+        DateTimeOffset firstFireTime = await scheduler.ScheduleJob(job, trigger, cancellationToken: cancellationToken);
         Console.WriteLine($"{job.Key} will run at {firstFireTime.LocalDateTime:HH:mm:ss}, every {trigger.RepeatInterval.TotalSeconds:0} seconds, and takes {InterruptableJob.WorkSteps * 3} seconds each time");
 
         // start up the scheduler (jobs do not start to fire until

@@ -114,15 +114,20 @@ jobs:
           # non-zero exit. That run happens out of process and under no coverage collector, so the
           # gate would read a project with a working liveness check as a project with none.
           #
-          # src/Quartz.Examples is the last member of that family, and it is here for the same
-          # reason: nothing covers a console example, so the gate has nothing to read. It went
-          # unlisted while the condition only measured new code and nobody was editing the examples,
-          # and #3597 is what surfaced it -- an API change sweeps every call site, and eight rewritten
-          # lines in numbered example folders were enough to fail new-code coverage for a pull request
-          # whose own new lines were fully covered. That is the gate charging a maintainer for code it
-          # was never going to measure, so the exclusion is the fix rather than a test nobody wants.
-          # It does shrink the coverage denominator on main slightly, which is the price of the family
-          # being complete rather than complete-until-someone-touches-an-example.
+          # The remaining src/Quartz.Examples* projects -- the numbered console examples, AspNetCore,
+          # HttpClient and Worker -- are here for the same reason: no test references any of them, so
+          # the gate has nothing to read for any line they contain. They went unlisted while the
+          # condition only measured new code and nobody was editing the examples, and #3597 is what
+          # surfaced it -- an API change sweeps every call site, and eight rewritten lines in numbered
+          # example folders were enough to fail new-code coverage for a pull request whose own new
+          # lines were fully covered. #3598 then did it again one line at a time, in AspNetCore. That
+          # is the gate charging a maintainer for code it was never going to measure, so the exclusion
+          # is the fix rather than a test nobody wants.
+          #
+          # All of them are listed rather than only the ones that have tripped it, because the trip is
+          # what an ordinary sweep does and finding out project by project costs a round trip each
+          # time. It does shrink the coverage denominator on main slightly, which is the price of the
+          # family being complete rather than complete-until-someone-touches-another-example.
           #
           # database/ is excused from copy-paste detection, from four PL/SQL rules and from a
           # coverage figure this workflow does not produce, and from nothing else. Its bug and
@@ -187,7 +192,7 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="artifacts/coverage/**/coverage.opencover.xml" \
             /d:sonar.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**" \
             /d:sonar.cpd.exclusions="src/Quartz.Tests.Integration/SchemaBaselines/**,src/Quartz/Impl/AdoJobStore/Schema/**,database/**" \
-            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**,src/Quartz.Examples.Wolverine/**,src/Quartz.Examples/**,database/**" \
+            /d:sonar.coverage.exclusions="docs/.vuepress/**,src/Quartz.Trimming.Canary/**,src/Quartz.Examples.Aspire.AppHost/**,src/Quartz.Examples.Aspire.Worker/**,src/Quartz.Examples.Wolverine/**,src/Quartz.Examples/**,src/Quartz.Examples.AspNetCore/**,src/Quartz.Examples.HttpClient/**,src/Quartz.Examples.Worker/**,database/**" \
             /d:sonar.issue.ignore.multicriteria="generatedOracleGuards,generatedOracleGuardExceptions,repeatedObjectNames,wholeTableByDesign" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.ruleKey="plsql:S1523" \
             /d:sonar.issue.ignore.multicriteria.generatedOracleGuards.resourceKey="database/migrations/**/*.sql" \

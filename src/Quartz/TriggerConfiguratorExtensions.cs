@@ -161,6 +161,15 @@ public static class TriggerConfiguratorExtensions
     /// <summary>
     /// Set the trigger to fire on the given cron schedule.
     /// </summary>
+    /// <remarks>
+    /// The narrowest of the four, and the one that looks most like <c>WithSchedule</c> with a smaller
+    /// parameter — which it is. It stays because every <c>With…Schedule</c> family has this member, so
+    /// removing it from cron alone would leave one family short of the shape the other four teach, and
+    /// because it is the 3.x spelling a migrating application already has. The other three each say
+    /// something <c>WithSchedule</c> cannot: parse a string, take an expression already parsed (which is
+    /// where a hash key rides), or close a <see cref="CronExpressionBuilder" /> chain — and all three
+    /// also apply the <c>configure</c> callback.
+    /// </remarks>
     /// <param name="configurator">the trigger being configured.</param>
     /// <param name="schedule">the schedule to use.</param>
     public static TConfigurator WithCronSchedule<TConfigurator>(

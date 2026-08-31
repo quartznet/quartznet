@@ -77,9 +77,9 @@ reads them. What these settings decide is the handful of things that follow from
 | `Provider` | `string?` | inferred from the connection string | Which ADO.NET driver reaches the database |
 | `SchedulerName` | `string?` | every scheduler in the container | Which scheduler this store belongs to |
 | `TablePrefix` | `string?` | whatever `AdoJobStoreOptions.TablePrefix` already had | The prefix on the Quartz table names |
-| `ProvisionSchema` | `bool?` | unset — creates under `Development`, validates everywhere else | Whether the store creates whatever its schema is missing as it starts |
+| `SchemaProvisioning` | `SchemaProvisioning?` | unset — creates under `Development`, says nothing everywhere else | What the store does about its schema as it starts |
 | `Clustered` | `bool` | `false` | Whether this scheduler joins a cluster on the database, deriving an instance id to do it with |
-| `DisableHealthChecks` | `bool` | `false` | Leaves `AddQuartzHealthChecks()` unregistered |
+| `DisableHealthChecks` | `bool` | `false` | Leaves the scheduler's health check unregistered |
 | `DisableTracing` | `bool` | `false` | Leaves the `Quartz` activity source unsubscribed |
 | `DisableMetrics` | `bool` | `false` | Leaves the `Quartz` meter unsubscribed |
 
@@ -88,9 +88,11 @@ that a fresh instance — which is what binding an absent section produces — m
 recommended values. A `bool` bound from nothing is `false`, so the useful default has to be the `false` one.
 Every first-party integration has been spelled this way since Aspire 8.0.
 
-`ProvisionSchema` is the one `bool?`, for the same rule read the other way: the recommended value is not
-the same in every environment, so no `bool` could hold it. Unset is a third answer rather than a missing
-one — *ask the environment* — and `true` or `false` is how an application that knows better says so.
+`SchemaProvisioning` is the one nullable, for the same rule read the other way: the recommended value is
+not the same in every environment, so no non-nullable value could hold it. Unset is an answer rather than
+a missing one — *ask the environment* — and naming a `SchemaProvisioning` is how an application that knows
+better says so. It is the same enum `AdoJobStoreOptions.SchemaProvisioning` takes, so this end of the
+setting and the store's end are one vocabulary.
 
 Every setting here says something or says nothing; none of them says *no*. `TablePrefix` left unset keeps
 whatever `Quartz:JobStore:TablePrefix` or an earlier `ConfigureStore` said, rather than resetting it, and
@@ -229,11 +231,12 @@ The store is configured with `SchemaProvisioning.CreateIfMissing` when the appli
 `AddQuartzPersistentStore` call rather than when the scheduler starts, so the answer is the environment
 the container was built in.
 
-| `ProvisionSchema` | `AdoJobStoreOptions.SchemaProvisioning` becomes |
+| `SchemaProvisioning` | `AdoJobStoreOptions.SchemaProvisioning` becomes |
 |---|---|
-| unset (the default) | `CreateIfMissing` under `Development`, `Validate` in every other environment |
-| `true` | `CreateIfMissing`, whatever the environment |
-| `false` | `Validate`, whatever the environment — which is what it already is, so nothing is set |
+| unset (the default) | `CreateIfMissing` under `Development`, untouched in every other environment |
+| `CreateIfMissing` | `CreateIfMissing`, whatever the environment |
+| `Validate` | `Validate`, whatever the environment — which is what it already is, so nothing is set |
+| `None` | `None`, whatever the environment — the startup check is skipped entirely |
 
 An AppHost's database container comes up empty whenever its volume is new, which makes a first run that
 fails schema validation the ordinary outcome rather than an edge case; a production account, on the other
@@ -244,7 +247,7 @@ The store keeps its own word. A `SchemaProvisioning` the application set — thr
 through `Quartz:JobStore:SchemaProvisioning` — is read as a decision about this store and left alone,
 because this call runs from `ConfigureAllQuartzSchedulers` and would otherwise win merely by being last.
 `Validate` is the exception, being what an unconfigured store already holds and so indistinguishable from
-silence: `ProvisionSchema = false` is how an application in `Development` says it.
+silence: `SchemaProvisioning = SchemaProvisioning.Validate` is how an application in `Development` says it.
 
 Everything else about provisioning is the store's, not this package's:
 [Creating the schema](../tutorial/job-stores.md#creating-the-schema) covers what it runs, why it is safe
@@ -268,7 +271,7 @@ nodes by setting `InstanceId` — from code or from `Quartz:Scheduler:InstanceId
 
 ## Health and telemetry
 
-The health check is `AddQuartzHealthChecks()` from the core `Quartz` package, registered on the same
+The health check is `IQuartzBuilder.AddQuartzHealthChecks()` from the core `Quartz` package, registered on the same
 `IHealthChecksBuilder` an Aspire ServiceDefaults project put its own `self` check on, so
 `MapDefaultEndpoints()` serves both. It is registered per scheduler, so two schedulers get two checks under
 two names. What the check reports, and what survives an HTTP probe, is

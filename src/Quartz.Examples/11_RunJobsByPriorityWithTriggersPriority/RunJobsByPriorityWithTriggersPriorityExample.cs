@@ -92,9 +92,9 @@ public class RunJobsByPriorityWithTriggersPriorityExample : IExample
             .Build();
 
         // Tell quartz to schedule the job using our trigger
-        await scheduler.ScheduleJob(job, trigger1, cancellationToken);
-        await scheduler.ScheduleJob(trigger2, cancellationToken);
-        await scheduler.ScheduleJob(trigger3, cancellationToken);
+        await scheduler.ScheduleJob(job, trigger1, cancellationToken: cancellationToken);
+        await scheduler.ScheduleJob(trigger2, cancellationToken: cancellationToken);
+        await scheduler.ScheduleJob(trigger3, cancellationToken: cancellationToken);
 
         // Start up the scheduler (nothing can actually run until the
         // scheduler has been started)

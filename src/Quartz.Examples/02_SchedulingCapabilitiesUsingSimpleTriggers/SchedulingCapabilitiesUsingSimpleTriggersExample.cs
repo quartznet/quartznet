@@ -59,7 +59,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .StartAt(startTime)
             .Build();
 
-        Describe(job1.Key, trigger1, await scheduler.ScheduleJob(job1, trigger1, cancellationToken));
+        Describe(job1.Key, trigger1, await scheduler.ScheduleJob(job1, trigger1, cancellationToken: cancellationToken));
 
         // job2 fires at startTime and then five more times, five seconds apart
         IJobDetail job2 = JobBuilder.Create<SimpleJob>()
@@ -72,7 +72,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).WithRepeatCount(5))
             .Build();
 
-        Describe(job2.Key, trigger2, await scheduler.ScheduleJob(job2, trigger2, cancellationToken));
+        Describe(job2.Key, trigger2, await scheduler.ScheduleJob(job2, trigger2, cancellationToken: cancellationToken));
 
         // job3 has two triggers of its own: one job, two schedules, and the job runs for both
         IJobDetail job3 = JobBuilder.Create<SimpleJob>()
@@ -85,7 +85,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(2))
             .Build();
 
-        Describe(job3.Key, trigger3, await scheduler.ScheduleJob(job3, trigger3, cancellationToken));
+        Describe(job3.Key, trigger3, await scheduler.ScheduleJob(job3, trigger3, cancellationToken: cancellationToken));
 
         // the second one names the job it belongs to rather than carrying one
         ISimpleTrigger trigger4 = (ISimpleTrigger) TriggerBuilder.Create()
@@ -95,7 +95,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .ForJob(job3)
             .Build();
 
-        Describe(job3.Key, trigger4, await scheduler.ScheduleJob(trigger4, cancellationToken));
+        Describe(job3.Key, trigger4, await scheduler.ScheduleJob(trigger4, cancellationToken: cancellationToken));
 
         Console.WriteLine("------- Starting Scheduler ----------------");
 

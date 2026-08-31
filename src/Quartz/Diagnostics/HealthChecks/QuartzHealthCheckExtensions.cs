@@ -16,35 +16,24 @@ namespace Quartz;
 public static class QuartzHealthCheckExtensions
 {
     /// <summary>
-    /// Registers a health check for the default Quartz scheduler: healthy while it is running and can
-    /// reach its store, degraded while it is in standby or waiting for the application to start it
-    /// (<see cref="QuartzHostedServiceOptions.AutoStart" />), and unhealthy otherwise.
+    /// Registers a health check for the scheduler this builder configures: healthy while it is running
+    /// and can reach its store, degraded while it is in standby or waiting for the application to start
+    /// it (<see cref="QuartzHostedServiceOptions.AutoStart" />), and unhealthy otherwise.
     /// </summary>
     /// <remarks>
-    /// Shorthand for <c>services.AddHealthChecks().AddQuartz(configure)</c>, for an application that has
-    /// no other health checks to compose with.
-    /// </remarks>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configure">
-    /// Optional configuration for the health check registration, allowing the name, tags and failure
-    /// status to be customized (for example to attach liveness/readiness probe tags).
-    /// </param>
-    public static IServiceCollection AddQuartzHealthChecks(
-        this IServiceCollection services,
-        Action<QuartzHealthCheckOptions>? configure = null)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        services.AddHealthChecks().AddQuartz(configure);
-        return services;
-    }
-
-    /// <summary>
-    /// Registers a health check for the scheduler this builder configures.
-    /// </summary>
-    /// <remarks>
+    /// <para>
     /// A named scheduler has its own health check, checking its own scheduler rather than the default
     /// one, and defaulting to a name of <c>quartz-scheduler-&lt;scheduler name&gt;</c> so several of
     /// them can be registered side by side.
+    /// </para>
+    /// <para>
+    /// This is the only <c>AddQuartzHealthChecks</c>, and the receiver is why: a scheduler's builder
+    /// knows which scheduler it is, so the check is registered for that one without the name being
+    /// written twice. An application composing the check with its own goes through the health-checks
+    /// builder — <c>services.AddHealthChecks().AddQuartz()</c>, or
+    /// <c>AddQuartz("reporting")</c> for a named scheduler — which is the ecosystem's idiom and says the
+    /// same thing said from the other end.
+    /// </para>
     /// </remarks>
     /// <param name="builder">The scheduler's builder.</param>
     /// <param name="configure">

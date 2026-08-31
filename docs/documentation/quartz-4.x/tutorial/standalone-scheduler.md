@@ -289,7 +289,7 @@ everything a host makes possible:
 |---|---|
 | `AddQuartzHostedService` — start, graceful shutdown, `WaitForJobsToComplete`, `StartDelay` | you call `Start()` and `Shutdown()` |
 | `AddQuartz(name, …)` — several named schedulers, keyed by name | one scheduler per builder |
-| `AddQuartzHealthChecks` | — |
+| `AddHealthChecks().AddQuartz()` / `q.AddQuartzHealthChecks()` | — |
 | `AddQuartzHttpApi` / the dashboard | — |
 | Options validated at application start | validated on first use |
 | Configuration bound by the host | `UseConfiguration(section)` |

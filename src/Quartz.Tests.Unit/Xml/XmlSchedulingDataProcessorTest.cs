@@ -1631,6 +1631,7 @@ public class XmlSchedulingDataProcessorTest
         A.CallTo(() => scheduler.ScheduleJob(
                 A<IJobDetail>.That.Matches(j => j.Key == new JobKey("job1", "group1")),
                 A<ITrigger>.That.Matches(t => t.Key == new TriggerKey("trigger1", TriggerKey.DefaultGroup)),
+                A<ScheduleJobOptions>._,
                 A<CancellationToken>._))
             .MustHaveHappenedOnceExactly();
     }

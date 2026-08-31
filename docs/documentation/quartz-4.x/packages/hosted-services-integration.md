@@ -131,8 +131,8 @@ builder.Services.AddHealthChecks().AddQuartz();
 ```
 <!-- endSnippet -->
 
-`services.AddQuartzHealthChecks()` is the same thing for an application that has no other checks to
-compose with.
+`AddQuartz("reporting", q => q.AddQuartzHealthChecks())` is the same check said from the scheduler's
+own builder, which is how a named scheduler gets one without writing its name a second time.
 
 A scheduler whose `AutoStart` is `false` is *degraded* while it sits in `Created`, not *unhealthy*: it is
 doing what it was configured to do, and failing the probe would take a correctly configured node out of

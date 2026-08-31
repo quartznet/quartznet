@@ -64,7 +64,7 @@ public class RunningLargeNumberOfJobsExample : IExample
                 .StartAt(startTime.AddMilliseconds(count * 20)) // space fire times a small bit
                 .Build();
 
-            await scheduler.ScheduleJob(job, trigger, cancellationToken);
+            await scheduler.ScheduleJob(job, trigger, cancellationToken: cancellationToken);
 
             if (count % 100 == 0)
             {

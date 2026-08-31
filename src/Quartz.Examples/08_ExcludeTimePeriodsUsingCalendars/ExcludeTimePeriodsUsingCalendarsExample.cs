@@ -75,7 +75,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
             .WithCalendarName("holidays")
             .Build();
 
-        DateTimeOffset firstRunTime = await scheduler.ScheduleJob(holidayJob, holidayTrigger, cancellationToken);
+        DateTimeOffset firstRunTime = await scheduler.ScheduleJob(holidayJob, holidayTrigger, cancellationToken: cancellationToken);
 
         Console.WriteLine($"{holidayJob.Key} was scheduled to start at {halloween.LocalDateTime:yyyy-MM-dd HH:mm:ss}");
         Console.WriteLine($"{holidayJob.Key} will actually start at {firstRunTime.LocalDateTime:yyyy-MM-dd HH:mm:ss} - the calendar pushed it past halloween");
@@ -97,7 +97,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
             .WithCalendarName("quiet-half-minute")
             .Build();
 
-        await scheduler.ScheduleJob(chattyJob, chattyTrigger, cancellationToken);
+        await scheduler.ScheduleJob(chattyJob, chattyTrigger, cancellationToken: cancellationToken);
         Console.WriteLine($"{chattyJob.Key} asks to run every five seconds, and may only run when the seconds hand is past 30");
 
         Console.WriteLine("------- Starting Scheduler ----------------");

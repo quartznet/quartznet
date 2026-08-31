@@ -577,7 +577,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         // would have this process probe its assemblies for whatever the caller named. The scheduler
         // resolves it through the type load path when the job runs.
         IJobDetail jobDetail = JobBuilder.Create()
-            .OfType(source.JobType)
+            .OfType((JobType) source.JobType)
             .WithIdentity(source.Name, source.Group)
             .WithDescription(source.Description)
             .StoreDurably(source.Durable)
@@ -591,12 +591,12 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     private static async ValueTask ScheduleTriggerOnly(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
     {
-        _ = await scheduler.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
+        _ = await scheduler.ScheduleJob(trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     private static async ValueTask ScheduleJobWithTrigger(IScheduler scheduler, IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
     {
-        _ = await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken).ConfigureAwait(false);
+        _ = await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     private static async ValueTask RescheduleTrigger(IScheduler scheduler, TriggerKey key, ITrigger trigger, CancellationToken cancellationToken = default)

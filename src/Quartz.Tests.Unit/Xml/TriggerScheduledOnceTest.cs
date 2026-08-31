@@ -300,18 +300,20 @@ public sealed class TriggerScheduledOnceTest
         public override ValueTask<DateTimeOffset> ScheduleJob(
             IJobDetail jobDetail,
             ITrigger trigger,
+            ScheduleJobOptions options = default,
             CancellationToken cancellationToken = default)
         {
             Scheduled.Add(trigger.Key);
-            return base.ScheduleJob(jobDetail, trigger, cancellationToken);
+            return base.ScheduleJob(jobDetail, trigger, options, cancellationToken);
         }
 
         public override ValueTask<DateTimeOffset> ScheduleJob(
             ITrigger trigger,
+            ScheduleJobOptions options = default,
             CancellationToken cancellationToken = default)
         {
             Scheduled.Add(trigger.Key);
-            return base.ScheduleJob(trigger, cancellationToken);
+            return base.ScheduleJob(trigger, options, cancellationToken);
         }
 
         public override ValueTask<DateTimeOffset?> RescheduleJob(
