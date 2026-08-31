@@ -42,13 +42,15 @@ public static class OrderPlacedHandler
 {
     public static async Task Handle(OrderPlaced message, IScheduler scheduler, CancellationToken cancellationToken)
     {
-        TriggerKey trigger = await scheduler.ScheduleJob<PaymentReminderJob, PaymentReminder>(
+        ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<PaymentReminderJob, PaymentReminder>(
             new PaymentReminder(message.OrderId, message.Amount),
             ExampleOptions.Current.ReminderDelay,
             new OneOffJobOptions { Group = OrderGroup.For(message.OrderId) },
             cancellationToken);
 
-        Ledger.Record(Events.ReminderScheduled, trigger.ToString());
+        // The call answers with the trigger's key and the time the store says it will first fire, so
+        // "scheduled for" is what will happen rather than what was asked for.
+        Ledger.Record(Events.ReminderScheduled, $"{scheduled.TriggerKey} at {scheduled.FirstFireTimeUtc:u}");
     }
 }
 

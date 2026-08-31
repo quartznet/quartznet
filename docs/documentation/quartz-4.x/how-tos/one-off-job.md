@@ -140,9 +140,9 @@ public sealed class SendInvoiceJob : IJob<SendInvoice>
 
 public sealed class Invoicing
 {
-    public async ValueTask Remind(IScheduler scheduler, SendInvoice invoice, CancellationToken cancellationToken)
+    public async ValueTask Remind(IScheduler scheduler, ILogger logger, SendInvoice invoice, CancellationToken cancellationToken)
     {
-        TriggerKey firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
+        ScheduledOneOffJob firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
             invoice,
             TimeSpan.FromDays(7),
             new OneOffJobOptions
@@ -155,29 +155,134 @@ public sealed class Invoicing
             },
             cancellationToken);
 
+        // What was arranged: the trigger's key, and when the store says it will first fire.
+        logger.LogInformation("Reminder {Trigger} scheduled for {At}", firing.TriggerKey, firing.FirstFireTimeUtc);
+
         // ... and to call it off:
-        await scheduler.UnscheduleJob(firing, cancellationToken);
+        await scheduler.UnscheduleJob(firing.TriggerKey, cancellationToken);
     }
 }
 ```
 <!-- endSnippet -->
 
-There are two overloads, one taking a `DateTimeOffset` and one a `TimeSpan` from now, and both return the
-`TriggerKey` of the firing they stored — the handle to cancel it with, or to replace it by scheduling the same
-name again.
+There are two overloads, one taking a `DateTimeOffset` and one a `TimeSpan` from now, and both answer with a
+`ScheduledOneOffJob`: the `TriggerKey` of the firing they stored — the handle to cancel it with, or to replace
+it by scheduling the same name again — and `FirstFireTimeUtc`, the time the store says it will fire. Two
+members and no more; everything else about the firing is a property of the trigger the key names, and
+`GetTrigger` is how to ask for it.
 
 What is stored is **one durable job per job type**, under
-`(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)`, plus one trigger per call. That is the shape a
-message bus's Quartz integration converges on: a scheduled message is a trigger, so there is no job churn to
-pay for however many firings are in flight. The job is stored idempotently the first time a call is made on a
-scheduler and remembered afterwards, so it is safe for several nodes to do at once and costs one round trip
-rather than two from the second call on. It is left behind when the last firing is cancelled — one row per job
-type, whatever the traffic.
+`SchedulerJobExtensions.ScheduledJobKey<TJob>()` — `(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)`
+— plus one trigger per call. That is the shape a message bus's Quartz integration converges on: a scheduled
+message is a trigger, so there is no job churn to pay for however many firings are in flight. The job is stored
+idempotently the first time a call is made on a scheduler and remembered afterwards, so it is safe for several
+nodes to do at once and costs one round trip rather than two from the second call on. It is left behind when
+the last firing is cancelled — one row per job type, whatever the traffic.
 
 `OneOffJobOptions` carries what would otherwise be `TriggerBuilder` calls: `Name` and `Group` (defaulting
 to a generated identifier in a group named after the job type), `Description`, `Priority`, `ExecutionGroup`,
 `MisfireInstruction`, and `Replace`. **The group is the correlation axis** — everything scheduled for one saga,
 one tenant or one conversation shares a group and can be listed, paused or unscheduled together.
+
+::: warning A group default that a cancellation contract has to know about
+`Group` defaults to the job type's name, not to `TriggerKey.DefaultGroup`. Code that cancels with
+`new TriggerKey(id)` is naming the *default* group, so a firing scheduled through these overloads without
+`Group = TriggerKey.DefaultGroup` is somewhere that cancellation silently stops matching — the unschedule
+finds nothing and reports it did nothing. An integration adopting the one-liner over an existing trigger-key
+contract sets the group its callers already expect.
+:::
+
+`RequestRecovery` is the one member that describes the durable job rather than the trigger. Set it and the
+ensured job is marked `RequestsRecovery`, so a firing interrupted by a hard shutdown is re-executed when the
+scheduler comes back:
+
+<!-- snippet: sample_one_off_job_request_recovery -->
+```csharp
+public async ValueTask Remind(IScheduler scheduler, SendInvoice invoice, CancellationToken cancellationToken)
+{
+    await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
+        invoice,
+        TimeSpan.FromDays(7),
+        new OneOffJobOptions { RequestRecovery = true },
+        cancellationToken);
+}
+```
+<!-- endSnippet -->
+
+The job is ensured once per scheduler instance, so **the first call's value wins for the lifetime of the
+process**: a later call asking for something else finds the job already stored and does not store it again.
+That is how everything else about the job works too — its description, its durability, the type it names — and
+it is why this is a boolean rather than a configuration delegate that would look as though it varied per call.
+
+## A schedule of your own on the same job
+
+The durable job is addressable, which is what a second scheduling path needs: an integration that also builds a
+recurring trigger for the same job points it at `ScheduledJobKey<TJob>()` rather than adding a job of its own to
+the reserved group.
+
+<!-- snippet: sample_one_off_job_scheduled_job_key -->
+```csharp
+public async ValueTask Nightly(IScheduler scheduler, CancellationToken cancellationToken)
+{
+    // A schedule of its own, pointed at the job the one-liner keeps rather than at a second job
+    // built here: same job, same payload shape, one more trigger.
+    ITrigger nightly = TriggerBuilder.Create<SendInvoiceJob>(scheduler.TimeProvider)
+        .WithIdentity("nightly", "invoicing")
+        .ForJob(SchedulerJobExtensions.ScheduledJobKey<SendInvoiceJob>())
+        .WithCronSchedule("0 0 2 * * ?")
+        .UsingInput(new SendInvoice("all", 0m))
+        .Build();
+
+    await scheduler.ScheduleJob(nightly, cancellationToken);
+}
+```
+<!-- endSnippet -->
+
+`SchedulerConstants.ScheduledJobGroup` is reserved for the jobs the one-liner maintains — do not put jobs of
+your own in it — but the job that *is* in it is meant to be pointed at, and `ScheduledJobKey<TJob>()` spells the
+whole key so nothing has to re-derive it.
+
+The key is derived from the type, so it answers before anything has been scheduled; the job itself appears the
+first time one of the one-call overloads is used on that scheduler. A store refuses a trigger whose job is
+missing, so a second path that can run *first* stores the durable job itself — `AddJob` under the same key,
+with `AddJobOptions.Replacing`, which is what the one-liner does and is idempotent between them.
+
+## Reading input written by an older schema
+
+`IJob<TInput>` fails a firing whose input is missing, by name, rather than running it with a default payload.
+That is right for a fresh 4.x application and wrong halfway through an upgrade: a 3.x application converting a
+job to `IJob<TInput>` finds its store already holding triggers whose payload is spread over flat `JobDataMap`
+keys, with nothing under `QRTZ_JOB_INPUT`, and every one of those firings would throw.
+
+A job that has to serve both shapes for a while stays an `IJob` and asks:
+
+<!-- snippet: sample_one_off_job_try_get_input -->
+```csharp
+public sealed class SendInvoiceCompatJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        // A firing scheduled by 4.x carries the whole payload under one key. One scheduled before the
+        // upgrade carries the flat keys the 3.x job wrote, and there is nothing to read there — which
+        // is an answer here, where an IJob<SendInvoice> would have failed the firing instead.
+        if (!context.TryGetInput(out SendInvoice? invoice) || invoice is null)
+        {
+            invoice = new SendInvoice(
+                context.MergedJobDataMap.GetString("CustomerId")!,
+                context.MergedJobDataMap.GetDecimal("Amount"));
+        }
+
+        return Send(invoice, cancellationToken);
+    }
+
+    private static ValueTask Send(SendInvoice invoice, CancellationToken cancellationToken) => default;
+}
+```
+<!-- endSnippet -->
+
+`TryGetInput` answers `false` only when the key is absent. A value that is present but cannot be read — neither
+a `TInput` nor a payload the serializer understands — still throws, because corruption is not compatibility.
+Once the pre-upgrade triggers have drained, the job becomes an `IJob<TInput>` and the fallback goes.
 
 ## Calling off a whole correlation
 

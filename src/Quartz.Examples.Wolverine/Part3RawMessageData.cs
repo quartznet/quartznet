@@ -69,11 +69,13 @@ public static class Part3RawMessageData
             typeof(TMessage).ToMessageTypeName(),
             runtime.Options.DefaultSerializer.WriteMessage(message));
 
-        return await scheduler.ScheduleJob<DeferredEnvelopeJob, DeferredEnvelope>(
+        ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<DeferredEnvelopeJob, DeferredEnvelope>(
             envelope,
             delay,
             new OneOffJobOptions { Group = "deferred-envelopes" },
             cancellationToken);
+
+        return scheduled.TriggerKey;
     }
 }
 

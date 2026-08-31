@@ -189,7 +189,10 @@ of it:
 
 * **The job key says what runs.** One durable job per job type is enough, because a job detail is a
   definition rather than an occurrence. That is what the typed `ScheduleJob` overloads store, at
-  `(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)` — one row per job type, whatever the traffic.
+  `SchedulerJobExtensions.ScheduledJobKey<TJob>()` — which is
+  `(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)`, one row per job type whatever the traffic.
+  Ask for the key rather than re-deriving it: the group is reserved, and a library that also builds a
+  trigger of its own points it at that same job.
 * **The trigger key says which occurrence.** Its **name** is this one firing and its **group is the
   correlation id**: the saga, the conversation, the tenant. Everything scheduled for one of those shares a
   group and can be listed, paused or cancelled together.
@@ -215,9 +218,9 @@ public sealed class SendReminderJob(IReminderSink sink) : IJob<SendReminder>
 ```csharp
 public sealed class Conversations(IScheduler scheduler)
 {
-    public ValueTask<TriggerKey> Remind(SendReminder reminder, TimeSpan delay, CancellationToken cancellationToken)
+    public async ValueTask<TriggerKey> Remind(SendReminder reminder, TimeSpan delay, CancellationToken cancellationToken)
     {
-        return scheduler.ScheduleJob<SendReminderJob, SendReminder>(
+        ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<SendReminderJob, SendReminder>(
             reminder,
             delay,
             new OneOffJobOptions
@@ -229,6 +232,9 @@ public sealed class Conversations(IScheduler scheduler)
                 Replace = true
             },
             cancellationToken);
+
+        // The call answers with the key it stored and the time the store will first fire it at.
+        return scheduled.TriggerKey;
     }
 
     public ValueTask<bool> Cancel(TriggerKey firing, CancellationToken cancellationToken)
@@ -318,7 +324,7 @@ check and the write in which another node does the same thing. Both `ScheduleJob
 ```csharp
 ITrigger trigger = TriggerBuilder.Create<SendReminderJob>(scheduler.TimeProvider)
     .WithIdentity(reminder.MessageId, reminder.ConversationId)
-    .ForJob(new JobKey(nameof(SendReminderJob), SchedulerConstants.ScheduledJobGroup))
+    .ForJob(SchedulerJobExtensions.ScheduledJobKey<SendReminderJob>())
     .StartAt(at)
     .UsingInput(reminder)
     .Build();

@@ -541,12 +541,12 @@ public class SchedulerTest
     {
         await using IScheduler scheduler = await NewScheduler(nameof(TheOneLinerStoresOneDurableJobAndOneTriggerPerCall));
 
-        TriggerKey first = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture);
-        TriggerKey second = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("second"), FarFuture);
+        ScheduledOneOffJob first = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture);
+        ScheduledOneOffJob second = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("second"), FarFuture);
 
-        second.Should().NotBe(first, "a call with no name of its own gets a generated one, so two calls never collide");
+        second.TriggerKey.Should().NotBe(first.TriggerKey, "a call with no name of its own gets a generated one, so two calls never collide");
 
-        first.Group.Should().Be(nameof(ReminderJob),
+        first.TriggerKey.Group.Should().Be(nameof(ReminderJob),
             "the trigger group defaults to the job type, and is the axis a caller correlates firings on");
 
         IJobDetail job = await scheduler.GetJobDetail(new JobKey(nameof(ReminderJob), SchedulerConstants.ScheduledJobGroup));
@@ -556,7 +556,7 @@ public class SchedulerTest
         List<ITrigger> triggers = await scheduler.GetTriggersOfJob(job.Key);
         triggers.Should().HaveCount(2, "each call adds a trigger; there is no job churn to pay for");
 
-        ITrigger stored = await scheduler.GetTrigger(second);
+        ITrigger stored = await scheduler.GetTrigger(second.TriggerKey);
         stored.StartTimeUtc.Should().Be(FarFuture);
         stored.JobDataMap[SchedulerConstants.JobInput].Should().Be("""{"Note":"second"}""",
             "the payload rides on the trigger, so one job serves every firing");
@@ -570,15 +570,15 @@ public class SchedulerTest
         OneOffJobOptions options = new() { Name = "order-42", Group = "orders", Replace = true };
 
         await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture, options);
-        TriggerKey key = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("second"), FarFuture.AddDays(1), options);
+        ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("second"), FarFuture.AddDays(1), options);
 
-        key.Should().Be(new TriggerKey("order-42", "orders"));
+        scheduled.TriggerKey.Should().Be(new TriggerKey("order-42", "orders"));
 
         IJobDetail job = await scheduler.GetJobDetail(new JobKey(nameof(ReminderJob), SchedulerConstants.ScheduledJobGroup));
         (await scheduler.GetTriggersOfJob(job.Key)).Should().ContainSingle(
             "naming the firing and asking to replace is how a caller upserts it, in one call rather than three");
 
-        ITrigger stored = await scheduler.GetTrigger(key);
+        ITrigger stored = await scheduler.GetTrigger(scheduled.TriggerKey);
         stored.StartTimeUtc.Should().Be(FarFuture.AddDays(1));
         stored.JobDataMap[SchedulerConstants.JobInput].Should().Be("""{"Note":"second"}""");
     }
@@ -602,10 +602,10 @@ public class SchedulerTest
         await using IScheduler scheduler = await NewScheduler(nameof(TheOneLinerCanBeToldADelayInsteadOfATime));
 
         DateTimeOffset before = DateTimeOffset.UtcNow;
-        TriggerKey key = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("later"), TimeSpan.FromHours(2));
+        ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("later"), TimeSpan.FromHours(2));
         DateTimeOffset after = DateTimeOffset.UtcNow;
 
-        ITrigger stored = await scheduler.GetTrigger(key);
+        ITrigger stored = await scheduler.GetTrigger(scheduled.TriggerKey);
         stored.StartTimeUtc.Should().BeOnOrAfter(before.AddHours(2)).And.BeOnOrBefore(after.AddHours(2),
             "a delay is measured from the moment the call was made");
     }
@@ -622,11 +622,78 @@ public class SchedulerTest
         JobKey jobKey = new(nameof(ReminderJob), SchedulerConstants.ScheduledJobGroup);
         (await scheduler.DeleteJob(jobKey)).Should().BeTrue();
 
-        TriggerKey key = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("second"), FarFuture);
+        ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("second"), FarFuture);
 
         (await scheduler.GetJobDetail(jobKey)).Should().NotBeNull(
             "the memo is only an optimization: a store that says the job is missing gets it back and the firing is stored");
-        (await scheduler.GetTrigger(key)).Should().NotBeNull();
+        (await scheduler.GetTrigger(scheduled.TriggerKey)).Should().NotBeNull();
+    }
+
+    [Test]
+    public async Task TheOneLinerAnswersWithTheKeyItStoredAndTheTimeItWillFire()
+    {
+        await using IScheduler scheduler = await NewScheduler(nameof(TheOneLinerAnswersWithTheKeyItStoredAndTheTimeItWillFire));
+
+        ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture);
+
+        ITrigger stored = await scheduler.GetTrigger(scheduled.TriggerKey);
+        stored.Should().NotBeNull("the key it answers with is the key it stored, so the handle needs no lookup to be trusted");
+
+        scheduled.FirstFireTimeUtc.Should().Be(stored.NextFireTimeUtc,
+            "the fire time is the store's own answer, which is what makes 'scheduled for' something a caller can log rather than infer from the time it asked for");
+    }
+
+    [Test]
+    public async Task TheEnsuredJobIsTheOneScheduledJobKeyNames()
+    {
+        await using IScheduler scheduler = await NewScheduler(nameof(TheEnsuredJobIsTheOneScheduledJobKeyNames));
+
+        ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture);
+
+        JobKey key = SchedulerJobExtensions.ScheduledJobKey<ReminderJob>();
+        key.Group.Should().Be(SchedulerConstants.ScheduledJobGroup, "the group is reserved, which is why the key is named rather than re-derived");
+
+        (await scheduler.GetJobDetail(key)).Should().NotBeNull(
+            "the key the extension answers with is the key the durable job was actually stored under");
+
+        (await scheduler.GetTrigger(scheduled.TriggerKey)).JobKey.Should().Be(key,
+            "an integration pointing a schedule of its own at that job needs the same key the firings hang off");
+    }
+
+    [Test]
+    public async Task TheEnsuredJobRequestsRecoveryOnlyWhenAsked()
+    {
+        await using IScheduler quiet = await NewScheduler(nameof(TheEnsuredJobRequestsRecoveryOnlyWhenAsked) + "_quiet");
+        await quiet.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture);
+
+        (await quiet.GetJobDetail(SchedulerJobExtensions.ScheduledJobKey<ReminderJob>())).RequestsRecovery
+            .Should().BeFalse("the default is the builder's own, so nothing changes for a caller who says nothing");
+
+        await using IScheduler recovering = await NewScheduler(nameof(TheEnsuredJobRequestsRecoveryOnlyWhenAsked) + "_recovering");
+        await recovering.ScheduleJob<ReminderJob, Reminder>(
+            new Reminder("first"),
+            FarFuture,
+            new OneOffJobOptions { RequestRecovery = true });
+
+        (await recovering.GetJobDetail(SchedulerJobExtensions.ScheduledJobKey<ReminderJob>())).RequestsRecovery
+            .Should().BeTrue("the job every firing hangs off is the one thing the caller cannot otherwise reach, and recovery is a property of it");
+    }
+
+    [Test]
+    public async Task TheFirstCallDecidesWhetherTheEnsuredJobRequestsRecovery()
+    {
+        await using IScheduler scheduler = await NewScheduler(nameof(TheFirstCallDecidesWhetherTheEnsuredJobRequestsRecovery));
+
+        await scheduler.ScheduleJob<ReminderJob, Reminder>(
+            new Reminder("first"),
+            FarFuture,
+            new OneOffJobOptions { RequestRecovery = true });
+
+        await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("second"), FarFuture.AddDays(1));
+
+        (await scheduler.GetJobDetail(SchedulerJobExtensions.ScheduledJobKey<ReminderJob>())).RequestsRecovery
+            .Should().BeTrue(
+                "the job is ensured once per scheduler instance, so the second call does not store it again and cannot quietly undo what the first asked for");
     }
 
     [Test]

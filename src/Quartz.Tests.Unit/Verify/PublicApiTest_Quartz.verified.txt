@@ -940,6 +940,7 @@ namespace Quartz
     public static class JobExecutionContextInputExtensions
     {
         public static TInput? GetInput<TInput>(this Quartz.IJobExecutionContext context) { }
+        public static bool TryGetInput<TInput>(this Quartz.IJobExecutionContext context, out TInput? input) { }
     }
     public delegate System.Threading.Tasks.ValueTask JobExecutionDelegate(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken);
     public sealed class JobExecutionException : Quartz.SchedulerException
@@ -1157,6 +1158,7 @@ namespace Quartz
         public string? Name { get; init; }
         public int? Priority { get; init; }
         public bool Replace { get; init; }
+        public bool RequestRecovery { get; init; }
     }
     public sealed class OrMatcher<TKey> : Quartz.IMatcher<TKey>
         where TKey : Quartz.Key<TKey>
@@ -1525,6 +1527,12 @@ namespace Quartz
         public bool Replace { get; init; }
         public static Quartz.ScheduleJobOptions Replacing { get; }
     }
+    public readonly struct ScheduledOneOffJob : System.IEquatable<Quartz.ScheduledOneOffJob>
+    {
+        public ScheduledOneOffJob(Quartz.TriggerKey TriggerKey, System.DateTimeOffset FirstFireTimeUtc) { }
+        public System.DateTimeOffset FirstFireTimeUtc { get; init; }
+        public Quartz.TriggerKey TriggerKey { get; init; }
+    }
     public sealed class SchedulerConfigException : Quartz.SchedulerException
     {
         public SchedulerConfigException(string message) { }
@@ -1602,10 +1610,12 @@ namespace Quartz
     {
         public static System.Threading.Tasks.ValueTask<System.DateTimeOffset> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob>(this Quartz.IScheduler scheduler, Quartz.ITrigger trigger, System.Action<Quartz.IJobConfigurator<TJob>>? configure = null, System.Threading.CancellationToken cancellationToken = default)
             where TJob : Quartz.IJob { }
-        public static System.Threading.Tasks.ValueTask<Quartz.TriggerKey> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.IScheduler scheduler, TInput input, System.DateTimeOffset at, Quartz.OneOffJobOptions options = default, System.Threading.CancellationToken cancellationToken = default)
+        public static System.Threading.Tasks.ValueTask<Quartz.ScheduledOneOffJob> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.IScheduler scheduler, TInput input, System.DateTimeOffset at, Quartz.OneOffJobOptions options = default, System.Threading.CancellationToken cancellationToken = default)
             where TJob : Quartz.IJob<TInput> { }
-        public static System.Threading.Tasks.ValueTask<Quartz.TriggerKey> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.IScheduler scheduler, TInput input, System.TimeSpan delay, Quartz.OneOffJobOptions options = default, System.Threading.CancellationToken cancellationToken = default)
+        public static System.Threading.Tasks.ValueTask<Quartz.ScheduledOneOffJob> ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]  TJob, TInput>(this Quartz.IScheduler scheduler, TInput input, System.TimeSpan delay, Quartz.OneOffJobOptions options = default, System.Threading.CancellationToken cancellationToken = default)
             where TJob : Quartz.IJob<TInput> { }
+        public static Quartz.JobKey ScheduledJobKey<TJob>()
+            where TJob : Quartz.IJob { }
     }
     public sealed class SchedulerMetadata : System.IEquatable<Quartz.SchedulerMetadata>
     {
