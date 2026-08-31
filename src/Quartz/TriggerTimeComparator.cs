@@ -7,6 +7,24 @@ namespace Quartz;
 /// value first), if the priorities are the same, then they are sorted
 /// by key.
 /// </summary>
+/// <remarks>
+/// <para>
+/// The key is the tie-break and stays the key, even though a store holding many triggers on one fire
+/// time - one cron expression scheduled many times, which is the ordinary shape - then compares names
+/// at every level of its <see cref="SortedSet{T}" />. #3542 asked whether the cached key hash could
+/// stand in for the name there. It cannot: <c>TriggerTimeComparatorBenchmark</c>'s sorted-insert cases
+/// put an insert into a 50,000-trigger set at 174 ns when the fire times are equal against 73 ns when
+/// they differ, and a hash-first tie-break at 238 ns - slower than the comparison it was meant to
+/// save. Ordering by hash scatters keys that the ordinal order keeps adjacent, so the tree walk it
+/// lengthens costs more than the string comparison it skips.
+/// </para>
+/// <para>
+/// It would also stop the order being the same order twice. A string's hash is seeded per process, so
+/// the same triggers would sort one way in one run of a scheduler and another way in the next, while
+/// "same fire time, same priority, then by key" is a property the acquisition and misfire tests - and
+/// anyone reading a batch of triggers acquired at one instant - are written against.
+/// </para>
+/// </remarks>
 internal sealed class TriggerTimeComparator : IComparer<ITrigger>
 {
     public int Compare(ITrigger? trig1, ITrigger? trig2)

@@ -187,6 +187,7 @@ Recorded rather than acted on — #3538 asks for the measurement, not for an opt
   `CronScheduleNoParseException`, which constructs a second one. Two parses at 307 ns and 576 B each
   account for most of `BuildCronTrigger`'s 1,024 ns and 1,824 B, against `BuildSimpleTrigger`'s 98 ns
   and 616 B. `CronTriggerImpl.GetScheduleBuilder()` goes down the same path.
+  **Fixed in #3542** — see the next section.
 - **Most of the cron/simple gap in `ScheduleJob` is not cron.** The two cases differ by 5.9 µs, of
   which the build accounts for 0.9 µs. The rest is a property of the fixtures rather than of cron
   parsing: every one of the 50,000 cron triggers in an invocation is `0 0/5 * * * ?`, so they all
@@ -196,3 +197,45 @@ Recorded rather than acted on — #3538 asks for the measurement, not for an opt
   `trig1.Key.CompareTo(trig2.Key)`, which ends in `StringComparer.Ordinal.Compare` on the trigger
   name — a string comparison per level of the store's `SortedSet` on every insert. The published
   comparison uses the same single cron expression, so its 31 µs carries the same effect.
+  **The mechanism is real; the size was a guess and it was wrong** — #3542 measured it at about a
+  tenth of a microsecond a schedule, not microseconds. See the next section.
+
+## What #3542 changed (2026-08-31, same machine)
+
+Same box and runtime as above. The `ScheduleJobBenchmark` rows are not repeated here: on the day
+these were taken its `ScheduleJob_SimpleTrigger` row — which no part of #3542 can touch — read
+between 3.8 and 6.8 µs across four alternating runs, so that suite's `Mean` column was measuring the
+machine rather than the change. The suites below are tight enough to read.
+
+### A cron schedule is parsed once
+
+`JobAndTriggerBuilderBenchmark`, default job, alternating before/after runs.
+
+| Method                         |               Before |                After |
+|------------------------------- |---------------------:|---------------------:|
+| BuildCronTrigger               | 607-628 ns / 1,824 B | 365-385 ns / 1,248 B |
+| ReadCronScheduleBackOffTrigger |     678 ns / 1,776 B |        6.4 ns / 48 B |
+| BuildSimpleTrigger (control)   |    90-97 ns /  616 B |    90-97 ns /  616 B |
+
+`BuildCronTrigger` loses exactly one parse — 576 B, the `Parse_Simple` row above.
+`ReadCronScheduleBackOffTrigger` is new, and it loses both: a trigger already holds its parsed,
+immutable expression, so `GetScheduleBuilder` hands that instance over instead of sending the string
+back through the parser twice.
+
+### Equal fire times still compare names, deliberately
+
+`TriggerTimeComparatorBenchmark`'s sorted-insert cases, default job. One operation is one insert into
+a `SortedSet` that ends up holding 50,000 triggers, which is the depth `RAMJobStore` reaches in
+`ScheduleJobBenchmark`.
+
+| Method                                | Mean      | Allocated |
+|-------------------------------------- |----------:|----------:|
+| SortedInsert_DistinctFireTimes        |  73.07 ns |      48 B |
+| SortedInsert_OneFireTime              | 173.97 ns |      48 B |
+| SortedInsert_OneFireTime_HashTieBreak | 237.86 ns |      48 B |
+
+Sharing a fire time costs about 100 ns an insert, and #3542's proposed cure — tie-breaking on the
+key's cached hash before the name — costs 64 ns more than the disease. Ordering by hash scatters keys
+that the ordinal order keeps adjacent, so the tree walk it lengthens costs more than the string
+comparison it skips; and a string's hash is seeded per process, so the order would stop being the
+same order twice. The tie-break stays the key.
