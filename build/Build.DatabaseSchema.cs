@@ -636,7 +636,7 @@ partial class Build
         {
             body.AddRange(Target4X(dialect)
                 .Where(i => IndexTable(i) == table.Name)
-                .Select(i => $"KEY IDX_{{1}}{IndexSuffix(i)} ({i.Columns.Replace(" ", "")})"));
+                .Select(i => $"KEY IDX_{{1}}{IndexSuffix(i)} ({TightColumns(i.Columns)})"));
         }
 
         return body;
@@ -727,7 +727,7 @@ partial class Build
     {
         string name = $"IDX_{{1}}{IndexSuffix(index)}";
         string table = $"{{0}}{IndexTable(index)}";
-        string tight = index.Columns.Replace(" ", "");
+        string tight = TightColumns(index.Columns);
 
         switch (dialect)
         {

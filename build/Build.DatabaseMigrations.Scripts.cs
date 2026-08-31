@@ -80,25 +80,49 @@ partial class Build
     };
 
     /// <summary>
-    /// The 4.x index set. Uniform apart from the misfire index, which PostgreSQL and SQLite omit:
-    /// its second column only ever appears as <c>MISFIRE_INSTR &lt;&gt; -1</c>, which a btree cannot
-    /// use as a scan boundary. The other dialects keep it because the MySQL delegate FORCE INDEXes it.
+    /// The 4.x index set, before the two per-dialect differences <see cref="Target4X" /> applies: the
+    /// misfire index, which PostgreSQL and SQLite omit because its second column only ever appears as
+    /// <c>MISFIRE_INSTR &lt;&gt; -1</c> and a btree cannot use that as a scan boundary — the other
+    /// dialects keep it because the MySQL delegate FORCE INDEXes it — and the acquisition index, which
+    /// Firebird keeps at three columns because it can express nothing wider.
     /// </summary>
+    /// <remarks>
+    /// <c>IDX_QRTZ_T_NFT_ST</c> is the one acquisition runs on, and its last two columns are there
+    /// for a plan rather than for a predicate (#3510). Acquisition orders by
+    /// <c>NEXT_FIRE_TIME ASC, PRIORITY DESC</c>, so an index whose two directions match is one the
+    /// engine can take the first entry of instead of reading every candidate and sorting it —
+    /// measured on SQL Server at 5,000 due triggers, 21.6 ms and 20,395 logical reads become 0.6 ms
+    /// and 8. <c>MISFIRE_INSTR</c> then keeps that ordered seek from looking up a backlogged row it
+    /// is only going to reject: it makes the statement's <c>MISFIRE_INSTR</c>/<c>NEXT_FIRE_TIME</c>
+    /// disjunction index-resident, which is 20,401 reads down to 84 against a 5,000-row backlog.
+    /// The <c>ORDER BY</c> is unchanged; this is DDL alone.
+    /// </remarks>
     static readonly IndexDef[] Target4XAll =
     [
         new("IDX_QRTZ_J_G_N", TableJobs, "SCHED_NAME, JOB_GROUP, JOB_NAME"),
         new("IDX_QRTZ_T_J", TableTriggers, "SCHED_NAME, JOB_NAME, JOB_GROUP"),
         new("IDX_QRTZ_T_G_N", TableTriggers, "SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME"),
         new("IDX_QRTZ_T_C", TableTriggers, "SCHED_NAME, CALENDAR_NAME"),
-        new("IDX_QRTZ_T_NFT_ST", TableTriggers, "SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME"),
+        new("IDX_QRTZ_T_NFT_ST", TableTriggers, "SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR"),
         new("IDX_QRTZ_T_NFT_ST_MISFIRE", TableTriggers, "SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE"),
         new("IDX_QRTZ_FT_INST_JOB_REQ_RCVRY", TableFired, "SCHED_NAME, INSTANCE_NAME, REQUESTS_RECOVERY"),
         new("IDX_QRTZ_FT_J_G", TableFired, "SCHED_NAME, JOB_NAME, JOB_GROUP"),
         new("IDX_QRTZ_FT_T_G", TableFired, "SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP"),
     ];
 
+    /// <summary>The acquisition index as it ships on 3.x, which is the shape Firebird keeps.</summary>
+    const string AcquisitionIndexColumns3X = "SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME";
+
     static IndexDef[] Target4X(string dialect) => Target4XAll
         .Where(i => !(i.Name == "IDX_QRTZ_T_NFT_ST_MISFIRE" && dialect is "postgres" or "sqlite"))
+        // Firebird's indexes are ascending or descending as a whole, with no per-column direction, so
+        // it cannot express NEXT_FIRE_TIME ASC, PRIORITY DESC -- CREATE INDEX rejects the ASC token
+        // outright, and a COMPUTED BY column standing in for the negated priority cannot be indexed
+        // either. MISFIRE_INSTR is there to keep an ordered seek from looking a backlogged row up, and
+        // without the ordered seek it is only a wider entry, so Firebird keeps the index it ships with.
+        .Select(i => i.Name == "IDX_QRTZ_T_NFT_ST" && dialect == "firebird"
+            ? i with { Columns = AcquisitionIndexColumns3X }
+            : i)
         .ToArray();
 
     /// <summary>Every index name Quartz has ever created, plus PostgreSQL's older single-column ones.</summary>
@@ -117,9 +141,7 @@ partial class Build
     ];
 
     /// <summary>
-    /// The 3.16-era index shapes. A name that also exists in the target set but with a different
-    /// column list has to be dropped before it is recreated: <c>CREATE INDEX IF NOT EXISTS</c>
-    /// silently keeps the old, wrong shape. Only PostgreSQL has any — its 3.16 indexes omitted
+    /// The 3.16-era index shapes, for the dialect that has any: PostgreSQL's 3.16 indexes omitted
     /// <c>sched_name</c>, and <c>idx_qrtz_t_nft_st</c> had its two columns the wrong way round.
     /// </summary>
     static readonly Dictionary<string, IndexDef[]> Historical316 = new()
@@ -132,16 +154,34 @@ partial class Build
         ],
     };
 
+    /// <summary>
+    /// The indexes in <paramref name="target" /> whose name a database may already carry over a
+    /// different column list, and which therefore have to be dropped before they are created.
+    /// </summary>
+    /// <remarks>
+    /// Every <c>CREATE INDEX</c> here is guarded, and a guard keyed on the name alone cannot tell a
+    /// right-shaped index from a wrong-shaped one: <c>CREATE INDEX IF NOT EXISTS</c> finds the name
+    /// taken and silently keeps the old columns. Both index sets a database may be arriving from are
+    /// consulted — what the current 3.x script creates, and what 3.16 created before it — because a
+    /// shape that moved between 3.x and 4.x is as invisible to the guard as one that moved in 3.16.
+    /// </remarks>
     static IEnumerable<(string Name, string Table)> ReshapedIndexes(string dialect, IndexDef[] target)
     {
-        if (!Historical316.TryGetValue(dialect, out IndexDef[] history))
+        List<IndexDef> history = [];
+
+        if (Indexes3X.TryGetValue(dialect, out IndexDef[] shipped3X))
         {
-            yield break;
+            history.AddRange(shipped3X);
+        }
+
+        if (Historical316.TryGetValue(dialect, out IndexDef[] historical))
+        {
+            history.AddRange(historical);
         }
 
         foreach (IndexDef t in target)
         {
-            if (history.Any(h => h.Name == t.Name && h.Columns.Replace(" ", "") != t.Columns.Replace(" ", "")))
+            if (history.Any(h => h.Name == t.Name && TightColumns(h.Columns) != TightColumns(t.Columns)))
             {
                 yield return (t.Name, t.Table);
             }

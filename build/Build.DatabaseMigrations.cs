@@ -356,9 +356,21 @@ partial class Build
         }
     }
 
+    /// <summary>
+    /// A column list with the space after each comma taken out, for the dialects whose scripts are
+    /// written that way.
+    /// </summary>
+    /// <remarks>
+    /// Only the separators go. A column can carry a direction — <c>NEXT_FIRE_TIME ASC,
+    /// PRIORITY DESC</c> — and stripping every space in the list would weld the keyword onto the
+    /// name, which the database then reads as a column it does not have.
+    /// </remarks>
+    static string TightColumns(string columns) =>
+        string.Join(",", columns.Split(',').Select(c => c.Trim()));
+
     static string CreateIndex(string dialect, string name, string table, string columns)
     {
-        string tight = columns.Replace(" ", "");
+        string tight = TightColumns(columns);
 
         switch (dialect)
         {

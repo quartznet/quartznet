@@ -300,6 +300,31 @@ can drive a scan from. PostgreSQL gets the largest change: several of its indexe
 `SCHED_NAME`, which is the leading column of every predicate Quartz issues, so they could not serve
 a single-scheduler lookup at all.
 
+### The acquisition index is reshaped (optional)
+
+The same section also drops and recreates `IDX_QRTZ_T_NFT_ST`, the index acquisition runs on
+([#3510](https://github.com/quartznet/quartznet/issues/3510)):
+
+| | Table and columns |
+|---|---|
+| 3.x | `QRTZ_TRIGGERS(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME)` |
+| 4.x | `QRTZ_TRIGGERS(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)` |
+| 4.x, Firebird | `QRTZ_TRIGGERS(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME)` — unchanged |
+
+Acquisition orders by `NEXT_FIRE_TIME ASC, PRIORITY DESC`, so an index carrying both directions lets
+the engine take the first entry instead of reading every due trigger and sorting it: against 100,000
+triggers with 5,000 due, one acquisition on SQL Server goes from 21.6 ms and 20,395 logical reads to
+0.6 ms and 8. `MISFIRE_INSTR` keeps a backlog of misfired triggers from costing a table lookup per
+row skipped. The statement, and every acquisition contract around it, is unchanged — this is DDL
+alone. Firebird's indexes take one direction for the whole index, so it keeps the 3.x shape; see
+[Database Schema](db/index.md#indexes-and-the-acquisition-index-in-particular) for the numbers and
+the MySQL and Oracle footnotes.
+
+**If you built a 4.0 preview schema before this landed**, re-run
+`schema_30_to_40_upgrade_<database>.sql` — or at least its section 6. The index name did not change,
+so the script drops it before recreating it; a guarded `CREATE INDEX` on its own would find the name
+taken and keep the old three columns.
+
 Full table creation scripts for fresh installations are available in [database/tables/](https://github.com/quartznet/quartznet/tree/main/database/tables).
 
 ## Defaults that changed

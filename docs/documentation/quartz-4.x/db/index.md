@@ -112,48 +112,81 @@ trigger that does not exist. The stored states map onto it: `WAITING` and `ACQUI
 `Executing`, unless the row says it is deleted, in error or paused — those are reported as they stand.
 `TriggerStateResolver.Resolve` is that mapping, should you need it in code of your own.
 
-### Indexes, and the two columns that have none
+### Indexes, and the acquisition index in particular
 
 Four indexes ship on `QRTZ_TRIGGERS`, five on SQL Server, MySQL, Oracle and Firebird. Three are lookups
 by key — `(SCHED_NAME, JOB_NAME, JOB_GROUP)`, `(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)` and
-`(SCHED_NAME, CALENDAR_NAME)`. The fourth, `IDX_QRTZ_T_NFT_ST` over
-`(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME)`, is the one acquisition runs on. The fifth,
-`IDX_QRTZ_T_NFT_ST_MISFIRE`, serves the misfire sweep; PostgreSQL and SQLite omit it because
-`IDX_QRTZ_T_NFT_ST` already covers that predicate.
+`(SCHED_NAME, CALENDAR_NAME)`. The fifth, `IDX_QRTZ_T_NFT_ST_MISFIRE`, serves the misfire sweep;
+PostgreSQL and SQLite omit it because the fourth already covers that predicate.
 
-Two columns the scheduler reads on hot paths are in none of them: `PRIORITY`, the acquisition
-statement's second `ORDER BY` key, and `PREFERRED_NODE`, which node affinity filters and re-pins on.
-Whether either is worth covering was measured on PostgreSQL 15, SQL Server 2022 and MySQL 8.0 against
-100,000 triggers ([#3426](https://github.com/quartznet/quartznet/issues/3426)); the harness is
+That fourth one is `IDX_QRTZ_T_NFT_ST`, the index acquisition runs on, and it is the only index in the
+schema whose shape differs by dialect:
+
+```sql
+-- SQL Server, PostgreSQL, MySQL, Oracle, SQLite
+(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME ASC, PRIORITY DESC, MISFIRE_INSTR)
+
+-- Firebird
+(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME)
+```
+
+Its last two columns are there for a plan rather than for a predicate
+([#3510](https://github.com/quartznet/quartznet/issues/3510)). `SelectNextTriggerToAcquire` orders by
+`NEXT_FIRE_TIME ASC, PRIORITY DESC` and every dialect splices its row limit into that statement, so the
+`ORDER BY` decides which rows come back at all — the highest-priority trigger of a tied set, which is
+what `RAMJobStore` does too. An index whose two directions match lets the engine take the first entry
+instead of reading every candidate and sorting it:
+
+| 100,000 triggers, 5,000 due, one acquisition | SQL Server 2022 | MySQL 8.0 | PostgreSQL 15 | Firebird 4 |
+|---|---|---|---|---|
+| p50, three columns | 21.6 ms | 11.8 ms | 0.89 ms | 14.8 ms |
+| p50, shipped shape | **0.59 ms** | **0.69 ms** | 0.74 ms | 14.8 ms |
+| reads, three columns | 20,395 | 15,517 | 1,526 | 10,025 |
+| reads, shipped shape | **8** | **96** | **24** | 10,025 |
+| index size | +6.2 % | +13 % | +0.4 % | unchanged |
+
+`MISFIRE_INSTR` is the fifth column because the ordered seek starts at the oldest waiting trigger, and
+the statement's lower bound on `NEXT_FIRE_TIME` sits inside an `OR` with `MISFIRE_INSTR`, so it cannot
+narrow that seek. A backlog of misfired triggers below the acquisition window therefore sits in front of
+every acquisition, and each backlogged row the seek walks costs a lookup into the table to find out it
+is not wanted. That column makes the whole disjunction index-resident, so the rows are skipped inside
+the index: against a 5,000-row backlog on SQL Server, 20,401 logical reads become **84**, and on MySQL
+15,071 buffer reads become **117**. The statement is unchanged; the predicate never has to become
+sargable.
+
+**The one cell where this is slower than the three-column index** is a backlog with almost nothing due:
+several thousand misfired triggers below the window and a handful of candidates above it costs about
+3 ms against 1.5 ms. With several thousand *due* it is 3 ms against 30 ms, and backlogs drain. The trade
+is deliberate.
+
+Three things are worth knowing before you diff an index definition:
+
+- **Firebird keeps the three-column index.** Its indexes are ascending or descending as a whole, with no
+  per-column direction, so `CREATE INDEX` rejects the `ASC` token outright — and the usual workaround, a
+  computed column holding the negated priority, cannot be indexed there either (*attempt to index
+  COMPUTED BY column*). Acquisition on Firebird still materialises its candidates and sorts them —
+  the 10,025 index record reads in the table above, where every other engine reads under a hundred —
+  and nothing in the shipped schema fixes that. The one lever available is ordering by
+  `NEXT_FIRE_TIME` alone, which measures 3.2× faster and 345× cheaper there but changes which trigger
+  of a tied set fires first, so if this is costing you, open an issue with numbers rather than
+  patching your schema.
+- **MySQL before 8.0.1 and MariaDB before 10.8** parse `DESC` in an index definition and ignore it. That
+  is harmless and it silently buys nothing.
+- **Oracle** makes a descending key column into a function-based index, so `USER_IND_COLUMNS` shows a
+  hidden `SYS_NC000nn$` at that position with `DESC` as its direction. Expected, not a defect.
+
+`PREFERRED_NODE`, which node affinity filters and re-pins on, is in no index at all. That was measured
+on PostgreSQL 15, SQL Server 2022 and MySQL 8.0 against 100,000 triggers
+([#3426](https://github.com/quartznet/quartznet/issues/3426)); the harness is
 [`AcquisitionIndexBenchmark`](https://github.com/quartznet/quartznet/blob/main/src/Quartz.Benchmark/AcquisitionIndexBenchmark.cs),
-which prints the plans again on demand. **The schema is unchanged as a result, and these are the numbers
-that say why.**
-
-**Appending `PRIORITY` to the acquisition index changes nothing.** The plan comes back operator for
-operator on all three engines — PostgreSQL still runs its incremental sort, SQL Server still reads 4,319
-pages of `QRTZ_TRIGGERS`, MySQL still sorts 5,000 rows — because the statement orders by
-`NEXT_FIRE_TIME ASC, PRIORITY DESC`, and an ascending trailing column cannot deliver two directions. The
-obvious index costs four bytes an entry and buys nothing.
-
-**Declaring that column `PRIORITY DESC` is a different matter, and it is a large win.** With the two
-directions matching, the engine takes the first index entry rather than materialising every candidate
-and sorting: SQL Server goes from 4,319 logical reads to 8, MySQL from a 5,000-row sort at 39 ms to a
-one-row read at 0.1 ms, PostgreSQL from 371 buffers at 0.52 ms to 7 at 0.15 ms. It is not adopted here,
-for two reasons worth knowing before you add it by hand:
-
-- Firebird cannot express it. Its indexes are ascending or descending as a whole, with no per-column
-  direction, so the one schema in the set that cannot take it is also the one with no workaround. MySQL
-  before 8.0 and MariaDB before 10.8 parse `DESC` in an index definition and ignore it, which is
-  harmless but silently buys nothing.
-- The plan it produces is a seek from the oldest waiting trigger, and the statement's lower bound on
-  `NEXT_FIRE_TIME` sits inside an `OR` with `MISFIRE_INSTR`, so it cannot narrow that seek. A backlog of
-  misfired triggers therefore sits in front of every acquisition: against a 5,000-row backlog on SQL
-  Server the descending index read 20,410 pages where the shipped one read 4,319. Backlogs drain, but
-  the index wants that predicate made sargable beside it.
+which prints the plans again on demand.
 
 **An index on `PREFERRED_NODE` does nothing for acquisition.** The node-affinity filter is a
 disjunction — unpinned, *or* pinned here, *or* pinned to a node that has stopped checking in — and no
-B-tree serves an `OR`. The plan is unchanged on all three engines with the index in place. What it does
+B-tree serves an `OR`. The plan is unchanged on all three engines with the index in place. Nor does
+adding it to the acquisition index help: it buys nothing over `MISFIRE_INSTR` alone on SQL Server and
+MySQL, and it makes PostgreSQL's backlog case measurably worse — 660 shared buffers against 408 — since
+a wider entry is more index pages to walk. What it does
 change is the failover re-pin, the one `UPDATE` `ClusterRecover` issues per dead node: from a full scan
 (PostgreSQL 8.4 ms, SQL Server 4,319 logical reads, MySQL around 88 ms) to a seek of two or three pages.
 That statement runs once per node failure, so a permanent write cost on the busiest table in the schema

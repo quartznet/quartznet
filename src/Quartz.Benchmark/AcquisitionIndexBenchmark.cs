@@ -21,7 +21,12 @@ namespace Quartz.Benchmark;
 /// </remarks>
 public enum AcquisitionIndexShape
 {
-    /// <summary>What <c>database/tables/</c> ships: <c>(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME)</c>.</summary>
+    /// <summary>
+    /// <c>(SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME)</c>, which is what 3.x ships and what 4.x
+    /// shipped until <see href="https://github.com/quartznet/quartznet/issues/3510">#3510</see>. It is
+    /// the baseline every other arm is measured against, so it keeps its name rather than tracking
+    /// <c>database/tables/</c>; Firebird still ships exactly this, because it can express nothing else.
+    /// </summary>
     Shipped,
 
     /// <summary><c>PRIORITY</c> appended ascending, which is the change the issue proposes.</summary>
@@ -32,12 +37,15 @@ public enum AcquisitionIndexShape
     /// <c>NEXT_FIRE_TIME ASC, PRIORITY DESC</c>, and only an index whose columns are sorted the same
     /// two ways can deliver that order without a sort — an ascending trailing column cannot, on any of
     /// these engines. If appending <c>PRIORITY</c> is ever going to pay, this is the form that does it.
+    /// It did, and #3510 adopted it with a trailing <c>MISFIRE_INSTR</c> beside it; the column that
+    /// makes the difference is this one, and the misfire-backlog case the fifth column answers is not
+    /// seeded here.
     /// </summary>
     TrailingPriorityDescending,
 
     /// <summary>
-    /// The shipped acquisition index, plus <c>(SCHED_NAME, PREFERRED_NODE, PREFERRED_NODE_AUTO)</c> for
-    /// the node-affinity paths.
+    /// The baseline acquisition index, plus <c>(SCHED_NAME, PREFERRED_NODE, PREFERRED_NODE_AUTO)</c>
+    /// for the node-affinity paths.
     /// </summary>
     PreferredNode,
 }
