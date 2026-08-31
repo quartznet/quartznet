@@ -4572,7 +4572,15 @@ The cron expression parser now supports additional syntax:
 
 * `L` and `LW` combinations in day-of-month expressions (e.g., `LW` for last weekday of the month)
 * `LW-<OFFSET>` for offset from the last weekday (e.g., `LW-2` for two days before the last weekday). If the calculated day crosses a month boundary, it resets to the 1st.
-* Day-of-month and day-of-week can now be specified together in the same expression
+* Day-of-month and day-of-week can be specified together. A field written `*` or `?` **restricts
+  nothing**, so the other field decides: `0 15 10 1 * *` is the 1st of the month, and
+  `0 15 10 * * MON` is every Monday. When **both** fields name days, the expression fires on the union
+  of the two — `0 15 10 1,2,3 * MON,FRI` is the 1st, 2nd and 3rd **and** every Monday and Friday.
+  This is the Unix `crontab(5)` rule. It is deliberately **not** Cronos's, which ANDs even when both
+  fields are restricted; the union is what Quartz has always documented and what 4.0 alpha shipped.
+  `?` and `*` are now full synonyms in a day field, so `? * ?` is legal and means every day.
+  **Changed since alpha.4:** an expression with a wildcard in one day field and values in the other
+  fired on every day of the month; it now fires only on the days the restricted field names.
 * `H` (hash) tokens for [load distribution](cron-expressions.md#h-hash-for-load-distribution) across triggers
 
 Parse errors name the fix instead of only the constraint. A 5-field Unix/crontab expression — the shape every

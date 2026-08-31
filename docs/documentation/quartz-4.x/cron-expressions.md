@@ -44,9 +44,9 @@ NOTE: There are many cron standards/implementations. The results from some gener
 ## Special characters
 
 * `*` ("all values") - used to select all values within a field. For example, `*` in the minute field means "every minute".
-* `?` ("no specific value") - useful when you need to specify something in one of the two fields in which the character is allowed, but not the other.
-For example, if I want my trigger to fire on a particular day of the month (say, the 10th), but don't care what day of the week that happens to be,
-I would put `10` in the day-of-month field, and `?` in the day-of-week field. See the examples below for clarification.
+* `?` ("no specific value") - allowed in the day-of-month and day-of-week fields, where it is a synonym for `*`: both say that the field names no days.
+Use it when you need to specify something in one of the two fields but not the other. For example, if I want my trigger to fire on a particular day of the month (say, the 10th),
+but don't care what day of the week that happens to be, I would put `10` in the day-of-month field, and `?` in the day-of-week field. See the examples below for clarification.
 * `-` - used to specify ranges. For example, `10-12` in the hour field means "the hours 10, 11 and 12".
 * `,` - used to specify additional values. For example, `MON,WED,FRI` in the day-of-week field means "the days Monday, Wednesday, and Friday".
 * `/` - used to specify increments. For example, `0/15` in the seconds field means "the seconds 0, 15, 30, and 45".
@@ -248,7 +248,13 @@ Here are some full examples:
 | `0 H/15 * * * ?`           | Fire every 15 minutes, starting from a hash-derived offset                                                                          |
 
 ::: tip
-Pay attention to the effects of '?' and '*' in the day-of-week and day-of-month fields!
+Pay attention to the effects of `?` and `*` in the day-of-week and day-of-month fields. A day field
+written exactly `*` or `?` names no days, so it restricts nothing and the other day field decides:
+`0 15 10 1 * *` fires on the 1st of the month, and `0 15 10 * * MON` fires every Monday. Only when
+**both** fields name days does the expression fire on the union of the two, as
+`0 15 10 1,2,3 * MON,FRI` above does; when neither names days, every day matches. This is the Unix
+`crontab(5)` rule - some other cron implementations intersect the two fields instead, so an expression
+copied from one of those fires more often here than it did there.
 :::
 
 ## Notes

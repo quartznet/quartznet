@@ -323,10 +323,12 @@ public class CronExpressionDifferentialTest
     /// <remarks>
     /// The membership rule is this file's own arithmetic, so a field parsed into the wrong set is caught
     /// as well as a search that lands in the wrong place. The generated grammar is deliberately the part
-    /// the worked examples cover thinnest: wrapping ranges in every field, step values, and the
-    /// day-of-week forms — a plain set, <c>d#n</c> and <c>dL</c>. The day-of-month special forms are left
-    /// out because <see cref="GetNextValidTimeAfter_MatchesBruteForce_LastDayAndWeekday" /> already walks
-    /// those against a reference of their own.
+    /// the worked examples cover thinnest: wrapping ranges in every field, step values, the
+    /// day-of-week forms — a plain set, <c>d#n</c> and <c>dL</c> — and expressions that fill
+    /// <em>both</em> day fields, which is where the day rule decides between deferring to one field and
+    /// unioning the two. The day-of-month special forms are left out because
+    /// <see cref="GetNextValidTimeAfter_MatchesBruteForce_LastDayAndWeekday" /> already walks those
+    /// against a reference of their own.
     /// </remarks>
     /// <param name="seed">
     /// Fixed, and part of the case name: a fuzz that draws from the clock reports a failure nobody can
@@ -479,18 +481,45 @@ public class CronExpressionDifferentialTest
         string dayOfWeekToken;
         Func<DateTimeOffset, bool> dayMatches;
 
-        // Exactly one of the two day fields carries a value and the other a '?', which is the only
-        // combination Quartz reads without complaint.
-        if (random.Next(2) == 0)
+        // Three shapes: a day-of-week with '?' opposite it, a day-of-month with '?' opposite it, and
+        // both fields filled. The third is the one that reaches the union branch, and because either
+        // field can come out a wildcard it reaches the whole 2x2 of the day rule rather than only the
+        // union: a field written '*' or '?' names no days, so the other decides; two fields that both
+        // name days are unioned; two that name none match every day.
+        switch (random.Next(3))
         {
-            (dayOfWeekToken, dayMatches) = NextDayOfWeek(random);
-            dayOfMonthToken = "?";
-        }
-        else
-        {
-            (dayOfMonthToken, HashSet<int> daysOfMonth) = NextField(random, 1, 31);
-            dayMatches = moment => daysOfMonth.Contains(moment.Day);
-            dayOfWeekToken = "?";
+            case 0:
+            {
+                (dayOfWeekToken, dayMatches) = NextDayOfWeek(random);
+                dayOfMonthToken = "?";
+                break;
+            }
+
+            case 1:
+            {
+                (dayOfMonthToken, HashSet<int> daysOfMonth) = NextField(random, 1, 31);
+                dayMatches = moment => daysOfMonth.Contains(moment.Day);
+                dayOfWeekToken = "?";
+                break;
+            }
+
+            default:
+            {
+                (dayOfMonthToken, HashSet<int> daysOfMonth) = NextField(random, 1, 31);
+                (dayOfWeekToken, Func<DateTimeOffset, bool> dayOfWeekMatches) = NextDayOfWeek(random);
+
+                bool dayOfMonthRestricted = RestrictsDays(dayOfMonthToken);
+                bool dayOfWeekRestricted = RestrictsDays(dayOfWeekToken);
+
+                dayMatches = dayOfMonthRestricted && dayOfWeekRestricted
+                    ? moment => daysOfMonth.Contains(moment.Day) || dayOfWeekMatches(moment)
+                    : dayOfMonthRestricted
+                        ? moment => daysOfMonth.Contains(moment.Day)
+                        : dayOfWeekRestricted
+                            ? dayOfWeekMatches
+                            : _ => true;
+                break;
+            }
         }
 
         return new GeneratedExpression
@@ -503,6 +532,12 @@ public class CronExpressionDifferentialTest
             DayMatches = dayMatches
         };
     }
+
+    /// <summary>
+    /// Whether a day field names days. Written out here rather than asked of <see cref="CronExpression" />,
+    /// because a reference rule that reads its answer out of the class under test proves nothing.
+    /// </summary>
+    private static bool RestrictsDays(string token) => token is not ("*" or "?");
 
     private static (string Token, Func<DateTimeOffset, bool> Matches) NextDayOfWeek(Random random)
     {

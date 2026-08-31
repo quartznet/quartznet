@@ -106,8 +106,10 @@ namespace Quartz;
 /// </para>
 /// <para>
 /// The '?' character is allowed for the day-of-month and day-of-week fields. It
-/// is used to specify 'no specific value'. This is useful when you need to
-/// specify something in one of the two fields, but not the other.
+/// is used to specify 'no specific value', and is a synonym for '*' there: both
+/// say that the field names no days, so the other field decides. When both day
+/// fields name days the expression fires on the union of the two, and when
+/// neither does it fires every day.
 /// </para>
 /// <para>
 /// The '-' character is used to specify ranges. For example &quot;10-12&quot; in
@@ -977,6 +979,12 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         hasIntervalSemantics = false;
     }
 
+    /// <summary>
+    /// Stores a '?' day field. '?' says "no opinion about this field", which is what '*' says too, so
+    /// the two are stored as the same thing: the wildcard. That makes '?' walkable — a field stored as
+    /// the '?' sentinel has no values to advance through — and it makes '? * ?' mean every day rather
+    /// than being a spelling the parser refuses. '?' remains legal only in the two day fields.
+    /// </summary>
     private void StoreExpressionQuestionMark(int type, ReadOnlySpan<char> s, int i)
     {
         i++;
@@ -990,16 +998,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             Throw.FormatException("'?' can only be specified for Day-of-Month or Day-of-Week.");
         }
 
-        if (type == CronExpressionConstants.DayOfWeek && lastDaySpecs is null)
-        {
-            var val = daysOfMonth.LastOrDefault();
-            if (val == CronExpressionConstants.NoSpec)
-            {
-                Throw.FormatException("'?' can only be specified for Day-of-Month -OR- Day-of-Week.");
-            }
-        }
-
-        AddToSet(CronExpressionConstants.NoSpec, -1, 0, type);
+        AddToSet(CronExpressionConstants.AllSpec, -1, 0, type);
     }
 
     private void StoreExpressionStarOrSlash(int type, ReadOnlySpan<char> s, int i)
@@ -2299,19 +2298,40 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     }
 
     /// <summary>
+    /// A day field written exactly '*' or '?' names no days, so it restricts nothing. Anything else -
+    /// a list, a range, a step, 'L', 'W', '#', 'nL' - names days, and restricts.
+    /// </summary>
+    /// <remarks>
+    /// 'L', 'W' and the 'L-n' family add no values to the field; they are held in
+    /// <c>lastDaySpecs</c>/<c>nearestWeekdays</c> and resolved per month. The field is therefore empty of
+    /// both bits and markers for them, which reads as restricted - correct, and it needs no special case.
+    /// </remarks>
+    private static bool IsRestrictedDayField(CronField field)
+    {
+        return !field.Contains(CronExpressionConstants.AllSpec) && !field.Contains(CronExpressionConstants.NoSpec);
+    }
+
+    /// <summary>
     /// Progress next fire time day
     /// </summary>
+    /// <remarks>
+    /// A field that restricts nothing defers to the other one, and only two fields that both name days
+    /// are unioned. This is the Unix <c>crontab(5)</c> rule: <c>0 15 10 1 * *</c> is the 1st of the
+    /// month, <c>0 15 10 * * MON</c> is every Monday, and <c>0 15 10 1 * MON</c> is both. When neither
+    /// field restricts, every day matches, and walking the unrestricted day-of-month field leaves the
+    /// cursor exactly where it is - which is what "every day" means to the caller.
+    /// </remarks>
     /// <param name="d">NextFireTimeCheck</param>
     private NextFireTimeCursor ProgressNextFireTimeDay(DateTimeOffset d)
     {
-        var dayOfMSpec = !daysOfMonth.Contains(CronExpressionConstants.NoSpec);
-        var dayOfWSpec = !daysOfWeek.Contains(CronExpressionConstants.NoSpec);
-        if (dayOfMSpec && !dayOfWSpec)
+        bool dayOfMonthRestricted = IsRestrictedDayField(daysOfMonth);
+        bool dayOfWeekRestricted = IsRestrictedDayField(daysOfWeek);
+        if (!dayOfWeekRestricted)
         {
             return ProgressNextFireTimeDayOfMonth(d);
         }
 
-        if (dayOfWSpec && !dayOfMSpec)
+        if (!dayOfMonthRestricted)
         {
             return ProgressNextFireTimeDayOfWeek(d);
         }

@@ -359,7 +359,9 @@ public class CronExpressionBuilderTest
                 (from, to) => builder.WithMonthRange(from, to),
                 (from, increment) => builder.WithMonthIncrements(from, increment));
 
-            // The builder refuses to configure both day fields, exactly as the parser refuses to read both.
+            // The builder refuses to configure both day fields, so exactly one of them is drawn. The
+            // parser reads both, but the builder has never offered a way to say which days the union
+            // should hold.
             bool useDayOfWeek = random.Next(2) == 0;
             HashSet<int> daysOfMonth = [];
             HashSet<int> daysOfWeek = [];
@@ -403,15 +405,17 @@ public class CronExpressionBuilderTest
             parsed.GetSet(CronExpressionConstants.Month).Should().BeEquivalentTo(months, "expression '{0}'", text);
             parsed.GetSet(CronExpressionConstants.Year).Should().BeEquivalentTo(years, "expression '{0}'", text);
 
+            // The builder renders the unused day field as '?', which the parser stores as the wildcard:
+            // '?' and '*' are the same statement about a day field, so they are held the same way.
             if (useDayOfWeek)
             {
                 parsed.GetSet(CronExpressionConstants.DayOfWeek).Should().BeEquivalentTo(daysOfWeek, "expression '{0}'", text);
-                parsed.GetSet(CronExpressionConstants.DayOfMonth).Should().Equal([CronExpressionConstants.NoSpec], "expression '{0}'", text);
+                parsed.GetSet(CronExpressionConstants.DayOfMonth).Should().Equal([CronExpressionConstants.AllSpec], "expression '{0}'", text);
             }
             else
             {
                 parsed.GetSet(CronExpressionConstants.DayOfMonth).Should().BeEquivalentTo(daysOfMonth, "expression '{0}'", text);
-                parsed.GetSet(CronExpressionConstants.DayOfWeek).Should().Equal([CronExpressionConstants.NoSpec], "expression '{0}'", text);
+                parsed.GetSet(CronExpressionConstants.DayOfWeek).Should().Equal([CronExpressionConstants.AllSpec], "expression '{0}'", text);
             }
         }
     }

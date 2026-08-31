@@ -207,11 +207,42 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         return numbers.ToArray();
     }
 
+    /// <summary>
+    /// The whole 2x2 of the day rule. A day field written exactly '*' or '?' names no days, so it
+    /// restricts nothing and the other field decides; only when both fields name days are the two
+    /// unioned. October 2010 starts on a Friday and ends on a Sunday, which is what makes every
+    /// weekday form below land on a day the reason string can spell.
+    /// </summary>
+    // Both fields name days: the expression fires on the union of the two.
     [TestCase("0 15 10 5/5 * MON 2010", new[] { 4, 11, 18, 25, 5, 10, 15, 20, 25, 30 }, "10:15am every 5th day of the month from 5 to 31, and on Mondays in October 2010")]
     [TestCase("0 15 10 3 * MON,THU,FRI 2010", new[] { 1, 3, 4, 11, 18, 25, 7, 14, 21, 28, 8, 15, 22, 29 }, "10:15am 3rd of month and every mon,thu,fri October 2010")]
     [TestCase("0 15 10 1,2,3,4,5,6 * MON,THU,FRI 2010", new[] { 1, 2, 3, 4, 5, 6, 11, 18, 25, 7, 14, 21, 28, 8, 15, 22, 29 }, "10:15am 1-6th of mon and every Mon,Thu,Fri October 2010")]
-    [TestCase("0 15 10 * * MON,THU,FRI 2010", new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 }, "10:15am EveryDay of Month October 2010, Wildcard specified")]
-    [TestCase("0 15 10 1 * * 2010", new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 }, "10:15am Every Day of Month October 2010, Wildcard specified")]
+
+    // One field names days and the other does not: the one that does decides.
+    [TestCase("0 15 10 * * MON,THU,FRI 2010", new[] { 1, 4, 7, 8, 11, 14, 15, 18, 21, 22, 25, 28, 29 },
+        "10:15am every Mon, Thu, Fri in October 2010 - a wildcard day-of-month restricts nothing, so day-of-week decides")]
+    [TestCase("0 15 10 1 * * 2010", new[] { 1 },
+        "10:15am on the 1st of October 2010 - a wildcard day-of-week restricts nothing, so day-of-month decides")]
+    [TestCase("0 15 10 ? * MON,THU,FRI 2010", new[] { 1, 4, 7, 8, 11, 14, 15, 18, 21, 22, 25, 28, 29 },
+        "'?' and '*' say the same thing, so this is the wildcard day-of-month case spelled the older way")]
+    [TestCase("0 15 10 1 * ? 2010", new[] { 1 },
+        "'?' and '*' say the same thing, so this is the wildcard day-of-week case spelled the older way")]
+
+    // Neither field names days: every day.
+    [TestCase("0 15 10 * * ? 2010", new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 },
+        "neither field restricts")]
+    [TestCase("0 15 10 ? * * 2010", new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 },
+        "neither field restricts")]
+    [TestCase("0 15 10 * * * 2010", new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 },
+        "two wildcards spelled the same way")]
+    [TestCase("0 15 10 ? * ? 2010", new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 },
+        "two wildcards spelled the same way")]
+
+    // The special day forms name days, so they restrict, and the wildcard opposite them yields.
+    [TestCase("0 15 10 L * * 2010", new[] { 31 }, "'L' restricts, so the wildcard day-of-week yields")]
+    [TestCase("0 15 10 15W * * 2010", new[] { 15 }, "'W' restricts - 15 Oct 2010 is a Friday, so it needs no shift")]
+    [TestCase("0 15 10 * * 6#3 2010", new[] { 15 }, "'#' restricts - the third Friday of October 2010")]
+    [TestCase("0 15 10 * * 6L 2010", new[] { 29 }, "'dL' restricts - the last Friday of October 2010")]
     public void CanUse_DayOfMonth_And_DayOfWeek_Together(string cronExpression, int[] expectedDays, string scenario = "")
     {
         var expr = new CronExpression(cronExpression, TimeZoneInfo.Utc);
@@ -463,6 +494,24 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         Action act = () => new CronExpression($"0 0 * * * ?{allowedChar}");
         act.Should().NotThrow();
+    }
+
+    /// <summary>
+    /// '?' says the same thing as '*' in the two day fields, and is accepted in no other field. Some
+    /// other implementations take it anywhere; that is surface with no demand behind it, and this test
+    /// is here because the sibling rule - '?' in only one of the two day fields - was dropped when the
+    /// two spellings became synonyms, and the survivor should not go with it by accident.
+    /// </summary>
+    [TestCase("? 0 12 * * ?", "seconds")]
+    [TestCase("0 ? 12 * * ?", "minutes")]
+    [TestCase("0 0 ? * * ?", "hours")]
+    [TestCase("0 0 12 * ? ?", "month")]
+    [TestCase("0 0 12 * * ? ?", "year")]
+    public void QuestionMark_IsRejectedOutsideTheTwoDayFields(string cronExpression, string field)
+    {
+        Action act = () => new CronExpression(cronExpression);
+        act.Should().Throw<FormatException>("'?' has never been legal in the {0} field", field)
+            .WithMessage("*Day-of-Month or Day-of-Week*");
     }
 
     [Test]
@@ -1120,7 +1169,7 @@ minutes: 15
 hours: 15
 daysOfMonth: 5
 months: 11
-daysOfWeek: ?
+daysOfWeek: *
 lastdayOfWeek: False
 nearestWeekday: False
 NthDayOfWeek: 0
