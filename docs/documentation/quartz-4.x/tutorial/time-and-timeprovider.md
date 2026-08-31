@@ -72,7 +72,7 @@ Everything the container builds for a scheduler gets that scheduler's clock:
 |---|---|
 | `QuartzScheduler` / the scheduling loop | deciding whether a trigger is due, `StartDelayed` |
 | `RAMJobStore` | fire times, misfire detection |
-| `AdoJobStoreBase` and its subclasses | the same, plus retry backoff |
+| The ADO.NET store | the same, plus retry backoff |
 | `IDriverDelegate` (via `DriverDelegateContext.TimeProvider`) | timestamps written to the database |
 | `ILockHandler` (via `LockHandlerContext.TimeProvider`) | lock-acquisition backoff |
 | `MisfireHandler` | its scan interval |

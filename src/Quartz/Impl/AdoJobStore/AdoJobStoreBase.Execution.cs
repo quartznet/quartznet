@@ -25,7 +25,7 @@ using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Impl.AdoJobStore;
 
-public abstract partial class AdoJobStoreBase
+internal abstract partial class AdoJobStoreBase
 {
     protected abstract ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default);
 
@@ -233,7 +233,7 @@ public abstract partial class AdoJobStoreBase
         }
     }
 
-    protected internal ValueTask SignalSchedulingChangeImmediately(
+    internal ValueTask SignalSchedulingChangeImmediately(
         DateTimeOffset? candidateNewNextFireTime,
         CancellationToken cancellationToken = default)
     {

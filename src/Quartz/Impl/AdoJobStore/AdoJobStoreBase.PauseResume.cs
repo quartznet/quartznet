@@ -23,7 +23,7 @@ using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
 
-public abstract partial class AdoJobStoreBase
+internal abstract partial class AdoJobStoreBase
 {
     /// <summary>
     /// Folds the paused state of a trigger's group into the state about to be stored for it.

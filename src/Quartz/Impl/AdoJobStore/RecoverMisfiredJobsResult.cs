@@ -11,7 +11,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <param name="EarliestNewTimeUtc">
 /// The earliest next fire time the pass produced, which is when the scheduler is signalled to look again.
 /// </param>
-public sealed record RecoverMisfiredJobsResult(
+internal sealed record RecoverMisfiredJobsResult(
     bool HasMoreMisfiredTriggers,
     int ProcessedMisfiredTriggerCount,
     DateTimeOffset EarliestNewTimeUtc)

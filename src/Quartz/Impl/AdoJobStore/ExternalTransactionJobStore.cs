@@ -43,7 +43,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>James House</author>
 /// <author>Srinivas Venkatarangaiah</author>
 /// <author>Marko Lahma (.NET)</author>
-public class ExternalTransactionJobStore : AdoJobStoreBase
+internal class ExternalTransactionJobStore : AdoJobStoreBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ExternalTransactionJobStore"/> class.

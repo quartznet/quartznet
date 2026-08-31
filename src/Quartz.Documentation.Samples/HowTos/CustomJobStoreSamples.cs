@@ -2,12 +2,9 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 using Quartz.Extensibility;
 using Quartz.Impl;
-using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Documentation.Samples.HowTos;
 
@@ -66,61 +63,49 @@ public sealed class MetricsJobStore(IJobStore inner, IMeterFactory meters) : Del
 
 #endregion
 
-#region sample_custom_job_store_dependencies
+#region sample_custom_job_store_acquisition_budget
 
-public sealed class MyAdoJobStore(AdoJobStoreDependencies dependencies)
-    : LocalTransactionJobStore(dependencies)
+public sealed class BudgetedJobStore(IJobStore inner, int nodeBudget) : DelegatingJobStore(inner)
 {
-    // ...
+    public override ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return base.AcquireNextTriggers(
+            request with { MaxCount = Math.Min(request.MaxCount, nodeBudget) },
+            cancellationToken);
+    }
 }
 
 #endregion
 
-/// <summary>
-/// Scaffolding for the one member the page shows: the constructor is
-/// <see cref="MyAdoJobStore" />'s, and none of that belongs on the page twice.
-/// </summary>
-internal sealed class BudgetedJobStore(AdoJobStoreDependencies dependencies)
-    : LocalTransactionJobStore(dependencies)
+#region sample_custom_job_store_excluded_job_types
+
+public sealed class MaintenanceWindowJobStore(IJobStore inner, IMaintenanceWindow window)
+    : DelegatingJobStore(inner)
 {
-    private readonly int nodeBudget = 5;
-
-    #region sample_custom_job_store_acquisition_criteria
-
-    protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
-    {
-        TriggerAcquisitionCriteria criteria = base.CreateAcquisitionCriteria(request);
-        return criteria with { MaxCount = Math.Min(criteria.MaxCount, this.nodeBudget) };
-    }
-
-    #endregion
-}
-
-/// <summary>
-/// The same scaffolding as <see cref="BudgetedJobStore" />, for the second override the page shows.
-/// </summary>
-internal sealed class MaintenanceWindowJobStore(AdoJobStoreDependencies dependencies)
-    : LocalTransactionJobStore(dependencies)
-{
-    private readonly IMaintenanceWindow maintenanceWindow = null!;
-
-    #region sample_custom_job_store_excluded_job_types
-
     // JobType.FullName is the spelling the store persists - "Namespace.TypeName, AssemblyName".
     // Type.FullName carries no assembly name and would never match a stored row.
     private static readonly string reportingJobTypeName = new JobType(typeof(ReportingJob)).FullName;
 
-    protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
+    public override ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
     {
-        // Asked again on every acquisition attempt, so a window that opens between two of them takes
-        // effect on the next one without restarting anything.
-        string[]? excluded = this.maintenanceWindow.IsOpen ? [reportingJobTypeName] : null;
+        // Asked again on every acquisition, so a window that opens between two of them takes effect on
+        // the next one without restarting anything.
+        if (!window.IsOpen)
+        {
+            return base.AcquireNextTriggers(request, cancellationToken);
+        }
 
-        return base.CreateAcquisitionCriteria(request) with { ExcludedJobTypeNames = excluded };
+        return base.AcquireNextTriggers(
+            request with { ExcludedJobTypeNames = [reportingJobTypeName] },
+            cancellationToken);
     }
-
-    #endregion
 }
+
+#endregion
 
 /// <summary>
 /// The deployment's own notion of when the heavy jobs are not welcome. Named only so the sample above

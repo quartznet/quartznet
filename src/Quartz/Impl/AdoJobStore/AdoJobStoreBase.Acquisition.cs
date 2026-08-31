@@ -24,7 +24,7 @@ using Quartz.Impl.Triggers;
 
 namespace Quartz.Impl.AdoJobStore;
 
-public abstract partial class AdoJobStoreBase
+internal abstract partial class AdoJobStoreBase
 {
     protected virtual string GetFiredTriggerRecordId()
     {

@@ -35,7 +35,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public abstract partial class AdoJobStoreBase : IJobStore
+internal abstract partial class AdoJobStoreBase : IJobStore
 {
     private readonly bool useProperties;
     private readonly Dictionary<string, ICalendar?> calendarCache = [];
@@ -152,7 +152,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// <summary>
     /// The name of the data source this store reads and writes through.
     /// </summary>
-    protected internal string DataSource { get; } = "";
+    internal string DataSource { get; } = "";
 
     /// <summary>
     /// Gets the log.
@@ -176,7 +176,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// <summary>
     /// The prefix pre-pended to all table names.
     /// </summary>
-    protected internal string TablePrefix { get; }
+    internal string TablePrefix { get; }
 
     /// <summary>
     /// The instance id of the scheduler (unique within a cluster).
@@ -202,7 +202,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// <summary>
     /// The serializer that turns job data and calendars into what the database stores.
     /// </summary>
-    protected internal IObjectSerializer? ObjectSerializer { get; }
+    internal IObjectSerializer? ObjectSerializer { get; }
 
     public TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; } = TimeSpan.FromMilliseconds(70);
 
@@ -234,14 +234,14 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// <remarks>
     /// Configured through <see cref="ClusteringOptions.CheckinMisfireThreshold" />.
     /// </remarks>
-    protected internal TimeSpan ClusterCheckinMisfireThreshold { get; }
+    internal TimeSpan ClusterCheckinMisfireThreshold { get; }
 
     /// <summary>
     /// The maximum number of misfired triggers that the misfire handling
     /// thread will try to recover at one time (within one transaction).  The
     /// default is 20.
     /// </summary>
-    protected internal int MaxMisfiresToHandleAtATime { get; }
+    internal int MaxMisfiresToHandleAtATime { get; }
 
     /// <summary>
     /// The database retry interval.
@@ -257,7 +257,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// Defaults to 3. A value of 0 disables transient retries. Each retry is
     /// delayed by <see cref="TransientRetryInterval"/>.
     /// </remarks>
-    protected internal int MaxTransientRetries { get; }
+    internal int MaxTransientRetries { get; }
 
     /// <summary>
     /// The delay between automatic retries for transient database
@@ -268,7 +268,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// because transient errors like deadlocks resolve quickly and the retry should be
     /// near-immediate. <see cref="TimeSpan.Zero"/> means no delay between retries.
     /// </remarks>
-    protected internal TimeSpan TransientRetryInterval { get; }
+    internal TimeSpan TransientRetryInterval { get; }
 
     /// <summary>
     /// Whether this instance uses database-based thread synchronization.
@@ -278,7 +278,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// <see cref="Initialize" /> for a configuration that cannot work without it - clustering,
     /// enlisted transactions, and container-managed transactions.
     /// </remarks>
-    protected internal bool UseDbLocks { get; internal set; }
+    internal bool UseDbLocks { get; set; }
 
     /// <summary>
     /// Whether this instance may take part in a transaction the application owns, rather than always
@@ -328,7 +328,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// and triggers.
     /// </para>
     /// </remarks>
-    protected internal bool LockOnInsert { get; } = true;
+    internal bool LockOnInsert { get; } = true;
 
     /// <summary>
     /// The time span by which a trigger must have missed its
@@ -367,7 +367,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// <see cref="IsolationLevel.Serializable" /> by <see cref="Initialize" /> for SQLite, which needs
     /// it.
     /// </remarks>
-    protected internal IsolationLevel? TransactionIsolationLevel { get; internal set; }
+    internal IsolationLevel? TransactionIsolationLevel { get; set; }
 
     /// <summary>
     /// Whether or not the query and update to acquire a Trigger for firing
@@ -380,7 +380,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// However, if batch acquisition is used, it is important for this behavior
     /// to be used for all dbs.
     /// </remarks>
-    protected internal bool AcquireTriggersWithinLock { get; internal set; }
+    internal bool AcquireTriggersWithinLock { get; set; }
 
     /// <summary>
     /// When true, all operations (including reads) acquire a lock before
@@ -400,7 +400,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// <see cref="Initialize" /> warns when both are configured.
     /// </remarks>
     /// <seealso cref="SelectForUpdateLockHandler" />
-    protected internal string? SelectWithLockSql { get; internal set; }
+    internal string? SelectWithLockSql { get; set; }
 
     /// <summary>
     /// How long a statement this store issues may run before the provider cancels it, or
@@ -411,7 +411,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// driver delegate and the lock handler so that every statement — including the one that takes the
     /// row lock — is bounded by the same value.
     /// </remarks>
-    protected internal TimeSpan? CommandTimeout { get; }
+    internal TimeSpan? CommandTimeout { get; }
 
     protected ITypeLoader TypeLoader => typeLoader;
 
@@ -428,13 +428,13 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// set to false if the majority of the time, there are misfired
     /// Triggers.
     /// </summary>
-    protected internal bool DoubleCheckLockMisfireHandler { get; }
+    internal bool DoubleCheckLockMisfireHandler { get; }
 
     /// <summary>
     /// What this store does about its schema when it starts: nothing, verify it, or create what is
     /// missing and then verify it. Defaults to <see cref="Quartz.SchemaProvisioning.Validate" />.
     /// </summary>
-    protected internal SchemaProvisioning SchemaProvisioning { get; } = SchemaProvisioning.Validate;
+    internal SchemaProvisioning SchemaProvisioning { get; } = SchemaProvisioning.Validate;
 
     public TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
@@ -472,14 +472,14 @@ public abstract partial class AdoJobStoreBase : IJobStore
     /// <summary>
     /// The database provider this store was built with.
     /// </summary>
-    protected internal IDbProvider DbProvider { get; }
+    internal IDbProvider DbProvider { get; }
 
-    protected internal ILockHandler LockHandler { get; set; } = null!;
+    internal ILockHandler LockHandler { get; set; } = null!;
 
     /// <summary>
     /// Get whether String-only properties will be handled in JobDataMaps.
     /// </summary>
-    protected internal bool CanUseProperties => useProperties;
+    internal bool CanUseProperties => useProperties;
 
     /// <summary>
     /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is

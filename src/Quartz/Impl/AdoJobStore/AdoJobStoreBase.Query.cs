@@ -23,7 +23,7 @@ using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
 
-public abstract partial class AdoJobStoreBase
+internal abstract partial class AdoJobStoreBase
 {
     /// <summary>
     /// Check existence of a given job.

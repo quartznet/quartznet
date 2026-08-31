@@ -1078,7 +1078,7 @@ public class AdoJobStoreBaseTest
         }
     }
 
-    public class TestAdoJobStoreBase : AdoJobStoreBase
+    internal class TestAdoJobStoreBase : AdoJobStoreBase
     {
 
     public TestAdoJobStoreBase(bool clustered = false, TimeProvider timeProvider = null, ILoggerFactory loggerFactory = null)
@@ -1250,7 +1250,7 @@ public class AdoJobStoreBaseTest
     /// A <see cref="AdoJobStoreBase"/> subclass used to test retry logic in
     /// <see cref="AdoJobStoreBase.ExecuteInLocalTransactionLock{T}"/>.
     /// </summary>
-    public sealed class RetryTestAdoJobStoreBase : AdoJobStoreBase
+    internal sealed class RetryTestAdoJobStoreBase : AdoJobStoreBase
     {
         public RetryTestAdoJobStoreBase(int maxTransientRetries = 3)
             : base(TestJobStores.Dependencies(storeOptions: TestJobStores.StoreOptions(configure: options =>
@@ -1295,7 +1295,7 @@ public class AdoJobStoreBaseTest
     /// <c>IsTransient</c> — so the classification under test is the store's own, consulting
     /// <see cref="AdoJobStoreOptions.IsTransient"/>.
     /// </summary>
-    public sealed class ConfiguredTransientTestStore : AdoJobStoreBase
+    internal sealed class ConfiguredTransientTestStore : AdoJobStoreBase
     {
         public ConfiguredTransientTestStore(Func<Exception, bool> isTransient)
             : base(TestJobStores.Dependencies(storeOptions: TestJobStores.StoreOptions(configure: options =>
@@ -1525,7 +1525,7 @@ public class AdoJobStoreBaseTest
     /// A <see cref="AdoJobStoreBase"/> subclass used to test transient retry logic
     /// in the <see cref="AdoJobStoreBase.TriggersFired"/> method.
     /// </summary>
-    public sealed class TransientTriggersFiredTestStore : AdoJobStoreBase
+    internal sealed class TransientTriggersFiredTestStore : AdoJobStoreBase
     {
         public TransientTriggersFiredTestStore(int maxTransientRetries = 3)
         : base(TestJobStores.Dependencies(storeOptions: TestJobStores.StoreOptions(configure: options =>
@@ -1698,7 +1698,7 @@ public class AdoJobStoreBaseTest
     /// A <see cref="AdoJobStoreBase"/> subclass used to test transient retry logic
     /// in the <see cref="AdoJobStoreBase.CheckIn"/> method.
     /// </summary>
-    public sealed class TransientCheckInTestStore : AdoJobStoreBase
+    internal sealed class TransientCheckInTestStore : AdoJobStoreBase
     {
         public TransientCheckInTestStore(int maxTransientRetries = 3)
         : base(TestJobStores.Dependencies(

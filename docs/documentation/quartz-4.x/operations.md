@@ -614,8 +614,11 @@ A failure the store considers transient is retried `MaxTransientRetries` times (
   victim) arrives because both SqlClients leave `SqlState` null;
 - SQLite's busy and locked codes.
 
-`AdoJobStoreBase.IsTransient` is the seam to override when a driver of your own reports something the
-list above misses.
+`AdoJobStoreOptions.IsTransient` is where you say so when a driver of your own reports something the
+list above misses. It is a `Func<Exception, bool>` set in code, consulted before the list, and it can
+only add — answering `false` is the same as not having one, so it cannot switch off a retry Quartz
+already performs. The exception it is handed is the store's own, so reach the driver's with
+`GetBaseException()`.
 
 `DbRetryInterval` (default 15 seconds) is the different knob: it is how long the check-in and misfire
 loops back off after a failure that was *not* transient — a database that is down rather than busy —

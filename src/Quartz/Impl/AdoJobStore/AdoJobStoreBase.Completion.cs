@@ -24,7 +24,7 @@ using Quartz.Impl.Triggers;
 
 namespace Quartz.Impl.AdoJobStore;
 
-public abstract partial class AdoJobStoreBase
+internal abstract partial class AdoJobStoreBase
 {
     /// <summary>
     /// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to

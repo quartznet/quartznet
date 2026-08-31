@@ -39,7 +39,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class LocalTransactionJobStore : AdoJobStoreBase
+internal class LocalTransactionJobStore : AdoJobStoreBase
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="LocalTransactionJobStore"/> class.
