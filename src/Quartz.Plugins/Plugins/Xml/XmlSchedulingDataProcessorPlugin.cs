@@ -36,8 +36,18 @@ namespace Quartz.Plugins.Xml;
 /// file for changes.
 ///</summary>
 /// <remarks>
+/// <para>
+/// The XML format is frozen at <c>job_scheduling_data_2_0.xsd</c>: it declares <c>simple</c>,
+/// <c>cron</c> and <c>calendar-interval</c> triggers and nothing else, and it will not gain the
+/// trigger kinds or the trigger settings added since. Files that exist keep working for the life of
+/// 4.x; a schedule that needs anything the schema cannot spell is written as JSON and read by
+/// <see cref="Quartz.Plugins.Json.JsonSchedulingDataProcessorPlugin" />, which is the maintained
+/// format.
+/// </para>
+/// <para>
 /// The periodically scanning of files for changes is not currently supported in a
 /// clustered environment.
+/// </para>
 /// </remarks>
 /// <author>James House</author>
 /// <author>Pierre Awaragi</author>
@@ -77,16 +87,21 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
         TypeLoader = typeLoader;
     }
 
-    public string Name { get; private set; } = null!;
+    internal string Name { get; private set; } = null!;
 
-    public IScheduler Scheduler { get; private set; } = null!;
+    internal IScheduler Scheduler { get; private set; } = null!;
 
     private ITypeLoader TypeLoader { get; }
 
     /// <summary>
     /// Comma separated list of file names (with paths) to the XML files that should be read.
     /// </summary>
-    public string FileNames { get; internal set; } = XmlSchedulingDataProcessor.QuartzXmlFileName;
+    /// <remarks>
+    /// Delimited rather than a collection because <c>quartz.plugin.&lt;name&gt;.fileNames</c> writes
+    /// it as one string. <see cref="FileSchedulingOptions.Files" /> is what a caller says it in code,
+    /// and this is what that option is joined into.
+    /// </remarks>
+    internal string FileNames { get; set; } = XmlSchedulingDataProcessor.QuartzXmlFileName;
 
     /// <summary>
     /// The interval at which to scan for changes to the file.
@@ -94,19 +109,19 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
     /// value for the interval is 0, which disables scanning.
     /// </summary>
     [TimeSpanParseRule(TimeSpanParseRule.Seconds)]
-    public TimeSpan ScanInterval { get; internal set; } = TimeSpan.Zero;
+    internal TimeSpan ScanInterval { get; set; } = TimeSpan.Zero;
 
     /// <summary>
     /// Whether or not initialization of the plugin should fail (throw an
     /// exception) if the file cannot be found. Default is <see langword="true" />.
     /// </summary>
-    public bool FailOnFileNotFound { get; internal set; } = true;
+    internal bool FailOnFileNotFound { get; set; } = true;
 
     /// <summary>
     /// Whether or not starting of the plugin should fail (throw an
     /// exception) if the file cannot be handled. Default is <see langword="false" />.
     /// </summary>
-    public bool FailOnSchedulingError { get; internal set; }
+    internal bool FailOnSchedulingError { get; set; }
 
     internal IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
@@ -335,7 +350,7 @@ public sealed class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileSc
         }
     }
 
-    public ValueTask ProcessFile(string filePath, CancellationToken cancellationToken = default)
+    private ValueTask ProcessFile(string filePath, CancellationToken cancellationToken = default)
     {
         JobFile? file = null;
         int idx = jobFiles.FindIndex(pair => pair.Key == filePath);
