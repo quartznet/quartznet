@@ -115,6 +115,31 @@ public class QuartzSchedulerTest
         scheduler.Status.Should().Be(SchedulerStatus.Running);
     }
 
+    /// <summary>
+    /// The delay is waited out on a task nobody observes, so one the timer refuses used to fault that
+    /// task and be collected in silence — leaving a scheduler that was never going to start, with
+    /// nothing thrown, nothing logged and nothing naming the delay.
+    /// </summary>
+    [Test]
+    public async Task StartDelayedRefusesADelayNoTimerWillWaitOut()
+    {
+        NameValueCollection properties = new NameValueCollection();
+        properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+        properties["quartz.scheduler.instanceName"] = "StartDelayedCeiling";
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
+        IScheduler scheduler = await sf.GetScheduler();
+
+        var act = async () => await scheduler.StartDelayed(TimeSpan.FromDays(60));
+
+        (await act.Should().ThrowAsync<ArgumentOutOfRangeException>(
+            "the caller has to hear about it; the wait itself has nobody to tell"))
+            .Which.ParamName.Should().Be("delay");
+
+        scheduler.Status.Should().Be(SchedulerStatus.Created, "a refused delay must not leave the scheduler half started");
+
+        await scheduler.Shutdown();
+    }
+
     [Test]
     public async Task TestRescheduleJob_SchedulerListenersCalledOnReschedule()
     {

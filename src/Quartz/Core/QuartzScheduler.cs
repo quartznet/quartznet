@@ -28,6 +28,7 @@ using Microsoft.Extensions.Logging;
 using Quartz.Impl.Triggers;
 using Quartz.Impl;
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz.Core;
 
@@ -380,6 +381,18 @@ internal sealed class QuartzScheduler
         {
             Throw.SchedulerException(
                 "The Scheduler cannot be restarted after Shutdown() has been called.");
+        }
+
+        // Checked here rather than left to the timer below. The wait runs on a task nobody observes, so
+        // a delay the timer refuses faults that task, is collected without a word, and leaves a
+        // scheduler that never starts — no exception, no log line, nothing pointing at the delay.
+        if (delay < TimeSpan.Zero || delay > TimerLimits.MaxDelay)
+        {
+            Throw.ArgumentOutOfRangeException(
+                nameof(delay),
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"A start delay is between zero and {TimerLimits.MaxDelay.TotalMilliseconds}ms ({TimerLimits.MaxDelay.TotalDays:0.#} days), which is as long as a timer will wait; {delay.TotalMilliseconds}ms is not."));
         }
 #pragma warning disable MA0134
         Task.Run(async () =>

@@ -94,6 +94,27 @@ public class DbLockHandlerRetryTest
     }
 
     /// <summary>
+    /// A backoff no timer will sit out is refused where it is configured. A lock handler has no options
+    /// type and so no startup validator, and the flat <c>quartz.jobStore.lockHandler.retryPeriod</c> key
+    /// writes this property by reflection — which the property binder turns into a
+    /// <c>SchedulerConfigException</c> naming the key. Left to the wait itself, the report would arrive
+    /// from the first contended lock attempt, with the lock unacquired and nothing naming the setting.
+    /// </summary>
+    [TestCase(60)]
+    [TestCase(-1)]
+    public void ARetryPeriodNoTimerWillWaitOutIsRefusedWhereItIsConfigured(int days)
+    {
+        TimeSpan period = TimeSpan.FromDays(days);
+        var provider = new FailingDbProvider();
+
+        var updateRow = () => new UpdateRowLockHandler(provider) { RetryPeriod = period };
+        updateRow.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*RetryPeriod*49.7 days*");
+
+        var selectForUpdate = () => new SelectForUpdateLockHandler(provider) { RetryPeriod = period };
+        selectForUpdate.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*RetryPeriod*49.7 days*");
+    }
+
+    /// <summary>
     /// Neither retry loop treats the caller's cancellation as a lock it could not get. The exception
     /// that ends the loop is a <see cref="LockException" />, which is a
     /// <see cref="JobPersistenceException" />, so a caller who asked to stop would be told the database

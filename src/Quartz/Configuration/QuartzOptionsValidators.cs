@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
+using Quartz.Util;
 
 namespace Quartz.Configuration;
 
@@ -39,6 +40,10 @@ internal sealed class QuartzSchedulerOptionsValidator : IValidateOptions<QuartzS
                 $"{nameof(QuartzSchedulerOptions.GenerateInstanceId)} is enabled.");
         }
 
+        // Bounded below and not above. The idle wait is spent on a SemaphoreSlim, so that a scheduling
+        // change can cut it short, and a semaphore takes a timeout of any length — unlike the timer the
+        // durations in TimerLimits are checked against. A wait of years is a strange thing to configure,
+        // but it is not a thing that breaks.
         if (options.IdleWaitTime < minimumIdleWaitTime)
         {
             (failures ??= []).Add(
@@ -431,14 +436,63 @@ internal sealed class AdoJobStoreOptionsValidator : IValidateOptions<AdoJobStore
             (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MisfireThreshold)} must be at least 1ms.");
         }
 
-        if (options.MisfireHandlerFrequency is { } frequency && frequency < TimeSpan.FromMilliseconds(1))
+        // How long the misfire handler sleeps between passes has two spellings, and both of them reach
+        // the same Task.Delay: the frequency when it is set, and the threshold when it is not. The
+        // ceiling is checked against whichever one the application actually wrote, so the failure names
+        // a setting that is in its configuration.
+        if (options.MisfireHandlerFrequency is { } frequency)
         {
-            (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MisfireHandlerFrequency)} must be at least 1ms when set.");
+            if (frequency < TimeSpan.FromMilliseconds(1))
+            {
+                (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MisfireHandlerFrequency)} must be at least 1ms when set.");
+            }
+            else if (frequency > TimerLimits.MaxDelay)
+            {
+                (failures ??= []).Add(TimerLimits.TooLong(
+                    nameof(AdoJobStoreOptions.MisfireHandlerFrequency),
+                    frequency,
+                    TimerLimits.MaxDelay,
+                    "The misfire handler sleeps for it between passes, and a delay longer than this is "
+                    + "refused by the timer rather than by the store — which is why an unbounded value "
+                    + "used to be reported out of Shutdown."));
+            }
+        }
+        else if (options.MisfireThreshold > TimerLimits.MaxDelay)
+        {
+            (failures ??= []).Add(TimerLimits.TooLong(
+                nameof(AdoJobStoreOptions.MisfireThreshold),
+                options.MisfireThreshold,
+                TimerLimits.MaxDelay,
+                $"{nameof(AdoJobStoreOptions.MisfireHandlerFrequency)} is unset, so this is also how long "
+                + $"the misfire handler sleeps between passes. Set {nameof(AdoJobStoreOptions.MisfireHandlerFrequency)} "
+                + "to keep a threshold this long."));
         }
 
         if (options.DbRetryInterval < TimeSpan.Zero)
         {
             (failures ??= []).Add($"{nameof(AdoJobStoreOptions.DbRetryInterval)} must not be negative.");
+        }
+        else if (options.DbRetryInterval > TimerLimits.MaxDelay)
+        {
+            (failures ??= []).Add(TimerLimits.TooLong(
+                nameof(AdoJobStoreOptions.DbRetryInterval),
+                options.DbRetryInterval,
+                TimerLimits.MaxDelay,
+                "The store waits it out after a database failure, and the misfire handler and the cluster "
+                + "manager both sleep for it while their last pass is failing."));
+        }
+
+        if (options.TransientRetryInterval < TimeSpan.Zero)
+        {
+            (failures ??= []).Add($"{nameof(AdoJobStoreOptions.TransientRetryInterval)} must not be negative.");
+        }
+        else if (options.TransientRetryInterval > TimerLimits.MaxDelay)
+        {
+            (failures ??= []).Add(TimerLimits.TooLong(
+                nameof(AdoJobStoreOptions.TransientRetryInterval),
+                options.TransientRetryInterval,
+                TimerLimits.MaxDelay,
+                "It is waited out between the retries of a transiently failed statement."));
         }
 
         // Zero is not "no timeout" here even though ADO.NET reads it that way, because nothing in the
@@ -470,6 +524,14 @@ internal sealed class ClusteringOptionsValidator : IValidateOptions<ClusteringOp
         if (options.CheckinInterval <= TimeSpan.Zero)
         {
             (failures ??= []).Add($"{nameof(ClusteringOptions.CheckinInterval)} must be positive.");
+        }
+        else if (options.CheckinInterval > TimerLimits.MaxDelay)
+        {
+            (failures ??= []).Add(TimerLimits.TooLong(
+                nameof(ClusteringOptions.CheckinInterval),
+                options.CheckinInterval,
+                TimerLimits.MaxDelay,
+                "The cluster manager sleeps for it between check-ins."));
         }
 
         if (options.CheckinMisfireThreshold < TimeSpan.Zero)
@@ -518,6 +580,46 @@ internal sealed class ClusteringStaysEnabledValidator : IValidateOptions<Cluster
             $"{nameof(ClusteringOptions.Enabled)} is false, but UseClustering() was called for this "
             + "scheduler. Remove the UseClustering() call to run un-clustered; setting Enabled to false "
             + "inside it leaves database locking on with no cluster manager and no check-in.");
+    }
+}
+
+/// <summary>
+/// Validates <see cref="QuartzHostedServiceOptions"/>.
+/// </summary>
+/// <remarks>
+/// The start delay is the one setting here that can be wrong rather than merely unusual, and its
+/// symptom is the worst of the durations Quartz waits out: <c>StartDelayed</c> runs its wait on a task
+/// nobody observes, so a delay the timer refuses faults that task, is collected unnoticed, and leaves
+/// a scheduler that was created, bound and reported healthy and simply never starts.
+/// </remarks>
+internal sealed class QuartzHostedServiceOptionsValidator : IValidateOptions<QuartzHostedServiceOptions>
+{
+    public ValidateOptionsResult Validate(string? name, QuartzHostedServiceOptions options)
+    {
+        if (options.StartDelay is not { } delay)
+        {
+            return ValidateOptionsResult.Success;
+        }
+
+        if (delay < TimeSpan.Zero)
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(QuartzHostedServiceOptions.StartDelay)} must not be negative. Leave it unset to "
+                + "start the scheduler as soon as the host does.");
+        }
+
+        if (delay > TimerLimits.MaxDelay)
+        {
+            return ValidateOptionsResult.Fail(TimerLimits.TooLong(
+                nameof(QuartzHostedServiceOptions.StartDelay),
+                delay,
+                TimerLimits.MaxDelay,
+                "The hosted service waits it out before starting the scheduler. Set "
+                + $"{nameof(QuartzHostedServiceOptions.AutoStart)} to false and start the scheduler yourself "
+                + "if it should wait longer than that."));
+        }
+
+        return ValidateOptionsResult.Success;
     }
 }
 
