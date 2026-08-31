@@ -188,7 +188,10 @@ public class SelectForUpdateLockHandler : DbLockHandler
                 // obtained lock, go
                 return;
             }
-            catch (Exception sqle)
+            // Cancellation is not lock contention: there is no point backing off and asking again for a
+            // lock the caller has stopped waiting for, and reporting it as a LockException - which is a
+            // JobPersistenceException - would tell them the database refused the lock.
+            catch (Exception sqle) when (sqle is not OperationCanceledException)
             {
                 if (initCause is null)
                 {

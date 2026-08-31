@@ -111,7 +111,10 @@ public class UpdateRowLockHandler : DbLockHandler
                 }
                 return;
             }
-            catch (Exception e)
+            // Cancellation is not lock contention: there is no point backing off and asking again for a
+            // lock the caller has stopped waiting for, and reporting it as a LockException - which is a
+            // JobPersistenceException - would tell them the database refused the lock.
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 lastFailure = e;
                 if (i + 1 == RetryCount)

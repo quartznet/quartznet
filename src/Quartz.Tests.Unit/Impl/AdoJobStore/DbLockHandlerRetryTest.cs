@@ -94,6 +94,67 @@ public class DbLockHandlerRetryTest
     }
 
     /// <summary>
+    /// Neither retry loop treats the caller's cancellation as a lock it could not get. The exception
+    /// that ends the loop is a <see cref="LockException" />, which is a
+    /// <see cref="JobPersistenceException" />, so a caller who asked to stop would be told the database
+    /// had refused them the lock — #3503 in the one place the store's own plumbing does not reach.
+    /// </summary>
+    /// <remarks>
+    /// The retry count is one, because that is the configuration where the loop reports rather than
+    /// backs off: with the default the first backoff is a <see cref="Task.Delay(TimeSpan)" /> on the
+    /// same token, which throws the cancellation before the loop can turn it into anything else.
+    /// </remarks>
+    [Test]
+    public async Task ASelectForUpdateLockHandlerReportsCancellationAsCancellation()
+    {
+        using CancellationTokenSource cancellation = new();
+        await cancellation.CancelAsync();
+
+        var provider = new FailingDbProvider();
+        var lockHandler = new SelectForUpdateLockHandler(provider) { MaxRetry = 1 };
+        lockHandler.Initialize(Context(new FakeTimeProvider()));
+
+        using var connection = new FakeConnection();
+        using var holder = new ConnectionAndTransactionHolder(connection, transaction: null);
+
+        var act = async () => await lockHandler.AcquireLock(Guid.NewGuid(), holder, SchedulerLock.TriggerAccess, cancellation.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    /// <inheritdoc cref="ASelectForUpdateLockHandlerReportsCancellationAsCancellation" />
+    [Test]
+    public async Task AnUpdateRowLockHandlerReportsCancellationAsCancellation()
+    {
+        using CancellationTokenSource cancellation = new();
+        await cancellation.CancelAsync();
+
+        var provider = new FailingDbProvider();
+        var lockHandler = new SingleAttemptUpdateRowLockHandler(provider);
+        lockHandler.Initialize(Context(new FakeTimeProvider()));
+
+        using var connection = new FakeConnection();
+        using var holder = new ConnectionAndTransactionHolder(connection, transaction: null);
+
+        var act = async () => await lockHandler.AcquireLock(Guid.NewGuid(), holder, SchedulerLock.TriggerAccess, cancellation.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    /// <summary>
+    /// The retry count is <c>protected virtual</c> rather than settable, so "do not back off at all" is
+    /// spelled by a subclass.
+    /// </summary>
+    private sealed class SingleAttemptUpdateRowLockHandler : UpdateRowLockHandler
+    {
+        public SingleAttemptUpdateRowLockHandler(IDbProvider provider) : base(provider)
+        {
+        }
+
+        protected override int RetryCount => 1;
+    }
+
+    /// <summary>
     /// Advances the fake clock repeatedly rather than once, because there is no way to ask a
     /// <see cref="FakeTimeProvider"/> whether the code under test has registered its timer yet: a single
     /// advance that lands before the registration would leave the delay scheduled past it forever.
