@@ -193,9 +193,14 @@ public interface ITrigger
     /// <summary>
     /// Gets and sets the date/time on which the trigger must stop firing. This
     /// defines the final boundary for trigger firings &#x8212; the trigger will
-    /// not fire after to this date and time. If this value is null, no end time
+    /// not fire after this date and time. If this value is null, no end time
     /// boundary is assumed, and the trigger can continue indefinitely.
     /// </summary>
+    /// <remarks>
+    /// The end time is inclusive, for every trigger type: it is the last instant at which the
+    /// trigger may fire, so a fire time exactly equal to it is one the trigger fires, and the first
+    /// instant after it is where the schedule stops.
+    /// </remarks>
     DateTimeOffset? EndTimeUtc { get; }
 
     /// <summary>

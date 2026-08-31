@@ -531,6 +531,10 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
     /// fire, after the given UTC time. If the trigger will not fire after the given
     /// time, <see langword="null" /> will be returned.
     /// </summary>
+    /// <remarks>
+    /// A fire time that lands exactly on <see cref="TriggerBase.EndTimeUtc" /> is one the trigger
+    /// fires: the end time is the last instant at which a trigger may fire.
+    /// </remarks>
     public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTimeUtc)
     {
         if (repeatCount != RepeatIndefinitely && timesTriggered > repeatCount)
@@ -553,6 +557,9 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
 
         DateTimeOffset? endTimeUtc = EndTimeUtc;
 
+        // Every fire time this method can produce is strictly after afterMillis, so once the end
+        // time has been reached there is nothing left to produce - the fire time that lands on the
+        // end time has already been handed out.
         if (endTimeUtc.HasValue && endTimeUtc.GetValueOrDefault() <= afterMillis)
         {
             return null;
@@ -573,7 +580,7 @@ public class SimpleTriggerImpl : TriggerBase, ISimpleTrigger
 
         DateTimeOffset time = startMillis.AddTicks(numberOfTimesExecuted * repeatInterval.Ticks);
 
-        if (endTimeUtc.HasValue && endTimeUtc.GetValueOrDefault() <= time)
+        if (endTimeUtc.HasValue && endTimeUtc.GetValueOrDefault() < time)
         {
             return null;
         }

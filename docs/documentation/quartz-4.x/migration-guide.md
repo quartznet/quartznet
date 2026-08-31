@@ -392,6 +392,29 @@ here moved for you; if you called `GetInt` and `GetBoolean`, all of it did.
   wherever trigger data is: `MergedJobDataMap`, the dashboard, `GET /triggers`. Turn it off with
   `q.ConfigureScheduler(options => options.PropagateTraceContext = false)`.
 
+### The end time is the last instant at which a trigger may fire
+
+`EndTimeUtc` means one thing on 4.x, for every trigger type: it is the last instant at which the trigger
+may fire, so a fire time exactly equal to it is one the trigger fires and the first instant after it is
+where the schedule stops. That is what Java Quartz's `AbstractTrigger` has always documented — "the time
+after which the trigger will not fire" — and on 3.x the types disagreed about it. Three of them change:
+
+| Trigger | 3.x | 4.x |
+| --- | --- | --- |
+| `SimpleTriggerImpl` | A fire time equal to `EndTimeUtc` is dropped | It fires |
+| `CalendarIntervalTriggerImpl` | A fire time equal to `EndTimeUtc` is dropped | It fires |
+| `DailyTimeIntervalTriggerImpl` | Fires *past* `EndTimeUtc` until the daily window closes, when the end time falls between two fire times; `FinalFireTimeUtc` reports the close of the daily window even when that is past `EndTimeUtc` | Firing stops at the end time, and `FinalFireTimeUtc` is never past it |
+| `CronTriggerImpl` | A fire time equal to `EndTimeUtc` fires | Unchanged |
+| `RecurrenceTriggerImpl` | New in 4.x | A fire time equal to `EndTimeUtc` fires |
+
+A simple or calendar-interval trigger whose `EndAt` lands exactly on one of its fire times therefore fires
+one more time than it did on 3.x, and a daily-time-interval trigger whose `EndAt` lands between two of them
+fires fewer. Move the end time a second off the boundary to keep the old count.
+
+`TriggerFireTimes.ComputeBetween` inherits the rule, because it bounds the walk by handing the window's end
+to the trigger as its `EndTimeUtc`: its `to` is inclusive, for every trigger type, and a fire time landing
+exactly on it is listed.
+
 ### Ordering
 
 * **`JobKey` and `TriggerKey` compare ordinally**, where 3.x compared with the current culture, so any

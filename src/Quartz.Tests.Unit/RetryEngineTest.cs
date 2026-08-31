@@ -190,6 +190,73 @@ public class RetryEngineTest
         trigger.RetryAttempt.Should().Be(0);
     }
 
+    /// <summary>
+    /// The other side of that boundary: a retry landing exactly <em>on</em> the end time is a fire at
+    /// the end time, and the end time is the last instant at which a trigger may fire.
+    /// </summary>
+    [Test]
+    public void ARetryLandingExactlyOnTheEndTimeIsScheduled()
+    {
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(clock)
+            .WithIdentity("ending-on-the-instant", "retries")
+            .ForJob("job", "jobs")
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .StartAt(now)
+            .EndAt(now.AddMinutes(5))
+            .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(5)))
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        trigger.Triggered(null);
+
+        trigger.NextFireTimeUtc.Should().BeNull("the next hourly occurrence is an hour past the end time");
+
+        trigger.ExecutionComplete(context, Failure()).Should().Be(SchedulerInstruction.RetryTrigger,
+            "the retry lands on the end time rather than past it, and a fire on the end time fires");
+        trigger.RetryAttempt.Should().Be(1);
+        trigger.NextFireTimeUtc.Should().Be(now.AddMinutes(5));
+
+        ((TriggerBase) trigger).RetryFired(null);
+
+        trigger.NextFireTimeUtc.Should().BeNull("nothing fires after the end time, retry or occurrence");
+    }
+
+    /// <summary>
+    /// A failure on the occurrence before the last one, where the last one lands exactly on the end
+    /// time: the retry runs and the boundary occurrence is still there afterwards.
+    /// </summary>
+    /// <remarks>
+    /// Both halves of this are the end time being inclusive (#3458). While it was exclusive for a
+    /// simple trigger, <see cref="ITrigger.NextFireTimeUtc" /> was already <see langword="null" />
+    /// here, so the trigger was deleted at the end of the failed occurrence and the fire on the end
+    /// time - which <see cref="ITrigger.FinalFireTimeUtc" /> named all along - never happened.
+    /// </remarks>
+    [Test]
+    public void ARetryKeepsTheOccurrenceThatLandsOnTheEndTime()
+    {
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(clock)
+            .WithIdentity("ending-on-an-occurrence", "retries")
+            .ForJob("job", "jobs")
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .StartAt(now)
+            .EndAt(now.AddHours(1))
+            .WithRetryPolicy(RetryPolicy.Fixed(3, TimeSpan.FromMinutes(5)))
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        trigger.Triggered(null);
+
+        trigger.NextFireTimeUtc.Should().Be(now.AddHours(1),
+            "the last occurrence lands on the end time, which is the last instant at which it may fire");
+
+        trigger.ExecutionComplete(context, Failure()).Should().Be(SchedulerInstruction.RetryTrigger);
+        trigger.NextFireTimeUtc.Should().Be(now.AddMinutes(5), "the retry comes before that occurrence");
+
+        ((TriggerBase) trigger).RetryFired(null);
+
+        trigger.NextFireTimeUtc.Should().Be(now.AddHours(1),
+            "a retry is another attempt at the occurrence that failed, so the one on the end time is still to come");
+        trigger.MayFireAgain.Should().BeTrue();
+    }
+
     [Test]
     public void ATriggerWithNoPolicyIsUnchanged()
     {

@@ -181,6 +181,8 @@ public interface ITriggerConfigurator<[DynamicallyAccessedMembers(JobTypeMembers
     /// schedule has remaining repeats.
     /// </summary>
     /// <remarks>
+    /// The end time is inclusive: it is the last instant at which the trigger may fire, so a fire
+    /// time that lands exactly on it is one the trigger fires.
     /// </remarks>
     /// <param name="endTimeUtc">the end time for the Trigger.  If null, the end time is indefinite.</param>
     /// <returns>the updated TriggerBuilder</returns>

@@ -142,8 +142,12 @@ public static class TriggerFireTimes
     /// </summary>
     /// <param name="trigger">The trigger upon which to do the work</param>
     /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
-    /// <param name="from">The starting date at which to find fire times</param>
-    /// <param name="to">The ending date at which to stop finding fire times</param>
+    /// <param name="from">The starting date at which to find fire times, inclusive</param>
+    /// <param name="to">
+    /// The ending date at which to stop finding fire times, inclusive: a fire time that lands
+    /// exactly on it is listed. The window is handed to the trigger as its
+    /// <see cref="ITrigger.EndTimeUtc" />, which is inclusive for the same reason.
+    /// </param>
     public static List<DateTimeOffset> ComputeBetween(IOperableTrigger trigger, ICalendar? calendar, DateTimeOffset from, DateTimeOffset to)
     {
         List<DateTimeOffset> lst = new List<DateTimeOffset>();
