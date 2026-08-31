@@ -89,16 +89,17 @@ public static class SchedulerJobExtensions
     // arranges while it runs rather than at start-up - a retry, a timeout, a reminder, the next step
     // of a saga.
     //
-    // One durable job per job type, many triggers. The job is stored once under
-    // (typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup) and every call adds a trigger to it,
-    // which is the shape a message bus's Quartz integration converges on: a scheduled message is a
-    // trigger, and there is no job churn to pay for. The job is ensured with AddJobOptions.Replacing,
-    // so it is idempotent and safe for several nodes to do at once, and the result is remembered per
-    // scheduler instance so the second call is one round trip rather than two.
+    // One durable job per job type, many triggers. The job is stored once under ScheduledJobKey<TJob>()
+    // and every call adds a trigger to it, which is the shape a message bus's Quartz integration
+    // converges on: a scheduled message is a trigger, and there is no job churn to pay for. The job is
+    // ensured with AddJobOptions.Replacing, so it is idempotent and safe for several nodes to do at
+    // once, and the result is remembered per scheduler instance so the second call is one round trip
+    // rather than two - which is also why the only thing OneOffJobOptions says about the job itself,
+    // RequestRecovery, is first-call-wins.
     //
-    // Cancelling is UnscheduleJob. Give the firing a name and the returned TriggerKey is the handle
-    // to cancel or to replace with; the durable job stays behind, one row per job type whatever the
-    // traffic.
+    // Cancelling is UnscheduleJob. Give the firing a name and the returned ScheduledOneOffJob carries
+    // the handle to cancel or to replace with, beside the time the store says it will first fire; the
+    // durable job stays behind, one row per job type whatever the traffic.
     // -------------------------------------------------------------------------------------------
 
     /// <summary>
@@ -121,8 +122,8 @@ public static class SchedulerJobExtensions
     /// <param name="at">When the job should run.</param>
     /// <param name="options">The trigger's identity and the rest of what can be said about one firing.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>The key of the trigger that was stored, which is the handle to cancel or replace it.</returns>
-    public static ValueTask<TriggerKey> ScheduleJob<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(
+    /// <returns>The trigger that was stored and the time it will first fire.</returns>
+    public static ValueTask<ScheduledOneOffJob> ScheduleJob<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(
         this IScheduler scheduler,
         TInput input,
         DateTimeOffset at,
@@ -144,7 +145,7 @@ public static class SchedulerJobExtensions
     /// "Now" is <see cref="IScheduler.TimeProvider" />, so a delay is measured against the same clock
     /// the scheduling loop will compare it to.
     /// </remarks>
-    public static ValueTask<TriggerKey> ScheduleJob<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(
+    public static ValueTask<ScheduledOneOffJob> ScheduleJob<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(
         this IScheduler scheduler,
         TInput input,
         TimeSpan delay,
@@ -156,22 +157,48 @@ public static class SchedulerJobExtensions
         return Schedule<TJob, TInput>(scheduler, input, scheduler.TimeProvider.GetUtcNow() + delay, options, cancellationToken);
     }
 
-    private static async ValueTask<TriggerKey> Schedule<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(
+    /// <summary>
+    /// The key of the single durable job every firing of <typeparamref name="TJob" /> scheduled by the
+    /// one-call overloads hangs off.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One durable job per job type, named after the type and kept in
+    /// <see cref="SchedulerConstants.ScheduledJobGroup" />. Named here because that group is reserved:
+    /// an integration with a second scheduling path of its own — a recurring trigger built by hand, say,
+    /// for the same job — needs to point that trigger at the job the one-liner ensures, and asking is
+    /// better than re-deriving the key against the advice not to build jobs in the group.
+    /// </para>
+    /// <para>
+    /// The key is derived from the type, not looked up, so it answers whether or not anything has been
+    /// scheduled yet. The job itself appears in the store the first time one of the one-call overloads
+    /// is used on a scheduler.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TJob">The job whose durable detail to name.</typeparam>
+    /// <returns>The key of the durable job the one-call overloads ensure.</returns>
+    public static JobKey ScheduledJobKey<TJob>() where TJob : IJob
+    {
+        return new JobKey(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup);
+    }
+
+    private static async ValueTask<ScheduledOneOffJob> Schedule<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob, TInput>(
         IScheduler scheduler,
         TInput input,
         DateTimeOffset at,
         OneOffJobOptions options,
         CancellationToken cancellationToken) where TJob : IJob<TInput>
     {
-        JobKey jobKey = JobKeyFor<TJob>();
-        await EnsureJob<TJob>(scheduler, cancellationToken).ConfigureAwait(false);
+        JobKey jobKey = ScheduledJobKey<TJob>();
+        await EnsureJob<TJob>(scheduler, options.RequestRecovery, cancellationToken).ConfigureAwait(false);
 
         ITrigger trigger = BuildTrigger<TJob, TInput>(scheduler, jobKey, input, at, options);
         ScheduleJobOptions storeOptions = new() { Replace = options.Replace };
 
+        DateTimeOffset firstFireTimeUtc;
         try
         {
-            await scheduler.ScheduleJob(trigger, storeOptions, cancellationToken).ConfigureAwait(false);
+            firstFireTimeUtc = await scheduler.ScheduleJob(trigger, storeOptions, cancellationToken).ConfigureAwait(false);
         }
         catch (JobPersistenceException)
         {
@@ -186,23 +213,16 @@ public static class SchedulerJobExtensions
                 throw;
             }
 
-            await EnsureJob<TJob>(scheduler, cancellationToken).ConfigureAwait(false);
-            await scheduler.ScheduleJob(trigger, storeOptions, cancellationToken).ConfigureAwait(false);
+            await EnsureJob<TJob>(scheduler, options.RequestRecovery, cancellationToken).ConfigureAwait(false);
+            firstFireTimeUtc = await scheduler.ScheduleJob(trigger, storeOptions, cancellationToken).ConfigureAwait(false);
         }
 
-        return trigger.Key;
-    }
-
-    /// <summary>
-    /// The single durable job every firing of <typeparamref name="TJob" /> hangs off.
-    /// </summary>
-    private static JobKey JobKeyFor<TJob>() where TJob : IJob
-    {
-        return new JobKey(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup);
+        return new ScheduledOneOffJob(trigger.Key, firstFireTimeUtc);
     }
 
     private static ValueTask EnsureJob<[DynamicallyAccessedMembers(JobTypeMembers.Required)] TJob>(
         IScheduler scheduler,
+        bool requestRecovery,
         CancellationToken cancellationToken) where TJob : IJob
     {
         ConcurrentDictionary<Type, bool> ensured = ensuredJobs.GetOrCreateValue(scheduler);
@@ -211,13 +231,14 @@ public static class SchedulerJobExtensions
             return default;
         }
 
-        return Store(scheduler, ensured, cancellationToken);
+        return Store(scheduler, ensured, requestRecovery, cancellationToken);
 
-        static async ValueTask Store(IScheduler scheduler, ConcurrentDictionary<Type, bool> ensured, CancellationToken cancellationToken)
+        static async ValueTask Store(IScheduler scheduler, ConcurrentDictionary<Type, bool> ensured, bool requestRecovery, CancellationToken cancellationToken)
         {
             IJobDetail job = JobBuilder.Create<TJob>()
-                .WithIdentity(JobKeyFor<TJob>())
+                .WithIdentity(ScheduledJobKey<TJob>())
                 .WithDescription($"Scheduled firings of {typeof(TJob).FullName}.")
+                .RequestRecovery(requestRecovery)
                 .StoreDurably()
                 .Build();
 

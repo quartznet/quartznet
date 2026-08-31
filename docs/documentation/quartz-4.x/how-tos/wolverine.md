@@ -238,13 +238,15 @@ public static class OrderPlacedHandler
 {
     public static async Task Handle(OrderPlaced message, IScheduler scheduler, CancellationToken cancellationToken)
     {
-        TriggerKey trigger = await scheduler.ScheduleJob<PaymentReminderJob, PaymentReminder>(
+        ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<PaymentReminderJob, PaymentReminder>(
             new PaymentReminder(message.OrderId, message.Amount),
             ExampleOptions.Current.ReminderDelay,
             new OneOffJobOptions { Group = OrderGroup.For(message.OrderId) },
             cancellationToken);
 
-        Ledger.Record(Events.ReminderScheduled, trigger.ToString());
+        // The call answers with the trigger's key and the time the store says it will first fire, so
+        // "scheduled for" is what will happen rather than what was asked for.
+        Ledger.Record(Events.ReminderScheduled, $"{scheduled.TriggerKey} at {scheduled.FirstFireTimeUtc:u}");
     }
 }
 ```
@@ -258,7 +260,7 @@ Because the group is part of the trigger's identity, withdrawing everything arra
 a single store operation, with the matcher evaluated where the triggers are:
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Part2OneOffFromHandler.cs:58 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Part2OneOffFromHandler.cs:60 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp
@@ -315,18 +317,20 @@ public static async ValueTask<TriggerKey> ScheduleSend<TMessage>(
         typeof(TMessage).ToMessageTypeName(),
         runtime.Options.DefaultSerializer.WriteMessage(message));
 
-    return await scheduler.ScheduleJob<DeferredEnvelopeJob, DeferredEnvelope>(
+    ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<DeferredEnvelopeJob, DeferredEnvelope>(
         envelope,
         delay,
         new OneOffJobOptions { Group = "deferred-envelopes" },
         cancellationToken);
+
+    return scheduled.TriggerKey;
 }
 ```
 
 At fire time the job hands the stored bytes back to Wolverine:
 
 <!-- Not a compiled sample: `Quartz.Documentation.Samples` may not reference `WolverineFx`.
-     Copied from src/Quartz.Examples.Wolverine/Part3RawMessageData.cs:92 — WolverineHowToTest fails when the two stop
+     Copied from src/Quartz.Examples.Wolverine/Part3RawMessageData.cs:94 — WolverineHowToTest fails when the two stop
      matching. -->
 
 ```csharp

@@ -59,8 +59,17 @@ public readonly record struct OneOffJobOptions
     /// The trigger's group. Defaults to the job type's name.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The group is the correlation axis: everything scheduled for one saga, one tenant or one
     /// conversation can share a group and be listed, paused or unscheduled together.
+    /// </para>
+    /// <para>
+    /// The default is a group of the job type's name rather than <see cref="Key{T}.DefaultGroup" />,
+    /// which matters to anything that already has a trigger-key contract of its own: a caller that
+    /// cancels with <c>new TriggerKey(id)</c> is naming the default group, so scheduling through these
+    /// overloads without saying <c>Group = TriggerKey.DefaultGroup</c> puts the trigger somewhere that
+    /// cancellation silently stops matching. Name the group the contract expects, and the two agree.
+    /// </para>
     /// </remarks>
     public string? Group { get; init; }
 
@@ -97,4 +106,31 @@ public readonly record struct OneOffJobOptions
     /// Only meaningful together with <see cref="Name" />: a generated name has nothing to replace.
     /// </remarks>
     public bool Replace { get; init; }
+
+    /// <summary>
+    /// Whether the durable job the firings hang off is marked
+    /// <see cref="IJobDetail.RequestsRecovery" />, so that a firing interrupted by a hard shutdown is
+    /// re-executed when the scheduler comes back. Defaults to <see langword="false" />, which is
+    /// <see cref="JobBuilder" />'s own default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The one member here that describes the <em>job</em> rather than the trigger, because the job is
+    /// the one thing the one-liner builds that a caller cannot otherwise reach — and recovery is a
+    /// property of it, not of a firing.
+    /// </para>
+    /// <para>
+    /// The job is ensured once per scheduler instance, so the first call's value wins for the process's
+    /// lifetime: a later call asking for something else finds the job already there and does not store
+    /// it again. That is how the memo already treats every other aspect of the job — its description,
+    /// its durability, the type it names — and it is why this is a named boolean rather than a
+    /// configuration delegate, which would look as though it varied per call.
+    /// </para>
+    /// <para>
+    /// A process that has to change it restarts, or deletes the job
+    /// <see cref="SchedulerJobExtensions.ScheduledJobKey{TJob}" /> names — the next call finds it gone
+    /// and stores it afresh with whatever that call asked for.
+    /// </para>
+    /// </remarks>
+    public bool RequestRecovery { get; init; }
 }

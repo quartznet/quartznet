@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Quartz.Documentation.Samples.HowTos;
 
@@ -109,9 +110,9 @@ public sealed class SendInvoiceJob : IJob<SendInvoice>
 
 public sealed class Invoicing
 {
-    public async ValueTask Remind(IScheduler scheduler, SendInvoice invoice, CancellationToken cancellationToken)
+    public async ValueTask Remind(IScheduler scheduler, ILogger logger, SendInvoice invoice, CancellationToken cancellationToken)
     {
-        TriggerKey firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
+        ScheduledOneOffJob firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
             invoice,
             TimeSpan.FromDays(7),
             new OneOffJobOptions
@@ -124,9 +125,73 @@ public sealed class Invoicing
             },
             cancellationToken);
 
+        // What was arranged: the trigger's key, and when the store says it will first fire.
+        logger.LogInformation("Reminder {Trigger} scheduled for {At}", firing.TriggerKey, firing.FirstFireTimeUtc);
+
         // ... and to call it off:
-        await scheduler.UnscheduleJob(firing, cancellationToken);
+        await scheduler.UnscheduleJob(firing.TriggerKey, cancellationToken);
     }
+}
+
+#endregion
+
+public sealed class RecoverableInvoicing
+{
+    #region sample_one_off_job_request_recovery
+
+    public async ValueTask Remind(IScheduler scheduler, SendInvoice invoice, CancellationToken cancellationToken)
+    {
+        await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
+            invoice,
+            TimeSpan.FromDays(7),
+            new OneOffJobOptions { RequestRecovery = true },
+            cancellationToken);
+    }
+
+    #endregion
+}
+
+public sealed class InvoicingOnASchedule
+{
+    #region sample_one_off_job_scheduled_job_key
+
+    public async ValueTask Nightly(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        // A schedule of its own, pointed at the job the one-liner keeps rather than at a second job
+        // built here: same job, same payload shape, one more trigger.
+        ITrigger nightly = TriggerBuilder.Create<SendInvoiceJob>(scheduler.TimeProvider)
+            .WithIdentity("nightly", "invoicing")
+            .ForJob(SchedulerJobExtensions.ScheduledJobKey<SendInvoiceJob>())
+            .WithCronSchedule("0 0 2 * * ?")
+            .UsingInput(new SendInvoice("all", 0m))
+            .Build();
+
+        await scheduler.ScheduleJob(nightly, cancellationToken);
+    }
+
+    #endregion
+}
+
+#region sample_one_off_job_try_get_input
+
+public sealed class SendInvoiceCompatJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        // A firing scheduled by 4.x carries the whole payload under one key. One scheduled before the
+        // upgrade carries the flat keys the 3.x job wrote, and there is nothing to read there — which
+        // is an answer here, where an IJob<SendInvoice> would have failed the firing instead.
+        if (!context.TryGetInput(out SendInvoice? invoice) || invoice is null)
+        {
+            invoice = new SendInvoice(
+                context.MergedJobDataMap.GetString("CustomerId")!,
+                context.MergedJobDataMap.GetDecimal("Amount"));
+        }
+
+        return Send(invoice, cancellationToken);
+    }
+
+    private static ValueTask Send(SendInvoice invoice, CancellationToken cancellationToken) => default;
 }
 
 #endregion

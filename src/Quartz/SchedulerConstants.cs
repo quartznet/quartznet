@@ -129,8 +129,16 @@ public static class SchedulerConstants
     /// overloads keep their durable jobs in — one per job type, named after the type.
     /// </summary>
     /// <remarks>
-    /// Clients should not use this value for a job group of their own. It is named here so that a
+    /// <para>
+    /// Clients should not build jobs of their own in this group: it is the scheduler's, and what is in
+    /// it is one job per job type that the one-call overloads maintain. It is named here so that a
     /// dashboard, a query or a clean-up can say which jobs it means without spelling the string.
+    /// </para>
+    /// <para>
+    /// Addressing the job that <em>is</em> in it — to point a trigger of one's own at it, or to look it
+    /// up — is <see cref="SchedulerJobExtensions.ScheduledJobKey{TJob}" />, which spells the whole key
+    /// so nothing has to re-derive it.
+    /// </para>
     /// </remarks>
     public const string ScheduledJobGroup = "QRTZ_SCHEDULED";
 

@@ -262,6 +262,58 @@ public sealed class TypedJobInputTest
     }
 
     [Test]
+    public void TryGetInputAnswersFalseWhenNothingWasScheduled()
+    {
+        IJobExecutionContext context = new JobExecutionContextImpl(
+            scheduler: null,
+            TestUtil.NewMinimalTriggerFiredBundle(),
+            job: null,
+            new SystemTextJsonJobInputSerializer());
+
+        context.TryGetInput(out SendEmail input).Should().BeFalse(
+            "a firing stored before the job took a typed input carries nothing under the key, and an application upgrading from 3.x has to be able to ask rather than be thrown at");
+
+        input.Should().BeNull("nothing was read, so nothing is handed back");
+    }
+
+    [Test]
+    public void TryGetInputReadsTheStoredPayload()
+    {
+        TriggerFiredBundle bundle = TestUtil.NewMinimalTriggerFiredBundle();
+        bundle.Trigger.JobDataMap[SchedulerConstants.JobInput] = """{"To":"someone@example.org","Subject":"hello"}""";
+
+        IJobExecutionContext context = new JobExecutionContextImpl(
+            scheduler: null,
+            bundle,
+            job: null,
+            new SystemTextJsonJobInputSerializer());
+
+        context.TryGetInput(out SendEmail input).Should().BeTrue("the firing carries an input, which is the whole of what the answer means");
+
+        input.Should().Be(new SendEmail("someone@example.org", "hello"),
+            "asking whether there is one and reading it are the same operation, so a caller does not deserialize twice");
+    }
+
+    [Test]
+    public void TryGetInputStillThrowsOnAValueItCannotRead()
+    {
+        TriggerFiredBundle bundle = TestUtil.NewMinimalTriggerFiredBundle();
+        bundle.Trigger.JobDataMap[SchedulerConstants.JobInput] = "not json at all";
+
+        IJobExecutionContext context = new JobExecutionContextImpl(
+            scheduler: null,
+            bundle,
+            job: null,
+            new SystemTextJsonJobInputSerializer());
+
+        Action act = () => context.TryGetInput(out SendEmail _);
+
+        act.Should().Throw<SchedulerException>()
+            .WithMessage("*not json at all*",
+                "corruption is not compatibility: only an absent input is an answer, and a present one that will not read is still a failure");
+    }
+
+    [Test]
     public async Task AContextBuiltWithoutASerializerSaysSo()
     {
         SendEmailJob job = new(new Recorder());

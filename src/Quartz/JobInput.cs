@@ -60,6 +60,57 @@ public static class JobExecutionContextInputExtensions
 
         return JobInput.TryRead(context, out TInput? input) ? input : default;
     }
+
+    /// <summary>
+    /// The input this firing carries, reporting whether it carried one at all.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// What <see cref="GetInput{TInput}" /> cannot say: a payload that deserialized to
+    /// <see langword="null" /> and no payload at all are the same answer there, and different here.
+    /// </para>
+    /// <para>
+    /// The reason it exists is an upgrade. A 3.x application converting a job to
+    /// <see cref="IJob{TInput}" /> over a store that already holds its triggers finds those triggers
+    /// carrying the old shape — the payload spread over flat <see cref="JobDataMap" /> keys — and
+    /// nothing under <see cref="SchedulerConstants.JobInput" />; an <see cref="IJob{TInput}" /> fails
+    /// such a firing by name rather than running it with a default payload. A job that has to serve both
+    /// shapes for a while stays an <see cref="IJob" /> and reads them apart:
+    /// </para>
+    /// <code>
+    /// public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    /// {
+    ///     SendInvoice invoice = context.TryGetInput(out SendInvoice? typed) &amp;&amp; typed is not null
+    ///         ? typed
+    ///         : new SendInvoice(context.MergedJobDataMap.GetString("CustomerId")!, context.MergedJobDataMap.GetDecimal("Amount"));
+    ///
+    ///     return Send(invoice, cancellationToken);
+    /// }
+    /// </code>
+    /// <para>
+    /// It is still an error for a stored input to be unreadable: a value that is present but neither a
+    /// <typeparamref name="TInput" /> nor a payload the serializer can read throws, because corruption
+    /// is not compatibility. Only <em>absence</em> is answered with <see langword="false" />.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TInput">The type the input was scheduled as.</typeparam>
+    /// <param name="context">The firing to read the input of.</param>
+    /// <param name="input">The input this firing carries, or <see langword="default" /> when it carries none.</param>
+    /// <returns>
+    /// <see langword="true" /> when the firing carries an input, <see langword="false" /> when nothing is
+    /// stored under <see cref="SchedulerConstants.JobInput" />.
+    /// </returns>
+    /// <exception cref="SchedulerException">
+    /// The input is stored but cannot be read: the context was built without an
+    /// <see cref="IJobInputSerializer" />, or the stored value is neither a payload nor a
+    /// <typeparamref name="TInput" />.
+    /// </exception>
+    public static bool TryGetInput<TInput>(this IJobExecutionContext context, out TInput? input)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        return JobInput.TryRead(context, out input);
+    }
 }
 
 /// <summary>

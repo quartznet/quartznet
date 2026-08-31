@@ -165,9 +165,9 @@ public static class EmbeddingSamples
 
     public sealed class Conversations(IScheduler scheduler)
     {
-        public ValueTask<TriggerKey> Remind(SendReminder reminder, TimeSpan delay, CancellationToken cancellationToken)
+        public async ValueTask<TriggerKey> Remind(SendReminder reminder, TimeSpan delay, CancellationToken cancellationToken)
         {
-            return scheduler.ScheduleJob<SendReminderJob, SendReminder>(
+            ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<SendReminderJob, SendReminder>(
                 reminder,
                 delay,
                 new OneOffJobOptions
@@ -179,6 +179,9 @@ public static class EmbeddingSamples
                     Replace = true
                 },
                 cancellationToken);
+
+            // The call answers with the key it stored and the time the store will first fire it at.
+            return scheduled.TriggerKey;
         }
 
         public ValueTask<bool> Cancel(TriggerKey firing, CancellationToken cancellationToken)
@@ -206,7 +209,7 @@ public static class EmbeddingSamples
 
         ITrigger trigger = TriggerBuilder.Create<SendReminderJob>(scheduler.TimeProvider)
             .WithIdentity(reminder.MessageId, reminder.ConversationId)
-            .ForJob(new JobKey(nameof(SendReminderJob), SchedulerConstants.ScheduledJobGroup))
+            .ForJob(SchedulerJobExtensions.ScheduledJobKey<SendReminderJob>())
             .StartAt(at)
             .UsingInput(reminder)
             .Build();

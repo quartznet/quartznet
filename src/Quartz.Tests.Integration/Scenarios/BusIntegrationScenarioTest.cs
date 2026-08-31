@@ -59,8 +59,9 @@ public enum BusStore
 /// Every primitive the 4.0 integrator work added is tested on its own somewhere else. This is the test
 /// for the place they meet: a scheduler the host builds but does not start, a typed payload put on a
 /// trigger under the bus's own message id, that id scheduled over atomically, a whole correlation
-/// called off in one call, a firing that links back to the request that asked for it, and middleware
-/// around all of it. A bus author should be able to read this top to bottom as "how to embed Quartz",
+/// called off in one call, a firing that links back to the request that asked for it, middleware around
+/// all of it, and a failure retried on the trigger's own policy. A bus author should be able to read
+/// this top to bottom as "how to embed Quartz",
 /// which is the other reason it is one method rather than eight.
 /// </para>
 /// <para>
@@ -100,6 +101,12 @@ public sealed class BusIntegrationScenarioTest
 
     /// <summary>Short enough that the loop re-reads the clock promptly after being signalled.</summary>
     private static readonly TimeSpan IdleWaitTime = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// The wait the retry policy in step 7 asks for. On the fake clock, so its length costs nothing and
+    /// is chosen only to be unmistakably shorter than the trigger's next ordinary occurrence.
+    /// </summary>
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(30);
 
     /// <summary>Where the fake clock starts. An arbitrary instant, fixed so the test reads the same every run.</summary>
     private static readonly DateTimeOffset Origin = new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero);
@@ -225,14 +232,7 @@ public sealed class BusIntegrationScenarioTest
         await AWholeCorrelationIsCalledOffInOneCall();
         await AFiringLinksBackToTheActivityThatScheduledIt();
         await MiddlewareWrapsEveryFiringAndSeesTheAmbientContext();
-
-        // TODO(#3520): a trigger's retry policy. RetryPolicy and the RETRY_POLICY / RETRY_ATTEMPT
-        // columns exist, but nothing on TriggerBuilder reaches them yet, so there is no call for this
-        // step to make. It belongs here, between the middleware step and shutdown:
-        //
-        //   a firing that throws is retried on the trigger's own policy rather than by holding a
-        //   thread-pool slot, and the attempt count is what the bus reads to give up.
-
+        await AFailedFiringIsRetriedOnTheTriggersOwnPolicy();
         await TheBusStopsTheSchedulerAndTheHostStopsCleanly();
     }
 
@@ -297,10 +297,12 @@ public sealed class BusIntegrationScenarioTest
         string correlationId = $"order-{run}";
         SendReceipt payload = new SendReceipt(correlationId, "customer@example.org", Attempt: 1);
 
-        TriggerKey key = await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
+        ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
             payload,
             TimeSpan.FromMinutes(5),
             new OneOffJobOptions { Name = messageId, Group = correlationId });
+
+        TriggerKey key = scheduled.TriggerKey;
 
         key.Should().Be(new TriggerKey(messageId, correlationId),
             "the bus named the firing after its own message id and correlation, and the key it gets back "
@@ -320,12 +322,19 @@ public sealed class BusIntegrationScenarioTest
             .Which.Should().Contain("customer@example.org",
                 "the string is the serialized payload rather than a placeholder");
 
+        scheduled.FirstFireTimeUtc.Should().Be(stored.StartTimeUtc,
+            "the call answers with the time the store computed as well as the key it stored, so a bus "
+            + "logging \"scheduled for\" says when the firing will happen rather than the delay it asked for");
+
         (await scheduler.Exists(DurableJobKey)).Should().BeTrue(
             "one durable job per job type and a trigger per message: a bus schedules thousands of firings "
             + "and must not write a job row for each of them");
 
         Task<Firing> firing = recorder.Expect(key);
-        await AdvanceTo(stored.StartTimeUtc);
+
+        // Driven by the time the call answered with rather than by a second read of the store: an answer
+        // is only worth having if the firing arranged for it happens then.
+        await AdvanceTo(scheduled.FirstFireTimeUtc);
         Firing fired = await Fires(key, firing);
 
         fired.Input.Should().Be(payload,
@@ -346,10 +355,10 @@ public sealed class BusIntegrationScenarioTest
         DateTimeOffset first = Now + TimeSpan.FromMinutes(10);
         SendReceipt draft = new SendReceipt(correlationId, "draft@example.org", Attempt: 1);
 
-        TriggerKey key = await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
+        TriggerKey key = (await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
             draft,
             first,
-            new OneOffJobOptions { Name = messageId, Group = correlationId });
+            new OneOffJobOptions { Name = messageId, Group = correlationId })).TriggerKey;
 
         Func<Task> withoutReplace = async () => await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
             draft,
@@ -363,12 +372,16 @@ public sealed class BusIntegrationScenarioTest
         DateTimeOffset later = Now + TimeSpan.FromMinutes(20);
         SendReceipt corrected = new SendReceipt(correlationId, "billing@example.org", Attempt: 2);
 
-        TriggerKey replaced = await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
+        ScheduledOneOffJob replaced = await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
             corrected,
             later,
             new OneOffJobOptions { Name = messageId, Group = correlationId, Replace = true });
 
-        replaced.Should().Be(key, "replacing is the same key by definition, or it is not a replacement");
+        replaced.TriggerKey.Should().Be(key, "replacing is the same key by definition, or it is not a replacement");
+
+        replaced.FirstFireTimeUtc.Should().Be(later,
+            "a replacement answers with its own fire time, so a bus moving a timeout out learns the new "
+            + "time from the call that moved it rather than from a read it would have to make afterwards");
 
         IReadOnlyList<TriggerHeader> underTheKey = await TriggersNamed(correlationId, messageId);
 
@@ -388,7 +401,7 @@ public sealed class BusIntegrationScenarioTest
                 + "payload would deliver a message the bus has already corrected");
 
         Task<Firing> firing = recorder.Expect(key);
-        await AdvanceTo(later);
+        await AdvanceTo(replaced.FirstFireTimeUtc);
         Firing fired = await Fires(key, firing);
 
         fired.Input.Should().Be(corrected,
@@ -412,16 +425,16 @@ public sealed class BusIntegrationScenarioTest
         List<TriggerKey> correlated = [];
         for (int step = 1; step <= 3; step++)
         {
-            correlated.Add(await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
+            correlated.Add((await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
                 new SendReceipt(cancelled, "customer@example.org", step),
                 far,
-                new OneOffJobOptions { Name = $"step-{step}", Group = cancelled }));
+                new OneOffJobOptions { Name = $"step-{step}", Group = cancelled })).TriggerKey);
         }
 
-        TriggerKey other = await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
+        TriggerKey other = (await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
             new SendReceipt(survivor, "someone-else@example.org", Attempt: 1),
             far,
-            new OneOffJobOptions { Name = "step-1", Group = survivor });
+            new OneOffJobOptions { Name = "step-1", Group = survivor })).TriggerKey;
 
         List<TriggerKey> removed = await scheduler.UnscheduleJobs(GroupMatcher<TriggerKey>.GroupEquals(cancelled));
 
@@ -467,10 +480,10 @@ public sealed class BusIntegrationScenarioTest
 
             try
             {
-                traced = await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
+                traced = (await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
                     new SendReceipt(correlationId, "traced@example.org", Attempt: 1),
                     at,
-                    new OneOffJobOptions { Name = "traced", Group = correlationId });
+                    new OneOffJobOptions { Name = "traced", Group = correlationId })).TriggerKey;
             }
             finally
             {
@@ -481,10 +494,10 @@ public sealed class BusIntegrationScenarioTest
         Activity.Current.Should().BeNull(
             "the second trigger is the control, so it has to be scheduled from outside any activity");
 
-        TriggerKey untraced = await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
+        TriggerKey untraced = (await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
             new SendReceipt(correlationId, "untraced@example.org", Attempt: 1),
             at,
-            new OneOffJobOptions { Name = "untraced", Group = correlationId });
+            new OneOffJobOptions { Name = "untraced", Group = correlationId })).TriggerKey;
 
         Task<Firing> tracedFiring = recorder.Expect(traced);
         Task<Firing> untracedFiring = recorder.Expect(untraced);
@@ -522,10 +535,10 @@ public sealed class BusIntegrationScenarioTest
         string correlationId = $"wrapped-{run}";
         DateTimeOffset at = Now + TimeSpan.FromMinutes(5);
 
-        TriggerKey key = await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
+        TriggerKey key = (await scheduler.ScheduleJob<ReceiptJob, SendReceipt>(
             new SendReceipt(correlationId, "wrapped@example.org", Attempt: 1),
             at,
-            new OneOffJobOptions { Name = "wrapped", Group = correlationId });
+            new OneOffJobOptions { Name = "wrapped", Group = correlationId })).TriggerKey;
 
         Task<Firing> firing = recorder.Expect(key);
         await AdvanceTo(at);
@@ -551,6 +564,77 @@ public sealed class BusIntegrationScenarioTest
             "middleware wraps every firing the scheduler performs, including the ones scheduled before it "
             + "was ever asked about - a pipeline that only covered what a caller routed through it would "
             + "be a wrapper job by another name");
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // 7. A failure. A transient error is what a bus expects most of the time, and retrying it belongs
+    //    to the trigger rather than to a job that sleeps and holds its execution slot while it waits.
+    // -------------------------------------------------------------------------------------------
+
+    private async Task AFailedFiringIsRetriedOnTheTriggersOwnPolicy()
+    {
+        string correlationId = $"retried-{run}";
+        TriggerKey key = new TriggerKey("retried", correlationId);
+        DateTimeOffset at = Now + TimeSpan.FromMinutes(5);
+        SendReceipt payload = new SendReceipt(correlationId, "retried@example.org", Attempt: 1);
+
+        // A trigger the bus builds itself, pointed at the durable job the one-call overloads keep:
+        // OneOffJobOptions carries no policy, and pointing a second scheduling path at the same job is
+        // what ScheduledJobKey<TJob>() is for. Repeating, so there is still a trigger to read after the
+        // retry has succeeded - a one-shot one would be gone, and "the attempt was cleared" would have
+        // nowhere to be true.
+        ITrigger retried = TriggerBuilder.Create<ReceiptJob>(scheduler.TimeProvider)
+            .WithIdentity(key)
+            .ForJob(DurableJobKey)
+            .StartAt(at)
+            .WithSimpleSchedule(schedule => schedule.WithInterval(TimeSpan.FromHours(24)).RepeatForever())
+            .WithRetryPolicy(RetryPolicy.Fixed(maxAttempts: 2, RetryDelay))
+            .UsingInput(payload)
+            .Build();
+
+        // The first firing throws and the retry does not, which is the shape of the transient failure
+        // the policy exists for. Throwing is the whole of asking for a retry.
+        recorder.FailNextFirings(key, 1);
+
+        await scheduler.ScheduleJob(retried);
+        await AdvanceTo(at);
+
+        ITrigger waiting = await TriggerWhere(key, trigger => trigger.RetryAttempt > 0,
+            "a firing whose job threw is retried on the policy the trigger carries");
+
+        waiting.RetryAttempt.Should().Be(1,
+            "the store records how far through the policy the occurrence is, so the attempt survives a "
+            + "restart and every node in a cluster reads the same one - a counter the bus kept in memory "
+            + "would not");
+
+        waiting.NextFireTimeUtc.Should().Be(Now + RetryDelay,
+            "the retry is scheduled the policy's delay after the failure, measured on the scheduler's own "
+            + "clock - a job that slept for it instead would hold its execution slot for the whole wait");
+
+        (await scheduler.GetTriggerState(key)).Should().Be(TriggerState.Normal,
+            "a failed occurrence with attempts left is a trigger waiting to try again, not a broken one an "
+            + "operator has to reset");
+
+        await AdvanceTo(waiting.NextFireTimeUtc!.Value);
+
+        ITrigger recovered = await TriggerWhere(key, trigger => trigger.RetryAttempt == 0,
+            "a retry that succeeded ends the occurrence and clears its attempt");
+
+        recorder.JobRan.Count(ran => ran.Equals(key)).Should().Be(2,
+            "the occurrence ran twice - the firing that failed and the retry that did not - so a policy "
+            + "with attempts to spare stops as soon as the job stops throwing");
+
+        recorder.AttemptsOf(key).Should().Equal([0, 1],
+            "RetryAttempt is 0 on the scheduled occurrence and n on the n-th retry, which is how a job "
+            + "tells a first go from a last chance without the bus threading a counter through its payload");
+
+        recovered.RetryAttempt.Should().Be(0,
+            "the occurrence is over, so the next failure starts from the policy's first wait again rather "
+            + "than from where this one left off");
+
+        recovered.NextFireTimeUtc.Should().Be(at + TimeSpan.FromHours(24),
+            "the occurrence the schedule called for is exactly where it would have been if nothing had "
+            + "failed - a retry is another go at one occurrence and burns no repeat of the schedule");
     }
 
     // -------------------------------------------------------------------------------------------
@@ -662,8 +746,11 @@ public sealed class BusIntegrationScenarioTest
 
     private DateTimeOffset Now => clock.GetUtcNow();
 
-    /// <summary>The single durable job every firing of <see cref="ReceiptJob" /> hangs off.</summary>
-    private static JobKey DurableJobKey => new JobKey(nameof(ReceiptJob), SchedulerConstants.ScheduledJobGroup);
+    /// <summary>
+    /// The single durable job every firing of <see cref="ReceiptJob" /> hangs off, named the way an
+    /// integration names it rather than by re-deriving the key the extension already spells.
+    /// </summary>
+    private static JobKey DurableJobKey => SchedulerJobExtensions.ScheduledJobKey<ReceiptJob>();
 
     /// <summary>
     /// Moves the scheduler's clock to just past <paramref name="instant" /> and wakes the loop.
@@ -730,6 +817,35 @@ public sealed class BusIntegrationScenarioTest
         return null;
     }
 
+    /// <summary>
+    /// Waits for the stored trigger to satisfy <paramref name="condition" />, and answers with it.
+    /// </summary>
+    /// <remarks>
+    /// Polled rather than awaited, for the reason <see cref="ExecuteActivityFor" /> is: the store is
+    /// written after the job returns, so a firing the recorder already knows about can still be one
+    /// whose outcome has not reached the store. The deadline is real time, and failing it is a failure
+    /// rather than a hang.
+    /// </remarks>
+    private async Task<ITrigger> TriggerWhere(TriggerKey key, Func<ITrigger, bool> condition, string expectation)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow + FireDeadline;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            ITrigger stored = await scheduler.GetTrigger(key);
+
+            if (stored is not null && condition(stored))
+            {
+                return stored;
+            }
+
+            await Task.Delay(50);
+        }
+
+        Assert.Fail($"Trigger {key} never reached the state this step waited for within {FireDeadline}: {expectation}.");
+        return null;
+    }
+
     private async Task<IReadOnlyList<TriggerHeader>> TriggersIn(string group)
     {
         PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery
@@ -791,6 +907,12 @@ public sealed class BusRecorder
 {
     private readonly ConcurrentDictionary<TriggerKey, TaskCompletionSource<Firing>> firings = new();
 
+    /// <summary>What each firing of a trigger reported as its retry attempt, in the order they ran.</summary>
+    private readonly ConcurrentDictionary<TriggerKey, ConcurrentQueue<int>> attempts = new();
+
+    /// <summary>How many more firings of a trigger must throw.</summary>
+    private readonly ConcurrentDictionary<TriggerKey, int> failures = new();
+
     /// <summary>Every entered / ran / left event, in the order they happened.</summary>
     public ConcurrentQueue<string> Timeline { get; } = new();
 
@@ -812,11 +934,41 @@ public sealed class BusRecorder
     /// </summary>
     public Task<Firing> Expect(TriggerKey key) => Slot(key).Task;
 
-    public void Ran(TriggerKey key, SendReceipt input, bool ambientContextWasThisFiring)
+    public void Ran(TriggerKey key, SendReceipt input, bool ambientContextWasThisFiring, int retryAttempt)
     {
         JobRan.Add(key);
+        attempts.GetOrAdd(key, static _ => new ConcurrentQueue<int>()).Enqueue(retryAttempt);
         Timeline.Enqueue($"job ran {key.Name}");
         Slot(key).TrySetResult(new Firing(key, input, ambientContextWasThisFiring));
+    }
+
+    /// <summary>
+    /// Tells the job to throw on the next <paramref name="count" /> firings of this trigger.
+    /// </summary>
+    /// <remarks>
+    /// A count rather than a flag, so a step says how many attempts fail and the retry after them is a
+    /// real success rather than a second failure nothing asked for.
+    /// </remarks>
+    public void FailNextFirings(TriggerKey key, int count) => failures[key] = count;
+
+    /// <summary>Whether this firing is one a step asked to fail, spending it if so.</summary>
+    public bool FailThisFiring(TriggerKey key)
+    {
+        while (failures.TryGetValue(key, out int left) && left > 0)
+        {
+            if (failures.TryUpdate(key, left - 1, left))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>What the firings of one trigger reported as their retry attempt, in the order they ran.</summary>
+    public List<int> AttemptsOf(TriggerKey key)
+    {
+        return attempts.TryGetValue(key, out ConcurrentQueue<int> recorded) ? [.. recorded] : [];
     }
 
     public void MiddlewareEntered(TriggerKey key, bool ambientContextWasThisFiring)
@@ -849,7 +1001,19 @@ public sealed class ReceiptJob(BusRecorder recorder, IJobExecutionContextAccesso
 {
     public ValueTask Execute(IJobExecutionContext context, SendReceipt input, CancellationToken cancellationToken = default)
     {
-        recorder.Ran(context.Trigger.Key, input, accessor.Current?.FireInstanceId == context.FireInstanceId);
+        recorder.Ran(
+            context.Trigger.Key,
+            input,
+            accessor.Current?.FireInstanceId == context.FireInstanceId,
+            context.RetryAttempt);
+
+        if (recorder.FailThisFiring(context.Trigger.Key))
+        {
+            // Letting an exception out is the whole of asking for a retry: no interface to implement,
+            // no attribute, and nothing for the job to know about the policy the trigger carries.
+            throw new InvalidOperationException($"the receipt for {input.CorrelationId} could not be sent");
+        }
+
         return default;
     }
 }
@@ -864,8 +1028,16 @@ public sealed class BusMiddleware(BusRecorder recorder, IJobExecutionContextAcce
     {
         recorder.MiddlewareEntered(context.Trigger.Key, accessor.Current?.FireInstanceId == context.FireInstanceId);
 
-        await next(context, cancellationToken);
-
-        recorder.MiddlewareLeft(context.Trigger.Key);
+        try
+        {
+            await next(context, cancellationToken);
+        }
+        finally
+        {
+            // In a finally, because a firing whose job throws has to unwind the middleware too: a log
+            // scope or a transport context closed only on the success path would leak on exactly the
+            // firings worth reading about.
+            recorder.MiddlewareLeft(context.Trigger.Key);
+        }
     }
 }

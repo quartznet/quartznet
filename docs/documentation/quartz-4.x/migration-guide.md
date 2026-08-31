@@ -1901,7 +1901,8 @@ runtime type — which is what keeps this working in a trimmed or native-AOT pub
 
 **The API added.** In `Quartz`: `IJob<TInput>`;
 `SchedulerConstants.JobInput` (`"QRTZ_JOB_INPUT"`);
-`JobExecutionContextInputExtensions.GetInput<TInput>(this IJobExecutionContext)`;
+`JobExecutionContextInputExtensions.GetInput<TInput>(this IJobExecutionContext)` and
+`TryGetInput<TInput>(this IJobExecutionContext, out TInput?)`;
 and `JobInputBuilderExtensions.UsingInput<TJob, TInput>` on `JobBuilder<TJob>`, `TriggerBuilder<TJob>`,
 `IJobConfigurator<TJob>` and `ITriggerConfigurator<TJob>`. In `Quartz.Extensibility`:
 `IJobInputSerializer`. In `Quartz.Impl`: `SystemTextJsonJobInputSerializer`, and a fourth optional
@@ -1924,6 +1925,27 @@ argument explicitly — `UsingInput<SendEmailJob, SendEmail>(payload)` — when 
 base type. And a `[PersistJobDataAfterExecution]` job whose *detail* carries the input writes it back
 after every firing; that is harmless, since it is already the string it will be read as, but an input
 that differs per firing belongs on the trigger.
+
+**Converting a job over a store that predates the input.** An `IJob<TInput>` fails a firing that carries no
+input, by name, rather than running it with a default payload — right for a fresh application, and a trap
+for one whose store already holds triggers written by its 3.x self, whose payload is spread over flat
+`JobDataMap` keys with nothing under `QRTZ_JOB_INPUT`. A job that has to serve both shapes while those
+triggers drain stays an `IJob` and reads them apart with `TryGetInput`:
+
+```csharp
+public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+{
+    SendEmail input = context.TryGetInput(out SendEmail? typed) && typed is not null
+        ? typed
+        : new SendEmail(context.MergedJobDataMap.GetString("to")!, context.MergedJobDataMap.GetString("subject")!);
+
+    // ...
+}
+```
+
+`TryGetInput` answers `false` only when the key is absent; a value that is present and unreadable still
+throws, because corruption is not compatibility. `GetInput<TInput>()` cannot tell the two apart — a payload
+that read back as `null` and no payload at all are the same answer there.
 
 **Serialization.** `IJobInputSerializer` is registered per scheduler, keyed by name like every other
 component, and defaults to `SystemTextJsonJobInputSerializer` built from the same
@@ -2009,10 +2031,10 @@ Also new, on top of [typed inputs](#a-job-can-take-a-typed-input): two extension
 that schedule one firing of a job with a payload and a time, and nothing else to build.
 
 ```csharp
-ValueTask<TriggerKey> ScheduleJob<TJob, TInput>(this IScheduler scheduler, TInput input, DateTimeOffset at,
+ValueTask<ScheduledOneOffJob> ScheduleJob<TJob, TInput>(this IScheduler scheduler, TInput input, DateTimeOffset at,
     OneOffJobOptions options = default, CancellationToken cancellationToken = default) where TJob : IJob<TInput>;
 
-ValueTask<TriggerKey> ScheduleJob<TJob, TInput>(this IScheduler scheduler, TInput input, TimeSpan delay,
+ValueTask<ScheduledOneOffJob> ScheduleJob<TJob, TInput>(this IScheduler scheduler, TInput input, TimeSpan delay,
     OneOffJobOptions options = default, CancellationToken cancellationToken = default) where TJob : IJob<TInput>;
 ```
 
@@ -2020,32 +2042,51 @@ They are the imperative twin of `IQuartzBuilder.ScheduleJob<TJob>`, which only e
 an application declares at start-up. 3.x had nothing of the kind.
 
 ```csharp
-TriggerKey firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
+ScheduledOneOffJob firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
     invoice, TimeSpan.FromDays(7), new OneOffJobOptions { Name = $"invoice-{invoice.CustomerId}", Group = invoice.CustomerId, Replace = true });
 
-await scheduler.UnscheduleJob(firing);
+logger.LogInformation("Reminder {Trigger} scheduled for {At}", firing.TriggerKey, firing.FirstFireTimeUtc);
+
+await scheduler.UnscheduleJob(firing.TriggerKey);
 ```
 
+**What the call answers with** is `ScheduledOneOffJob`, a two-member `readonly record struct`: the
+`TriggerKey` of the firing — the handle to cancel it with, or to replace it by scheduling the same name
+again — and the `FirstFireTimeUtc` the store computed, which is what the
+`ScheduleJob(trigger, options)` overload it wraps returns and what a caller logging "scheduled for X"
+would otherwise have to infer from the time it asked for. It stays two members: everything else about the
+firing is a property of the trigger the key names.
+
 **One durable job per job type, many triggers.** The job is stored once under
+`SchedulerJobExtensions.ScheduledJobKey<TJob>()`, which is
 `(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)` — a new reserved constant spelled
 `"QRTZ_SCHEDULED"` — and every call adds a trigger to it. That is the shape a message bus's Quartz
 integration converges on: a scheduled message is a trigger, so there is no job churn to pay for. The job is
 ensured with `AddJob` and `Replace`, which is idempotent and cluster-safe, and remembered per scheduler
 instance; a store that reports the job missing gets it put back and the firing retried once, so a cluster
-restore or an operator's delete does not turn into a permanent failure.
+restore or an operator's delete does not turn into a permanent failure. The key is public because an
+integration with a second scheduling path — a recurring trigger it builds itself for the same job — has to
+point that trigger at the same job rather than add one of its own to a group it is told to stay out of.
 
 **`OneOffJobOptions` is named for what the call creates**, not for the call: one off, one firing, one
 trigger. It carries what would otherwise be `TriggerBuilder` calls — `Name`, `Group`, `Description`,
-`Priority`, `ExecutionGroup`, `MisfireInstruction` — plus `Replace`, which it passes on to the store.
-Every member is optional, and `default` is "a one-shot trigger with a generated name, in this job type's
-own group". An overload that schedules a *recurring* job would have something else to say — a schedule,
-an end time, a calendar — and will get an options type of its own rather than nullable members here that
-mean nothing to a single firing. It is a different thing from `ScheduleJobOptions`, which describes a
+`Priority`, `ExecutionGroup`, `MisfireInstruction` — plus `Replace`, which it passes on to the store, and
+`RequestRecovery`, the one member that describes the ensured *job*: set it and that job is marked
+`RequestsRecovery`, so a firing interrupted by a hard shutdown is re-executed when the scheduler comes back.
+Because the job is ensured once per scheduler instance, the first call's value wins for the lifetime of the
+process — which is why it is a named boolean rather than a configuration delegate that would look as though
+it varied per call. Every member is optional, and `default` is "a one-shot trigger with a generated name, in
+this job type's own group". An overload that schedules a *recurring* job would have something else to say — a
+schedule, an end time, a calendar — and will get an options type of its own rather than nullable members here
+that mean nothing to a single firing. It is a different thing from `ScheduleJobOptions`, which describes a
 *store* operation and says only whether it may over-write.
 
 The trigger group is the correlation axis: everything scheduled for one saga, one tenant or one
 conversation can share a group and be listed, paused or unscheduled together. Cancelling is
-`UnscheduleJob(key)`; the durable job stays behind, one row per job type whatever the traffic.
+`UnscheduleJob(key)`; the durable job stays behind, one row per job type whatever the traffic. Mind the
+default when adopting these overloads inside something that already has a trigger-key contract: `Group`
+defaults to the job type's name, so an integration whose callers cancel with `new TriggerKey(id)` — the
+*default* group — must say `Group = TriggerKey.DefaultGroup` or its cancellation silently stops matching.
 
 See [One-Off Job](how-tos/one-off-job.md#a-payload-and-a-time-in-one-call).
 
