@@ -89,9 +89,12 @@ public class MySQLDelegate : StdAdoDelegate
             .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)");
     }
 
+    /// <summary>
+    /// The counting form of the misfire scan carries the same FORCE INDEX hint, on the unaliased table.
+    /// </summary>
     protected override string GetCountMisfiredTriggersInStateSql()
     {
-        return StdAdoConstants.SqlCountMisfiredTriggersInStates
+        return base.GetCountMisfiredTriggersInStateSql()
             .Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE) WHERE");
     }
 }
