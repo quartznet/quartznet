@@ -157,13 +157,18 @@ public class InProcessLockHandlerTest
     }
 
     /// <summary>
-    /// A waiter whose token is cancelled while it is queued. It reports that it took nothing rather than
-    /// throwing, which is what lets the store's <c>finally</c> release only what it actually holds — and
-    /// it must leave the queue without consuming the handover, or the lock would be lost to a caller
-    /// that has already given up.
+    /// A waiter whose token is cancelled while it is queued. It reports the cancellation, and it must
+    /// leave the queue without consuming the handover, or the lock would be lost to a caller that has
+    /// already given up.
     /// </summary>
+    /// <remarks>
+    /// It used to answer <see langword="false" />, which reads as "I took nothing" but is not what
+    /// <see langword="false" /> means to the store: the store's word for that is a re-entrant acquire —
+    /// "you already hold this, do not release it" — and a caller told that goes on to run its guarded
+    /// operation with no lock at all. #3583.
+    /// </remarks>
     [Test]
-    public async Task AWaiterCancelledWhileQueuedTakesNothingAndLeavesTheLockWhereItWas()
+    public async Task AWaiterCancelledWhileQueuedReportsTheCancellationAndLeavesTheLockWhereItWas()
     {
         InProcessLockHandler lockHandler = new();
         Guid holder = Guid.NewGuid();
@@ -178,9 +183,16 @@ public class InProcessLockHandlerTest
 
         await cancellation.CancelAsync();
 
-        (await abandoned.WaitAsync(GiveUpAfter)).Should().BeFalse(
-            "a cancelled wait answers 'I do not hold this' rather than throwing, so the caller's cleanup "
-            + "does not go on to release a lock it never took");
+        // Deadlined rather than awaited bare, so a handler that swallowed the cancellation and went back
+        // to waiting fails this test instead of hanging the run.
+        Func<Task> awaitAbandoned = () => abandoned.WaitAsync(GiveUpAfter);
+        await awaitAbandoned.Should().ThrowAsync<OperationCanceledException>(
+            "answering false would tell the store the caller already held the lock, and the guarded "
+            + "operation would then run with nothing holding it");
+
+        abandoned.IsCanceled.Should().BeTrue(
+            "the caller asked to stop, so this is a cancelled task rather than a faulted one — which is "
+            + "what lets a caller matching on cancellation tell it from the store falling over");
 
         Task<bool> queued = lockHandler.AcquireLock(patient, conn: null, SchedulerLock.TriggerAccess).AsTask();
         queued.IsCompleted.Should().BeFalse("the lock is still the holder's, cancellation notwithstanding");
@@ -191,6 +203,31 @@ public class InProcessLockHandlerTest
             "the abandoned waiter left the queue without consuming the handover; had it taken the lock on "
             + "its way out, this release would have gone to a caller that no longer exists and the store "
             + "would be stuck");
+    }
+
+    /// <summary>
+    /// The same rule when the token has already fired before the call: still an exception, and still no
+    /// mark on the lock — the requestor that gave up is not recorded as an owner, so nothing has to be
+    /// released on its behalf and the next caller is served immediately.
+    /// </summary>
+    [Test]
+    public async Task AnAcquireWhoseTokenHasAlreadyFiredTakesNothingAtAll()
+    {
+        InProcessLockHandler lockHandler = new();
+        Guid abandoning = Guid.NewGuid();
+        Guid next = Guid.NewGuid();
+
+        using CancellationTokenSource cancellation = new();
+        await cancellation.CancelAsync();
+
+        Func<Task> act = async () => await lockHandler.AcquireLock(abandoning, conn: null, SchedulerLock.TriggerAccess, cancellation.Token);
+        await act.Should().ThrowAsync<OperationCanceledException>();
+
+        Task<bool> unclaimed = lockHandler.AcquireLock(next, conn: null, SchedulerLock.TriggerAccess).AsTask();
+
+        unclaimed.IsCompleted.Should().BeTrue(
+            "the cancelled call never took the lock, so there is nothing for this one to queue behind");
+        (await unclaimed).Should().BeTrue();
     }
 
     [Test]

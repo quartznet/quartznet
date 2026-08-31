@@ -51,11 +51,13 @@ internal sealed class InProcessLockHandler : ILockHandler
         logger = context.LoggerFactory.CreateLogger<InProcessLockHandler>();
     }
 
-    /// <summary>
-    /// Grants a lock on the identified resource to the calling thread (blocking
-    /// until it is available).
-    /// </summary>
-    /// <returns>True if the lock was obtained.</returns>
+    /// <inheritdoc />
+    /// <remarks>
+    /// A waiter abandoned by its token leaves the queue without consuming the handover, because
+    /// <see cref="SemaphoreSlim.WaitAsync(CancellationToken)" /> does not take the count it was
+    /// cancelled out of. The lock therefore stays with whoever holds it and is handed to the next
+    /// waiter on release.
+    /// </remarks>
     public async ValueTask<bool> AcquireLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
@@ -82,15 +84,22 @@ internal sealed class InProcessLockHandler : ILockHandler
             try
             {
                 await lockHandle.Acquire(requestorId, cancellationToken).ConfigureAwait(false);
-                gotLock = true;
             }
             catch (OperationCanceledException)
             {
+                // Reported as itself rather than answered with false. False is the store's word for
+                // "you already hold this, do not release it", so a cancelled wait dressed up as false
+                // would send the caller on to run its guarded operation with no lock at all - see the
+                // contract on ILockHandler.AcquireLock.
                 if (isDebugEnabled)
                 {
                     logger.LockNotObtained(lockName, requestorId);
                 }
+
+                throw;
             }
+
+            gotLock = true;
 
             if (isDebugEnabled)
             {

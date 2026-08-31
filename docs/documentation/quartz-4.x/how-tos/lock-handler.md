@@ -61,6 +61,23 @@ lock the outer one is still relying on.
 
 `ReleaseLock` from a non-owner should warn, not throw — that is what the shipped handlers do.
 
+### And `false` means nothing else
+
+The other half of that rule: **an acquire that did not take the lock throws.** `LockException` when the
+lock was refused, `OperationCanceledException` when the token fired.
+
+::: danger
+Answering `false` on cancellation is not a gentler way of saying "I got nothing". The store reads
+`false` as *already held, do not release*, so it goes on to run the operation with no lock and releases
+nothing on the way out. Do not lean on the store's ordering to save you either: a handler with
+`RequiresConnection = false` is followed immediately by a connection open on the same token, which would
+throw first — statement ordering, not a guarantee.
+:::
+
+A handler that gives up also leaves nothing behind: a wait abandoned partway must not consume a
+handover meant for the next waiter, and anything taken before the failure — a local gate in front of a
+remote lock, say — is released before the exception escapes.
+
 ## Deriving from DbLockHandler
 
 When the lock *is* a database row, `DbLockHandler` does the plumbing — ownership tracking, re-entry,
@@ -229,10 +246,13 @@ node.
 
 ## Testing one
 
-The re-entry rule and the retry behaviour are the two things worth a test, and neither needs a
-scheduler:
+The re-entry rule, the cancellation rule and the retry behaviour are the three things worth a test, and
+none of them needs a scheduler:
 
 - Call `AcquireLock` twice with the same `requestorId` and assert the second returns `false`.
+- Acquire with a token that has already fired, and assert an `OperationCanceledException` rather than a
+  `false`. Then acquire again from another `requestorId` and assert it is served, which is how a lock
+  left held by the abandoned attempt shows up.
 - Give the handler a `FakeTimeProvider` through `LockHandlerContext` and advance it to drive the retry
   loop without the test waiting.
 

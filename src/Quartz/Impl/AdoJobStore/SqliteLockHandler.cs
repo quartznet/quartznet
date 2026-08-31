@@ -70,11 +70,13 @@ internal sealed class SqliteLockHandler : ILockHandler
         logger = context.LoggerFactory.CreateLogger<SqliteLockHandler>();
     }
 
-    /// <summary>
-    /// Grants a lock on the identified resource to the calling thread (blocking
-    /// until it is available).
-    /// </summary>
-    /// <returns>True if the lock was obtained.</returns>
+    /// <inheritdoc />
+    /// <remarks>
+    /// This is the counted variant the contract allows: a re-entrant acquire is answered
+    /// <see langword="true" /> and bumps a hold count, so every acquire is matched by a release and
+    /// only the last one opens the gate. <see langword="false" /> is therefore never returned at all
+    /// — a wait this handler cannot complete ends in an exception.
+    /// </remarks>
     public ValueTask<bool> AcquireLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
@@ -124,12 +126,17 @@ internal sealed class SqliteLockHandler : ILockHandler
         }
         catch (OperationCanceledException)
         {
+            // Reported as itself rather than answered with false. False is the store's word for "you
+            // already hold this, do not release it", so a cancelled wait dressed up as false would send
+            // the caller on to run its guarded operation with no lock at all - see the contract on
+            // ILockHandler.AcquireLock. The gate itself is untouched: a cancelled WaitAsync does not
+            // take the count it was cancelled out of, so currentOwner and lockCount stay as they were.
             if (isDebugEnabled)
             {
                 logger.LockNotObtained(lockName, requestorId);
             }
 
-            return false;
+            throw;
         }
 
         lock (syncRoot)
