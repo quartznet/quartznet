@@ -673,7 +673,22 @@ public abstract class TriggerBase : IOperableTrigger, IEquatable<TriggerBase>
     {
         // The trigger's own clock, so a retry instant and the fire times it is compared with are two
         // readings of the same one.
-        DateTimeOffset retryAt = TimeProvider.GetUtcNow() + policy.DelayFor(RetryAttempt + 1);
+        DateTimeOffset now = TimeProvider.GetUtcNow();
+        TimeSpan delay = policy.DelayFor(RetryAttempt + 1);
+
+        // A retry that lands past the end of representable time is a retry nobody ever comes back for,
+        // which is the same answer as the two cases below: the occurrence settles and the trigger keeps
+        // its ordinary schedule. It has to be decided before the arithmetic rather than after, because
+        // adding to a DateTimeOffset throws where DelayFor saturates — and an exponential policy of one
+        // second times ten runs out of calendar on its twelfth retry, which is a policy somebody might
+        // actually write. The supersede margin comes off here too, so the comparison it is used in
+        // cannot overflow either.
+        if (delay > DateTimeOffset.MaxValue - RetrySupersedeMargin - now)
+        {
+            return false;
+        }
+
+        DateTimeOffset retryAt = now + delay;
 
         // What the schedule says comes next, which the fire that just completed advanced this to.
         DateTimeOffset? regularNext = NextFireTimeUtc;
