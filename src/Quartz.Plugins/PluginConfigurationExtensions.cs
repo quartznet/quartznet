@@ -1,7 +1,6 @@
 using Quartz.Configuration;
 using Quartz.Plugins.History;
 using Quartz.Plugins.Json;
-using Quartz.Plugins.Management;
 using Quartz.Plugins.Xml;
 
 namespace Quartz;
@@ -164,19 +163,6 @@ public static class PluginConfigurationExtensions
     }
 
     /// <summary>
-    /// Shuts the scheduler down when the process exits.
-    /// </summary>
-    public static IQuartzBuilder UseShutdownHook(
-        this IQuartzBuilder builder,
-        Action<ShutdownHookOptions>? configure = null)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        return builder.AddConfiguredPlugin<ShutdownHookPlugin, ShutdownHookOptions>(
-            "shutdownHook", configure, static (plugin, options) => plugin.CleanShutdown = options.CleanShutdown);
-    }
-
-    /// <summary>
     /// Applies a message template only when the caller set one, so the plugin keeps its own default
     /// rather than a copy of it that can drift.
     /// </summary>
@@ -229,18 +215,6 @@ public sealed class TriggerHistoryLoggingOptions
 
     /// <summary>Overrides the plugin's own template for a trigger completes.</summary>
     public string? TriggerCompleteMessage { get; set; }
-}
-
-/// <summary>
-/// Configuration for the plugin that shuts the scheduler down when the process exits.
-/// </summary>
-public sealed class ShutdownHookOptions
-{
-    /// <summary>
-    /// Whether to wait for executing jobs to finish before the process exits. Defaults to
-    /// <see langword="true" />.
-    /// </summary>
-    public bool CleanShutdown { get; set; } = true;
 }
 
 /// <summary>

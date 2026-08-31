@@ -695,7 +695,7 @@ assignable on a live instance with nothing saying which wins or when. The compon
 | `RedisLockHandler.RedisConfiguration`, `.KeyPrefix`, `.LockTimeToLive`, `.LockRetryInterval` | `UseRedisLockHandler(o => …)` |
 | The history plugins' message templates | `UseJobHistoryLogging(o => …)`, `UseTriggerHistoryLogging(o => …)`, and now `UseStructuredJobLogging(o => …)` / `UseStructuredTriggerLogging(o => …)` |
 | The scheduling-data plugins' `FileNames`, `ScanInterval`, `FailOn*` (internal outright — see [one surface](#the-two-scheduling-data-plugins-have-one-surface)) | `UseXmlSchedulingConfiguration(o => …)` / `UseJsonSchedulingConfiguration(o => …)` |
-| `ShutdownHookPlugin.CleanShutdown` | `UseShutdownHook(o => o.CleanShutdown = …)` |
+| `ShutdownHookPlugin.CleanShutdown` | `AddQuartzHostedService(o => o.WaitForJobsToComplete = …)` — the plugin is gone, see [`ShutdownHookPlugin` is retired; the host already shuts the scheduler down](#shutdownhookplugin-is-retired-the-host-already-shuts-the-scheduler-down) |
 
 The two shipped row-lock handlers keep their retry knobs, but as `init`-only properties rather than
 setters: `SelectForUpdateLockHandler` has `MaxRetry` and `RetryPeriod`, and `UpdateRowLockHandler` has
@@ -2509,6 +2509,41 @@ cancellation and returns normally is reported as timed out too.
 What has *not* changed is that a job which ignores its `CancellationToken` cannot be stopped. That was
 the plugin's limit as well; `CA2016` is the mitigation.
 
+### `ShutdownHookPlugin` is retired; the host already shuts the scheduler down
+
+`ShutdownHookPlugin` subscribed to `AppDomain.CurrentDomain.ProcessExit` with an `async void` handler,
+so nothing awaited the shutdown it started: the process was free to exit part-way through, which is the
+opposite of the clean shutdown the plugin's name promised. `ShutdownHookPlugin`, `UseShutdownHook` and
+`ShutdownHookOptions` are gone.
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `q.UseShutdownHook()` under a host | `services.AddQuartzHostedService()` — already the recommended registration, and already what stops the scheduler |
+| `q.UseShutdownHook(o => o.CleanShutdown = true)` | `services.AddQuartzHostedService(o => o.WaitForJobsToComplete = true)` — `CleanShutdown` under its real name |
+| `q.UseShutdownHook(o => o.CleanShutdown = false)` | `services.AddQuartzHostedService()`; `WaitForJobsToComplete` defaults to `false` |
+| `q.UseShutdownHook()` with no host | `await scheduler.Shutdown(waitForJobsToComplete: true)` on the application's own exit path |
+| `quartz.plugin.shutdownHook.type = Quartz.Plugin.Management.ShutdownHookPlugin, Quartz.Plugins` | remove the keys; the type no longer exists, so a configuration still naming it fails to load |
+| `ShutdownHookPlugin.CleanShutdown` | `QuartzHostedServiceOptions.WaitForJobsToComplete` |
+
+`QuartzHostedService` is an `IHostedLifecycleService`, so the host stops every registered scheduler as
+part of its own shutdown and *awaits* it, inside `HostOptions.ShutdownTimeout` rather than in a handler
+the runtime abandons. It also shuts several schedulers down concurrently, which `ProcessExit` never did.
+
+An application with no host has an exit path of its own — the end of `Main`, a `Ctrl+C` handler, the
+disposal of a scope — and that path can await the shutdown:
+
+```csharp
+await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create().Build();
+IScheduler scheduler = await schedulerFactory.GetScheduler();
+await scheduler.Start();
+
+// ... the application runs ...
+
+await scheduler.Shutdown(waitForJobsToComplete: true);
+```
+
+`Quartz.Server` already shuts down this way and never used the plugin.
+
 ## Registered schedulers can be listed without being started
 
 `ISchedulerFactory.GetAllSchedulers()` — `GetAllSchedulers()` on 3.x too — lists the schedulers
@@ -3982,8 +4017,8 @@ registration is one word different.
 ### The shipped plugins are sealed
 
 `LoggingJobHistoryPlugin`, `LoggingTriggerHistoryPlugin`, `StructuredLoggingJobHistoryPlugin`,
-`StructuredLoggingTriggerHistoryPlugin`, `ShutdownHookPlugin`,
-`XmlSchedulingDataProcessorPlugin`, `JsonSchedulingDataProcessorPlugin` and `TimeZoneConverterPlugin`
+`StructuredLoggingTriggerHistoryPlugin`, `XmlSchedulingDataProcessorPlugin` and
+`JsonSchedulingDataProcessorPlugin`
 are `sealed`, and so is `NoOpJob`. A plugin is an `ISchedulerPlugin` — four members, all of which a
 plugin of your own implements directly — so deriving from a shipped one only ever inherited a
 `Name` property and a scheduler reference. Write the plugin against the interface; every shipped
@@ -4993,7 +5028,7 @@ already have them.
 * **Every listener callback names its scheduler** — one listener can serve several schedulers in one host and still say which of them paused a trigger or failed, and `SchedulerError` carries the trigger, job and firing it was raised for. A listener still carrying a signature from 3.x, from alpha.1, or from before `TriggerMisfired` led with the trigger is refused when it is registered, with a message naming the member, rather than being attached and never called (see [Listeners are told which scheduler is calling](#listeners-are-told-which-scheduler-is-calling))
 * **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `store.ConfigureStore(o => o.AcceptEnlistedTransactions = true)`, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
 * **Job execution middleware** — `IJobExecutionMiddleware` wraps every firing a scheduler performs, which is where a log scope, a tenant context, a metric or a translation of a library's exceptions belongs. A listener could never do it: it is notified before and after the execution rather than around it. Registered with `AddJobMiddleware<T>()` and its factory and instance overloads (see [Cross-cutting concerns run as middleware](#cross-cutting-concerns-run-as-middleware))
-* **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
+* **Builder methods for the classic history plugins** — `UseJobHistoryLogging()` and `UseTriggerHistoryLogging()`. Only the structured-logging variants had one, so the classic history plugins could previously be reached only through `quartz.plugin.*` property keys
 * **A plugin implements only what it has to say** — `ISchedulerPlugin.Start` and `Shutdown` have default implementations, so a plugin that does its work in `Initialize` writes one member rather than three (see [A plugin implements only what it has to say](#a-plugin-implements-only-what-it-has-to-say))
 * **A calendar can have dependencies** — `AddCalendar(name, serviceProvider => …)` builds the calendar from the container, which the `where T : ICalendar, new()` generic overloads cannot (see [A calendar can be built from the container](#a-calendar-can-be-built-from-the-container))
 * **A renamed job type is declared, not coded around** — `q.UseTypeLoader(loader => loader.Map("Acme.Jobs.NightlyReport, Acme.Jobs", typeof(NightlyRollupJob)))`, or the same map under `Quartz:TypeLoader:Aliases` in configuration, keeps every row still carrying the old `JOB_CLASS_NAME` firing. On 3.x the only answer was an `ITypeLoadHelper` of your own (see [A job type rename is declared as a map](#a-job-type-rename-is-declared-as-a-map))
@@ -9930,7 +9965,6 @@ Parameters and behavior are unchanged:
 | `JobDataMap.GetEnumerator` returns the interface | `IEnumerator<KeyValuePair<string, object?>>` rather than `Dictionary<string, object?>.Enumerator`, matching `SchedulerContext`. `foreach` is unaffected; a variable declared as the concrete struct type needs retyping |
 | `CronTriggerImpl.WillFireOn` is one method | `WillFireOn(DateTimeOffset timeUtc, bool dayOnly = false)`. The two overloads differed only by that default. Both call shapes compile unchanged |
 | `JobExecutionContextImpl.IncrementRefireCount()` and the `JobRunTime` setter are internal | Both record what the scheduler observed while running the job; `JobRunShell` is the only caller, and writing either from a job or a listener reported a fire that never happened |
-| `UseShutdownHook` takes an options delegate | `UseShutdownHook(o => o.CleanShutdown = false)` replaces `UseShutdownHook(cleanShutdown: false)`, matching the seven other `Use*` plugin methods. `UseShutdownHook()` is unchanged, and `CleanShutdown` still defaults to `true` |
 | `LoggingJobHistoryPlugin.Name`, `LoggingTriggerHistoryPlugin.Name` are get-only | The name is handed to a plugin by `Initialize`; writing it afterwards did nothing |
 | `TimeSpanParseRuleAttribute` is public | It says how a bare number in configuration is read as a `TimeSpan`, which a component configured by the same keys needs to be able to say |
 | `TimeZoneUtil.CustomResolver` became `TimeZones.AddResolver(...)` | Returns an `IDisposable` whose disposal removes exactly that resolver; resolvers are consulted most recently added first — see [`CustomResolver` became `AddResolver`](#customresolver-became-addresolver) |
@@ -10164,7 +10198,7 @@ explaining it a second time.
 
 It is derived mechanically, by diffing the public API baselines both branches keep under
 `src/Quartz.Tests.Unit/Verify/` and `src/Quartz.Tests.AspNetCore/Verify/`, so it names **every**
-public type 3.x had and 4.0 does not — all 98, across every package — rather than the ones that came
+public type 3.x had and 4.0 does not — all 100, across every package — rather than the ones that came
 to mind. If you want the raw delta for one package rather than this summary, `git diff` its baseline
 across the two branches; package boundaries moved, so match the files up with this first:
 
@@ -10296,6 +10330,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Impl.AdoJobStore.SimpleSemaphore` | Internal, renamed `InProcessLockHandler` | It is the in-process lock the ADO.NET store falls back to when database locking is off; implement `ILockHandler` for a lock of your own — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
 | `Quartz.Xml.XMLSchedulingDataProcessor` | Internal, respelled `XmlSchedulingDataProcessor` | `UseXmlSchedulingConfiguration()` — the plugin *is* the supported entry point. The type's only constructor needed an `ITypeLoader`, whose every implementation is internal; `OverwriteExistingData = false` was reverted by any file carrying `<processing-directives>`; and `ProcessFile(fileName, systemId)` wanted an identifier from a specification Quartz no longer uses. With it goes the last public type in `Quartz.Xml` |
 | `Quartz.Simpl.SimpleTypeLoadHelper` | Internal, renamed `SimpleTypeLoader` | Register your own `ITypeLoader`; a configuration string naming the old type still resolves, with a warning |
+| `Quartz.Plugin.Management.ShutdownHookPlugin` | Removed | `AddQuartzHostedService(o => o.WaitForJobsToComplete = …)` under a host, or `scheduler.Shutdown(waitForJobsToComplete: true)` on your own exit path. `UseShutdownHook` and `ShutdownHookOptions` go with it — see [`ShutdownHookPlugin` is retired; the host already shuts the scheduler down](#shutdownhookplugin-is-retired-the-host-already-shuts-the-scheduler-down) |
 | `Quartz.Impl.AdoJobStore.StdAdoConstants` | Internal | `AdoConstants` for table, column and state names; statement text is not a contract — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
 | `Quartz.Impl.AdoJobStore.StdRowLockSemaphore` | Renamed `SelectForUpdateLockHandler` | The old spelling still resolves in configuration, with a warning — see [The semaphores are lock handlers](#the-semaphores-are-lock-handlers) |
 | `Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore` | Renamed `PostgreSqlSelectForUpdateLockHandler` | As above |

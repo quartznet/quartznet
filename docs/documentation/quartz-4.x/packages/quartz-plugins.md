@@ -8,11 +8,11 @@ title: Plugins
 Quartz provides an interface (`ISchedulerPlugin`, in the `Quartz.Extensibility` namespace) for plugging-in additional functionality.
 
 The plugins that ship in this package live in the `Quartz.Plugins.*` namespaces — `Quartz.Plugins.History`,
-`Quartz.Plugins.Json`, `Quartz.Plugins.Management` and `Quartz.Plugins.Xml`, matching the
+`Quartz.Plugins.Json` and `Quartz.Plugins.Xml`, matching the
 assembly and NuGet package name. In 3.x they were the singular `Quartz.Plugin.*`; a `quartz.plugin.<name>.type`
 naming the old spelling still resolves, with a warning.
-They provide functionality such as auto-scheduling of jobs upon scheduler startup, logging a history of job and trigger events,
-and ensuring that the scheduler shuts down cleanly when the process exits.
+They provide functionality such as auto-scheduling of jobs upon scheduler startup and logging a history of
+job and trigger events.
 
 ## Installation
 
@@ -34,7 +34,6 @@ spelling of the same thing and still work.
 | `LoggingTriggerHistoryPlugin` | `UseTriggerHistoryLogging(…)` | `TriggerHistoryLoggingOptions` |
 | `StructuredLoggingJobHistoryPlugin` | `UseStructuredJobLogging(…)` | `JobHistoryLoggingOptions` |
 | `StructuredLoggingTriggerHistoryPlugin` | `UseStructuredTriggerLogging(…)` | `TriggerHistoryLoggingOptions` |
-| `ShutdownHookPlugin` | `UseShutdownHook(…)` | `ShutdownHookOptions` |
 | `JsonSchedulingDataProcessorPlugin` | `UseJsonSchedulingConfiguration(…)` | `FileSchedulingOptions` |
 | `XmlSchedulingDataProcessorPlugin` | `UseXmlSchedulingConfiguration(…)` | `FileSchedulingOptions` |
 
@@ -155,21 +154,6 @@ services.AddQuartz(q =>
 ::: tip
 Recommended over `LoggingTriggerHistoryPlugin` when using structured logging providers (Serilog, NLog, etc.).
 :::
-
-### ShutdownHookPlugin
-
-This plugin catches the event of the process terminating (such as upon a Ctrl-C) and tells the scheduler to
-shut down.
-
-<!-- snippet: sample_plugins_shutdown_hook -->
-```csharp
-services.AddQuartz(q => q.UseShutdownHook(options => options.CleanShutdown = true));
-```
-<!-- endSnippet -->
-
-`CleanShutdown` decides whether the shutdown waits for jobs that are still running. Under a host,
-[the hosted service](hosted-services-integration.md) already stops the scheduler with the application, so
-this plugin is for a scheduler that has no host to stop it.
 
 ### JsonSchedulingDataProcessorPlugin
 
@@ -300,6 +284,39 @@ now and can be deleted from job and trigger data. See the
 [migration guide](../migration-guide.md) for the before-and-after, and
 [Job Execution Middleware](../tutorial/job-execution-middleware.md#timing-a-job-out) for what a timeout
 does to the trigger.
+
+### ShutdownHookPlugin — retired
+
+`ShutdownHookPlugin`, `UseShutdownHook` and `ShutdownHookOptions` were removed in 4.0. The plugin
+subscribed to `AppDomain.CurrentDomain.ProcessExit` with an `async void` handler, so the shutdown it
+started had no one to await it: the process was free to exit mid-`Shutdown`, which is the opposite of
+the clean shutdown the plugin's name promised.
+
+Under a host, [the hosted service](hosted-services-integration.md) already does the whole of this —
+it stops every registered scheduler as part of the application's own shutdown, awaited, and
+`QuartzHostedServiceOptions.WaitForJobsToComplete` is `CleanShutdown` under its real name:
+
+<!-- snippet: sample_plugins_shutdown_under_a_host -->
+```csharp
+services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+```
+<!-- endSnippet -->
+
+A scheduler with no host to stop it shuts itself down on whatever exit path the application already
+has — the end of `Main`, a `Ctrl+C` handler, the disposal of a scope — and that path can await the
+shutdown, which `ProcessExit` never could:
+
+<!-- snippet: sample_plugins_shutdown_without_a_host -->
+```csharp
+await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create().Build();
+IScheduler scheduler = await schedulerFactory.GetScheduler();
+await scheduler.Start();
+
+// ... the application runs ...
+
+await scheduler.Shutdown(waitForJobsToComplete: true);
+```
+<!-- endSnippet -->
 
 ## Adding a plugin
 

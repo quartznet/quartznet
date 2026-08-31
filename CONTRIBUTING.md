@@ -64,11 +64,11 @@ build like any other code, and the page cannot drift from it, because the page i
 Wrap the lines the page should show in a `#region`, named `sample_` followed by something unique:
 
 ```csharp
-public static void ShutdownHook(IServiceCollection services)
+public static void ShutdownUnderAHost(IServiceCollection services)
 {
-    #region sample_plugins_shutdown_hook
+    #region sample_plugins_shutdown_under_a_host
 
-    services.AddQuartz(q => q.UseShutdownHook(options => options.CleanShutdown = true));
+    services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 
     #endregion
 }
@@ -77,7 +77,7 @@ public static void ShutdownHook(IServiceCollection services)
 Then put a marker pair where the fenced block would have gone:
 
 ```markdown
-<!-- snippet: sample_plugins_shutdown_hook -->
+<!-- snippet: sample_plugins_shutdown_under_a_host -->
 <!-- endSnippet -->
 ```
 
