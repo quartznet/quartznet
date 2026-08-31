@@ -122,7 +122,7 @@ public class ExternalTransactionJobStore : AdoJobStoreBase
                 await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
             }
         }
-        catch (Exception e)
+        catch (Exception e) when (!IsCallerCancellation(e, cancellationToken))
         {
             Throw.JobPersistenceException($"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
             return default;

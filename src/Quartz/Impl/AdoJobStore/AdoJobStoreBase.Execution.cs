@@ -182,7 +182,7 @@ public abstract partial class AdoJobStoreBase
         {
             conn = await OpenOwnConnection(cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception e)
+        catch (Exception e) when (!IsCallerCancellation(e, cancellationToken))
         {
             Throw.JobPersistenceException($"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
             return default;
@@ -200,6 +200,13 @@ public abstract partial class AdoJobStoreBase
         catch (Exception e)
         {
             await conn.CloseAsync().ConfigureAwait(false);
+            if (IsCallerCancellation(e, cancellationToken))
+            {
+                // Caught rather than filtered out, because the connection just opened is this block's
+                // to close whichever way the failure is reported.
+                throw;
+            }
+
             Throw.JobPersistenceException("Failure setting up connection.", e);
             return default;
         }
@@ -374,6 +381,28 @@ public abstract partial class AdoJobStoreBase
     /// <param name="ex">The exception to classify.</param>
     /// <returns>If the exception is identified as transient.</returns>
     protected virtual bool IsTransient(Exception ex) => TransientErrorDetector.IsTransient(ex);
+
+    /// <summary>
+    /// Whether a failure is the caller having asked the operation to stop, rather than anything the
+    /// database did. Such a failure is reported as itself: nothing has gone wrong with the store,
+    /// callers match on <see cref="OperationCanceledException" />, and cancellation was never
+    /// transient, so no retry classification depends on it being wrapped.
+    /// </summary>
+    /// <remarks>
+    /// The question is whether the caller asked to stop, not which token the exception happens to
+    /// carry. A provider cancels a command through a token of its own linked to the one it was handed
+    /// and reports that one, so comparing tokens would fail to recognise most real cancellations. An
+    /// <see cref="OperationCanceledException" /> that arises inside the store from something else
+    /// entirely — a timeout of its own — keeps the classification it had, because the caller did not
+    /// ask to stop and telling them the operation was cancelled would be an answer to a question they
+    /// did not ask.
+    /// </remarks>
+    /// <param name="failure">The exception to classify.</param>
+    /// <param name="cancellationToken">The token the operation was given.</param>
+    private protected static bool IsCallerCancellation(Exception failure, CancellationToken cancellationToken)
+    {
+        return failure is OperationCanceledException && cancellationToken.IsCancellationRequested;
+    }
 
     /// <summary>
     /// Commit the supplied connection.
@@ -572,6 +601,13 @@ public abstract partial class AdoJobStoreBase
             {
                 return await ExecuteInLocalTransactionLock(lockKind, txCallback, txValidator: null, requestorId, cancellationToken).ConfigureAwait(false);
             }
+            catch (OperationCanceledException e) when (IsCallerCancellation(e, cancellationToken))
+            {
+                // There is nothing here to retry. Without this the delay below would throw the same
+                // exception one interval later, after this loop had reported a store failure that did
+                // not happen - to the log, or to every scheduler listener.
+                throw;
+            }
             catch (JobPersistenceException jpe)
             {
                 if (retry % RetryableActionErrorLogThreshold == 0)
@@ -738,6 +774,18 @@ public abstract partial class AdoJobStoreBase
                 {
                     throw;
                 }
+            }
+            catch (OperationCanceledException e) when (IsCallerCancellation(e, cancellationToken))
+            {
+                // Rolled back and released as any other failure is, and then reported as itself: the
+                // caller asked to stop, so "Unexpected runtime exception" is the wrong answer and the
+                // wrong type for a caller matching on cancellation. The rollback runs on
+                // CancellationToken.None deliberately - the token that just fired is the reason there
+                // is anything to roll back, and passing it makes RollbackAsync refuse before it starts,
+                // which leaves the transaction to the connection close and logs a rollback failure that
+                // is only this method having handed the rollback a cancelled token.
+                await RollbackConnection(conn, e, CancellationToken.None).ConfigureAwait(false);
+                throw;
             }
             catch (Exception e)
             {
