@@ -72,7 +72,9 @@ public class SimpleTypeLoaderTest
     {
         typeLoader.LoadType("Quartz.Listener.JobChainingJobListener, Quartz")
             .Should().Be<JobChainingJobListener>(
-                "quartz.jobListener.<name>.type naming the old singular namespace has to keep working");
+                "the 3.x namespace fallbacks are a table of renames rather than a list of the callers "
+                + "that happen to use them, so a name resolved through an ITypeLoader of your own still "
+                + "finds a listener written against the old spelling");
     }
 
     [Test]

@@ -979,6 +979,7 @@ reads — so a scheduler name set through it was accepted and then silently igno
 | `quartz.config` file discovery, `StdSchedulerFactory.PropertiesFile` | `IConfiguration`, or properties passed to `QuartzSchedulerBuilder.UseProperties` |
 | `DbProvider.RegisterDbMetadata` | the metadata factory on `UseGenericDatabase` |
 | `quartz.scheduler.proxy*`, `quartz.scheduler.exporter*` | nothing; remoting is not supported on modern .NET |
+| `quartz.jobListener.<name>.*`, `quartz.triggerListener.<name>.*` | `AddJobListener<T>(matchers)` / `AddTriggerListener<T>(matchers)`; the keys are rejected rather than ignored — see [The listener property keys are retired](#the-listener-property-keys-are-retired) |
 | `QuartzOptions.SchedulerName`, `.SchedulerId`, `.MisfireThreshold` | the typed options — see [`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings) |
 | `IPersistentStoreBuilder.UseDataSourceConnectionProvider()` | `DataSourceOptions.UseRegisteredDataSource` |
 | `AdoJobStoreOptions.Clustered`, `.ClusterCheckinInterval`, `.ClusterCheckinMisfireThreshold` | `ClusteringOptions` — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
@@ -1177,8 +1178,8 @@ write instead, and the typed option that is usually the better answer.
 | `PropertyExecutionLimitPrefix` | `quartz.executionLimit` | `UseExecutionLimits(limits => …)` |
 | `PropertyPluginPrefix` | `quartz.plugin` | `AddPlugin<T>()` |
 | `PropertyPluginType` | `type` (under a plugin) | `AddPlugin<T>()` |
-| `PropertyJobListenerPrefix` | `quartz.jobListener` | `AddJobListener<T>(matchers)` |
-| `PropertyTriggerListenerPrefix` | `quartz.triggerListener` | `AddTriggerListener<T>(matchers)` |
+| `PropertyJobListenerPrefix` | `quartz.jobListener` | `AddJobListener<T>(matchers)`; the key is rejected rather than ignored — see [The listener property keys are retired](#the-listener-property-keys-are-retired) |
+| `PropertyTriggerListenerPrefix` | `quartz.triggerListener` | `AddTriggerListener<T>(matchers)`; the key is rejected rather than ignored — see above |
 | `PropertyListenerType` | `type` (under a listener) | the two `Add*Listener<T>` methods above |
 | `PropertyCheckConfiguration` | `quartz.checkConfiguration` | still read, by `QuartzSchedulerBuilder.UseProperties` |
 | `PropertyObjectSerializer` | `quartz.serializer` | `UseSerializer<T>()`, `UseSystemTextJsonSerializer()` |
@@ -1821,7 +1822,7 @@ that performs it:
 
 The map is read by the loader Quartz ships, which is the one place a type name is resolved at run time —
 so it applies to `JOB_CLASS_NAME`, to jobs named in XML or JSON scheduling data, and to the
-`quartz.plugin.<name>.type` and `quartz.jobListener.<name>.type` keys. The flat keys naming a scheduler's
+`quartz.plugin.<name>.type` key. The flat keys naming a scheduler's
 own components are read while the service collection is still being built, before any options exist, and
 are not aliased. Keys are compared the way that loader already compares its own table of Quartz's
 3.x → 4.0 renames: ordinal, matching either the whole name or the part of it before the comma that
@@ -4432,6 +4433,46 @@ scheduler now reads them from the listener's registration rather than by looking
 no replacement for `GetJobListenerMatchers` on `IListenerManager`: hold on to the matchers you registered
 with if you need them.
 
+### The listener property keys are retired
+
+`quartz.jobListener.<name>.type` and `quartz.triggerListener.<name>.type` named a listener class for
+Quartz to find by reflection and attach. They are **rejected** now, with a message naming the
+registration that replaced them, rather than accepted and ignored — a key that quietly stopped
+attaching a listener is a pipeline with a hole in it and no symptom.
+
+```diff
+- ["quartz.jobListener.audit.type"] = "Acme.AuditListener, Acme",
+- ["quartz.triggerListener.audit.type"] = "Acme.AuditTriggerListener, Acme",
+```
+
+```csharp
+services.AddQuartz(q =>
+{
+    q.AddJobListener<AuditListener>(GroupMatcher<JobKey>.GroupEquals("reports"));
+    q.AddTriggerListener<AuditTriggerListener>();
+});
+```
+
+The registration is strictly the stronger of the two. The keys had no way to say which jobs or
+triggers a listener heard, so a listener named by configuration heard *everything* — matchers are
+given at registration, and configuration is not a registration. They had no scheduler-listener twin
+either, so `ISchedulerListener` was never reachable this way at all. And they resolved a type from a
+string, which no trimmed or native-AOT publish can follow.
+
+Two details are worth knowing while porting:
+
+* **The name comes from the listener now.** The key's `<name>` was written onto the listener's `Name`
+  property after it was built, which is how the listener manager identified it. A registration carries no
+  name of its own, so the listener says what it is called — `Name => "audit"`, or the
+  `GetType().Name` default. Two listeners of one kind that must answer to different names are two
+  instances registered with `AddJobListener(listener, matchers)`.
+* **The other `quartz.jobListener.<name>.<property>` keys go too.** They were applied to the listener by
+  reflection after it was built. A listener built by the container takes what it needs through its
+  constructor, and options of its own through `IOptions<T>` like anything else.
+
+`PropertyListenerFactory`, which built these listeners, is gone with them; it was internal, so nothing
+named it.
+
 ### The broadcast listeners are gone
 
 `BroadcastJobListener`, `BroadcastTriggerListener` and `BroadcastSchedulerListener` fanned one
@@ -4562,7 +4603,7 @@ https://www.quartz-scheduler.net/documentation/quartz-4.x/migration-guide.html#l
 Where that lands depends on how the listener was registered. `q.AddJobListener<MyListener>()` and the
 instance overload throw from the `AddQuartz` call itself, since the listener's type is known while the
 configuration is still being written. Everything else — a factory overload declared as the interface, a
-listener registered as a plain service, a `quartz.jobListener.*` key, and
+listener registered as a plain service, and
 `scheduler.ListenerManager.AddJobListener(…)` — throws when the listener is attached to a scheduler, which
 for a hosted application is host start.
 
@@ -7429,7 +7470,7 @@ above cover configuration strings.
 | `Quartz.Extensibility.IDirectoryProvider` | `Quartz.Jobs.IDirectoryProvider` | It exists for `DirectoryScanJob` alone, so it lives with it. It is resolved from `SchedulerContext` by key, never by type name. Its one member also changed shape: `GetDirectoriesToScan(JobDataMap)` returns `List<string>` rather than `IReadOnlyList<string>`, following the concrete-out convention, so an implementation returning an array or a `ToList()` result needs one edit |
 | `Quartz.Logging`, `Quartz.Logging.LogProviders` | `Quartz.Diagnostics` | `LogProvider`, `DiagnosticHeaders` (now `ActivityTags`) and `OperationName` moved; `ILogProvider`, `LogContext`, `LogLevel`, the `Logger` delegate, `IJobDiagnosticData` and `LogProviders.LibLogException` went with LibLog. A `using Quartz.Logging;` no longer resolves at all, and nothing names these namespaces in configuration, so there is no fallback — see [Logging](#logging) |
 | `Quartz.Plugin.History`, `Quartz.Plugin.Json`, `Quartz.Plugin.Management`, `Quartz.Plugin.Xml`, `Quartz.Plugin.TimeZoneConverter` | `Quartz.Plugins.*` | Same rule as the jobs: the packages are `Quartz.Plugins` and `Quartz.Plugins.TimeZoneConverter`. A `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning. The **configuration key** prefix is still `quartz.plugin.`, singular — it is not a namespace. `Quartz.Plugin.Interrupt` has no 4.x counterpart: its one type is gone — see [`JobInterruptMonitorPlugin` is retired; a job timeout is middleware](#jobinterruptmonitorplugin-is-retired-a-job-timeout-is-middleware) |
-| `Quartz.Listener` | `Quartz.Listeners` | A `quartz.jobListener.<name>.type` or `quartz.triggerListener.<name>.type` naming the old spelling still resolves, with a warning — but see [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone): three of the seven types are not there under either name |
+| `Quartz.Listener` | `Quartz.Listeners` | Nothing names a listener by string any more — the `quartz.jobListener.<name>.type` and `quartz.triggerListener.<name>.type` keys are gone, see [The listener property keys are retired](#the-listener-property-keys-are-retired) — so this is a `using` to change and nothing else. See also [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone): three of the seven types are not there under either name |
 | `Quartz.Impl.Matchers` | `Quartz` | See [Matchers moved to `Quartz`](#matchers-moved-to-quartz). No shim is needed: a matcher is passed as an object and is never named by a configuration string |
 | `Quartz.AspNetCore`, `Quartz.AspNetCore.HealthChecks`, `Quartz.AspNetCore.HttpApi` | `Quartz` | Only the namespaces are gone; `AddQuartzHealthChecks`, `AddQuartzHttpApi` and `MapQuartzHttpApi` are extension methods and resolve through the `Quartz` you already have, so a `using Quartz.AspNetCore;` can simply be deleted. The **packages** differ: the HTTP API is still `Quartz.AspNetCore`, hosted by `QuartzAspNetCoreConfigurationExtensions` (renamed from `QuartzServiceCollectionExtensions` because the core package now has a class of that name in the same namespace), while the health check is in `Quartz` from `4.0.0-alpha.4`, hosted by `QuartzHealthCheckExtensions` — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
 | `Quartz.HttpClient` | `Quartz` | `HttpScheduler` and `HttpClientException`; the package is still `Quartz.HttpClient`. The namespace had to go because it shadowed `System.Net.Http.HttpClient` for every file under `Quartz.*`, including Quartz's own. `HttpScheduler` is also `sealed` now |

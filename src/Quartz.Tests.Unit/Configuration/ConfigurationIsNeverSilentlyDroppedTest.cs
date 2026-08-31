@@ -624,29 +624,21 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     }
 
     [Test]
-    public async Task LegacyListenerPropertiesStillAttachTheirListener()
+    public void LegacyListenerPropertiesAreRefusedRatherThanIgnored()
     {
         var services = new ServiceCollection();
-        services.AddQuartz(new NameValueCollection
+
+        Action act = () => services.AddQuartz(new NameValueCollection
         {
             ["quartz.scheduler.instanceName"] = "legacy-listeners",
             ["quartz.jobListener.audit.type"] = typeof(RecordingJobListener).AssemblyQualifiedName,
         });
 
-        using var provider = services.BuildServiceProvider();
-        var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
-        try
-        {
-            var listeners = scheduler.ListenerManager.GetJobListeners();
-
-            listeners.Should().ContainSingle(x => x is RecordingJobListener);
-            listeners.Single(x => x is RecordingJobListener).Name.Should().Be("audit",
-                "a listener is known to the listener manager by name, and configuration only gives it the one it was declared under");
-        }
-        finally
-        {
-            await scheduler.Shutdown();
-        }
+        act.Should().Throw<SchedulerConfigException>()
+            .WithMessage("*quartz.jobListener.audit.type*")
+            .WithMessage("*AddJobListener<T>(matchers)*",
+                "the key used to attach a listener, so a configuration still carrying it loses one — "
+                + "silence would take a listener out of the pipeline without a word");
     }
 
     [Test]

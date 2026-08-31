@@ -34,11 +34,10 @@ namespace Quartz.Configuration;
 /// <remarks>
 /// <para>
 /// This is the seam the flat <c>quartz.*</c> keys cross, and the only place in Quartz that sets a
-/// property whose name is a string. Four callers reach it, all of them while the container is being
+/// property whose name is a string. Three callers reach it, all of them while the container is being
 /// built and none of them on the fire path: <see cref="QuartzPropertyBridge" /> for the leftover keys
 /// of a component with no typed options, <see cref="SchedulerPluginFactory" /> for
-/// <c>quartz.plugin.&lt;name&gt;.*</c>, <see cref="PropertyListenerFactory" /> for
-/// <c>quartz.*.listener.&lt;name&gt;.*</c>, and <c>ConfigurationBasedDbMetadataFactory</c> for
+/// <c>quartz.plugin.&lt;name&gt;.*</c>, and <c>ConfigurationBasedDbMetadataFactory</c> for
 /// <c>quartz.dbprovider.&lt;name&gt;.*</c>.
 /// </para>
 /// <para>

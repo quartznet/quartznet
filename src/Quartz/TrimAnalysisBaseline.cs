@@ -117,11 +117,11 @@ using System.Diagnostics.CodeAnalysis;
 // remains is Quartz reading its own configuration and its own tables, on paths that reach AddQuartz or
 // an interface Quartz does not own both sides of, and so cannot carry the attribute themselves.
 //
-// The four IL2026 entries in this group are the same warning at four call sites, and since #3432 it names
-// what it is: Quartz.Configuration.PropertyBinder.SetObjectProperties, which is the one place in Quartz
-// that writes a property whose name is a string. None of the four can go - each of these types is reached
-// from AddQuartz, so none may carry [RequiresUnreferencedCode] itself - but the seam they cross is now a
-// named API that declares the requirement rather than an anonymous helper that had it waived here.
+// The three IL2026 entries in this group are the same warning at three call sites, and since #3432 it
+// names what it is: Quartz.Configuration.PropertyBinder.SetObjectProperties, which is the one place in
+// Quartz that writes a property whose name is a string. None of the three can go - each of these types is
+// reached from AddQuartz, so none may carry [RequiresUnreferencedCode] itself - but the seam they cross is
+// now a named API that declares the requirement rather than an anonymous helper that had it waived here.
 
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.Impl.SimpleTypeLoader", Justification = "The default ITypeLoader exists to resolve a configured type name; that is its contract.")]
 [assembly: SuppressMessage("Trimming", "IL2057", Scope = "type", Target = "T:Quartz.JobType", Justification = "A name-constructed JobType resolves through Type.GetType when the caller supplied no resolver.")]
@@ -134,9 +134,6 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.QuartzPropertyBridge", Justification = "A component with no typed options of its own takes the leftover quartz.* keys as properties set by name.")]
 [assembly: SuppressMessage("Trimming", "IL2067", Scope = "type", Target = "T:Quartz.Configuration.SchedulerPluginFactory", Justification = "A plugin registered by type is constructed through the container from that Type.")]
 [assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.SchedulerPluginFactory", Justification = "A plugin's quartz.plugin.<name>.* keys are applied to it as properties set by name.")]
-[assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Configuration.PropertyListenerFactory", Justification = "A listener registered by quartz.*.listener.* keys is constructed from the type the key names.")]
-[assembly: SuppressMessage("Trimming", "IL2075", Scope = "type", Target = "T:Quartz.Configuration.PropertyListenerFactory", Justification = "A listener's Name is set through the property of that name, on a type known only at runtime.")]
-[assembly: SuppressMessage("Trimming", "IL2026", Scope = "type", Target = "T:Quartz.Configuration.PropertyListenerFactory", Justification = "A listener's quartz.*.listener.<name>.* keys are applied to it as properties set by name.")]
 [assembly: SuppressMessage("Trimming", "IL2072", Scope = "type", Target = "T:Quartz.Configuration.JsonSchedulingHelper", Justification = "Jobs declared in configuration name their type as a string.")]
 
 // --- Values converted onto a property the compiler cannot see -----------------------------------------

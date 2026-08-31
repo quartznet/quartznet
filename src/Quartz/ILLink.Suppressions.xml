@@ -120,23 +120,6 @@
         <property name="Justification">A plugin's quartz.plugin.&lt;name&gt;.* keys are applied to it as properties set by name.</property>
       </attribute>
     </type>
-    <type fullname="Quartz.Configuration.PropertyListenerFactory*">
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2072</argument>
-        <property name="Justification">A listener registered by quartz.*.listener.* keys is constructed from the type the key names.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2075</argument>
-        <property name="Justification">A listener's Name is set through the property of that name, on a type known only at runtime.</property>
-      </attribute>
-      <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
-        <argument>Trimming</argument>
-        <argument>IL2026</argument>
-        <property name="Justification">A listener's quartz.*.listener.&lt;name&gt;.* keys are applied to it as properties set by name.</property>
-      </attribute>
-    </type>
     <type fullname="Quartz.Configuration.JsonSchedulingHelper*">
       <attribute fullname="System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessageAttribute">
         <argument>Trimming</argument>

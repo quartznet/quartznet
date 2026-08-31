@@ -1,5 +1,3 @@
-using System.Collections.Specialized;
-
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Impl;
@@ -35,24 +33,15 @@ internal sealed class SchedulerContentInitializer
 {
     private readonly IServiceProvider serviceProvider;
     private readonly SchedulerKey schedulerKey;
-    private readonly NameValueCollection properties;
     private readonly ContainerConfigurationProcessor processor;
 
-    /// <remarks>
-    /// Takes this scheduler's flat properties directly rather than its <see cref="QuartzOptions"/>. The
-    /// legacy <c>quartz.jobListener.*</c> and <c>quartz.triggerListener.*</c> keys are all this needs from
-    /// them, and they are resolved for this scheduler's options name so a named scheduler does not read
-    /// the default scheduler's.
-    /// </remarks>
     public SchedulerContentInitializer(
         IServiceProvider serviceProvider,
         SchedulerKey schedulerKey,
-        NameValueCollection properties,
         ContainerConfigurationProcessor processor)
     {
         this.serviceProvider = serviceProvider;
         this.schedulerKey = schedulerKey;
-        this.properties = properties;
         this.processor = processor;
     }
 
@@ -123,19 +112,6 @@ internal sealed class SchedulerContentInitializer
             listeners.Add((listener, []));
         }
 
-        // Listeners named by quartz.jobListener.* properties, which also carry no matchers, as that
-        // format has always meant.
-        foreach (var listener in PropertyListenerFactory.Create<IJobListener>(
-                     serviceProvider, properties, LegacyPropertyKeys.JobListenerPrefix))
-        {
-            if (AlreadyConfigured(configured, listener))
-            {
-                continue;
-            }
-
-            listeners.Add((listener, [Matchers.AllJobs()]));
-        }
-
         foreach (var (listener, matchers) in listeners)
         {
             scheduler.ListenerManager.AddJobListener(listener, matchers);
@@ -164,17 +140,6 @@ internal sealed class SchedulerContentInitializer
             }
 
             listeners.Add((listener, []));
-        }
-
-        foreach (var listener in PropertyListenerFactory.Create<ITriggerListener>(
-                     serviceProvider, properties, LegacyPropertyKeys.TriggerListenerPrefix))
-        {
-            if (AlreadyConfigured(configured, listener))
-            {
-                continue;
-            }
-
-            listeners.Add((listener, [Matchers.AllTriggers()]));
         }
 
         foreach (var (listener, matchers) in listeners)
@@ -220,8 +185,8 @@ internal sealed class SchedulerContentInitializer
     }
 
     /// <summary>
-    /// Whether a listener contributed by a plain service registration or by a
-    /// <c>quartz.*Listener.*</c> key is one the builder already contributed.
+    /// Whether a listener contributed by a plain service registration is one the builder already
+    /// contributed.
     /// </summary>
     /// <remarks>
     /// Registering a listener through the builder and as a service is a normal thing to do — the builder
@@ -256,7 +221,7 @@ internal sealed class SchedulerContentInitializer
     /// pairing in the registration removes. Say so instead of applying only one of them.
     /// </remarks>
     /// <remarks>
-    /// Only builder registrations are checked. A listener that also arrives as a service or by property is
+    /// Only builder registrations are checked. A listener that also arrives as a plain service is
     /// recognised as the same listener by <see cref="AlreadyConfigured{TListener}"/> and never reaches
     /// here, because that is a configuration that has always worked rather than an ambiguous one.
     /// </remarks>

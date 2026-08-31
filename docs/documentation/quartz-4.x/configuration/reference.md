@@ -616,8 +616,8 @@ services.AddQuartz(q => q.UseTypeLoader(loader =>
 ```
 
 An alias applies wherever Quartz turns a string into a type at run time — a stored `JOB_CLASS_NAME`, a
-job named in XML or JSON scheduling data, a `quartz.plugin.<name>.type` or
-`quartz.jobListener.<name>.type` key. The flat keys naming a scheduler's own components are read while
+job named in XML or JSON scheduling data, a `quartz.plugin.<name>.type` key. The flat keys naming a
+scheduler's own components are read while
 the service collection is still being built, before any options exist, and are not aliased. An alias
 whose target names no type this application can load fails options validation at startup, and nothing is
 ever written back, so retiring one is still the SQL `UPDATE`; see [Job deserialization failures after
@@ -775,17 +775,19 @@ Two differences are worth knowing:
 | `quartz.scheduler.typeLoadHelper.type` | `UseTypeLoader<T>()` |
 | `quartz.scheduler.instanceIdGenerator.type` | `UseInstanceIdGenerator<T>()`; other `quartz.scheduler.instanceIdGenerator.*` keys configure it |
 | `quartz.timeProvider.type` | `UseTimeProvider(timeProvider)` |
-| `quartz.jobListener.NAME.type` | `AddJobListener<T>(matchers)` |
-| `quartz.triggerListener.NAME.type` | `AddTriggerListener<T>(matchers)` |
 
-A listener named by properties has no matchers to carry, so it listens to everything. The code-first
-methods take matchers, which is the reason to prefer them.
+Four keys are rejected rather than ignored, because they no longer configure anything.
 
-Two `quartz.scheduler.*` keys are rejected rather than ignored, because they no longer configure
-anything: `quartz.scheduler.threadName` and `quartz.scheduler.makeSchedulerThreadDaemon`. The
-scheduling loop is a `Task` rather than a `Thread`, so it has no name to set and never held a
-process open. Remove them; for the job store's misfire and cluster threads, which are real threads,
-use `quartz.jobStore.makeThreadsDaemons` / `JobStore:UseBackgroundThreads`.
+`quartz.scheduler.threadName` and `quartz.scheduler.makeSchedulerThreadDaemon`: the scheduling loop is
+a `Task` rather than a `Thread`, so it has no name to set and never held a process open. Remove them;
+for the job store's misfire and cluster threads, which are real threads, use
+`quartz.jobStore.makeThreadsDaemons` / `JobStore:UseBackgroundThreads`.
+
+`quartz.jobListener.NAME.type` and `quartz.triggerListener.NAME.type`: a listener named by properties
+could carry no matchers, so it heard everything, and the type it named had to be found by reflection.
+`AddJobListener<T>(matchers)` and `AddTriggerListener<T>(matchers)` take the matchers *and* build the
+listener through the container. Registration is where a listener's matchers belong, so there is nothing
+the keys said that the registration cannot.
 
 Every key has both spellings. `quartz.jobStore.tablePrefix` and `JobStore:TablePrefix` are the same
 setting said two ways, and so are the ones that select an implementation rather than set a value —
