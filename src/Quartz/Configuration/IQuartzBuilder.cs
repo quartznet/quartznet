@@ -411,6 +411,19 @@ public interface IQuartzBuilder
     /// per-firing state in a field. It is registered for this scheduler alone, like its listeners and
     /// its job store, so a named scheduler's middleware wraps only its own executions.
     /// </para>
+    /// <para>
+    /// That instance is built <em>from the container's root</em>, when the scheduler's resources are,
+    /// so its constructor dependencies must be singletons. A scoped one throws
+    /// <c>Cannot resolve scoped service … from root provider</c> where scope validation is on — the
+    /// Host's default in Development — and becomes a captive dependency living as long as the scheduler
+    /// where it is not. Take <c>IServiceScopeFactory</c> and open a scope inside <c>Invoke</c> instead,
+    /// or read the firing's own scope through <see cref="IJobExecutionContextAccessor" />.
+    /// </para>
+    /// <para>
+    /// A middleware registered through <c>ConfigureAllQuartzSchedulers</c> always composes <em>inside</em>
+    /// one registered here, whichever call was written first: a scheduler's own callback runs before what
+    /// every scheduler was told, so a library's wrapper sits within the application's.
+    /// </para>
     /// </remarks>
     /// <typeparam name="T">The middleware's type.</typeparam>
     IQuartzBuilder AddJobMiddleware<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()

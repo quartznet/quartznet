@@ -29,6 +29,13 @@ namespace Quartz;
 /// The cancellation token has no default. A middleware is handed one and is expected to pass it on, so
 /// leaving it out would have to be written out rather than being what happens when nothing is said.
 /// </remarks>
+/// <remarks>
+/// Awaiting it more than once is legal, and runs the job again: the terminal step reads the job off the
+/// context rather than closing over anything spent, so a second call is a second execution inside the
+/// same firing, with the same context and the same <see cref="IJobExecutionContext.RefireCount" />. It
+/// is not a retry mechanism — see the remarks on <see cref="IJobExecutionMiddleware" /> for why — but
+/// nothing stops a middleware that has a reason.
+/// </remarks>
 /// <param name="context">The firing being executed.</param>
 /// <param name="cancellationToken">
 /// Signalled when this execution is interrupted. The same token
@@ -74,6 +81,21 @@ public delegate ValueTask JobExecutionDelegate(IJobExecutionContext context, Can
 /// scope — which is prepared by <c>ConfigureJobScope</c> and read back through
 /// <see cref="IJobExecutionContextAccessor" />. No <c>IServiceScope</c> is threaded through this
 /// signature, because the scope belongs to the firing rather than to any one middleware.
+/// </para>
+/// <para>
+/// <strong>It is built once, from the container's root.</strong> The name is ASP.NET Core's, but the
+/// lifetime is a listener's: the chain is composed when the scheduler's resources are built, from the
+/// root provider, so a middleware's <em>constructor dependencies must be singletons</em>. A scoped one
+/// throws <c>Cannot resolve scoped service … from root provider</c> where scope validation is on — the
+/// Host's default in Development — and is a captive dependency living as long as the scheduler where it
+/// is not. Take <c>IServiceScopeFactory</c> and open a scope inside <see cref="Invoke" />, or read the
+/// firing's own scope through <see cref="IJobExecutionContextAccessor" />.
+/// </para>
+/// <para>
+/// <strong>A middleware added by <c>ConfigureAllQuartzSchedulers</c> is always inner</strong> to one a
+/// scheduler's own <c>AddQuartz</c> callback added, whichever call was written first. A library
+/// contributes to every scheduler in the container, and what a library wraps — an outbox, a unit of
+/// work — belongs inside what the application wraps, such as its tenant scope.
 /// </para>
 /// <para>
 /// <strong>The token.</strong> Forward the one you were given. Passing a different token to
