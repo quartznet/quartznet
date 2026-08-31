@@ -166,9 +166,9 @@
                 return;
             }
 
-            _job = await Api.GetJob(schedulerName, JobKey);
+            _job = await Api.GetJobDetail(schedulerName, JobKey);
             _triggerDataMap = CloneJobDataMap(JobDataMap);
-            _triggers.AddRange(await Api.GetJobTriggers(schedulerName, JobKey));
+            _triggers.AddRange(await Api.GetTriggersOfJob(schedulerName, JobKey));
         }
         catch (Exception ex)
         {
@@ -223,7 +223,7 @@
     private Task TriggerWithDataAsync()
     {
         return ExecuteMutatingActionAsync(
-            () => Api.TriggerJobWithData(Scheduler.ActiveSchedulerName!, JobKey, _triggerDataMap),
+            () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, JobKey, _triggerDataMap),
             "Triggered job " + DisplayValueHelper.FormatKey(Group, Name) + " with overrides.",
             actionName: "TriggerJobWithData",
             target: DisplayValueHelper.FormatKey(Group, Name));

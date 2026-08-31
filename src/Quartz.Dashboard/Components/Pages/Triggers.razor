@@ -201,14 +201,14 @@
             }
 
             string? groupFilter = string.IsNullOrWhiteSpace(_filter) ? null : _filter;
-            PagedResult<TriggerHeaderDto> page = await Api.GetTriggers(schedulerName, PageQuery(groupFilter, _currentPage));
+            PagedResult<TriggerHeaderDto> page = await Api.QueryTriggers(schedulerName, PageQuery(groupFilter, _currentPage));
 
             int totalCount = page.TotalCount ?? page.Items.Count;
             int totalPages = Math.Max(1, (int) Math.Ceiling((double) totalCount / _pageSize));
             if (_currentPage > totalPages)
             {
                 _currentPage = totalPages;
-                page = await Api.GetTriggers(schedulerName, PageQuery(groupFilter, _currentPage));
+                page = await Api.QueryTriggers(schedulerName, PageQuery(groupFilter, _currentPage));
                 totalCount = page.TotalCount ?? page.Items.Count;
             }
 
@@ -416,7 +416,7 @@
         try
         {
             // The group filter matches groups that contain it, so the exact group is selected here.
-            PagedResult<TriggerHeaderDto> groupPage = await Api.GetTriggers(
+            PagedResult<TriggerHeaderDto> groupPage = await Api.QueryTriggers(
                 schedulerName,
                 new DashboardTriggerQuery { GroupContains = group, Take = int.MaxValue });
             List<TriggerHeaderDto> triggersInGroup = [];

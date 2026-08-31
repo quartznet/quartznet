@@ -275,7 +275,7 @@ public class ExecutionGroupsPanelTest
     public void CountsTakenFromAPartialPageSayThatTheyAre()
     {
         GivenLimits(Limits(("batch", 4, ExecutionLimitScope.Node)));
-        A.CallTo(() => context.Api.GetFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<FireInstanceDto>(
                 [Firing("batch", FireInstanceState.Executing)],
                 HasMore: true,
@@ -314,7 +314,7 @@ public class ExecutionGroupsPanelTest
 
     private void GivenFirings(params FireInstanceDto[] firings)
     {
-        A.CallTo(() => context.Api.GetFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<FireInstanceDto>(firings.ToList()));
     }
 

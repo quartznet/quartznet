@@ -61,7 +61,7 @@ public class RemainingPagesTest
     [Test]
     public void CurrentlyExecutingNamesTheNodeThatOwnsEachFiring()
     {
-        A.CallTo(() => context.Api.GetFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<FireInstanceDto>([
                 new FireInstanceDto(
                     "fire-1",
@@ -86,7 +86,7 @@ public class RemainingPagesTest
     [Test]
     public void CurrentlyExecutingSaysSoWhenNothingIsRunning()
     {
-        A.CallTo(() => context.Api.GetFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<FireInstanceDto>([]));
 
         IRenderedComponent<CurrentlyExecuting> page = context.Render<CurrentlyExecuting>();
@@ -109,7 +109,7 @@ public class RemainingPagesTest
     [Test]
     public void AJobThatIsGoneSaysSoRatherThanRenderingBlanks()
     {
-        A.CallTo(() => context.Api.GetJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
             .Throws(new InvalidOperationException("no such job"));
 
         IRenderedComponent<JobDetail> page = RenderJobDetail();
@@ -218,7 +218,7 @@ public class RemainingPagesTest
 
     private void GivenJob()
     {
-        A.CallTo(() => context.Api.GetJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.GetJobDetail(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
             .Returns(new JobDetailDto(
                 "job-1",
                 "reports",
@@ -229,7 +229,7 @@ public class RemainingPagesTest
                 ConcurrentExecutionDisallowed: true,
                 PersistJobDataAfterExecution: false,
                 JobDataMap: new JobDataMap { ["TestKey"] = "TestValue" }));
-        A.CallTo(() => context.Api.GetJobTriggers(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.GetTriggersOfJob(A<string>._, A<JobKeyDto>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.TriggerHeaders("nightly", 1));
     }
 

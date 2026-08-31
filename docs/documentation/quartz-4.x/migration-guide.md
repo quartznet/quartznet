@@ -3972,10 +3972,18 @@ Each of these was a `public class` with `virtual` members in 3.x:
 | Sealed in 4.x | Derive from this instead |
 |---|---|
 | `AnnualCalendar`, `CronCalendar`, `DailyCalendar`, `HolidayCalendar`, `MonthlyCalendar`, `WeeklyCalendar` | `BaseCalendar`, which stays open, or `ICalendar` directly. Every shipped calendar is a short `BaseCalendar` — the `virtual` `IsDayExcluded` / `SetDayExcluded` / `AreAllDaysExcluded` overrides they offered only made sense for that one calendar's day set anyway |
-| `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl`, `RecurrenceTriggerImpl` | `TriggerBase`. `CronTriggerImpl` and `SimpleTriggerImpl` stay open, so a trigger deriving from one of *those* two is still the shortest route to a custom cron or simple trigger. `HasAdditionalProperties` is `virtual` on `TriggerBase`, so it is available either way |
 | `JobExecutionContextImpl`, and its nine `virtual` members with it | `IJobExecutionContext`. A test double implements the interface; a decorator wraps one |
 | `DefaultThreadPool`, `ZeroSizeThreadPool` | `IThreadPool`, or `TaskSchedulingThreadPool`, which stays open — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
 | `JobChainingJobListener` | The three listener interfaces. Every notification member is a default interface member now, so implementing one directly costs a `Name` at most — see [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone) |
+
+**The five `*TriggerImpl` types are deliberately not in that list.** A trigger of your own derives from
+`TriggerBase` or from any of the five, `HasAdditionalProperties` is `virtual` on `TriggerBase`, and
+deriving from a built-in trigger pairs with deriving from that trigger's built-in JSON serializer —
+which is why those serializers are public and unsealed in both packages, so a subclass can call
+`base.SerializeFields` / `base.DeserializeFields` and keep the built-in fields' stored shape.
+`CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` and `RecurrenceTriggerImpl` were sealed
+during 4.x's development and were reopened for exactly that pairing — see
+[Other Breaking Changes](#other-breaking-changes).
 
 `JobChainingJobListener` also changed base. It derived from `Quartz.Listener.JobListenerSupport`, which is
 gone, and implements `IJobListener` directly, so its `Name` and `JobWasExecuted` are no longer `override`s.
@@ -5545,7 +5553,7 @@ than with an empty list, so a caller need not branch on whether clustering is on
 | `IScheduler` | `ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)` — implement it if you have an `IScheduler` of your own; `DelegatingScheduler` forwards it for you |
 | `IJobStore` | `ValueTask<List<ClusterNode>> QueryClusterNodes(CancellationToken cancellationToken = default)` — a plain member, so a store of your own must implement it. A store with no cluster state answers with one node: itself, `Alive`, both times `null` |
 | HTTP API | `GET {ApiPath}/schedulers/{name}/nodes`, unpaged, and `HttpScheduler.QueryClusterNodes` reads it (see [Cluster nodes](packages/http-api.md#cluster-nodes)) |
-| Dashboard | `IQuartzApiClient.GetClusterNodes(name, CancellationToken)`, and a **Cluster** page at `/quartz/cluster` |
+| Dashboard | `IQuartzApiClient.QueryClusterNodes(name, CancellationToken)`, and a **Cluster** page at `/quartz/cluster` |
 
 Neither member touches the schema, and neither writes anything: `QueryClusterNodes` is a read of the
 rows the check-in loop already keeps.
@@ -7926,18 +7934,18 @@ already had `JobKeyDto` and `TriggerKeyDto`. Now it says what Quartz says:
 | `GetTriggerState(…)` → `string` | → `TriggerState` |
 | `TriggerHeaderDto.State` is `string?` | `TriggerState?` |
 | `SchedulerHeaderDto.Status`, `SchedulerDetailDto.Status` are `string` | `SchedulerStatus`, a new public enum in `Quartz` |
-| `GetJobs(name, string? groupFilter, int page, int pageSize)` → `JobPageDto` | `GetJobs(name, DashboardJobQuery)` → `PagedResult<JobKeyDto>` |
-| `GetTriggers(name, string? groupFilter, TriggerState?, int page, int pageSize)` → `TriggerPageDto` | `GetTriggers(name, DashboardTriggerQuery)` → `PagedResult<TriggerHeaderDto>` |
-| `GetHistory(JobHistoryQueryDto)` → `JobHistoryPageDto` (a `JsonElement`) | `GetHistory(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>?` |
-| `GetCurrentlyExecutingJobs(name)` → `List<CurrentlyExecutingJobDto>` | `GetFireInstances(name, DashboardFireInstanceQuery)` → `PagedResult<FireInstanceDto>`, following `IScheduler` — see [What is running is a listing, not a list of contexts](#what-is-running-is-a-listing-not-a-list-of-contexts) |
+| `GetJobs(name, string? groupFilter, int page, int pageSize)` → `JobPageDto` | `QueryJobs(name, DashboardJobQuery)` → `PagedResult<JobKeyDto>` |
+| `GetTriggers(name, string? groupFilter, TriggerState?, int page, int pageSize)` → `TriggerPageDto` | `QueryTriggers(name, DashboardTriggerQuery)` → `PagedResult<TriggerHeaderDto>` |
+| `GetHistory(JobHistoryQueryDto)` → `JobHistoryPageDto` (a `JsonElement`) | `QueryExecutions(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>` |
+| `GetCurrentlyExecutingJobs(name)` → `List<CurrentlyExecutingJobDto>` | `QueryFireInstances(name, DashboardFireInstanceQuery)` → `PagedResult<FireInstanceDto>`, following `IScheduler` — see [What is running is a listing, not a list of contexts](#what-is-running-is-a-listing-not-a-list-of-contexts) |
 | `CurrentlyExecutingJobDto` | `FireInstanceDto`: `FireInstanceId` is non-null and leads, `JobKey` is nullable (an acquired firing has no job loaded yet), and `SchedulerInstanceId`, `FireInstanceState State` and `ScheduledFireTimeUtc` are new |
-| — | `GetClusterNodes(name)` → `List<ClusterNodeDto>` (new), behind the **Cluster** page — see [The nodes of a cluster are a listing](#the-nodes-of-a-cluster-are-a-listing) |
-| `IsJobGroupPaused(name, group)` → `bool` | `GetJobGroups(name, DashboardGroupQuery)` → `PagedResult<JobGroupDto>`, each carrying `Name` and `Paused`; one call answers for every group instead of one, and `Take = 0` with `Paused = true` counts the paused ones without listing them |
-| — | `GetTriggerGroups(name, DashboardGroupQuery)` → `PagedResult<TriggerGroupDto>` (new), the trigger-group twin of the above |
-| — | `CountMisfires(name, since)` → `int?` (new), null when the data source keeps no misfire feed — see [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from) |
+| — | `QueryClusterNodes(name)` → `List<ClusterNodeDto>` (new), behind the **Cluster** page — see [The nodes of a cluster are a listing](#the-nodes-of-a-cluster-are-a-listing) |
+| `IsJobGroupPaused(name, group)` → `bool` | `QueryJobGroups(name, DashboardGroupQuery)` → `PagedResult<JobGroupDto>`, each carrying `Name` and `Paused`; one call answers for every group instead of one, and `Take = 0` with `Paused = true` counts the paused ones without listing them |
+| — | `QueryTriggerGroups(name, DashboardGroupQuery)` → `PagedResult<TriggerGroupDto>` (new), the trigger-group twin of the above |
+| — | `CountMisfires(name, since)` → `int` (new), what the overview's misfire tile reads — see [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from) |
 | `ExecutionLimitsDto(IReadOnlyDictionary<string, int?> Limits)` | `ExecutionLimitsDto(Dictionary<string, DashboardExecutionLimit> Limits, bool UsesTriggerGroupWhenUnset = false, bool CanReport = true)` — concrete out, as everywhere else; each entry carries the limit's [scope](#an-execution-limit-can-be-cluster-wide) as well as its number, and the keys are the spellings configuration and the HTTP API use (`_` for the ungrouped bucket, `*` for the catch-all) so that a firing can be joined to the limit governing it |
 | `GetExecutionLimits(name)` → `ExecutionLimitsDto?`, null both for "nothing is limited" and for "this scheduler cannot say" | → `ExecutionLimitsDto`, never null: nothing limited is an empty `Limits`, and a scheduler that cannot answer is `ExecutionLimitsDto.CannotReport`, whose `CanReport` is `false` |
-| `IDashboardHistoryStore.GetPage(name, page, pageSize, jobFilter, triggerFilter)` → `DashboardHistoryPage` | `GetPage(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>` |
+| `IDashboardHistoryStore.GetPage(name, page, pageSize, jobFilter, triggerFilter)` → `DashboardHistoryPage` | `QueryExecutions(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>` |
 | `…Job(name, string group, string jobName)` — eight members | `…Job(name, JobKeyDto)` |
 | `…Trigger(name, string group, string triggerName)` — seven members | `…Trigger(name, TriggerKeyDto)` |
 
@@ -7960,6 +7968,37 @@ The dashboard hub's `SchedulerStateDto` follows: it is
 `SchedulerStarting` pushes nothing, being an event rather than a state. The instance id is new in
 alpha.3 — see [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from).
 
+### The client speaks the scheduler's verbs
+
+The names went with the types. An operation `IQuartzApiClient` forwards to a scheduler is spelled the way
+`IScheduler` spells it, so a reader who knows one knows the other; only what has no counterpart on
+`IScheduler` — the scheduler listing, the execution history — names itself. The DTO suffixes and the
+`PagedResult<T>` returns are unchanged.
+
+| 4.0 preview | 4.0 |
+|---|---|
+| `StartScheduler`, `StandbyScheduler`, `ShutdownScheduler` | `Start`, `Standby`, `Shutdown` |
+| `InterruptJob(name, JobKeyDto)` | `Interrupt(name, JobKeyDto)`; `InterruptFireInstance` is unchanged |
+| `TriggerJob(name, JobKeyDto)` **and** `TriggerJobWithData(name, JobKeyDto, JobDataMap)` | one `TriggerJob(name, JobKeyDto, JobDataMap? jobDataMap = null)`, as `IScheduler.TriggerJob` is |
+| `GetJobs`, `GetJobGroups`, `GetTriggers`, `GetTriggerGroups`, `GetFireInstances`, `GetClusterNodes` | `QueryJobs`, `QueryJobGroups`, `QueryTriggers`, `QueryTriggerGroups`, `QueryFireInstances`, `QueryClusterNodes` |
+| `GetJob(name, JobKeyDto)` → `JobDetailDto` | `GetJobDetail(name, JobKeyDto)`, the noun `IScheduler` uses |
+| `GetJobTriggers(name, JobKeyDto)` | `GetTriggersOfJob(name, JobKeyDto)` |
+| `GetHistory(DashboardHistoryQuery)` → `PagedResult<DashboardHistoryEntry>?` | `QueryExecutions(…)` → `PagedResult<DashboardHistoryEntry>`, never null |
+| `GetMisfires(DashboardMisfireQuery)` → `PagedResult<DashboardMisfireEntry>?` | `QueryMisfires(…)` → `PagedResult<DashboardMisfireEntry>`, never null |
+| `CountMisfires(name, since)` → `int?` | → `int` |
+| `IDashboardHistoryStore.Add`, `GetPage`, `GetMisfires` | `AddExecution`, `QueryExecutions`, `QueryMisfires`; `AddMisfire` and `CountMisfires` are unchanged |
+
+`GetSchedulers`, `GetScheduler` and `GetCalendarNames` keep their names: the first two list and read the
+container's registrations, which is not an operation a scheduler has, and `GetCalendarNames` reads *every*
+page of `IScheduler.QueryCalendarNames` rather than one, so naming it `Query*` would promise a paged query
+it does not take.
+
+The three nullable returns were nullable because the deleted HTTP-backed client turned a 404 into "this
+data source keeps no history". Nothing in this process has that answer: `IDashboardHistoryStore` always
+answers, and a store holding nothing returns an empty page and a count of zero. The History page's
+"execution history is unavailable" state went with the null, and the overview's misfire tile shows a dash
+only while no scheduler has answered yet.
+
 ### A trigger is an `ITrigger`, a calendar is an `ICalendar`
 
 Six members of that contract still spoke `System.Text.Json.JsonElement`. They were placeholders from
@@ -7974,7 +8013,7 @@ something Quartz already has a type for:
 | `RescheduleRequest(JsonElement NewTrigger)` | `RescheduleRequest(ITrigger NewTrigger)` |
 | `AddCalendarRequest(string, JsonElement Calendar, bool, bool)` | `AddCalendarRequest(string, ICalendar Calendar, bool, bool)` |
 | `JobDetailDto.JobDataMap` is a `JsonElement` | a `JobDataMap` |
-| `TriggerJobWithData(…, JsonElement jobDataMap, …)` | `TriggerJobWithData(…, JobDataMap jobDataMap, …)` |
+| `TriggerJobWithData(…, JsonElement jobDataMap, …)` | `TriggerJob(…, JobDataMap? jobDataMap = null, …)` |
 
 `TriggerDetailDto` and `CalendarDetailDto` are gone with them; nothing remains for them to wrap.
 
@@ -8032,8 +8071,8 @@ peer's. Both feeds carry the node now, and the history is bounded by age as well
 | — | `DashboardMisfireEntry(SchedulerName, SchedulerInstanceId, TriggerGroup, TriggerName, JobKeyDto? JobKey, MisfiredAtUtc, DateTimeOffset? ScheduledFireTimeUtc)` (new) |
 | — | `DashboardMisfireQuery : PagedQuery`, with `SchedulerName`, `SchedulerInstanceId` and `TriggerFilter` (new) |
 | `DashboardHistoryQuery` | gained `string? SchedulerInstanceId` — null lists every node's |
-| `IDashboardHistoryStore` | gained `AddMisfire`, `GetMisfires(DashboardMisfireQuery)` and `CountMisfires(name, since)` |
-| `IQuartzApiClient` | gained `GetMisfires(DashboardMisfireQuery)` → `PagedResult<DashboardMisfireEntry>?` and `CountMisfires(name, since)` → `int?`, which is what the overview's misfire tile reads |
+| `IDashboardHistoryStore` | gained `AddMisfire`, `QueryMisfires(DashboardMisfireQuery)` and `CountMisfires(name, since)` |
+| `IQuartzApiClient` | gained `QueryMisfires(DashboardMisfireQuery)` → `PagedResult<DashboardMisfireEntry>` and `CountMisfires(name, since)` → `int`, which is what the overview's misfire tile reads |
 | `QuartzDashboardOptions` | gained `TimeSpan HistoryRetention` (24 hours) and `int HistoryMaxEntriesPerScheduler` (2000) |
 | `DashboardHistoryPlugin(IServiceProvider)` | `DashboardHistoryPlugin(IServiceProvider, TimeProvider)`, and it implements `ITriggerListener` as well as `IJobListener` |
 | `SchedulerStateDto(SchedulerName, Status)` | `SchedulerStateDto(SchedulerName, SchedulerInstanceId, Status)` |
@@ -8043,9 +8082,8 @@ peer's. Both feeds carry the node now, and the history is bounded by age as well
 | `IQuartzDashboardHubClient.JobPaused(JobKeyDto)` / `JobResumed` | take `JobLifecycleDto(SchedulerInstanceId, JobKey)` |
 
 **`IDashboardHistoryStore` is public and is the documented persistence seam, so the three new members
-are a breaking change for anyone who implemented it.** A store that only records executions can throw
-`NotSupportedException` from the misfire members; the History page reports a data source that answers
-`null` for misfires by omitting the section rather than by failing.
+are a breaking change for anyone who implemented it.** A store that records no misfires answers with an
+empty page and a count of zero; the History page renders the section saying so.
 
 A pause and a resume get a payload of their own rather than growing `JobKeyDto` / `TriggerKeyDto`:
 those are keys, `IQuartzApiClient` uses them everywhere, and a key does not belong to a node.
@@ -9474,14 +9512,13 @@ readable while you migrate it to JSON — see
 | `BLOB_TRIGGERS.BLOB_DATA` | `TriggerBase`, `SimpleTriggerImpl`, `CronTriggerImpl`, `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` |
 
 A trigger reaches that third row when no trigger persistence delegate handles it — a type of your own, or one
-deriving from `CronTriggerImpl` or `SimpleTriggerImpl` (the two that are still open) with
-`HasAdditionalProperties` returning `true`. The store writes the whole object into `BLOB_TRIGGERS`, so the
-trigger class hierarchy is part of the blob graph.
+deriving from any of the five shipped implementations with `HasAdditionalProperties` returning `true`. The
+store writes the whole object into `BLOB_TRIGGERS`, so the trigger class hierarchy is part of the blob graph.
 
 `RecurrenceTriggerImpl` is the one trigger implementation *not* on that list: it does not carry
 `[Serializable]`, where `TriggerBase` and the other four do. In practice a recurrence trigger is written to
-`SIMPROP_TRIGGERS` by `RecurrenceTriggerPersistenceDelegate` and never takes the blob path — it is `sealed`,
-so `HasAdditionalProperties` cannot be overridden to `true`. It did carry the attribute on 3.x, though, so a
+`SIMPROP_TRIGGERS` by `RecurrenceTriggerPersistenceDelegate` and never takes the blob path. It did carry the
+attribute on 3.x, though, so a
 3.x database that somehow holds a binary recurrence-trigger blob (which takes a delegate list with that
 delegate removed) should have that row migrated to JSON on 3.x before the upgrade.
 
@@ -9933,9 +9970,9 @@ Parameters and behavior are unchanged:
 | Group matchers translate to SQL correctly | `SelectTriggerGroups`, `DeletePausedTriggerGroup` and both `UpdateTriggerGroupStateFromOtherState(s)` members always built a `LIKE`, even for an equality matcher; they take the `=` path now, which is exact and index-friendly. `LIKE` patterns escape `%`, `_` and the escape character in the matcher's own text with an explicit `ESCAPE` clause, so a group literally named `50%` matches itself. The escape character is `!` rather than a backslash, because MySQL applies C-style escaping inside string literals and `ESCAPE '\'` is a syntax error there |
 | `StdAdoConstants` group and fired-trigger statements were split | `SqlDeletePausedTriggerGroup`, `SqlSelectTriggerGroupsFiltered`, `SqlUpdateTriggerGroupStateFromState` and `SqlUpdateTriggerGroupStateFromStates` are `…Equals` / `…Like` pairs, and the FIRED_TRIGGERS statements are one `SqlSelectFiredTriggers` / `SqlDeleteFiredTriggers` base plus `SqlFiredTrigger*Predicate` fragments. The type is internal |
 | `IDashboardAuthorizationFilter` and `QuartzDashboardOptions.AuthorizationFilter` removed | Nothing ever invoked the filter, so setting it bought a false sense of security. Use `AuthorizationPolicy`, which is enforced |
-| `IDashboardHistoryStore` is asynchronous | `ValueTask Add`, `ValueTask<PagedResult<DashboardHistoryEntry>> GetPage(DashboardHistoryQuery)`, so a store can talk to a database. `SearchFilter.DebounceMilliseconds` is a `TimeSpan Debounce`, and `InProcessQuartzApiClient` is internal — resolve `IQuartzApiClient` |
-| `IDashboardHistoryStore` carries the misfire feed | `AddMisfire`, `GetMisfires(DashboardMisfireQuery)` and `CountMisfires(name, since)` are new members on the interface, so **an application with its own store has to implement three more** — see [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from) |
-| `IQuartzApiClient` speaks Quartz's vocabulary | See [The dashboard's client speaks one currency](#the-dashboard-s-client-speaks-one-currency) |
+| `IDashboardHistoryStore` is asynchronous | `ValueTask AddExecution`, `ValueTask<PagedResult<DashboardHistoryEntry>> QueryExecutions(DashboardHistoryQuery)`, so a store can talk to a database. `SearchFilter.DebounceMilliseconds` is a `TimeSpan Debounce`, and `InProcessQuartzApiClient` is internal — resolve `IQuartzApiClient` |
+| `IDashboardHistoryStore` carries the misfire feed | `AddMisfire`, `QueryMisfires(DashboardMisfireQuery)` and `CountMisfires(name, since)` are new members on the interface, so **an application with its own store has to implement three more** — see [History and live events say which node they came from](#history-and-live-events-say-which-node-they-came-from) |
+| `IQuartzApiClient` speaks Quartz's vocabulary, with `IScheduler`'s verbs | The renames are a table of their own — see [The client speaks the scheduler's verbs](#the-client-speaks-the-scheduler-s-verbs) |
 | The dashboard's HTTP-backed API client is gone | `QuartzApiClient` was never registered; the dashboard renders the schedulers in its own process, and `QuartzDashboardOptions.BaseUrl` and `.ApiPath` went with it — see [The dashboard reads the schedulers in its own process](#the-dashboard-reads-the-schedulers-in-its-own-process) |
 | Serializers outside a scheduler read a container-wide registry | Because the serializer maps are per-serializer, the HTTP API and `Quartz.HttpClient` read a `SystemTextJsonSerializerRegistry` registered in the container. Register it as a singleton to make a custom serializer visible to them. The dashboard no longer registers one of its own: it passes triggers and calendars through as themselves |
 | `SystemTextJsonSerializerRegistry` gained `AddTypeInfoResolver(IJsonTypeInfoResolver)` | Where reflection-based serialization is off — a `PublishTrimmed` or `PublishAot` application — this is how job-data values of the application's own types are answered for. Hand it a generated `JsonSerializerContext`'s `Default`. Everything Quartz writes, and every custom trigger or calendar registered with the registry, is already covered; with reflection on it changes nothing — see [Trimming annotations](#trimming-annotations) |

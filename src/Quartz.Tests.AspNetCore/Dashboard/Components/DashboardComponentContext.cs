@@ -68,12 +68,16 @@ internal sealed class DashboardComponentContext : BunitContext
         // empty answer rather than whatever a dummy would have invented.
         A.CallTo(() => Api.GetExecutionLimits(A<string>._, A<CancellationToken>._))
             .Returns(new ExecutionLimitsDto([]));
-        A.CallTo(() => Api.GetFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+        A.CallTo(() => Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<FireInstanceDto>([], HasMore: false, TotalCount: 0));
-        A.CallTo(() => Api.GetTriggerGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+        A.CallTo(() => Api.QueryTriggerGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<TriggerGroupDto>([], HasMore: false, TotalCount: 0));
-        A.CallTo(() => Api.GetJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+        A.CallTo(() => Api.QueryJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<JobGroupDto>([], HasMore: false, TotalCount: 0));
+        A.CallTo(() => Api.QueryExecutions(A<DashboardHistoryQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<DashboardHistoryEntry>([], HasMore: false, TotalCount: 0));
+        A.CallTo(() => Api.QueryMisfires(A<DashboardMisfireQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<DashboardMisfireEntry>([], HasMore: false, TotalCount: 0));
         A.CallTo(() => Api.CountMisfires(A<string>._, A<DateTimeOffset>._, A<CancellationToken>._))
             .Returns(0);
 

@@ -42,7 +42,7 @@ public class DashboardDurationTest
         await plugin.Initialize("history", scheduler);
         await plugin.JobWasExecuted(ExecutionContext(scheduler, SubMillisecond), jobException: null);
 
-        PagedResult<DashboardHistoryEntry> page = await store.GetPage(new DashboardHistoryQuery { SchedulerName = "TestScheduler" });
+        PagedResult<DashboardHistoryEntry> page = await store.QueryExecutions(new DashboardHistoryQuery { SchedulerName = "TestScheduler" });
 
         DashboardHistoryEntry entry = page.Items.Should().ContainSingle().Subject;
         entry.Duration.Should().Be(SubMillisecond,
@@ -64,7 +64,7 @@ public class DashboardDurationTest
             ExecutionContext(scheduler, TimeSpan.FromSeconds(2)),
             new JobExecutionException("the job threw"));
 
-        DashboardHistoryEntry entry = (await store.GetPage(new DashboardHistoryQuery { SchedulerName = "TestScheduler" }))
+        DashboardHistoryEntry entry = (await store.QueryExecutions(new DashboardHistoryQuery { SchedulerName = "TestScheduler" }))
             .Items.Should().ContainSingle().Subject;
 
         entry.Succeeded.Should().BeFalse();
@@ -114,17 +114,17 @@ public class DashboardDurationTest
         DashboardHistoryStore store = StoreAtTestTime();
         for (int i = 0; i < 5; i++)
         {
-            await store.Add(EntryAt(new DateTimeOffset(2025, 1, 1, 0, 0, i, TimeSpan.Zero), "job" + i));
+            await store.AddExecution(EntryAt(new DateTimeOffset(2025, 1, 1, 0, 0, i, TimeSpan.Zero), "job" + i));
         }
 
-        PagedResult<DashboardHistoryEntry> page = await store.GetPage(
+        PagedResult<DashboardHistoryEntry> page = await store.QueryExecutions(
             new DashboardHistoryQuery { SchedulerName = "TestScheduler", Take = 2 });
 
         page.Items.Select(x => x.JobName).Should().Equal(["job4", "job3"], "history reads newest first");
         page.HasMore.Should().BeTrue();
         page.TotalCount.Should().Be(5, "the total counts the whole match, not the page");
 
-        PagedResult<DashboardHistoryEntry> filtered = await store.GetPage(
+        PagedResult<DashboardHistoryEntry> filtered = await store.QueryExecutions(
             new DashboardHistoryQuery { SchedulerName = "TestScheduler", JobFilter = "job2" });
 
         filtered.Items.Should().ContainSingle().Which.JobName.Should().Be("job2");

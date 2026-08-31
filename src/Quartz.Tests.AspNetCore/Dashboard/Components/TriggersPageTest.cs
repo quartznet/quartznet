@@ -52,7 +52,7 @@ public class TriggersPageTest
 
         page.FindAll(".qz-pagination button").First(button => button.TextContent.Trim() == "2").Click();
 
-        A.CallTo(() => context.Api.GetTriggers(
+        A.CallTo(() => context.Api.QueryTriggers(
                 TestData.SchedulerName,
                 A<DashboardTriggerQuery>.That.Matches(query => query.Skip == 25 && query.Take == 25),
                 A<CancellationToken>._))
@@ -70,7 +70,7 @@ public class TriggersPageTest
 
         errorOnly.Click();
 
-        A.CallTo(() => context.Api.GetTriggers(
+        A.CallTo(() => context.Api.QueryTriggers(
                 TestData.SchedulerName,
                 A<DashboardTriggerQuery>.That.Matches(query => query.State == TriggerState.Error && query.Skip == 0),
                 A<CancellationToken>._))
@@ -90,7 +90,7 @@ public class TriggersPageTest
         page.FindAll("button").First(button => button.TextContent.Trim() == "Executing only").Click();
 
         // A narrowed listing has fewer pages, so the page number the reader was on means nothing.
-        A.CallTo(() => context.Api.GetTriggers(
+        A.CallTo(() => context.Api.QueryTriggers(
                 TestData.SchedulerName,
                 A<DashboardTriggerQuery>.That.Matches(query => query.State == TriggerState.Executing && query.Skip == 0),
                 A<CancellationToken>._))
@@ -158,7 +158,7 @@ public class TriggersPageTest
 
         IRenderedComponent<Triggers> page = context.Render<Triggers>();
 
-        A.CallTo(() => context.Api.GetTriggers(
+        A.CallTo(() => context.Api.QueryTriggers(
                 TestData.SchedulerName,
                 A<DashboardTriggerQuery>.That.Matches(query => query.State == TriggerState.Paused),
                 A<CancellationToken>._))
@@ -177,7 +177,7 @@ public class TriggersPageTest
 
         IRenderedComponent<Triggers> page = context.Render<Triggers>();
 
-        A.CallTo(() => context.Api.GetTriggers(
+        A.CallTo(() => context.Api.QueryTriggers(
                 TestData.SchedulerName,
                 A<DashboardTriggerQuery>.That.Matches(query => query.State == null),
                 A<CancellationToken>._))
@@ -189,7 +189,7 @@ public class TriggersPageTest
 
     private void GivenTriggers(IReadOnlyList<TriggerHeaderDto> triggers)
     {
-        A.CallTo(() => context.Api.GetTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
             .ReturnsLazily((string _, DashboardTriggerQuery query, CancellationToken _) =>
             {
                 List<TriggerHeaderDto> matched = triggers

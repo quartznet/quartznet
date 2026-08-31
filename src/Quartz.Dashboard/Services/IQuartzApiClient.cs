@@ -34,6 +34,13 @@ namespace Quartz.Dashboard.Services;
 /// <see cref="JobDataMap" /> rather than JSON.
 /// </para>
 /// <para>
+/// The verbs are <see cref="IScheduler" />'s own, spelled the same way: an operation this interface
+/// forwards carries the name the scheduler gives it — <see cref="Start" />, <see cref="Interrupt" />,
+/// one <see cref="TriggerJob" /> with an optional map, and the <c>Query*</c> family for the paged
+/// listings. Only what has no counterpart on <see cref="IScheduler" /> — the scheduler listing, the
+/// execution history — names itself.
+/// </para>
+/// <para>
 /// A trigger and a calendar arrive as themselves because Quartz already owns the polymorphism they
 /// need: the serializer registry maps each kind to its own serializer, custom kinds an application
 /// registered included, and the wire format is that discriminated shape. A DTO family of the
@@ -61,11 +68,11 @@ public interface IQuartzApiClient
     /// </summary>
     ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask StartScheduler(string schedulerName, CancellationToken cancellationToken = default);
+    ValueTask Start(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask StandbyScheduler(string schedulerName, CancellationToken cancellationToken = default);
+    ValueTask Standby(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask ShutdownScheduler(string schedulerName, CancellationToken cancellationToken = default);
+    ValueTask Shutdown(string schedulerName, CancellationToken cancellationToken = default);
 
     ValueTask PauseAll(string schedulerName, CancellationToken cancellationToken = default);
 
@@ -76,21 +83,21 @@ public interface IQuartzApiClient
     /// <see cref="PagedResult{T}.HasMore" /> and, because the dashboard asks for it, a
     /// <see cref="PagedResult{T}.TotalCount" />.
     /// </summary>
-    ValueTask<PagedResult<JobKeyDto>> GetJobs(string schedulerName, DashboardJobQuery query, CancellationToken cancellationToken = default);
+    ValueTask<PagedResult<JobKeyDto>> QueryJobs(string schedulerName, DashboardJobQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns one page of job groups, ordered by name, each carrying whether it is paused.
     /// </summary>
-    ValueTask<PagedResult<JobGroupDto>> GetJobGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default);
+    ValueTask<PagedResult<JobGroupDto>> QueryJobGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns one page of trigger groups, ordered by name, each carrying whether it is paused.
     /// </summary>
-    ValueTask<PagedResult<TriggerGroupDto>> GetTriggerGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default);
+    ValueTask<PagedResult<TriggerGroupDto>> QueryTriggerGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default);
 
-    ValueTask<JobDetailDto> GetJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
+    ValueTask<JobDetailDto> GetJobDetail(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
-    ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
+    ValueTask<List<TriggerHeaderDto>> GetTriggersOfJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns one page of firings — by default the ones that are running — ordered by trigger group,
@@ -98,17 +105,17 @@ public interface IQuartzApiClient
     /// cluster, so a firing owned by another node is listed too, marked with that node's
     /// <see cref="FireInstanceDto.SchedulerInstanceId" />.
     /// </summary>
-    ValueTask<PagedResult<FireInstanceDto>> GetFireInstances(string schedulerName, DashboardFireInstanceQuery query, CancellationToken cancellationToken = default);
+    ValueTask<PagedResult<FireInstanceDto>> QueryFireInstances(string schedulerName, DashboardFireInstanceQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns the scheduler's cluster nodes, the node that answered first. A scheduler that is not
     /// clustered answers with the one node it is, with no check-in times.
     /// </summary>
     /// <remarks>
-    /// Joins to <see cref="GetFireInstances" /> on <see cref="FireInstanceDto.SchedulerInstanceId" />,
+    /// Joins to <see cref="QueryFireInstances" /> on <see cref="FireInstanceDto.SchedulerInstanceId" />,
     /// which is how the Cluster page counts what each node is running.
     /// </remarks>
-    ValueTask<List<ClusterNodeDto>> GetClusterNodes(string schedulerName, CancellationToken cancellationToken = default);
+    ValueTask<List<ClusterNodeDto>> QueryClusterNodes(string schedulerName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Pauses the job. Returns <see langword="true" /> when the job existed and was paused,
@@ -122,21 +129,24 @@ public interface IQuartzApiClient
     /// </summary>
     ValueTask<bool> ResumeJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
-    ValueTask TriggerJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
-
     /// <summary>
     /// Triggers the job once, with <paramref name="jobDataMap" /> merged over the job's own data for
-    /// that one firing.
+    /// that one firing when a map is given.
     /// </summary>
-    ValueTask TriggerJobWithData(string schedulerName, JobKeyDto jobKey, JobDataMap jobDataMap, CancellationToken cancellationToken = default);
+    /// <remarks>
+    /// One method with an optional map, exactly as <see cref="IScheduler.TriggerJob" /> is: firing a job
+    /// with data and firing it without are the same operation, and the pair of methods this replaces made
+    /// them look like two.
+    /// </remarks>
+    ValueTask TriggerJob(string schedulerName, JobKeyDto jobKey, JobDataMap? jobDataMap = null, CancellationToken cancellationToken = default);
 
-    ValueTask InterruptJob(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
+    ValueTask Interrupt(string schedulerName, JobKeyDto jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Interrupts one execution, named by its fire instance id.
     /// </summary>
     /// <remarks>
-    /// The single-execution form of <see cref="InterruptJob" />, which interrupts every execution of the
+    /// The single-execution form of <see cref="Interrupt" />, which interrupts every execution of the
     /// job. Node-local on the server side: a firing owned by another node is interrupted by asking that
     /// node.
     /// </remarks>
@@ -150,7 +160,7 @@ public interface IQuartzApiClient
     /// Returns one page of triggers, ordered by group and then name, each carrying its state and
     /// execution group.
     /// </summary>
-    ValueTask<PagedResult<TriggerHeaderDto>> GetTriggers(string schedulerName, DashboardTriggerQuery query, CancellationToken cancellationToken = default);
+    ValueTask<PagedResult<TriggerHeaderDto>> QueryTriggers(string schedulerName, DashboardTriggerQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns the trigger itself — a <see cref="ICronTrigger" />, <see cref="ISimpleTrigger" /> or
@@ -196,28 +206,32 @@ public interface IQuartzApiClient
     ValueTask DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns one page of execution history, newest first, or <see langword="null" /> when the data
-    /// source keeps no history.
+    /// Returns one page of execution history, newest first.
     /// </summary>
-    ValueTask<PagedResult<DashboardHistoryEntry>?> GetHistory(DashboardHistoryQuery query, CancellationToken cancellationToken = default);
+    /// <remarks>
+    /// The history is <see cref="IDashboardHistoryStore" />'s, and that store always answers: a store
+    /// holding nothing returns an empty page, which is what "no executions recorded" is. This used to be
+    /// nullable because the deleted remote client turned a 404 into "no history at all", and nothing
+    /// in this process has ever had that answer to give.
+    /// </remarks>
+    ValueTask<PagedResult<DashboardHistoryEntry>> QueryExecutions(DashboardHistoryQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns one page of the triggers that missed a firing, newest first, or <see langword="null" />
-    /// when the data source keeps no history.
+    /// Returns one page of the triggers that missed a firing, newest first.
     /// </summary>
-    ValueTask<PagedResult<DashboardMisfireEntry>?> GetMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default);
+    /// <remarks>
+    /// <inheritdoc cref="QueryExecutions" path="/remarks" />
+    /// </remarks>
+    ValueTask<PagedResult<DashboardMisfireEntry>> QueryMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Counts the misfires the scheduler has recorded since <paramref name="since" />, or
-    /// <see langword="null" /> when the data source keeps no misfire feed.
+    /// Counts the misfires the scheduler has recorded since <paramref name="since" />.
     /// </summary>
     /// <remarks>
     /// A count rather than a page, because the overview's tile asks "how bad is it right now" and a
     /// store keeping its history in a database can answer that without loading rows it would discard.
-    /// Null is not zero: a data source with no feed has not looked, and the tile says so rather than
-    /// reporting a clean bill of health it did not earn.
     /// </remarks>
-    ValueTask<int?> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default);
+    ValueTask<int> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns the execution limits the scheduler is running with, or

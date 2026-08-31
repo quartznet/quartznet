@@ -50,7 +50,7 @@
         </div>
     </div>
 
-    @if (!_isLoading && !_historyUnavailable && string.IsNullOrWhiteSpace(_error))
+    @if (!_isLoading && string.IsNullOrWhiteSpace(_error))
     {
         <p class="qz-muted">Page @_page / @_totalPages · Showing @_entries.Count row(s) · Total @_totalCount row(s)</p>
         <p class="qz-muted">@BuildFilterSummary()</p>
@@ -63,10 +63,6 @@
     else if (!string.IsNullOrWhiteSpace(_error))
     {
         <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
-    }
-    else if (_historyUnavailable)
-    {
-        <p class="qz-muted">Execution history is unavailable for the current API backend.</p>
     }
     else if (_totalCount == 0)
     {
@@ -115,7 +111,7 @@
                     OnPageChanged="OnPageChangedAsync" />
     }
 
-    @if (!_isLoading && !_historyUnavailable && string.IsNullOrWhiteSpace(_error) && !_misfiresUnavailable)
+    @if (!_isLoading && string.IsNullOrWhiteSpace(_error) && !_misfiresUnavailable)
     {
         @* The overview's misfire tile links here by fragment, so the id is part of that contract. *@
         <section id="misfires" class="qz-section qz-misfires">
@@ -171,7 +167,6 @@
 @code {
     private readonly List<DashboardHistoryEntry> _entries = [];
     private bool _isLoading = true;
-    private bool _historyUnavailable;
     private string? _error;
     private int _page = 1;
     private readonly int _pageSize = 25;
@@ -309,10 +304,9 @@
 
         _loadingInProgress = true;
         _isLoading = true;
-        _historyUnavailable = false;
         // Nothing has answered yet, so there is no misfire feed to show. Anything short of a page coming
-        // back — no scheduler selected, a data source that keeps no history, a read that threw — leaves
-        // the section out rather than rendering "no misfires" over an answer nobody gave.
+        // back — no scheduler selected, a read that threw — leaves the section out rather than rendering
+        // "no misfires" over an answer nobody gave.
         _misfiresUnavailable = true;
         _error = null;
         _entries.Clear();
@@ -334,12 +328,7 @@
 
             await LoadClusterNodesAsync(schedulerName);
 
-            PagedResult<DashboardHistoryEntry>? page = await Api.GetHistory(HistoryQuery(schedulerName, _page));
-            if (page is null)
-            {
-                _historyUnavailable = true;
-                return;
-            }
+            PagedResult<DashboardHistoryEntry> page = await Api.QueryExecutions(HistoryQuery(schedulerName, _page));
 
             _currentPageSize = _pageSize;
             _totalCount = page.TotalCount ?? page.Items.Count;
@@ -350,17 +339,14 @@
             if (_page > _totalPages)
             {
                 _page = _totalPages;
-                page = await Api.GetHistory(HistoryQuery(schedulerName, _page)) ?? page;
+                page = await Api.QueryExecutions(HistoryQuery(schedulerName, _page));
             }
 
             _entries.AddRange(page.Items);
 
-            PagedResult<DashboardMisfireEntry>? misfires = await Api.GetMisfires(MisfireQuery(schedulerName));
-            _misfiresUnavailable = misfires is null;
-            if (misfires is not null)
-            {
-                _misfires.AddRange(misfires.Items);
-            }
+            PagedResult<DashboardMisfireEntry> misfires = await Api.QueryMisfires(MisfireQuery(schedulerName));
+            _misfiresUnavailable = false;
+            _misfires.AddRange(misfires.Items);
 
             ComputeAnalytics();
         }
@@ -391,7 +377,7 @@
 
         try
         {
-            foreach (ClusterNodeDto node in await Api.GetClusterNodes(schedulerName))
+            foreach (ClusterNodeDto node in await Api.QueryClusterNodes(schedulerName))
             {
                 _clusterNodes.Add(node.InstanceId);
             }

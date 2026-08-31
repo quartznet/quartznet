@@ -32,7 +32,7 @@ public class DashboardHistoryPluginTest
         await plugin.Initialize("history", scheduler);
         await plugin.JobWasExecuted(ExecutionContext(scheduler), jobException: null);
 
-        PagedResult<DashboardHistoryEntry> page = await store.GetPage(
+        PagedResult<DashboardHistoryEntry> page = await store.QueryExecutions(
             new DashboardHistoryQuery { SchedulerName = "TestScheduler" });
 
         page.Items.Should().ContainSingle().Which.SchedulerInstanceId.Should().Be("node-a",
@@ -49,7 +49,7 @@ public class DashboardHistoryPluginTest
         await plugin.Initialize("history", scheduler);
         await plugin.TriggerMisfired(MisfiringTrigger(), scheduler);
 
-        PagedResult<DashboardMisfireEntry> misfires = await store.GetMisfires(
+        PagedResult<DashboardMisfireEntry> misfires = await store.QueryMisfires(
             new DashboardMisfireQuery { SchedulerName = "TestScheduler" });
 
         DashboardMisfireEntry entry = misfires.Items.Should().ContainSingle().Subject;
@@ -74,7 +74,7 @@ public class DashboardHistoryPluginTest
         await plugin.Initialize("history", scheduler);
         await plugin.TriggerMisfired(MisfiringTrigger(), scheduler);
 
-        PagedResult<DashboardHistoryEntry> page = await store.GetPage(
+        PagedResult<DashboardHistoryEntry> page = await store.QueryExecutions(
             new DashboardHistoryQuery { SchedulerName = "TestScheduler" });
 
         page.Items.Should().BeEmpty("nothing ran, so there is no execution to show");

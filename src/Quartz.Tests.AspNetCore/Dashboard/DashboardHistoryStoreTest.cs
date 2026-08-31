@@ -25,7 +25,7 @@ public class DashboardHistoryStoreTest
         FakeTimeProvider clock = new(Start);
         DashboardHistoryStore store = Store(clock, retention: TimeSpan.FromHours(1));
 
-        await store.Add(Entry(Start, "nightly"));
+        await store.AddExecution(Entry(Start, "nightly"));
 
         clock.Advance(TimeSpan.FromMinutes(59));
         (await Page(store)).Items.Should().ContainSingle(
@@ -42,7 +42,7 @@ public class DashboardHistoryStoreTest
         FakeTimeProvider clock = new(Start);
         DashboardHistoryStore store = Store(clock, retention: TimeSpan.FromHours(1));
 
-        await store.Add(Entry(Start, "nightly"));
+        await store.AddExecution(Entry(Start, "nightly"));
         clock.Advance(TimeSpan.FromHours(2));
 
         // nothing is added in between: this scheduler has gone quiet, which is exactly the case a
@@ -60,7 +60,7 @@ public class DashboardHistoryStoreTest
 
         for (int index = 0; index < 5; index++)
         {
-            await store.Add(Entry(Start.AddSeconds(index), "job" + index));
+            await store.AddExecution(Entry(Start.AddSeconds(index), "job" + index));
         }
 
         PagedResult<DashboardHistoryEntry> page = await Page(store);
@@ -75,8 +75,8 @@ public class DashboardHistoryStoreTest
         FakeTimeProvider clock = new(Start);
         DashboardHistoryStore store = Store(clock, retention: TimeSpan.FromMinutes(10), maxEntriesPerScheduler: 100);
 
-        await store.Add(Entry(Start.AddMinutes(-30), "old"));
-        await store.Add(Entry(Start, "fresh"));
+        await store.AddExecution(Entry(Start.AddMinutes(-30), "old"));
+        await store.AddExecution(Entry(Start, "fresh"));
 
         PagedResult<DashboardHistoryEntry> page = await Page(store);
 
@@ -89,8 +89,8 @@ public class DashboardHistoryStoreTest
     {
         DashboardHistoryStore store = Store(new FakeTimeProvider(Start));
 
-        await store.Add(Entry(Start, "on-a", node: "node-a"));
-        await store.Add(Entry(Start, "on-b", node: "node-b"));
+        await store.AddExecution(Entry(Start, "on-a", node: "node-a"));
+        await store.AddExecution(Entry(Start, "on-b", node: "node-b"));
 
         PagedResult<DashboardHistoryEntry> everywhere = await Page(store);
         everywhere.Items.Should().HaveCount(2, "an unfiltered query is every node's");
@@ -105,13 +105,13 @@ public class DashboardHistoryStoreTest
     {
         DashboardHistoryStore store = Store(new FakeTimeProvider(Start));
 
-        await store.Add(Entry(Start, "ran"));
+        await store.AddExecution(Entry(Start, "ran"));
         await store.AddMisfire(Misfire(Start, "nightly"));
 
         (await Page(store)).Items.Should().ContainSingle(
             "a misfire is not an execution — nothing ran — so it must not appear in the history");
 
-        PagedResult<DashboardMisfireEntry> misfires = await store.GetMisfires(
+        PagedResult<DashboardMisfireEntry> misfires = await store.QueryMisfires(
             new DashboardMisfireQuery { SchedulerName = SchedulerName, IncludeTotalCount = true });
 
         DashboardMisfireEntry misfire = misfires.Items.Should().ContainSingle().Subject;
@@ -131,13 +131,13 @@ public class DashboardHistoryStoreTest
         await store.AddMisfire(Misfire(Start.AddSeconds(1), "two"));
         await store.AddMisfire(Misfire(Start.AddSeconds(2), "three"));
 
-        PagedResult<DashboardMisfireEntry> capped = await store.GetMisfires(
+        PagedResult<DashboardMisfireEntry> capped = await store.QueryMisfires(
             new DashboardMisfireQuery { SchedulerName = SchedulerName });
         capped.Items.Select(entry => entry.TriggerName).Should().Equal(["three", "two"],
             "the cap is per feed, and the misfire feed is not exempt from it");
 
         clock.Advance(TimeSpan.FromHours(2));
-        PagedResult<DashboardMisfireEntry> aged = await store.GetMisfires(
+        PagedResult<DashboardMisfireEntry> aged = await store.QueryMisfires(
             new DashboardMisfireQuery { SchedulerName = SchedulerName });
         aged.Items.Should().BeEmpty("the retention window covers misfires too");
     }
@@ -165,7 +165,7 @@ public class DashboardHistoryStoreTest
         await store.AddMisfire(Misfire(Start, "on-a", node: "node-a"));
         await store.AddMisfire(Misfire(Start, "on-b", node: "node-b"));
 
-        PagedResult<DashboardMisfireEntry> onA = await store.GetMisfires(
+        PagedResult<DashboardMisfireEntry> onA = await store.QueryMisfires(
             new DashboardMisfireQuery { SchedulerName = SchedulerName, SchedulerInstanceId = "node-a" });
 
         onA.Items.Should().ContainSingle().Which.TriggerName.Should().Be("on-a");
@@ -181,7 +181,7 @@ public class DashboardHistoryStoreTest
 
     private static ValueTask<PagedResult<DashboardHistoryEntry>> Page(DashboardHistoryStore store, string? node = null)
     {
-        return store.GetPage(new DashboardHistoryQuery
+        return store.QueryExecutions(new DashboardHistoryQuery
         {
             SchedulerName = SchedulerName,
             SchedulerInstanceId = node,

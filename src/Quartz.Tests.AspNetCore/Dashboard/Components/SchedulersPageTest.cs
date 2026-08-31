@@ -80,7 +80,7 @@ public class SchedulersPageTest
             TestData.Dashboard.SchedulerHeader("reporting"));
         GivenDetail("core", TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "core", clustered: true, persistent: true));
         GivenDetail("reporting", TestData.Dashboard.SchedulerDetail(SchedulerStatus.Running, "reporting"));
-        A.CallTo(() => context.Api.GetClusterNodes("core", A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryClusterNodes("core", A<CancellationToken>._))
             .Returns(new List<ClusterNodeDto> { Node("node-a", isCurrent: true), Node("node-b", isCurrent: false) });
 
         IRenderedComponent<Schedulers> page = context.Render<Schedulers>();
@@ -90,7 +90,7 @@ public class SchedulersPageTest
             "a store with no node table answers with the one node it is, so asking is a round trip per "
             + "scheduler for a number that is always one");
 
-        A.CallTo(() => context.Api.GetClusterNodes("reporting", A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => context.Api.QueryClusterNodes("reporting", A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]

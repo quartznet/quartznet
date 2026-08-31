@@ -91,21 +91,21 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             metadata.Version);
     }
 
-    public ValueTask StartScheduler(string schedulerName, CancellationToken cancellationToken = default)
+    public ValueTask Start(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         return scheduler.Start(cancellationToken);
     }
 
-    public ValueTask StandbyScheduler(string schedulerName, CancellationToken cancellationToken = default)
+    public ValueTask Standby(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         return scheduler.Standby(cancellationToken);
     }
 
-    public ValueTask ShutdownScheduler(string schedulerName, CancellationToken cancellationToken = default)
+    public ValueTask Shutdown(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
@@ -126,7 +126,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.ResumeAll(cancellationToken);
     }
 
-    public async ValueTask<PagedResult<JobKeyDto>> GetJobs(string schedulerName, DashboardJobQuery query, CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<JobKeyDto>> QueryJobs(string schedulerName, DashboardJobQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -150,7 +150,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new PagedResult<JobKeyDto>(items, jobs.HasMore, jobs.TotalCount ?? items.Count);
     }
 
-    public async ValueTask<PagedResult<JobGroupDto>> GetJobGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<JobGroupDto>> QueryJobGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -174,7 +174,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new PagedResult<JobGroupDto>(items, groups.HasMore, groups.TotalCount ?? items.Count);
     }
 
-    public async ValueTask<PagedResult<TriggerGroupDto>> GetTriggerGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<TriggerGroupDto>> QueryTriggerGroups(string schedulerName, DashboardGroupQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -198,7 +198,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new PagedResult<TriggerGroupDto>(items, groups.HasMore, groups.TotalCount ?? items.Count);
     }
 
-    public async ValueTask<JobDetailDto> GetJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
+    public async ValueTask<JobDetailDto> GetJobDetail(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         JobKey jobKey = AsJobKey(key);
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
@@ -224,7 +224,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// The triggers themselves are needed for the schedule summary, and their states come from a single
     /// query rather than one <see cref="IScheduler.GetTriggerState"/> call per trigger.
     /// </remarks>
-    public async ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
+    public async ValueTask<List<TriggerHeaderDto>> GetTriggersOfJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         JobKey jobKey = AsJobKey(key);
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
@@ -263,7 +263,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public async ValueTask<PagedResult<FireInstanceDto>> GetFireInstances(string schedulerName, DashboardFireInstanceQuery query, CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<FireInstanceDto>> QueryFireInstances(string schedulerName, DashboardFireInstanceQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -296,7 +296,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new PagedResult<FireInstanceDto>(items, page.HasMore, page.TotalCount ?? items.Count);
     }
 
-    public async ValueTask<List<ClusterNodeDto>> GetClusterNodes(string schedulerName, CancellationToken cancellationToken = default)
+    public async ValueTask<List<ClusterNodeDto>> QueryClusterNodes(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         List<ClusterNode> nodes = await scheduler.QueryClusterNodes(cancellationToken).ConfigureAwait(false);
@@ -329,22 +329,14 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.ResumeJob(AsJobKey(key), cancellationToken);
     }
 
-    public ValueTask TriggerJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
+    public ValueTask TriggerJob(string schedulerName, JobKeyDto key, JobDataMap? jobDataMap = null, CancellationToken cancellationToken = default)
     {
-        EnsureWritable();
-        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        return scheduler.TriggerJob(AsJobKey(key), cancellationToken: cancellationToken);
-    }
-
-    public ValueTask TriggerJobWithData(string schedulerName, JobKeyDto key, JobDataMap jobDataMap, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(jobDataMap);
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         return scheduler.TriggerJob(AsJobKey(key), jobDataMap, cancellationToken);
     }
 
-    public async ValueTask InterruptJob(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
+    public async ValueTask Interrupt(string schedulerName, JobKeyDto key, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
@@ -380,7 +372,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.AddJob(jobDetail, options, cancellationToken);
     }
 
-    public async ValueTask<PagedResult<TriggerHeaderDto>> GetTriggers(
+    public async ValueTask<PagedResult<TriggerHeaderDto>> QueryTriggers(
         string schedulerName,
         DashboardTriggerQuery query,
         CancellationToken cancellationToken = default)
@@ -536,23 +528,23 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         _ = await scheduler.DeleteCalendar(calendarName, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<PagedResult<DashboardHistoryEntry>?> GetHistory(DashboardHistoryQuery query, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<DashboardHistoryEntry>> QueryExecutions(DashboardHistoryQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        return await historyStore.GetPage(query, cancellationToken).ConfigureAwait(false);
+        return historyStore.QueryExecutions(query, cancellationToken);
     }
 
-    public async ValueTask<PagedResult<DashboardMisfireEntry>?> GetMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<DashboardMisfireEntry>> QueryMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        return await historyStore.GetMisfires(query, cancellationToken).ConfigureAwait(false);
+        return historyStore.QueryMisfires(query, cancellationToken);
     }
 
-    public async ValueTask<int?> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default)
+    public ValueTask<int> CountMisfires(string schedulerName, DateTimeOffset since, CancellationToken cancellationToken = default)
     {
-        return await historyStore.CountMisfires(schedulerName, since, cancellationToken).ConfigureAwait(false);
+        return historyStore.CountMisfires(schedulerName, since, cancellationToken);
     }
 
     private static GroupMatcher<TKey>? BuildGroupMatcher<TKey>(string? groupFilter) where TKey : Key<TKey>
