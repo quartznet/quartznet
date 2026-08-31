@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl;
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz.Configuration;
 
@@ -136,7 +137,25 @@ internal sealed class QuartzBuilder : IQuartzBuilder
 
     public IQuartzBuilder UsePersistentStore(Action<IPersistentStoreBuilder> configure)
     {
-        return UsePersistentStore<LocalTransactionJobStore>(configure);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        // Which of the two shipped stores this is decided inside the callback, so the registration
+        // waits for it: registration is first-wins, and registering the local store before running the
+        // callback would make UseAmbientTransactions a call that quietly did nothing.
+        PersistentStoreBuilder store = ConfigurePersistentStore(configure);
+
+        if (store.AmbientTransactions)
+        {
+            RegisterConfigured<IJobStore>((provider, key) =>
+                ActivatorUtilities.CreateInstance<ExternalTransactionJobStore>(SchedulerScopedServiceProvider.For(provider, key)));
+        }
+        else
+        {
+            RegisterConfigured<IJobStore>((provider, key) =>
+                ActivatorUtilities.CreateInstance<LocalTransactionJobStore>(SchedulerScopedServiceProvider.For(provider, key)));
+        }
+
+        return this;
     }
 
     public IQuartzBuilder UsePersistentStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
@@ -147,15 +166,37 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         RegisterConfigured<IJobStore>((provider, key) =>
             ActivatorUtilities.CreateInstance<T>(SchedulerScopedServiceProvider.For(provider, key)));
 
-        var store = new PersistentStoreBuilder(Services, schedulerKey);
-        configure(store);
+        PersistentStoreBuilder store = ConfigurePersistentStore(configure);
 
-        // The serializer, driver delegate and lock handler fallbacks are not registered here. A
-        // serializer named in a configuration file is applied after this callback, so a fallback
-        // registered inside it would win the first-wins race and silently replace the caller's choice.
-        // They go in with the rest of the defaults instead, after everything explicit — and the lock
-        // handler has no fallback at all, so the store can choose one once it knows its database.
+        if (store.AmbientTransactions)
+        {
+            // The type argument already named the store, and UseAmbientTransactions names a different
+            // one. Silently keeping T would leave a scheduler committing transactions the caller
+            // believed somebody else owned.
+            Throw.SchedulerConfigException(
+                "UseAmbientTransactions() selects the store that runs inside a transaction somebody else owns, "
+                + $"but this store was already named as '{typeof(T).Name}'. Call UsePersistentStore(...) without a "
+                + "type argument to use it, or drop the UseAmbientTransactions() call.");
+        }
+
         return this;
+    }
+
+    /// <summary>
+    /// Runs a persistent store's configuration callback and hands back what it decided.
+    /// </summary>
+    /// <remarks>
+    /// The serializer, driver delegate and lock handler fallbacks are deliberately not registered here.
+    /// A serializer named in a configuration file is applied after this callback, so a fallback
+    /// registered inside it would win the first-wins race and silently replace the caller's choice.
+    /// They go in with the rest of the defaults instead, after everything explicit — and the lock
+    /// handler has no fallback at all, so the store can choose one once it knows its database.
+    /// </remarks>
+    private PersistentStoreBuilder ConfigurePersistentStore(Action<IPersistentStoreBuilder> configure)
+    {
+        PersistentStoreBuilder store = new(Services, schedulerKey);
+        configure(store);
+        return store;
     }
 
     public IQuartzBuilder UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()

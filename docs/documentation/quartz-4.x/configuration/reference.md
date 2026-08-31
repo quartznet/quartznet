@@ -177,7 +177,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `UseBackgroundThreads` | bool | `false` | Runs the misfire handler and cluster manager on background threads, which do not keep the process alive. These two are the only real threads Quartz creates. |
 | `SchemaProvisioning` | `SchemaProvisioning` | `Validate` | What the store does about its schema at startup: `None` does nothing, `Validate` verifies the expected tables exist, `CreateIfMissing` creates whatever is missing and then verifies. |
 | `SelectWithLockSql` | string? | none | Overrides the row-lock statement, defaulted to SQL Server's `WITH (UPDLOCK,ROWLOCK)` form when that is the database. Read only when the store builds a database-locking handler for itself — see [Locking](#locking). |
-| `OpenConnection` | bool | `false` | Whether `ExternalTransactionJobStore` opens the connections it creates; read only by that store. |
+| `OpenConnection` | bool | `false` | Whether `ExternalTransactionJobStore` opens the connections it creates; read only by that store, which is the one `UsePersistentStore(store => store.UseAmbientTransactions())` selects. |
 
 A custom trigger persistence delegate is registered with
 `UsePersistentStore(s => s.UseTriggerPersistenceDelegate<T>())` rather than through an option; the

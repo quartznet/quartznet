@@ -250,6 +250,23 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         return ConfigureStore(options => options.UseDbLocks = true);
     }
 
+    /// <summary>
+    /// Whether this callback asked for the store that runs inside a transaction somebody else owns.
+    /// </summary>
+    /// <remarks>
+    /// Recorded rather than registered, because the store registration is first-wins and the choice is
+    /// made inside the callback: <see cref="QuartzBuilder"/> reads this once the callback has run and
+    /// registers the store it names. Nothing else can decide it — both stores are constructed from the
+    /// same <c>AdoJobStoreDependencies</c>, so which one is built is the whole of the difference.
+    /// </remarks>
+    internal bool AmbientTransactions { get; private set; }
+
+    public IPersistentStoreBuilder UseAmbientTransactions()
+    {
+        AmbientTransactions = true;
+        return this;
+    }
+
     public IPersistentStoreBuilder ProvisionSchema()
     {
         return ConfigureStore(options => options.SchemaProvisioning = SchemaProvisioning.CreateIfMissing);

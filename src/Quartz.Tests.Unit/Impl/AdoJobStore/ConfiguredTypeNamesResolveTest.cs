@@ -200,6 +200,46 @@ public sealed class ConfiguredTypeNamesResolveTest
     }
 
     /// <summary>
+    /// The container-managed store, chosen by the string a configuration file carries and by the
+    /// builder member, is one store either way.
+    /// </summary>
+    /// <remarks>
+    /// <c>quartz.jobStore.type</c> was the only route to it while the type was internal and nothing on
+    /// <c>IPersistentStoreBuilder</c> selected a store, so <c>UseAmbientTransactions</c> is measured
+    /// against it rather than against a name typed here: a selector that reached a different store than
+    /// the string always has would split one setting into two that disagree.
+    /// </remarks>
+    [Test]
+    public void TheAmbientTransactionStoreIsOneStoreWhicheverWayItIsChosen()
+    {
+        NameValueCollection properties = StoreAndDelegateByName(
+            nameof(TheAmbientTransactionStoreIsOneStoreWhicheverWayItIsChosen),
+            typeof(SQLiteDelegate).AssemblyQualifiedName!);
+        properties["quartz.jobStore.type"] = ExternalTransactionJobStoreName;
+
+        ServiceCollection namedByString = new();
+        namedByString.AddQuartz(properties);
+        using ServiceProvider fromString = namedByString.BuildServiceProvider();
+
+        ServiceCollection chosenInCode = new();
+        chosenInCode.AddQuartz(q => q.UsePersistentStore(store =>
+        {
+            store.UseSqlite(connectionString);
+            store.UseAmbientTransactions();
+        }));
+        using ServiceProvider fromCode = chosenInCode.BuildServiceProvider();
+
+        Type stringStore = fromString.GetRequiredService<IJobStore>().GetType();
+
+        stringStore.FullName.Should().Be("Quartz.Impl.AdoJobStore.ExternalTransactionJobStore",
+            "the legacy key is what every deployment on this store spells today, and it has to go on "
+            + "naming it");
+        fromCode.GetRequiredService<IJobStore>().Should().BeOfType(stringStore,
+            "the typed selector exists because the string was the only way to reach this store; the two "
+            + "have to arrive at the same one");
+    }
+
+    /// <summary>
     /// A whole persistent store spelled the way a configuration file spells it: two type names, a data
     /// source, and nothing in code. Naming the store in code would register a driver delegate of its
     /// own, and registration is <c>TryAdd</c>, so the assertions would be measuring the wrong one.

@@ -149,12 +149,31 @@ public interface IQuartzBuilder
     /// <summary>
     /// Uses a database-backed job store, so jobs and triggers survive restarts and can be clustered.
     /// </summary>
-    /// <inheritdoc cref="UseInMemoryStore" path="/remarks" />
+    /// <remarks>
+    /// <para>
+    /// Takes a sub-builder rather than an options object, unlike <see cref="UseInMemoryStore"/>: a
+    /// database-backed store is a composite that also has a data source, a driver delegate, a
+    /// serializer and a lock handler to choose.
+    /// </para>
+    /// <para>
+    /// Both stores Quartz ships are reached from here. The default begins the transaction each
+    /// operation runs in and commits or rolls it back;
+    /// <see cref="IPersistentStoreBuilder.UseAmbientTransactions"/> inside the callback selects the one
+    /// that runs inside a transaction somebody else owns. <see cref="UsePersistentStore{T}"/> is for a
+    /// store neither of those describes.
+    /// </para>
+    /// </remarks>
     IQuartzBuilder UsePersistentStore(Action<IPersistentStoreBuilder> configure);
 
     /// <summary>
     /// Uses a specific database-backed job store implementation.
     /// </summary>
+    /// <remarks>
+    /// For a persistent store of your own. The two Quartz ships are both selected by
+    /// <see cref="UsePersistentStore(Action{IPersistentStoreBuilder})"/>, which is why naming one of
+    /// them here and also calling <see cref="IPersistentStoreBuilder.UseAmbientTransactions"/> is
+    /// reported as the contradiction it is rather than silently resolved.
+    /// </remarks>
     IQuartzBuilder UsePersistentStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         Action<IPersistentStoreBuilder> configure) where T : class, IJobStore;
 

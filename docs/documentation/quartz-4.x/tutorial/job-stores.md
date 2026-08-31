@@ -61,7 +61,8 @@ for multiple scheduler instances, within the same database.
 what `UsePersistentStore` registers. If you need scheduling to commit together with your application's own
 database work, it can also be told to use a connection you own; see
 [Joining an existing transaction](#joining-an-existing-transaction) below. `ExternalTransactionJobStore` is the
-other one, for a container that manages the ambient transaction itself.
+other one, for a container that manages the ambient transaction itself; it is selected with
+`UsePersistentStore(store => store.UseAmbientTransactions())`, and it neither commits nor rolls back.
 
 ### Configuring a persistent store
 
