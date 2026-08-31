@@ -37,6 +37,49 @@ public static class CronExpressionsSamples
         #endregion
     }
 
+    public static void ReadingACrontabLine()
+    {
+        #region sample_cron_expressions_unix_format
+
+        // "at 04:30 on Mondays", written the way crontab writes it
+        CronExpression expression = CronExpression.Parse("30 4 * * 1", CronFormat.Unix);
+
+        // ...and held the way Quartz writes it: "0 30 4 ? * MON"
+        string canonical = expression.CronExpressionString;
+
+        #endregion
+    }
+
+    public static void SchedulingFromACrontabLine()
+    {
+        #region sample_cron_expressions_unix_format_trigger
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("weekday-report")
+            .WithSchedule(CronScheduleBuilder.Create("15 10 * * 1-5", CronFormat.Unix))
+            .Build();
+
+        // WithCronSchedule has no format overload; compose one when you need its other options
+        ITrigger composed = TriggerBuilder.Create()
+            .WithIdentity("weekday-report-2")
+            .WithCronSchedule(CronExpression.Parse("15 10 * * 1-5", CronFormat.Unix))
+            .Build();
+
+        #endregion
+    }
+
+    public static void UsingAMacro()
+    {
+        #region sample_cron_expressions_macro
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("nightly")
+            .WithCronSchedule("@daily") // stored, and shown, as "0 0 0 * * ?"
+            .Build();
+
+        #endregion
+    }
+
     public static void BuildingAnExpression()
     {
         #region sample_cron_expressions_builder

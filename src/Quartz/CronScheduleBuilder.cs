@@ -181,6 +181,36 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     }
 
     /// <summary>
+    /// Create a CronScheduleBuilder from an expression written in the given format.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="CronFormat.Unix" /> reads the five-field crontab form. What the schedule holds
+    /// afterwards is the canonical Quartz expression that says the same thing, so a trigger built from
+    /// <c>"30 4 * * 1"</c> stores and displays <c>"0 30 4 ? * MON"</c>.
+    /// </para>
+    /// <para>
+    /// There is no <c>WithCronSchedule</c> overload taking a format; compose one from the expression
+    /// instead: <c>WithCronSchedule(CronExpression.Parse(s, CronFormat.Unix))</c>.
+    /// </para>
+    /// </remarks>
+    /// <param name="cronExpression">the cron expression to base the schedule on.</param>
+    /// <param name="format">the dialect <paramref name="cronExpression"/> is written in.</param>
+    /// <returns>the new CronScheduleBuilder</returns>
+    /// <seealso cref="CronExpression.Parse(string, CronFormat)" />
+    public static CronScheduleBuilder Create(string cronExpression, CronFormat format)
+    {
+        if (cronExpression is null)
+        {
+            Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
+        }
+
+        // Rewriting first means the H handling, the validation and the deferral below all see one
+        // dialect, so CronFormat.Unix costs this method nothing but the call.
+        return Create(CronExpression.ToQuartzForm(cronExpression, format));
+    }
+
+    /// <summary>
     /// Resolves a deferred <c>H</c> expression against the key that was finally supplied.
     /// </summary>
     /// <remarks>

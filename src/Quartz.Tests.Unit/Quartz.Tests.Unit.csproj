@@ -45,6 +45,12 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <!--
+      NCrontab is a Vixie-faithful five-field cron parser, and it is here for one reason: it is the
+      reference the Unix-dialect rewrite is differentially tested against, so that "this is what
+      crontab means" is an assertion about someone else's implementation rather than about ours.
+    -->
+    <PackageReference Include="NCrontab" />
     <PackageReference Include="Npgsql.DependencyInjection" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit.Analyzers">
