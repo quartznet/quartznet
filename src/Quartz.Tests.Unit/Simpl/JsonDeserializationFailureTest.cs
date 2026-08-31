@@ -149,6 +149,42 @@ public class NewtonsoftJsonDeserializationFailureTest
     }
 
     [Test]
+    public void JobDataMapPayloadThatIsNotAnObjectSaysSoRatherThanReadingBackEmpty()
+    {
+        NewtonsoftJsonObjectSerializer serializer = new NewtonsoftJsonObjectSerializer();
+
+        const string NotAMap = """["not", "a", "map"]""";
+
+        Action act = () => serializer.Deserialize<JobDataMap>(Encoding.UTF8.GetBytes(NotAMap));
+
+        Quartz.JsonSerializationException thrown = act.Should().Throw<Quartz.JsonSerializationException>(
+                "a map read entry by entry has to say when there are no entries to read, or a job runs without the data it was given")
+            .Which;
+
+        thrown.Message.Should().Contain(NotAMap, "the payload that could not be read is the whole diagnostic");
+        thrown.InnerException.Should().BeOfType<Quartz.JsonSerializationException>()
+            .Which.Message.Should().Contain("StartArray", "and what was found where the map should have been");
+    }
+
+    [Test]
+    public void StructureInsideAStoredStringMapFailsAsQuartzsExceptionRatherThanJsonNetsOwn()
+    {
+        NewtonsoftJsonObjectSerializer serializer = new NewtonsoftJsonObjectSerializer();
+
+        // A shape neither writer produces and an old blob can hold: an object inside the object a job data
+        // value comes back from. The built-in reader fails on it too, so what matters is failing the same way.
+        const string NestedTwice = """{"headers":{"inner":{"deep":"value"}}}""";
+
+        Action act = () => serializer.Deserialize<JobDataMap>(Encoding.UTF8.GetBytes(NestedTwice));
+
+        Quartz.JsonSerializationException thrown = act.Should().Throw<Quartz.JsonSerializationException>().Which;
+
+        thrown.Message.Should().Contain(NestedTwice);
+        thrown.InnerException.Should().BeOfType<Quartz.JsonSerializationException>()
+            .Which.Message.Should().Contain("inner", "the failure has to say which entry of the map it is about");
+    }
+
+    [Test]
     public void ConverterFailureStillSurfacesAsQuartzsExceptionWithThePayload()
     {
         // The trigger converter already throws Quartz's exception; wrapping it is what attaches the

@@ -95,7 +95,12 @@ enum — or a `Dictionary<string, string>`; anything else is refused when the jo
 with a `Quartz.JsonSerializationException` naming the entry and the type, rather than written as a blob
 that fails to load on the next fire. That is the same set the System.Text.Json serializer accepts, and
 literally the same declaration, so a value one of them writes is a value the other's reader has an answer
-for.
+for — down to the bytes: a `Dictionary<string, string>` is written as a plain JSON object here as well,
+where this serializer used to name the type it had written the map under.
+
+The one name a string map's own entries cannot use is `$type`. That is where Json.NET writes a value's
+type, so both readers take it as metadata rather than data, and a map that stores an entry under it is
+refused along with everything else neither reader could hand back.
 
 To store a type of your own, declare it — which is your word that Json.NET can build it back, and a
 versioning commitment for as long as the value sits in the database:

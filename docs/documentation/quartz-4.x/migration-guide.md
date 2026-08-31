@@ -374,6 +374,9 @@ here moved for you; if you called `GetInt` and `GetBoolean`, all of it did.
 * **Both serializers refuse a job data value they cannot read back**, at write time rather than at the next
   read, and both refuse the same set — see
   [Both serializers refuse a job data value they cannot read back](#both-serializers-refuse-a-job-data-value-they-cannot-read-back).
+* **A `Dictionary<string, string>` job data value is written the same way by both serializers**, which is
+  a change to what Newtonsoft writes — see
+  [A string dictionary is written the same way by both serializers](#a-string-dictionary-is-written-the-same-way-by-both-serializers).
 * **Five calendar types serialize to a new shape.** 4.x reads both forms and 3.x reads only its own, so
   this is invisible on a clean cut-over and fatal in a mixed window — see
   [A mixed 3.x and 4.0 window](operations.md#a-mixed-3-x-and-4-0-window).
@@ -3517,6 +3520,51 @@ own, a `JobKey` or `TriggerKey` held as a job data value, and a collection. A `T
 `JobDataMap` are past declaring — Json.NET could not read either back — so store a zone's `Id`, and
 serialize a nested structure in the job and store the result as a string. `StoreJobDataAsStrings` was
 never affected by any of this.
+
+### A string dictionary is written the same way by both serializers
+
+A `Dictionary<string, string>` is the one job data value with structure that both formats carry, and until
+4.0 they did not write it the same way. Json.NET names the type of any value an `object`-typed slot cannot,
+so the Newtonsoft serializer wrote the map with the type beside it:
+
+```json
+{"headers":{"$type":"System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[System.String, System.Private.CoreLib]], System.Private.CoreLib","tenant":"acme"}}
+```
+
+System.Text.Json wrote the plain object, and its reader takes every property of an object as an entry of
+the map — so a value written by a Newtonsoft-configured scheduler and read by a System.Text.Json-configured
+one came back carrying an assembly-qualified type name under a `$type` key, in the same key space as the
+application's own data, with nothing said about it.
+
+4.0's Newtonsoft serializer writes the plain object, which is byte for byte what System.Text.Json writes:
+
+```json
+{"headers":{"tenant":"acme"}}
+```
+
+**This is a change to the bytes Newtonsoft writes, and both readers read both forms.** A blob already in
+the database keeps loading: Json.NET still builds the map out of the type it named, and the
+System.Text.Json reader now treats a `$type` property as the metadata it always was rather than handing it
+back as an entry. Nothing has to be rewritten, and there is no migration to run.
+
+The one direction that does not hold is backwards: 3.x's Newtonsoft reader has no answer for an object with
+no type beside it, and hands back a Json.NET `JObject` instead of the dictionary. That matters only while a
+3.x node is reading what a 4.0 node wrote — see
+[A mixed 3.x and 4.0 window](operations.md#a-mixed-3-x-and-4-0-window).
+
+**`$type` is now a reserved name inside a stored string map.** Both serializers refuse a map that stores an
+entry under it, the same way and at the same moment as any other value they cannot read back:
+
+```
+Job data entry 'headers' holds a string map with an entry named '$type'. '$type' is the name Json.NET
+writes a value's type under, so Quartz's JSON format reads it as metadata rather than as an entry and no
+reader can hand it back. Store that entry under a name of its own.
+```
+
+Nothing is lost by that refusal, because such a map never survived a round trip: Json.NET wrote the name
+twice and then failed to read its own blob, and a map System.Text.Json wrote was one Json.NET could not
+load at all. The refusal is what turns a blob in the column that nobody can read into a failure the
+application that wrote it hears about.
 
 ### Custom trigger and calendar serializers are no longer static
 

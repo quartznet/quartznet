@@ -199,8 +199,10 @@ types are a versioning commitment.
 A persistent store accepts exactly the types the accessors above cover (`string`, `bool`, `char`, the
 numeric types, `DateTime`, `DateTimeOffset`, `TimeSpan`, `Guid`, `DateOnly`, `TimeOnly` and enums) plus
 `Dictionary<string, string>`, and refuses anything else when the job is stored rather than writing a blob
-that fails to load later. Both serializers refuse the same set, so a value you can store is one either of
-them can be switched to. To store a type of your own, declare it — with
+that fails to load later. Both serializers refuse the same set and write it the same way, so a value you
+can store is one either of them can be switched to. The one name a string map's own entries cannot use is
+`$type`, which is where Json.NET writes a value's type: both readers take it as metadata rather than data,
+so a map storing an entry under it is refused with the rest. To store a type of your own, declare it — with
 `SystemTextJsonSerializerRegistry.AddTypeInfoResolver` on the default serializer, which is the same
 registration a trimmed or native-AOT publish needs, or with
 `NewtonsoftJsonSerializerRegistry.AddJobDataValueType<T>()` on the Newtonsoft one — or serialize it
