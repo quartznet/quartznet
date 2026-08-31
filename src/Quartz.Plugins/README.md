@@ -9,7 +9,7 @@ cleanly when the process exits.
 |---|---|
 | `StructuredLoggingJobHistoryPlugin` / `StructuredLoggingTriggerHistoryPlugin` | `UseStructuredJobLogging(…)` / `UseStructuredTriggerLogging(…)` |
 | `LoggingJobHistoryPlugin` / `LoggingTriggerHistoryPlugin` | `UseJobHistoryLogging(…)` / `UseTriggerHistoryLogging(…)` |
-| `XmlSchedulingDataProcessorPlugin` / `JsonSchedulingDataProcessorPlugin` | `UseXmlSchedulingConfiguration(…)` / `UseJsonSchedulingConfiguration(…)` |
+| `JsonSchedulingDataProcessorPlugin` / `XmlSchedulingDataProcessorPlugin` | `UseJsonSchedulingConfiguration(…)` / `UseXmlSchedulingConfiguration(…)` |
 | `JobInterruptMonitorPlugin` | `UseJobAutoInterrupt(…)` |
 | `ShutdownHookPlugin` | `UseShutdownHook(…)` |
 
@@ -40,6 +40,11 @@ The flat `quartz.plugin.{name}.{property}` keys Quartz 3 used still work and mea
 
 These plugins live in the `Quartz.Plugins.*` namespaces. In Quartz 3 they were the singular
 `Quartz.Plugin.*`; a `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning.
+
+JSON is the maintained format for a schedule kept in a file. The XML format is frozen at
+`job_scheduling_data_2_0.xsd` — simple, cron and calendar-interval triggers — and will not gain the
+trigger kinds or trigger settings added since. Existing files keep working; write a new schedule as
+JSON.
 
 ## Documentation
 

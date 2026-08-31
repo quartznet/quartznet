@@ -223,6 +223,8 @@ All trigger types support these optional fields:
 | `Description` | Trigger description |
 | `Priority` | Trigger priority (integer) |
 | `CalendarName` | Calendar to apply |
+| `ExecutionGroup` | The trigger's [execution group](../tutorial/execution-groups.md) |
+| `RetryPolicy` | The trigger's [retry policy](../how-tos/retrying-failed-jobs.md) in its stored form, for example `fixed;3;00:00:30` |
 | `StartTime` | ISO 8601 start time (e.g., `"2024-01-01T00:00:00Z"`) |
 | `StartTimeSecondsInFuture` | Start time as seconds from now (mutually exclusive with StartTime) |
 | `EndTime` | ISO 8601 end time |

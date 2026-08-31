@@ -26,7 +26,7 @@ The optional packages, added the same way when you want them:
 |---|---|
 | [Quartz.Serialization.Newtonsoft](packages/json-serialization.md) | persisting with Newtonsoft.Json instead of System.Text.Json |
 | [Quartz.Jobs](packages/quartz-jobs.md) | the ready-made jobs — file scanning, sending mail, running a process |
-| [Quartz.Plugins](packages/quartz-plugins.md) | history logging, XML/JSON schedule files, the interrupt monitor |
+| [Quartz.Plugins](packages/quartz-plugins.md) | history logging, JSON (and XML) schedule files, the interrupt monitor |
 | [Quartz.AspNetCore](packages/aspnet-core-integration.md) | the HTTP API |
 | [Quartz.Dashboard](packages/dashboard.md) | the web dashboard |
 
@@ -65,10 +65,10 @@ builder.AddQuartz(q =>
         });
     });
 
-    // reads jobs and triggers from XML; requires the Quartz.Plugins package
-    q.UseXmlSchedulingConfiguration(x =>
+    // reads jobs and triggers from JSON; requires the Quartz.Plugins package
+    q.UseJsonSchedulingConfiguration(x =>
     {
-        x.Files.Add("~/quartz_jobs.xml");
+        x.Files.Add("~/quartz_jobs.json");
         x.FailOnFileNotFound = true;
         x.FailOnSchedulingError = true;
     });
@@ -79,6 +79,39 @@ builder.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
 <!-- endSnippet -->
 
 The hosted service starts the scheduler with the application and shuts it down with it.
+
+The file that last call reads declares the jobs and the triggers that fire them, so a schedule can
+change without a rebuild. `quartz_jobs.json`, scheduling one job every ten seconds:
+
+```json
+{
+  "Schedule": {
+    "Jobs": [
+      {
+        "Name": "helloJob",
+        "JobType": "MyApp.HelloJob, MyApp",
+        "Durable": true
+      }
+    ],
+    "Triggers": [
+      {
+        "Name": "helloTrigger",
+        "JobName": "helloJob",
+        "Simple": {
+          "RepeatCount": -1,
+          "Interval": "00:00:10"
+        }
+      }
+    ]
+  }
+}
+```
+
+[JSON Configuration](configuration/json.md) has the whole format — every trigger kind, the
+pre-processing commands and the processing directives. XML files are read too, by
+`UseXmlSchedulingConfiguration`, and keep working; the XML schema is
+[frozen](packages/quartz-plugins.md#xmlschedulingdataprocessorplugin) at what it can already express,
+so JSON is the format to write a new schedule in.
 
 ### Without a host
 

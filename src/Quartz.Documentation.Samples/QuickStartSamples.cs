@@ -41,10 +41,10 @@ public static class QuickStartSamples
                 });
             });
 
-            // reads jobs and triggers from XML; requires the Quartz.Plugins package
-            q.UseXmlSchedulingConfiguration(x =>
+            // reads jobs and triggers from JSON; requires the Quartz.Plugins package
+            q.UseJsonSchedulingConfiguration(x =>
             {
-                x.Files.Add("~/quartz_jobs.xml");
+                x.Files.Add("~/quartz_jobs.json");
                 x.FailOnFileNotFound = true;
                 x.FailOnSchedulingError = true;
             });

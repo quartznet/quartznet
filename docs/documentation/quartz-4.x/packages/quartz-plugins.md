@@ -35,8 +35,8 @@ spelling of the same thing and still work.
 | `StructuredLoggingJobHistoryPlugin` | `UseStructuredJobLogging(…)` | `JobHistoryLoggingOptions` |
 | `StructuredLoggingTriggerHistoryPlugin` | `UseStructuredTriggerLogging(…)` | `TriggerHistoryLoggingOptions` |
 | `ShutdownHookPlugin` | `UseShutdownHook(…)` | `ShutdownHookOptions` |
-| `XmlSchedulingDataProcessorPlugin` | `UseXmlSchedulingConfiguration(…)` | `FileSchedulingOptions` |
 | `JsonSchedulingDataProcessorPlugin` | `UseJsonSchedulingConfiguration(…)` | `FileSchedulingOptions` |
+| `XmlSchedulingDataProcessorPlugin` | `UseXmlSchedulingConfiguration(…)` | `FileSchedulingOptions` |
 | `JobInterruptMonitorPlugin` | `UseJobAutoInterrupt(…)` | `JobAutoInterruptOptions` |
 
 They hang off `IQuartzBuilder`, so they work the same under `AddQuartz` and on a standalone
@@ -52,9 +52,9 @@ plugin:
 ```csharp
 // A plugin's options are the scheduler's own named options, so a configuration section binds
 // onto them like any other. The callback below is applied over whatever the section said.
-services.Configure<FileSchedulingOptions>(configuration.GetSection("Quartz:Xml"));
+services.Configure<FileSchedulingOptions>(configuration.GetSection("Quartz:Json"));
 
-services.AddQuartz(q => q.UseXmlSchedulingConfiguration(x => x.ScanInterval = TimeSpan.FromMinutes(1)));
+services.AddQuartz(q => q.UseJsonSchedulingConfiguration(x => x.ScanInterval = TimeSpan.FromMinutes(1)));
 ```
 <!-- endSnippet -->
 
@@ -172,9 +172,36 @@ services.AddQuartz(q => q.UseShutdownHook(options => options.CleanShutdown = tru
 [the hosted service](hosted-services-integration.md) already stops the scheduler with the application, so
 this plugin is for a scheduler that has no host to stop it.
 
+### JsonSchedulingDataProcessorPlugin
+
+This plugin loads JSON file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. JSON is the maintained scheduling-file format: everything a trigger can carry is expressible in it, and [the XML format is frozen](#the-xml-format-is-frozen).
+
+::: warning
+The periodically scanning of files for changes is not currently supported in a clustered environment.
+:::
+
+**DI configuration:**
+
+<!-- snippet: sample_plugins_json_scheduling -->
+```csharp
+services.AddQuartz(q =>
+{
+    q.UseJsonSchedulingConfiguration(x =>
+    {
+        x.Files.Add("quartz_jobs.json");
+        x.ScanInterval = TimeSpan.FromMinutes(1);
+        x.FailOnFileNotFound = true;
+        x.FailOnSchedulingError = true;
+    });
+});
+```
+<!-- endSnippet -->
+
+See [JSON Configuration](../configuration/json.md) for the full JSON file format and trigger type reference.
+
 ### XmlSchedulingDataProcessorPlugin
 
-This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes.
+This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. It is the XML twin of `JsonSchedulingDataProcessorPlugin` — same surface, same settings, and a format that is frozen.
 
 <!-- snippet: sample_plugins_xml_scheduling -->
 ```csharp
@@ -201,32 +228,28 @@ the file relates to the scheduler, and neither can say anything about how the fi
 The [ProcessingDirectives](../configuration/json.md#processingdirectives) section has the details; they
 apply to both formats.
 
-### JsonSchedulingDataProcessorPlugin
+#### The XML format is frozen
 
-This plugin loads JSON file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. It is the JSON analog of `XmlSchedulingDataProcessorPlugin`.
+`job_scheduling_data_2_0.xsd`, the schema every XML scheduling file is validated against, is what the
+XML format will be for the life of 4.x. It declares three trigger kinds — `simple`, `cron` and
+`calendar-interval` — and it will not gain a fourth, nor the trigger settings written since:
 
-::: warning
-The periodically scanning of files for changes is not currently supported in a clustered environment.
-:::
+| To schedule | XML | JSON |
+|---|---|---|
+| a simple, cron or calendar-interval trigger | `<simple>`, `<cron>`, `<calendar-interval>` | `Simple`, `Cron`, `CalendarInterval` |
+| a daily time interval trigger | not expressible, and will not be | `DailyTimeInterval` |
+| a trigger with a [retry policy](../how-tos/retrying-failed-jobs.md) | not expressible, and will not be | `RetryPolicy` |
+| a trigger in an [execution group](../tutorial/execution-groups.md) | not expressible, and will not be | `ExecutionGroup` |
 
-**DI configuration:**
+[Recurrence triggers](../tutorial/recurrencetrigger.md) are in neither format; a recurrence rule is
+scheduled in code.
 
-<!-- snippet: sample_plugins_json_scheduling -->
-```csharp
-services.AddQuartz(q =>
-{
-    q.UseJsonSchedulingConfiguration(x =>
-    {
-        x.Files.Add("quartz_jobs.json");
-        x.ScanInterval = TimeSpan.FromMinutes(1);
-        x.FailOnFileNotFound = true;
-        x.FailOnSchedulingError = true;
-    });
-});
-```
-<!-- endSnippet -->
-
-See [JSON Configuration](../configuration/json.md) for the full JSON file format and trigger type reference.
+This is a decision, not a backlog. Two file formats that both grow means two parsers, two schemas and
+two sets of documentation for one feature, and the XML one is the one carrying twenty years of files
+that must keep loading unchanged. So it keeps loading them: **XML scheduling is not deprecated and is
+not going away in 4.x**. A `quartz_jobs.xml` that worked on 3.x works here, and a schedule that only
+needs the three trigger kinds above can stay in XML indefinitely. Write a new schedule as JSON, and
+move an XML one when it needs something the schema above cannot spell.
 
 ### JobInterruptMonitorPlugin
 
