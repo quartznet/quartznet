@@ -372,15 +372,23 @@ public abstract partial class AdoJobStoreBase
     /// is momentarily too busy — as opposed to one that will fail again just as surely the second time.
     /// </summary>
     /// <remarks>
-    /// The seam for a store whose driver reports something Quartz does not know how to read. The
-    /// default answer comes from <see cref="TransientErrorDetector" />: the driver's own
+    /// <para>
+    /// The built-in answer comes from <see cref="TransientErrorDetector" />: the driver's own
     /// <see cref="DbException.IsTransient" />, a SQLSTATE in class <c>40</c> (transaction rollback,
     /// <c>40002</c> excepted), SQL Server's transient error numbers, SQLite's busy and locked codes,
     /// and <see cref="TimeoutException" />, over the whole chain of inner exceptions.
+    /// </para>
+    /// <para>
+    /// <see cref="AdoJobStoreOptions.IsTransient" /> is asked first, for a driver that reports a
+    /// retryable condition none of that recognises. It can only add: its <see langword="false" /> is
+    /// the same as not having one, so a predicate cannot make the store stop retrying what it already
+    /// retries.
+    /// </para>
     /// </remarks>
     /// <param name="ex">The exception to classify.</param>
     /// <returns>If the exception is identified as transient.</returns>
-    protected virtual bool IsTransient(Exception ex) => TransientErrorDetector.IsTransient(ex);
+    protected virtual bool IsTransient(Exception ex)
+        => configuredIsTransient?.Invoke(ex) == true || TransientErrorDetector.IsTransient(ex);
 
     /// <summary>
     /// Whether a failure is the caller having asked the operation to stop, rather than anything the

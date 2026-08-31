@@ -261,6 +261,79 @@ public class AdoJobStoreBaseTest
         callCount.Should().Be(1);
     }
 
+    /// <summary>
+    /// <see cref="AdoJobStoreOptions.IsTransient" /> is the seam for a driver whose retryable failure
+    /// none of the built-in signals recognise — no <c>DbException.IsTransient</c>, no SQLSTATE 40, not
+    /// one of SQL Server's or SQLite's numbers. Without it such a failure is reported on the first
+    /// attempt, which for a cluster node means a check-in or an acquisition lost to something that
+    /// would have succeeded a second later.
+    /// </summary>
+    [Test]
+    public async Task AConfiguredPredicateMakesAnUnrecognisedFailureRetryable()
+    {
+        int callCount = 0;
+        ConfiguredTransientTestStore store = new ConfiguredTransientTestStore(
+            isTransient: ex => ex.GetBaseException() is TransientTestException);
+
+        string result = await store.CallExecuteInLocalTransactionLock(conn =>
+        {
+            callCount++;
+            if (callCount == 1)
+            {
+                throw new JobPersistenceException("driver said so", new TransientTestException());
+            }
+
+            return new ValueTask<string>("success");
+        }, CancellationToken.None);
+
+        result.Should().Be("success");
+        callCount.Should().Be(2, "the predicate is consulted before the built-in list, so the store retried");
+    }
+
+    [Test]
+    public async Task WithoutAPredicateTheSameFailureIsNotRetried()
+    {
+        int callCount = 0;
+        ConfiguredTransientTestStore store = new ConfiguredTransientTestStore(isTransient: null);
+
+        Func<Task> act = async () => await store.CallExecuteInLocalTransactionLock<string>(conn =>
+        {
+            callCount++;
+            throw new JobPersistenceException("driver said so", new TransientTestException());
+        }, CancellationToken.None);
+
+        await act.Should().ThrowAsync<JobPersistenceException>();
+        callCount.Should().Be(1,
+            "this is the half that proves the test above is measuring the option rather than the "
+            + "built-in classification");
+    }
+
+    /// <summary>
+    /// The predicate can only add. A driver that misreports a failure Quartz already knows to be
+    /// transient is a bug in the built-in list, not something to switch off per application — so
+    /// <see langword="false" /> means "nothing to add", exactly as having no predicate does.
+    /// </summary>
+    [Test]
+    public async Task APredicateThatSaysNoDoesNotStopABuiltInRetry()
+    {
+        int callCount = 0;
+        ConfiguredTransientTestStore store = new ConfiguredTransientTestStore(isTransient: _ => false);
+
+        string result = await store.CallExecuteInLocalTransactionLock(conn =>
+        {
+            callCount++;
+            if (callCount == 1)
+            {
+                throw new JobPersistenceException("timed out", new TimeoutException());
+            }
+
+            return new ValueTask<string>("success");
+        }, CancellationToken.None);
+
+        result.Should().Be("success");
+        callCount.Should().Be(2, "a timeout is transient whatever the application's predicate answers");
+    }
+
     [Test]
     public async Task TestExecuteInLocalTransactionLock_NoRetryWhenMaxTransientRetriesIsZero()
     {
@@ -1207,6 +1280,45 @@ public class AdoJobStoreBaseTest
         {
             // Mark JobPersistenceException wrapping TransientTestException as transient
             return ex is JobPersistenceException { InnerException: TransientTestException };
+        }
+
+        public ValueTask<T> CallExecuteInLocalTransactionLock<T>(
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
+            CancellationToken cancellationToken)
+        {
+            return ExecuteInLocalTransactionLock(null, txCallback, cancellationToken: cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// The same scaffolding as <see cref="RetryTestAdoJobStoreBase"/>, except that it does not override
+    /// <c>IsTransient</c> — so the classification under test is the store's own, consulting
+    /// <see cref="AdoJobStoreOptions.IsTransient"/>.
+    /// </summary>
+    public sealed class ConfiguredTransientTestStore : AdoJobStoreBase
+    {
+        public ConfiguredTransientTestStore(Func<Exception, bool> isTransient)
+            : base(TestJobStores.Dependencies(storeOptions: TestJobStores.StoreOptions(configure: options =>
+            {
+                options.MaxTransientRetries = 3;
+                options.TransientRetryInterval = TimeSpan.Zero;
+                options.IsTransient = isTransient;
+            })))
+        {
+        }
+
+        protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
+        {
+            return new ValueTask<ConnectionAndTransactionHolder>(
+                new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
+        }
+
+        protected override ValueTask<T> ExecuteInLock<T>(
+            SchedulerLock? lockKind,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
+            CancellationToken cancellationToken = default)
+        {
+            return ExecuteInLocalTransactionLock(lockKind, txCallback, cancellationToken: cancellationToken);
         }
 
         public ValueTask<T> CallExecuteInLocalTransactionLock<T>(
