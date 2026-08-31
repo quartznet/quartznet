@@ -695,7 +695,7 @@ assignable on a live instance with nothing saying which wins or when. The compon
 | `RedisLockHandler.RedisConfiguration`, `.KeyPrefix`, `.LockTimeToLive`, `.LockRetryInterval` | `UseRedisLockHandler(o => …)` |
 | The history plugins' message templates | `UseJobHistoryLogging(o => …)`, `UseTriggerHistoryLogging(o => …)`, and now `UseStructuredJobLogging(o => …)` / `UseStructuredTriggerLogging(o => …)` |
 | `JobInterruptMonitorPlugin.DefaultMaxRunTime` | `UseJobAutoInterrupt(o => …)` |
-| The scheduling-data plugins' `FileNames`, `ScanInterval`, `FailOn*` | `UseXmlSchedulingConfiguration(o => …)` / `UseJsonSchedulingConfiguration(o => …)` |
+| The scheduling-data plugins' `FileNames`, `ScanInterval`, `FailOn*` (internal outright — see [one surface](#the-two-scheduling-data-plugins-have-one-surface)) | `UseXmlSchedulingConfiguration(o => …)` / `UseJsonSchedulingConfiguration(o => …)` |
 | `ShutdownHookPlugin.CleanShutdown` | `UseShutdownHook(o => o.CleanShutdown = …)` |
 
 The two shipped row-lock handlers keep their retry knobs, but as `init`-only properties rather than
@@ -2380,10 +2380,35 @@ to write two empty members to say so:
 ```
 
 Nothing about the lifecycle changes: the scheduler still calls both, through the interface, at the same
-two moments. An existing plugin that declares them keeps working and needs no change. Seven of the
-plugins shipped here dropped eleven such members between them, which is the only visible effect in the
-public API — a member that did nothing is no longer on the concrete type. Call the plugin through
+two moments. An existing plugin that declares them keeps working and needs no change. The plugins
+shipped here dropped every such member they had, which is the only visible effect in the public API —
+a member that did nothing is no longer on the concrete type. Call the plugin through
 `ISchedulerPlugin` if you were invoking one of those directly.
+
+### The two scheduling-data plugins have one surface
+
+`XmlSchedulingDataProcessorPlugin` and `JsonSchedulingDataProcessorPlugin` read one schedule out of two
+file formats, and had drifted into two different types: one published `ProcessFile` and no `Shutdown`,
+the other a do-nothing `Shutdown` and no `ProcessFile`, and both published the settings that configure
+them as get-only properties. Their surface is now the same, and it is the two constructors plus what
+`ISchedulerPlugin` and `IFileScanListener` ask for:
+
+| Member | Was | Now |
+|---|---|---|
+| `XmlSchedulingDataProcessorPlugin.ProcessFile(string, CancellationToken)` | public on the XML plugin, private on the JSON one | private on both. `IFileScanListener.FileUpdated(fileName)` says a file changed, and it is what `FileScanJob` calls — reading a file on demand is that call, made yourself |
+| `JsonSchedulingDataProcessorPlugin.Shutdown(CancellationToken)` | public on the JSON plugin, absent on the XML one | absent on both: `ISchedulerPlugin.Shutdown` does nothing by default, and neither plugin has anything to release |
+| `FileNames`, `ScanInterval`, `FailOnFileNotFound`, `FailOnSchedulingError` | public get-only on both, with internal setters | internal, like every other shipped component's settings. `FileSchedulingOptions` is what says them, and `quartz.plugin.<name>.fileNames` and friends still write them |
+| `Name`, `Scheduler` | public get-only on both | internal. They are what `Initialize` was handed, and the scheduler that handed them over is the one asking |
+
+Nothing here was writable from outside, so nothing that *configured* a plugin stops compiling. Code
+that *read* one of these properties is what changes, and the answer is the options rather than the
+plugin: `IOptionsFactory<FileSchedulingOptions>.Create(schedulerName)` is the same value from the
+place that decided it.
+
+The `FileNames`/`Files` split stays, on purpose: `FileSchedulingOptions.Files` is a `List<string>`
+because that is what code and a configuration binder say naturally, and the plugin keeps a delimited
+`FileNames` string because `quartz.plugin.<name>.fileNames` is one. The join happens in
+`UseXmlSchedulingConfiguration` / `UseJsonSchedulingConfiguration`, and both plugins now agree about it.
 
 ### The container is not in the scheduler context
 
@@ -8051,7 +8076,8 @@ called out.
 | `RedisSemaphore.LockTtlMilliseconds`, `.LockRetryIntervalMilliseconds` | `RedisLockHandler.LockTimeToLive`, `.LockRetryInterval`, both `TimeSpan` — **also the config keys `lockTtlMilliseconds` → `lockTimeToLive` and `lockRetryIntervalMilliseconds` → `lockRetryInterval`** |
 | `IObjectSerializer.DeSerialize` | `Deserialize`. `IObjectSerializer.Initialize()` went at the same time: a serializer builds whatever it needs on first use, and nothing was left for a separate initialization call to do |
 | `TriggerFiredBundle.PrevFireTimeUtc` | `PreviousFireTimeUtc`, matching the spelling used everywhere else. The type is a required-init record now: the eight-positional constructor ended in three interchangeable `DateTimeOffset?` values, so transposing `scheduledFireTimeUtc` and `previousFireTimeUtc` compiled cleanly and reported wrong fire times to every listener. A custom job store's `TriggerFired` writes `new TriggerFiredBundle { JobDetail = …, Trigger = …, Recovering = …, FireTimeUtc = …, ScheduledFireTimeUtc = …, PreviousFireTimeUtc = …, NextFireTimeUtc = … }`; only `Calendar` is optional |
-| `Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin` | `Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin` — the namespace moved and the casing follows .NET rules. A `quartz.plugin.<name>.type` naming either old spelling still resolves, with a warning. Its nested `JobFile` class and its `JobFiles` property are internal now: they are how the plugin tracks what it has read, not something to call |
+| `Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin` | `Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin` — the namespace moved and the casing follows .NET rules. A `quartz.plugin.<name>.type` naming either old spelling still resolves, with a warning. Its nested `JobFile` class and its `JobFiles` property are internal now: they are how the plugin tracks what it has read, not something to call. So are `FileNames`, `ScanInterval`, `FailOnFileNotFound`, `FailOnSchedulingError`, `Name` and `Scheduler`, and `ProcessFile` is private — see [The two scheduling-data plugins have one surface](#the-two-scheduling-data-plugins-have-one-surface) |
+| `XMLSchedulingDataProcessorPlugin.ProcessFile(fileName)` | `FileUpdated(fileName)`, the `IFileScanListener` member the file-scan job calls. The plugin-typed one is private |
 | `Quartz.Xml.ValidationException` | `Quartz.SchedulingDataValidationException`. The old name collided with `System.ComponentModel.DataAnnotations.ValidationException` in any file that used both, and it was never XML-specific — the JSON processor throws it too. Its `ValidationExceptions` is an `IReadOnlyList<Exception>`; it was a `List<Exception>` a caller could add to |
 
 ### One spelling per constant

@@ -35,9 +35,17 @@ namespace Quartz.Plugins.Json;
 /// file for changes.
 /// </summary>
 /// <remarks>
-/// This is the JSON analog of <see cref="Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin"/>.
+/// <para>
+/// This is the JSON analog of <see cref="Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin"/>, and
+/// the maintained one: JSON is where a scheduling file gains what the schedule gains — daily time
+/// interval triggers, retry policies and execution groups are readable here and are not in the frozen
+/// XML schema. The two plugins have one surface deliberately, so a file format is the only thing that
+/// differs between them.
+/// </para>
+/// <para>
 /// The periodically scanning of files for changes is not currently supported in a
 /// clustered environment.
+/// </para>
 /// </remarks>
 public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListener
 {
@@ -66,21 +74,42 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         TypeLoader = typeLoader;
     }
 
-    public string Name { get; private set; } = null!;
-    public IScheduler Scheduler { get; private set; } = null!;
+    internal string Name { get; private set; } = null!;
+    internal IScheduler Scheduler { get; private set; } = null!;
     private ITypeLoader TypeLoader { get; }
 
-    public string FileNames { get; internal set; } = JsonSchedulingDataProcessor.QuartzJsonFileName;
+    /// <summary>
+    /// Comma separated list of file names (with paths) to the JSON files that should be read.
+    /// </summary>
+    /// <inheritdoc cref="Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin.FileNames" path="/remarks" />
+    internal string FileNames { get; set; } = JsonSchedulingDataProcessor.QuartzJsonFileName;
 
+    /// <summary>
+    /// The interval at which to scan for changes to the file. Zero, the default, disables scanning.
+    /// </summary>
     [TimeSpanParseRule(TimeSpanParseRule.Seconds)]
-    public TimeSpan ScanInterval { get; internal set; } = TimeSpan.Zero;
+    internal TimeSpan ScanInterval { get; set; } = TimeSpan.Zero;
 
-    public bool FailOnFileNotFound { get; internal set; } = true;
-    public bool FailOnSchedulingError { get; internal set; }
+    /// <summary>
+    /// Whether initialization of the plugin fails when a file cannot be found.
+    /// </summary>
+    internal bool FailOnFileNotFound { get; set; } = true;
+
+    /// <summary>
+    /// Whether starting of the plugin fails when a file cannot be handled.
+    /// </summary>
+    internal bool FailOnSchedulingError { get; set; }
+
+    internal IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
     public ValueTask FileUpdated(string fileName, CancellationToken cancellationToken = default)
     {
-        return started ? new ValueTask(ProcessFile(fileName, cancellationToken)) : ValueTask.CompletedTask;
+        if (started)
+        {
+            return ProcessFile(fileName, cancellationToken);
+        }
+
+        return default;
     }
 
     public async ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
@@ -156,8 +185,6 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         }
     }
 
-    public ValueTask Shutdown(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
-
     private string BuildJobTriggerName(string fileBasename)
     {
         var jobTriggerName = PluginName + '_' + Name + '_' + fileBasename.Replace('.', '_');
@@ -188,7 +215,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         return jobTriggerName;
     }
 
-    private async Task ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)
+    private async ValueTask ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)
     {
         if (jobFile is null || !jobFile.FileFound) return;
 
@@ -237,13 +264,16 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         }
     }
 
-    private Task ProcessFile(string filePath, CancellationToken cancellationToken = default)
+    private ValueTask ProcessFile(string filePath, CancellationToken cancellationToken = default)
     {
         var idx = jobFiles.FindIndex(pair => pair.Key == filePath);
         return ProcessFile(idx >= 0 ? jobFiles[idx].Value : null, cancellationToken);
     }
 
-    private sealed class JobFile
+    /// <summary>
+    /// Information about a file that should be processed by <see cref="JsonSchedulingDataProcessor" />.
+    /// </summary>
+    internal sealed class JobFile
     {
         private readonly JsonSchedulingDataProcessorPlugin plugin;
 
@@ -258,7 +288,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
         public string FilePath { get; private set; } = null!;
         public string FileBasename { get; private set; } = null!;
 
-        public Task Initialize(CancellationToken cancellationToken = default)
+        public async ValueTask Initialize(CancellationToken cancellationToken = default)
         {
             Stream? f = null;
             try
@@ -287,11 +317,15 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
             }
             finally
             {
-                try { f?.Dispose(); }
+                try
+                {
+                    if (f is not null)
+                    {
+                        await f.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
                 catch (IOException ioe) { plugin.logger.FileCloseFailed(FileName, ioe); }
             }
-
-            return Task.CompletedTask;
         }
     }
 }
