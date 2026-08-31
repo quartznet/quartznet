@@ -435,16 +435,22 @@ families answer "what time is it" in genuinely different ways.
 | Repeatedly inside a daily window | `DailyTimeIntervalTrigger` | The window is wall-clock, so a transition lengthens or shortens the day's run. |
 
 Quartz cron says more than most cron dialects, so check it before assuming a pattern needs something
-else: `0 0 0 ? * MON#2` is the second Monday of the month, `0 0 0 LW 3 ?` the last weekday of March,
-and `0 0 0 ? * MON/2` every other Monday, holding its fortnightly cadence across month and year
-boundaries. What it genuinely cannot state is a position counted from the *end* of a month other
-than the last one — `#` counts forwards, and only as far as 5 — and any cadence its fields cannot
-divide: `0 0 0 1/3 * ?` reads like "every third day" but restarts at the 1st of each month, so 31
-January is followed by 1 February. `RecurrenceTrigger` and its RFC 5545 rule state both,
-`FREQ=MONTHLY;BYDAY=-2FR` for the second-to-last Friday and `FREQ=DAILY;INTERVAL=3` for a three-day
-cadence that does not reset, on [4.x](/documentation/quartz-4.x/tutorial/recurrencetrigger) and
+else: `0 0 0 ? * MON#2` is the second Monday of the month and `0 0 0 LW 3 ?` the last weekday of
+March. What it genuinely cannot state is a position counted from the *end* of a month other
+than the last one — `#` counts forwards, and only as far as 5 — a fortnight, and any cadence its
+fields cannot divide: `0 0 0 1/3 * ?` reads like "every third day" but restarts at the 1st of each
+month, so 31 January is followed by 1 February. `RecurrenceTrigger` and its RFC 5545 rule state all
+three, `FREQ=MONTHLY;BYDAY=-2FR` for the second-to-last Friday, `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO`
+for every other Monday and `FREQ=DAILY;INTERVAL=3` for a three-day cadence that does not reset, on
+[4.x](/documentation/quartz-4.x/tutorial/recurrencetrigger) and
 [3.x](/documentation/quartz-3.x/tutorial/recurrencetrigger). Reaching for several cron triggers, or
 for a cron expression with a workaround in it, is usually the sign.
+
+**Quartz 3.x only:** `0 0 0 ? * MON/2` — a textual day-of-week with a step — means every other
+Monday there. 4.x rejects it, because the fortnight's phase was anchored to whatever last asked the
+expression a question: a misfire, a restart or a failover recomputed it from a different day and
+moved it. `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO` anchors on the trigger's start time instead, so the
+fortnight is a property of the trigger rather than of the caller.
 
 ### The two daylight saving rules
 

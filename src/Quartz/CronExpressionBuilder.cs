@@ -467,9 +467,7 @@ public sealed class CronExpressionBuilder
     /// </summary>
     /// <remarks>
     /// The list stops at Saturday and does not wrap around, matching the
-    /// semantics of a numeric cron day-of-week increment. Note that this
-    /// differs from Quartz's textual "MON/2" syntax, which means every second
-    /// week.
+    /// semantics of a numeric cron day-of-week increment.
     /// </remarks>
     /// <param name="start">the day of the week to start at</param>
     /// <param name="increment">the number of days between values (1-7)</param>

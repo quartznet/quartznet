@@ -4635,6 +4635,60 @@ Parse errors name the fix instead of only the constraint. A 5-field Unix/crontab
 online cron generator emits — is still rejected (Quartz cron puts seconds first), but the error now shows the
 corrected 6-field expression to use, and the day-of-week range error explains that Quartz numbers days 1-7
 starting at Sunday where Unix cron uses 0-6, recommending names (`SUN`, `MON`, …) as the unambiguous spelling.
+When the 5-field expression's day-of-week is a bare number the error goes one step further and shows the
+renumbered expression too: prepending a seconds field to `30 4 * * 1` keeps the `1`, and `1` is Monday in
+crontab but Sunday in Quartz, so the message names `"0 30 4 ? * MON"` as the schedule that was meant.
+
+### The parser refuses what it used to ignore
+
+A handful of expressions parsed, and then meant something other than what they said. Each is now a
+`FormatException` whose message names the expression that says what the author meant.
+
+| Expression | 3.x / 4.0 alpha | 4.0 |
+|---|---|---|
+| `1-5W` | the `W` was dropped; meant `1-5` | `FormatException` — write `1W,2W,3W,4W,5W` or drop the `W` |
+| `? * L-3`, `? * LW` | the suffix was dropped; meant Saturday | `FormatException` — those forms belong to day-of-month. A bare `L` in day-of-week is still Saturday |
+| `MON,FRI#3` | fired on the third **Monday**; the Friday was ignored | `FormatException` — `#` cannot appear beside other days |
+| `5C`, `1C` | parsed, meant `5` / `1`; `C` was never implemented | `FormatException` — use `ModifiedByCalendar` |
+| `*/0`, `5/0`, `0-10/0` | a step of 0 degenerated to no step | `FormatException` |
+| `0-10/120` | the step was never range-checked | `FormatException` — `Increment > 59 : 120`, as `0/120` already did |
+| `MON/2` | every second week — a fortnight with **no stable phase** | `FormatException` — `MON,WED,FRI` for a step through the week, or `RecurrenceScheduleBuilder.Create("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")` for every second Monday |
+
+`MON/2` is the one that changes a schedule rather than only a spelling, so it is worth the paragraph. A
+textual day-of-week followed by `/` meant "every N weeks", and the numeric `2/2` beside it meant an ordinary
+step — two readings of the same grammar. The fortnight also had no stable phase: it counted whole weeks from
+wherever the search started, so a misfire, a restart, a failover or a dashboard query recomputed it from a
+different day and moved it. It is rejected rather than quietly re-read as a step, because re-reading it would
+turn a fortnightly job into a thrice-weekly one — 26 fires a year become 156 — with nothing logged. Every
+second Monday is `RecurrenceScheduleBuilder.Create("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")`, which anchors the
+interval on the trigger's start time and so keeps its phase.
+
+### Before you upgrade
+
+Every row in that table is a string 3.x stored happily. The exception is thrown from
+`CronTriggerImpl.CronExpressionString`'s setter, which the ADO.NET job store calls while materialising a row,
+so a surviving expression fails the *read* rather than only the trigger. Audit the stored expressions first:
+
+```sql
+-- run against every scheduler's tables before upgrading; substitute your table prefix
+SELECT SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP, CRON_EXPRESSION
+FROM   QRTZ_CRON_TRIGGERS
+WHERE  CRON_EXPRESSION LIKE '%C%'    -- 'C' (calendar), never implemented
+   OR  CRON_EXPRESSION LIKE '%/0%'   -- step of zero
+   OR  CRON_EXPRESSION LIKE '%#%,%'  -- '#' beside other days
+   OR  CRON_EXPRESSION LIKE '%,%#%'
+   OR  CRON_EXPRESSION LIKE '%/%'    -- then eyeball for a textual day-of-week step
+   OR  CRON_EXPRESSION LIKE '%W%';   -- then eyeball for 'W' after a range
+```
+
+Several of those clauses are deliberately over-wide and need reading by eye: most `/` is an ordinary step, most
+`W` is a legitimate `15W` or `LW`, and `%C%` also matches the month names `DEC` and `OCT`, because expressions
+are stored upper-cased. `CronExpression.TryParse` against the 4.0 assembly is the authoritative check once you
+have a candidate list.
+
+Two sources are **not** reachable from this query. `CronCalendar` expressions live inside the serialized blob
+in `QRTZ_CALENDARS` and surface only at deserialization, and expressions built in code or held in
+configuration files never reach the database at all.
 
 ## Daylight saving time
 

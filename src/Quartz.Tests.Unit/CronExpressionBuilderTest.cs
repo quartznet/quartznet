@@ -88,8 +88,8 @@ public class CronExpressionBuilderTest
     public void TestDayOfWeekIncrementsMatchNumericIncrementSemantics()
     {
         // numeric "2/2" means day 2 (MON) through SAT stepping by 2; the builder emits
-        // the equivalent explicit day name list instead, since textual "MON/2" would
-        // mean Quartz's every-second-week feature
+        // the equivalent explicit day name list instead, since a textual "MON/2" is
+        // rejected by the parser
         CronExpression expanded = CronExpressionBuilder.Create()
             .WithSecond(0)
             .WithMinute(0)
@@ -447,36 +447,6 @@ public class CronExpressionBuilderTest
 
         FirstFireAfter(CronExpressionBuilder.Create().WithSecond(0).WithMinute(0).WithHour(12).OnWeekdays(), march)
             .Should().Be(new DateTimeOffset(2024, 3, 1, 12, 0, 0, TimeSpan.Zero), "the 1st is a Friday");
-    }
-
-    /// <summary>
-    /// <c>MON/2</c> is a Quartz extension meaning every second week, and it is why
-    /// <see cref="CronExpressionBuilder.WithDayOfWeekIncrements" /> renders an explicit list instead of
-    /// the token its name suggests: the numeric <c>2/2</c> the builder means and the textual
-    /// <c>MON/2</c> the reader would guess are two different schedules.
-    /// </summary>
-    [Test]
-    public void TestTheBuilderNeverRendersTheTextualEveryNthWeekExtension()
-    {
-        CronExpressionBuilder builder = CronExpressionBuilder.Create()
-            .WithSecond(0).WithMinute(0).WithHour(12)
-            .WithDayOfWeekIncrements(DayOfWeek.Monday, 2);
-
-        builder.ToString().Should().NotContain("/", "a textual day-of-week step is read as every-second-week, not as a step through the week");
-
-        CronExpression everySecondWeek = new CronExpression("0 0 12 ? * MON/2", TimeZoneInfo.Utc);
-        CronExpression everySecondDayOfWeek = new CronExpression(builder.ToString(), TimeZoneInfo.Utc);
-
-        DateTimeOffset start = new DateTimeOffset(2024, 3, 1, 0, 0, 0, TimeSpan.Zero);
-
-        DateTimeOffset firstMonday = new DateTimeOffset(2024, 3, 11, 12, 0, 0, TimeSpan.Zero);
-        everySecondWeek.GetNextValidTimeAfter(start).Should().Be(firstMonday,
-            "the extension counts whole weeks from where the search starts, so it skips the Monday two days later");
-        everySecondWeek.GetNextValidTimeAfter(firstMonday).Should().Be(new DateTimeOffset(2024, 3, 25, 12, 0, 0, TimeSpan.Zero),
-            "and then a fortnight at a time");
-
-        everySecondDayOfWeek.GetNextValidTimeAfter(start).Should().Be(new DateTimeOffset(2024, 3, 1, 12, 0, 0, TimeSpan.Zero),
-            "what the builder means is MON,WED,FRI, which includes the Friday the window opens on");
     }
 
     private static DateTimeOffset? FirstFireAfter(CronExpressionBuilder builder, DateTimeOffset after)
