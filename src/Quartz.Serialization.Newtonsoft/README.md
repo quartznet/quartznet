@@ -34,6 +34,12 @@ The same `UseNewtonsoftJsonSerializer` call configures a store built without a h
 `StoreJobDataAsStrings` is worth setting whichever serializer you use: it keeps job data out of the
 serializer altogether, which is what avoids surprises when a persisted type later changes shape.
 
+A job data value has to be one of the types `JobDataMap` declares an accessor for, or a
+`Dictionary<string, string>` — the same set the System.Text.Json serializer accepts, so a blob written
+here is one the other reader has an answer for. Anything else is refused when the job is stored, naming
+the entry and the type; declare a type of your own with
+`NewtonsoftJsonSerializerRegistry.AddJobDataValueType<T>()`.
+
 ## Trimming
 
 This package is deliberately **not** trimmable, and does not declare `IsTrimmable`. Json.NET decides what

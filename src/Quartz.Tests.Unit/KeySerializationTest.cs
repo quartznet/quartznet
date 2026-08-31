@@ -23,6 +23,7 @@ using System.Text;
 
 using Quartz.Extensibility;
 using Quartz.Impl;
+using Quartz.Serialization.Newtonsoft;
 
 namespace Quartz.Tests.Unit;
 
@@ -83,17 +84,41 @@ public class KeySerializationTest
 /// The System.Text.Json serializer does not do polymorphic values in a job data map at all, for keys or for
 /// anything else, so there is nothing to assert for it here.
 /// </summary>
+/// <remarks>
+/// A key is not one of the value types a job data map declares an accessor for, so it takes a declaration
+/// to write one — the same declaration any type of the application's own takes, and for the same reason:
+/// the other serializer hands that blob back as a string map rather than as a key, so the value belongs to
+/// whichever serializer wrote it. What is asserted here is that a declared key still travels intact, since
+/// the contract resolver's work is what makes it possible at all.
+/// </remarks>
 public class NewtonsoftKeySerializationTest
 {
     [Test]
-    public void KeyInAJobDataMapKeepsItsType()
+    public void KeyInAJobDataMapIsRefusedUntilItIsDeclared()
     {
         NewtonsoftJsonObjectSerializer serializer = new();
+        JobDataMap map = new() { ["job"] = new JobKey("myJob", "reports") };
+
+        Action write = () => serializer.Serialize(map);
+
+        write.Should().Throw<JsonSerializationException>(
+                "a key is not a job data value either store format promises to give back, so it is refused like any other type of the application's own")
+            .Which.Message.Should().Contain("job", "the failure has to say which entry it is about")
+            .And.Contain("Quartz.JobKey", "and what was in it");
+    }
+
+    [Test]
+    public void ADeclaredKeyInAJobDataMapKeepsItsType()
+    {
+        NewtonsoftJsonSerializerRegistry registry = new();
+        registry.AddJobDataValueType<JobKey>();
+        NewtonsoftJsonObjectSerializer serializer = new(registry);
         JobDataMap map = new() { ["job"] = new JobKey("myJob", "reports") };
 
         JobDataMap deserialized = serializer.Deserialize<JobDataMap>(serializer.Serialize(map));
 
         deserialized.Should().NotBeNull();
-        deserialized["job"].Should().Be(new JobKey("myJob", "reports"));
+        deserialized["job"].Should().Be(new JobKey("myJob", "reports"),
+            "the contract resolver names the key's constructor on the $type path, which is what a converter could not reach");
     }
 }

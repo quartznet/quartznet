@@ -2,10 +2,18 @@ using Newtonsoft.Json;
 
 namespace Quartz.Serialization.Newtonsoft;
 
-internal sealed class StringKeyDirtyFlagMapConverter : JsonConverter
+internal sealed class StringKeyDirtyFlagMapConverter(NewtonsoftJsonSerializerRegistry registry) : JsonConverter
 {
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {
+        // A JobDataMap is what a persistent store puts in a column, so an entry the reader could never
+        // turn back into a value is refused here — before a byte of it is written, and while there is
+        // still someone to tell. A SchedulerContext is not stored, so it is written as it always was.
+        if (value is JobDataMap jobDataMap)
+        {
+            JobDataValues.Refuse(jobDataMap, registry);
+        }
+
         var map = new Dictionary<string, object?>((IDictionary<string, object?>) value!);
         serializer.Serialize(writer, map);
     }

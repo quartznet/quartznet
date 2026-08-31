@@ -80,21 +80,18 @@ public class StdAdoDelegateTest
 
         Action serializeApplicationType = () => del.SerializeJobData(jdm);
 
-        if (serializer is SystemTextJsonObjectSerializer)
-        {
-            // The read side has no polymorphic object deserialization, so a class of the application's
-            // own could never come back as itself. Writing it would put a blob in JOB_DATA that the next
-            // load of this job fails on, which is why the refusal happens here instead.
-            serializeApplicationType.Should().Throw<JsonSerializationException>(
-                    "System.Text.Json refuses at write time a value it could not read back")
-                .Which.Message.Should().Contain("AddTypeInfoResolver",
-                    "the failure has to name the way an application declares a type of its own");
-        }
-        else
-        {
-            serializeApplicationType.Should().NotThrow(
-                "with binary serialization out of the picture, a private type is no obstacle to Newtonsoft");
-        }
+        // A class of the application's own is not part of either store format, so writing one would put
+        // a blob in JOB_DATA that the next load of this job fails on. Both serializers refuse it here
+        // instead, and each names the registration that says otherwise — which is the only part of the
+        // message that differs between them.
+        string declaration = serializer is SystemTextJsonObjectSerializer
+            ? "AddTypeInfoResolver"
+            : "AddJobDataValueType";
+
+        serializeApplicationType.Should().Throw<JsonSerializationException>(
+                "a value the reader could not accept is refused at write time, which is the last moment anyone can be told")
+            .Which.Message.Should().Contain(declaration,
+                "the failure has to name the way an application declares a type of its own");
     }
 
     private sealed class NonSerializableTestClass;

@@ -14,6 +14,10 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
         {
             var trigger = (ITrigger) value!;
 
+            // Before anything is written, so a trigger carrying one unreadable job data value puts
+            // nothing at all in the column.
+            JobDataValues.Refuse(trigger.JobDataMap, registry);
+
             writer.WriteStartObject();
             var type = value!.GetType().AssemblyQualifiedNameWithoutVersion();
             var triggerSerializer = registry.GetTriggerSerializer(type);
@@ -70,6 +74,12 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
 
             triggerSerializer.SerializeFields(writer, trigger);
             writer.WriteEndObject();
+        }
+        // A refused job data value already says which entry it is about and what to do; wrapping it in
+        // a second exception of the same type would only bury that.
+        catch (Quartz.JsonSerializationException)
+        {
+            throw;
         }
         catch (Exception e)
         {

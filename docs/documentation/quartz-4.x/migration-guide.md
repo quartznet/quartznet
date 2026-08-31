@@ -371,8 +371,9 @@ here moved for you; if you called `GetInt` and `GetBoolean`, all of it did.
   verbatim therefore changes which serializer writes and reads the store's blobs, which is a different
   payload shape and a different set of registered trigger and calendar serializers. Spell it `newtonsoft`
   if Newtonsoft is what you meant.
-* **System.Text.Json refuses a job data value it cannot read back**, at write time rather than at the next
-  read — see [System.Text.Json refuses a job data value it cannot read back](#system-text-json-refuses-a-job-data-value-it-cannot-read-back).
+* **Both serializers refuse a job data value they cannot read back**, at write time rather than at the next
+  read, and both refuse the same set — see
+  [Both serializers refuse a job data value they cannot read back](#both-serializers-refuse-a-job-data-value-they-cannot-read-back).
 * **Five calendar types serialize to a new shape.** 4.x reads both forms and 3.x reads only its own, so
   this is invisible on a clean cut-over and fatal in a mixed window — see
   [A mixed 3.x and 4.0 window](operations.md#a-mixed-3-x-and-4-0-window).
@@ -3340,7 +3341,7 @@ catch (Newtonsoft.Json.JsonSerializationException e)
 catch (Quartz.JsonSerializationException e)
 ```
 
-### System.Text.Json refuses a job data value it cannot read back
+### Both serializers refuse a job data value they cannot read back
 
 The System.Text.Json read side is closed on purpose — a stored job data value comes back as a string, a
 bool, an int, a long, a double, null or a `Dictionary<string, string>`, and there is no polymorphic
@@ -3352,12 +3353,12 @@ failure belonged to whoever next ran the job.
 Writing now refuses such a value, naming the entry and the type:
 
 ```
-Job data entry 'recipients' holds a System.Collections.Generic.List`1[[System.String, …]], which a
-persistent store cannot read back. A job data value has to be one of the types JobDataMap declares an
-accessor for (string, bool, char, int, long, float, double, decimal, DateTime, DateTimeOffset, TimeSpan,
-Guid, DateOnly, TimeOnly or an enum), a Dictionary<string, string>, or a type the application declares
-through SystemTextJsonSerializerRegistry.AddTypeInfoResolver. Anything with structure of its own has to
-be serialized by the job and stored as a string.
+Job data entry 'recipients' holds a System.Collections.Generic.List`1[[System.String, …]], which Quartz's
+JSON format cannot read back. A job data value has to be one of the types JobDataMap declares an accessor
+for (string, bool, char, int, long, float, double, decimal, DateTime, DateTimeOffset, TimeSpan, Guid,
+DateOnly, TimeOnly or an enum), a Dictionary<string, string>, or a type the application declares through
+SystemTextJsonSerializerRegistry.AddTypeInfoResolver. Anything with structure of its own has to be
+serialized by the job and stored as a string.
 ```
 
 The set is the one `DataMapExtensions` declares an accessor for, plus `Dictionary<string, string>`, plus
@@ -3365,17 +3366,39 @@ enums by rule. A type of your own is declared through `AddTypeInfoResolver` — 
 trimmed or native-AOT publish already needs — and is then written like any other, coming back as the
 string map the store format gives for any object.
 
-Nothing that used to round-trip stops working: what is refused is exactly what used to be written and
-then failed to load. If you were relying on a nested `JobDataMap` or a collection surviving, serialize it
-in the job and store the result as a string. Newtonsoft is unchanged, and `StoreJobDataAsStrings` was
-never affected.
-
 The check lives in the job data map converter, which the HTTP API shares with the store serializer, so
 it applies there too: a job whose map holds a `List<string>` — in a `RAMJobStore` as much as a
 persistent one — now fails to serialize into a `GET` response with the message above, where before the
 server sent a payload `Quartz.HttpClient` threw on reading. Both ends use the same closed reader, so a
 value the server cannot read back is one the client cannot either, and `AddTypeInfoResolver` is the
 answer on both.
+
+**Newtonsoft refuses the same set.** It had the same asymmetry, and one type of its own: a `TimeZoneInfo`
+in a job data map was written as `{"$type":"System.TimeZoneInfo, …","Id":"Tokyo Standard Time", …}` and
+then read back by nothing — the contract resolver keeps Json.NET off `ISerializable`, and every public
+member of a zone is read-only, so there was nothing to rebuild it from. It now refuses against the very
+same declaration System.Text.Json refuses against — not a copy of that list, that list — so the two
+cannot come to accept different things, and a value written by one serializer is a value the other's
+reader has an answer for. The message is the same but for the way out it names:
+
+```
+Job data entry 'zone' holds a System.TimeZoneInfo, which Quartz's JSON format cannot read back. … or a
+type the application declares through NewtonsoftJsonSerializerRegistry.AddJobDataValueType. …
+```
+
+`AddJobDataValueType<T>()` is this package's counterpart to `AddTypeInfoResolver`. Json.NET needs no
+metadata handed to it, so the call registers nothing but your word that the type reads back:
+
+```csharp
+store.UseNewtonsoftJsonSerializer(json => json.AddJobDataValueType<ReportOptions>());
+```
+
+Three things used to round-trip through Newtonsoft and now need that declaration, because the other
+serializer never accepted them and a value only one reader can load is a one-way door: a class of your
+own, a `JobKey` or `TriggerKey` held as a job data value, and a collection. A `TimeZoneInfo` and a nested
+`JobDataMap` are past declaring — Json.NET could not read either back — so store a zone's `Id`, and
+serialize a nested structure in the job and store the result as a string. `StoreJobDataAsStrings` was
+never affected by any of this.
 
 ### Custom trigger and calendar serializers are no longer static
 

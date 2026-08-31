@@ -260,5 +260,8 @@ Resolvers are asked in the order they were added, behind Quartz's own contract a
 reflection, so `AddTypeInfoResolver` can be called more than once and is safe to configure whether or
 not the application is published trimmed.
 
-The `Quartz.Serialization.Newtonsoft` serializer has no equivalent: it is reflection by nature, so an
-application that publishes trimmed uses this one.
+The `Quartz.Serialization.Newtonsoft` serializer has no equivalent for the metadata: it is reflection by
+nature, so an application that publishes trimmed uses this one. It does have a counterpart for the other
+thing `AddTypeInfoResolver` does — declaring a job-data value type the serializer will write at all,
+since both serializers refuse the same set — and that is
+[`AddJobDataValueType<T>()`](json-serialization.md#what-a-job-data-map-may-hold).
