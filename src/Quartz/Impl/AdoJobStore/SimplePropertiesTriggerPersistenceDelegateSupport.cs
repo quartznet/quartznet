@@ -41,7 +41,16 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma (.NET)</author>
 public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITriggerPersistenceDelegate
 {
-    protected const string TableSimplePropertiesTriggers = "SIMPROP_TRIGGERS";
+    /// <summary>
+    /// The table this delegate persists into, kept here as the spelling a derived delegate writes.
+    /// </summary>
+    /// <remarks>
+    /// The value belongs to <see cref="AdoConstants" />, where every table the store reads or writes is
+    /// named, because that list is what startup schema validation probes. Declared only here, it was a
+    /// table validation did not know about: a database missing this one alone started, and failed on the
+    /// first calendar-interval, daily-time-interval or recurrence trigger written to it (#3564).
+    /// </remarks>
+    protected const string TableSimplePropertiesTriggers = AdoConstants.TableSimplePropertiesTriggers;
 
     protected const string ColumnStrProp1 = "STR_PROP_1";
     protected const string ColumnStrProp2 = "STR_PROP_2";
