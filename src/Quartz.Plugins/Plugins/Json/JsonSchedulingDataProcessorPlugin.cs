@@ -166,7 +166,7 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
                         job.JobDataMap[FileScanJob.FileName] = jobFile.FilePath;
                         job.JobDataMap[FileScanJob.FileScanListenerName] = PluginName + '_' + Name;
 
-                        await Scheduler.ScheduleJob(job, trig, cancellationToken).ConfigureAwait(false);
+                        await Scheduler.ScheduleJob(job, trig, cancellationToken: cancellationToken).ConfigureAwait(false);
                         logger.FileScanJobScheduled(jobFile.FileName, ScanInterval);
                     }
 

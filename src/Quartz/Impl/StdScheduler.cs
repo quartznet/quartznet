@@ -182,18 +182,7 @@ internal sealed class StdScheduler : IScheduler
     public ValueTask<DateTimeOffset> ScheduleJob(
         IJobDetail jobDetail,
         ITrigger trigger,
-        CancellationToken cancellationToken = default)
-    {
-        return scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
-    public ValueTask<DateTimeOffset> ScheduleJob(
-        IJobDetail jobDetail,
-        ITrigger trigger,
-        ScheduleJobOptions options,
+        ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
         return scheduler.ScheduleJob(jobDetail, trigger, options, cancellationToken);
@@ -204,17 +193,7 @@ internal sealed class StdScheduler : IScheduler
     /// </summary>
     public ValueTask<DateTimeOffset> ScheduleJob(
         ITrigger trigger,
-        CancellationToken cancellationToken = default)
-    {
-        return scheduler.ScheduleJob(trigger, cancellationToken: cancellationToken);
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
-    public ValueTask<DateTimeOffset> ScheduleJob(
-        ITrigger trigger,
-        ScheduleJobOptions options,
+        ScheduleJobOptions options = default,
         CancellationToken cancellationToken = default)
     {
         return scheduler.ScheduleJob(trigger, options, cancellationToken);

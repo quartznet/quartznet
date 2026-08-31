@@ -441,7 +441,7 @@ public class TriggerEndpointsTest : WebApiTest
         // a name that arrived with the request.
         Fake.ClearRecordedCalls(FakeScheduler);
         IJobDetail jobDetailWithUnresolvableType = TestData.JobDetail.GetJobBuilder()
-            .OfType(TestData.UnresolvableJobTypeName)
+            .OfType((JobType) TestData.UnresolvableJobTypeName)
             .Build();
 
         await HttpScheduler.ScheduleJob(jobDetailWithUnresolvableType, TestData.SimpleTrigger);
@@ -491,7 +491,7 @@ public class TriggerEndpointsTest : WebApiTest
     {
         // Shape is still checked, it is only resolution that is not done. An empty name has no shape.
         IJobDetail jobDetailWithEmptyType = TestData.JobDetail.GetJobBuilder()
-            .OfType(" ")
+            .OfType((JobType) " ")
             .Build();
 
         Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailWithEmptyType, TestData.SimpleTrigger).AsTask())!
@@ -551,7 +551,7 @@ public class TriggerEndpointsTest : WebApiTest
         // a name that arrived with the request.
         Fake.ClearRecordedCalls(FakeScheduler);
         IJobDetail jobDetailWithUnresolvableType = TestData.JobDetail.GetJobBuilder()
-            .OfType(TestData.UnresolvableJobTypeName)
+            .OfType((JobType) TestData.UnresolvableJobTypeName)
             .Build();
 
         Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> requestWithUnresolvableType = new() { { jobDetailWithUnresolvableType, [TestData.CronTrigger] } };
@@ -571,7 +571,7 @@ public class TriggerEndpointsTest : WebApiTest
     {
         // Shape is still checked, it is only resolution that is not done. An empty name has no shape.
         IJobDetail jobDetailWithEmptyType = TestData.JobDetail.GetJobBuilder()
-            .OfType(" ")
+            .OfType((JobType) " ")
             .Build();
 
         Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> request = new() { { jobDetailWithEmptyType, [TestData.CronTrigger] } };

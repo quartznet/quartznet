@@ -109,8 +109,11 @@ public static class QuartzAspireHostApplicationBuilderExtensions
 
         // Decided here rather than in the callback, so that it is the environment the application was
         // built in that answers, and so that a reader of this method can see what the unset setting
-        // resolved to at the one place the answer is known.
-        bool provisionSchema = settings.ProvisionSchema ?? builder.Environment.IsDevelopment();
+        // resolved to at the one place the answer is known. Unset outside Development says nothing at
+        // all, which is not the same as saying Validate: both leave an unconfigured store validating,
+        // but only the first leaves the decision open for a later contributor.
+        SchemaProvisioning? schemaProvisioning = settings.SchemaProvisioning
+            ?? (builder.Environment.IsDevelopment() ? SchemaProvisioning.CreateIfMissing : null);
 
         builder.Services.ConfigureAllQuartzSchedulers(quartz =>
         {
@@ -130,12 +133,9 @@ public static class QuartzAspireHostApplicationBuilderExtensions
                     store.ConfigureStore(options => options.TablePrefix = tablePrefix);
                 }
 
-                // Only one side of this is written. Not provisioning is what an unconfigured store
-                // already does, so saying it would mean overwriting a store the application configured
-                // itself with the value it would have had anyway.
-                if (provisionSchema)
+                if (schemaProvisioning is { } provisioning)
                 {
-                    ProvisionTheSchemaUnlessAPositionWasChosen(store);
+                    ApplyUnlessAPositionWasChosen(store, provisioning);
                 }
 
                 if (clustered)
@@ -161,32 +161,32 @@ public static class QuartzAspireHostApplicationBuilderExtensions
     }
 
     /// <summary>
-    /// Has the store create whatever its schema is missing, unless the application said what the store
-    /// should do about its schema.
+    /// Tells the store what to do about its schema, unless the application already said.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <see cref="IPersistentStoreBuilder.ProvisionSchema"/> as a conditional. That method assigns
-    /// <see cref="SchemaProvisioning.CreateIfMissing"/> outright, and this delegate runs after
-    /// everything the application said — options are last-wins, and
-    /// <c>ConfigureAllQuartzSchedulers</c> is applied after the scheduler's own callback and after the
-    /// configuration binding — so calling it would overrule a store that had been told something else
-    /// rather than answering for one that was told nothing.
+    /// <see cref="IPersistentStoreBuilder.ProvisionSchema"/> as a conditional, and with the value the
+    /// Aspire section chose rather than only <see cref="SchemaProvisioning.CreateIfMissing"/>. That
+    /// method assigns outright, and this delegate runs after everything the application said — options
+    /// are last-wins, and <c>ConfigureAllQuartzSchedulers</c> is applied after the scheduler's own
+    /// callback and after the configuration binding — so assigning unconditionally would overrule a
+    /// store that had been told something else rather than answering for one that was told nothing.
     /// </para>
     /// <para>
-    /// The gap it fills is <see cref="SchemaProvisioning.Validate"/>, which is what an unconfigured
-    /// store holds. An application that means that under <c>Development</c> says so with
-    /// <see cref="QuartzAspireSettings.ProvisionSchema"/> set to <see langword="false"/>, since setting
-    /// the option to the value it already has cannot be read as a decision.
+    /// <see cref="SchemaProvisioning.Validate"/> is what an unconfigured store holds, which is what
+    /// makes it both the marker for "nobody chose" and the value that writes nothing. An application
+    /// that means <em>validate</em> under <c>Development</c> says so with
+    /// <see cref="QuartzAspireSettings.SchemaProvisioning"/>, and the assignment below is then a no-op
+    /// that leaves the store exactly where it was.
     /// </para>
     /// </remarks>
-    private static void ProvisionTheSchemaUnlessAPositionWasChosen(IPersistentStoreBuilder store)
+    private static void ApplyUnlessAPositionWasChosen(IPersistentStoreBuilder store, SchemaProvisioning provisioning)
     {
         store.ConfigureStore(options =>
         {
             if (options.SchemaProvisioning == SchemaProvisioning.Validate)
             {
-                options.SchemaProvisioning = SchemaProvisioning.CreateIfMissing;
+                options.SchemaProvisioning = provisioning;
             }
         });
     }

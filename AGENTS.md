@@ -109,6 +109,32 @@ pass; do not "finish" any of them.
   like a duplicate pair; they are the 3.x on-ramp, because a `NameValueCollection` is what an
   application migrating from `StdSchedulerFactory` already holds.
 
+### Overload sets audited and frozen in #3598
+
+Counted, argued and left as they are. Each looks like a set to thin; the reason it is not is on the
+members themselves, so read the XML docs before reopening one.
+
+- **Job-store selection keeps all seven members**, because each says something the others cannot:
+  the two shipped stores (`UseInMemoryStore`, `UsePersistentStore`), a persistent store of another type
+  (`UsePersistentStore<T>`), a store of your own built by the container (`UseJobStore<T>`, plus
+  `<T, TOptions>` for one with named options, which `custom-job-store.md` teaches), one you built
+  (`UseJobStore(IJobStore)`), and one a factory builds over the scheduler's own parts
+  (`UseJobStore(Func<…>)`).
+- **Hosted-service registration keeps all six**: three shapes — the ordinary one, `<T>` for a subclass,
+  and `(schedulerName, …)` for one scheduler's settings — on each of the two receivers every
+  registration API here has. C# has no default type argument, so the first shape is not the second one
+  written shorter.
+- **`IThreadPool` keeps all six members.** It is not an interface guarding one integer: each member has
+  exactly one caller in the scheduler, and `ZeroSizeThreadPool` stays public because
+  `UseThreadPool<ZeroSizeThreadPool>()` needs it reachable.
+- **`JobBuilder`/`TriggerBuilder` keep their companion classes while the schedule builders carry their
+  own `Create`.** Generic inference forces it — `JobBuilder<MyJob>.Create()` would name the job type
+  twice — and no schedule builder is generic.
+- **`IScheduleBuilder.Build()` keeps returning `IMutableTrigger`,** and `ConfigureJobScope` keeps taking
+  `TriggerFiredBundle`. Both are `Quartz.Extensibility` types on a mainstream path, and both are the
+  only type that says the thing: the trigger builder must write onto what it is handed, and a firing
+  before its job exists has no `IJobExecutionContext` yet.
+
 ## Build & Test
 
 Build the solution (uses the [Fallout](https://fallout.build/) build system):
@@ -224,7 +250,10 @@ internals behind them.
   it: it adds only `Create`, `Build()` / `BuildScheduler()`, `UseConfiguration` and `UseProperties` ×2.
   Do not give it a member that `IQuartzBuilder` or a `QuartzBuilderExtensions` extension already has —
   #3597 deleted a ~60-signature covariant facade that existed to do exactly that.
-- `AddQuartzHealthChecks()` / `AddHealthChecks().AddQuartz()` — the scheduler health check, in
+- `AddHealthChecks().AddQuartz()` / `IQuartzBuilder.AddQuartzHealthChecks()` — the scheduler health
+  check, and the only two receivers it has: the ecosystem's idiom, and a scheduler's own builder, which
+  knows the name so the caller need not repeat it. There is deliberately no
+  `IServiceCollection.AddQuartzHealthChecks`; #3598 cut it as shorthand for the first. It is in
   `src/Quartz/Diagnostics/HealthChecks/`. It needs only `Microsoft.Extensions.Diagnostics.HealthChecks`,
   so it is core rather than `Quartz.AspNetCore`, whose `FrameworkReference` a `dotnet/runtime` image
   cannot satisfy (#3532).

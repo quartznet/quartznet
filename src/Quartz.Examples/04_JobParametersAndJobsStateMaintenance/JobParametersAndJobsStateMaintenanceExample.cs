@@ -57,7 +57,7 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(4))
             .Build();
 
-        DateTimeOffset scheduleTime1 = await scheduler.ScheduleJob(job1, trigger1, cancellationToken);
+        DateTimeOffset scheduleTime1 = await scheduler.ScheduleJob(job1, trigger1, cancellationToken: cancellationToken);
         Console.WriteLine($"{job1.Key} will run at {scheduleTime1.LocalDateTime:HH:mm:ss}, then {trigger1.RepeatCount} more times every {trigger1.RepeatInterval.TotalSeconds:0} seconds");
 
         // job2 is the same job on the same schedule, with a different colour: two job details of one
@@ -74,7 +74,7 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(4))
             .Build();
 
-        DateTimeOffset scheduleTime2 = await scheduler.ScheduleJob(job2, trigger2, cancellationToken);
+        DateTimeOffset scheduleTime2 = await scheduler.ScheduleJob(job2, trigger2, cancellationToken: cancellationToken);
         Console.WriteLine($"{job2.Key} will run at {scheduleTime2.LocalDateTime:HH:mm:ss}, then {trigger2.RepeatCount} more times every {trigger2.RepeatInterval.TotalSeconds:0} seconds");
 
         Console.WriteLine("------- Starting Scheduler ----------------");

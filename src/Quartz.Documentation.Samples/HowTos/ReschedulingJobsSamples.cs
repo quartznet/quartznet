@@ -37,7 +37,7 @@ public static class ReschedulingJobsSamples
         if (next is null)
         {
             // the old trigger was gone; store the new one on its own terms
-            await scheduler.ScheduleJob(replacement, cancellationToken);
+            await scheduler.ScheduleJob(replacement, cancellationToken: cancellationToken);
         }
 
         #endregion
@@ -152,7 +152,7 @@ public sealed class RetryingImportJob(IImportService importer) : IJob
                 .StartAt(DateTimeOffset.UtcNow.AddMinutes(5))
                 .Build();
 
-            await context.Scheduler.ScheduleJob(retry, cancellationToken);
+            await context.Scheduler.ScheduleJob(retry, cancellationToken: cancellationToken);
         }
     }
 

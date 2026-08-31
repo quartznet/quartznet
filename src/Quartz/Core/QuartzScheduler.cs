@@ -632,40 +632,19 @@ internal sealed class QuartzScheduler
     /// will be set to reference the Job passed with it into this method.
     /// </para>
     /// </summary>
-    public ValueTask<DateTimeOffset> ScheduleJob(
-        IJobDetail jobDetail,
-        ITrigger trigger,
-        CancellationToken cancellationToken = default)
-    {
-        return DoScheduleJob(jobDetail, trigger, options: null, cancellationToken);
-    }
-
-    /// <inheritdoc cref="ScheduleJob(IJobDetail, ITrigger, CancellationToken)" />
-    public ValueTask<DateTimeOffset> ScheduleJob(
-        IJobDetail jobDetail,
-        ITrigger trigger,
-        ScheduleJobOptions options,
-        CancellationToken cancellationToken = default)
-    {
-        return DoScheduleJob(jobDetail, trigger, options, cancellationToken);
-    }
-
-    /// <summary>
-    /// Stores a job and its trigger, through the store operation the caller's overload asks for.
-    /// </summary>
     /// <remarks>
-    /// <paramref name="options" /> is <see langword="null" /> when the caller used the overload that
-    /// takes none, which is stored through <see cref="IJobStore.ScheduleJob" /> exactly as it always has
-    /// been — that member keeps its caller, and the span and metric a store reports for the plain call
-    /// keep their names. An overload that was given options goes through
-    /// <see cref="IJobStore.ScheduleJobs" /> instead, because replacing a job and its trigger has to be
-    /// one store operation under one lock.
+    /// The store operation is chosen by <see cref="ScheduleJobOptions.Replace" /> rather than by which
+    /// overload was called: storing without replacing is <see cref="IJobStore.ScheduleJob" />, exactly
+    /// as it always has been, so that member keeps its caller and the span and metric a store reports
+    /// for the ordinary call keep their names. Replacing goes through
+    /// <see cref="IJobStore.ScheduleJobs" /> instead, because over-writing a job and its trigger has to
+    /// be one store operation under one lock.
     /// </remarks>
-    private async ValueTask<DateTimeOffset> DoScheduleJob(
+    public async ValueTask<DateTimeOffset> ScheduleJob(
         IJobDetail jobDetail,
         ITrigger trigger,
-        ScheduleJobOptions? options,
-        CancellationToken cancellationToken)
+        ScheduleJobOptions options = default,
+        CancellationToken cancellationToken = default)
     {
         ValidateState();
 
@@ -724,13 +703,13 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException(message);
         }
 
-        if (options is { } scheduleOptions)
+        if (options.Replace)
         {
             // One store operation rather than an AddJob followed by an AddTrigger: the store takes its
             // lock once, so a caller replacing a job and its trigger together cannot be seen half
             // applied and cannot lose a race with another node doing the same thing.
             Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> one = new(1) { [jobDetail] = [trig] };
-            await resources.JobStore.ScheduleJobs(one, scheduleOptions, cancellationToken).ConfigureAwait(false);
+            await resources.JobStore.ScheduleJobs(one, options, cancellationToken).ConfigureAwait(false);
         }
         else
         {

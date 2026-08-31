@@ -39,6 +39,13 @@ namespace Quartz.Impl;
 /// instance only exists in order to schedule jobs, but which will never execute
 /// jobs (e.g. will never have Start() called on it).
 /// </remarks>
+/// <remarks>
+/// It stays public because <c>UseThreadPool&lt;ZeroSizeThreadPool&gt;()</c> is how an application
+/// selects it, and a type argument has to be reachable from the call. The <c>UseZeroSizeThreadPool()</c>
+/// shorthand 3.x had is what went, not the type — so making the type internal would leave the pool
+/// selectable only by naming it in a <c>quartz.threadPool.type</c> string, which is the direction 4.0
+/// has been moving away from.
+/// </remarks>
 /// <author>Wayne Fay</author>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class ZeroSizeThreadPool : IThreadPool

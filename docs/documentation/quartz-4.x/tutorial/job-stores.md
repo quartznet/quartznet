@@ -388,7 +388,7 @@ public sealed class LoggingJobStore : DelegatingJobStore
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        await base.ScheduleJob(job, trigger, cancellationToken);
+        await base.ScheduleJob(job, trigger, cancellationToken: cancellationToken);
         logger.LogInformation("Scheduled {JobKey} on {TriggerKey}", job.Key, trigger.Key);
     }
 }

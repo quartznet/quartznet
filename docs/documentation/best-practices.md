@@ -866,7 +866,8 @@ running. In 4.x, `IScheduler.QueryFireInstances` answers the latter for the whol
 is in a state that can fire, and that the job store answers a query. It does **not** assert that any
 trigger is actually firing, so pair it with an alert on a job you expect to see regularly. In Quartz
 4.x it is in the core package — no web stack required — and you register it explicitly:
-`services.AddHealthChecks().AddQuartz()`, or `AddQuartzHealthChecks()` per named scheduler. It
+`services.AddHealthChecks().AddQuartz()`, or `q.AddQuartzHealthChecks()` inside a named scheduler's
+`AddQuartz(name, …)` callback. It
 distinguishes the states, reporting a standby scheduler as *degraded* rather than healthy or dead.
 On 3.x it lives in `Quartz.AspNetCore`, is registered for you by `AddQuartzServer()`, and only
 reports healthy or unhealthy, from `IsStarted` alone — which means a scheduler sitting in standby

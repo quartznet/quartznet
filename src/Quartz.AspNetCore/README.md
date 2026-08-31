@@ -7,7 +7,7 @@ scheduler management endpoints.
 
 Hosting and the scheduler's health check are both in the core
 [Quartz](https://www.nuget.org/packages/Quartz) package — `AddQuartz`, `AddQuartzHostedService` and
-`AddQuartzHealthChecks` need no extra reference. This package brings ASP.NET Core along with it, so take
+the health check need no extra reference. This package brings ASP.NET Core along with it, so take
 it for the HTTP API rather than for the check. Quartz 3's `AddQuartzServer`, which registered the hosted
 service and a health check together, is gone.
 

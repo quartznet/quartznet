@@ -85,6 +85,14 @@ public static class QuartzBuilderExtensions
     /// reachable only by deriving from <c>MicrosoftDependencyInjectionJobFactory</c> and overriding a
     /// protected method, which is a great deal of ceremony for setting one ambient value.
     /// </para>
+    /// <para>
+    /// <see cref="TriggerFiredBundle"/> comes from <c>Quartz.Extensibility</c>, which is the one place
+    /// on this builder where a mainstream caller meets that namespace without supplying a component.
+    /// It is ratified rather than papered over: the callback runs <em>before</em> the job exists, and
+    /// <see cref="IJobExecutionContext"/> — the type this would otherwise hand over — is constructed
+    /// around a job instance. The bundle is what a firing is before there is a job to put in a context,
+    /// so a mainstream stand-in would be a second bundle carrying the same four values.
+    /// </para>
     /// </remarks>
     /// <param name="builder">The builder.</param>
     /// <param name="configure">

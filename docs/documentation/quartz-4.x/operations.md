@@ -677,7 +677,7 @@ and needs nothing from ASP.NET Core, so a worker on a `dotnet/runtime` image car
 // Tagged, so a readiness endpoint can select it while the liveness endpoint does not: a
 // scheduler in standby, or one whose database is unreachable, should leave the rotation
 // without the process being killed.
-services.AddQuartzHealthChecks(options => options.Tags.Add("ready"));
+services.AddHealthChecks().AddQuartz(options => options.Tags.Add("ready"));
 ```
 <!-- endSnippet -->
 

@@ -229,7 +229,7 @@ public class TypedJobDataTest
         // A type named as a string is only known once it resolves, so this one waits for the build.
         var act = () => JobBuilder.Create<SampleJob>()
             .UsingJobData(j => j.Name, "hello")
-            .OfType(typeof(OtherJob).AssemblyQualifiedName!)
+            .OfType((JobType) typeof(OtherJob).AssemblyQualifiedName!)
             .Build();
 
         act.Should().Throw<InvalidOperationException>().WithMessage("*SampleJob*OtherJob*");
@@ -241,7 +241,7 @@ public class TypedJobDataTest
         // Named types are checked by the scheduler when it loads them; there is nothing to compare against
         // here, so the data is taken as given rather than rejected.
         var job = JobBuilder.Create<SampleJob>()
-            .OfType("Some.Assembly.That.Is.Not.Loaded.Job, Nowhere")
+            .OfType((JobType) "Some.Assembly.That.Is.Not.Loaded.Job, Nowhere")
             .UsingJobData(j => j.Name, "hello")
             .Build();
 

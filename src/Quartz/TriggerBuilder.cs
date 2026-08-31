@@ -447,7 +447,7 @@ public sealed class TriggerBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Re
     /// <para>The particular <see cref="IScheduleBuilder" /> used will dictate
     /// the concrete type of Trigger that is produced by the TriggerBuilder.</para>
     /// </remarks>
-    /// <param name="scheduleBuilder">the QuartzSchedulerBuilder to use.</param>
+    /// <param name="scheduleBuilder">the schedule builder to use.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="IScheduleBuilder" />
     /// <seealso cref="SimpleScheduleBuilder" />

@@ -107,7 +107,7 @@ public class QuartzHealthCheckTests
         services.AddLogging();
         services.AddSingleton(FactoryFor("core", SchedulerStatus.Created));
         services.AddKeyedSingleton(typeof(ISchedulerFactory), "reporting", (_, _) => FactoryFor("reporting", SchedulerStatus.Created));
-        services.AddQuartzHealthChecks();
+        services.AddHealthChecks().AddQuartz();
         services.AddHealthChecks().AddQuartz("reporting");
         services.AddQuartzHostedService("reporting", options => options.AutoStart = false);
 
@@ -137,7 +137,7 @@ public class QuartzHealthCheckTests
         ServiceCollection services = new();
         services.AddLogging();
         services.AddQuartz("reporting", q => q.UseInMemoryStore());
-        services.AddQuartzHealthChecks();
+        services.AddHealthChecks().AddQuartz();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
 
@@ -177,7 +177,7 @@ public class QuartzHealthCheckTests
         ServiceCollection services = new();
         services.AddLogging();
         services.AddSingleton(factory);
-        services.AddQuartzHealthChecks();
+        services.AddHealthChecks().AddQuartz();
 
         if (hostedService is not null)
         {

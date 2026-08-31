@@ -576,7 +576,7 @@ public class JobEndpointsTest : WebApiTest
         // has to run the job resolves it.
         Fake.ClearRecordedCalls(FakeScheduler);
         IJobDetail jobDetailWithUnresolvableType = TestData.JobDetail.GetJobBuilder()
-            .OfType(TestData.UnresolvableJobTypeName)
+            .OfType((JobType) TestData.UnresolvableJobTypeName)
             .Build();
 
         await HttpScheduler.AddJob(jobDetailWithUnresolvableType);
@@ -595,7 +595,7 @@ public class JobEndpointsTest : WebApiTest
     {
         // Shape is still checked, it is only resolution that is not done. An empty name has no shape.
         IJobDetail jobDetailWithEmptyType = TestData.JobDetail.GetJobBuilder()
-            .OfType(" ")
+            .OfType((JobType) " ")
             .Build();
 
         Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.AddJob(jobDetailWithEmptyType).AsTask())!

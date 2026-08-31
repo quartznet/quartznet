@@ -58,7 +58,7 @@ public class SimpleJob1Listener : IJobListener
         {
             // the listener runs inside the scheduler, and schedules through the same scheduler the job
             // it is listening to ran on
-            await context.Scheduler.ScheduleJob(job2, trigger, cancellationToken);
+            await context.Scheduler.ScheduleJob(job2, trigger, cancellationToken: cancellationToken);
         }
         catch (SchedulerException e)
         {

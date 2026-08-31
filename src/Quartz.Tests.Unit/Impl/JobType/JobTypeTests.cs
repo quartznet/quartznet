@@ -141,7 +141,7 @@ public class JobTypeTests
         // must not force the stored name to resolve.
         IJobDetail detail = JobBuilder.Create()
             .WithIdentity("job", "group")
-            .OfType("Library.UnknownType")
+            .OfType((Quartz.JobType) "Library.UnknownType")
             .StoreDurably()
             .UsingJobData("key", "value")
             .DisallowConcurrentExecution()

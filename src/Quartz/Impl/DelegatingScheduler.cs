@@ -75,22 +75,12 @@ public class DelegatingScheduler : IScheduler
         return scheduler.DisposeAsync();
     }
 
-    public virtual ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
-    {
-        return scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
-    }
-
-    public virtual ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    public virtual ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         return scheduler.ScheduleJob(jobDetail, trigger, options, cancellationToken);
     }
 
-    public virtual ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, CancellationToken cancellationToken = default)
-    {
-        return scheduler.ScheduleJob(trigger, cancellationToken);
-    }
-
-    public virtual ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    public virtual ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         return scheduler.ScheduleJob(trigger, options, cancellationToken);
     }

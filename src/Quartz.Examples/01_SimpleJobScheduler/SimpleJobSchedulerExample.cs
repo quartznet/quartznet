@@ -55,7 +55,7 @@ public class SimpleJobSchedulerExample : IExample
             .Build();
 
         // Tell quartz to schedule the job using our trigger
-        await scheduler.ScheduleJob(job, trigger, cancellationToken);
+        await scheduler.ScheduleJob(job, trigger, cancellationToken: cancellationToken);
         Console.WriteLine($"{job.Key} will run at: {runTime.LocalDateTime:HH:mm:ss}");
 
         // Start up the scheduler (nothing can actually run until the

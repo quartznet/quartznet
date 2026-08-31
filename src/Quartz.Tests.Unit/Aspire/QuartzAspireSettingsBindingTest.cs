@@ -50,30 +50,31 @@ public class QuartzAspireSettingsBindingTest
     }
 
     /// <summary>
-    /// The one setting that is <see langword="null"/> rather than <see langword="false"/> when nothing
-    /// says anything, so binding has three answers to carry rather than two.
+    /// The one setting that is <see langword="null"/> when nothing says anything, so binding has to
+    /// carry "unset" as well as each of the enum's three values.
     /// </summary>
     [Test]
-    public void ATriStateSettingBindsAllThreeOfItsAnswers()
+    public void ANullableSettingBindsUnsetAndEveryValue()
     {
         Capture(AspireApplication.WorkerWith(AspireApplication.Postgres), "quartz")
-            .ProvisionSchema.Should().BeNull(
-                "unset is what asks the environment, and a bool that bound to false could not say it");
+            .SchemaProvisioning.Should().BeNull(
+                "unset is what asks the environment, and a non-nullable enum bound to None could not "
+                + "say it");
 
         Capture(
             AspireApplication.Worker(
                 ("ConnectionStrings:quartz", AspireApplication.Postgres),
-                ("Aspire:Quartz:ProvisionSchema", "true")),
-            "quartz").ProvisionSchema.Should().BeTrue();
+                ("Aspire:Quartz:SchemaProvisioning", "CreateIfMissing")),
+            "quartz").SchemaProvisioning.Should().Be(SchemaProvisioning.CreateIfMissing);
 
         Capture(
             AspireApplication.Worker(
                 ("ConnectionStrings:quartz", AspireApplication.Postgres),
-                ("Aspire:Quartz:ProvisionSchema", "true"),
-                ("Aspire:Quartz:quartz:ProvisionSchema", "false")),
-            "quartz").ProvisionSchema.Should().BeFalse(
+                ("Aspire:Quartz:SchemaProvisioning", "CreateIfMissing"),
+                ("Aspire:Quartz:quartz:SchemaProvisioning", "None")),
+            "quartz").SchemaProvisioning.Should().Be(SchemaProvisioning.None,
                 "one database whose schema this creates and one it may not touch is exactly what the "
-                + "per-connection section is for");
+                + "per-connection section is for - and None is the answer the bool could not spell");
     }
 
     [Test]

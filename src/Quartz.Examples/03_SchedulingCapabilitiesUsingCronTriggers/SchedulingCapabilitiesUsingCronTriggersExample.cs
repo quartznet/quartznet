@@ -74,7 +74,7 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
 
             // the return value is the first time the expression resolves to, which is the quickest
             // way to check that an expression means what it was meant to mean
-            DateTimeOffset firstFireTime = await scheduler.ScheduleJob(job, trigger, cancellationToken);
+            DateTimeOffset firstFireTime = await scheduler.ScheduleJob(job, trigger, cancellationToken: cancellationToken);
 
             Console.WriteLine($"{job.Key,-14} {expression,-24} {meaning}");
             Console.WriteLine($"{"",-14} first fires {firstFireTime.LocalDateTime:yyyy-MM-dd HH:mm:ss}");

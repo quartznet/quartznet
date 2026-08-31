@@ -106,7 +106,7 @@ public sealed class ReportRequests
             .StartAt(DateTimeOffset.UtcNow.AddMinutes(5))
             .Build();
 
-        await scheduler.ScheduleJob(job, trigger, cancellationToken);
+        await scheduler.ScheduleJob(job, trigger, cancellationToken: cancellationToken);
     }
 }
 

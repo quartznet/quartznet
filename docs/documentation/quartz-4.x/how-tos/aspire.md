@@ -231,12 +231,15 @@ call: `CreateIfMissing` under `Development`, and the `Validate` default in every
 where the account the scheduler connects with usually cannot run DDL and is right not to be able to.
 [Creating the schema](../tutorial/job-stores.md#creating-the-schema) has the setting and its limits.
 
-`QuartzAspireSettings.ProvisionSchema` says it outright when the environment is not the right thing to
-ask — `true` creates in every environment, and `false` in none:
+`QuartzAspireSettings.SchemaProvisioning` says it outright when the environment is not the right thing
+to ask. It is the same three-valued `SchemaProvisioning` the store's own option takes, so there is one
+vocabulary rather than a `bool` at this end and an enum at the other:
 
 <!-- snippet: sample_aspire_provision_schema -->
 ```csharp
-builder.AddQuartzPersistentStore("quartz", settings => settings.ProvisionSchema = true);
+builder.AddQuartzPersistentStore(
+    "quartz",
+    settings => settings.SchemaProvisioning = SchemaProvisioning.CreateIfMissing);
 ```
 <!-- endSnippet -->
 
@@ -252,7 +255,9 @@ builder.AddQuartz(q => q.UsePersistentStore(store =>
 <!-- endSnippet -->
 
 The one position that cannot be said that way is `Validate`, which is what an unconfigured store already
-holds and so cannot be told apart from having said nothing. `ProvisionSchema = false` is how to say it.
+holds and so cannot be told apart from having said nothing. `SchemaProvisioning = SchemaProvisioning.Validate`
+here is how to say it — and `SchemaProvisioning.None`, which skips the startup check entirely, is what
+the old `bool` could not spell at all.
 
 That leaves the production question, and Aspire's own hooks mostly do not close it. `AddDatabase` does
 create the *database* — on the server resource's `ResourceReadyEvent`, once its health check passes —
@@ -308,7 +313,7 @@ registers the same check from the core package:
 
 <!-- snippet: sample_aspire_health_checks -->
 ```csharp
-builder.Services.AddQuartzHealthChecks();
+builder.Services.AddHealthChecks().AddQuartz();
 ```
 <!-- endSnippet -->
 

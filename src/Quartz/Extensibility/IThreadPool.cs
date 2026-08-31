@@ -37,6 +37,23 @@ namespace Quartz.Extensibility;
 /// result in extra JobStore queries and updates, and if clustering features
 /// are being used, it may result in greater imbalance of load.
 /// </remarks>
+/// <remarks>
+/// <para>
+/// The shape is frozen at six members, and each is here because exactly one caller in the scheduler
+/// needs it — this looks like a lot of interface for a pool whose configuration is one integer, and the
+/// integer is not what it is for. <see cref="Initialize" /> is called once by the scheduler factory
+/// before the pool is used; <see cref="WaitForAvailableThreads" /> is what the scheduling loop asks to
+/// size its next batch of triggers; <see cref="TryRun" /> is how every firing reaches a thread;
+/// <see cref="PoolSize" /> is what <c>SchedulerMetadata.ThreadPoolSize</c> reports;
+/// <see cref="Shutdown" /> ends the pool; and <see cref="Drain" /> is the same ending with a deadline,
+/// which <see cref="Shutdown" /> cannot express. Removing any of them removes a thing the scheduler
+/// does, not a spelling of a thing it already does.
+/// </para>
+/// <para>
+/// Only <see cref="Drain" /> has a default implementation, and that is because it arrived after the
+/// others: a pool written against the earlier interface is left correct rather than fast.
+/// </para>
+/// </remarks>
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>

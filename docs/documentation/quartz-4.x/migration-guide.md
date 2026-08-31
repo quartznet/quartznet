@@ -159,7 +159,7 @@ before the first run:
 
 | Setting | Default | What it decides |
 |---|---|---|
-| `QuartzAspireSettings.ProvisionSchema` | unset — `SchemaProvisioning.CreateIfMissing` under `Development`, the `Validate` default in every other environment | Whether the store creates whatever its schema is missing as it starts. `true` creates in every environment and `false` in none; a `SchemaProvisioning` the application set on the store itself is kept either way. See [`PerformSchemaValidation` became `SchemaProvisioning`](#performschemavalidation-became-schemaprovisioning-which-has-a-third-position) |
+| `QuartzAspireSettings.SchemaProvisioning` | unset — `SchemaProvisioning.CreateIfMissing` under `Development`, nothing said in every other environment | What the store does about its schema as it starts, in the same three-valued vocabulary `AdoJobStoreOptions.SchemaProvisioning` uses. Naming a value applies it in every environment; a `SchemaProvisioning` the application set on the store itself is kept either way. See [`PerformSchemaValidation` became `SchemaProvisioning`](#performschemavalidation-became-schemaprovisioning-which-has-a-third-position) |
 
 ### The health check is in `Quartz`, not `Quartz.AspNetCore`
 
@@ -176,7 +176,7 @@ This is a break between one 4.0 alpha and the next — through `4.0.0-alpha.3` e
 | Member | Through alpha.3 | From alpha.4 |
 |---|---|---|
 | `QuartzHealthCheckOptions` | `Quartz.AspNetCore` | `Quartz` |
-| `IServiceCollection.AddQuartzHealthChecks(Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
+| `IHealthChecksBuilder.AddQuartz(Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
 | `IQuartzBuilder.AddQuartzHealthChecks(Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
 | `IHealthChecksBuilder.AddQuartz(Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
 | `IHealthChecksBuilder.AddQuartz(string, Action<QuartzHealthCheckOptions>?)` | `QuartzAspNetCoreConfigurationExtensions` | `QuartzHealthCheckExtensions` |
@@ -1220,6 +1220,28 @@ reaching for one of them. Each had a reason that the container now covers direct
 | `IsSupportedConfigurationKey(string)` | set `quartz.checkConfiguration` to `false` to allow keys of your own |
 | `LoadType(string?)` | `ITypeLoader`, selected with `UseTypeLoader<T>()` |
 | `ValidateConfiguration()` (3.x) | `quartz.checkConfiguration` for the keys, and `IValidateOptions<T>` for the typed options |
+
+## The builder surface says each thing once
+
+Three members were spellings of a member beside them, and the audit that found them ruled on the rest
+of their families at the same time — the reasoning lives on the members, and `AGENTS.md` lists the sets
+that were counted and left alone.
+
+| Removed | Say it with |
+|---|---|
+| `IScheduler.ScheduleJob(IJobDetail, ITrigger, CancellationToken)` and `ScheduleJob(ITrigger, CancellationToken)` | the surviving overloads, which took `ScheduleJobOptions options` without a default only because these two made one ambiguous. `options` now defaults, so `ScheduleJob(job, trigger)` still compiles — but a **token passed positionally** no longer does, and is a compile error rather than a silent change: write `ScheduleJob(job, trigger, cancellationToken: token)` |
+| `IServiceCollection.AddQuartzHealthChecks(Action<QuartzHealthCheckOptions>?)` | `services.AddHealthChecks().AddQuartz(configure)`, which is what it forwarded to. `IQuartzBuilder.AddQuartzHealthChecks()` stays: a scheduler's builder knows which scheduler the check is for, so it is the one receiver that carries information the ratified form would make you repeat |
+| `JobBuilder<TJob>.OfType(string typeName)` | `OfType((JobType) typeName)`. The `string` → `JobType` conversion is **explicit** on purpose — a name is taken unvalidated and fails at the first use of `JobType.Type` — and a method taking the string directly hid the leap the cast exists to show |
+
+`ScheduleJob`'s store path is now chosen by `ScheduleJobOptions.Replace` rather than by which overload
+was called: not replacing goes through `IJobStore.ScheduleJob` exactly as before, so that member keeps
+its caller and a store's span and metric names for the ordinary call are unchanged, while replacing
+still goes through `IJobStore.ScheduleJobs` because over-writing a job and its trigger has to be one
+operation under one lock. An explicit `new ScheduleJobOptions()` therefore takes the plain path now,
+which is the same store outcome and the better span name.
+
+`QuartzAspireSettings.ProvisionSchema` became `SchemaProvisioning`, of type `SchemaProvisioning?` — see
+the [`Quartz.Aspire` is new](#quartz-aspire-is-new) settings table.
 
 ## The standalone builder is the same builder
 
@@ -2909,10 +2931,11 @@ services.AddHealthChecks()
     .AddQuartz("Reporting");
 ```
 
-`services.AddQuartzHealthChecks()` still works and is now shorthand for
-`services.AddHealthChecks().AddQuartz()`. A named scheduler can also ask for its own check from inside
-`AddQuartz`, and it reports on *its* scheduler rather than the default one; either way it is named
-`quartz-scheduler-<scheduler name>` unless you say otherwise:
+`services.AddQuartzHealthChecks()` is gone; the health-checks builder is the receiver, and
+`services.AddHealthChecks().AddQuartz()` is the same call with the composition made visible. A named
+scheduler can also ask for its own check from inside `AddQuartz`, and it reports on *its* scheduler
+rather than the default one; either way it is named `quartz-scheduler-<scheduler name>` unless you say
+otherwise:
 
 ```csharp
 services.AddQuartz("Reporting", q => q.AddQuartzHealthChecks(options => options.Tags.Add("ready")));
@@ -2942,7 +2965,7 @@ gone and each half is called by its own name:
 
 - services.AddQuartzServer(options => options.WaitForJobsToComplete = true);
 + services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
-+ services.AddQuartzHealthChecks();
++ services.AddHealthChecks().AddQuartz();
 ```
 
 Both halves live in the core `Quartz` package, so an application replacing `AddQuartzServer` needs no
@@ -2959,7 +2982,7 @@ The health-check overload that took `IEnumerable<string> healthCheckTags` is gon
 
 ```diff
 - services.AddQuartzServer(configure, healthCheckTags: ["ready", "live"]);
-+ services.AddQuartzHealthChecks(options => options.Tags.AddRange(["ready", "live"]));
++ services.AddHealthChecks().AddQuartz(options => options.Tags.AddRange(["ready", "live"]));
 ```
 
 ## The OpenAPI calendar schema names the properties the payload actually uses
@@ -10230,7 +10253,7 @@ Parameters and behavior are unchanged:
 | `AddQuartzHostedService(string schedulerName, …)` added | `QuartzHostedServiceOptions` are named options; the unnamed call still configures every scheduler |
 | `QuartzHostedServiceOptions.AutoStart` added | Defaults to `true`, so nothing changes for an existing application. `false` has the scheduler resolved, initialized and bound but left in `Created` for the application to start, and the health check reports it degraded rather than unhealthy — see [A hosted scheduler can be started by the application](#a-hosted-scheduler-can-be-started-by-the-application) |
 | `IQuartzBuilder.AddHttpApi` / `MapQuartzApi` renamed | `services.AddQuartzHttpApi()` / `MapQuartzHttpApi`, the first of them on the service collection rather than a scheduler's builder; `AddQuartzHealthChecks` gained an `IQuartzBuilder` overload, which it keeps because a health check really is one scheduler's |
-| The health check is added on `IHealthChecksBuilder` | `AddHealthChecks().AddQuartz()` / `.AddQuartz("reporting")`, so it composes with an application's other checks. `AddQuartzHealthChecks()` is shorthand for the first — see [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once) |
+| The health check is added on `IHealthChecksBuilder` | `AddHealthChecks().AddQuartz()` / `.AddQuartz("reporting")`, so it composes with an application's other checks. `IServiceCollection.AddQuartzHealthChecks()` was shorthand for the first and is gone; `IQuartzBuilder.AddQuartzHealthChecks()` stays, because a scheduler's builder knows which scheduler the check is for — see [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once) |
 | The health check ships in `Quartz` | It was in `Quartz.AspNetCore` through `4.0.0-alpha.3`, whose `FrameworkReference` a worker on a `dotnet/runtime` image cannot satisfy. No call site changes; drop the package reference if the check was the only reason for it — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
 | `QuartzHealthCheckOptions` goes through the options pipeline | It was constructed and read inside the registration call, so `services.Configure<QuartzHealthCheckOptions>(...)` did nothing. `Name` is nullable and defaults to the scheduler's check name |
 | `QuartzHealthCheckOptions.Tags` is a get-only `List<string>` | It was a settable `IReadOnlyCollection<string>`. Add to it — `options.Tags.AddRange(["ready", "live"])` — rather than assigning; one `configure` callback can no longer discard the tags another added — see [A shipped component is configured through its options type, and only there](#a-shipped-component-is-configured-through-its-options-type-and-only-there) |
@@ -10252,7 +10275,7 @@ Parameters and behavior are unchanged:
 | `CronExpression.Clone()` removed | The type is sealed and immutable, so a copy was an allocation and nothing else — reuse the instance. See [`CronExpression` is immutable](#cronexpression-is-immutable) |
 | `IJobExecutionContext.Put` / `.Get` removed | The volatile per-execution side-map had no reader in Quartz and no way for its two ends to find each other but a shared string. A job talking to its listeners sets `Result`, whose type the two agree on between themselves; state that must survive the execution belongs in `JobDataMap`. `JobExecutionContextImpl` is public, so this is a class-member removal too |
 | `JobDataMap`'s sixty typed accessors removed | One set of extension members does the same job — see [`JobDataMap`'s typed accessors are extension members](#jobdatamap-s-typed-accessors-are-extension-members) |
-| `Quartz.AspNetCore.AddQuartzServer` removed | `AddQuartzHostedService` starts the scheduler and `AddQuartzHealthChecks` registers the check — see [`AddQuartzServer` is `AddQuartzHostedService`](#addquartzserver-is-addquartzhostedservice) |
+| `Quartz.AspNetCore.AddQuartzServer` removed | `AddQuartzHostedService` starts the scheduler and `AddHealthChecks().AddQuartz()` registers the check — see [`AddQuartzServer` is `AddQuartzHostedService`](#addquartzserver-is-addquartzhostedservice) |
 | `ISchedulerFactory.GetScheduler(name)` is `LookupScheduler(name)` | Two members named `GetScheduler` differed only in nullability. `GetScheduler()` builds this factory's scheduler and cannot return null; `LookupScheduler(name)` looks one up in the container's repository and can, which is what the verb now says. `Lookup` matches `ISchedulerRepository.Lookup` |
 | `TriggerUtils` became `Quartz.Extensibility.TriggerFireTimes` | A fire-time calculator over `IOperableTrigger`, named for what it computes; the three `Compute*` methods shortened with it — see [`TriggerUtils` became `TriggerFireTimes`](#triggerutils-became-triggerfiretimes) |
 | `TimeZoneUtil` became `Quartz.TimeZones` | `FindTimeZoneById` — now `FindById` — and the wall-clock `GetUtcOffset` are scheduling API, not utilities — see [`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones) |

@@ -177,25 +177,13 @@ internal sealed class DeferredScheduler : IScheduler
         return built is null ? default : built.DisposeAsync();
     }
 
-    public async ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
-    {
-        var target = await Resolve(cancellationToken).ConfigureAwait(false);
-        return await target.ScheduleJob(jobDetail, trigger, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    public async ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.ScheduleJob(jobDetail, trigger, options, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, CancellationToken cancellationToken = default)
-    {
-        var target = await Resolve(cancellationToken).ConfigureAwait(false);
-        return await target.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
-    }
-
-    public async ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options, CancellationToken cancellationToken = default)
+    public async ValueTask<DateTimeOffset> ScheduleJob(ITrigger trigger, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
         return await target.ScheduleJob(trigger, options, cancellationToken).ConfigureAwait(false);

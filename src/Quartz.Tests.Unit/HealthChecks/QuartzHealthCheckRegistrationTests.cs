@@ -12,7 +12,7 @@ public class QuartzHealthCheckRegistrationTests
     public void WithoutConfigurationRegistersDefaultHealthCheck()
     {
         ServiceCollection services = new();
-        services.AddQuartzHealthChecks();
+        services.AddHealthChecks().AddQuartz();
 
         HealthCheckRegistration registration = GetQuartzRegistration(services, "quartz-scheduler");
         registration.Tags.Should().BeEmpty();
@@ -23,7 +23,7 @@ public class QuartzHealthCheckRegistrationTests
     public void WithConfigurationAppliesNameTagsAndFailureStatus()
     {
         ServiceCollection services = new();
-        services.AddQuartzHealthChecks(options =>
+        services.AddHealthChecks().AddQuartz(options =>
         {
             options.Name = "quartz";
             options.Tags.AddRange(["ready", "live"]);
@@ -85,7 +85,7 @@ public class QuartzHealthCheckRegistrationTests
     {
         ServiceCollection services = new();
         services.Configure<QuartzHealthCheckOptions>(options => options.Tags.Add("before"));
-        services.AddQuartzHealthChecks(options => options.FailureStatus = HealthStatus.Degraded);
+        services.AddHealthChecks().AddQuartz(options => options.FailureStatus = HealthStatus.Degraded);
         services.Configure<QuartzHealthCheckOptions>(options => options.Name = "renamed");
 
         HealthCheckRegistration registration = GetQuartzRegistration(services, "renamed");
@@ -102,7 +102,7 @@ public class QuartzHealthCheckRegistrationTests
     {
         ServiceCollection services = new();
         services.AddQuartz("reporting", q => q.AddQuartzHealthChecks());
-        services.AddQuartzHealthChecks();
+        services.AddHealthChecks().AddQuartz();
 
         services.Configure<QuartzHealthCheckOptions>("reporting", options => options.Tags.Add("reporting-only"));
 

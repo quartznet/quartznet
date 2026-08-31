@@ -219,7 +219,7 @@ public sealed class AdoCancellationSqliteTest
             .StartAt(DateTimeOffset.UtcNow.AddYears(1))
             .Build();
 
-        return scheduler.ScheduleJob(job, trigger, cancellationToken).AsTask();
+        return scheduler.ScheduleJob(job, trigger, cancellationToken: cancellationToken).AsTask();
     }
 
     private async Task<SchedulerHandle> BuildScheduler()

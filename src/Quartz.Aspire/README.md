@@ -67,9 +67,9 @@ builder.AddQuartzPersistentStore("quartz", settings =>
 | `Provider` | inferred | Which ADO.NET driver reaches the database |
 | `SchedulerName` | every scheduler | Which scheduler this store belongs to |
 | `TablePrefix` | `QRTZ_` | The prefix on the Quartz table names |
-| `ProvisionSchema` | unset | Whether the store creates whatever its schema is missing as it starts |
+| `SchemaProvisioning` | unset | What the store does about its schema as it starts |
 | `Clustered` | `false` | Whether this scheduler joins a cluster on the database, deriving an instance id to do it with |
-| `DisableHealthChecks` | `false` | Leaves `AddQuartzHealthChecks()` unregistered |
+| `DisableHealthChecks` | `false` | Leaves the scheduler's health check unregistered |
 | `DisableTracing` | `false` | Leaves the `Quartz` activity source unsubscribed |
 | `DisableMetrics` | `false` | Leaves the `Quartz` meter unsubscribed |
 
@@ -106,8 +106,8 @@ A name Quartz ships no description for works there too — it selects the generi
 Under `Development` the store creates whatever its schema is missing as it starts, because an AppHost's
 database container comes up empty whenever its volume is new. Everywhere else it validates the schema and
 creates nothing, because creating tables needs DDL permission a production account is usually right not to
-hold. `ProvisionSchema` set to `true` or `false` says it outright, and a `SchemaProvisioning` the
-application set on the store itself is kept either way.
+hold. `SchemaProvisioning` names one of the store option's three values to say it outright, and a
+`SchemaProvisioning` the application set on the store itself is kept either way.
 
 Nothing migrates a schema, here or anywhere else. In production apply it the way you would apply an Entity
 Framework Core migration — a small project the worker waits for with `WaitForCompletion` — from the scripts

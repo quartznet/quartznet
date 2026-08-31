@@ -65,6 +65,15 @@ namespace Quartz;
 /// <seealso cref="TriggerBuilder" />
 /// <seealso cref="DateBuilder" />
 /// <seealso cref="IJobDetail" />
+/// <remarks>
+/// This companion class exists so that <see cref="Create{T}" /> can infer nothing and be told
+/// everything: <c>JobBuilder&lt;TJob&gt;</c> is generic in the job type, so a factory declared on it
+/// would have to be written <c>JobBuilder&lt;MyJob&gt;.Create()</c> — naming the type twice on the
+/// non-generic path and reading as a static member of the very thing being created. The schedule
+/// builders carry their own <c>Create</c> because none of them is generic and none of them has that
+/// problem. The split is therefore forced rather than untidy, and aligning either side of it would make
+/// one of them worse; <see cref="TriggerBuilder" /> is the same shape for the same reason.
+/// </remarks>
 public static class JobBuilder
 {
     /// <summary>
@@ -281,24 +290,21 @@ public sealed class JobBuilder<[DynamicallyAccessedMembers(JobTypeMembers.Requir
     }
 
     /// <summary>
-    /// Set the JobType by name
-    /// </summary>
-    /// <param name="typeName">the Type name</param>
-    /// <returns>the updated JobBuilder</returns>
-    [RequiresUnreferencedCode(JobType.NamedTypeIsNotGuaranteedToSurviveTrimming)]
-    public JobBuilder<TJob> OfType(string typeName)
-    {
-        _jobType = new JobType(typeName);
-        return this;
-    }
-
-    /// <summary>
     /// Set the job type to one that already knows how to resolve the name it carries.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A name read back out of a job store may be spelled the way an older Quartz wrote it, and only the
     /// scheduler's type loader knows what such a spelling means today. Handing the resolution over
     /// rather than the resolved type keeps the stored name as it was stored.
+    /// </para>
+    /// <para>
+    /// This is also where a bare name goes: <c>OfType((JobType) name)</c>. There is deliberately no
+    /// <c>OfType(string)</c>, because the cast is <see langword="explicit" /> precisely so that
+    /// accepting an unvalidated name — one whose resolution is deferred to the first use of
+    /// <see cref="JobType.Type" />, and whose failure surfaces there — is visible at the call that made
+    /// the leap.
+    /// </para>
     /// </remarks>
     /// <param name="jobType">the job type, with whatever resolution it was constructed with</param>
     /// <returns>the updated JobBuilder</returns>
