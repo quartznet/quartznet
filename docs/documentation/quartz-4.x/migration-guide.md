@@ -3837,6 +3837,41 @@ overwritten; `executionGroup`, `timesTriggered` and `recurrenceRule` are read fr
 A test in `Quartz.Tests.AspNetCore` now compares the stand-in against the property names a trigger of each
 built-in type actually serializes to, in both directions, so the schema cannot quietly fall behind again.
 
+## The ADO.NET store is a store, not a base class
+
+`AdoJobStoreBase`, `LocalTransactionJobStore`, `ExternalTransactionJobStore` and
+`AdoJobStoreDependencies` are internal. They still do exactly what they did — `quartz.jobStore.type =
+Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz` resolves and constructs the same store, and so
+do the `JobStoreTX` and `JobStoreCMT` spellings the bridge translates — but the hierarchy is no longer
+something to derive from. That takes 162 members and roughly a hundred `protected` hooks out of the
+contract, which was the largest single thing in it and the least used.
+
+The reason is that deriving from it was never the seam it looked like. Every `protected` member below
+the two abstract ones is the connection-taking twin of the public member above it — `AddJob(conn, …)`
+beside `AddJob(job, …)` — because the public one takes the lock and the twin does the work. Overriding
+one of those changes half of an operation.
+
+**The seam for a relational database Quartz does not ship a dialect for is, and always was, the driver
+delegate.** `IDriverDelegate`, `StdAdoDelegate` and the six shipped dialects are unchanged and stay
+public, as do `ITriggerPersistenceDelegate`, `ILockHandler`, `IDbProvider`, `AdoConstants`,
+`ConnectionAndTransactionHolder` and every record they name — `TriggerAcquisitionCriteria`,
+`TriggerAcquireResult`, `MisfiredTriggerBatch`, `SchedulerStateRecord` and the rest are delegate
+contract rather than store internals, and were never candidates for this. See
+[A Driver Delegate for a New Database](how-tos/dialect-delegate.md).
+
+**If you derived from `JobStoreSupport`, `JobStoreTX` or `JobStoreCMT` on 3.x**, or from
+`AdoJobStoreBase` on a 4.0 alpha, there are four answers depending on what the override did:
+
+| What the override did | What to do now |
+|---|---|
+| Narrowed acquisition — `CreateAcquisitionCriteria`, `MaxCount`, `ExcludedJobTypeNames` | Derive from `DelegatingJobStore` and rewrite the request: `base.AcquireNextTriggers(request with { MaxCount = …, ExcludedJobTypeNames = … })`. `TriggerAcquisitionRequest` is a record and the store copies both fields straight into its delegate criteria, so the exclusion is still applied in SQL rather than after the read |
+| Added logging, metrics, tenant routing, fault injection | `DelegatingJobStore`, which is what it was always for — every member is `virtual`. See [A Job Store of Your Own](how-tos/custom-job-store.md) |
+| Classified one more of a driver's failures as retryable | `AdoJobStoreOptions.IsTransient`, a predicate consulted before the built-in list. See [What counts as transient](operations.md#what-counts-as-transient) |
+| Changed *how a transaction is managed* | Implement `IJobStore`, which is public and stays public. If your transaction model is one the two shipped stores nearly fit, [open an issue](https://github.com/quartznet/quartznet/issues) — that is a gap worth hearing about rather than working around |
+
+`RecoverMisfiredJobsResult` went with them; it was the return type of a `protected` method and nothing
+else.
+
 ## Sealed and Internalized Types
 
 Many types have been sealed and/or internalized to minimize the API surface that needs to be maintained. If you were extending a type that is now sealed or internal, file an issue to request it be reopened.
@@ -6419,9 +6454,17 @@ settings arrive as strings, which for this store they no longer do.
 
 ### `AdoJobStoreBase`'s overridable surface is a decision now
 
+::: warning
+This section describes an intermediate state. The curation below happened first; then the whole
+hierarchy went internal, so none of it is a seam any more — see
+[The ADO.NET store is a store, not a base class](#the-ado-net-store-is-a-store-not-a-base-class) for
+what replaced each of these. It is kept because it explains what the store now does *not* offer, and
+why that was never much of a loss.
+:::
+
 The base store had 56 `protected virtual` members — every internal step of every operation was an
-override point, which 4.0 would have frozen as a behavior contract by default. The seam is curated
-instead. What stays overridable is what derived stores demonstrably use:
+override point, which 4.0 would have frozen as a behavior contract by default. The seam was curated
+instead, down to what derived stores demonstrably used:
 
 * **Lifecycle** — `Initialize` and `Shutdown` (the two shipped stores override both).
 * **Connections and transactions** — `GetConnection`, `GetLocalTransactionConnection` and
@@ -6602,7 +6645,8 @@ back anything it had taken before the exception escapes:
 
 ## A job store of your own can join your transaction
 
-`AdoJobStoreBase` is public and abstract, but everything needed to honour an enlisted transaction was
+`AdoJobStoreBase` was public and abstract at the time, but everything needed to honour an enlisted
+transaction was
 `private protected`, so a store outside this assembly could not take part in one — it could only open a
 connection of its own while the caller believed the scheduling was inside their transaction.
 
@@ -6634,8 +6678,8 @@ for a store that borrows a connection from somewhere else entirely. Owning nothi
 nothing — `Commit`, `Rollback`, `Close` and `Dispose` all return without touching a borrowed connection.
 
 `Commit(bool)` and `Rollback(bool)` are internal: when the unit of work commits is the job store's
-decision, and `AdoJobStoreBase.CommitConnection` / `.RollbackConnection` are the seams a subclass
-overrides. `Close` stays public.
+decision, and the ADO.NET store makes it. `Close` stays public, for the store that borrowed the
+connection and has to give it back.
 
 ## The driver delegate speaks in records
 
@@ -10156,6 +10200,8 @@ namespace, and `Type.Member` for the second one.
 
 | 3.x type | What happened | What to use instead |
 |---|---|---|
+| `Quartz.Impl.AdoJobStore.AdoJobStoreBase` (3.x `JobStoreSupport`) | Internal | `IJobStore` for a store of your own, `DelegatingJobStore` to wrap one, `IDriverDelegate` for a database with no shipped dialect — see [The ADO.NET store is a store, not a base class](#the-ado-net-store-is-a-store-not-a-base-class) |
+| `Quartz.Impl.AdoJobStore.AdoJobStoreDependencies` | Internal | Nothing; it existed so a derived store could chain one constructor argument, and there is no derived store — as above |
 | `Quartz.Impl.AdoJobStore.AdoJobStoreUtil` | Internal | Nothing; it built statement text, which is not a contract — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
 | `Quartz.AdoProviderExtensions` | Renamed `PersistentStoreBuilderExtensions` | Same `Use*` methods, extending `IPersistentStoreBuilder` instead of `SchedulerBuilder.PersistentStoreOptions`. Two of them swapped meaning — see [The SQLite extension methods swapped names](#the-sqlite-extension-methods-swapped-names) |
 | `Quartz.SchedulerBuilder.AdoProviderOptions` | Removed | `DataSourceOptions` — see [A data source is defined, referred to, or handed over](#a-data-source-is-defined-referred-to-or-handed-over) |
@@ -10167,6 +10213,9 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Listener.BroadcastTriggerListener` | Removed | As above |
 | `Quartz.CalendarIntervalTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.SchedulerBuilder.ClusterOptions` | Removed | `ClusteringOptions` — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
+| `Quartz.Impl.AdoJobStore.ExternalTransactionJobStore` (3.x `JobStoreCMT`) | Internal | Unchanged as a configuration string; `quartz.jobStore.type` still names it — see [The ADO.NET store is a store, not a base class](#the-ado-net-store-is-a-store-not-a-base-class) |
+| `Quartz.Impl.AdoJobStore.LocalTransactionJobStore` (3.x `JobStoreTX`) | Internal | As above |
+| `Quartz.Impl.AdoJobStore.RecoverMisfiredJobsResult` | Internal | Nothing; it was a `protected` method's return type |
 | `Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory` | Internal | The metadata factory on `UseGenericDatabase` |
 | `Quartz.CronScheduleTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.DailyTimeIntervalTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |

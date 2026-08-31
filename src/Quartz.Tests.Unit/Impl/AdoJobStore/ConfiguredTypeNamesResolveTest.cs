@@ -152,8 +152,12 @@ public sealed class ConfiguredTypeNamesResolveTest
 
         container.GetRequiredService<IDriverDelegate>().Should().BeOfType<MyDatabaseDelegate>();
 
-        typeof(MyDatabaseDelegate).Assembly.GetCustomAttributes<InternalsVisibleToAttribute>()
-            .Should().BeEmpty("a friend of Quartz would prove nothing about what the public kit can build");
+        typeof(IScheduler).Assembly.GetCustomAttributes<InternalsVisibleToAttribute>()
+            .Select(grant => grant.AssemblyName.Split(',')[0])
+            .Should().NotContain(typeof(MyDatabaseDelegate).Assembly.GetName().Name,
+                "the samples project's second job is to be the compile-time proof that the delegate "
+                + "kit is complete, and one InternalsVisibleTo grant would end that quietly — the "
+                + "samples would go on compiling and would stop meaning anything");
     }
 
     /// <summary>
