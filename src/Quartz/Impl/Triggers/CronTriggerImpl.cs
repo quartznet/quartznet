@@ -427,7 +427,13 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
 
     public override IScheduleBuilder GetScheduleBuilder()
     {
-        CronScheduleBuilder cb = CronScheduleBuilder.Create(CronExpressionString!).InTimeZone(TimeZone);
+        // The trigger is already holding the parsed, immutable expression, and its time zone is that
+        // expression's, so handing the instance over says everything passing the string back through the
+        // parser said - without parsing anything. A trigger with no expression keeps the ArgumentException
+        // that naming a null expression has always produced here.
+        CronScheduleBuilder cb = cronEx is not null
+            ? CronScheduleBuilder.Create(cronEx)
+            : CronScheduleBuilder.Create(CronExpressionString!);
 
         CronTriggerMisfireInstruction instruction = MisfireInstruction;
         if (Enum.IsDefined(instruction))

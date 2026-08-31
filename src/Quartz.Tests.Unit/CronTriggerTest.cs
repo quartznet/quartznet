@@ -207,6 +207,28 @@ public class CronTriggerTest
     }
 
     [Test]
+    public void ShouldGetScheduleBuilderWithoutParsingTheExpressionAgain()
+    {
+        CronTriggerImpl trigger = new CronTriggerImpl("name", "group", "0 0 12 * * ?");
+
+        CronTriggerImpl rebuilt = (CronTriggerImpl) trigger.GetScheduleBuilder().Build();
+
+        rebuilt.CronExpression.Should().BeSameAs(trigger.CronExpression,
+            "the trigger is already holding the parsed, immutable expression, so rebuilding its schedule hands that instance over rather than sending the string back through the parser");
+    }
+
+    [Test]
+    public void ShouldRefuseToGetAScheduleBuilderWithoutAnExpression()
+    {
+        CronTriggerImpl trigger = new CronTriggerImpl();
+
+        Action act = () => trigger.GetScheduleBuilder();
+
+        act.Should().Throw<ArgumentException>(
+            "a trigger that has never been given an expression has no schedule to hand back, which is what naming a null expression has always said");
+    }
+
+    [Test]
     public void TriggerWithBothStartAndEndDatesInPastShouldNotSchedule()
     {
         DateTimeOffset startDate = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);

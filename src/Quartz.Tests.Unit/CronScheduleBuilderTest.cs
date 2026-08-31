@@ -72,6 +72,23 @@ public class CronScheduleBuilderTest
     }
 
     [Test]
+    public void ParsesTheExpressionOnce()
+    {
+        const string Expression = "0 20 10 ? * *";
+
+        // Both measurements are of a warm path: the first call through either one pays for JIT and for
+        // whatever the parser caches, and neither is what this is counting.
+        CronScheduleBuilder.Create(Expression);
+        _ = new CronExpression(Expression);
+
+        long oneParse = Allocated(static () => _ = new CronExpression(Expression));
+        long create = Allocated(static () => CronScheduleBuilder.Create(Expression));
+
+        create.Should().BeLessThan(oneParse + oneParse / 2,
+            "Create validated the expression by constructing one it threw away and then constructed the one it keeps, so every WithCronSchedule(string) parsed its expression twice - and two parses cannot fit under one and a half");
+    }
+
+    [Test]
     public void CarriesTheTimeZoneOntoTheTrigger()
     {
         TimeZoneInfo timeZone = TestTimeZones.CentralEuropean;
@@ -153,5 +170,12 @@ public class CronScheduleBuilderTest
             .Build();
 
         trigger.MisfireInstructionCode.Should().Be(stored);
+    }
+
+    private static long Allocated(Action action)
+    {
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        action();
+        return GC.GetAllocatedBytesForCurrentThread() - before;
     }
 }

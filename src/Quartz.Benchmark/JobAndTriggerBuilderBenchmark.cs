@@ -28,6 +28,17 @@ public class JobAndTriggerBuilderBenchmark
 
     private const string Group = "bench";
 
+    private ITrigger cronTrigger = null!;
+
+    [GlobalSetup(Target = nameof(ReadCronScheduleBackOffTrigger))]
+    public void BuildTheTriggerToReadBack()
+    {
+        cronTrigger = TriggerBuilder.Create()
+            .WithIdentity("trigger-read-back", Group)
+            .WithCronSchedule(CronSchedule)
+            .Build();
+    }
+
     [Benchmark]
     public IJobDetail BuildJobDetail()
     {
@@ -54,6 +65,16 @@ public class JobAndTriggerBuilderBenchmark
             .WithIdentity("trigger-build", Group)
             .WithCronSchedule(CronSchedule)
             .Build();
+    }
+
+    /// <summary>
+    /// Taking a cron trigger's schedule back off it, which is the first thing every reschedule does -
+    /// <c>ITrigger.GetTriggerBuilder</c> is this call plus the trigger's identity.
+    /// </summary>
+    [Benchmark]
+    public IScheduleBuilder ReadCronScheduleBackOffTrigger()
+    {
+        return cronTrigger.GetScheduleBuilder();
     }
 
     private sealed class NoOpJob : IJob
