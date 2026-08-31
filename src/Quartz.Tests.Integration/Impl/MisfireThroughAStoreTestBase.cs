@@ -233,7 +233,7 @@ public abstract class MisfireThroughAStoreTestBase
         trigger.ComputeFirstFireTimeUtc(calendar);
         trigger.NextFireTimeUtc = scheduledFireTimeUtc;
 
-        await store.Store.AddTrigger(trigger, replace: false);
+        await store.Store.AddTrigger(trigger);
         return trigger;
     }
 

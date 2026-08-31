@@ -104,43 +104,43 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.ScheduleJob(s.job, s.trigger, s.cancellationToken));
     }
 
-    public override ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default)
+    public override ValueTask AddJob(IJobDetail job, AddJobOptions options = default, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.AddJob);
         if (!operation.IsRecording)
         {
-            return InnerJobStore.AddJob(job, replace, cancellationToken);
+            return InnerJobStore.AddJob(job, options, cancellationToken);
         }
 
         operation.Job(job.Key).Start();
-        return Complete(operation, (InnerJobStore, job, replace, cancellationToken),
-            static s => s.InnerJobStore.AddJob(s.job, s.replace, s.cancellationToken));
+        return Complete(operation, (InnerJobStore, job, options, cancellationToken),
+            static s => s.InnerJobStore.AddJob(s.job, s.options, s.cancellationToken));
     }
 
-    public override ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public override ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.ScheduleJobs);
         if (!operation.IsRecording)
         {
-            return InnerJobStore.ScheduleJobs(triggersAndJobs, replace, cancellationToken);
+            return InnerJobStore.ScheduleJobs(triggersAndJobs, options, cancellationToken);
         }
 
         operation.Start();
-        return Complete(operation, (InnerJobStore, triggersAndJobs, replace, cancellationToken),
-            static s => s.InnerJobStore.ScheduleJobs(s.triggersAndJobs, s.replace, s.cancellationToken));
+        return Complete(operation, (InnerJobStore, triggersAndJobs, options, cancellationToken),
+            static s => s.InnerJobStore.ScheduleJobs(s.triggersAndJobs, s.options, s.cancellationToken));
     }
 
-    public override ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default)
+    public override ValueTask AddTrigger(IOperableTrigger trigger, AddTriggerOptions options = default, CancellationToken cancellationToken = default)
     {
         StoreOperation operation = Begin(OperationName.JobStore.AddTrigger);
         if (!operation.IsRecording)
         {
-            return InnerJobStore.AddTrigger(trigger, replace, cancellationToken);
+            return InnerJobStore.AddTrigger(trigger, options, cancellationToken);
         }
 
         operation.Trigger(trigger.Key).Start();
-        return Complete(operation, (InnerJobStore, trigger, replace, cancellationToken),
-            static s => s.InnerJobStore.AddTrigger(s.trigger, s.replace, s.cancellationToken));
+        return Complete(operation, (InnerJobStore, trigger, options, cancellationToken),
+            static s => s.InnerJobStore.AddTrigger(s.trigger, s.options, s.cancellationToken));
     }
 
     public override ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = default, CancellationToken cancellationToken = default)

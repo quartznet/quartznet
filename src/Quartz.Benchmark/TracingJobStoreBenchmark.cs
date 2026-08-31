@@ -47,8 +47,8 @@ public class TracingJobStoreBenchmark
         await decorated.Initialize(identity);
 
         IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job", "group").Build();
-        await bare.AddJob(job, true);
-        await inner.AddJob(job, true);
+        await bare.AddJob(job, AddJobOptions.Replacing);
+        await inner.AddJob(job, AddJobOptions.Replacing);
 
         trigger = (IOperableTrigger) TriggerBuilder.Create()
             .ForJob(job)
@@ -95,7 +95,7 @@ public class TracingJobStoreBenchmark
     {
         for (int i = 0; i < 10_000; i++)
         {
-            await bare.AddTrigger(trigger, true);
+            await bare.AddTrigger(trigger, AddTriggerOptions.Replacing);
         }
     }
 
@@ -104,7 +104,7 @@ public class TracingJobStoreBenchmark
     {
         for (int i = 0; i < 10_000; i++)
         {
-            await decorated.AddTrigger(trigger, true);
+            await decorated.AddTrigger(trigger, AddTriggerOptions.Replacing);
         }
     }
 

@@ -397,7 +397,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask AddJob(IJobDetail newJob, bool replace, CancellationToken cancellationToken = default)
+        public ValueTask AddJob(IJobDetail newJob, AddJobOptions options = default, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -407,12 +407,12 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+        public ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask AddTrigger(IOperableTrigger newTrigger, bool replace, CancellationToken cancellationToken = default)
+        public ValueTask AddTrigger(IOperableTrigger newTrigger, AddTriggerOptions options = default, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

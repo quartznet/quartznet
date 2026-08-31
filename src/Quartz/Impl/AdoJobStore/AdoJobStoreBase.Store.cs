@@ -48,16 +48,13 @@ public abstract partial class AdoJobStoreBase
     /// Stores the given <see cref="IJobDetail" />.
     /// </summary>
     /// <param name="job">The <see cref="IJobDetail" /> to be stored.</param>
-    /// <param name="replace">
-    ///     If <see langword="true" />, any <see cref="IJob" /> existing in the
-    ///     <see cref="IJobStore" /> with the same name &amp; group should be over-written.
-    /// </param>
+    /// <param name="options">How to store it; see <see cref="IJobStore.AddJob" />.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public async ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask AddJob(IJobDetail job, AddJobOptions options = default, CancellationToken cancellationToken = default)
     {
         await ExecuteInLock(
-            LockOnInsert || replace ? SchedulerLock.TriggerAccess : null,
-            conn => AddJob(conn, job, replace, cancellationToken),
+            LockOnInsert || options.Replace ? SchedulerLock.TriggerAccess : null,
+            conn => AddJob(conn, job, options.Replace, cancellationToken),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -104,21 +101,17 @@ public abstract partial class AdoJobStoreBase
     /// Store the given <see cref="ITrigger" />.
     /// </summary>
     /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
-    /// <param name="replace">
-    ///     If <see langword="true" />, any <see cref="ITrigger" /> existing in
-    ///     the <see cref="IJobStore" /> with the same name &amp; group should
-    ///     be over-written.
-    /// </param>
+    /// <param name="options">How to store it; see <see cref="IJobStore.AddTrigger" />.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="ObjectAlreadyExistsException">
-    /// if a <see cref="ITrigger" /> with the same name/group already
-    /// exists, and replace is set to false.
+    /// if a <see cref="ITrigger" /> with the same name/group already exists, and
+    /// <see cref="AddTriggerOptions.Replace" /> was not asked for.
     /// </exception>
-    public async ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask AddTrigger(IOperableTrigger trigger, AddTriggerOptions options = default, CancellationToken cancellationToken = default)
     {
         await ExecuteInLock(
-            LockOnInsert || replace ? SchedulerLock.TriggerAccess : null,
-            conn => AddTrigger(conn, trigger, null, replace, StoredTriggerState.Waiting, false, false, cancellationToken),
+            LockOnInsert || options.Replace ? SchedulerLock.TriggerAccess : null,
+            conn => AddTrigger(conn, trigger, null, options.Replace, StoredTriggerState.Waiting, false, false, cancellationToken),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -346,10 +339,10 @@ public abstract partial class AdoJobStoreBase
             }, cancellationToken);
     }
 
-    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
         await ExecuteInLock(
-            LockOnInsert || replace ? SchedulerLock.TriggerAccess : null, async conn =>
+            LockOnInsert || options.Replace ? SchedulerLock.TriggerAccess : null, async conn =>
             {
                 // A job and its triggers at a time, on purpose rather than for want of a bulk insert:
                 // AddTrigger is a read-decide-write — does the row exist, is its group paused, is its
@@ -360,10 +353,10 @@ public abstract partial class AdoJobStoreBase
                 {
                     var job = pair.Key;
                     var triggers = pair.Value;
-                    await AddJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
+                    await AddJob(conn, job, options.Replace, cancellationToken).ConfigureAwait(false);
                     foreach (var trigger in triggers)
                     {
-                        await AddTrigger(conn, trigger, job, replace, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
+                        await AddTrigger(conn, trigger, job, options.Replace, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }, cancellationToken).ConfigureAwait(false);

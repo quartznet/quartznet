@@ -86,7 +86,7 @@ public abstract class ConcurrentMisfireRecoveryTestBase : ClusteredJobStoreTestB
             .StoreDurably()
             .Build();
 
-        await nodeA.AddJob(job, replace: true);
+        await nodeA.AddJob(job, AddJobOptions.Replacing);
 
         for (int i = 0; i < TriggerCount; i++)
         {
@@ -94,7 +94,7 @@ public abstract class ConcurrentMisfireRecoveryTestBase : ClusteredJobStoreTestB
             trigger.ComputeFirstFireTimeUtc(null);
             trigger.NextFireTimeUtc = scheduled;
 
-            await nodeA.AddTrigger(trigger, replace: true);
+            await nodeA.AddTrigger(trigger, AddTriggerOptions.Replacing);
         }
 
         (await CountTriggersDueAt(scheduled)).Should().Be(TriggerCount,

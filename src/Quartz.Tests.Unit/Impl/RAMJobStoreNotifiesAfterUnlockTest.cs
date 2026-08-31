@@ -151,7 +151,7 @@ public sealed class RAMJobStoreNotifiesAfterUnlockTest
             "the trigger that does the blocking has to be handed over before it can fire").Subject;
 
         SimpleTriggerImpl blocked = Trigger(OverdueKey.Name, MisfiringJobKey, Now.AddHours(-1), OverdueKey.Group);
-        await store.AddTrigger(blocked, replace: false);
+        await store.AddTrigger(blocked);
 
         await store.TriggersFired([firing]);
 
@@ -278,10 +278,9 @@ public sealed class RAMJobStoreNotifiesAfterUnlockTest
             .StoreDurably()
             .Build();
 
-        await store.AddJob(job, replace: false);
+        await store.AddJob(job);
         await store.AddTrigger(
-            Trigger(OverdueKey.Name, MisfiringJobKey, Now.AddHours(-1), OverdueKey.Group),
-            replace: false);
+            Trigger(OverdueKey.Name, MisfiringJobKey, Now.AddHours(-1), OverdueKey.Group));
     }
 
     private async Task GivenATriggerToPauseFromTheListener()
@@ -292,10 +291,9 @@ public sealed class RAMJobStoreNotifiesAfterUnlockTest
             .StoreDurably()
             .Build();
 
-        await store.AddJob(job, replace: false);
+        await store.AddJob(job);
         await store.AddTrigger(
-            Trigger(OtherKey.Name, OtherJobKey, Now.AddHours(1), OtherKey.Group),
-            replace: false);
+            Trigger(OtherKey.Name, OtherJobKey, Now.AddHours(1), OtherKey.Group));
     }
 
     private SimpleTriggerImpl Trigger(string name, JobKey jobKey, DateTimeOffset startAt, string group = "triggers")

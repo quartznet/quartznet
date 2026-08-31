@@ -96,14 +96,14 @@ public class DelegatingJobStore : IJobStore
         return jobStore.ScheduleJob(job, trigger, cancellationToken);
     }
 
-    public virtual ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default)
+    public virtual ValueTask AddJob(IJobDetail job, AddJobOptions options = default, CancellationToken cancellationToken = default)
     {
-        return jobStore.AddJob(job, replace, cancellationToken);
+        return jobStore.AddJob(job, options, cancellationToken);
     }
 
-    public virtual ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public virtual ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default)
     {
-        return jobStore.ScheduleJobs(triggersAndJobs, replace, cancellationToken);
+        return jobStore.ScheduleJobs(triggersAndJobs, options, cancellationToken);
     }
 
     public virtual ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -126,9 +126,9 @@ public class DelegatingJobStore : IJobStore
         return jobStore.GetJob(jobKey, cancellationToken);
     }
 
-    public virtual ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default)
+    public virtual ValueTask AddTrigger(IOperableTrigger trigger, AddTriggerOptions options = default, CancellationToken cancellationToken = default)
     {
-        return jobStore.AddTrigger(trigger, replace, cancellationToken);
+        return jobStore.AddTrigger(trigger, options, cancellationToken);
     }
 
     public virtual ValueTask<bool> DeleteTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)

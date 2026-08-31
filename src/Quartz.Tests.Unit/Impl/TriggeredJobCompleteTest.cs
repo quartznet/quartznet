@@ -218,7 +218,7 @@ public sealed class TriggeredJobCompleteTest
         // FireNow on a one-shot: the missed firing is owed, so the policy hands the trigger back due
         // now rather than due in the past.
         IOperableTrigger blocked = CreateOverdueOneShot("blocked", job, clock, SimpleTriggerMisfireInstruction.FireNow);
-        await store.AddTrigger(blocked, replace: false);
+        await store.AddTrigger(blocked);
 
         (await store.GetTriggerState(blocked.Key)).Should().Be(TriggerState.Blocked,
             "a trigger added while the job is already running is blocked as it arrives");
@@ -248,7 +248,7 @@ public sealed class TriggeredJobCompleteTest
         // Reschedule to the next firing after now, of which a one-shot whose only firing was missed
         // has none: the policy writes the missed firing off and leaves the trigger finished.
         IOperableTrigger blocked = CreateOverdueOneShot("blocked", job, clock, SimpleTriggerMisfireInstruction.NextWithRemainingCount);
-        await store.AddTrigger(blocked, replace: false);
+        await store.AddTrigger(blocked);
 
         await store.TriggeredJobComplete(firing, job, SchedulerInstruction.NoInstruction);
 
@@ -718,7 +718,7 @@ public sealed class TriggeredJobCompleteTest
         await store.ScheduleJob(job, triggers[0]);
         for (int i = 1; i < triggers.Length; i++)
         {
-            await store.AddTrigger(triggers[i], replace: false);
+            await store.AddTrigger(triggers[i]);
         }
 
         List<IOperableTrigger> acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest

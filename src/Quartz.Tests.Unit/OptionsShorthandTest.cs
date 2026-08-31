@@ -1,5 +1,7 @@
+using Quartz.Extensibility;
 using Quartz.Impl.Calendar;
 using Quartz.Jobs;
+using Quartz.Tests;
 
 namespace Quartz.Tests.Unit;
 
@@ -15,6 +17,7 @@ public sealed class OptionsShorthandTest
         AddJobOptions.Replacing.Should().Be(new AddJobOptions { Replace = true },
             "the shorthand is the initializer, so it must not quietly set the other flag as well");
         ScheduleJobOptions.Replacing.Should().Be(new ScheduleJobOptions { Replace = true });
+        AddTriggerOptions.Replacing.Should().Be(new AddTriggerOptions { Replace = true });
         AddCalendarOptions.Replacing.Should().Be(new AddCalendarOptions { Replace = true });
         AddCalendarOptions.ReplacingAndUpdatingTriggers.Should().Be(new AddCalendarOptions { Replace = true, UpdateTriggers = true });
     }
@@ -102,6 +105,38 @@ public sealed class OptionsShorthandTest
         {
             await scheduler.Shutdown(waitForJobsToComplete: false);
         }
+    }
+
+    /// <summary>
+    /// <see cref="AddTriggerOptions" /> has no scheduler-level call site — a trigger reaches a scheduler
+    /// through <c>ScheduleJob</c> — so its shorthand is exercised where it is used, on the store.
+    /// </summary>
+    [Test]
+    public async Task AddTriggerReplacing_OverwritesTheStoredTrigger()
+    {
+        IJobStore store = TestJobStores.Ram();
+        await store.Initialize(TestJobStores.Identity());
+        await store.AddJob(Job("owner"));
+
+        await store.AddTrigger(OperableTrigger("first"), AddTriggerOptions.Replacing);
+        await store.AddTrigger(OperableTrigger("second"), AddTriggerOptions.Replacing);
+
+        IOperableTrigger stored = await store.GetTrigger(new TriggerKey("nightly"));
+        stored.Description.Should().Be("second", "AddTriggerOptions.Replacing carries Replace = true to the store");
+
+        Func<Task> withoutTheOption = async () => await store.AddTrigger(OperableTrigger("third"));
+        await withoutTheOption.Should().ThrowAsync<ObjectAlreadyExistsException>(
+            "the default options replace nothing, so the shorthand is what made the two calls above work");
+    }
+
+    private static IOperableTrigger OperableTrigger(string description)
+    {
+        return (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("nightly")
+            .ForJob("compaction")
+            .WithDescription(description)
+            .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+            .Build();
     }
 
     private static IJobDetail Job(string description)

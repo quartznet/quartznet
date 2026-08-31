@@ -47,23 +47,23 @@ public class TriggerAcquisitionAttemptBenchmark
         // Nothing due for a day, which is what an idle scheduler's store looks like.
         idleStore = TestJobStores.Ram();
         await idleStore.Initialize(TestJobStores.Identity());
-        await idleStore.AddJob(job, false);
+        await idleStore.AddJob(job);
         for (int i = 0; i < IdleTriggerCount; i++)
         {
-            await idleStore.AddTrigger(Trigger("idle" + i, job, TimeProvider.System.GetUtcNow().AddDays(1)), false);
+            await idleStore.AddTrigger(Trigger("idle" + i, job, TimeProvider.System.GetUtcNow().AddDays(1)));
         }
 
         singleStore = TestJobStores.Ram();
         await singleStore.Initialize(TestJobStores.Identity());
-        await singleStore.AddJob(job, false);
-        await singleStore.AddTrigger(Trigger("due", job, fireTime: null), false);
+        await singleStore.AddJob(job);
+        await singleStore.AddTrigger(Trigger("due", job, fireTime: null));
 
         batchStore = TestJobStores.Ram();
         await batchStore.Initialize(TestJobStores.Identity());
-        await batchStore.AddJob(job, false);
+        await batchStore.AddJob(job);
         for (int i = 0; i < 10; i++)
         {
-            await batchStore.AddTrigger(Trigger("due" + i, job, fireTime: null), false);
+            await batchStore.AddTrigger(Trigger("due" + i, job, fireTime: null));
         }
     }
 

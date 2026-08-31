@@ -116,13 +116,16 @@ public interface IJobStore
     /// Store the given <see cref="IJobDetail" />.
     /// </summary>
     /// <param name="job">The <see cref="IJobDetail" /> to be stored.</param>
-    /// <param name="replace">
-    ///     If <see langword="true" />, any <see cref="IJob" /> existing in the
-    ///     <see cref="IJobStore" /> with the same name and group should be
-    ///     over-written.
+    /// <param name="options">
+    ///     How to store it. <see cref="AddJobOptions.Replace" /> over-writes a job already stored
+    ///     under the same key; without it, storing one whose key exists throws
+    ///     <see cref="ObjectAlreadyExistsException" />.
+    ///     <see cref="AddJobOptions.StoreNonDurableWhileAwaitingScheduling" /> is a scheduler-level
+    ///     rule that <see cref="IScheduler" /> has already applied by the time the store is called, so
+    ///     a store neither reads it nor has anything to do about it.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default);
+    ValueTask AddJob(IJobDetail job, AddJobOptions options = default, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Store all the given jobs with their related triggers.
@@ -132,13 +135,14 @@ public interface IJobStore
     ///     like the rest of the store contract — the scheduler validates and downcasts the caller's
     ///     triggers before they reach the store.
     /// </param>
-    /// <param name="replace">
-    ///     If <see langword="true" />, any <see cref="IJob" /> or <see cref="ITrigger" /> existing in
-    ///     the <see cref="IJobStore" /> with the same key should be over-written.
+    /// <param name="options">
+    ///     How to store them. <see cref="ScheduleJobOptions.Replace" /> over-writes any job or trigger
+    ///     already stored under one of the same keys; without it, a key that exists throws
+    ///     <see cref="ObjectAlreadyExistsException" /> and none of the batch is stored.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>  ObjectAlreadyExistsException </throws>
-    ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default);
+    ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, ScheduleJobOptions options = default, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="IJob" /> with the given
@@ -209,12 +213,14 @@ public interface IJobStore
     /// Store the given <see cref="ITrigger" />.
     /// </summary>
     /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
-    /// <param name="replace">If <see langword="true" />, any <see cref="ITrigger" /> existing in
-    ///     the <see cref="IJobStore" /> with the same name and group should
-    ///     be over-written.</param>
+    /// <param name="options">
+    ///     How to store it. <see cref="AddTriggerOptions.Replace" /> over-writes a trigger already
+    ///     stored under the same key; without it, storing one whose key exists throws
+    ///     <see cref="ObjectAlreadyExistsException" />.
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>  ObjectAlreadyExistsException </throws>
-    ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default);
+    ValueTask AddTrigger(IOperableTrigger trigger, AddTriggerOptions options = default, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="ITrigger" /> with the given key.

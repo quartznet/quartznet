@@ -134,7 +134,7 @@ public sealed class TracingJobStoreTest
         IJobStore store = await Decorated(TestJobStores.Ram());
 
         IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job", "jobs").Build();
-        await store.AddJob(job, replace: false);
+        await store.AddJob(job);
 
         Activity span = SpanFor(OperationName.JobStore.AddJob);
 
@@ -350,9 +350,9 @@ public sealed class TracingJobStoreTest
             .ForJob(jobKey).WithIdentity(triggerKey).StartNow().Build();
 
         await store.ScheduleJob(job, trigger);
-        await store.ScheduleJobs(new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>(), replace: false);
-        await store.AddJob(job, replace: true);
-        await store.AddTrigger(trigger, replace: true);
+        await store.ScheduleJobs(new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>());
+        await store.AddJob(job, AddJobOptions.Replacing);
+        await store.AddTrigger(trigger, AddTriggerOptions.Replacing);
         await store.AddCalendar("calendar", new Quartz.Impl.Calendar.BaseCalendar());
         await store.DeleteJob(jobKey);
         await store.DeleteJobs([jobKey]);

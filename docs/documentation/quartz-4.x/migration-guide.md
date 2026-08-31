@@ -7210,9 +7210,9 @@ if you only call `IScheduler`, nothing here affects you.
 | `IJobStore` in 3.x | `IJobStore` in 4.x |
 |---|---|
 | `StoreJobAndTrigger(job, trigger)` | `ScheduleJob(job, trigger)` |
-| `StoreJobsAndTriggers(triggersAndJobs, replace)` | `ScheduleJobs(triggersAndJobs, replace)` |
-| `StoreJob(job, replaceExisting)` | `AddJob(job, replace)` |
-| `StoreTrigger(trigger, replaceExisting)` | `AddTrigger(trigger, replace)` |
+| `StoreJobsAndTriggers(triggersAndJobs, replace)` | `ScheduleJobs(triggersAndJobs, ScheduleJobOptions?)` |
+| `StoreJob(job, replaceExisting)` | `AddJob(job, AddJobOptions?)` |
+| `StoreTrigger(trigger, replaceExisting)` | `AddTrigger(trigger, AddTriggerOptions?)` |
 | `RemoveJob(key)`, `RemoveJobs(keys)` | `DeleteJob(key)`, `DeleteJobs(keys)` |
 | `RemoveTrigger(key)`, `RemoveTriggers(keys)` | `DeleteTrigger(key)`, `DeleteTriggers(keys)` |
 | `RetrieveJob(key)` | `GetJob(key)` |
@@ -7223,9 +7223,12 @@ if you only call `IScheduler`, nothing here affects you.
 | `ClearAllSchedulingData()` | `Clear()` |
 | `AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits)` | `AcquireNextTriggers(TriggerAcquisitionRequest)` |
 
-The `bool` that decides whether an existing item is over-written is called `replace` on every member; it was
-`replaceExisting` on some. The `protected` `AdoJobStoreBase` members that mirror these — the
-`ConnectionAndTransactionHolder` overloads, and `AcquireNextTrigger` — were renamed with them.
+3.x spelled the flag that decides whether an existing item is over-written `replaceExisting` on some members
+and `replace` on others. 4.x has no flag on any of them: each takes the same options record `IScheduler`
+does — see [The store takes the same options](#the-store-takes-the-same-options). The `protected`
+`AdoJobStoreBase` members that mirror these — the `ConnectionAndTransactionHolder` overloads, and
+`AcquireNextTrigger` — were renamed with them and keep the `bool`, being the store's own machinery rather
+than its contract.
 
 The activity names in `Quartz.Diagnostics.OperationName.JobStore` follow the methods they name, so a trace
 filter matching `"Quartz.JobStore.StoreJob"` now needs `"Quartz.JobStore.AddJob"`, and so on for every row
@@ -7278,9 +7281,10 @@ taking an optional record whose defaults are the conservative choice (`Replace =
 [Five shorthands for the common case](#five-shorthands-for-the-common-case). The initializer stays the way to
 say anything else.
 
-`AddJobOptions` and `AddCalendarOptions` are both in the `Quartz` namespace. `IJobStore.AddCalendar` takes
-`AddCalendarOptions` too; `IJobStore.AddJob` keeps its single `bool replace`, because durability is a
-scheduler-level rule the store never sees.
+`AddJobOptions` and `AddCalendarOptions` are both in the `Quartz` namespace, and `IJobStore` takes them as
+well — see [The store takes the same options](#the-store-takes-the-same-options).
+`AddJobOptions.StoreNonDurableWhileAwaitingScheduling` is a scheduler-level rule that `IScheduler` has
+already applied by the time the store is called, so a store reads only `Replace`.
 
 Both are `readonly record struct`s, and the parameter is `AddJobOptions options = default` rather than
 `AddJobOptions? options = null`. The defaults already were the conservative choice, so `default` *is* what
@@ -7320,10 +7324,28 @@ also carries `StoreNonDurableWhileAwaitingScheduling`, which has no meaning here
 supplied, so the job is never awaiting scheduling — and its `Replace` is about the job alone, where this
 one covers the job *and* its triggers.
 
-This is the `IScheduler` convenience only. `IJobStore.AddJob`, `IJobStore.AddTrigger` and
-`IJobStore.ScheduleJobs` keep their `bool replace`: at the store level it is a single primitive with
-nothing to disambiguate it from. The HTTP API's `ScheduleJobsRequest` keeps its `Replace` property too;
-the endpoint adapts.
+The HTTP API's `ScheduleJobsRequest` keeps its `Replace` property; the endpoint adapts.
+
+### The store takes the same options
+
+`IJobStore` had the same inconsistency the scheduler did, and for longer: `AddCalendar` took an options
+record while `AddJob`, `AddTrigger` and `ScheduleJobs` took a bare `bool`, so one interface spelled one
+decision two ways. All four take a record now, and it is the *same* record the scheduler takes — a
+decorator forwarding a call passes the value through rather than unpacking and rebuilding it.
+
+| 3.x | 4.x |
+|---|---|
+| `store.StoreJob(job, replaceExisting: false)` | `store.AddJob(job)` |
+| `store.StoreJob(job, replaceExisting: true)` | `store.AddJob(job, AddJobOptions.Replacing)` |
+| `store.StoreTrigger(trigger, replaceExisting: true)` | `store.AddTrigger(trigger, AddTriggerOptions.Replacing)` |
+| `store.StoreJobsAndTriggers(batch, replace: true)` | `store.ScheduleJobs(batch, ScheduleJobOptions.Replacing)` |
+
+`AddTriggerOptions` is new, and carries `Replace` alone. It has one call site, because `IScheduler` has no
+`AddTrigger`: a trigger reaches a scheduler through `ScheduleJob`, and `IJobStore.AddTrigger` is the
+storage half of that.
+
+If you implement `IJobStore`, the three signatures change and the argument you already had is
+`options.Replace`. If you only call `IScheduler`, nothing here affects you.
 
 ## A component of your own can have options of its own
 
@@ -8906,7 +8928,7 @@ A literal expression is still the shortest thing to write when you have one:
 Replacing a family of static factories with a builder makes the unusual call sayable and the usual one
 longer. Five additions give the usual one its short spelling back: an interval overload of
 `WithSimpleSchedule`, `CronExpressionBuilder.AtTime`, `IScheduler.ScheduleJob<TJob>`, a named static on each
-of the three option records, and `TriggerBuilder<TJob>.Key`. All are additive — nothing they shorten stopped
+of the four option records, and `TriggerBuilder<TJob>.Key`. All are additive — nothing they shorten stopped
 working, and the longer form is still what to reach for the moment the call needs more than the shorthand
 says.
 
@@ -8918,6 +8940,7 @@ says.
 | `scheduler.ScheduleJob(JobBuilder.Create<TJob>().WithIdentity(trigger.Key.Name, trigger.Key.Group).Build(), trigger)` | `scheduler.ScheduleJob<TJob>(trigger)` |
 | `new AddJobOptions { Replace = true }` | `AddJobOptions.Replacing` |
 | `new ScheduleJobOptions { Replace = true }` | `ScheduleJobOptions.Replacing` |
+| `new AddTriggerOptions { Replace = true }` | `AddTriggerOptions.Replacing` |
 | `new AddCalendarOptions { Replace = true }` | `AddCalendarOptions.Replacing` |
 | `new AddCalendarOptions { Replace = true, UpdateTriggers = true }` | `AddCalendarOptions.ReplacingAndUpdatingTriggers` |
 
@@ -10067,41 +10090,42 @@ having gone wrong.
 
 Derived the same mechanical way as the tables above: types in the 4.x `Quartz` namespace that are in the
 3.x `Quartz` namespace of none of `Quartz`, `Quartz.Extensions.DependencyInjection` or
-`Quartz.Extensions.Hosting`. **Ninety-three names.** A project that also referenced
+`Quartz.Extensions.Hosting`. **Ninety-four names.** A project that also referenced
 `Quartz.Serialization.SystemTextJson` on 3.x already had `JsonSerializationException`.
 
 ```text
-AddCalendarOptions                  AddJobOptions                              AdoJobStoreOptions
-AndMatcher<T>                       CalendarIntervalTriggerMisfireInstruction  CalendarNameMatcher
-CalendarQuery                       ClusteringOptions                          ClusterNode
-ClusterNodeState                    CronTriggerMisfireInstruction              DailyTimeIntervalTriggerMisfireInstruction
-DataMapExtensions                   DataSourceOptions                          EverythingMatcher<T>
-ExecutionGroupInFlight              ExecutionGroupLimit                        ExecutionGroupScope
-ExecutionLimitsBuilder              ExecutionLimitScope                        ExecutionSlots
-FireInstance                        FireInstanceQuery                          FireInstanceState
-GroupMatcher<T>                     IJob<T>                                    IJobConfigurator<T>
-IJobExecutionContextAccessor        IJobExecutionMiddleware                    InMemoryJobStoreOptions
-IPersistentStoreBuilder             IQuartzBuilder                             ISchedulerRegistry
-ITriggerConfigurator<T>             JobBuilder<T>                              JobDetailExtensions
-JobExecutionContextInputExtensions  JobExecutionDelegate                       JobExecutionProcessException
-JobGroup                            JobGroupQuery                              JobHeader
-JobInputBuilderExtensions           JobInstantiationException                  JobQuery
-JobType                             JsonSerializationException                 Key<T>
-KeyMatcher<T>                       Matchers                                   MonthDay
-NameMatcher<T>                      NotMatcher<T>                              OneOffJobOptions
-OrMatcher<T>                        PagedQuery                                 PagedResult<T>
-PersistentStoreBuilderExtensions    PreferredNode                              QuartzBuilderExtensions
-QuartzHealthCheckExtensions         QuartzHealthCheckOptions                   QuartzHostApplicationBuilderExtensions
-QuartzSchedulerBuilder              QuartzSchedulerOptions                     RecurrenceTriggerMisfireInstruction
-RetryPolicy                         ScheduleJobOptions                         SchedulerErrorContext
-SchedulerJobExtensions              SchedulerMetadata                          SchedulerOrigin
-SchedulerQueryExtensions            SchedulerRegistration                      SchedulerStatus
-SchedulingDataValidationException   SchemaProvisioning                         ShutdownJobInterruption
-SimpleTriggerMisfireInstruction     StandaloneSchedulerFactory                 StringMatcher<T>
-StringOperator                      SystemTextJsonConfigurationExtensions      ThreadPoolOptions
-TimeRange                           TimeZones                                  TriggerBuilder<T>
-TriggerConfiguratorExtensions       TriggerGroup                               TriggerGroupQuery
-TriggerHeader                       TriggerQuery                               TypeLoaderOptions
+AddCalendarOptions                          AddJobOptions                       AddTriggerOptions
+AdoJobStoreOptions                          AndMatcher<T>                       CalendarIntervalTriggerMisfireInstruction
+CalendarNameMatcher                         CalendarQuery                       ClusterNode
+ClusterNodeState                            ClusteringOptions                   CronTriggerMisfireInstruction
+DailyTimeIntervalTriggerMisfireInstruction  DataMapExtensions                   DataSourceOptions
+EverythingMatcher<T>                        ExecutionGroupInFlight              ExecutionGroupLimit
+ExecutionGroupScope                         ExecutionLimitScope                 ExecutionLimitsBuilder
+ExecutionSlots                              FireInstance                        FireInstanceQuery
+FireInstanceState                           GroupMatcher<T>                     IJob<T>
+IJobConfigurator<T>                         IJobExecutionContextAccessor        IJobExecutionMiddleware
+IPersistentStoreBuilder                     IQuartzBuilder                      ISchedulerRegistry
+ITriggerConfigurator<T>                     InMemoryJobStoreOptions             JobBuilder<T>
+JobDetailExtensions                         JobExecutionContextInputExtensions  JobExecutionDelegate
+JobExecutionProcessException                JobGroup                            JobGroupQuery
+JobHeader                                   JobInputBuilderExtensions           JobInstantiationException
+JobQuery                                    JobType                             JsonSerializationException
+Key<T>                                      KeyMatcher<T>                       Matchers
+MonthDay                                    NameMatcher<T>                      NotMatcher<T>
+OneOffJobOptions                            OrMatcher<T>                        PagedQuery
+PagedResult<T>                              PersistentStoreBuilderExtensions    PreferredNode
+QuartzBuilderExtensions                     QuartzHealthCheckExtensions         QuartzHealthCheckOptions
+QuartzHostApplicationBuilderExtensions      QuartzSchedulerBuilder              QuartzSchedulerOptions
+RecurrenceTriggerMisfireInstruction         RetryPolicy                         ScheduleJobOptions
+SchedulerErrorContext                       SchedulerJobExtensions              SchedulerMetadata
+SchedulerOrigin                             SchedulerQueryExtensions            SchedulerRegistration
+SchedulerStatus                             SchedulingDataValidationException   SchemaProvisioning
+ShutdownJobInterruption                     SimpleTriggerMisfireInstruction     StandaloneSchedulerFactory
+StringMatcher<T>                            StringOperator                      SystemTextJsonConfigurationExtensions
+ThreadPoolOptions                           TimeRange                           TimeZones
+TriggerBuilder<T>                           TriggerConfiguratorExtensions       TriggerGroup
+TriggerGroupQuery                           TriggerHeader                       TriggerQuery
+TypeLoaderOptions
 ```
 
 Most of those are unmistakably Quartz's. These are the ones a host application or an integration library

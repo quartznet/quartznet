@@ -27,7 +27,7 @@ public class UpdateTriggerDetailsTest
             .StoreDurably(true)
             .Build();
 
-        await jobStore.AddJob(jobDetail, false);
+        await jobStore.AddJob(jobDetail);
     }
 
     [Test]
@@ -36,7 +36,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
@@ -58,7 +58,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
@@ -79,7 +79,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
@@ -112,7 +112,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
         await jobStore.PauseTrigger(trigger.Key);
 
         (await jobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused);
@@ -133,8 +133,8 @@ public class UpdateTriggerDetailsTest
 
         trigger1.ComputeFirstFireTimeUtc(null);
         trigger2.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger1, false);
-        await jobStore.AddTrigger(trigger2, false);
+        await jobStore.AddTrigger(trigger1);
+        await jobStore.AddTrigger(trigger2);
 
         await jobStore.UpdateTriggerDetails(trigger2.Key, new TriggerDetailsUpdate().WithPriority(10));
 
@@ -152,7 +152,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         Assert.ThrowsAsync<JobPersistenceException>(async () =>
             await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithCalendarName("nonexistent")));
@@ -167,7 +167,7 @@ public class UpdateTriggerDetailsTest
         trigger.ComputeFirstFireTimeUtc(null);
 
         await jobStore.AddCalendar("myCal", new BaseCalendar());
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         bool result = await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithCalendarName(null));
 
@@ -184,7 +184,7 @@ public class UpdateTriggerDetailsTest
         trigger.ComputeFirstFireTimeUtc(null);
 
         await jobStore.AddCalendar("myCal", new BaseCalendar());
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         bool result = await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithCalendarName(""));
 
@@ -198,7 +198,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         (await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate())).Should().BeTrue();
     }
@@ -209,7 +209,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
@@ -235,7 +235,7 @@ public class UpdateTriggerDetailsTest
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy;
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
@@ -253,7 +253,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         TriggerDetailsUpdate update = new TriggerDetailsUpdate()
             .WithMisfireInstructionCode((int) CronTriggerMisfireInstruction.DoNothing);
@@ -271,7 +271,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         // Code 2 is in range for a cron trigger, so TriggerBase's own validation passes it and
         // the trigger silently becomes DoNothing. Only the update object knows a simple trigger's
@@ -325,7 +325,7 @@ public class UpdateTriggerDetailsTest
         trigger.MisfireInstructionCode.Should().Be(MisfireInstruction.SmartPolicy,
             "the fixture needs a trigger whose instruction the update would visibly change");
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
         return trigger;
     }
 
@@ -335,7 +335,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithMisfireInstruction(CronTriggerMisfireInstruction.FireAndProceed));
 
@@ -351,7 +351,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
@@ -371,7 +371,7 @@ public class UpdateTriggerDetailsTest
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ExecutionGroup = "heavy";
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         (await jobStore.GetTrigger(trigger.Key))!.ExecutionGroup.Should().Be("heavy");
 
@@ -387,7 +387,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
@@ -410,7 +410,7 @@ public class UpdateTriggerDetailsTest
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.RetryPolicy = RetryPolicy.Exponential(4, TimeSpan.FromSeconds(5));
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         (await jobStore.GetTrigger(trigger.Key))!.RetryPolicy.Should().NotBeNull();
 
@@ -428,7 +428,7 @@ public class UpdateTriggerDetailsTest
         trigger.RetryPolicy = RetryPolicy.Fixed(5, TimeSpan.FromSeconds(1));
         trigger.RetryAttempt = 2;
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         await jobStore.UpdateTriggerDetails(
             trigger.Key,
@@ -447,7 +447,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
@@ -468,7 +468,7 @@ public class UpdateTriggerDetailsTest
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.PreferredNode = PreferredNode.For("nodeA");
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         (await jobStore.GetTrigger(trigger.Key))!.PreferredNode.Should().Be(PreferredNode.For("nodeA"));
 
@@ -484,7 +484,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithPreferredNode(PreferredNode.Auto));
 
@@ -499,7 +499,7 @@ public class UpdateTriggerDetailsTest
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
-        await jobStore.AddTrigger(trigger, false);
+        await jobStore.AddTrigger(trigger);
 
         TriggerDetailsUpdate update = new TriggerDetailsUpdate()
             .WithDescription("pinned")

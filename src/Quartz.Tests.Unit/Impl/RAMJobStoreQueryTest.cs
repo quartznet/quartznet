@@ -177,7 +177,7 @@ public class RAMJobStoreQueryTest
             .UsingJobData("secret", "value")
             .Build();
 
-        await store.AddJob(job, replace: false);
+        await store.AddJob(job);
 
         PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery());
         JobHeader header = result.Items.Single();
@@ -236,7 +236,7 @@ public class RAMJobStoreQueryTest
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever())
             .Build();
         trigger.ComputeFirstFireTimeUtc(null);
-        await store.AddTrigger(trigger, replace: false);
+        await store.AddTrigger(trigger);
 
         var acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         acquired.Should().HaveCount(1);
@@ -273,7 +273,7 @@ public class RAMJobStoreQueryTest
             .Build();
 
         trigger.ComputeFirstFireTimeUtc(null);
-        await store.AddTrigger(trigger, replace: false);
+        await store.AddTrigger(trigger);
 
         PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery());
         TriggerHeader header = result.Items.Single();
@@ -310,7 +310,7 @@ public class RAMJobStoreQueryTest
         };
 
         custom.ComputeFirstFireTimeUtc(null);
-        await store.AddTrigger(custom, replace: false);
+        await store.AddTrigger(custom);
 
         PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery());
 
@@ -717,7 +717,7 @@ public class RAMJobStoreQueryTest
             .StoreDurably()
             .Build();
 
-        await store.AddJob(job, replace: false);
+        await store.AddJob(job);
         return job;
     }
 
@@ -743,7 +743,7 @@ public class RAMJobStoreQueryTest
     {
         IOperableTrigger trigger = (IOperableTrigger) builder.Build();
         trigger.ComputeFirstFireTimeUtc(null);
-        await store.AddTrigger(trigger, replace: false);
+        await store.AddTrigger(trigger);
         return trigger;
     }
 
