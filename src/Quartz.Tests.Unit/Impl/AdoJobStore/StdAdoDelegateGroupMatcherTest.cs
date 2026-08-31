@@ -300,7 +300,7 @@ public class StdAdoDelegateGroupMatcherTest
 
         await adoDelegate.UpdateTriggerStateFromOtherStates(conn, new TriggerKey("t1", "g1"), StoredTriggerState.Paused, states);
 
-        BoundOldStates().Should().BeEquivalentTo(states.Select(x => x.ToStoredValue()));
+        BoundOldStates().Should().BeEquivalentTo(states.Select(x => StoredTriggerStates.ToStoredValue(x)));
         command.CommandText.Split(" OR ").Should().HaveCount(stateCount, "the predicate is a disjunction over the set");
     }
 

@@ -697,7 +697,7 @@ public partial class StdAdoDelegate
             predicateBuilder.Append(query.State == FireInstanceState.Acquired
                 ? StdAdoConstants.SqlFireInstanceStateEqualsPredicate
                 : StdAdoConstants.SqlFireInstanceStateNotEqualsPredicate);
-            parameters.Add(new KeyValuePair<string, object?>("entryState", StoredTriggerState.Acquired.ToStoredValue()));
+            parameters.Add(new KeyValuePair<string, object?>("entryState", StoredTriggerStates.ToStoredValue(StoredTriggerState.Acquired)));
         }
 
         string predicate = predicateBuilder.ToString();

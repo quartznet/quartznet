@@ -56,7 +56,7 @@ public class StoredTriggerStateTest
     {
         foreach (string storedValue in storedValues)
         {
-            StoredTriggerStates.FromStoredValue(storedValue).ToStoredValue().Should().Be(storedValue,
+            StoredTriggerStates.ToStoredValue(StoredTriggerStates.FromStoredValue(storedValue)).Should().Be(storedValue,
                 "the value a state maps to has to be the one it was mapped from, or a stored row changes meaning");
         }
     }
@@ -92,7 +92,7 @@ public class StoredTriggerStateTest
     [Test]
     public void WritingAnUndefinedStateFailsLoudly()
     {
-        Action act = () => ((StoredTriggerState) 99).ToStoredValue();
+        Action act = () => StoredTriggerStates.ToStoredValue((StoredTriggerState) 99);
 
         act.Should().Throw<ArgumentOutOfRangeException>(
             "writing an unmapped state would put a value in the column that nothing can read back");

@@ -27,8 +27,16 @@ namespace Quartz.Impl.AdoJobStore;
 /// Translates between <see cref="StoredTriggerState" /> and the strings the trigger state columns hold.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A custom <see cref="IDriverDelegate" /> binds these values into its own statements, so both directions
 /// are public. The strings themselves stay on <see cref="AdoConstants" />, which is the schema contract.
+/// </para>
+/// <para>
+/// Both halves are plain static methods. <see cref="ToStoredValue" /> used to be an extension, which made
+/// the two directions of one mapping read as two different things — <c>state.ToStoredValue()</c> beside
+/// <c>StoredTriggerStates.FromStoredValue(value)</c> — and the asymmetry was not fixable from the other
+/// side, because <see cref="string" /> is not Quartz's to extend with a Quartz verb.
+/// </para>
 /// </remarks>
 public static class StoredTriggerStates
 {
@@ -36,7 +44,7 @@ public static class StoredTriggerStates
     /// The value the trigger state column holds for this state.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">The state is not a defined enum member.</exception>
-    public static string ToStoredValue(this StoredTriggerState state)
+    public static string ToStoredValue(StoredTriggerState state)
     {
         switch (state)
         {

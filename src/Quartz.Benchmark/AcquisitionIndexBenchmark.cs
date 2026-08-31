@@ -272,7 +272,7 @@ public class AcquisitionIndexBenchmark
         Dictionary<string, object?> parameters = new(StringComparer.Ordinal)
         {
             ["schedulerName"] = SchedulerName,
-            ["state"] = StoredTriggerState.Waiting.ToStoredValue(),
+            ["state"] = StoredTriggerStates.ToStoredValue(StoredTriggerState.Waiting),
             ["noLaterThan"] = NoLaterThan.UtcTicks,
             ["noEarlierThan"] = noEarlierThan.UtcTicks,
             ["instanceId"] = InstanceId,
