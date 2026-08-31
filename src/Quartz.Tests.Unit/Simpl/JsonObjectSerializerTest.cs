@@ -223,7 +223,7 @@ public class JsonObjectSerializerTest
                     original.Should().HaveCount(7);
                     deserialized.Should().HaveCount(7);
                     deserialized["key"].Should().Be(original["key"]);
-                    deserialized.GetDateTime("key2").Should().Be(original.GetDateTime("key2"));
+                    deserialized.Get<DateTime>("key2").Should().Be(original.Get<DateTime>("key2"));
                     deserialized["key3"].Should().Be(original["key3"]);
                     deserialized["key4"].Should().Be(original["key4"]);
                     deserialized["key5"].Should().Be(original["key5"]);

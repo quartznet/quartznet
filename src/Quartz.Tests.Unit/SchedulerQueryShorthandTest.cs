@@ -4,14 +4,16 @@ using Quartz.Jobs;
 namespace Quartz.Tests.Unit;
 
 /// <summary>
-/// The <c>Query*</c> shorthands on <see cref="SchedulerQueryExtensions" />: each one is the query
-/// member called with a query record the caller did not have to name.
+/// <see cref="SchedulerQueryExtensions.QueryTriggersInError" />, the one <c>Query*</c> shorthand
+/// that is a preset rather than a synonym, and
+/// <see cref="IScheduler.ResetTriggersFromErrorState(GroupMatcher{TriggerKey}, CancellationToken)" />,
+/// which names the same set and acts on it.
 /// </summary>
 /// <remarks>
-/// What is worth pinning is not that a shorthand compiles but that it keeps the member's contract —
-/// the same page size, the same filters, and in the reset companion's case the same effect on a
-/// trigger. A shorthand that quietly became unbounded, or that reset a trigger some other way, would
-/// be a different feature wearing a convenient name.
+/// What is worth pinning is not that either compiles but that they keep the member's contract — the
+/// same page size, the same filter, and the same effect on a trigger as resetting it by key. A
+/// preset that quietly became unbounded, or that reset a trigger some other way, would be a
+/// different feature wearing a convenient name.
 /// </remarks>
 [NonParallelizable]
 public class SchedulerQueryShorthandTest
@@ -30,78 +32,33 @@ public class SchedulerQueryShorthandTest
         await scheduler.Shutdown(waitForJobsToComplete: false);
     }
 
+    /// <summary>
+    /// The preset is the member called with one filter set and nothing else — in particular it takes
+    /// the query record's own page size rather than asking for everything, which is the trap
+    /// <see cref="PagedQuery.DefaultTake" /> exists to close and would be invisible until the store
+    /// was big.
+    /// </summary>
     [Test]
-    public async Task TheJobAndTriggerShorthandsListWhatTheQueryRecordWouldHave()
+    public async Task TheErrorPresetIsTheMemberWithTheOneFilterItKnows()
     {
         await Schedule("alpha", "j1", "t1");
         await Schedule("beta", "j2", "t2");
 
-        PagedResult<JobHeader> jobs = await scheduler.QueryJobs();
-        PagedResult<JobHeader> spelledOut = await scheduler.QueryJobs(new JobQuery());
+        PagedResult<TriggerHeader> page = await scheduler.QueryTriggersInError();
 
-        jobs.Items.Select(x => x.Key).Should().Equal(spelledOut.Items.Select(x => x.Key),
-            "the shorthand is the member with a query record that filters nothing");
-
-        PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers();
-
-        triggers.Items.Select(x => x.Key).Should().Equal(
-            [new TriggerKey("t1", "alpha"), new TriggerKey("t2", "beta")]);
-    }
-
-    /// <summary>
-    /// The shorthand takes the query record's default page size, not everything. A shorthand that
-    /// materialized the whole store would be the trap <see cref="PagedQuery.DefaultTake" /> exists to
-    /// close, and it would be invisible until the store was big.
-    /// </summary>
-    [Test]
-    public async Task TheShorthandsPageLikeTheMemberTheyCall()
-    {
-        for (int i = 0; i <= PagedQuery.DefaultTake; i++)
-        {
-            await scheduler.AddJob(JobBuilder.Create<NoOpJob>()
-                .WithIdentity($"job-{i:D4}", "bulk")
-                .StoreDurably()
-                .Build());
-        }
-
-        PagedResult<JobHeader> page = await scheduler.QueryJobs();
-
-        page.Items.Should().HaveCount(PagedQuery.DefaultTake);
-        page.HasMore.Should().BeTrue("the shorthand pages exactly as the member does");
+        page.Items.Should().BeEmpty(
+            "the two scheduled triggers are healthy, so the state filter reached the store rather than "
+            + "the preset listing everything");
+        page.HasMore.Should().BeFalse();
         page.TotalCount.Should().BeNull("a total count costs a second query and stays opt-in");
-    }
 
-    [Test]
-    public async Task TheFireInstanceShorthandsListWhatIsRunning()
-    {
-        GatedJob.Reset();
+        PagedResult<TriggerHeader> spelledOut = await scheduler.QueryTriggers(
+            new TriggerQuery { State = TriggerState.Error });
 
-        JobKey running = new("running", "gated");
-        await scheduler.ScheduleJob(
-            JobBuilder.Create<GatedJob>().WithIdentity(running).Build(),
-            TriggerBuilder.Create().WithIdentity("now", "gated").StartNow().Build());
+        page.Items.Select(x => x.Key).Should().Equal(spelledOut.Items.Select(x => x.Key));
 
-        await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("idle", "gated").StoreDurably().Build());
-
-        await scheduler.Start();
-        GatedJob.Started.Wait(TimeSpan.FromSeconds(30)).Should().BeTrue("the assertions are about a firing that exists");
-
-        try
-        {
-            PagedResult<FireInstance> everything = await scheduler.QueryFireInstances();
-            everything.Items.Should().ContainSingle()
-                .Which.JobKey.Should().Be(running, "the query record's own default state is Executing");
-
-            PagedResult<FireInstance> ofRunning = await scheduler.QueryFireInstancesOfJob(running);
-            ofRunning.Items.Should().ContainSingle().Which.JobKey.Should().Be(running);
-
-            PagedResult<FireInstance> ofIdle = await scheduler.QueryFireInstancesOfJob(new JobKey("idle", "gated"));
-            ofIdle.Items.Should().BeEmpty("a job that is not running has no firing to list");
-        }
-        finally
-        {
-            GatedJob.Release.Set();
-        }
+        PagedResult<TriggerHeader> unfiltered = await scheduler.QueryTriggers(new TriggerQuery());
+        unfiltered.Items.Should().HaveCount(2, "which is what the preset would have answered without its filter");
     }
 
     [Test]
@@ -212,26 +169,4 @@ public class SchedulerQueryShorthandTest
         public ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default) => default;
     }
 
-    /// <summary>
-    /// Runs until the test lets it go, so that a firing is observably in flight while the fire instance
-    /// listing is read.
-    /// </summary>
-    public sealed class GatedJob : IJob
-    {
-        public static readonly ManualResetEventSlim Started = new(false);
-        public static readonly ManualResetEventSlim Release = new(false);
-
-        public static void Reset()
-        {
-            Started.Reset();
-            Release.Reset();
-        }
-
-        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
-        {
-            Started.Set();
-            Release.Wait(TimeSpan.FromSeconds(30));
-            return default;
-        }
-    }
 }

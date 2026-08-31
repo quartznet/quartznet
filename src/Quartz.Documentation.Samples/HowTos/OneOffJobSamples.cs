@@ -115,14 +115,10 @@ public sealed class Invoicing
         ScheduledOneOffJob firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
             invoice,
             TimeSpan.FromDays(7),
-            new OneOffJobOptions
-            {
-                // Named, so it can be replaced or cancelled; grouped by the thing it is about, so the
-                // whole conversation can be cancelled at once.
-                Name = $"invoice-{invoice.CustomerId}",
-                Group = invoice.CustomerId,
-                Replace = true
-            },
+            // Named, so it can be replaced or cancelled; grouped by the thing it is about, so the
+            // whole conversation can be cancelled at once. Replacing(name) is the preset for the
+            // pair, because a firing with no name of its own has nothing to replace.
+            OneOffJobOptions.Replacing($"invoice-{invoice.CustomerId}") with { Group = invoice.CustomerId },
             cancellationToken);
 
         // What was arranged: the trigger's key, and when the store says it will first fire.
@@ -161,7 +157,7 @@ public sealed class InvoicingOnASchedule
         // built here: same job, same payload shape, one more trigger.
         ITrigger nightly = TriggerBuilder.Create<SendInvoiceJob>(scheduler.TimeProvider)
             .WithIdentity("nightly", "invoicing")
-            .ForJob(SchedulerJobExtensions.ScheduledJobKey<SendInvoiceJob>())
+            .ForJob(SchedulerConstants.ScheduledJobKey<SendInvoiceJob>())
             .WithCronSchedule("0 0 2 * * ?")
             .UsingInput(new SendInvoice("all", 0m))
             .Build();
@@ -185,7 +181,7 @@ public sealed class SendInvoiceCompatJob : IJob
         {
             invoice = new SendInvoice(
                 context.MergedJobDataMap.GetString("CustomerId")!,
-                context.MergedJobDataMap.GetDecimal("Amount"));
+                context.MergedJobDataMap.Get<decimal>("Amount"));
         }
 
         return Send(invoice, cancellationToken);

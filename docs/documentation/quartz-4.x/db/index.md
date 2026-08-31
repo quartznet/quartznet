@@ -16,8 +16,8 @@ When using an ADO.NET-based job store (the usual being `LocalTransactionJobStore
 | qrtz_blob_triggers | trigger table with a binary blob data storage |
 | qrtz_simple_triggers | data for very simple repeat triggers |
 | qrtz_simprop_triggers | Reusable table for custom triggers. `ICalendarIntervalTrigger`, `IDailyTimeIntervalTrigger`, and `IRecurrenceTrigger` use this |
-| qrtz_paused_trigger_grps | `IScheduler.PauseTriggers` data |
-| qrtz_paused_job_grps | `IScheduler.PauseJobs` data — one row per paused job group, so a group paused while it holds nothing is still reported as paused |
+| qrtz_paused_trigger_grps | `IScheduler.PauseTriggerGroups` data |
+| qrtz_paused_job_grps | `IScheduler.PauseJobGroups` data — one row per paused job group, so a group paused while it holds nothing is still reported as paused |
 
 The scripts to create these tables for various providers can be found [here](https://github.com/quartznet/quartznet/tree/main/database/tables).
 

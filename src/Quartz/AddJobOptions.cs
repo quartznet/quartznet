@@ -41,6 +41,18 @@ public readonly record struct AddJobOptions
     public static AddJobOptions Replacing => new() { Replace = true };
 
     /// <summary>
+    /// Store a job that is not durable while it waits for the trigger that will schedule it, and
+    /// over-write one already stored under the same key. The name for
+    /// <c>new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true }</c>.
+    /// </summary>
+    /// <remarks>
+    /// The pair is what "put this job in place, I will schedule it in a moment" needs, and the two
+    /// flags are only useful together: storing a non-durable job that must not be replaced fails the
+    /// second time the same start-up path runs, which is the one thing this shape exists to survive.
+    /// </remarks>
+    public static AddJobOptions ReplacingAndStoringNonDurable => new() { Replace = true, StoreNonDurableWhileAwaitingScheduling = true };
+
+    /// <summary>
     /// Whether an already stored job with the same key is over-written. When false, storing a job
     /// whose key already exists throws <see cref="ObjectAlreadyExistsException" />.
     /// </summary>

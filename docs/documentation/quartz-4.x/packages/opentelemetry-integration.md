@@ -43,13 +43,18 @@ Three kinds of span: the execution, the veto, and one per job store round trip.
 | `Quartz.Job.Veto` | `Internal` | A trigger listener vetoed the fire, so the job did not run. |
 | `Quartz.JobStore.<operation>` | `Client` | One per store operation. The twenty-nine names are the members of `Quartz.Diagnostics.OperationName.JobStore`. |
 
-The twenty-nine store operations are the ones that change something or hand work to the scheduler:
+The thirty-three store operations are the ones that change something or hand work to the scheduler:
 
 `AcquireNextTriggers`, `TriggersFired`, `TriggeredJobComplete`, `ReleaseAcquiredTrigger`, `ScheduleJob`,
 `ScheduleJobs`, `AddJob`, `AddTrigger`, `AddCalendar`, `DeleteJob`, `DeleteJobs`, `DeleteTrigger`,
 `DeleteTriggers`, `DeleteCalendar`, `ReplaceTrigger`, `UpdateTriggerDetails`, `PauseTrigger`,
-`PauseTriggers`, `PauseJob`, `PauseJobs`, `ResumeTrigger`, `ResumeTriggers`, `ResumeJob`, `ResumeJobs`,
+`PauseTriggers`, `PauseTriggerGroups`, `PauseJob`, `PauseJobs`, `PauseJobGroups`, `ResumeTrigger`,
+`ResumeTriggers`, `ResumeTriggerGroups`, `ResumeJob`, `ResumeJobs`, `ResumeJobGroups`,
 `PauseAll`, `ResumeAll`, `ResetTriggerFromErrorState`, `ResetTriggersFromErrorState`, `Clear`.
+
+Pausing by key and pausing by group matcher are separate spans, because they are separate operations:
+one moves the triggers it was given, the other records that a group is paused and catches what is
+added to it afterwards.
 
 Reads — `GetJob`, `Exists`, the `Query*` members — are deliberately not spans. A dashboard listing
 triggers would otherwise produce a span per page.

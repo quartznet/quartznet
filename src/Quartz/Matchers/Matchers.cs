@@ -27,6 +27,24 @@ namespace Quartz;
 /// are extension methods on any <see cref="IMatcher{TKey}" />, so an expression reads left to
 /// right:
 /// </summary>
+/// <remarks>
+/// <para>
+/// <see cref="GroupMatcher{TKey}" /> and <see cref="NameMatcher{TKey}" /> also carry factories of
+/// their own — <c>GroupEquals</c>, <c>NameStartsWith</c>, … — and that split is deliberate rather
+/// than an unfinished move. The two answer different questions. A factory on the concrete type
+/// <em>names</em> its comparison, so a call site that knows which comparison it wants reads as a
+/// sentence and returns the concrete type the scheduler members that take a
+/// <see cref="GroupMatcher{TKey}" /> require. The roots here take the comparison as a
+/// <see cref="StringOperator" /> <em>value</em>, which is what a caller who read the operator from
+/// configuration, from a query string or off the wire actually holds — the HTTP API builds every
+/// matcher it receives this way — and there is no way to spell that with a method per operator.
+/// </para>
+/// <para>
+/// What does not live on a concrete type is a root that names no comparison:
+/// <see cref="AllJobs" />, <see cref="AllTriggers" /> and <see cref="Key(JobKey)" /> have nothing to
+/// name themselves after, so they are built here and nowhere else.
+/// </para>
+/// </remarks>
 /// <example>
 /// <code>
 /// IMatcher&lt;JobKey&gt; matcher = Matchers.Group&lt;JobKey&gt;(StringOperator.StartsWith, "reporting")

@@ -67,19 +67,19 @@ public class JobDataMapPortabilityTest
     {
         yield return Case("string", "value", map => map.GetString("string").Should().Be("value"));
         yield return Case("bool", true, map => map.GetBoolean("bool").Should().BeTrue());
-        yield return Case("char", 'x', map => map.GetChar("char").Should().Be('x'));
+        yield return Case("char", 'x', map => map.Get<char>("char").Should().Be('x'));
         yield return Case("int", 123, map => map.GetInt("int").Should().Be(123));
         yield return Case("long", 9_000_000_000L, map => map.GetLong("long").Should().Be(9_000_000_000L));
         yield return Case("float", 1.5f, map => map.GetFloat("float").Should().Be(1.5f));
         yield return Case("double", 12.34, map => map.GetDouble("double").Should().Be(12.34));
-        yield return Case("decimal", 1.5m, map => map.GetDecimal("decimal").Should().Be(1.5m));
-        yield return Case("dateTime", new DateTime(1982, 6, 28, 1, 1, 1, DateTimeKind.Unspecified), map => map.GetDateTime("dateTime").Should().Be(new DateTime(1982, 6, 28, 1, 1, 1, DateTimeKind.Unspecified)));
+        yield return Case("decimal", 1.5m, map => map.Get<decimal>("decimal").Should().Be(1.5m));
+        yield return Case("dateTime", new DateTime(1982, 6, 28, 1, 1, 1, DateTimeKind.Unspecified), map => map.Get<DateTime>("dateTime").Should().Be(new DateTime(1982, 6, 28, 1, 1, 1, DateTimeKind.Unspecified)));
         yield return Case("dateTimeOffset", new DateTimeOffset(1982, 6, 28, 1, 1, 1, TimeSpan.FromHours(3)), map => map.GetDateTimeOffset("dateTimeOffset").Should().Be(new DateTimeOffset(1982, 6, 28, 1, 1, 1, TimeSpan.FromHours(3))));
-        yield return Case("timeSpan", TimeSpan.FromMinutes(90), map => map.GetTimeSpan("timeSpan").Should().Be(TimeSpan.FromMinutes(90)));
-        yield return Case("guid", Guid.Parse("11111111-2222-3333-4444-555555555555"), map => map.GetGuid("guid").Should().Be(Guid.Parse("11111111-2222-3333-4444-555555555555")));
-        yield return Case("dateOnly", new DateOnly(1982, 6, 28), map => map.GetDateOnly("dateOnly").Should().Be(new DateOnly(1982, 6, 28)));
-        yield return Case("timeOnly", new TimeOnly(1, 2, 3), map => map.GetTimeOnly("timeOnly").Should().Be(new TimeOnly(1, 2, 3)));
-        yield return Case("enum", IntervalUnit.Hour, map => map.GetEnum<IntervalUnit>("enum").Should().Be(IntervalUnit.Hour));
+        yield return Case("timeSpan", TimeSpan.FromMinutes(90), map => map.Get<TimeSpan>("timeSpan").Should().Be(TimeSpan.FromMinutes(90)));
+        yield return Case("guid", Guid.Parse("11111111-2222-3333-4444-555555555555"), map => map.Get<Guid>("guid").Should().Be(Guid.Parse("11111111-2222-3333-4444-555555555555")));
+        yield return Case("dateOnly", new DateOnly(1982, 6, 28), map => map.Get<DateOnly>("dateOnly").Should().Be(new DateOnly(1982, 6, 28)));
+        yield return Case("timeOnly", new TimeOnly(1, 2, 3), map => map.Get<TimeOnly>("timeOnly").Should().Be(new TimeOnly(1, 2, 3)));
+        yield return Case("enum", IntervalUnit.Hour, map => map.Get<IntervalUnit>("enum").Should().Be(IntervalUnit.Hour));
         yield return Case("null", null, map => map["null"].Should().BeNull());
         // The timestamp-shaped entry is not decoration: Json.NET parses a string that looks like one into
         // a DateTimeOffset wherever it reads a value, and rendering that back as a string would reformat

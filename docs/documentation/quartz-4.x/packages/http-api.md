@@ -124,7 +124,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/jobs/delete` | `{ jobs }` |
 | `POST` | `…/jobs/delete-by-group` | `{ jobs }` — selects by group matcher in the query string |
 | `POST` | `…/jobs` | empty — adds the job; `replace` and `storeNonDurableWhileAwaitingScheduling` are body fields |
-| `GET` | `…/jobs/groups` | paged job groups: `name`, `paused` |
+| `GET` | `…/jobs/groups` | paged job groups: the four `name*` filters, `paused` |
 | `GET` | `…/jobs/groups/{jobGroup}/paused` | `{ paused }` |
 
 ### Triggers — 21
@@ -144,7 +144,7 @@ Every path below is prefixed `{ApiPath}/schedulers/{name}`.
 | `POST` | `…/triggers/{triggerGroup}/{triggerName}/resume` | `{ applied }` |
 | `POST` | `…/triggers/resume` | `{ groups }` |
 | `POST` | `…/triggers/keys/resume` | `{ triggers }` |
-| `GET` | `…/triggers/groups` | paged trigger groups: `name`, `paused` |
+| `GET` | `…/triggers/groups` | paged trigger groups: the four `name*` filters, `paused` |
 | `GET` | `…/triggers/groups/{triggerGroup}/paused` | `{ paused }` |
 | `POST` | `…/triggers/schedule` | `{ firstFireTimeUtc }` — one job and its trigger |
 | `POST` | `…/triggers/schedule-multiple` | empty — several jobs and their triggers in one call |
@@ -382,9 +382,9 @@ with no rows is `?take=0&includeTotalCount=true`, which the stores answer with t
 | Endpoint | Returns | Filters (besides paging) |
 |---|---|---|
 | `GET {ApiPath}/schedulers/{name}/jobs` | Job headers: key, description, `jobType` (the same assembly-qualified name the detail body carries), durable, concurrent-execution-disallowed, persist-job-data, requests-recovery | `groupEquals`, `groupContains`, `groupStartsWith`, `groupEndsWith`, and the four `name*` filters |
-| `GET {ApiPath}/schedulers/{name}/jobs/groups` | Job groups: `name`, `paused` | `name` (one group, matched exactly), `paused` |
+| `GET {ApiPath}/schedulers/{name}/jobs/groups` | Job groups: `name`, `paused` | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith`, `paused` |
 | `GET {ApiPath}/schedulers/{name}/triggers` | Trigger headers: key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority, execution group | the four `group*` and four `name*` filters, plus `jobName` + `jobGroup` (give both or neither), `calendarName`, `state` |
-| `GET {ApiPath}/schedulers/{name}/triggers/groups` | Trigger groups: `name`, `paused` | `name` (one group, matched exactly), `paused` |
+| `GET {ApiPath}/schedulers/{name}/triggers/groups` | Trigger groups: `name`, `paused` | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith`, `paused` |
 | `GET {ApiPath}/schedulers/{name}/calendars` | Calendar names | `nameEquals`, `nameContains`, `nameStartsWith`, `nameEndsWith` |
 | `GET {ApiPath}/schedulers/{name}/jobs/fire-instances` | Fire instances: `fireInstanceId`, trigger key, job key (`null` while only reserved), `schedulerInstanceId`, `state`, `fireTimeUtc`, `scheduledFireTimeUtc`, `executionGroup` | the four `group*` and four `name*` filters (they match the *trigger*), plus `jobName` + `jobGroup` (give both or neither), `schedulerInstanceId`, `state` |
 
@@ -502,6 +502,10 @@ state). The group-matcher forms — `POST …/jobs/pause`, `…/jobs/resume`, `�
 ```json
 { "groups": [ "reporting", "imports" ] }
 ```
+
+Those four are the wire form of `PauseJobGroups`, `ResumeJobGroups`, `PauseTriggerGroups` and
+`ResumeTriggerGroups`: a group operation, answering with the groups it recorded, where the
+`…/keys/pause` and `…/keys/resume` routes beside them answer with the keys they moved.
 
 ::: warning Changed in 4.x
 The pause, resume and reset-from-error-state endpoints previously returned `200 OK` with an empty

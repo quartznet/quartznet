@@ -256,6 +256,29 @@ public class QueryEndpointsTest : WebApiTest
         (await client.GetPausedTriggerGroups()).Should().Equal("beta");
     }
 
+    /// <summary>
+    /// A group listing's name filter is a matcher on both sides of the wire now, so the comparison has
+    /// to survive the trip rather than collapsing into the exact-name parameter it used to be.
+    /// </summary>
+    [Test]
+    public async Task QueryGroupsShouldFilterByNameMatcherOverTheWire()
+    {
+        using (new AssertionScope())
+        {
+            (await client.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameStartsWith("al") }))
+                .Items.Select(x => x.Name).Should().Equal("alpha");
+
+            (await client.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEquals("alpha") }))
+                .Items.Select(x => x.Name).Should().Equal("alpha");
+
+            (await client.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameContains("et") }))
+                .Items.Select(x => x.Name).Should().Equal("beta");
+
+            (await client.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameEndsWith("zzz") }))
+                .Items.Should().BeEmpty("a filter that matches nothing is an empty page, not every group");
+        }
+    }
+
     [Test]
     public async Task QueryCalendarNamesShouldPage()
     {
@@ -320,19 +343,16 @@ public class QueryEndpointsTest : WebApiTest
     {
         using (new AssertionScope())
         {
-            (await client.QueryJobs()).Items.Select(x => x.Key).Should().Equal(
-                (await client.QueryJobs(new JobQuery())).Items.Select(x => x.Key));
-
-            (await client.QueryTriggers()).Items.Select(x => x.Key).Should().Equal(
+            (await client.QueryTriggers(new TriggerQuery())).Items.Select(x => x.Key).Should().Equal(
                 alphaTriggerOne, alphaTriggerTwo, alphaTriggerThree, alphaTriggerFour, betaTriggerOne, betaTriggerTwo);
 
             (await client.QueryTriggersInError()).Items.Should().BeEmpty(
                 "nothing in the seed has failed, and the state filter reached the server to say so");
 
-            (await client.QueryFireInstances()).Items.Should().BeEmpty(
+            (await client.QueryFireInstances(new FireInstanceQuery())).Items.Should().BeEmpty(
                 "no job is running, and the fire instance query record's own default is Executing");
 
-            (await client.QueryFireInstancesOfJob(alphaJobOne)).Items.Should().BeEmpty();
+            (await client.QueryFireInstances(new FireInstanceQuery { Job = alphaJobOne })).Items.Should().BeEmpty();
         }
     }
 
@@ -373,8 +393,8 @@ public class QueryEndpointsTest : WebApiTest
         await scheduler.ScheduleJob(Job(betaJobOne), [Trigger(betaTriggerOne, betaJobOne)], new ScheduleJobOptions { Replace = true });
         await scheduler.ScheduleJob(Job(betaJobTwo), [Trigger(betaTriggerTwo, betaJobTwo)], new ScheduleJobOptions { Replace = true });
 
-        await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("beta"));
-        await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("beta"));
+        await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("beta"));
+        await scheduler.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("beta"));
     }
 
     private static IJobDetail Job(JobKey jobKey) => JobBuilder.Create<DummyJob>()

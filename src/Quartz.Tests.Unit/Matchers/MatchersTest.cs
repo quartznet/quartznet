@@ -45,6 +45,41 @@ public class MatchersTest
         matcher.IsMatch(new TriggerKey("b", "group")).Should().BeTrue();
     }
 
+    /// <summary>
+    /// The arity-free <see cref="NameMatcher" /> is the same four comparisons as
+    /// <see cref="NameMatcher{TKey}" />, over a name that belongs to no key.
+    /// </summary>
+    [TestCase("holiday-xmas", true)]
+    [TestCase("holiday", false)]
+    [TestCase("workday", false)]
+    public void TheUntypedNameMatcherComparesABareName(string name, bool expected)
+    {
+        NameMatcher.NameStartsWith("holiday-").IsMatch(name).Should().Be(expected);
+    }
+
+    [Test]
+    public void TheUntypedNameMatcherIsAValue()
+    {
+        NameMatcher.NameEquals("workday").Should().Be(NameMatcher.NameEquals("workday"),
+            "a matcher is compared by the shape it was built with, not by its identity — a query record "
+            + "carries one, and two equal records have to be equal");
+
+        NameMatcher.NameEquals("workday").Should().NotBe(NameMatcher.NameStartsWith("workday"),
+            "the comparison is part of the shape");
+
+        NameMatcher.NameEquals("workday").GetHashCode().Should().Be(NameMatcher.NameEquals("workday").GetHashCode());
+    }
+
+    [TestCase("holiday-xmas")]
+    [TestCase("workday")]
+    public void TheUntypedNameMatcherReadsTheWholeNameForEachComparison(string name)
+    {
+        NameMatcher.NameEquals(name).IsMatch(name).Should().BeTrue();
+        NameMatcher.NameStartsWith(name[..3]).IsMatch(name).Should().BeTrue();
+        NameMatcher.NameEndsWith(name[^3..]).IsMatch(name).Should().BeTrue();
+        NameMatcher.NameContains(name[1..^1]).IsMatch(name).Should().BeTrue();
+    }
+
     [Test]
     public void KeyMatchesTheCompleteKey()
     {

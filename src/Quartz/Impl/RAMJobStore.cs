@@ -1564,11 +1564,11 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
-    /// Whether a group name passes a group query's exact-name filter; a null filter passes everything.
+    /// Whether a group name passes a group query's name filter; a null filter passes everything.
     /// </summary>
-    private static bool MatchesName(string? filter, string group)
+    private static bool MatchesName(NameMatcher? filter, string group)
     {
-        return filter is null || string.Equals(filter, group, StringComparison.Ordinal);
+        return filter is null || filter.IsMatch(group);
     }
 
     /// <inheritdoc />
@@ -1576,7 +1576,7 @@ public sealed class RAMJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        CalendarNameMatcher? nameMatcher = query.Name;
+        NameMatcher? nameMatcher = query.Name;
         List<string> names = [];
 
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -2063,7 +2063,7 @@ public sealed class RAMJobStore : IJobStore
     /// paused.
     /// </para>
     /// </summary>
-    public async ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -2185,7 +2185,7 @@ public sealed class RAMJobStore : IJobStore
     /// paused.
     /// </para>
     /// </summary>
-    public async ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -2333,7 +2333,7 @@ public sealed class RAMJobStore : IJobStore
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public async ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> ResumeTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         PendingSignals pending = default;
         List<string> resumedGroups;
@@ -2477,7 +2477,7 @@ public sealed class RAMJobStore : IJobStore
     /// misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public async ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> ResumeJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         PendingSignals pending = default;
         var resumedGroups = new List<string>();
@@ -2520,7 +2520,7 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
-    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
+    /// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroups" />
     /// on every group.
     /// <para>
     /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
@@ -2545,7 +2545,7 @@ public sealed class RAMJobStore : IJobStore
     }
 
     /// <summary>
-    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
+    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroups" />
     /// on every trigger group and setting all job groups unpaused />.
     /// <para>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the

@@ -71,6 +71,16 @@ public interface ITrigger
     /// Get a <see cref="TriggerBuilder" /> that is configured to produce a
     /// trigger identical to this one.
     /// </summary>
+    /// <remarks>
+    /// An interface member where its twin
+    /// <see cref="JobDetailExtensions.GetJobBuilder" /> is an extension, and the asymmetry is the
+    /// difference between the two rebuilds rather than an unfinished move. A detail's builder can be
+    /// filled in from the detail's public state alone, so an extension can write it once for every
+    /// implementation. A trigger's cannot: the builder has to be created against the trigger's own
+    /// <see cref="System.TimeProvider" />, so that the rebuilt trigger computes its fire times from
+    /// the same reading of "now" — and a trigger's clock is not part of this interface, because
+    /// nothing else has any business reading it.
+    /// </remarks>
     /// <seealso cref="GetScheduleBuilder"/>
     /// <returns></returns>
     TriggerBuilder<IJob> GetTriggerBuilder();

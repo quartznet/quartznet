@@ -479,7 +479,7 @@ public sealed class HttpScheduler : IScheduler
         return result.Applied;
     }
 
-    public async ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
         var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{JobEndpointUrl()}/pause?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
@@ -501,7 +501,7 @@ public sealed class HttpScheduler : IScheduler
         return result.Applied;
     }
 
-    public async ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
         var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{TriggerEndpointUrl()}/pause?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
@@ -523,7 +523,7 @@ public sealed class HttpScheduler : IScheduler
         return result.Applied;
     }
 
-    public async ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> ResumeJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
         var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{JobEndpointUrl()}/resume?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
@@ -545,7 +545,7 @@ public sealed class HttpScheduler : IScheduler
         return result.Applied;
     }
 
-    public async ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> ResumeTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
         var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{TriggerEndpointUrl()}/resume?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
@@ -625,10 +625,7 @@ public sealed class HttpScheduler : IScheduler
 
         QueryStringBuilder parameters = new();
         parameters.AddPaging(query);
-        if (query.Name is not null)
-        {
-            parameters.Add("name", query.Name);
-        }
+        parameters.AddNameMatcher(query.Name);
 
         if (query.Paused is not null)
         {
@@ -648,10 +645,7 @@ public sealed class HttpScheduler : IScheduler
 
         QueryStringBuilder parameters = new();
         parameters.AddPaging(query);
-        if (query.Name is not null)
-        {
-            parameters.Add("name", query.Name);
-        }
+        parameters.AddNameMatcher(query.Name);
 
         if (query.Paused is not null)
         {

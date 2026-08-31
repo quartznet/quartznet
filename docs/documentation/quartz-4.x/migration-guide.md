@@ -382,7 +382,7 @@ here moved for you; if you called `GetInt` and `GetBoolean`, all of it did.
   used the current culture when the stored value was a string. On a comma-decimal culture `"3.14"` used to
   read as `314` and now reads as `3.14`; `"3,14"` used to read as `3.14` and now throws. The new reading is
   the correct one, and it is still a different number from the one the job saw yesterday.
-* **`TryGetDateTime` parses with `DateTimeStyles.RoundtripKind`**, so a stored string ending in `Z` comes
+* **`Get<DateTime>` parses with `DateTimeStyles.RoundtripKind`**, so a stored string ending in `Z` comes
   back as `Kind=Utc` rather than shifted to local time — see
   [`PutAsString` writes round-trip formats now](#putasstring-writes-round-trip-formats-now).
 * **The scheduler context is no longer merged into job properties** — see
@@ -2101,7 +2101,8 @@ an application declares at start-up. 3.x had nothing of the kind.
 
 ```csharp
 ScheduledOneOffJob firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
-    invoice, TimeSpan.FromDays(7), new OneOffJobOptions { Name = $"invoice-{invoice.CustomerId}", Group = invoice.CustomerId, Replace = true });
+    invoice, TimeSpan.FromDays(7),
+    OneOffJobOptions.Replacing($"invoice-{invoice.CustomerId}") with { Group = invoice.CustomerId });
 
 logger.LogInformation("Reminder {Trigger} scheduled for {At}", firing.TriggerKey, firing.FirstFireTimeUtc);
 
@@ -2116,7 +2117,7 @@ would otherwise have to infer from the time it asked for. It stays two members: 
 firing is a property of the trigger the key names.
 
 **One durable job per job type, many triggers.** The job is stored once under
-`SchedulerJobExtensions.ScheduledJobKey<TJob>()`, which is
+`SchedulerConstants.ScheduledJobKey<TJob>()`, which is
 `(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)` — a new reserved constant spelled
 `"QRTZ_SCHEDULED"` — and every call adds a trigger to it. That is the shape a message bus's Quartz
 integration converges on: a scheduled message is a trigger, so there is no job churn to pay for. The job is
@@ -2138,6 +2139,26 @@ this job type's own group". An overload that schedules a *recurring* job would h
 schedule, an end time, a calendar — and will get an options type of its own rather than nullable members here
 that mean nothing to a single firing. It is a different thing from `ScheduleJobOptions`, which describes a
 *store* operation and says only whether it may over-write.
+
+`OneOffJobOptions.Replacing(name)` is its preset, and it is the one in the family that takes an
+argument. `AddJobOptions.Replacing` and its siblings are properties because `Replace = true` is the
+whole of what they say; here `Replace` alone would do nothing, because a firing with no name of its
+own is given a generated one and a generated name has nothing to replace. The name is what makes
+replacing mean something, so it is a parameter rather than something to remember to set afterwards.
+`AddJobOptions` gained the preset for its *second* flag at the same time —
+`AddJobOptions.ReplacingAndStoringNonDurable`, the twin of
+`AddCalendarOptions.ReplacingAndUpdatingTriggers`.
+
+`Name` and `Group` are two loose strings rather than a `TriggerKey`, and that is deliberate: the two
+halves have different defaults — a generated name, a group named after the job type — and each is
+worth setting without the other. "Call it `order-42`, wherever such firings go" and "put it in this
+saga's group, any name will do" are both ordinary, and a key can express neither. The key exists once
+the trigger does, and the call answers with it.
+
+`SchedulerConstants.ScheduledJobKey<TJob>()` is where the durable job's key is spelled. In the 4.0
+previews it was `SchedulerJobExtensions.ScheduledJobKey<TJob>()` — a static that took no receiver,
+sitting in a class of extension methods, so every call site had to name the class anyway. It moved to
+sit beside `SchedulerConstants.ScheduledJobGroup`, which is the other half of the same convention.
 
 The trigger group is the correlation axis: everything scheduled for one saga, one tenant or one
 conversation can share a group and be listed, paused or unscheduled together. Cancelling is
@@ -4157,12 +4178,12 @@ the author happened to do. `JobStoreContractTest` runs one set of assertions aga
 closing the disagreements it found changed behaviour a 3.x application could have depended on. Each
 of these is a 3.x behaviour, not a 4.x regression:
 
-* **A prefix `PauseTriggers` pauses every group it matches.** `RAMJobStore` recorded the *matcher's
-  text* rather than the group it matched, so `PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("report"))`
+* **A prefix `PauseTriggerGroups` pauses every group it matches.** `RAMJobStore` recorded the *matcher's
+  text* rather than the group it matched, so `PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupStartsWith("report"))`
   paused the triggers of only the first matching group, returned that one group, and left a phantom
   entry named `report` in the paused-group set — which then paused anything later added to a group
   literally called `report`. It now records each matched group and pauses all of their triggers, which
-  is what the ADO store always did. `ResumeTriggers` with a non-equality matcher forgets those groups
+  is what the ADO store always did. `ResumeTriggerGroups` with a non-equality matcher forgets those groups
   again; it previously only ever cleared an exact-name pause.
 
   The semantics both stores now share: a pause remembers the **groups the matcher matched**, not the
@@ -4184,7 +4205,7 @@ of these is a 3.x behaviour, not a 4.x regression:
 
 * **`ResumeAll` on the ADO store now resumes groups that hold no triggers.** It walked the groups it
   found in `QRTZ_TRIGGERS` and cleared only those, plus its own all-groups marker. A group paused
-  while empty — `PauseTriggers(GroupEquals("nightly"))` before anything is scheduled into `nightly`,
+  while empty — `PauseTriggerGroups(GroupEquals("nightly"))` before anything is scheduled into `nightly`,
   which is a supported thing to do — is in no trigger row, so its `QRTZ_PAUSED_TRIGGER_GRPS` row
   survived the resume and went on pausing everything scheduled into that group afterwards, with no
   way to see why short of reading the table. `ResumeAll` clears the whole table for the scheduler
@@ -4195,7 +4216,7 @@ of these is a 3.x behaviour, not a 4.x regression:
   as a row named `_$_ALL_GROUPS_PAUSED_$_` in the same table it lists paused groups from, so
   `GetPausedTriggerGroups()` — and `QueryTriggerGroups(new TriggerGroupQuery { Paused = true })` —
   handed back a group name no trigger can ever belong to. Code that displayed the list showed it to
-  operators, and code that looped it called `ResumeTriggers` on a group that does not exist. The
+  operators, and code that looped it called `ResumeTriggerGroups` on a group that does not exist. The
   listing and its count filter the marker out now; the marker itself is unchanged, so nothing about
   the schema or about how a pause is recorded moves. `RAMJobStore` never had such a row.
 
@@ -4243,7 +4264,7 @@ dictionaries implementing `IDictionary<string, object?>` and `IReadOnlyDictionar
 
 Almost nothing changes at a call site:
 
-* The typed read accessors — `GetInt`, `TryGetDateTime`, `GetString` and the rest — are extension
+* The typed read accessors — `GetInt`, `GetString`, `Get<T>` and the rest — are extension
   members in the `Quartz` namespace (declared in `DataMapExtensions`), on both `JobDataMap` and
   `SchedulerContext`. `map.GetInt("retries")` compiles unchanged. They are deliberately declared for
   the two concrete types, not for `IReadOnlyDictionary<string, object?>`, so they do not appear on
@@ -4310,53 +4331,79 @@ and `SchedulerContext`), so the call sites read the same:
 + int retries = context.JobDetail.JobDataMap.GetInt("retries");
 
 - if (map.TryGetTimeSpanValue("timeout", out TimeSpan timeout)) { }
-+ if (map.TryGetTimeSpan("timeout", out TimeSpan timeout)) { }
++ if (map.TryGet("timeout", out TimeSpan timeout)) { }
 ```
 
 | 3.x `JobDataMap` | 4.x extension members |
 |---|---|
 | `GetBooleanValue`, `GetBooleanValueFromString` | `GetBoolean` |
-| `GetCharFromString` | `GetChar` |
-| `GetDateTimeValue`, `GetDateTimeValueFromString` | `GetDateTime` |
+| `GetCharFromString` | `Get<char>` |
+| `GetDateTimeValue`, `GetDateTimeValueFromString` | `Get<DateTime>` |
 | `GetDateTimeOffsetValue`, `GetDateTimeOffsetValueFromString` | `GetDateTimeOffset` |
 | `GetDoubleValue`, `GetDoubleValueFromString` | `GetDouble` |
 | `GetFloatValue`, `GetFloatValueFromString` | `GetFloat` |
-| `GetGuidValue`, `GetGuidValueFromString` | `GetGuid` |
+| `GetGuidValue`, `GetGuidValueFromString` | `Get<Guid>` |
 | `GetIntValue`, `GetIntValueFromString` | `GetInt` |
 | `GetLongValue`, `GetLongValueFromString` | `GetLong` |
-| `GetTimeSpanValue`, `GetTimeSpanValueFromString` | `GetTimeSpan` |
-| every `TryGet…Value` / `TryGet…ValueFromString` | the matching `TryGet…` |
-| `GetNullableGuidValue` | `TryGetGuid`, or read the entry and test it yourself |
-| (none) | `GetString`, `TryGetString`, `GetDecimal`, `TryGetDecimal` |
+| `GetTimeSpanValue`, `GetTimeSpanValueFromString` | `Get<TimeSpan>` |
+| every `TryGet…Value` / `TryGet…ValueFromString` | the matching `TryGet…`, or `TryGet<T>` |
+| `GetNullableGuidValue` | `TryGet<Guid>`, or read the entry and test it yourself |
+| (none) | `GetString`, `TryGetString`, `Get<decimal>`, `TryGet<decimal>` |
 | your own `TryGetValue<T>` extension | **keep it.** 3.x's `JobDataMap` had no `TryGetValue<T>` either, so such a call was always the caller's own extension on `IDictionary<string, object>` — and `JobDataMap` still implements that interface, so it still binds. Do not substitute `TryGet<T>`, which is a different thing: see below |
 
 The `…FromString` half collapses because the retained accessors already convert: a value written as a
 string — which is what `StoreJobDataAsStrings` forces, and what `PutAsString` writes — is parsed on the way
 out, so one accessor covers both. `GetNullableGuidValue` is the only one without a direct
 replacement; it returned `null` both for "absent" and for "present but not a `Guid`", which
-`TryGetGuid` distinguishes.
+`TryGet<Guid>` distinguishes.
 
 `PutAsString`'s eleven overloads are one generic `PutAsString<T>(string key, T value) where T :
 IConvertible`, plus the ones the constraint cannot express (`DateTime`, `DateTimeOffset`,
 `DateOnly`, `TimeOnly`, `Guid`, `TimeSpan`). Call sites are unchanged, with two exceptions
 described below.
 
-The accessor set also grew: `GetDateOnly`/`TryGetDateOnly`, `GetTimeOnly`/`TryGetTimeOnly`,
-`GetEnum<TEnum>`/`TryGetEnum<TEnum>` (an enum written through `PutAsString` stores its name, and
-the reader also accepts the underlying number a JSON round trip can produce), and a generic
-`TryGet<T>` that is a pure type test over the stored object — no string parsing. `Get<T>` is
-the same test said as a question with one answer — it throws a `KeyNotFoundException` naming the key
-when there is no entry, and an `InvalidCastException` naming the key, the stored type and the
-requested one when there is one of the wrong type — and `GetValueOrDefault<T>(key, defaultValue)` is
-the same test with a fallback.
+### One accessor per type, for the types job data is made of
 
-::: warning `TryGet<T>` is not a converting reader
-The name invites it, so say it plainly: `TryGet<T>` is `stored is T` and nothing else. It does not parse,
-it does not convert, and it returns `false` rather than throwing when the type is wrong. A value written
-through `PutAsString`, or by any store running with `StoreJobDataAsStrings = true`, is a `string` — so
-`TryGet<int>` on it returns `false` where `TryGetInt` parses it and succeeds. If you are replacing a
-`TryGetValue<T>` extension of your own that used `Convert.ChangeType`, the named accessor is the
-equivalent; `TryGet<T>` is not.
+A named accessor per readable type is a set that only ever grows — 4.0's previews reached 33 of them
+per receiver, `GetDateOnly` and `GetTimeOnly` and `GetEnum<TEnum>` included — and the generic
+`Get<T>`/`TryGet<T>` beside them did not subsume any of it, because they were a pure type test: a
+value written through `PutAsString` is a `string`, so `Get<Guid>` failed where `GetGuid` parsed.
+
+4.0 settles it the other way round. **`Get<T>`, `TryGet<T>` and `GetValueOrDefault<T>` coerce**, with
+exactly the rule the named accessors use — the stored type first, then the invariant string form for
+every type `PutAsString` writes one of, an enum by name (case-insensitively), and `Convert` for an
+exotic stored type. A type Quartz has no string form for, such as an options class of your own, is the
+plain type test it always was. So the named accessors are down to the set the tutorials teach, and the
+exotic tail is spelled generically:
+
+| 4.0 preview | 4.0 | 
+|---|---|
+| `GetGuid` / `TryGetGuid` | `Get<Guid>` / `TryGet<Guid>` |
+| `GetTimeSpan` / `TryGetTimeSpan` | `Get<TimeSpan>` / `TryGet<TimeSpan>` |
+| `GetDecimal` / `TryGetDecimal` | `Get<decimal>` / `TryGet<decimal>` |
+| `GetChar` / `TryGetChar` | `Get<char>` / `TryGet<char>` |
+| `GetDateTime` / `TryGetDateTime` | `Get<DateTime>` / `TryGet<DateTime>` |
+| `GetDateOnly` / `TryGetDateOnly` | `Get<DateOnly>` / `TryGet<DateOnly>` |
+| `GetTimeOnly` / `TryGetTimeOnly` | `Get<TimeOnly>` / `TryGet<TimeOnly>` |
+| `GetEnum<TEnum>` / `TryGetEnum<TEnum>` | `Get<TEnum>` / `TryGet<TEnum>` |
+
+What stays named, on both `JobDataMap` and `SchedulerContext`: `GetInt`, `GetLong`, `GetFloat`,
+`GetDouble`, `GetBoolean`, `GetString` and `GetDateTimeOffset`, each with its `TryGet…` twin, plus the
+three generic readers. That is 17 members per receiver where there were 33, and nothing can be read
+that could not be read before — including under `StoreJobDataAsStrings = true`, which is the setting
+that made the old `Get<T>` a trap.
+
+`Get<T>` throws a `KeyNotFoundException` naming the key when there is no entry, and an
+`InvalidCastException` naming the key, the stored type and the requested one when the entry cannot be
+read as a `T`; `TryGet<T>` answers `false` for either; `GetValueOrDefault<T>(key, defaultValue)`
+answers the fallback for either.
+
+::: warning `GetValueOrDefault<T>` and `TryGet<T>` changed answer for a string
+They coerce now. `map.GetValueOrDefault("retries", -1)` on an entry holding `"42"` answered `-1` in
+the previews and answers `42` in 4.0, and `TryGet<int>` on the same entry answers `true` rather than
+`false`. That is the point of the change — the value *is* 42, and the store is what turned it into a
+string — but code that used the old behaviour to detect "stored as a string" needs
+`map.TryGet("key", out string _)` instead.
 :::
 
 ### `PutAsString` writes round-trip formats now
@@ -4372,10 +4419,10 @@ the accessors parse both the old general form and "O" — but two edges are obse
   `DateTime` overload and stores `"2026-01-02T15:04:05.0000000"`. Anything *outside* Quartz that
   reads `JOB_DATA` strings and expects the old shape sees the new one after the value is next
   written.
-* **`TryGetDateTime` parses with `DateTimeStyles.RoundtripKind`** — its own behavioral change,
+* **`Get<DateTime>` parses with `DateTimeStyles.RoundtripKind`** — its own behavioral change,
   independent of what was written: a stored string ending in `Z` used to come back shifted to the
   reader's local time with `Kind=Local`; it now comes back with the UTC clock reading and
-  `Kind=Utc`. That is the correct reading, but a job computing e.g. `DateTime.Now - map.GetDateTime(key)`
+  `Kind=Utc`. That is the correct reading, but a job computing e.g. `DateTime.Now - map.Get<DateTime>(key)`
   on such a value shifts by the local UTC offset. Such `Z` strings exist in real stores — the
   System.Text.Json serializer writes a boxed UTC `DateTime` as `"…Z"` and hands it back as a raw
   string.
@@ -4396,8 +4443,8 @@ Write `map[key] = someString`, which is what it did.
 
 ### `PutAsString(string, Guid?)` is gone
 
-Passing `null` stored a present-but-null entry that nothing could read back — `TryGetGuid`
-returned `false`, `GetGuid` threw, and under `StoreJobDataAsStrings = true` the null was coerced to an
+Passing `null` stored a present-but-null entry that nothing could read back — `TryGet<Guid>`
+returned `false`, `Get<Guid>` threw, and under `StoreJobDataAsStrings = true` the null was coerced to an
 empty string with the same outcome. An unreadable entry is worse than a missing key, so the
 overload is gone rather than fixed: call `PutAsString(key, value.Value)` when there is a value,
 and decide explicitly — usually `map.Remove(key)` — when there is not.
@@ -5107,7 +5154,7 @@ already have them.
 * **A renamed job type is declared, not coded around** — `q.UseTypeLoader(loader => loader.Map("Acme.Jobs.NightlyReport, Acme.Jobs", typeof(NightlyRollupJob)))`, or the same map under `Quartz:TypeLoader:Aliases` in configuration, keeps every row still carrying the old `JOB_CLASS_NAME` firing. On 3.x the only answer was an `ITypeLoadHelper` of your own (see [A job type rename is declared as a map](#a-job-type-rename-is-declared-as-a-map))
 * **A `quartz.*` key that lost its prefix is refused** — `QuartzOptions.Properties` is read only through the `quartz.` prefix, so a key without one produced no symptom at all; it now fails options validation at startup (see [A property key without the `quartz.` prefix is refused](#a-property-key-without-the-quartz-prefix-is-refused))
 * **An `IJobDetail` of your own** — the interface no longer declares a member only Quartz can implement, so an application can supply its own job detail type and have `RAMJobStore` hand it back rather than quietly swapping it for Quartz's (see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own))
-* **A one-word question needs no query object** — `QueryJobs()`, `QueryTriggers()`, `QueryFireInstances()`, `QueryFireInstancesOfJob(jobKey)` and `QueryTriggersInError()` are the query members with the query record filled in, `ResetTriggersFromErrorState(GroupMatcher<TriggerKey>)` resets the failed triggers of a group, `Exists(string calendarName)` answers whether a calendar is there without deserializing it, and `ISchedulerFactory.GetRequiredScheduler(name)` throws where `LookupScheduler` returns null (see [Asking a one-word question does not need a query object](#asking-a-one-word-question-does-not-need-a-query-object))
+* **A one-word question needs no query object** — `QueryTriggersInError()` is the trigger query with the error-state filter already set, `ResetTriggersFromErrorState(GroupMatcher<TriggerKey>)` resets the failed triggers of a group, `Exists(string calendarName)` answers whether a calendar is there without deserializing it, and `ISchedulerFactory.GetRequiredScheduler(name)` throws where `LookupScheduler` returns null (see [Reading has two altitudes on purpose](#reading-has-two-altitudes-on-purpose))
 * **Pause, resume and reset a set of keys in one call** — `PauseTriggers`, `ResumeTriggers`, `PauseJobs`, `ResumeJobs` and `ResetTriggersFromErrorState` take a key collection, do the whole set in one lock and one transaction, and answer with the keys they applied to (see [A set of keys pauses, resumes or resets in one call](#a-set-of-keys-pauses-resumes-or-resets-in-one-call))
 * **`TriggerDetailsUpdate.WithExecutionGroup`** — move a stored trigger into an execution group, or out of every group, without rescheduling it. `QRTZ_TRIGGERS.EXECUTION_GROUP` was already written by the generic trigger update, and `RAMJobStore` applies it in place the same way it applies a preferred node, so both stores behave alike
 * **A chain can fan out** — `JobChainingJobListener` takes more than one follow-up for a job, either by calling `AddJobChainLink` again with the same first job or with the new `AddJobChainLinks(firstJob, followUpJobs)`. Each follow-up is triggered as its own firing, so they run concurrently rather than one after another, and one that cannot be triggered is logged without costing its siblings theirs. On 3.x the second link threw, so a chain could only be sequential (see [How do I chain Job execution?](../faq.md#how-do-i-chain-job-execution-or-how-do-i-create-a-workflow))
@@ -5997,7 +6044,7 @@ soften it — if you implement a job store, you implement the query members:
 | `GetCalendarNames` | `QueryCalendarNames` |
 | `IsJobGroupPaused`, `IsTriggerGroupPaused` | the matching `Query*Groups` with `Name` and `Paused = true` |
 | `GetNumberOfJobs`, `GetNumberOfTriggers`, `GetNumberOfCalendars` | the matching query with `Take = 0, IncludeTotalCount = true` |
-| `CalendarExists(name)` | `Exists(string calendarName)`, which is the same question under the name the job and trigger overloads already use — see [Asking a one-word question does not need a query object](#asking-a-one-word-question-does-not-need-a-query-object) |
+| `CalendarExists(name)` | `Exists(string calendarName)`, which is the same question under the name the job and trigger overloads already use — see [Reading has two altitudes on purpose](#reading-has-two-altitudes-on-purpose) |
 
 Two members are new on both interfaces: **`GetJobDetails(jobKeys)`** and **`GetTriggers(triggerKeys)`**
 retrieve many by key in one round trip. Keys that do not exist are simply absent, duplicates fold away, and
@@ -6114,7 +6161,7 @@ Console.WriteLine($"{failed.TotalCount} triggers need attention");
   migration** — see [Database Schema Migration](#database-schema-migration).
 * **A group can be paused while it holds no jobs**, and `Paused = true` reports it. The unfiltered listing
   does not: it enumerates the groups jobs are in, and an empty group is not one of them. Trigger groups have
-  always behaved this way; job groups now match. `PauseJobs(GroupMatcher<JobKey>.GroupEquals(g))` therefore
+  always behaved this way; job groups now match. `PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(g))` therefore
   answers `[g]` on the ADO store where 3.x answered `[]` for a group with no jobs.
 * **What the recorded pause does *not* do on the ADO store** is impose itself on jobs added to the group
   afterwards. Pausing a job group pauses the triggers of the jobs in it at that moment, and the row records
@@ -6195,25 +6242,30 @@ Finally, `ITriggerPersistenceDelegate` gained a batch `LoadExtendedTriggerProper
 keys. It is a **default interface method** that loops the single-key overload, so a third-party trigger
 persistence delegate needs no change; override it only to turn a batch into one round trip.
 
-## Asking a one-word question does not need a query object
+## Reading has two altitudes on purpose
 
-The paged query objects are the right primitive for a listing, and they are staying. What they cost is
-the trivial case, where the replacement for a parameterless call was
-`QueryFireInstances(new FireInstanceQuery())` — a record whose only job was to be the shape the member
-takes. Five shorthands close that, and none of them changes what the member behind it does.
+`IScheduler`'s `Query*` members and `SchedulerQueryExtensions`' `Get*` conveniences look like the same
+API twice. They are not, and neither is going anywhere. A `Query*` member takes a record — a filter, a
+page, an optional total count — and answers with headers rich enough to render a listing. A `Get*`
+convenience answers the question that needs none of that, in one line, with the bare keys or names the
+caller asked for. The query members cannot be as short; the conveniences cannot page. Keeping both is
+the ruling, so that neither is re-audited as duplication.
 
-| Instead of | Write |
+What that ruling does *not* justify is a shorthand that saves only the `new`. Four of the five that
+existed did exactly that, and they are gone:
+
+| 4.0 preview | 4.0 |
 |---|---|
-| `QueryJobs(new JobQuery())` | `QueryJobs()` |
-| `QueryTriggers(new TriggerQuery())` | `QueryTriggers()` |
-| `QueryFireInstances(new FireInstanceQuery())` | `QueryFireInstances()` |
-| `QueryFireInstances(new FireInstanceQuery { Job = jobKey })` | `QueryFireInstancesOfJob(jobKey)` |
-| `QueryTriggers(new TriggerQuery { State = TriggerState.Error })` | `QueryTriggersInError()` |
+| `QueryJobs()` | `QueryJobs(new JobQuery())` |
+| `QueryTriggers()` | `QueryTriggers(new TriggerQuery())` |
+| `QueryFireInstances()` | `QueryFireInstances(new FireInstanceQuery())` |
+| `QueryFireInstancesOfJob(jobKey)` | `QueryFireInstances(new FireInstanceQuery { Job = jobKey })` |
+| `QueryTriggersInError()` | unchanged — it is a **preset**, not a synonym |
 
-They are extension methods in `SchedulerQueryExtensions`, beside the 3.x-compatible listings — but they
-belong to the *other* family in that class, and page the way the member they call pages:
-`PagedQuery.DefaultTake` items, with `HasMore` reporting the rest. Name the query record when you want a
-different page, a total count, or a filter.
+The line is whether the shorthand knows something. `QueryTriggersInError()` knows the filter, and
+"which triggers are broken?" is a question an operator asks; `QueryJobs()` was a call with an argument
+left out, and the argument is the point of the query API. The preset pages exactly as the member does:
+`PagedQuery.DefaultTake` items, with `HasMore` reporting the rest.
 
 ### Resetting the triggers that failed is one call each way
 
@@ -6238,6 +6290,10 @@ await scheduler.ResetTriggersFromErrorState(GroupMatcher<TriggerKey>.GroupEquals
 It is that pair of calls, not a new store operation: two round trips, not one transaction, and a trigger
 that enters the error state between them is left for the next call. What resetting a trigger *does* is
 unchanged. Passing `null` throws rather than quietly meaning every group.
+
+It is a member of `IScheduler` rather than an extension — see
+[Resetting a group from the error state is an `IScheduler` member](#resetting-a-group-from-the-error-state-is-an-ischeduler-member),
+which is also where the one call site that has to change is described.
 
 ### `Exists` has a calendar overload
 
@@ -6276,6 +6332,38 @@ for two reasons: it is composition over `LookupScheduler` that no factory could 
 extension also resolves on a concrete receiver such as `StandaloneSchedulerFactory`, where a default
 interface method would need a cast. `LookupScheduler` is unchanged and stays the right call when a
 missing scheduler is an answer rather than a failure.
+
+## Shapes that were examined and kept
+
+The read-API pass that produced the sections above also looked at five spots that read as
+inconsistencies and are not. Nothing changed in any of them; they are written down so that the next
+reader does not re-open them.
+
+* **`ITrigger.GetTriggerBuilder()` is an interface member while `IJobDetail.GetJobBuilder()` is an
+  extension.** A detail's builder can be filled in from the detail's public state alone, so an
+  extension writes it once for every implementation. A trigger's cannot: the builder has to be created
+  against the trigger's own `TimeProvider`, so the rebuilt trigger computes its fire times from the
+  same reading of "now" — and a trigger's clock is not on `ITrigger`, because nothing else has any
+  business reading it.
+* **`TriggerDetailsUpdate` spells the misfire instruction six ways.** Five typed
+  `WithMisfireInstruction` overloads, one per schedule family, and `WithMisfireInstructionCode(int)`.
+  Each typed one is load-bearing: the same number means a different policy in each family, so naming
+  the family is what lets the store reject an update aimed at a trigger of another one. The untyped
+  one is the only way to set a code on a trigger *outside* the five built-in families — a custom
+  `ITrigger` is in none of them, so every typed overload would be rejected for it.
+* **`SchedulerContext` gets the read accessors and not `PutAsString`.** Writing to a `JobDataMap` is
+  not just storing a value: the map records that it was changed, which is what persists it after a
+  `[PersistJobDataAfterExecution]` job runs, and its equality is part of deciding whether anything
+  moved. An extension cannot participate in that, and a context has nothing to participate in — it is
+  process state that no store writes back.
+* **`FireInstanceQuery` prefixes its trigger filters and the other queries do not.** Every query names
+  a filter for what it selects on: `Group` and `Name` are the result's own identity, and a filter on
+  something the result refers to carries that thing's name (`Job`, `CalendarName`,
+  `SchedulerInstanceId`). A firing is identified by a fire instance id rather than by a key, so its
+  trigger is a reference like any other — hence `TriggerGroup` and `TriggerName`.
+* **`Matchers` and the per-type factories both build matchers.** The split is described under
+  [`Matchers` is the entry point](#matchers-is-the-entry-point-combinators-are-extensions): a factory
+  on the type names its comparison, a root on `Matchers` takes the comparison as a value.
 
 ## Trigger states are typed on the driver delegate
 
@@ -6587,7 +6675,7 @@ Everything else — the per-entity add/get/delete internals, the pause/resume wa
 cluster check-in and recovery passes, the connection cleanup helpers — is non-virtual. Those members
 were virtual because the Java port made everything virtual, not because subclassing them was supported;
 overriding one changed the store's internal call order in ways no test covered. The seven conn-taking
-`PauseTrigger`/`PauseTriggerGroup`/`PauseAll`/`ResumeTrigger`/`ResumeTriggers`/`ResumeAll`/
+`PauseTrigger`/`PauseTriggerGroup`/`PauseAll`/`ResumeTrigger`/`ResumeTriggerGroups`/`ResumeAll`/
 `RecoverMisfiredJobs` overloads are `protected` for the same reason: nothing outside the store can
 obtain the `ConnectionAndTransactionHolder` they demand. The dialect seam — statement text, paging,
 parameter binding — was never here; it belongs to `StdAdoDelegate`.
@@ -7779,8 +7867,8 @@ return the affected group names.
 | `PauseTrigger(key)`, `ResumeTrigger(key)` | `ValueTask` | `ValueTask<bool>` |
 | `PauseJob(key)`, `ResumeJob(key)` | `ValueTask` | `ValueTask<bool>` |
 | `ResetTriggerFromErrorState(key)` | `ValueTask` | `ValueTask<bool>` |
-| `PauseTriggers(matcher)`, `ResumeTriggers(matcher)` | `ValueTask` (scheduler) | `ValueTask<List<string>>` of the group names affected |
-| `PauseJobs(matcher)`, `ResumeJobs(matcher)` | `ValueTask` (scheduler) | `ValueTask<List<string>>` of the group names affected |
+| `PauseTriggerGroups(matcher)`, `ResumeTriggerGroups(matcher)` | `ValueTask` (scheduler) | `ValueTask<List<string>>` of the group names affected |
+| `PauseJobGroups(matcher)`, `ResumeJobGroups(matcher)` | `ValueTask` (scheduler) | `ValueTask<List<string>>` of the group names affected |
 
 What the `bool` means, precisely:
 
@@ -7826,6 +7914,7 @@ names nothing, one that was already paused, one that was not in the error state 
 the returned list**, never an exception. The list keeps the order the keys were given in. These are
 overloads, so the existing single-key and group-matcher forms are untouched; only a `null` literal
 argument, which never compiled against `PauseJobs(null)` anyway, now needs a cast to pick an overload.
+The matcher forms are named [`PauseJobGroups` and its three siblings](#pausing-by-matcher-is-a-group-operation-and-is-named-for-one).
 
 What the outside world sees:
 
@@ -7925,12 +8014,12 @@ then miss. Both members now take a `GroupMatcher` as well as a key set:
 List<TriggerKey> calledOff = await scheduler.UnscheduleJobs(GroupMatcher<TriggerKey>.GroupEquals(sagaId));
 ```
 
-The answer is the **keys**, not the group names that `PauseJobs(matcher)` returns. A pause has
-something to remember per group — a group stays paused, and a job added to it later is born paused —
-and a delete has nothing: the group is simply emptier than it was. What a caller can still act on is
-what went, so that is what it gets.
+The answer is the **keys**, not the group names that [`PauseJobGroups`](#pausing-by-matcher-is-a-group-operation-and-is-named-for-one)
+returns. A pause has something to remember per group — a group stays paused, and a job added to it
+later is born paused — and a delete has nothing: the group is simply emptier than it was. What a
+caller can still act on is what went, so that is what it gets.
 
-* **`null` is an `ArgumentNullException`, not "the default group".** `PauseJobs(null)` and
+* **`null` is an `ArgumentNullException`, not "the default group".** 3.x's `PauseJobs(null)` and
   `ResumeJobs(null)` read a missing matcher as `GroupEquals(JobKey.DefaultGroup)`. These do not, and
   will not: a pause taken by mistake can be resumed. A `null` literal now also needs a cast to pick an
   overload, exactly as it did when the key-set forms arrived —
@@ -7961,6 +8050,66 @@ Over HTTP the group forms are new endpoints, `POST …/jobs/delete-by-group` and
 forms do — [described here](packages/http-api.md#a-whole-group-in-one-call). They carry `-by-group` in
 the path because the plain `delete` and `unschedule` paths were taken by the key-set forms before
 there was a group form to give them to.
+
+## Pausing by matcher is a group operation, and is named for one
+
+`PauseJobs` had two overloads answering two different things: hand it keys and it answered with the
+keys it moved, hand it a `GroupMatcher` and it answered with **group names**. That is the only place
+in the API where one name meant two shapes, and the fix is not to make the matcher form answer with
+keys — it is to admit that pausing by matcher is a different operation from pausing a set of jobs, and
+to name it for what it does:
+
+| 3.x / 4.0 preview | 4.0 |
+|---|---|
+| `PauseJobs(GroupMatcher<JobKey>)` | `PauseJobGroups(GroupMatcher<JobKey>)` |
+| `ResumeJobs(GroupMatcher<JobKey>)` | `ResumeJobGroups(GroupMatcher<JobKey>)` |
+| `PauseTriggers(GroupMatcher<TriggerKey>)` | `PauseTriggerGroups(GroupMatcher<TriggerKey>)` |
+| `ResumeTriggers(GroupMatcher<TriggerKey>)` | `ResumeTriggerGroups(GroupMatcher<TriggerKey>)` |
+
+The key-set overloads keep their names and their `List<JobKey>` / `List<TriggerKey>` answers, so every
+name now has exactly one return shape. The rename is on `IScheduler`, `IJobStore` and every shipped
+implementation, and it is a compile error rather than a behaviour change: the bodies are untouched.
+
+Why the group form is not simply made to answer with keys:
+
+* **It writes group state, and the group outlives the keys.** A paused group is a row in
+  `QRTZ_PAUSED_TRIGGER_GRPS` or `QRTZ_PAUSED_JOB_GRPS`. It survives a restart, reaches every node of a
+  cluster, is what `IsTriggerGroupPaused` reports, and — for trigger groups — is imposed on triggers
+  stored into the group *afterwards*. The group names are exactly the rows the call wrote.
+* **An equality matcher pauses a group that holds nothing.** `PauseTriggerGroups(GroupEquals("nightly"))`
+  on an empty group records the pause so that what is added next is born paused. There is no key to
+  return for that, and a keys-shaped answer would report the operation as having done nothing.
+* **It would cost a query nobody asked for.** The ADO store pauses a group with one set-based
+  `UPDATE`. Answering with keys would mean selecting every affected trigger key first — unbounded, on
+  the one path that had been careful not to be.
+
+Whatever a caller does next — resume, list, report — is per group as well, so the group names are the
+handles that fit. `TracingJobStore` opens `Quartz.JobStore.PauseTriggerGroups` and its three siblings
+now, where the group and key-set forms used to share one span name.
+
+## Resetting a group from the error state is an `IScheduler` member
+
+`ResetTriggersFromErrorState(GroupMatcher<TriggerKey>)` was an extension method on
+`SchedulerQueryExtensions`, which is a class named for queries. It is a mutation, its key-set twin is
+an `IScheduler` member, and every other matcher-shaped mutation — `DeleteJobs`, `UnscheduleJobs`, the
+four `*Groups` members above — is one too. It moved:
+
+```diff
+- List<TriggerKey> reset = await scheduler.ResetTriggersFromErrorState(matcher);   // extension
++ List<TriggerKey> reset = await scheduler.ResetTriggersFromErrorState(matcher);   // IScheduler member
+```
+
+The call site is unchanged for anything holding an `IScheduler`, which is nearly everything. It is a
+**default interface member**, implemented over `QueryTriggers` and the key-set
+`ResetTriggersFromErrorState`, so a scheduler written outside this repository needs no change and one
+whose store can do it in a single statement can override it. The two consequences of that:
+
+* a variable typed as a *concrete* scheduler — `HttpScheduler`, `StdScheduler` — needs
+  `((IScheduler) scheduler).ResetTriggersFromErrorState(matcher)`, because C# does not surface a
+  default interface member on the implementing type;
+* it is still two round trips, exactly as the extension was: a listing filtered to
+  `TriggerState.Error` and the group, then the key-set reset. A trigger that fails between them is
+  left for the next call.
 
 ## One wire contract, and its enums have names
 
@@ -8353,8 +8502,7 @@ takes one already lives in `Quartz`, so the types moved there rather than into a
 
 `GroupMatcher<T>`, `NameMatcher<T>`, `KeyMatcher<T>`, `EverythingMatcher<T>`, `AndMatcher<T>`, `OrMatcher<T>`,
 `NotMatcher<T>`, `StringMatcher<T>` and `StringOperator` all moved. `GroupMatcher<T>` and `NameMatcher<T>`
-keep their factory methods (`GroupEquals`, `NameStartsWith`, `AnyGroup`, …), and
-`NameMatcher<TKey>.AnyName()` is new, the counterpart of `GroupMatcher<TKey>.AnyGroup()`.
+keep their factory methods (`GroupEquals`, `NameStartsWith`, `AnyGroup`, …).
 
 `IMatcher<T>` no longer redeclares `Equals(object)` and `GetHashCode()`. They are `object`'s own members, so
 declaring them on the interface added no requirement and told an implementer nothing — but a matcher is still
@@ -8380,7 +8528,8 @@ scheduler.ListenerManager.AddJobListener(listener, Matchers.AllJobs());
 |---|---|
 | `EverythingMatcher<JobKey>.AllJobs()` | `Matchers.AllJobs()` |
 | `EverythingMatcher<TriggerKey>.AllTriggers()` | `Matchers.AllTriggers()` |
-| — | `EverythingMatcher<TKey>.All()` — the generic form, matching the class's own key type |
+| `EverythingMatcher<TKey>.All()` (4.0 preview) | `Matchers.AllJobs()` / `Matchers.AllTriggers()` — the factory is internal now |
+| `NameMatcher<TKey>.AnyName()` (4.0 preview) | leave the filter null; every property that takes one is nullable |
 | `KeyMatcher<JobKey>.KeyEquals(key)` | `Matchers.Key(key)` (overloaded for `JobKey` and `TriggerKey`) |
 | `AndMatcher<JobKey>.And(left, right)` | `left.And(right)` |
 | `OrMatcher<JobKey>.Or(left, right)` | `left.Or(right)` |
@@ -8388,8 +8537,17 @@ scheduler.ListenerManager.AddJobListener(listener, Matchers.AllJobs());
 | — | `Matchers.Group<TKey>(StringOperator, string)`, `Matchers.Name<TKey>(StringOperator, string)` |
 
 The concrete matcher types stay public — they are what the expressions above return, and what a custom
-`IMatcher<TKey>` composes with — but they no longer construct themselves: `Matchers` and the extensions
-are the one way to build them.
+`IMatcher<TKey>` composes with.
+
+That leaves two ways to build a `GroupMatcher` or a `NameMatcher`: the factory on the type
+(`GroupEquals`, `NameStartsWith`, …) and the root on `Matchers`. Both stay, and the split is the
+ruling rather than an unfinished move: a factory on the type **names its comparison**, which is what a
+call site that knows the comparison it wants should read like, while the roots on `Matchers` take the
+comparison as a `StringOperator` **value**, which is what a caller holding one read from configuration
+or off the wire has — the HTTP API builds every matcher it receives that way, and no method-per-
+operator can express it. What does *not* live on a concrete type is a root that names no comparison:
+`Matchers.AllJobs()`, `Matchers.AllTriggers()` and `Matchers.Key(key)` have nothing to name themselves
+after, which is why `EverythingMatcher<TKey>.All()` and `KeyMatcher<TKey>.KeyEquals()` are not there.
 
 ### `StringOperator` exposes properties and a name
 
@@ -8446,9 +8604,9 @@ but it is a different order from the one 3.x produced.
 |---|---|
 | `JobQuery` | `NameMatcher<JobKey>? Name` |
 | `TriggerQuery` | `NameMatcher<TriggerKey>? Name` |
-| `JobGroupQuery` | `string? Name` — one group, matched exactly |
-| `TriggerGroupQuery` | `string? Name` — one group, matched exactly |
-| `CalendarQuery` | `CalendarNameMatcher? Name` |
+| `JobGroupQuery` | `NameMatcher? Name` |
+| `TriggerGroupQuery` | `NameMatcher? Name` |
+| `CalendarQuery` | `NameMatcher? Name` |
 
 ```csharp
 PagedResult<JobHeader> nightly = await scheduler.QueryJobs(new JobQuery
@@ -8460,29 +8618,49 @@ PagedResult<JobHeader> nightly = await scheduler.QueryJobs(new JobQuery
 
 The filters combine with AND. `RAMJobStore` and `StdAdoDelegate` both honor them; the ADO store escapes the
 matcher's own wildcards in the LIKE it generates, so a job literally named `50%` is matched literally and is
-not a pattern. Over HTTP the job, trigger and calendar listings take `nameEquals`, `nameStartsWith`,
-`nameEndsWith` or `nameContains` (at most one), and the group listings take `name`.
+not a pattern. Over HTTP every one of these listings — jobs, triggers, calendars **and the two group
+listings** — takes `nameEquals`, `nameStartsWith`, `nameEndsWith` or `nameContains`, at most one.
 
-Calendars filter by name too, and they are the one listing whose filter is not a `NameMatcher<TKey>`: a
-calendar is identified by a bare string rather than a `Key<T>`, so `CalendarQuery.Name` is a
-`CalendarNameMatcher`, with the same four factories:
+### One name filter, in two arities
+
+A calendar and a group are identified by a bare name rather than by a `Key<T>`, so their filter cannot
+be a `NameMatcher<TKey>`, which is written against a key. It is `NameMatcher` — the same four
+factories, the same wire spellings, the same escaping, without the type parameter:
 
 ```csharp
 PagedResult<string> holidays = await scheduler.QueryCalendarNames(new CalendarQuery
 {
-    Name = CalendarNameMatcher.NameStartsWith("holiday-")
+    Name = NameMatcher.NameStartsWith("holiday-")
+});
+
+PagedResult<JobGroup> tenant = await scheduler.QueryJobGroups(new JobGroupQuery
+{
+    Name = NameMatcher.NameStartsWith("tenant-42-")
 });
 ```
 
-There is no `AnyName()` on it: the property is nullable, and null already means every calendar.
+Two changes from the 4.0 previews come with that:
+
+* **`CalendarNameMatcher` is `NameMatcher`.** The name was accurate while calendars were the only
+  listing with a bare-name filter; it is not now that group listings have one. The two arities are the
+  family: `NameMatcher<TKey>` for a name that is half of a key, `NameMatcher` for one that is not.
+* **`JobGroupQuery.Name` and `TriggerGroupQuery.Name` were `string`, matched exactly.** They are
+  matchers now, so a group listing filters by prefix, suffix or substring like every other name filter
+  — which is what a dashboard listing one tenant's groups needs. `NameMatcher.NameEquals(group)` is
+  the old behaviour, and it still generates an `=` rather than a `LIKE`.
+
+There is no `AnyName()` on either arity: every filter that takes one is nullable, and null already
+means every name. `GroupMatcher<TKey>.AnyGroup()` remains, because the members that take a
+`GroupMatcher` — `PauseTriggerGroups`, `DeleteJobs`, and their kind — do not take a null.
 
 If you wrote a dialect delegate that overrides `StdAdoDelegate.ToSqlLikeClause<T>(StringMatcher<T>)`,
 move the override to `ToSqlLikeClause(StringOperator, string)`. That overload is the virtual one now,
 so that a calendar's matcher and a key's matcher translate through the same code; the generic form
 forwards to it and is no longer virtual.
 
-`IsJobGroupPaused` and `IsTriggerGroupPaused` are built on the group-name filter now, so they ask the store
-about the one group instead of listing every paused group and searching it.
+`IsJobGroupPaused` and `IsTriggerGroupPaused` are built on the group-name filter now — a
+`NameMatcher.NameEquals` and `Take = 1` — so they ask the store about the one group instead of listing
+every paused group and searching it.
 
 `PagedResult<T>.Items` is an `IReadOnlyList<T>` rather than a `List<T>` — a page is a result to read, not a
 list to mutate. The two `List<T>` members a caller is most likely to have used:
@@ -10096,7 +10274,7 @@ Parameters and behavior are unchanged:
 | `PropertySettingJobFactory` no longer merges the scheduler context into job properties | **Silent behavioral change** — read `context.Scheduler.Context` in `Execute`, or override `BuildJobDataMap` — see [Scheduler context entries are no longer injected into job properties](#scheduler-context-entries-are-no-longer-injected-into-job-properties) |
 | `JobKey` and `TriggerKey` implement `IEquatable<T>` and `IParsable<T>` | Additive. `TryParse`/`Parse` invert `ToString`'s `<group>.<name>` form, splitting at the first '.' — a *group* containing '.' is the ambiguous case. Every job-store dictionary probe also stops paying for the object-comparer path, and the hash is computed once |
 | `PutAsString` writes round-trip ("O") formats for `DateTime`/`DateTimeOffset` | Sub-second precision and Kind/offset survive; the dedicated `DateTime` overload also **rebinds** calls that used to hit the `IConvertible` one — see [`PutAsString` writes round-trip formats now](#putasstring-writes-round-trip-formats-now) |
-| `TryGetDateTime` parses with `DateTimeStyles.RoundtripKind` | **Behavioral**: a stored string ending in `Z` now returns the UTC clock reading with `Kind=Utc` instead of a local-shifted `Kind=Local` value — see [`PutAsString` writes round-trip formats now](#putasstring-writes-round-trip-formats-now) |
+| `Get<DateTime>` parses with `DateTimeStyles.RoundtripKind` | **Behavioral**: a stored string ending in `Z` now returns the UTC clock reading with `Kind=Utc` instead of a local-shifted `Kind=Local` value — see [`PutAsString` writes round-trip formats now](#putasstring-writes-round-trip-formats-now) |
 | `PutAsString(string, Guid?)` removed | `null` wrote a present-but-null entry no reader could read back — see [`PutAsString(string, Guid?)` is gone](#putasstring-string-guid-is-gone) |
 | `DateOnly`/`TimeOnly`/enum accessors, `PutAsString(DateOnly/TimeOnly)` and `TryGet<T>` added | Additive; job data catches up with the types 4.0 made primary |
 | `SystemTextJsonSerializerOptions` and `NewtonsoftJsonSerializerOptions` removed | The `Use*JsonSerializer` callback hands you the registry itself; lambda bodies compile unchanged, `RegisterTriggerConverters` is a parameter — see [Custom trigger and calendar serializers are no longer static](#custom-trigger-and-calendar-serializers-are-no-longer-static) |
@@ -10495,7 +10673,9 @@ removals on types that are still public and still open, which no section above n
 | `IScheduler.IsShutdown` | Removed | `Status is SchedulerStatus.Shutdown` — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
 | `IScheduler.IsStarted` | Removed | `Status is not SchedulerStatus.Created` faithfully; `Status is SchedulerStatus.Running` if what you meant was "is running now", which it did not say — see [A scheduler's lifecycle is one value](#a-scheduler-s-lifecycle-is-one-value) |
 | `IScheduler.JobFactory` (setter-only) | Removed, from `IScheduler`, `StdScheduler`, `DelegatingScheduler` and `HttpScheduler` | `IQuartzBuilder.UseJobFactory(IJobFactory)` or `UseJobFactory<T>()` where the scheduler is built; `ConfigureJobScope(...)` when all it did was seed the DI scope. A factory whose dependency does not exist yet resolves it in `CreateJob` — see [The factory is set where the scheduler is built](#the-factory-is-set-where-the-scheduler-is-built) |
+| `IScheduler.PauseJobs(GroupMatcher<JobKey>)`, `.ResumeJobs(GroupMatcher<JobKey>)`, `.PauseTriggers(GroupMatcher<TriggerKey>)`, `.ResumeTriggers(GroupMatcher<TriggerKey>)`, and the same four on `IJobStore` | Renamed | `PauseJobGroups`, `ResumeJobGroups`, `PauseTriggerGroups`, `ResumeTriggerGroups`. The key-set overloads keep the old names, so each name now has one return shape — see [Pausing by matcher is a group operation](#pausing-by-matcher-is-a-group-operation-and-is-named-for-one) |
 | `JobBuilder.CreateForAsync<T>()` | Removed | `JobBuilder.Create<T>()`; every job has been asynchronous since 3.0 |
+| `JobDataMap.GetCharFromString`, `.GetDateTimeValue`, `.GetGuidValue`, `.GetTimeSpanValue` and their `…FromString` twins | Removed with the rest of the `…Value` accessors | `Get<char>`, `Get<DateTime>`, `Get<Guid>`, `Get<TimeSpan>` — the generic accessor coerces exactly as a named one would — see [One accessor per type](#one-accessor-per-type-for-the-types-job-data-is-made-of) |
 | `JobStoreSupport.calendarCache`, `.delegateType`, `.firstCheckIn` | Removed (`protected` fields) | No replacement; they are the base class's own bookkeeping |
 | `JobStoreSupport.GetTriggerNames(conn, matcher, ct)` | Removed (`protected`) | The listing members became queries — see [Job store listings became queries](#job-store-listings-became-queries) |
 | `LogProvider.IsDisabled` | Removed | No replacement; filter through the `ILoggerFactory` — see [Logging](#logging) |
@@ -10526,37 +10706,37 @@ Derived the same mechanical way as the tables above: types in the 4.x `Quartz` n
 `Quartz.Serialization.SystemTextJson` on 3.x already had `JsonSerializationException`.
 
 ```text
-AddCalendarOptions                          AddJobOptions                       AddTriggerOptions
-AdoJobStoreOptions                          AndMatcher<T>                       CalendarIntervalTriggerMisfireInstruction
-CalendarNameMatcher                         CalendarQuery                       ClusterNode
-ClusterNodeState                            ClusteringOptions                   CronTriggerMisfireInstruction
-DailyTimeIntervalTriggerMisfireInstruction  DataMapExtensions                   DataSourceOptions
-EverythingMatcher<T>                        ExecutionGroupInFlight              ExecutionGroupLimit
-ExecutionGroupScope                         ExecutionLimitScope                 ExecutionLimitsBuilder
-ExecutionSlots                              FireInstance                        FireInstanceQuery
-FireInstanceState                           GroupMatcher<T>                     IJob<T>
-IJobConfigurator<T>                         IJobExecutionContextAccessor        IJobExecutionMiddleware
-IPersistentStoreBuilder                     IQuartzBuilder                      ISchedulerRegistry
-ITriggerConfigurator<T>                     InMemoryJobStoreOptions             JobBuilder<T>
-JobDetailExtensions                         JobExecutionContextInputExtensions  JobExecutionDelegate
-JobExecutionProcessException                JobGroup                            JobGroupQuery
-JobHeader                                   JobInputBuilderExtensions           JobInstantiationException
-JobQuery                                    JobType                             JsonSerializationException
-Key<T>                                      KeyMatcher<T>                       Matchers
-MonthDay                                    NameMatcher<T>                      NotMatcher<T>
-OneOffJobOptions                            OrMatcher<T>                        PagedQuery
-PagedResult<T>                              PersistentStoreBuilderExtensions    PreferredNode
-QuartzBuilderExtensions                     QuartzHealthCheckExtensions         QuartzHealthCheckOptions
-QuartzHostApplicationBuilderExtensions      QuartzSchedulerBuilder              QuartzSchedulerOptions
-RecurrenceTriggerMisfireInstruction         RetryPolicy                         ScheduleJobOptions
-SchedulerErrorContext                       SchedulerJobExtensions              SchedulerMetadata
-SchedulerOrigin                             SchedulerQueryExtensions            SchedulerRegistration
-SchedulerStatus                             SchedulingDataValidationException   SchemaProvisioning
-ShutdownJobInterruption                     SimpleTriggerMisfireInstruction     StandaloneSchedulerFactory
-StringMatcher<T>                            StringOperator                      SystemTextJsonConfigurationExtensions
-ThreadPoolOptions                           TimeRange                           TimeZones
-TriggerBuilder<T>                           TriggerConfiguratorExtensions       TriggerGroup
-TriggerGroupQuery                           TriggerHeader                       TriggerQuery
+AddCalendarOptions                      AddJobOptions                      AddTriggerOptions
+AdoJobStoreOptions                      AndMatcher<T>                      CalendarIntervalTriggerMisfireInstruction
+CalendarQuery                           ClusterNode                        ClusterNodeState
+ClusteringOptions                       CronTriggerMisfireInstruction      DailyTimeIntervalTriggerMisfireInstruction
+DataMapExtensions                       DataSourceOptions                  EverythingMatcher<T>
+ExecutionGroupInFlight                  ExecutionGroupLimit                ExecutionGroupScope
+ExecutionLimitScope                     ExecutionLimitsBuilder             ExecutionSlots
+FireInstance                            FireInstanceQuery                  FireInstanceState
+GroupMatcher<T>                         IJob<T>                            IJobConfigurator<T>
+IJobExecutionContextAccessor            IJobExecutionMiddleware            IPersistentStoreBuilder
+IQuartzBuilder                          ISchedulerRegistry                 ITriggerConfigurator<T>
+InMemoryJobStoreOptions                 JobBuilder<T>                      JobDetailExtensions
+JobExecutionContextInputExtensions      JobExecutionDelegate               JobExecutionProcessException
+JobGroup                                JobGroupQuery                      JobHeader
+JobInputBuilderExtensions               JobInstantiationException          JobQuery
+JobType                                 JsonSerializationException         Key<T>
+KeyMatcher<T>                           Matchers                           MonthDay
+NameMatcher                             NameMatcher<T>                     NotMatcher<T>
+OneOffJobOptions                        OrMatcher<T>                       PagedQuery
+PagedResult<T>                          PersistentStoreBuilderExtensions   PreferredNode
+QuartzBuilderExtensions                 QuartzHealthCheckExtensions        QuartzHealthCheckOptions
+QuartzHostApplicationBuilderExtensions  QuartzSchedulerBuilder             QuartzSchedulerOptions
+RecurrenceTriggerMisfireInstruction     RetryPolicy                        ScheduleJobOptions
+SchedulerErrorContext                   SchedulerJobExtensions             SchedulerMetadata
+SchedulerOrigin                         SchedulerQueryExtensions           SchedulerRegistration
+SchedulerStatus                         SchedulingDataValidationException  SchemaProvisioning
+ShutdownJobInterruption                 SimpleTriggerMisfireInstruction    StandaloneSchedulerFactory
+StringMatcher<T>                        StringOperator                     SystemTextJsonConfigurationExtensions
+ThreadPoolOptions                       TimeRange                          TimeZones
+TriggerBuilder<T>                       TriggerConfiguratorExtensions      TriggerGroup
+TriggerGroupQuery                       TriggerHeader                      TriggerQuery
 TypeLoaderOptions
 ```
 

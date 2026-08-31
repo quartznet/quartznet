@@ -356,12 +356,12 @@ public class JobEndpointsTest : WebApiTest
         foreach (var matcher in matchers)
         {
             Fake.ClearRecordedCalls(FakeScheduler);
-            A.CallTo(() => FakeScheduler.PauseJobs(matcher, A<CancellationToken>._)).Returns(new List<string> { "paused-group" });
+            A.CallTo(() => FakeScheduler.PauseJobGroups(matcher, A<CancellationToken>._)).Returns(new List<string> { "paused-group" });
 
-            List<string> pausedGroups = await HttpScheduler.PauseJobs(matcher);
+            List<string> pausedGroups = await HttpScheduler.PauseJobGroups(matcher);
 
             pausedGroups.Should().Equal("paused-group");
-            A.CallTo(() => FakeScheduler.PauseJobs(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+            A.CallTo(() => FakeScheduler.PauseJobGroups(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }
 
@@ -421,12 +421,12 @@ public class JobEndpointsTest : WebApiTest
         foreach (var matcher in matchers)
         {
             Fake.ClearRecordedCalls(FakeScheduler);
-            A.CallTo(() => FakeScheduler.ResumeJobs(matcher, A<CancellationToken>._)).Returns(new List<string> { "resumed-group" });
+            A.CallTo(() => FakeScheduler.ResumeJobGroups(matcher, A<CancellationToken>._)).Returns(new List<string> { "resumed-group" });
 
-            List<string> resumedGroups = await HttpScheduler.ResumeJobs(matcher);
+            List<string> resumedGroups = await HttpScheduler.ResumeJobGroups(matcher);
 
             resumedGroups.Should().Equal("resumed-group");
-            A.CallTo(() => FakeScheduler.ResumeJobs(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+            A.CallTo(() => FakeScheduler.ResumeJobGroups(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }
 
@@ -642,9 +642,9 @@ public class JobEndpointsTest : WebApiTest
     public async Task IsJobGroupPausedShouldWork()
     {
         // the check asks the store for the one named group rather than listing every paused one
-        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>.That.Matches(query => query.Name == "group1"), A<CancellationToken>._))
+        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>.That.Matches(query => Equals(query.Name, NameMatcher.NameEquals("group1"))), A<CancellationToken>._))
             .Returns(new PagedResult<JobGroup>([new JobGroup("group1", Paused: true)], HasMore: false));
-        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>.That.Matches(query => query.Name != "group1"), A<CancellationToken>._))
+        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>.That.Matches(query => !Equals(query.Name, NameMatcher.NameEquals("group1"))), A<CancellationToken>._))
             .Returns(new PagedResult<JobGroup>([], HasMore: false));
 
         bool paused = await HttpScheduler.IsJobGroupPaused("group1");
@@ -653,9 +653,9 @@ public class JobEndpointsTest : WebApiTest
         paused = await HttpScheduler.IsJobGroupPaused("group2");
         paused.Should().BeFalse();
 
-        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Name = "group1", Paused = true, Take = 1 }, A<CancellationToken>._))
+        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEquals("group1"), Paused = true, Take = 1 }, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
-        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Name = "group2", Paused = true, Take = 1 }, A<CancellationToken>._))
+        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEquals("group2"), Paused = true, Take = 1 }, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
     }
 

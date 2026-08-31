@@ -221,7 +221,7 @@ public class SchedulerTest
         var pausedGroups = await scheduler.GetPausedTriggerGroups();
         Assert.That(pausedGroups, Is.Empty, "Size of paused trigger groups list expected to be 0 ");
 
-        await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+        await scheduler.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
         // test that adding a trigger to a paused group causes the new trigger to be paused also...
         job = JobBuilder.Create()
@@ -247,7 +247,7 @@ public class SchedulerTest
         s = await scheduler.GetTriggerState(new TriggerKey("t4", "g1"));
         Assert.That(s, Is.EqualTo(TriggerState.Paused), "State of trigger t4 expected to be PAUSED");
 
-        await scheduler.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+        await scheduler.ResumeTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
         s = await scheduler.GetTriggerState(new TriggerKey("t2", "g1"));
         Assert.That(s, Is.EqualTo(TriggerState.Normal), "State of trigger t2 expected to be NORMAL ");
@@ -567,7 +567,8 @@ public class SchedulerTest
     {
         await using IScheduler scheduler = await NewScheduler(nameof(TheOneLinerReplacesAFiringOfTheSameName));
 
-        OneOffJobOptions options = new() { Name = "order-42", Group = "orders", Replace = true };
+        // the preset, which is the initializer this test used to spell: a name, and Replace with it
+        OneOffJobOptions options = OneOffJobOptions.Replacing("order-42") with { Group = "orders" };
 
         await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture, options);
         ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("second"), FarFuture.AddDays(1), options);
@@ -650,7 +651,7 @@ public class SchedulerTest
 
         ScheduledOneOffJob scheduled = await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture);
 
-        JobKey key = SchedulerJobExtensions.ScheduledJobKey<ReminderJob>();
+        JobKey key = SchedulerConstants.ScheduledJobKey<ReminderJob>();
         key.Group.Should().Be(SchedulerConstants.ScheduledJobGroup, "the group is reserved, which is why the key is named rather than re-derived");
 
         (await scheduler.GetJobDetail(key)).Should().NotBeNull(
@@ -666,7 +667,7 @@ public class SchedulerTest
         await using IScheduler quiet = await NewScheduler(nameof(TheEnsuredJobRequestsRecoveryOnlyWhenAsked) + "_quiet");
         await quiet.ScheduleJob<ReminderJob, Reminder>(new Reminder("first"), FarFuture);
 
-        (await quiet.GetJobDetail(SchedulerJobExtensions.ScheduledJobKey<ReminderJob>())).RequestsRecovery
+        (await quiet.GetJobDetail(SchedulerConstants.ScheduledJobKey<ReminderJob>())).RequestsRecovery
             .Should().BeFalse("the default is the builder's own, so nothing changes for a caller who says nothing");
 
         await using IScheduler recovering = await NewScheduler(nameof(TheEnsuredJobRequestsRecoveryOnlyWhenAsked) + "_recovering");
@@ -675,7 +676,7 @@ public class SchedulerTest
             FarFuture,
             new OneOffJobOptions { RequestRecovery = true });
 
-        (await recovering.GetJobDetail(SchedulerJobExtensions.ScheduledJobKey<ReminderJob>())).RequestsRecovery
+        (await recovering.GetJobDetail(SchedulerConstants.ScheduledJobKey<ReminderJob>())).RequestsRecovery
             .Should().BeTrue("the job every firing hangs off is the one thing the caller cannot otherwise reach, and recovery is a property of it");
     }
 
@@ -691,7 +692,7 @@ public class SchedulerTest
 
         await scheduler.ScheduleJob<ReminderJob, Reminder>(new Reminder("second"), FarFuture.AddDays(1));
 
-        (await scheduler.GetJobDetail(SchedulerJobExtensions.ScheduledJobKey<ReminderJob>())).RequestsRecovery
+        (await scheduler.GetJobDetail(SchedulerConstants.ScheduledJobKey<ReminderJob>())).RequestsRecovery
             .Should().BeTrue(
                 "the job is ensured once per scheduler instance, so the second call does not store it again and cannot quietly undo what the first asked for");
     }

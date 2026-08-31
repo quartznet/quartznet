@@ -235,12 +235,12 @@ public class TriggerEndpointsTest : WebApiTest
         foreach (var matcher in matchers)
         {
             Fake.ClearRecordedCalls(FakeScheduler);
-            A.CallTo(() => FakeScheduler.PauseTriggers(matcher, A<CancellationToken>._)).Returns(new List<string> { "paused-group" });
+            A.CallTo(() => FakeScheduler.PauseTriggerGroups(matcher, A<CancellationToken>._)).Returns(new List<string> { "paused-group" });
 
-            List<string> pausedGroups = await HttpScheduler.PauseTriggers(matcher);
+            List<string> pausedGroups = await HttpScheduler.PauseTriggerGroups(matcher);
 
             pausedGroups.Should().Equal("paused-group");
-            A.CallTo(() => FakeScheduler.PauseTriggers(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+            A.CallTo(() => FakeScheduler.PauseTriggerGroups(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }
 
@@ -325,12 +325,12 @@ public class TriggerEndpointsTest : WebApiTest
         foreach (var matcher in matchers)
         {
             Fake.ClearRecordedCalls(FakeScheduler);
-            A.CallTo(() => FakeScheduler.ResumeTriggers(matcher, A<CancellationToken>._)).Returns(new List<string> { "resumed-group" });
+            A.CallTo(() => FakeScheduler.ResumeTriggerGroups(matcher, A<CancellationToken>._)).Returns(new List<string> { "resumed-group" });
 
-            List<string> resumedGroups = await HttpScheduler.ResumeTriggers(matcher);
+            List<string> resumedGroups = await HttpScheduler.ResumeTriggerGroups(matcher);
 
             resumedGroups.Should().Equal("resumed-group");
-            A.CallTo(() => FakeScheduler.ResumeTriggers(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+            A.CallTo(() => FakeScheduler.ResumeTriggerGroups(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }
 
@@ -386,9 +386,9 @@ public class TriggerEndpointsTest : WebApiTest
     public async Task IsTriggerGroupPausedShouldWork()
     {
         // the check asks the store for the one named group rather than listing every paused one
-        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>.That.Matches(query => query.Name == "group1"), A<CancellationToken>._))
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>.That.Matches(query => Equals(query.Name, NameMatcher.NameEquals("group1"))), A<CancellationToken>._))
             .Returns(new PagedResult<TriggerGroup>([new TriggerGroup("group1", Paused: true)], HasMore: false));
-        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>.That.Matches(query => query.Name != "group1"), A<CancellationToken>._))
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>.That.Matches(query => !Equals(query.Name, NameMatcher.NameEquals("group1"))), A<CancellationToken>._))
             .Returns(new PagedResult<TriggerGroup>([], HasMore: false));
 
         bool paused = await HttpScheduler.IsTriggerGroupPaused("group1");
@@ -397,9 +397,9 @@ public class TriggerEndpointsTest : WebApiTest
         paused = await HttpScheduler.IsTriggerGroupPaused("group2");
         paused.Should().BeFalse();
 
-        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Name = "group1", Paused = true, Take = 1 }, A<CancellationToken>._))
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameEquals("group1"), Paused = true, Take = 1 }, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
-        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Name = "group2", Paused = true, Take = 1 }, A<CancellationToken>._))
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameEquals("group2"), Paused = true, Take = 1 }, A<CancellationToken>._))
             .MustHaveHappened(1, Times.Exactly);
     }
 
@@ -742,7 +742,7 @@ public class TriggerEndpointsTest : WebApiTest
         A.CallTo(() => FakeScheduler.ResetTriggersFromErrorState(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
             .Returns(new List<TriggerKey> { triggerKeyOne });
 
-        List<TriggerKey> reset = await HttpScheduler.ResetTriggersFromErrorState(matcher);
+        List<TriggerKey> reset = await ((IScheduler) HttpScheduler).ResetTriggersFromErrorState(matcher);
 
         reset.Should().Equal([triggerKeyOne]);
 
@@ -762,7 +762,7 @@ public class TriggerEndpointsTest : WebApiTest
         A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<TriggerHeader>([], HasMore: false));
 
-        List<TriggerKey> reset = await HttpScheduler.ResetTriggersFromErrorState(GroupMatcher<TriggerKey>.AnyGroup());
+        List<TriggerKey> reset = await ((IScheduler) HttpScheduler).ResetTriggersFromErrorState(GroupMatcher<TriggerKey>.AnyGroup());
 
         reset.Should().BeEmpty();
 

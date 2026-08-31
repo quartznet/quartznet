@@ -205,12 +205,13 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
-    /// The <see cref="CalendarNameMatcher" /> form of <see cref="BuildMatcherPredicate{T}" />: a
-    /// calendar has no key type, so its matcher is not a <see cref="StringMatcher{TKey}" />, but the
-    /// equality-versus-LIKE decision and the wildcard escaping are the same.
+    /// The <see cref="NameMatcher" /> form of <see cref="BuildMatcherPredicate{T}" />, for the two
+    /// listings whose subject is named rather than keyed — calendars and groups — so their matcher
+    /// is not a <see cref="StringMatcher{TKey}" />. The equality-versus-LIKE decision and the
+    /// wildcard escaping are the same.
     /// </summary>
     private (string Predicate, string? Parameter) BuildMatcherPredicate(
-        CalendarNameMatcher? matcher,
+        NameMatcher? matcher,
         string equalsPredicate,
         string likePredicate)
     {
@@ -443,7 +444,8 @@ public partial class StdAdoDelegate
         string sql;
         string countSql;
         string orderBy;
-        string predicate;
+        string equalsPredicate;
+        string likePredicate;
         if (query.Paused == true)
         {
             // Read from PAUSED_JOB_GRPS rather than JOB_DETAILS, so a group that is paused but holds
@@ -452,30 +454,34 @@ public partial class StdAdoDelegate
             sql = StdAdoConstants.SqlSelectPausedJobGroups;
             countSql = StdAdoConstants.SqlCountPausedJobGroups;
             orderBy = StdAdoConstants.SqlOrderByJobGroup;
-            predicate = query.Name is null ? "" : StdAdoConstants.SqlJobGroupNamePredicate;
+            equalsPredicate = StdAdoConstants.SqlJobGroupNamePredicate;
+            likePredicate = StdAdoConstants.SqlJobGroupNameLikePredicate;
         }
         else if (query.Paused == false)
         {
             sql = StdAdoConstants.SqlSelectUnpausedJobGroups;
             countSql = StdAdoConstants.SqlCountUnpausedJobGroups;
             orderBy = StdAdoConstants.SqlOrderByAliasedJobGroup;
-            predicate = query.Name is null ? "" : StdAdoConstants.SqlAliasedJobGroupNamePredicate;
+            equalsPredicate = StdAdoConstants.SqlAliasedJobGroupNamePredicate;
+            likePredicate = StdAdoConstants.SqlAliasedJobGroupNameLikePredicate;
         }
         else
         {
             sql = StdAdoConstants.SqlSelectJobGroupsWithPausedFlag;
             countSql = StdAdoConstants.SqlCountJobGroups;
             orderBy = StdAdoConstants.SqlOrderByAliasedJobGroup;
-            predicate = query.Name is null ? "" : StdAdoConstants.SqlAliasedJobGroupNamePredicate;
+            equalsPredicate = StdAdoConstants.SqlAliasedJobGroupNamePredicate;
+            likePredicate = StdAdoConstants.SqlAliasedJobGroupNameLikePredicate;
         }
 
+        (string predicate, string? nameParameter) = BuildMatcherPredicate(query.Name, equalsPredicate, likePredicate);
         bool? paused = query.Paused;
 
         if (IsCountOnly(query))
         {
             using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
             AddCommandParameter(countCmd, SqlParameters.SchedulerName, schedulerName);
-            BindGroupName(countCmd, query.Name);
+            BindGroupName(countCmd, nameParameter);
 
             return CountOnlyResult<JobGroup>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
         }
@@ -486,7 +492,7 @@ public partial class StdAdoDelegate
         using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(sql + predicate + orderBy, query))))
         {
             AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
-            BindGroupName(cmd, query.Name);
+            BindGroupName(cmd, nameParameter);
             BindPaging(cmd, query);
 
             (items, hasMore) = await ReadPage(
@@ -501,7 +507,7 @@ public partial class StdAdoDelegate
         {
             using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
             AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
-            BindGroupName(cmd, query.Name);
+            BindGroupName(cmd, nameParameter);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }
 
@@ -517,7 +523,8 @@ public partial class StdAdoDelegate
         string sql;
         string countSql;
         string orderBy;
-        string predicate;
+        string equalsPredicate;
+        string likePredicate;
         if (query.Paused == true)
         {
             // Read from PAUSED_TRIGGER_GRPS rather than TRIGGERS, so a group that is paused but has no
@@ -525,30 +532,34 @@ public partial class StdAdoDelegate
             sql = StdAdoConstants.SqlSelectPausedTriggerGroups;
             countSql = StdAdoConstants.SqlCountPausedTriggerGroups;
             orderBy = StdAdoConstants.SqlOrderByTriggerGroup;
-            predicate = query.Name is null ? "" : StdAdoConstants.SqlTriggerGroupNamePredicate;
+            equalsPredicate = StdAdoConstants.SqlTriggerGroupNamePredicate;
+            likePredicate = StdAdoConstants.SqlTriggerGroupNameLikePredicate;
         }
         else if (query.Paused == false)
         {
             sql = StdAdoConstants.SqlSelectUnpausedTriggerGroups;
             countSql = StdAdoConstants.SqlCountUnpausedTriggerGroups;
             orderBy = StdAdoConstants.SqlOrderByAliasedTriggerGroup;
-            predicate = query.Name is null ? "" : StdAdoConstants.SqlAliasedTriggerGroupNamePredicate;
+            equalsPredicate = StdAdoConstants.SqlAliasedTriggerGroupNamePredicate;
+            likePredicate = StdAdoConstants.SqlAliasedTriggerGroupNameLikePredicate;
         }
         else
         {
             sql = StdAdoConstants.SqlSelectTriggerGroupsWithPausedFlag;
             countSql = StdAdoConstants.SqlCountTriggerGroups;
             orderBy = StdAdoConstants.SqlOrderByAliasedTriggerGroup;
-            predicate = query.Name is null ? "" : StdAdoConstants.SqlAliasedTriggerGroupNamePredicate;
+            equalsPredicate = StdAdoConstants.SqlAliasedTriggerGroupNamePredicate;
+            likePredicate = StdAdoConstants.SqlAliasedTriggerGroupNameLikePredicate;
         }
 
+        (string predicate, string? nameParameter) = BuildMatcherPredicate(query.Name, equalsPredicate, likePredicate);
         bool? paused = query.Paused;
 
         if (IsCountOnly(query))
         {
             using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
             AddCommandParameter(countCmd, SqlParameters.SchedulerName, schedulerName);
-            BindGroupName(countCmd, query.Name);
+            BindGroupName(countCmd, nameParameter);
 
             return CountOnlyResult<TriggerGroup>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
         }
@@ -559,7 +570,7 @@ public partial class StdAdoDelegate
         using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(sql + predicate + orderBy, query))))
         {
             AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
-            BindGroupName(cmd, query.Name);
+            BindGroupName(cmd, nameParameter);
             BindPaging(cmd, query);
 
             (items, hasMore) = await ReadPage(
@@ -574,7 +585,7 @@ public partial class StdAdoDelegate
         {
             using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
             AddCommandParameter(cmd, SqlParameters.SchedulerName, schedulerName);
-            BindGroupName(cmd, query.Name);
+            BindGroupName(cmd, nameParameter);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }
 
@@ -582,7 +593,8 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
-    /// Binds a group listing's exact-name filter when it has one.
+    /// Binds a group listing's name filter when it has one — the literal name for an equality
+    /// matcher, and the escaped LIKE pattern for the other three comparisons.
     /// </summary>
     private void BindGroupName(DbCommand cmd, string? groupName)
     {

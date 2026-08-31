@@ -377,17 +377,17 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.PauseTrigger(s.triggerKey, s.cancellationToken));
     }
 
-    public override ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public override ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
-        StoreOperation operation = Begin(OperationName.JobStore.PauseTriggers);
+        StoreOperation operation = Begin(OperationName.JobStore.PauseTriggerGroups);
         if (!operation.IsRecording)
         {
-            return InnerJobStore.PauseTriggers(matcher, cancellationToken);
+            return InnerJobStore.PauseTriggerGroups(matcher, cancellationToken);
         }
 
         operation.Start();
         return Complete(operation, (InnerJobStore, matcher, cancellationToken),
-            static s => s.InnerJobStore.PauseTriggers(s.matcher, s.cancellationToken));
+            static s => s.InnerJobStore.PauseTriggerGroups(s.matcher, s.cancellationToken));
     }
 
     public override ValueTask<List<TriggerKey>> PauseTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
@@ -416,17 +416,17 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.PauseJob(s.jobKey, s.cancellationToken));
     }
 
-    public override ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public override ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        StoreOperation operation = Begin(OperationName.JobStore.PauseJobs);
+        StoreOperation operation = Begin(OperationName.JobStore.PauseJobGroups);
         if (!operation.IsRecording)
         {
-            return InnerJobStore.PauseJobs(matcher, cancellationToken);
+            return InnerJobStore.PauseJobGroups(matcher, cancellationToken);
         }
 
         operation.Start();
         return Complete(operation, (InnerJobStore, matcher, cancellationToken),
-            static s => s.InnerJobStore.PauseJobs(s.matcher, s.cancellationToken));
+            static s => s.InnerJobStore.PauseJobGroups(s.matcher, s.cancellationToken));
     }
 
     public override ValueTask<List<JobKey>> PauseJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
@@ -455,17 +455,17 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.ResumeTrigger(s.triggerKey, s.cancellationToken));
     }
 
-    public override ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public override ValueTask<List<string>> ResumeTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
-        StoreOperation operation = Begin(OperationName.JobStore.ResumeTriggers);
+        StoreOperation operation = Begin(OperationName.JobStore.ResumeTriggerGroups);
         if (!operation.IsRecording)
         {
-            return InnerJobStore.ResumeTriggers(matcher, cancellationToken);
+            return InnerJobStore.ResumeTriggerGroups(matcher, cancellationToken);
         }
 
         operation.Start();
         return Complete(operation, (InnerJobStore, matcher, cancellationToken),
-            static s => s.InnerJobStore.ResumeTriggers(s.matcher, s.cancellationToken));
+            static s => s.InnerJobStore.ResumeTriggerGroups(s.matcher, s.cancellationToken));
     }
 
     public override ValueTask<List<TriggerKey>> ResumeTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
@@ -494,17 +494,17 @@ internal sealed class TracingJobStore : DelegatingJobStore
             static s => s.InnerJobStore.ResumeJob(s.jobKey, s.cancellationToken));
     }
 
-    public override ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public override ValueTask<List<string>> ResumeJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        StoreOperation operation = Begin(OperationName.JobStore.ResumeJobs);
+        StoreOperation operation = Begin(OperationName.JobStore.ResumeJobGroups);
         if (!operation.IsRecording)
         {
-            return InnerJobStore.ResumeJobs(matcher, cancellationToken);
+            return InnerJobStore.ResumeJobGroups(matcher, cancellationToken);
         }
 
         operation.Start();
         return Complete(operation, (InnerJobStore, matcher, cancellationToken),
-            static s => s.InnerJobStore.ResumeJobs(s.matcher, s.cancellationToken));
+            static s => s.InnerJobStore.ResumeJobGroups(s.matcher, s.cancellationToken));
     }
 
     public override ValueTask<List<JobKey>> ResumeJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)

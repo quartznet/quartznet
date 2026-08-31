@@ -145,14 +145,10 @@ public sealed class Invoicing
         ScheduledOneOffJob firing = await scheduler.ScheduleJob<SendInvoiceJob, SendInvoice>(
             invoice,
             TimeSpan.FromDays(7),
-            new OneOffJobOptions
-            {
-                // Named, so it can be replaced or cancelled; grouped by the thing it is about, so the
-                // whole conversation can be cancelled at once.
-                Name = $"invoice-{invoice.CustomerId}",
-                Group = invoice.CustomerId,
-                Replace = true
-            },
+            // Named, so it can be replaced or cancelled; grouped by the thing it is about, so the
+            // whole conversation can be cancelled at once. Replacing(name) is the preset for the
+            // pair, because a firing with no name of its own has nothing to replace.
+            OneOffJobOptions.Replacing($"invoice-{invoice.CustomerId}") with { Group = invoice.CustomerId },
             cancellationToken);
 
         // What was arranged: the trigger's key, and when the store says it will first fire.
@@ -172,7 +168,7 @@ members and no more; everything else about the firing is a property of the trigg
 `GetTrigger` is how to ask for it.
 
 What is stored is **one durable job per job type**, under
-`SchedulerJobExtensions.ScheduledJobKey<TJob>()` — `(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)`
+`SchedulerConstants.ScheduledJobKey<TJob>()` — `(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)`
 — plus one trigger per call. That is the shape a message bus's Quartz integration converges on: a scheduled
 message is a trigger, so there is no job churn to pay for however many firings are in flight. The job is stored
 idempotently the first time a call is made on a scheduler and remembered afterwards, so it is safe for several
@@ -228,7 +224,7 @@ public async ValueTask Nightly(IScheduler scheduler, CancellationToken cancellat
     // built here: same job, same payload shape, one more trigger.
     ITrigger nightly = TriggerBuilder.Create<SendInvoiceJob>(scheduler.TimeProvider)
         .WithIdentity("nightly", "invoicing")
-        .ForJob(SchedulerJobExtensions.ScheduledJobKey<SendInvoiceJob>())
+        .ForJob(SchedulerConstants.ScheduledJobKey<SendInvoiceJob>())
         .WithCronSchedule("0 0 2 * * ?")
         .UsingInput(new SendInvoice("all", 0m))
         .Build();
@@ -269,7 +265,7 @@ public sealed class SendInvoiceCompatJob : IJob
         {
             invoice = new SendInvoice(
                 context.MergedJobDataMap.GetString("CustomerId")!,
-                context.MergedJobDataMap.GetDecimal("Amount"));
+                context.MergedJobDataMap.Get<decimal>("Amount"));
         }
 
         return Send(invoice, cancellationToken);

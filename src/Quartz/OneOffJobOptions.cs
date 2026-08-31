@@ -49,10 +49,39 @@ namespace Quartz;
 public readonly record struct OneOffJobOptions
 {
     /// <summary>
+    /// Schedule the firing under the given name, over-writing one already scheduled under it. The
+    /// name for <c>new OneOffJobOptions { Name = name, Replace = true }</c>, which is what
+    /// rescheduling a firing an application can name — a reminder, a saga step, a timeout — always
+    /// says.
+    /// </summary>
+    /// <remarks>
+    /// A preset rather than a bare <c>Replacing</c>, unlike <see cref="AddJobOptions.Replacing" /> and
+    /// its siblings, because <see cref="Replace" /> alone would do nothing here: without a name the
+    /// trigger gets a generated one, and a generated name has nothing to replace. The name is the
+    /// whole of what makes replacing meaningful, so it is a parameter rather than something to
+    /// remember to set afterwards.
+    /// </remarks>
+    /// <param name="name">The trigger's name, which is also the handle to cancel or replace it by.</param>
+    public static OneOffJobOptions Replacing(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        return new OneOffJobOptions { Name = name, Replace = true };
+    }
+
+    /// <summary>
     /// The trigger's name. Defaults to a generated identifier, so two calls never collide by accident;
     /// give one when the firing has an identity of its own — a message id, a saga step — and it becomes
     /// the handle to <see cref="IScheduler.UnscheduleJob" /> or to replace with.
     /// </summary>
+    /// <remarks>
+    /// A name and a group rather than a <see cref="TriggerKey" />, which is what every other place
+    /// that identifies a trigger takes. The two halves have different defaults — a generated name, a
+    /// group named after the job type — and each is worth setting without the other: "call it
+    /// <c>order-42</c>, wherever such firings go" and "put it in this saga's group, any name will
+    /// do" are both ordinary, and a key can express neither. The key exists once the trigger does,
+    /// and the call answers with it as <see cref="ScheduledOneOffJob.TriggerKey" />.
+    /// </remarks>
     public string? Name { get; init; }
 
     /// <summary>
@@ -103,7 +132,8 @@ public readonly record struct OneOffJobOptions
     /// <c>CheckExists</c> / <c>UnscheduleJob</c> / <c>ScheduleJob</c> for the caller to serialize.
     /// </summary>
     /// <remarks>
-    /// Only meaningful together with <see cref="Name" />: a generated name has nothing to replace.
+    /// Only meaningful together with <see cref="Name" />: a generated name has nothing to replace,
+    /// which is why the preset that sets this is <see cref="Replacing" /> and takes the name.
     /// </remarks>
     public bool Replace { get; init; }
 
@@ -128,7 +158,7 @@ public readonly record struct OneOffJobOptions
     /// </para>
     /// <para>
     /// A process that has to change it restarts, or deletes the job
-    /// <see cref="SchedulerJobExtensions.ScheduledJobKey{TJob}" /> names — the next call finds it gone
+    /// <see cref="SchedulerConstants.ScheduledJobKey{TJob}" /> names — the next call finds it gone
     /// and stores it afresh with whatever that call asked for.
     /// </para>
     /// </remarks>

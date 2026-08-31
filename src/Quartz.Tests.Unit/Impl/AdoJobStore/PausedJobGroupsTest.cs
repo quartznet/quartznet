@@ -85,7 +85,7 @@ public class PausedJobGroupsTest
     [Test]
     public async Task PausingAGroupThatHoldsNoJobsStillWritesItsRow()
     {
-        List<string> paused = await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("reports"));
+        List<string> paused = await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("reports"));
 
         paused.Should().Equal(["reports"],
             "an equality matcher names the group to pause, so it pauses whether or not that group holds anything yet");
@@ -104,7 +104,7 @@ public class PausedJobGroupsTest
                 A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
             .Returns(new ValueTask<List<string>>(["reports"]));
 
-        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("reports"));
+        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("reports"));
 
         A.CallTo(() => driverDelegate.InsertPausedJobGroups(
                 A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
@@ -118,7 +118,7 @@ public class PausedJobGroupsTest
                 A<ConnectionAndTransactionHolder>._, A<GroupMatcher<JobKey>>._, A<CancellationToken>._))
             .Returns(new ValueTask<List<JobKey>>([new JobKey("a", "jga"), new JobKey("b", "jgb")]));
 
-        await store.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupStartsWith("jg"));
 
         A.CallTo(() => driverDelegate.SelectPausedJobGroups(
                 A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
@@ -144,7 +144,7 @@ public class PausedJobGroupsTest
                 A<ConnectionAndTransactionHolder>._, A<GroupMatcher<JobKey>>._, A<CancellationToken>._))
             .Returns(new ValueTask<List<JobKey>>([new JobKey("a", "jga"), new JobKey("b", "jgb")]));
 
-        List<string> paused = await store.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+        List<string> paused = await store.PauseJobGroups(GroupMatcher<JobKey>.GroupStartsWith("jg"));
 
         paused.Should().BeEquivalentTo(["jga", "jgb"]);
 
@@ -162,7 +162,7 @@ public class PausedJobGroupsTest
     {
         GroupMatcher<JobKey> matcher = GroupMatcher<JobKey>.GroupStartsWith("jg");
 
-        await store.ResumeJobs(matcher);
+        await store.ResumeJobGroups(matcher);
 
         // A prefix pause recorded a row per matched group, so a resume that only understood equality
         // would leave every one of them paused forever.
@@ -204,7 +204,7 @@ public class PausedJobGroupsTest
                 A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<string>>._, A<CancellationToken>._))
             .Throws(new InvalidOperationException("primary key violation"));
 
-        Func<Task> act = async () => await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("reports"));
+        Func<Task> act = async () => await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("reports"));
 
         (await act.Should().ThrowAsync<JobPersistenceException>(
                 "callers catch JobPersistenceException, so a provider's own exception must not escape as itself"))
@@ -218,7 +218,7 @@ public class PausedJobGroupsTest
                 A<ConnectionAndTransactionHolder>._, A<GroupMatcher<JobKey>>._, A<CancellationToken>._))
             .Throws(new InvalidOperationException("connection reset"));
 
-        Func<Task> act = async () => await store.ResumeJobs(GroupMatcher<JobKey>.GroupEquals("reports"));
+        Func<Task> act = async () => await store.ResumeJobGroups(GroupMatcher<JobKey>.GroupEquals("reports"));
 
         (await act.Should().ThrowAsync<JobPersistenceException>())
             .WithInnerException<InvalidOperationException>();

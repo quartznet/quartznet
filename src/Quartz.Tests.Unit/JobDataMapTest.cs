@@ -70,11 +70,11 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         map["key"] = Guid.NewGuid();
         using (new AssertionScope())
         {
-            map.TryGetGuid("key", out var g).Should().BeTrue();
+            map.TryGet("key", out Guid g).Should().BeTrue();
             g.Should().NotBe(Guid.Empty);
 
             map["key"] = Guid.NewGuid().ToString();
-            map.TryGetGuid("key", out g).Should().BeTrue();
+            map.TryGet("key", out g).Should().BeTrue();
             g.Should().NotBe(Guid.Empty);
         }
 
@@ -113,7 +113,7 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         JobDataMap map = new JobDataMap();
         map.PutAsString(key, value);
 
-        map.TryGetDateTime(key, out DateTime read).Should().BeTrue();
+        map.TryGet(key, out DateTime read).Should().BeTrue();
         read.Should().Be(value, "the 'O' format keeps sub-second precision");
         read.Kind.Should().Be(DateTimeKind.Utc, "RoundtripKind restores the Kind the writer had");
     }
@@ -170,13 +170,13 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     }
 
     [Test]
-    public void TryGetDateTime_ReadsAZuluStringAsUtc()
+    public void Get_ReadsAZuluStringAsUtcDateTime()
     {
         // Behavioral change from 3.x: DateTimeStyles.None turned "…Z" into a local-shifted
         // Kind=Local value; RoundtripKind keeps the UTC clock reading and Kind=Utc.
         JobDataMap map = new JobDataMap { ["utc"] = "2026-01-02T15:04:05.1230000Z" };
 
-        map.TryGetDateTime("utc", out DateTime read).Should().BeTrue();
+        map.TryGet("utc", out DateTime read).Should().BeTrue();
         read.Kind.Should().Be(DateTimeKind.Utc);
         read.Should().Be(new DateTime(2026, 1, 2, 15, 4, 5, 123, DateTimeKind.Utc));
     }
@@ -191,13 +191,13 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         map.GetString("date").Should().Be("2022-01-31");
         map.GetString("time").Should().Be("15:04:05.1230000");
 
-        map.TryGetDateOnly("date", out DateOnly date).Should().BeTrue();
+        map.TryGet("date", out DateOnly date).Should().BeTrue();
         date.Should().Be(new DateOnly(2022, 1, 31));
-        map.TryGetTimeOnly("time", out TimeOnly time).Should().BeTrue();
+        map.TryGet("time", out TimeOnly time).Should().BeTrue();
         time.Should().Be(new TimeOnly(15, 4, 5, 123));
 
-        map.GetDateOnly("date").Should().Be(new DateOnly(2022, 1, 31));
-        map.GetTimeOnly("time").Should().Be(new TimeOnly(15, 4, 5, 123));
+        map.Get<DateOnly>("date").Should().Be(new DateOnly(2022, 1, 31));
+        map.Get<TimeOnly>("time").Should().Be(new TimeOnly(15, 4, 5, 123));
     }
 
     [Test]
@@ -211,7 +211,7 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         map.GetString("flag").Should().Be("True");
         map.GetBoolean("flag").Should().BeTrue();
         map.GetString("letter").Should().Be("q");
-        map.GetChar("letter").Should().Be('q');
+        map.Get<char>("letter").Should().Be('q');
     }
 
     [Test]
@@ -231,13 +231,13 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         map.PutAsString("day", DayOfWeek.Monday);
 
         map.GetString("day").Should().Be("Monday");
-        map.TryGetEnum("day", out DayOfWeek day).Should().BeTrue();
+        map.TryGet("day", out DayOfWeek day).Should().BeTrue();
         day.Should().Be(DayOfWeek.Monday);
-        map.GetEnum<DayOfWeek>("day").Should().Be(DayOfWeek.Monday);
+        map.Get<DayOfWeek>("day").Should().Be(DayOfWeek.Monday);
     }
 
     [Test]
-    public void TryGetEnum_AcceptsStoredEnumAndUnderlyingNumber()
+    public void Get_AcceptsAStoredEnumAndItsUnderlyingNumber()
     {
         JobDataMap map = new JobDataMap
         {
@@ -246,37 +246,43 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
             ["garbage"] = "NotADay"
         };
 
-        map.TryGetEnum("boxed", out DayOfWeek boxed).Should().BeTrue();
+        map.TryGet("boxed", out DayOfWeek boxed).Should().BeTrue();
         boxed.Should().Be(DayOfWeek.Friday);
 
-        map.TryGetEnum("number", out DayOfWeek number).Should().BeTrue("a JSON round trip hands the underlying number back");
+        map.TryGet("number", out DayOfWeek number).Should().BeTrue("a JSON round trip hands the underlying number back");
         number.Should().Be(DayOfWeek.Friday);
 
-        map.TryGetEnum("garbage", out DayOfWeek _).Should().BeFalse();
+        map.TryGet("garbage", out DayOfWeek _).Should().BeFalse();
     }
 
     [Test]
-    public void TryGet_IsAPureTypeTest()
+    public void TryGet_TakesTheStoredTypeFirstAndTheStringFormAfter()
     {
         JobKey stored = new JobKey("job");
         JobDataMap map = new JobDataMap
         {
             ["key"] = stored,
-            ["text"] = "42"
+            ["text"] = "42",
+            ["prose"] = "not a number"
         };
 
         map.TryGet("key", out JobKey read).Should().BeTrue();
         read.Should().BeSameAs(stored);
 
-        map.TryGet("text", out int _).Should().BeFalse("TryGet<T> never parses; use the typed accessors for that");
+        map.TryGet("text", out int parsed).Should().BeTrue(
+            "the generic accessor reads the string form the store writes, which is what makes it a "
+            + "stand-in for a named accessor per type");
+        parsed.Should().Be(42);
+
+        map.TryGet("prose", out int _).Should().BeFalse();
         map.TryGet("missing", out JobKey missing).Should().BeFalse();
         missing.Should().BeNull();
     }
 
     /// <summary>
-    /// <c>Get&lt;T&gt;</c> makes the same pure type test <c>TryGet&lt;T&gt;</c> does, and tells the two
-    /// ways it can fail apart — an entry that is not there and an entry of the wrong type are different
-    /// mistakes.
+    /// <c>Get&lt;T&gt;</c> reads what <c>TryGet&lt;T&gt;</c> reads, and tells the two ways it can fail
+    /// apart — an entry that is not there and an entry that cannot be read as the type asked for are
+    /// different mistakes.
     /// </summary>
     [Test]
     public void Get_SaysWhichWayItFailed()
@@ -285,7 +291,7 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         JobDataMap map = new JobDataMap
         {
             ["key"] = stored,
-            ["text"] = "42"
+            ["text"] = "not a key"
         };
 
         map.Get<JobKey>("key").Should().BeSameAs(stored);
@@ -293,27 +299,29 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         Action missing = () => map.Get<JobKey>("nope");
         missing.Should().Throw<KeyNotFoundException>().WithMessage("*nope*", "the message has to name the key");
 
-        Action wrongType = () => map.Get<int>("text");
+        Action wrongType = () => map.Get<JobKey>("text");
         wrongType.Should().Throw<InvalidCastException>()
             .WithMessage("*text*", "the message has to name the key")
-            .And.Message.Should().Contain("System.String").And.Contain("System.Int32",
+            .And.Message.Should().Contain("System.String").And.Contain("Quartz.JobKey",
                 "and both the stored type and the requested one, since neither is obvious from the call site");
     }
 
     [Test]
-    public void GetValueOrDefault_FallsBackForAMissingOrMistypedEntry()
+    public void GetValueOrDefault_FallsBackForAMissingOrUnreadableEntry()
     {
         JobDataMap map = new JobDataMap
         {
             ["count"] = 7,
-            ["text"] = "42"
+            ["text"] = "42",
+            ["prose"] = "not a number"
         };
 
         int count = map.GetValueOrDefault("count", -1);
         count.Should().Be(7, "the overload taking a typed default must win over the dictionary extension, which would return object?");
 
         map.GetValueOrDefault("nope", -1).Should().Be(-1);
-        map.GetValueOrDefault("text", -1).Should().Be(-1, "GetValueOrDefault<T> never parses either");
+        map.GetValueOrDefault("text", -1).Should().Be(42, "it reads what Get<T> reads, string form included");
+        map.GetValueOrDefault("prose", -1).Should().Be(-1, "and falls back when the value cannot be read as one");
     }
 
     [Test]
@@ -364,7 +372,7 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         map.PutAsString(key, value);
 
         map.GetString(key).Should().Be(value.ToString("N"));
-        map.TryGetGuid(key, out Guid read).Should().BeTrue();
+        map.TryGet(key, out Guid read).Should().BeTrue();
         read.Should().Be(value);
     }
 
@@ -383,7 +391,7 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     }
 
     [Test]
-    public void GetDecimal_ReadsBackWhatTheMapWasGiven()
+    public void Get_ReadsBackTheDecimalTheMapWasGiven()
     {
         JobDataMap map = new JobDataMap
         {
@@ -392,29 +400,79 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
             { "int", 9 }
         };
 
-        map.GetDecimal("boxed").Should().Be(12.34m);
-        map.GetDecimal("text").Should().Be(56.78m, "a decimal written through PutAsString has to come back");
-        map.GetDecimal("int").Should().Be(9m);
+        map.Get<decimal>("boxed").Should().Be(12.34m);
+        map.Get<decimal>("text").Should().Be(56.78m, "a decimal written through PutAsString has to come back");
+        map.Get<decimal>("int").Should().Be(9m);
     }
 
     [Test]
-    public void TryGetDecimal_ReportsFailureInsteadOfThrowing()
+    public void TryGet_ReportsADecimalFailureInsteadOfThrowing()
     {
         JobDataMap map = new JobDataMap { { "text", "not a number" } };
 
-        map.TryGetDecimal("text", out decimal value).Should().BeFalse();
+        map.TryGet("text", out decimal value).Should().BeFalse();
         value.Should().Be(0m);
 
-        map.TryGetDecimal("missing", out value).Should().BeFalse();
+        map.TryGet("missing", out value).Should().BeFalse();
     }
 
     [Test]
-    public void GetDecimal_ThrowsWhenTheValueIsNotADecimal()
+    public void Get_ThrowsWhenTheValueIsNotADecimal()
     {
         JobDataMap map = new JobDataMap { { "text", "not a number" } };
 
-        Action act = () => map.GetDecimal("text");
+        Action act = () => map.Get<decimal>("text");
         act.Should().Throw<InvalidCastException>();
+    }
+
+    /// <summary>
+    /// The generic accessor is what stands in for a named accessor per type, so it has to read the
+    /// string form the map itself writes — under <c>StoreJobDataAsStrings</c> that is the only form
+    /// there is, and a generic accessor that only tested the type would answer nothing for values it
+    /// had written.
+    /// </summary>
+    [Test]
+    public void Get_ReadsEveryStringFormPutAsStringWrites()
+    {
+        Guid guid = Guid.NewGuid();
+        DateTimeOffset moment = new(2026, 8, 31, 12, 0, 0, TimeSpan.FromHours(3));
+
+        JobDataMap map = new JobDataMap();
+        map.PutAsString("guid", guid);
+        map.PutAsString("span", TimeSpan.FromMinutes(90));
+        map.PutAsString("date", new DateOnly(2026, 8, 31));
+        map.PutAsString("time", new TimeOnly(15, 4, 5));
+        map.PutAsString("moment", moment);
+        map.PutAsString("letter", 'q');
+        map.PutAsString("amount", 12.34m);
+        map["day"] = nameof(DayOfWeek.Monday);
+
+        using (new AssertionScope())
+        {
+            map.Get<Guid>("guid").Should().Be(guid);
+            map.Get<TimeSpan>("span").Should().Be(TimeSpan.FromMinutes(90));
+            map.Get<DateOnly>("date").Should().Be(new DateOnly(2026, 8, 31));
+            map.Get<TimeOnly>("time").Should().Be(new TimeOnly(15, 4, 5));
+            map.Get<DateTimeOffset>("moment").Should().Be(moment);
+            map.Get<char>("letter").Should().Be('q');
+            map.Get<decimal>("amount").Should().Be(12.34m);
+            map.Get<DayOfWeek>("day").Should().Be(DayOfWeek.Monday, "an enum is parsed by name, which is what PutAsString writes");
+        }
+    }
+
+    /// <summary>
+    /// The type test is still what a value Quartz has no string form for gets: coercing is for the
+    /// types the store writes strings for, and a payload class is not one of them.
+    /// </summary>
+    [Test]
+    public void Get_IsAPlainTypeTestForATypeQuartzCannotParse()
+    {
+        JobDataMap map = new JobDataMap { { "payload", new Uri("https://example.org/") }, { "text", "https://example.org/" } };
+
+        map.Get<Uri>("payload").Should().Be(new Uri("https://example.org/"));
+        map.TryGet("text", out Uri _).Should().BeFalse(
+            "a string is not silently turned into whatever type the caller asked for");
+        map.GetValueOrDefault("text", new Uri("https://fallback/")).Should().Be(new Uri("https://fallback/"));
     }
 
     [Test]

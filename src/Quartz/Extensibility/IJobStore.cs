@@ -611,15 +611,17 @@ public interface IJobStore
     }
 
     /// <summary>
-    /// Pause all of the <see cref="ITrigger" />s in the
-    /// given group.
+    /// Pause the trigger groups that match, and every <see cref="ITrigger" /> in them.
     /// </summary>
     /// <remarks>
     /// The JobStore should "remember" that the group is paused, and impose the
     /// pause on any new triggers that are added to the group while the group is
-    /// paused.
+    /// paused. That memory is what this answers with — the names of the groups now recorded as
+    /// paused, which is not the set of keys that moved: an equality matcher records a group that
+    /// holds no trigger yet.
     /// </remarks>
-    ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
+    /// <returns>The names of the trigger groups that are recorded as paused by this call.</returns>
+    ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Pause the <see cref="IJob" /> with the given key - by
@@ -653,17 +655,18 @@ public interface IJobStore
     }
 
     /// <summary>
-    /// Pause all of the <see cref="IJob" />s in the given
-    /// group - by pausing all of their <see cref="ITrigger" />s.
-    /// <para>
+    /// Pause the job groups that match - by pausing all of the <see cref="ITrigger" />s of the
+    /// <see cref="IJob" />s in them.
+    /// </summary>
+    /// <remarks>
     /// The JobStore should "remember" that the group is paused, and impose the
     /// pause on any new jobs that are added to the group while the group is
-    /// paused.
-    /// </para>
-    /// </summary>
-    /// <seealso cref="string">
-    /// </seealso>
-    ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
+    /// paused. That memory is what this answers with — the names of the groups now recorded as
+    /// paused, which is not the set of keys that moved: an equality matcher records a group that
+    /// holds no job yet.
+    /// </remarks>
+    /// <returns>The names of the job groups that are recorded as paused by this call.</returns>
+    ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resume (un-pause) the <see cref="ITrigger" /> with the
@@ -708,14 +711,14 @@ public interface IJobStore
     }
 
     /// <summary>
-    /// Resume (un-pause) all of the <see cref="ITrigger" />s
-    /// in the given group.
+    /// Resume (un-pause) the trigger groups that match, and every <see cref="ITrigger" /> in them.
     /// <para>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
+    /// <returns>The names of the trigger groups this call resumed.</returns>
+    ValueTask<List<string>> ResumeTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resume (un-pause) the <see cref="IJob" /> with the
@@ -759,18 +762,18 @@ public interface IJobStore
     }
 
     /// <summary>
-    /// Resume (un-pause) all of the <see cref="IJob" />s in
-    /// the given group.
+    /// Resume (un-pause) the job groups that match, and the <see cref="IJob" />s in them.
     /// <para>
     /// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
     /// missed one or more fire-times, then the <see cref="ITrigger" />'s
     /// misfire instruction will be applied.
     /// </para>
     /// </summary>
-    ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
+    /// <returns>The names of the job groups this call resumed.</returns>
+    ValueTask<List<string>> ResumeJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
+    /// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroups" />
     /// on every group.
     /// <para>
     /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
@@ -781,7 +784,7 @@ public interface IJobStore
     ValueTask PauseAll(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
+    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroups" />
     /// on every group.
     /// <para>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the

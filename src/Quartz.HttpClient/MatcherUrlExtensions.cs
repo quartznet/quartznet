@@ -64,7 +64,7 @@ internal static class MatcherUrlExtensions
         return NameUrlParameters(matcher.CompareWithOperator, matcher.CompareToValue);
     }
 
-    public static string ToUrlParameters(this CalendarNameMatcher matcher)
+    public static string ToUrlParameters(this NameMatcher matcher)
     {
         ArgumentNullException.ThrowIfNull(matcher);
 

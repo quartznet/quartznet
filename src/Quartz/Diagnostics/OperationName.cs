@@ -67,12 +67,16 @@ public static class OperationName
         public const string UpdateTriggerDetails = "Quartz.JobStore.UpdateTriggerDetails";
         public const string PauseTrigger = "Quartz.JobStore.PauseTrigger";
         public const string PauseTriggers = "Quartz.JobStore.PauseTriggers";
+        public const string PauseTriggerGroups = "Quartz.JobStore.PauseTriggerGroups";
         public const string PauseJob = "Quartz.JobStore.PauseJob";
         public const string PauseJobs = "Quartz.JobStore.PauseJobs";
+        public const string PauseJobGroups = "Quartz.JobStore.PauseJobGroups";
         public const string ResumeTrigger = "Quartz.JobStore.ResumeTrigger";
         public const string ResumeTriggers = "Quartz.JobStore.ResumeTriggers";
+        public const string ResumeTriggerGroups = "Quartz.JobStore.ResumeTriggerGroups";
         public const string ResumeJob = "Quartz.JobStore.ResumeJob";
         public const string ResumeJobs = "Quartz.JobStore.ResumeJobs";
+        public const string ResumeJobGroups = "Quartz.JobStore.ResumeJobGroups";
         public const string PauseAll = "Quartz.JobStore.PauseAll";
         public const string ResumeAll = "Quartz.JobStore.ResumeAll";
         public const string ResetTriggerFromErrorState = "Quartz.JobStore.ResetTriggerFromErrorState";

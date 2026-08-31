@@ -74,7 +74,7 @@ which is part of the JobDetail object.
 
 The `JobDataMap` can be used to hold any number of (serializable) objects which you wish to have made available
 to the job instance when it executes. `JobDataMap` implements `IDictionary<string, object?>`, and a set of typed
-accessors — `GetString`, `GetInt`, `GetDateTimeOffset`, `GetEnum<T>`, `TryGet<T>` and the rest — come with it as
+accessors — `GetString`, `GetInt`, `GetDateTimeOffset`, `Get<T>`, `TryGet<T>` and the rest — come with it as
 extension methods, so `map.GetString("key")` works on any map without a cast or a lookup of your own.
 
 This section is the introduction. [Job Data](job-data-map.md) has the full inventory: every accessor, the

@@ -10,8 +10,10 @@ Quartz.JobStore.DeleteTrigger
 Quartz.JobStore.DeleteTriggers
 Quartz.JobStore.PauseAll
 Quartz.JobStore.PauseJob
+Quartz.JobStore.PauseJobGroups
 Quartz.JobStore.PauseJobs
 Quartz.JobStore.PauseTrigger
+Quartz.JobStore.PauseTriggerGroups
 Quartz.JobStore.PauseTriggers
 Quartz.JobStore.ReleaseAcquiredTrigger
 Quartz.JobStore.ReplaceTrigger
@@ -19,8 +21,10 @@ Quartz.JobStore.ResetTriggerFromErrorState
 Quartz.JobStore.ResetTriggersFromErrorState
 Quartz.JobStore.ResumeAll
 Quartz.JobStore.ResumeJob
+Quartz.JobStore.ResumeJobGroups
 Quartz.JobStore.ResumeJobs
 Quartz.JobStore.ResumeTrigger
+Quartz.JobStore.ResumeTriggerGroups
 Quartz.JobStore.ResumeTriggers
 Quartz.JobStore.ScheduleJob
 Quartz.JobStore.ScheduleJobs

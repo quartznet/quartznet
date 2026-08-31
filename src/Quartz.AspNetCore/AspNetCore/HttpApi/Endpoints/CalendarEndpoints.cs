@@ -52,7 +52,7 @@ internal static class CalendarEndpoints
             {
                 Skip = skip,
                 IncludeTotalCount = includeTotalCount,
-                Name = EndpointHelper.GetCalendarNameMatcher(nameContains, nameEndsWith, nameStartsWith, nameEquals)
+                Name = EndpointHelper.GetNameMatcher(nameContains, nameEndsWith, nameStartsWith, nameEquals)
             };
 
             // a request that names no take gets the query record's own default page size

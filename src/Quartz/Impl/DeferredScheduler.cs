@@ -279,10 +279,10 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.PauseJob(jobKey, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
-        return await target.PauseJobs(matcher, cancellationToken).ConfigureAwait(false);
+        return await target.PauseJobGroups(matcher, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<List<JobKey>> PauseJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
@@ -297,10 +297,10 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.PauseTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
-        return await target.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
+        return await target.PauseTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<List<TriggerKey>> PauseTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
@@ -315,10 +315,10 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.ResumeJob(jobKey, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> ResumeJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
-        return await target.ResumeJobs(matcher, cancellationToken).ConfigureAwait(false);
+        return await target.ResumeJobGroups(matcher, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<List<JobKey>> ResumeJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
@@ -333,10 +333,10 @@ internal sealed class DeferredScheduler : IScheduler
         return await target.ResumeTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
     }
 
-    public async ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> ResumeTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         var target = await Resolve(cancellationToken).ConfigureAwait(false);
-        return await target.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
+        return await target.ResumeTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
     }
 
     public async ValueTask<List<TriggerKey>> ResumeTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)

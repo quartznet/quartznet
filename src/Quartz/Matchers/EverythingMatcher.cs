@@ -38,7 +38,13 @@ public sealed class EverythingMatcher<TKey> : IMatcher<TKey> where TKey : Key<TK
     /// <summary>
     /// Create an EverythingMatcher that matches every key.
     /// </summary>
-    public static EverythingMatcher<TKey> All()
+    /// <remarks>
+    /// Internal because <see cref="Matchers.AllJobs" /> and <see cref="Matchers.AllTriggers" /> are
+    /// the two spellings a caller needs, and they name the key type rather than repeating it. A
+    /// matcher that carries no comparison has nothing to name it after, so it is built where the
+    /// rest of the roots are built rather than by itself.
+    /// </remarks>
+    internal static EverythingMatcher<TKey> All()
     {
         return new EverythingMatcher<TKey>();
     }

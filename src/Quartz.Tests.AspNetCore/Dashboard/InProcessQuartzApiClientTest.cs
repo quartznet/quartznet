@@ -498,7 +498,7 @@ public class InProcessQuartzApiClientTest
         {
             await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job1", "paused").StoreDurably().Build(), new AddJobOptions { Replace = true });
             await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job2", "running").StoreDurably().Build(), new AddJobOptions { Replace = true });
-            await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("paused"));
+            await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("paused"));
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
             PagedResult<JobGroupDto> groups = await client.QueryJobGroups(scheduler.SchedulerName, new DashboardGroupQuery());
@@ -536,9 +536,9 @@ public class InProcessQuartzApiClientTest
                 .WithCronSchedule("0 0 1 * * ?")
                 .Build());
 
-            await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("reports"));
-            await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("nightly"));
-            await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("empty-and-paused"));
+            await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("reports"));
+            await scheduler.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("nightly"));
+            await scheduler.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("empty-and-paused"));
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
@@ -571,7 +571,7 @@ public class InProcessQuartzApiClientTest
             await scheduler.AddJob(job, new AddJobOptions { Replace = true });
             await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("t1", "paused").ForJob(job).WithCronSchedule("0 0 1 * * ?").Build());
             await scheduler.ScheduleJob(TriggerBuilder.Create().WithIdentity("t2", "running").ForJob(job).WithCronSchedule("0 0 2 * * ?").Build());
-            await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("paused"));
+            await scheduler.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("paused"));
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
             PagedResult<TriggerGroupDto> groups = await client.QueryTriggerGroups(scheduler.SchedulerName, new DashboardGroupQuery());

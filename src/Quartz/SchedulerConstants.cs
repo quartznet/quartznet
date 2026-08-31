@@ -136,11 +136,38 @@ public static class SchedulerConstants
     /// </para>
     /// <para>
     /// Addressing the job that <em>is</em> in it — to point a trigger of one's own at it, or to look it
-    /// up — is <see cref="SchedulerJobExtensions.ScheduledJobKey{TJob}" />, which spells the whole key
-    /// so nothing has to re-derive it.
+    /// up — is <see cref="ScheduledJobKey{TJob}" />, which spells the whole key so nothing has to
+    /// re-derive it.
     /// </para>
     /// </remarks>
     public const string ScheduledJobGroup = "QRTZ_SCHEDULED";
+
+    /// <summary>
+    /// The key of the single durable job every firing of <typeparamref name="TJob" /> scheduled by the
+    /// one-call <c>ScheduleJob&lt;TJob, TInput&gt;</c> overloads hangs off.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One durable job per job type, named after the type and kept in
+    /// <see cref="ScheduledJobGroup" />. Named here, beside the group it is in, because that group is
+    /// reserved: an integration with a second scheduling path of its own — a recurring trigger built
+    /// by hand, say, for the same job — needs to point that trigger at the job the one-liner ensures,
+    /// and asking is better than re-deriving the key against the advice not to build jobs in the
+    /// group.
+    /// </para>
+    /// <para>
+    /// The key is derived from the type, not looked up, so it answers whether or not anything has been
+    /// scheduled yet. The job itself appears in the store the first time one of the one-call overloads
+    /// is used on a scheduler.
+    /// </para>
+    /// </remarks>
+    /// <typeparam name="TJob">The job whose durable detail to name.</typeparam>
+    /// <returns>The key of the durable job the one-call overloads ensure.</returns>
+    /// <seealso cref="SchedulerJobExtensions" />
+    public static JobKey ScheduledJobKey<TJob>() where TJob : IJob
+    {
+        return new JobKey(typeof(TJob).Name, ScheduledJobGroup);
+    }
 
     /// <summary>
     /// The <see cref="JobDataMap" /> key carrying the W3C <c>traceparent</c> of the activity that

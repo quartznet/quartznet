@@ -117,10 +117,12 @@ public static class QueryingJobsAndTriggersSamples
     {
         #region sample_querying_shorthands
 
-        PagedResult<JobHeader> jobs = await scheduler.QueryJobs();
-        PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers();
-        PagedResult<FireInstance> running = await scheduler.QueryFireInstances();
-        PagedResult<FireInstance> runningOneJob = await scheduler.QueryFireInstancesOfJob(jobKey);
+        PagedResult<JobHeader> jobs = await scheduler.QueryJobs(new JobQuery());
+        PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers(new TriggerQuery());
+        PagedResult<FireInstance> running = await scheduler.QueryFireInstances(new FireInstanceQuery());
+        PagedResult<FireInstance> runningOneJob = await scheduler.QueryFireInstances(new FireInstanceQuery { Job = jobKey });
+
+        // the one shorthand that is a preset rather than a synonym: it knows the filter
         PagedResult<TriggerHeader> failed = await scheduler.QueryTriggersInError();
 
         #endregion
@@ -159,7 +161,7 @@ public static class QueryingJobsAndTriggersSamples
     {
         #region sample_querying_pause_triggers
 
-        List<string> pausedGroups = await scheduler.PauseTriggers(
+        List<string> pausedGroups = await scheduler.PauseTriggerGroups(
             GroupMatcher<TriggerKey>.GroupStartsWith("nightly-"));
 
         #endregion

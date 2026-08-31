@@ -82,7 +82,7 @@ internal sealed class QueryStringBuilder
         }
     }
 
-    public void AddNameMatcher(CalendarNameMatcher? matcher)
+    public void AddNameMatcher(NameMatcher? matcher)
     {
         if (matcher is null)
         {

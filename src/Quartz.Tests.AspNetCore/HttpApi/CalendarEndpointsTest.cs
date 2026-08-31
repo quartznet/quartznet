@@ -47,15 +47,15 @@ public class CalendarEndpointsTest : WebApiTest
     [Test]
     public async Task QueryCalendarNamesShouldPassTheNameFilter()
     {
-        CalendarNameMatcher[] matchers =
+        NameMatcher[] matchers =
         [
-            CalendarNameMatcher.NameEquals("equals"),
-            CalendarNameMatcher.NameStartsWith("starts"),
-            CalendarNameMatcher.NameEndsWith("ends"),
-            CalendarNameMatcher.NameContains("contains")
+            NameMatcher.NameEquals("equals"),
+            NameMatcher.NameStartsWith("starts"),
+            NameMatcher.NameEndsWith("ends"),
+            NameMatcher.NameContains("contains")
         ];
 
-        foreach (CalendarNameMatcher matcher in matchers)
+        foreach (NameMatcher matcher in matchers)
         {
             Fake.ClearRecordedCalls(FakeScheduler);
             A.CallTo(() => FakeScheduler.QueryCalendarNames(A<CalendarQuery>._, A<CancellationToken>._))

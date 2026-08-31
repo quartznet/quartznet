@@ -279,14 +279,14 @@ public abstract class JobStoreContractTest
         IOperableTrigger inGroup = await ScheduleJobWithTrigger("in-group", JobGroupA, TriggerGroupA);
         IOperableTrigger elsewhere = await ScheduleJobWithTrigger("elsewhere", JobGroupB, TriggerGroupB);
 
-        List<string> paused = await Store.PauseJobs(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+        List<string> paused = await Store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
 
         paused.Should().Equal([JobGroupA], "the group that was asked for is the group that paused");
         (await Store.GetTriggerState(inGroup.Key)).Should().Be(TriggerState.Paused);
         (await Store.GetTriggerState(elsewhere.Key)).Should().Be(TriggerState.Normal,
             "a job group pause stops at the group's edge");
 
-        List<string> resumed = await Store.ResumeJobs(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+        List<string> resumed = await Store.ResumeJobGroups(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
 
         resumed.Should().Equal([JobGroupA]);
         (await Store.GetTriggerState(inGroup.Key)).Should().Be(TriggerState.Normal);
@@ -299,7 +299,7 @@ public abstract class JobStoreContractTest
         IOperableTrigger second = await ScheduleJobWithTrigger("second", JobGroupB, TriggerGroupB);
         IOperableTrigger untouched = await ScheduleJobWithTrigger("untouched", OtherGroup, OtherGroup);
 
-        List<string> paused = await Store.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+        List<string> paused = await Store.PauseJobGroups(GroupMatcher<JobKey>.GroupStartsWith("jg"));
 
         paused.Should().BeEquivalentTo([JobGroupA, JobGroupB],
             "a prefix matcher pauses every group whose name starts with it");
@@ -308,7 +308,7 @@ public abstract class JobStoreContractTest
         (await Store.GetTriggerState(untouched.Key)).Should().Be(TriggerState.Normal,
             "a group the prefix does not match is never touched");
 
-        await Store.ResumeJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+        await Store.ResumeJobGroups(GroupMatcher<JobKey>.GroupStartsWith("jg"));
 
         (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Normal);
         (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Normal);
@@ -320,7 +320,7 @@ public abstract class JobStoreContractTest
         IOperableTrigger inGroup = await ScheduleJobWithTrigger("in-group", JobGroupA, TriggerGroupA);
         IOperableTrigger elsewhere = await ScheduleJobWithTrigger("elsewhere", JobGroupA, OtherGroup);
 
-        List<string> paused = await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
+        List<string> paused = await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
 
         paused.Should().Equal([TriggerGroupA]);
         (await Store.GetTriggerState(inGroup.Key)).Should().Be(TriggerState.Paused);
@@ -330,7 +330,7 @@ public abstract class JobStoreContractTest
         pausedGroups.Items.Select(x => x.Name).Should().Equal([TriggerGroupA],
             "a store has to remember which trigger groups are paused, or the pause is forgotten");
 
-        await Store.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
+        await Store.ResumeTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
 
         (await Store.GetTriggerState(inGroup.Key)).Should().Be(TriggerState.Normal);
         (await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true })).Items.Should().BeEmpty(
@@ -344,7 +344,7 @@ public abstract class JobStoreContractTest
         IOperableTrigger second = await ScheduleJobWithTrigger("second", JobGroupA, TriggerGroupB);
         IOperableTrigger untouched = await ScheduleJobWithTrigger("untouched", JobGroupA, OtherGroup);
 
-        List<string> paused = await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("tg"));
+        List<string> paused = await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupStartsWith("tg"));
 
         paused.Should().BeEquivalentTo([TriggerGroupA, TriggerGroupB],
             "a prefix matcher pauses every group whose name starts with it");
@@ -376,7 +376,7 @@ public abstract class JobStoreContractTest
         (await Store.GetTriggerState(joining.Key)).Should().Be(TriggerState.Paused,
             "a group the prefix pause matched is a paused group like any other");
 
-        await Store.ResumeTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("tg"));
+        await Store.ResumeTriggerGroups(GroupMatcher<TriggerKey>.GroupStartsWith("tg"));
 
         (await Store.GetTriggerState(first.Key)).Should().Be(TriggerState.Normal);
         (await Store.GetTriggerState(second.Key)).Should().Be(TriggerState.Normal);
@@ -417,7 +417,7 @@ public abstract class JobStoreContractTest
     {
         IOperableTrigger existing = await ScheduleJobWithTrigger("existing", JobGroupA, TriggerGroupA);
 
-        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
+        await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
 
         IJobDetail job = CreateJob("late", JobGroupA);
         IOperableTrigger late = CreateTrigger("late", TriggerGroupA, job.Key);
@@ -431,7 +431,7 @@ public abstract class JobStoreContractTest
     [Test]
     public async Task PausingAGroupThatHasNoTriggersStillRemembersThePause()
     {
-        List<string> paused = await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("empty-group"));
+        List<string> paused = await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("empty-group"));
 
         paused.Should().Equal(["empty-group"],
             "pausing a group that holds nothing yet is how a caller pauses what is about to be added to it");
@@ -451,7 +451,7 @@ public abstract class JobStoreContractTest
     public async Task ResumeAllAndAGroupThatIsPausedButEmpty()
     {
         await ScheduleJobWithTrigger("elsewhere", JobGroupA, TriggerGroupA);
-        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("empty-group"));
+        await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("empty-group"));
 
         await Store.ResumeAll();
 
@@ -472,7 +472,7 @@ public abstract class JobStoreContractTest
         IOperableTrigger trigger = await ScheduleJobWithTrigger("job", JobGroupA, TriggerGroupA);
         IOperableTrigger elsewhere = await ScheduleJobWithTrigger("elsewhere", JobGroupB, TriggerGroupB);
 
-        await Store.PauseJobs(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+        await Store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
 
         (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused,
             "pausing the group has to stop the triggers of the jobs in it");
@@ -481,14 +481,14 @@ public abstract class JobStoreContractTest
             .Select(x => x.Name).Should().Equal([JobGroupA],
                 "a store has to remember which job groups are paused, or the pause is forgotten");
 
-        (await Store.QueryJobGroups(new JobGroupQuery { Name = JobGroupA })).Items
+        (await Store.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEquals(JobGroupA) })).Items
             .Should().ContainSingle().Which.Paused.Should().BeTrue();
 
         (await Store.QueryJobGroups(new JobGroupQuery { Paused = false })).Items
             .Select(x => x.Name).Should().Equal([JobGroupB],
                 "the unpaused listing is the complement of the paused one");
 
-        await Store.ResumeJobs(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
+        await Store.ResumeJobGroups(GroupMatcher<JobKey>.GroupEquals(JobGroupA));
 
         (await Store.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
         (await Store.GetTriggerState(elsewhere.Key)).Should().Be(TriggerState.Normal);
@@ -503,13 +503,13 @@ public abstract class JobStoreContractTest
         await ScheduleJobWithTrigger("second", JobGroupB, TriggerGroupB);
         await ScheduleJobWithTrigger("untouched", OtherGroup, OtherGroup);
 
-        await Store.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+        await Store.PauseJobGroups(GroupMatcher<JobKey>.GroupStartsWith("jg"));
 
         (await Store.QueryJobGroups(new JobGroupQuery { Paused = true })).Items
             .Select(x => x.Name).Should().BeEquivalentTo([JobGroupA, JobGroupB],
                 "what a prefix pause records is the groups it matched, never the pattern itself");
 
-        await Store.ResumeJobs(GroupMatcher<JobKey>.GroupStartsWith("jg"));
+        await Store.ResumeJobGroups(GroupMatcher<JobKey>.GroupStartsWith("jg"));
 
         (await Store.QueryJobGroups(new JobGroupQuery { Paused = true })).Items.Should().BeEmpty(
             "the same prefix that paused the groups takes the pause off them again");
@@ -518,7 +518,7 @@ public abstract class JobStoreContractTest
     [Test]
     public async Task PausingAJobGroupThatHasNoJobsStillRemembersThePause()
     {
-        List<string> paused = await Store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("empty-group"));
+        List<string> paused = await Store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("empty-group"));
 
         paused.Should().Equal(["empty-group"],
             "an equality matcher names the group to pause, so it pauses whether or not that group "
@@ -537,7 +537,7 @@ public abstract class JobStoreContractTest
     public async Task ResumeAllReachesAJobGroupThatIsPausedButEmpty()
     {
         await ScheduleJobWithTrigger("elsewhere", JobGroupA, TriggerGroupA);
-        await Store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("empty-group"));
+        await Store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("empty-group"));
 
         await Store.ResumeAll();
 
@@ -791,7 +791,7 @@ public abstract class JobStoreContractTest
     {
         IOperableTrigger trigger = await GivenATriggerInErrorState();
 
-        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(trigger.Key.Group));
+        await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(trigger.Key.Group));
 
         // Only WAITING, ACQUIRED and BLOCKED are pausable, so the error survives the pause and can
         // still be reset — into the pause, rather than past it.
@@ -1276,13 +1276,13 @@ public abstract class JobStoreContractTest
 
         PagedResult<string> exact = await Store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameEquals("workday")
+            Name = NameMatcher.NameEquals("workday")
         });
         exact.Items.Should().Equal(["workday"]);
 
         PagedResult<string> prefixed = await Store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameStartsWith("holiday-"),
+            Name = NameMatcher.NameStartsWith("holiday-"),
             IncludeTotalCount = true
         });
         prefixed.Items.Should().Equal(["holiday-easter", "holiday-xmas"]);
@@ -1290,20 +1290,20 @@ public abstract class JobStoreContractTest
 
         PagedResult<string> suffixed = await Store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameEndsWith("xmas")
+            Name = NameMatcher.NameEndsWith("xmas")
         });
         suffixed.Items.Should().Equal(["holiday-xmas"]);
 
         PagedResult<string> contained = await Store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameContains("day")
+            Name = NameMatcher.NameContains("day")
         });
         contained.Items.Should().Equal(["holiday-easter", "holiday-xmas", "workday"],
             "a filtered listing keeps the ordering of an unfiltered one");
 
         PagedResult<string> filteredPage = await Store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameContains("day"),
+            Name = NameMatcher.NameContains("day"),
             Skip = 1,
             Take = 1,
             IncludeTotalCount = true
@@ -1314,7 +1314,7 @@ public abstract class JobStoreContractTest
 
         PagedResult<string> counted = await Store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameStartsWith("holiday-"),
+            Name = NameMatcher.NameStartsWith("holiday-"),
             Take = 0,
             IncludeTotalCount = true
         });
@@ -1325,13 +1325,13 @@ public abstract class JobStoreContractTest
         // it out of the LIKE it builds.
         PagedResult<string> literalWildcard = await Store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameStartsWith("50%")
+            Name = NameMatcher.NameStartsWith("50%")
         });
         literalWildcard.Items.Should().Equal(["50%off"]);
 
         PagedResult<string> notAPattern = await Store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameStartsWith("50%o_f")
+            Name = NameMatcher.NameStartsWith("50%o_f")
         });
         notAPattern.Items.Should().BeEmpty("'_' is a literal too, so it does not match the 'f' in '50%off'");
     }
@@ -1433,7 +1433,7 @@ public abstract class JobStoreContractTest
         });
         byState.TotalCount.Should().Be(expected.Count, "nothing has been paused yet");
 
-        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("pg-b"));
+        await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("pg-b"));
 
         PagedResult<TriggerHeader> pausedOnly = await Store.QueryTriggers(new TriggerQuery
         {
@@ -1459,11 +1459,15 @@ public abstract class JobStoreContractTest
         page.HasMore.Should().BeTrue();
         page.TotalCount.Should().Be(3);
 
-        PagedResult<JobGroup> named = await Store.QueryJobGroups(new JobGroupQuery { Name = "pg-c" });
+        PagedResult<JobGroup> named = await Store.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEquals("pg-c") });
         named.Items.Select(x => x.Name).Should().Equal(["pg-c"],
-            "the name filter is an exact match, not a pattern");
+            "an equality matcher selects the one group it names");
 
-        PagedResult<JobGroup> unknown = await Store.QueryJobGroups(new JobGroupQuery { Name = "nope" });
+        PagedResult<JobGroup> prefixed = await Store.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameStartsWith("pg-") });
+        prefixed.Items.Select(x => x.Name).Should().Equal(["pg-a", "pg-b", "pg-c"],
+            "a group listing filters by pattern like every other name filter, not by exact name alone");
+
+        PagedResult<JobGroup> unknown = await Store.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEquals("nope") });
         unknown.Items.Should().BeEmpty();
     }
 
@@ -1482,7 +1486,7 @@ public abstract class JobStoreContractTest
         page.HasMore.Should().BeFalse();
         page.TotalCount.Should().Be(3);
 
-        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("pg-b"));
+        await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("pg-b"));
 
         PagedResult<TriggerGroup> paused = await Store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true, IncludeTotalCount = true });
         paused.Items.Select(x => x.Name).Should().Equal(["pg-b"]);
@@ -1492,9 +1496,13 @@ public abstract class JobStoreContractTest
         unpaused.Items.Select(x => x.Name).Should().Equal(["pg-a", "pg-c"]);
         unpaused.TotalCount.Should().Be(2);
 
-        PagedResult<TriggerGroup> named = await Store.QueryTriggerGroups(new TriggerGroupQuery { Name = "pg-b" });
+        PagedResult<TriggerGroup> named = await Store.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameEquals("pg-b") });
         named.Items.Should().ContainSingle().Which.Paused.Should().BeTrue(
             "a group listing carries the group's paused state");
+
+        PagedResult<TriggerGroup> suffixed = await Store.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameEndsWith("-c") });
+        suffixed.Items.Select(x => x.Name).Should().Equal(["pg-c"],
+            "a trigger group listing filters by pattern too, and the paused listing is not the only one that does");
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -1595,14 +1603,14 @@ public abstract class JobStoreContractTest
     {
         await SeedAnchor();
 
-        (await Store.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals("no-such-group"))).Should().BeEmpty(
+        (await Store.ResumeTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("no-such-group"))).Should().BeEmpty(
             "nothing matched, so nothing was resumed");
-        (await Store.ResumeJobs(GroupMatcher<JobKey>.GroupEquals("no-such-group"))).Should().BeEmpty();
+        (await Store.ResumeJobGroups(GroupMatcher<JobKey>.GroupEquals("no-such-group"))).Should().BeEmpty();
 
         // A prefix matcher rather than an equality one: pausing a group by exact name is how a caller
         // pauses a group before it exists, so that call deliberately does report a group.
-        (await Store.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("no-such-prefix"))).Should().BeEmpty();
-        (await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupStartsWith("no-such-prefix"))).Should().BeEmpty();
+        (await Store.PauseJobGroups(GroupMatcher<JobKey>.GroupStartsWith("no-such-prefix"))).Should().BeEmpty();
+        (await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupStartsWith("no-such-prefix"))).Should().BeEmpty();
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -2214,7 +2222,7 @@ public abstract class JobStoreContractTest
     {
         IOperableTrigger trigger = await ScheduleJobWithTrigger("replaced", JobGroupA, TriggerGroupA);
 
-        await Store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
+        await Store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(TriggerGroupA));
 
         IOperableTrigger replacement = CreateTrigger("replaced", TriggerGroupA, trigger.JobKey,
             startAt: DateTimeOffset.UtcNow.AddHours(1));
