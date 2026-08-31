@@ -30,6 +30,7 @@ internal static class QuartzTypedOptions
     internal const string JobStoreSection = "JobStore";
     internal const string ClusteringSection = "Clustering";
     internal const string DataSourceSection = "DataSource";
+    internal const string TypeLoaderSection = "TypeLoader";
 
     /// <summary>
     /// Registers the validators for every Quartz options type. Safe to call repeatedly.
@@ -47,6 +48,7 @@ internal static class QuartzTypedOptions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QuartzSchedulerOptions>, QuartzSchedulerOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QuartzSchedulerOptions>, DefaultSchedulerNameValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ThreadPoolOptions>, ThreadPoolOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<TypeLoaderOptions>, TypeLoaderOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<InMemoryJobStoreOptions>, InMemoryJobStoreOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AdoJobStoreOptions>, AdoJobStoreOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ClusteringOptions>, ClusteringOptionsValidator>());
@@ -121,6 +123,12 @@ internal static class QuartzTypedOptions
         {
             services.Configure<DataSourceOptions>(dataSource.Key, dataSource);
         }
+
+        // Type loading is container-wide — one ITypeLoader serves every scheduler — so the aliases bind
+        // to the unnamed options whichever scheduler's section they were written in. Two schedulers each
+        // declaring a rename therefore contribute to one table rather than to two the loader could not
+        // tell apart.
+        services.Configure<TypeLoaderOptions>(quartzSection.GetSection(TypeLoaderSection));
 
         // A named scheduler's instance name is always the name it was registered under.
         if (!string.IsNullOrEmpty(schedulerName))

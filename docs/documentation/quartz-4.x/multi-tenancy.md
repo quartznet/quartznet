@@ -336,7 +336,7 @@ A handful of things are container-wide, shared by every scheduler in the process
 
 | | |
 |---|---|
-| `ITypeLoader` | type loading is a container-wide concern; `UseTypeLoader<T>()` **replaces** it for everyone |
+| `ITypeLoader` | type loading is a container-wide concern; `UseTypeLoader<T>()` **replaces** it for everyone, and the renames `UseTypeLoader(configure)` declares are in force for everyone |
 | `ISchedulerRepository` | one per container — that is what makes `GetAllSchedulers` and the dashboard see all of them |
 | `ISchedulerRegistry` | one per container — it answers for every registration in it, which is what makes it an inventory rather than a scheduler's own view |
 | `IJobExecutionContextAccessor` | one per container, and the firing it reports is a property of the asynchronous flow rather than of a scheduler — a flow is inside at most one firing, whichever scheduler started it |

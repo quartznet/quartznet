@@ -7,6 +7,8 @@ using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Documentation.Samples.Configuration;
 
+// NightlyRollupJob lives in the parent namespace, which this one already sees.
+
 /// <summary>
 /// Samples for docs/documentation/quartz-4.x/configuration/reference.md.
 /// </summary>
@@ -229,6 +231,16 @@ public static class ReferenceSamples
 
         services.AddQuartz("reporting", q => q.UsePersistentStore(store => store.UseSqlServer(reportingDb)));
         services.AddQuartz("ingest", q => q.UseInMemoryStore());
+
+        #endregion
+    }
+
+    public static void TypeLoaderAliases(IServiceCollection services)
+    {
+        #region sample_reference_type_loader_aliases
+
+        services.AddQuartz(q => q.UseTypeLoader(loader =>
+            loader.Map("Acme.Jobs.NightlyReport, Acme.Jobs", typeof(NightlyRollupJob))));
 
         #endregion
     }

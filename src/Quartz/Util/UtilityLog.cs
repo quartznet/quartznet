@@ -76,4 +76,16 @@ internal static partial class UtilityLog
 
     [LoggerMessage(EventId = 5110, Level = LogLevel.Warning, Message = "Unable to read environment variables due to security exception, probably running under medium trust")]
     public static partial void EnvironmentVariablesReadDenied(this ILogger logger);
+
+    /// <summary>
+    /// A type resolved through an alias the application declared, rather than through one of Quartz's
+    /// own 4.0 renames.
+    /// </summary>
+    /// <remarks>
+    /// Debug rather than the warning its 3.x counterpart carries: a declared alias is not a mistake to
+    /// correct, it is a rename that was announced. It is logged at all because an alias can only be
+    /// retired once nothing is hitting it, and nothing else says whether anything still is.
+    /// </remarks>
+    [LoggerMessage(EventId = 5111, Level = LogLevel.Debug, Message = "Type '{OldName}' was resolved as '{NewName}' through a declared type loader alias.")]
+    public static partial void TypeFoundUnderDeclaredAlias(this ILogger logger, string oldName, string newName);
 }

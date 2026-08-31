@@ -414,3 +414,5 @@
     "Unable to read environment variable '{Key}' due to security exception, probably running under medium trust"
 5110  Warning  UtilityLog.EnvironmentVariablesReadDenied
     "Unable to read environment variables due to security exception, probably running under medium trust"
+5111  Debug  UtilityLog.TypeFoundUnderDeclaredAlias
+    "Type '{OldName}' was resolved as '{NewName}' through a declared type loader alias."

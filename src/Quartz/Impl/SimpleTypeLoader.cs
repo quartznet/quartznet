@@ -18,6 +18,7 @@
 #endregion
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using Quartz.Diagnostics;
 using Quartz.Extensibility;
@@ -95,14 +96,28 @@ internal sealed class SimpleTypeLoader : ITypeLoader
 
     private readonly ILogger<SimpleTypeLoader> logger;
 
+    /// <summary>
+    /// The application's own renames, in the same shape as <see cref="renamedTypes" /> and matched by
+    /// the same rule, because they are the same kind of fact about the same kind of string.
+    /// </summary>
+    private readonly (string Old, string New)[] aliases;
+
     /// <param name="logger">
     /// Where a legacy type name that had to be rewritten is reported. The container fills this in; a
     /// loader constructed by hand — every plugin that builds its own — reads
     /// <see cref="LogProvider" />, as before.
     /// </param>
-    public SimpleTypeLoader(ILogger<SimpleTypeLoader>? logger = null)
+    /// <param name="options">
+    /// The application's declared renames. A loader constructed by hand has none, which is what every
+    /// caller outside the container wants: those resolve Quartz's own type names.
+    /// </param>
+    public SimpleTypeLoader(ILogger<SimpleTypeLoader>? logger = null, IOptions<TypeLoaderOptions>? options = null)
     {
         this.logger = logger ?? LogProvider.CreateLogger<SimpleTypeLoader>();
+
+        // Read here rather than per lookup, so a bad alias is a failure to build the loader — which is a
+        // failure to build the scheduler — rather than a TypeLoadException on the first job that needs it.
+        aliases = DeclaredAliases(options?.Value);
     }
 
     /// <inheritdoc />
@@ -112,16 +127,102 @@ internal sealed class SimpleTypeLoader : ITypeLoader
         {
             return null;
         }
-        var type = Type.GetType(name, false);
-        if (type is null)
-        {
-            type = LoadLegacyName(name);
-        }
+        Type? type = LoadDeclaredAlias(name) ?? Type.GetType(name, false) ?? LoadLegacyName(name);
         if (type is null)
         {
             Throw.TypeLoadException($"Could not load type '{name}'");
         }
         return type;
+    }
+
+    /// <summary>
+    /// Whether a name resolves to a type, without the <see cref="TypeLoadException" />
+    /// <see cref="LoadType" /> throws when it does not.
+    /// </summary>
+    /// <remarks>
+    /// What <c>TypeLoaderOptionsValidator</c> asks of an alias's target at startup. It lives here so
+    /// that resolving a type from a string stays in the one type whose contract that is — the trim
+    /// analyzer's <c>IL2057</c> is recorded against this type and nothing else — and so that a target
+    /// may itself be spelled with a pre-4.0 name.
+    /// </remarks>
+    internal static bool CanResolve(string name)
+    {
+        if (Type.GetType(name, false) is not null)
+        {
+            return true;
+        }
+
+        foreach (string candidate in LegacyNameCandidates(name))
+        {
+            if (Type.GetType(candidate, false) is not null)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The renames the application declared, dropping the entries that say nothing.
+    /// </summary>
+    /// <remarks>
+    /// A blank alias or a blank target is refused by <c>TypeLoaderOptionsValidator</c>, which is where
+    /// it is reported; skipping it here as well is what keeps a loader built without validation — one
+    /// constructed by hand, with options handed to it directly — from matching a blank alias against
+    /// every name it is ever asked for.
+    /// </remarks>
+    private static (string Old, string New)[] DeclaredAliases(TypeLoaderOptions? options)
+    {
+        if (options is null || options.Aliases.Count == 0)
+        {
+            return [];
+        }
+
+        List<(string Old, string New)> declared = [];
+        foreach ((string alias, string? target) in options.Aliases)
+        {
+            if (!string.IsNullOrWhiteSpace(alias) && !string.IsNullOrWhiteSpace(target))
+            {
+                declared.Add((alias, target));
+            }
+        }
+
+        return declared.ToArray();
+    }
+
+    /// <summary>
+    /// Resolves a name the application declared an alias for, before the runtime is asked at all.
+    /// </summary>
+    /// <remarks>
+    /// An alias states what a stored name means <em>now</em>, so it holds even where the old name would
+    /// still resolve — a shim class left behind, or the old assembly still deployed beside the new one
+    /// mid-rollout. Nothing is written back: the row keeps the spelling it was stored with, and the SQL
+    /// <c>UPDATE</c> in the troubleshooting page stays the way to retire an alias.
+    /// </remarks>
+    private Type? LoadDeclaredAlias(string name)
+    {
+        if (aliases.Length == 0)
+        {
+            return null;
+        }
+
+        List<string> candidates = [];
+        AddRenames(candidates, name, aliases);
+
+        foreach (string candidate in candidates)
+        {
+            // The target is a type name like any other, so Quartz's own renames apply to it too: an
+            // alias may point at a type this application still spells the 3.x way.
+            Type? type = Type.GetType(candidate, false) ?? LoadLegacyName(candidate);
+            if (type is not null)
+            {
+                logger.TypeFoundUnderDeclaredAlias(name, candidate);
+                return type;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -181,23 +282,47 @@ internal sealed class SimpleTypeLoader : ITypeLoader
         }
 
         // Applied last, over every assembly and namespace spelling, because a renamed type can be
-        // named through any of them. The comma test keeps `JobStoreTXSomething` from matching.
+        // named through any of them.
         int namespaceCandidateCount = candidates.Count;
         for (int i = 0; i < namespaceCandidateCount; i++)
         {
-            foreach (var (oldType, newType) in renamedTypes)
-            {
-                string candidate = candidates[i];
-                if (candidate.StartsWith(oldType, StringComparison.Ordinal)
-                    && (candidate.Length == oldType.Length || candidate[oldType.Length] == ','))
-                {
-                    candidates.Add(string.Concat(newType, candidate.AsSpan(oldType.Length)));
-                }
-            }
+            AddRenames(candidates, candidates[i], renamedTypes);
         }
 
         // The first entry is the name exactly as configured, which the caller has already tried.
         candidates.RemoveAt(0);
         return candidates;
+    }
+
+    /// <summary>
+    /// Adds what a rename table makes of one candidate name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A table entry matches the whole name or the part of it before the comma that starts the assembly,
+    /// which is what lets one entry cover every spelling of the assembly after it. The comma test is
+    /// also what keeps <c>JobStoreTXSomething</c> from matching <c>JobStoreTX</c>.
+    /// </para>
+    /// <para>
+    /// A replacement that names its own assembly stands on its own, so what followed the old name — its
+    /// assembly, and any version or public key after that — is dropped rather than carried over onto a
+    /// type that lives somewhere else now. Quartz's own tables never name one, since every rename in
+    /// them stays inside the assembly it was already in; an application's alias usually does.
+    /// </para>
+    /// </remarks>
+    private static void AddRenames(List<string> candidates, string candidate, (string Old, string New)[] table)
+    {
+        foreach (var (oldName, newName) in table)
+        {
+            if (!candidate.StartsWith(oldName, StringComparison.Ordinal)
+                || (candidate.Length != oldName.Length && candidate[oldName.Length] != ','))
+            {
+                continue;
+            }
+
+            candidates.Add(newName.Contains(',', StringComparison.Ordinal)
+                ? newName
+                : string.Concat(newName, candidate.AsSpan(oldName.Length)));
+        }
     }
 }

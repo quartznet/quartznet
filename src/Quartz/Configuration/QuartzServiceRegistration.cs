@@ -60,6 +60,13 @@ internal static class QuartzServiceRegistration
 
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ITypeLoader, SimpleTypeLoader>();
+
+        // The type loader is container-wide, and so are its options. An alias naming a type nothing can
+        // load is only ever consulted when a name is about to become a type, which on the usual path is
+        // the first job read out of the store — so it is validated at startup instead, where it can be
+        // reported as the configuration mistake it is.
+        services.ValidateOnStart<TypeLoaderOptions>(schedulerName: null);
+
         // The repository belongs to this container and nothing else. It has no process-wide instance any
         // more, so "which repository am I in" is answered by which container built the scheduler rather
         // than by how it was built.

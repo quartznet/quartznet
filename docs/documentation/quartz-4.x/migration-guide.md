@@ -1736,6 +1736,60 @@ names. A `UseGenericDatabase` callback that sets them from `typeof(...)` already
 was therefore serialized when it fired but not when it was acquired, so a batch could hold two of its
 triggers and the second was released again. Both now ask the same question.
 
+## A job type rename is declared as a map
+
+A persistent job store keeps the job's type as text, in `QRTZ_JOB_DETAILS.JOB_CLASS_NAME`. Renaming the
+class, moving its namespace or moving it to another assembly therefore breaks every row that names it,
+and on 3.x the supported answer was an `ITypeLoadHelper` of your own: a class to write, register and
+keep, for a one-line fact.
+
+4.0 lets the fact be stated as a fact. `TypeLoaderOptions.Aliases` maps the name as it was stored to the
+name the type has now, and `UseTypeLoader(configure)` is the typed way to add one:
+
+<!-- snippet: sample_reference_type_loader_aliases -->
+```csharp
+services.AddQuartz(q => q.UseTypeLoader(loader =>
+    loader.Map("Acme.Jobs.NightlyReport, Acme.Jobs", typeof(NightlyRollupJob))));
+```
+<!-- endSnippet -->
+
+The same map binds from configuration, so the rename can ship in `appsettings.json` with the deployment
+that performs it:
+
+```json
+{
+  "Quartz": {
+    "TypeLoader": {
+      "Aliases": {
+        "Acme.Jobs.NightlyReport, Acme.Jobs": "Acme.Jobs.NightlyRollupJob, Acme.Jobs"
+      }
+    }
+  }
+}
+```
+
+The map is read by the loader Quartz ships, which is the one place a type name is resolved at run time —
+so it applies to `JOB_CLASS_NAME`, to jobs named in XML or JSON scheduling data, and to the
+`quartz.plugin.<name>.type` and `quartz.jobListener.<name>.type` keys. The flat keys naming a scheduler's
+own components are read while the service collection is still being built, before any options exist, and
+are not aliased. Keys are compared the way that loader already compares its own table of Quartz's
+3.x → 4.0 renames: ordinal, matching either the whole name or the part of it before the comma that
+starts the assembly.
+
+Two things are deliberate. An alias whose target names no loadable type **fails options validation at
+startup**, naming both halves of the entry, rather than surfacing later as a `TypeLoadException` that
+names the dead name and nothing about the mapping meant to save it. And nothing is ever written back: a
+job read under an aliased name still has the old spelling in its row, which is what makes an alias safe
+during a rolling deployment — the nodes still running the old build keep writing the old name while the
+new ones read it. Retiring an alias is still the SQL `UPDATE` in
+[Job deserialization failures after
+refactoring](../troubleshooting.md#job-deserialization-failures-after-refactoring), run once nothing is
+hitting it any more.
+
+`UseTypeLoader<T>()` is unchanged and still replaces the loader outright, for a scheme rather than a
+list — a name resolved out of a plugin's `AssemblyLoadContext`, say. Replacing the loader takes the map
+with it, since the map is the shipped loader's.
+
 ## The job scope is prepared without writing a job factory
 
 `ConfigureScope` — the hook that prepares the dependency injection scope a job is built in, and the place
@@ -4482,6 +4536,7 @@ already have them.
 * **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
 * **A plugin implements only what it has to say** — `ISchedulerPlugin.Start` and `Shutdown` have default implementations, so a plugin that does its work in `Initialize` writes one member rather than three (see [A plugin implements only what it has to say](#a-plugin-implements-only-what-it-has-to-say))
 * **A calendar can have dependencies** — `AddCalendar(name, serviceProvider => …)` builds the calendar from the container, which the `where T : ICalendar, new()` generic overloads cannot (see [A calendar can be built from the container](#a-calendar-can-be-built-from-the-container))
+* **A renamed job type is declared, not coded around** — `q.UseTypeLoader(loader => loader.Map("Acme.Jobs.NightlyReport, Acme.Jobs", typeof(NightlyRollupJob)))`, or the same map under `Quartz:TypeLoader:Aliases` in configuration, keeps every row still carrying the old `JOB_CLASS_NAME` firing. On 3.x the only answer was an `ITypeLoadHelper` of your own (see [A job type rename is declared as a map](#a-job-type-rename-is-declared-as-a-map))
 * **A `quartz.*` key that lost its prefix is refused** — `QuartzOptions.Properties` is read only through the `quartz.` prefix, so a key without one produced no symptom at all; it now fails options validation at startup (see [A property key without the `quartz.` prefix is refused](#a-property-key-without-the-quartz-prefix-is-refused))
 * **An `IJobDetail` of your own** — the interface no longer declares a member only Quartz can implement, so an application can supply its own job detail type and have `RAMJobStore` hand it back rather than quietly swapping it for Quartz's (see [An `IJobDetail` of your own](#an-ijobdetail-of-your-own))
 * **A one-word question needs no query object** — `QueryJobs()`, `QueryTriggers()`, `QueryFireInstances()`, `QueryFireInstancesOfJob(jobKey)` and `QueryTriggersInError()` are the query members with the query record filled in, `ResetTriggersFromErrorState(GroupMatcher<TriggerKey>)` resets the failed triggers of a group, `Exists(string calendarName)` answers whether a calendar is there without deserializing it, and `ISchedulerFactory.GetRequiredScheduler(name)` throws where `LookupScheduler` returns null (see [Asking a one-word question does not need a query object](#asking-a-one-word-question-does-not-need-a-query-object))
@@ -9626,7 +9681,7 @@ having gone wrong.
 
 Derived the same mechanical way as the tables above: types in the 4.x `Quartz` namespace that are in the
 3.x `Quartz` namespace of none of `Quartz`, `Quartz.Extensions.DependencyInjection` or
-`Quartz.Extensions.Hosting`. **Ninety-two names.** A project that also referenced
+`Quartz.Extensions.Hosting`. **Ninety-three names.** A project that also referenced
 `Quartz.Serialization.SystemTextJson` on 3.x already had `JsonSerializationException`.
 
 ```text
@@ -9660,7 +9715,7 @@ SimpleTriggerMisfireInstruction     StandaloneSchedulerFactory                 S
 StringOperator                      SystemTextJsonConfigurationExtensions      ThreadPoolOptions
 TimeRange                           TimeZones                                  TriggerBuilder<T>
 TriggerConfiguratorExtensions       TriggerGroup                               TriggerGroupQuery
-TriggerHeader                       TriggerQuery
+TriggerHeader                       TriggerQuery                               TypeLoaderOptions
 ```
 
 Most of those are unmistakably Quartz's. These are the ones a host application or an integration library

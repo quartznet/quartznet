@@ -598,6 +598,13 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         return this;
     }
 
+    /// <inheritdoc cref="QuartzBuilderExtensions.UseTypeLoader(IQuartzBuilder, Action{TypeLoaderOptions})" />
+    public QuartzSchedulerBuilder UseTypeLoader(Action<TypeLoaderOptions> configure)
+    {
+        inner.UseTypeLoader(configure);
+        return this;
+    }
+
     /// <inheritdoc cref="QuartzBuilderExtensions.ConfigureJobScope" />
     public QuartzSchedulerBuilder ConfigureJobScope(Action<IServiceScope, TriggerFiredBundle, IScheduler> configure)
     {
