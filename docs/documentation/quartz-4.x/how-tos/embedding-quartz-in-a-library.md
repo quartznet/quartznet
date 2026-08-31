@@ -189,7 +189,7 @@ of it:
 
 * **The job key says what runs.** One durable job per job type is enough, because a job detail is a
   definition rather than an occurrence. That is what the typed `ScheduleJob` overloads store, at
-  `SchedulerJobExtensions.ScheduledJobKey<TJob>()` — which is
+  `SchedulerConstants.ScheduledJobKey<TJob>()` — which is
   `(typeof(TJob).Name, SchedulerConstants.ScheduledJobGroup)`, one row per job type whatever the traffic.
   Ask for the key rather than re-deriving it: the group is reserved, and a library that also builds a
   trigger of its own points it at that same job.
@@ -324,7 +324,7 @@ check and the write in which another node does the same thing. Both `ScheduleJob
 ```csharp
 ITrigger trigger = TriggerBuilder.Create<SendReminderJob>(scheduler.TimeProvider)
     .WithIdentity(reminder.MessageId, reminder.ConversationId)
-    .ForJob(SchedulerJobExtensions.ScheduledJobKey<SendReminderJob>())
+    .ForJob(SchedulerConstants.ScheduledJobKey<SendReminderJob>())
     .StartAt(at)
     .UsingInput(reminder)
     .Build();

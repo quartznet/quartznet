@@ -784,9 +784,19 @@ internal static class StdAdoConstants
     public static readonly string SqlJobGroupNamePredicate = Invariant($" AND {AdoConstants.ColumnJobGroup} = @{SqlParameters.GroupName}");
 
     /// <summary>
+    /// Pattern-name filter for the job group listing read straight from PAUSED_JOB_GRPS.
+    /// </summary>
+    public static readonly string SqlJobGroupNameLikePredicate = Invariant($" AND {AdoConstants.ColumnJobGroup} LIKE @{SqlParameters.GroupName}{SqlLikeEscapeClause}");
+
+    /// <summary>
     /// Exact-name filter for the job group listings that read from JOB_DETAILS under the alias 'j'.
     /// </summary>
     public static readonly string SqlAliasedJobGroupNamePredicate = Invariant($" AND j.{AdoConstants.ColumnJobGroup} = @{SqlParameters.GroupName}");
+
+    /// <summary>
+    /// Pattern-name filter for the job group listings that read from JOB_DETAILS under the alias 'j'.
+    /// </summary>
+    public static readonly string SqlAliasedJobGroupNameLikePredicate = Invariant($" AND j.{AdoConstants.ColumnJobGroup} LIKE @{SqlParameters.GroupName}{SqlLikeEscapeClause}");
 
     public static readonly string SqlOrderByJobGroup = Invariant($" ORDER BY {AdoConstants.ColumnJobGroup}");
 
@@ -831,9 +841,19 @@ internal static class StdAdoConstants
     public static readonly string SqlTriggerGroupNamePredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} = @{SqlParameters.GroupName}");
 
     /// <summary>
+    /// Pattern-name filter for the trigger group listing read straight from PAUSED_TRIGGER_GRPS.
+    /// </summary>
+    public static readonly string SqlTriggerGroupNameLikePredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} LIKE @{SqlParameters.GroupName}{SqlLikeEscapeClause}");
+
+    /// <summary>
     /// Exact-name filter for the trigger group listings that read from TRIGGERS under the alias 't'.
     /// </summary>
     public static readonly string SqlAliasedTriggerGroupNamePredicate = Invariant($" AND t.{AdoConstants.ColumnTriggerGroup} = @{SqlParameters.GroupName}");
+
+    /// <summary>
+    /// Pattern-name filter for the trigger group listings that read from TRIGGERS under the alias 't'.
+    /// </summary>
+    public static readonly string SqlAliasedTriggerGroupNameLikePredicate = Invariant($" AND t.{AdoConstants.ColumnTriggerGroup} LIKE @{SqlParameters.GroupName}{SqlLikeEscapeClause}");
 
     public static readonly string SqlOrderByTriggerGroup = Invariant($" ORDER BY {AdoConstants.ColumnTriggerGroup}");
 

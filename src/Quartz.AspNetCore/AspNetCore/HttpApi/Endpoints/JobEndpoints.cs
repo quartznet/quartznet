@@ -294,7 +294,7 @@ internal static class JobEndpoints
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-            var pausedGroups = await scheduler.PauseJobs(matcher, cancellationToken).ConfigureAwait(false);
+            var pausedGroups = await scheduler.PauseJobGroups(matcher, cancellationToken).ConfigureAwait(false);
             return new AffectedGroupsResponse([.. pausedGroups]);
         });
     }
@@ -346,7 +346,7 @@ internal static class JobEndpoints
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-            var resumedGroups = await scheduler.ResumeJobs(matcher, cancellationToken).ConfigureAwait(false);
+            var resumedGroups = await scheduler.ResumeJobGroups(matcher, cancellationToken).ConfigureAwait(false);
             return new AffectedGroupsResponse([.. resumedGroups]);
         });
     }
@@ -511,7 +511,10 @@ internal static class JobEndpoints
         int? take = null,
         bool includeTotalCount = false,
         bool? paused = null,
-        string? name = null,
+        string? nameContains = null,
+        string? nameEndsWith = null,
+        string? nameStartsWith = null,
+        string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
@@ -519,7 +522,7 @@ internal static class JobEndpoints
         {
             JobGroupQuery query = new()
             {
-                Name = name,
+                Name = EndpointHelper.GetNameMatcher(nameContains, nameEndsWith, nameStartsWith, nameEquals),
                 Paused = paused,
                 Skip = skip,
                 IncludeTotalCount = includeTotalCount

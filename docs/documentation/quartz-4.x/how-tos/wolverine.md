@@ -287,7 +287,7 @@ would be wrong. Azure Service Bus hands back a sequence number and takes it back
 contract; Hangfire returns a job id for `BackgroundJob.Delete`. What none of them offers is a *set*
 operation. Each cancels exactly one schedule per call, against a handle the application had to keep.
 Quartz's schedule identity is a two-part key, and the scheduler exposes group matchers over it —
-`GetTriggerKeys`, `UnscheduleJobs`, `PauseTriggers`, `DeleteJobs` — so "everything this tenant owns"
+`GetTriggerKeys`, `UnscheduleJobs`, `PauseTriggerGroups`, `DeleteJobs` — so "everything this tenant owns"
 is a query rather than a list you were responsible for not losing. NServiceBus saga timeouts sit at the
 other end: they cannot be cancelled at all, and the documented approach is to let the timeout arrive and
 be ignored because the saga is gone.

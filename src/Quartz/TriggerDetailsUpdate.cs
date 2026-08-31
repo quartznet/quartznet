@@ -5,9 +5,21 @@ namespace Quartz;
 /// Only properties explicitly set via the builder methods will be changed.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Most properties here are pure metadata, but the calendar name and the misfire instruction can
 /// affect firing behavior. Changing them via this API does not recompute fire times — the new
 /// values take effect starting from the next scheduling evaluation.
+/// </para>
+/// <para>
+/// The misfire instruction is set six ways, and all six earn their place. The five typed overloads
+/// of <c>WithMisfireInstruction</c> are one per schedule family, and each is load-bearing: the same
+/// number means a different policy in each family, so naming the family is what lets the store
+/// reject an update aimed at a trigger of another one rather than silently apply the wrong policy.
+/// <see cref="WithMisfireInstructionCode" /> is the sixth, and it is the only way to set a code on a
+/// trigger outside the five built-in families — a custom <see cref="ITrigger" /> belongs to none of
+/// them, so every typed overload would be rejected for it — as well as the way to pass a code that
+/// arrived as a number.
+/// </para>
 /// </remarks>
 /// <seealso cref="IScheduler.UpdateTriggerDetails"/>
 public sealed class TriggerDetailsUpdate
@@ -146,7 +158,10 @@ public sealed class TriggerDetailsUpdate
     /// <remarks>
     /// Prefer the family-typed <c>WithMisfireInstruction</c> overloads: the same number means a
     /// different policy in each family, and only the typed form lets the store tell you that the
-    /// key resolved to a trigger of another one.
+    /// key resolved to a trigger of another one. This one names no family and so skips that check
+    /// entirely, which is also what makes it the only way to set a misfire instruction on a trigger
+    /// implementation of your own: such a trigger is in none of the five families, so every typed
+    /// overload would be rejected for it.
     /// </remarks>
     public TriggerDetailsUpdate WithMisfireInstructionCode(int misfireInstructionCode)
         => SetMisfireInstruction(misfireInstructionCode, family: null);

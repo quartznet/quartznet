@@ -424,8 +424,8 @@ public class RAMJobStoreQueryTest
         await StoreJobs("g1", "j1");
         await StoreJobs("g2", "j1");
         await StoreJobs("g3", "j1");
-        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("g2"));
-        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("ghost"));
+        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("g2"));
+        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("ghost"));
 
         PagedResult<JobGroup> result = await store.QueryJobGroups(new JobGroupQuery());
 
@@ -439,8 +439,8 @@ public class RAMJobStoreQueryTest
     {
         await StoreJobs("g1", "j1");
         await StoreJobs("g2", "j1");
-        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("g2"));
-        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("ghost"));
+        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("g2"));
+        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("ghost"));
 
         PagedResult<JobGroup> result = await store.QueryJobGroups(new JobGroupQuery { Paused = true });
 
@@ -454,8 +454,8 @@ public class RAMJobStoreQueryTest
     {
         await StoreJobs("g1", "j1");
         await StoreJobs("g2", "j1");
-        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("g2"));
-        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("ghost"));
+        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("g2"));
+        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("ghost"));
 
         PagedResult<JobGroup> result = await store.QueryJobGroups(new JobGroupQuery { Paused = false, IncludeTotalCount = true });
 
@@ -470,8 +470,8 @@ public class RAMJobStoreQueryTest
         await AddTrigger("t1", "g1", job.Key);
         await AddTrigger("t1", "g2", job.Key);
         await AddTrigger("t1", "g3", job.Key);
-        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g2"));
-        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
+        await store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("g2"));
+        await store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
 
         PagedResult<TriggerGroup> result = await store.QueryTriggerGroups(new TriggerGroupQuery());
 
@@ -492,8 +492,8 @@ public class RAMJobStoreQueryTest
         IJobDetail job = await AddJob("job", "g");
         await AddTrigger("t1", "g1", job.Key);
         await AddTrigger("t1", "g2", job.Key);
-        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g2"));
-        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
+        await store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("g2"));
+        await store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
 
         PagedResult<TriggerGroup> result = await store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true });
 
@@ -509,8 +509,8 @@ public class RAMJobStoreQueryTest
         await AddTrigger("t1", "g1", job.Key);
         await AddTrigger("t1", "g2", job.Key);
         await AddTrigger("t1", "g3", job.Key);
-        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g2"));
-        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
+        await store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("g2"));
+        await store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
 
         PagedResult<TriggerGroup> result = await store.QueryTriggerGroups(new TriggerGroupQuery { Paused = false });
 
@@ -542,13 +542,13 @@ public class RAMJobStoreQueryTest
 
         PagedResult<string> prefixed = await store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameStartsWith("holiday-")
+            Name = NameMatcher.NameStartsWith("holiday-")
         });
         prefixed.Items.Should().Equal(["holiday-easter", "holiday-xmas"]);
 
         PagedResult<string> contained = await store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameContains("day"),
+            Name = NameMatcher.NameContains("day"),
             IncludeTotalCount = true
         });
         contained.Items.Should().Equal(["holiday-easter", "holiday-xmas", "workday"],
@@ -557,13 +557,13 @@ public class RAMJobStoreQueryTest
 
         PagedResult<string> exact = await store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameEquals("workday")
+            Name = NameMatcher.NameEquals("workday")
         });
         exact.Items.Should().Equal(["workday"]);
 
         PagedResult<string> none = await store.QueryCalendarNames(new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameEquals("nope")
+            Name = NameMatcher.NameEquals("nope")
         });
         none.Items.Should().BeEmpty();
         none.HasMore.Should().BeFalse();
@@ -682,15 +682,15 @@ public class RAMJobStoreQueryTest
     {
         await StoreJobs("g1", "j1");
         await StoreJobs("g2", "j1");
-        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("g2"));
+        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals("g2"));
 
-        PagedResult<JobGroup> named = await store.QueryJobGroups(new JobGroupQuery { Name = "g2" });
+        PagedResult<JobGroup> named = await store.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEquals("g2") });
         named.Items.Should().Equal([new JobGroup("g2", true)], "an exact name filter selects one group and no other");
 
-        PagedResult<JobGroup> unpaused = await store.QueryJobGroups(new JobGroupQuery { Name = "g2", Paused = false });
+        PagedResult<JobGroup> unpaused = await store.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEquals("g2"), Paused = false });
         unpaused.Items.Should().BeEmpty("the name and paused filters combine, and g2 is paused");
 
-        PagedResult<JobGroup> missing = await store.QueryJobGroups(new JobGroupQuery { Name = "nope", Paused = true });
+        PagedResult<JobGroup> missing = await store.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEquals("nope"), Paused = true });
         missing.Items.Should().BeEmpty();
     }
 
@@ -700,13 +700,48 @@ public class RAMJobStoreQueryTest
         IJobDetail job = await AddJob("job", "g");
         await AddTrigger("t1", "tg1", job.Key);
         await AddTrigger("t1", "tg2", job.Key);
-        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("tg2"));
+        await store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("tg2"));
 
-        PagedResult<TriggerGroup> named = await store.QueryTriggerGroups(new TriggerGroupQuery { Name = "tg2" });
+        PagedResult<TriggerGroup> named = await store.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameEquals("tg2") });
         named.Items.Should().Equal([new TriggerGroup("tg2", true)]);
 
-        PagedResult<TriggerGroup> paused = await store.QueryTriggerGroups(new TriggerGroupQuery { Name = "tg1", Paused = true });
+        PagedResult<TriggerGroup> paused = await store.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameEquals("tg1"), Paused = true });
         paused.Items.Should().BeEmpty("tg1 is not paused");
+    }
+
+    [Test]
+    public async Task QueryJobGroups_NameMatchesByPatternAndNotOnlyByEquality()
+    {
+        await StoreJobs("reports-nightly", "j1");
+        await StoreJobs("reports-hourly", "j2");
+        await StoreJobs("imports", "j3");
+
+        PagedResult<JobGroup> prefixed = await store.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameStartsWith("reports-") });
+        prefixed.Items.Select(x => x.Name).Should().Equal(["reports-hourly", "reports-nightly"],
+            "a group's name filter is a matcher, so a tenant's or a subsystem's groups can be listed without reading the rest");
+
+        PagedResult<JobGroup> contained = await store.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameContains("port") });
+        contained.Items.Select(x => x.Name).Should().Equal(["imports", "reports-hourly", "reports-nightly"]);
+
+        PagedResult<JobGroup> suffixed = await store.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEndsWith("hourly") });
+        suffixed.Items.Select(x => x.Name).Should().Equal(["reports-hourly"]);
+    }
+
+    [Test]
+    public async Task QueryTriggerGroups_NameMatchesByPatternOverPausedGroupsToo()
+    {
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("t1", "tenant-a", job.Key);
+        await AddTrigger("t2", "tenant-b", job.Key);
+        await AddTrigger("t3", "shared", job.Key);
+        await store.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupStartsWith("tenant-"));
+
+        PagedResult<TriggerGroup> prefixed = await store.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameStartsWith("tenant-"), Paused = true });
+        prefixed.Items.Select(x => x.Name).Should().Equal(["tenant-a", "tenant-b"],
+            "the paused listing reads the paused groups and filters them by the same matcher the others use");
+
+        PagedResult<TriggerGroup> unpaused = await store.QueryTriggerGroups(new TriggerGroupQuery { Name = NameMatcher.NameStartsWith("tenant-"), Paused = false });
+        unpaused.Items.Should().BeEmpty("both tenant groups are paused");
     }
 
     private async ValueTask<IJobDetail> AddJob(string name, string group)

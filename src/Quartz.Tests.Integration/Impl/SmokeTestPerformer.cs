@@ -375,22 +375,22 @@ public class SmokeTestPerformer
 
                 await scheduler.ResumeJob(new JobKey("job_1", schedId));
 
-                await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals(schedId));
+                await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(schedId));
 
                 await Task.Delay(TimeSpan.FromSeconds(1));
 
-                await scheduler.ResumeJobs(GroupMatcher<JobKey>.GroupEquals(schedId));
+                await scheduler.ResumeJobGroups(GroupMatcher<JobKey>.GroupEquals(schedId));
 
                 await scheduler.PauseTrigger(new TriggerKey("trig_2", schedId));
                 await scheduler.ResumeTrigger(new TriggerKey("trig_2", schedId));
 
-                await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(schedId));
+                await scheduler.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(schedId));
 
                 var pausedTriggerGroups = await scheduler.GetPausedTriggerGroups();
                 Assert.That(pausedTriggerGroups.Count, Is.EqualTo(1));
 
                 await Task.Delay(TimeSpan.FromSeconds(3));
-                await scheduler.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals(schedId));
+                await scheduler.ResumeTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(schedId));
 
                 Assert.That(await scheduler.GetTrigger(new TriggerKey("trig_2", schedId)), Is.Not.Null);
                 Assert.That(await scheduler.GetJobDetail(new JobKey("job_1", schedId)), Is.Not.Null);

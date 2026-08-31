@@ -68,14 +68,23 @@ PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(new TriggerQuery
 |---|---|
 | `JobQuery` | `Group` (`GroupMatcher<JobKey>`), `Name` (`NameMatcher<JobKey>`) |
 | `TriggerQuery` | `Group`, `Name`, `Job` (`JobKey`), `CalendarName` (`string`), `State` (`TriggerState?`) |
-| `JobGroupQuery` / `TriggerGroupQuery` | `Name` (one group, matched exactly), `Paused` (`bool?`) |
-| `CalendarQuery` | `Name` (`CalendarNameMatcher`) |
+| `JobGroupQuery` / `TriggerGroupQuery` | `Name` (`NameMatcher`), `Paused` (`bool?`) |
+| `CalendarQuery` | `Name` (`NameMatcher`) |
 | `FireInstanceQuery` | `TriggerGroup`, `TriggerName`, `Job`, `SchedulerInstanceId`, `State` |
 
-`GroupMatcher<TKey>` and `NameMatcher<TKey>` have the four shapes you would expect —
-`GroupEquals`/`GroupStartsWith`/`GroupEndsWith`/`GroupContains` and the `Name*` counterparts — plus
-`AnyGroup()` / `AnyName()`, which mean the same thing as leaving the filter null. `CalendarNameMatcher`
-is the same idea for calendar names, which are not keys.
+A filter is named for what it selects on: `Group` and `Name` are the result's own identity, and a
+filter on something the result merely refers to carries that thing's name — `Job`, `CalendarName`,
+`SchedulerInstanceId`. That is why `FireInstanceQuery` alone says `TriggerGroup` and `TriggerName`: a
+firing is identified by a fire instance id rather than by a key, so the trigger it belongs to is a
+reference like any other, and an unqualified `Name` would leave you guessing whether it meant the
+trigger's or the job's.
+
+Every name filter is a matcher of one family. `GroupMatcher<TKey>` and `NameMatcher<TKey>` have the
+four shapes you would expect — `GroupEquals`/`GroupStartsWith`/`GroupEndsWith`/`GroupContains` and the
+`Name*` counterparts — and `NameMatcher`, the arity-free twin, is the same four over a name that
+belongs to no key: a calendar's, a group's. `GroupMatcher<TKey>.AnyGroup()` exists for the members
+that take a matcher and not a null, such as `PauseTriggerGroups`; a query filter is nullable and null
+already means every name, so there is no "any" spelling to learn here.
 
 The matcher text is a literal, not a pattern: a group named `50%` is selected by
 `GroupStartsWith("50%")`, and the store escapes the wildcard on its way into SQL.
@@ -251,12 +260,14 @@ To stop one of them, `InterruptFireInstance(fireInstanceId)` targets a single fi
 
 `TriggerGroup.Paused` is real: the stores persist trigger group pause state, so
 `QueryTriggerGroups(new TriggerGroupQuery { Paused = true })` is the replacement for
-`GetPausedTriggerGroups()`, and `new TriggerGroupQuery { Name = "reporting", Take = 1 }` answers "is
-this one group paused?" without listing the rest.
+`GetPausedTriggerGroups()`, and
+`new TriggerGroupQuery { Name = NameMatcher.NameEquals("reporting"), Take = 1 }` answers "is this one
+group paused?" without listing the rest. The other three comparisons list a tenant's or a subsystem's
+groups the same way: `NameMatcher.NameStartsWith("tenant-42-")`.
 
 `JobGroup.Paused` works the same way, and on both stores: 4.x records paused job groups in
 `QRTZ_PAUSED_JOB_GRPS`, so `QueryJobGroups(new JobGroupQuery { Paused = true })` is a real listing and
-`new JobGroupQuery { Name = "reporting", Take = 1 }` answers for one group. On 3.x this was the one
+`new JobGroupQuery { Name = NameMatcher.NameEquals("reporting"), Take = 1 }` answers for one group. On 3.x this was the one
 thing the ADO store could not report — `IsJobGroupPaused` answered `false` for every group there —
 which is why the [4.0 schema migration](../../database/schema-changes.md#version-4-0) is mandatory even
 for a database that took every optional 3.x migration.
@@ -272,11 +283,13 @@ does that only in the in-memory store; the ADO store pauses the triggers of the 
 the pause runs, and records the group, but does not impose the pause on jobs added later.
 :::
 
-Pausing and resuming by matcher tells you which groups it touched:
+Pausing and resuming by matcher is a *group* operation — it records the group as paused, which is what
+catches the triggers added to it afterwards — so it is named for groups and answers with their names,
+where the key-set `PauseTriggers(keys)` answers with the keys it moved:
 
 <!-- snippet: sample_querying_pause_triggers -->
 ```csharp
-List<string> pausedGroups = await scheduler.PauseTriggers(
+List<string> pausedGroups = await scheduler.PauseTriggerGroups(
     GroupMatcher<TriggerKey>.GroupStartsWith("nightly-"));
 ```
 <!-- endSnippet -->
@@ -321,24 +334,32 @@ public sealed class TriggerListModel(IScheduler scheduler)
 
 Nothing here loops over keys, and nothing loads a `JobDataMap` the list does not show.
 
-## Shorthands for the query nobody wants to name
+## The preset, and the mutation beside it
 
-A query record that filters nothing is noise, so the five commonest ones have a name of their own. Each
-is the query member with the record filled in, and each pages exactly as the member does — the first
-`PagedQuery.DefaultTake` items, with `HasMore` reporting the rest:
+Reading has two altitudes on purpose. The `Query*` members take a record — a filter, a page, an
+optional count — and the `Get*` conveniences above answer the questions that need none of that.
+Neither is the other's leftovers, and a third thing is deliberately missing: a shorthand that saves
+only the `new`. `QueryJobs(new JobQuery())` is not worth an overload, because the record it names is
+the point of the query API.
+
+What does earn a name is a *preset* — one that knows a filter you would otherwise have to look up.
+There is one, and it pages exactly as the member does — the first `PagedQuery.DefaultTake` items, with
+`HasMore` reporting the rest:
 
 <!-- snippet: sample_querying_shorthands -->
 ```csharp
-PagedResult<JobHeader> jobs = await scheduler.QueryJobs();
-PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers();
-PagedResult<FireInstance> running = await scheduler.QueryFireInstances();
-PagedResult<FireInstance> runningOneJob = await scheduler.QueryFireInstancesOfJob(jobKey);
+PagedResult<JobHeader> jobs = await scheduler.QueryJobs(new JobQuery());
+PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers(new TriggerQuery());
+PagedResult<FireInstance> running = await scheduler.QueryFireInstances(new FireInstanceQuery());
+PagedResult<FireInstance> runningOneJob = await scheduler.QueryFireInstances(new FireInstanceQuery { Job = jobKey });
+
+// the one shorthand that is a preset rather than a synonym: it knows the filter
 PagedResult<TriggerHeader> failed = await scheduler.QueryTriggersInError();
 ```
 <!-- endSnippet -->
 
-Two more sit beside them. Resetting the failed triggers of a group was a listing plus a key-set reset;
-it is one call:
+Two more sit beside it. Resetting the failed triggers of a group was a listing plus a key-set reset;
+it is one call on `IScheduler`, beside the key-set form it is built from:
 
 <!-- snippet: sample_querying_reset_group_from_error -->
 ```csharp

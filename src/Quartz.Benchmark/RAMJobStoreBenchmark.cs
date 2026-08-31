@@ -236,7 +236,7 @@ public class RAMJobStoreBenchmark
 
         for (var i = 0; i < 100_000; i++)
         {
-            await _ramJobStore2!.ResumeJobs(matcher);
+            await _ramJobStore2!.ResumeJobGroups(matcher);
         }
     }
 
@@ -249,7 +249,7 @@ public class RAMJobStoreBenchmark
 
         for (var i = 0; i < 100_000; i++)
         {
-            await jobStore.ResumeJobs(matcher);
+            await jobStore.ResumeJobGroups(matcher);
         }
     }
 

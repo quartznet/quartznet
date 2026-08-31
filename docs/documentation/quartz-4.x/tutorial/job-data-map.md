@@ -78,46 +78,47 @@ await scheduler.TriggerJob(jobKey, new JobDataMap { ["reason"] = "manual re-run"
 
 `JobDataMap` implements `IDictionary<string, object?>`, so the dictionary surface is all there —
 indexer, `TryGetValue`, `ContainsKey`, `Remove`, `Count`, `Keys`, `Values`, `Clear`, plus
-`ContainsValue` and `IsEmpty`. On top of that come 33 typed accessors, as extension members on
-`DataMapExtensions`. They fall into two families, and the difference between them is the thing to
-know before picking one.
+`ContainsValue` and `IsEmpty`. On top of that come 17 typed accessors, as extension members on
+`DataMapExtensions`. They fall into two families, and both read a value the same way.
 
-### The fifteen named types, which coerce
+### The seven named types
 
-**Throwing readers** — the value must be there and must be coercible:
+**Throwing readers** — the value must be there and must be readable:
 
-`GetInt`, `GetLong`, `GetFloat`, `GetDouble`, `GetDecimal`, `GetBoolean`, `GetChar`, `GetString`,
-`GetDateTime`, `GetDateTimeOffset`, `GetDateOnly`, `GetTimeOnly`, `GetTimeSpan`, `GetGuid`,
-`GetEnum<TEnum>`.
+`GetInt`, `GetLong`, `GetFloat`, `GetDouble`, `GetBoolean`, `GetString`, `GetDateTimeOffset`.
 
-**Try readers** — the same fifteen, returning `false` instead of throwing:
+**Try readers** — the same seven, returning `false` instead of throwing:
 
-`TryGetInt`, `TryGetLong`, `TryGetFloat`, `TryGetDouble`, `TryGetDecimal`, `TryGetBoolean`,
-`TryGetChar`, `TryGetString`, `TryGetDateTime`, `TryGetDateTimeOffset`, `TryGetDateOnly`,
-`TryGetTimeOnly`, `TryGetTimeSpan`, `TryGetGuid`, `TryGetEnum<TEnum>`.
+`TryGetInt`, `TryGetLong`, `TryGetFloat`, `TryGetDouble`, `TryGetBoolean`, `TryGetString`,
+`TryGetDateTimeOffset`.
 
-Each of these accepts the value **either as its own type or as an invariant-culture string**. The
-stored type is matched first, a string is parsed with `CultureInfo.InvariantCulture`, and only an
-exotic stored type falls back to `Convert` semantics. That is what makes the same job code work whether
-the store kept `30` as an `int` or as `"30"`. `GetEnum<TEnum>` parses a string by name and
-case-insensitively, which is what `PutAsString` writes for an enum.
+These are the types job data is usually made of, and the ones twenty years of Quartz tutorials teach —
+plus the `DateTimeOffset` Quartz's own times are. Each accepts the value **either as its own type or
+as an invariant-culture string**. The stored type is matched first, a string is parsed with
+`CultureInfo.InvariantCulture`, and only an exotic stored type falls back to `Convert` semantics. That
+is what makes the same job code work whether the store kept `30` as an `int` or as `"30"`.
 
 `GetString` is the one that returns `string?` rather than throwing on a missing key — the rest throw.
 Reach for the `TryGet…` form whenever the key is genuinely optional; there is no performance argument
 either way, it is about whether absence is an error.
 
-### The three generic readers, which do not
+### The three generic readers, for every other type
 
-For a type the list does not name — your own options class, a `Uri`, a `byte[]` — there are three more.
-**They are a pure type test**: no string parsing, no `Convert`, nothing but `is T`. A `"30"` that
-`GetInt` reads as `30` is *not* an `int` to `Get<int>`, and that is deliberate — a generic accessor
-cannot know which invariant format an arbitrary `T` was written in, so it does not guess.
+For a type the seven do not name — a `Guid`, a `TimeSpan`, a `decimal`, a `DateOnly`, an enum, or an
+options class of your own — there are three more, and they read exactly what a named accessor for
+that type would have read:
 
-| Accessor | Entry missing | Entry is not a `T` | Entry is a `T` |
+| Accessor | Entry missing | Entry unreadable as `T` | Entry readable as `T` |
 |---|---|---|---|
 | `TryGet<T>(key, out T value)` | `false` | `false` | `true`, value out |
 | `Get<T>(key)` | `KeyNotFoundException` | `InvalidCastException` naming both types | the value |
 | `GetValueOrDefault<T>(key, defaultValue)` | `defaultValue` | `defaultValue` | the value |
+
+"Readable" is the same rule as above: the stored type first, then the invariant string form for every
+type `PutAsString` writes one of, and an enum by name, case-insensitively. So `Get<Guid>("batchId")`
+reads a `Guid` the store kept as a string, `Get<TimeSpan>("window")` reads `"06:00:00"`, and
+`Get<DayOfWeek>("day")` reads `"Monday"`. A type Quartz has no string form for — your own class — is a
+plain type test, which is all it could ever have been.
 
 <!-- snippet: sample_job_data_map_generic_readers -->
 ```csharp
@@ -136,9 +137,9 @@ ReportOptions effective = data.GetValueOrDefault("options", new ReportOptions())
 ```
 <!-- endSnippet -->
 
-`Get<T>` is the one to reach for when the entry is a contract rather than an option: it is the same
-test `TryGet<T>` makes, but it says *which* of the two things went wrong instead of answering `false`
-to both. `GetValueOrDefault<T>` deliberately does not distinguish them — a wrong-typed entry gives the
+`Get<T>` is the one to reach for when the entry is a contract rather than an option: it reads what
+`TryGet<T>` reads, but it says *which* of the two things went wrong instead of answering `false` to
+both. `GetValueOrDefault<T>` deliberately does not distinguish them — an unreadable entry gives the
 fallback exactly as a missing one does, so do not use it where a mistyped key needs to be noticed.
 
 ::: tip
@@ -153,6 +154,12 @@ The `Get*Value` / `Get*ValueFromString` accessor pairs are gone, and so are the 
 moved off `StringKeyDirtyFlagMap`, which is internal now along with `DirtyFlagMap`; call sites are
 unchanged (`map.GetString(…)` still compiles) but nothing should name the old types, and the
 `Quartz.Util` namespace is gone.
+
+A named accessor per readable type is a set that only ever grows, so the exotic half of it went and
+`Get<T>` grew the coercion instead: `GetGuid` → `Get<Guid>`, `GetTimeSpan` → `Get<TimeSpan>`,
+`GetDecimal` → `Get<decimal>`, `GetChar` → `Get<char>`, `GetDateTime` → `Get<DateTime>`,
+`GetDateOnly` → `Get<DateOnly>`, `GetTimeOnly` → `Get<TimeOnly>`, `GetEnum<T>` → `Get<T>`, and each
+`TryGet…` likewise. The reading is unchanged, including the string forms `PutAsString` writes.
 :::
 
 ## Storing values as strings
@@ -182,9 +189,10 @@ data.PutAsString("lookbackDays", 30);               // any IFormattable
 | `PutAsString<T>(string, T) where T : IFormattable` | invariant, default format |
 
 Every one of these round-trips through the matching accessor: `PutAsString("runAt", offset)` then
-`GetDateTimeOffset("runAt")` gives back the same instant, including the offset. `GetDateTime` parses
-with round-trip semantics too, so a `DateTime` written as `"O"` comes back with its original `Kind`
-rather than as an unspecified local time.
+`GetDateTimeOffset("runAt")` gives back the same instant, including the offset. The same holds for the
+types read through `Get<T>` — `Get<DateTime>` parses with round-trip semantics, so a `DateTime`
+written as `"O"` comes back with its original `Kind` rather than as an unspecified local time, and
+`Get<Guid>`, `Get<TimeSpan>`, `Get<DateOnly>` and `Get<TimeOnly>` read what `PutAsString` wrote.
 
 ## Why string-safe storage matters
 

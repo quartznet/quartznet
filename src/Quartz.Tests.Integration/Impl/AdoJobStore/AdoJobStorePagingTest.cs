@@ -383,7 +383,7 @@ public class AdoJobStorePagingTest
 
     private static async Task AssertTriggerStateFiltering(IScheduler scheduler)
     {
-        await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(GroupC));
+        await scheduler.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(GroupC));
 
         try
         {
@@ -429,7 +429,7 @@ public class AdoJobStorePagingTest
         }
         finally
         {
-            await scheduler.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals(GroupC));
+            await scheduler.ResumeTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(GroupC));
         }
     }
 
@@ -482,7 +482,7 @@ public class AdoJobStorePagingTest
         before.Items.Should().OnlyContain(x => !x.Paused, "nothing has been paused yet");
         before.TotalCount.Should().Be(Groups.Length);
 
-        await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals(GroupUnderscore));
+        await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(GroupUnderscore));
 
         try
         {
@@ -496,7 +496,7 @@ public class AdoJobStorePagingTest
                 "the unpaused listing is the complement of the paused one");
             unpaused.TotalCount.Should().Be(2);
 
-            PagedResult<JobGroup> named = await scheduler.QueryJobGroups(new JobGroupQuery { Name = GroupUnderscore, Take = 1 });
+            PagedResult<JobGroup> named = await scheduler.QueryJobGroups(new JobGroupQuery { Name = NameMatcher.NameEquals(GroupUnderscore), Take = 1 });
             named.Items.Should().ContainSingle().Which.Paused.Should().BeTrue(
                 "the unfiltered listing reports each group's own state, and '_' in the name is a literal");
 
@@ -506,7 +506,7 @@ public class AdoJobStorePagingTest
         }
         finally
         {
-            await scheduler.ResumeJobs(GroupMatcher<JobKey>.GroupEquals(GroupUnderscore));
+            await scheduler.ResumeJobGroups(GroupMatcher<JobKey>.GroupEquals(GroupUnderscore));
         }
 
         (await scheduler.QueryJobGroups(new JobGroupQuery { Paused = true })).Items.Should().BeEmpty(

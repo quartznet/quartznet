@@ -134,7 +134,7 @@ public sealed class AdoGroupDeleteSqliteTest
         IScheduler scheduler = handle.Scheduler;
 
         await Schedule(scheduler, "first", SagaGroup);
-        await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals(SagaGroup));
+        await scheduler.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(SagaGroup));
 
         (await CountOfPausedJobGroups()).Should().Be(1, "the pause was recorded before anything was deleted");
 

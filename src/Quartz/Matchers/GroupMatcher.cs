@@ -77,6 +77,14 @@ public sealed class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TK
     /// <summary>
     /// Create a GroupMatcher that matches all.
     /// </summary>
+    /// <remarks>
+    /// The one "match everything" that a nullable filter cannot replace:
+    /// <see cref="IScheduler.PauseJobGroups" />, <see cref="IScheduler.DeleteJobs(GroupMatcher{JobKey}, CancellationToken)" />
+    /// and their kind take a <see cref="GroupMatcher{TKey}" /> and not a null, so this is how a
+    /// caller says "every group" to them. Where the filter is a nullable property — every
+    /// <see cref="PagedQuery" /> — null already says it, which is why
+    /// <see cref="NameMatcher{TKey}" /> has no twin of this.
+    /// </remarks>
     public static GroupMatcher<TKey> AnyGroup()
     {
         return new GroupMatcher<TKey>("", StringOperator.Anything);

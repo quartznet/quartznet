@@ -115,10 +115,11 @@ internal sealed class EndpointHelper
     }
 
     /// <summary>
-    /// The calendar-listing counterpart of <see cref="GetNameMatcher{T}" />: a calendar has no key
-    /// type, so its filter is a <see cref="CalendarNameMatcher" />, spelled the same way on the wire.
+    /// The counterpart of <see cref="GetNameMatcher{T}" /> for the listings whose subject is named
+    /// rather than keyed — calendars and groups — so their filter is a <see cref="NameMatcher" />,
+    /// spelled the same way on the wire.
     /// </summary>
-    public static CalendarNameMatcher? GetCalendarNameMatcher(string? nameContains, string? nameEndsWith, string? nameStartsWith, string? nameEquals)
+    public static NameMatcher? GetNameMatcher(string? nameContains, string? nameEndsWith, string? nameStartsWith, string? nameEquals)
     {
         // Allow only single value to be given
         var givenValueCount = new[] { nameContains, nameEndsWith, nameStartsWith, nameEquals }.Count(x => !string.IsNullOrWhiteSpace(x));
@@ -129,22 +130,22 @@ internal sealed class EndpointHelper
 
         if (!string.IsNullOrWhiteSpace(nameContains))
         {
-            return CalendarNameMatcher.NameContains(nameContains);
+            return NameMatcher.NameContains(nameContains);
         }
 
         if (!string.IsNullOrWhiteSpace(nameEndsWith))
         {
-            return CalendarNameMatcher.NameEndsWith(nameEndsWith);
+            return NameMatcher.NameEndsWith(nameEndsWith);
         }
 
         if (!string.IsNullOrWhiteSpace(nameStartsWith))
         {
-            return CalendarNameMatcher.NameStartsWith(nameStartsWith);
+            return NameMatcher.NameStartsWith(nameStartsWith);
         }
 
         if (!string.IsNullOrWhiteSpace(nameEquals))
         {
-            return CalendarNameMatcher.NameEquals(nameEquals);
+            return NameMatcher.NameEquals(nameEquals);
         }
 
         return null;

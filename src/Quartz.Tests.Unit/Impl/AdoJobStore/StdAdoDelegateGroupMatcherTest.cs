@@ -820,7 +820,7 @@ public class StdAdoDelegateGroupMatcherTest
     [Test]
     public async Task SelectCalendarNames_WithNameMatcher_ShouldUseLikeWithEscape()
     {
-        await adoDelegate.SelectCalendarNames(conn, new CalendarQuery { Name = CalendarNameMatcher.NameStartsWith("50%") });
+        await adoDelegate.SelectCalendarNames(conn, new CalendarQuery { Name = NameMatcher.NameStartsWith("50%") });
 
         command.CommandText.Should().Contain("CALENDAR_NAME LIKE @calendarName ESCAPE '!'");
         command.CommandText.Should().Contain("ORDER BY CALENDAR_NAME", "the listing keeps its deterministic order after the filter");
@@ -830,7 +830,7 @@ public class StdAdoDelegateGroupMatcherTest
     [Test]
     public async Task SelectCalendarNames_WithEqualityMatcher_ShouldCompareWithEquals()
     {
-        await adoDelegate.SelectCalendarNames(conn, new CalendarQuery { Name = CalendarNameMatcher.NameEquals("holiday") });
+        await adoDelegate.SelectCalendarNames(conn, new CalendarQuery { Name = NameMatcher.NameEquals("holiday") });
 
         command.CommandText.Should().Contain("CALENDAR_NAME = @calendarName");
         command.CommandText.Should().NotContain("CALENDAR_NAME LIKE", "an equality matcher must not fall back to LIKE");
@@ -846,7 +846,7 @@ public class StdAdoDelegateGroupMatcherTest
 
         await adoDelegate.SelectCalendarNames(conn, new CalendarQuery
         {
-            Name = CalendarNameMatcher.NameContains("day"),
+            Name = NameMatcher.NameContains("day"),
             Take = 0,
             IncludeTotalCount = true
         });
@@ -860,7 +860,7 @@ public class StdAdoDelegateGroupMatcherTest
     [Test]
     public async Task SelectJobGroups_WithName_ShouldFilterInSql()
     {
-        await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Name = "reports" });
+        await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Name = NameMatcher.NameEquals("reports") });
 
         command.CommandText.Should().Contain("j.JOB_GROUP = @groupName", "the unfiltered listing reads JOB_DETAILS under the alias 'j'");
         command.CommandText.Should().Contain("ORDER BY j.JOB_GROUP", "the listing keeps its deterministic order after the filter");
@@ -870,13 +870,34 @@ public class StdAdoDelegateGroupMatcherTest
     [Test]
     public async Task SelectJobGroups_WithNameAndPaused_ShouldFilterThePausedGroupsTable()
     {
-        await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Name = "reports", Paused = true });
+        await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Name = NameMatcher.NameEquals("reports"), Paused = true });
 
         command.CommandText.Should().Contain("PAUSED_JOB_GRPS", "a paused listing reads the paused groups table");
         command.CommandText.Should().NotContain("JOB_DETAILS",
             "a group paused while it holds no jobs has no row in JOB_DETAILS, so reading it would lose the group");
         command.CommandText.Should().Contain("JOB_GROUP = @groupName");
         parameters.Value("@groupName").Should().Be("reports");
+    }
+
+    [Test]
+    public async Task SelectJobGroups_WithNamePattern_ShouldFilterWithAnEscapedLike()
+    {
+        await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Name = NameMatcher.NameStartsWith("reports_") });
+
+        command.CommandText.Should().Contain("j.JOB_GROUP LIKE @groupName ESCAPE '!'",
+            "a group name filters by pattern like every other name filter, and the pattern is escaped");
+        parameters.Value("@groupName").Should().Be("reports!_%",
+            "the underscore is a LIKE wildcard, so a group literally named 'reports_' must not match 'reportsX'");
+    }
+
+    [Test]
+    public async Task SelectTriggerGroups_WithNamePatternAndPaused_ShouldFilterThePausedGroupsTableWithALike()
+    {
+        await adoDelegate.SelectTriggerGroups(conn, new TriggerGroupQuery { Name = NameMatcher.NameContains("tenant"), Paused = true });
+
+        command.CommandText.Should().Contain("PAUSED_TRIGGER_GRPS", "a paused listing reads the paused groups table");
+        command.CommandText.Should().Contain("TRIGGER_GROUP LIKE @groupName ESCAPE '!'");
+        parameters.Value("@groupName").Should().Be("%tenant%");
     }
 
     [Test]
@@ -930,7 +951,7 @@ public class StdAdoDelegateGroupMatcherTest
         PagedResult<JobGroup> result = await adoDelegate.SelectJobGroups(conn, new JobGroupQuery
         {
             Paused = true,
-            Name = "reports",
+            Name = NameMatcher.NameEquals("reports"),
             Take = 0,
             IncludeTotalCount = true
         });
@@ -1067,7 +1088,7 @@ public class StdAdoDelegateGroupMatcherTest
     [Test]
     public async Task SelectTriggerGroupNames_WithNameAndPaused_ShouldFilterThePausedGroupsTable()
     {
-        await adoDelegate.SelectTriggerGroups(conn, new TriggerGroupQuery { Name = "reports", Paused = true });
+        await adoDelegate.SelectTriggerGroups(conn, new TriggerGroupQuery { Name = NameMatcher.NameEquals("reports"), Paused = true });
 
         command.CommandText.Should().Contain("PAUSED_TRIGGER_GRPS", "a paused listing reads the paused groups table");
         command.CommandText.Should().Contain("TRIGGER_GROUP = @groupName");
@@ -1077,7 +1098,7 @@ public class StdAdoDelegateGroupMatcherTest
     [Test]
     public async Task SelectTriggerGroupNames_WithNameAndNoPausedFilter_ShouldFilterTheAliasedTriggersTable()
     {
-        await adoDelegate.SelectTriggerGroups(conn, new TriggerGroupQuery { Name = "reports" });
+        await adoDelegate.SelectTriggerGroups(conn, new TriggerGroupQuery { Name = NameMatcher.NameEquals("reports") });
 
         command.CommandText.Should().Contain("t.TRIGGER_GROUP = @groupName", "the unfiltered listing reads TRIGGERS under the alias 't'");
         parameters.Value("@groupName").Should().Be("reports");

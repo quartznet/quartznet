@@ -283,7 +283,7 @@ public class RAMJobStoreTest
             .StoreDurably(true)
             .Build();
         await fJobStore.AddJob(detail);
-        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+        await fJobStore.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(jobGroup));
 
         detail = JobBuilder.Create<NoOpJob>()
             .WithIdentity(new JobKey(jobName2, jobGroup))
@@ -309,7 +309,7 @@ public class RAMJobStoreTest
             .Build();
         await fJobStore.AddJob(job);
 
-        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+        await fJobStore.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(jobGroup));
         await fJobStore.ResumeJob(job.Key);
 
         IOperableTrigger tr = new SimpleTriggerImpl { Key = new TriggerKey("newTrigger", "triggerGroup"), StartTimeUtc = DateTimeOffset.UtcNow };
@@ -334,7 +334,7 @@ public class RAMJobStoreTest
         await fJobStore.AddJob(job1);
         await fJobStore.AddJob(job2);
 
-        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+        await fJobStore.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(jobGroup));
         await fJobStore.ResumeJob(job1.Key);
 
         IOperableTrigger tr1 = new SimpleTriggerImpl { Key = new TriggerKey("trigger1", "triggerGroup"), StartTimeUtc = DateTimeOffset.UtcNow };
@@ -359,9 +359,9 @@ public class RAMJobStoreTest
             .Build();
         await fJobStore.AddJob(job);
 
-        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+        await fJobStore.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(jobGroup));
         await fJobStore.ResumeJob(job.Key);
-        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+        await fJobStore.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(jobGroup));
 
         IOperableTrigger tr = new SimpleTriggerImpl { Key = new TriggerKey("newTrigger", "triggerGroup"), StartTimeUtc = DateTimeOffset.UtcNow };
         tr.JobKey = job.Key;
@@ -380,7 +380,7 @@ public class RAMJobStoreTest
             .Build();
         await fJobStore.AddJob(job);
 
-        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+        await fJobStore.PauseJobGroups(GroupMatcher<JobKey>.GroupEquals(jobGroup));
 
         // resume a nonexistent job — should not create an exemption for that key
         await fJobStore.ResumeJob(new JobKey("nonexistent", jobGroup));
@@ -1216,7 +1216,7 @@ public class RAMJobStoreTest
         Assert.That(acquired, Has.Count.EqualTo(2));
 
         // Pause trigger group between acquire and fire
-        await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("triggerGroup1"));
+        await fJobStore.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("triggerGroup1"));
 
         // Fire all acquired triggers
         var results = await fJobStore.TriggersFired(acquired);

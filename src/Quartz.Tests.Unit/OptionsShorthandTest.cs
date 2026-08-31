@@ -20,6 +20,24 @@ public sealed class OptionsShorthandTest
         AddTriggerOptions.Replacing.Should().Be(new AddTriggerOptions { Replace = true });
         AddCalendarOptions.Replacing.Should().Be(new AddCalendarOptions { Replace = true });
         AddCalendarOptions.ReplacingAndUpdatingTriggers.Should().Be(new AddCalendarOptions { Replace = true, UpdateTriggers = true });
+        AddJobOptions.ReplacingAndStoringNonDurable.Should().Be(new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true },
+            "the second flag got the preset its twin on AddCalendarOptions always had");
+    }
+
+    /// <summary>
+    /// <see cref="OneOffJobOptions" />'s preset takes the name, where every other one is a property.
+    /// A one-off firing's <see cref="OneOffJobOptions.Replace" /> means nothing without a name — the
+    /// trigger would be given a generated one, and a generated name has nothing to replace — so a
+    /// parameterless <c>Replacing</c> would be a preset for doing nothing.
+    /// </summary>
+    [Test]
+    public void OneOffReplacing_CarriesTheNameThatMakesReplacingMeanSomething()
+    {
+        OneOffJobOptions.Replacing("order-42").Should().Be(new OneOffJobOptions { Name = "order-42", Replace = true });
+
+        Action unnamed = () => OneOffJobOptions.Replacing("  ");
+        unnamed.Should().Throw<ArgumentException>(
+            "a blank name would leave the firing under a generated one, which is the mistake this preset exists to prevent");
     }
 
     /// <summary>

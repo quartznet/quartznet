@@ -441,7 +441,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// </remarks>
     /// <remarks>
     /// This takes the operator and the text rather than the matcher, because a calendar is matched
-    /// by <see cref="CalendarNameMatcher" /> and a job or trigger by <see cref="StringMatcher{TKey}" />,
+    /// by <see cref="NameMatcher" /> and a job or trigger by <see cref="StringMatcher{TKey}" />,
     /// and the translation is the same for both.
     /// </remarks>
     protected virtual string ToSqlLikeClause(StringOperator compareWith, string compareToValue)

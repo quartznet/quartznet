@@ -25,13 +25,16 @@ namespace Quartz;
 public sealed record JobGroupQuery : PagedQuery
 {
     /// <summary>
-    /// Limits the result to the one group with this exact name. Null matches every group.
+    /// Limits the result to groups whose name matches. Null matches every group.
     /// </summary>
     /// <remarks>
-    /// Combined with <c>Take = 1</c> this answers "is this group paused?" without listing
-    /// every group.
+    /// A group is identified by a bare name rather than by a <see cref="Key{T}" />, so the filter is
+    /// the arity-free <see cref="NameMatcher" /> rather than <see cref="NameMatcher{TKey}" />.
+    /// <c>NameMatcher.NameEquals(group)</c> combined with <c>Take = 1</c> answers "is this group
+    /// paused?" without listing every group, and the other three comparisons list the groups of one
+    /// tenant or one subsystem without reading the rest.
     /// </remarks>
-    public string? Name { get; init; }
+    public NameMatcher? Name { get; init; }
 
     /// <summary>
     /// Limits the result by paused state: true for paused groups only, false for

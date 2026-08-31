@@ -750,7 +750,7 @@ public sealed class BusIntegrationScenarioTest
     /// The single durable job every firing of <see cref="ReceiptJob" /> hangs off, named the way an
     /// integration names it rather than by re-deriving the key the extension already spells.
     /// </summary>
-    private static JobKey DurableJobKey => SchedulerJobExtensions.ScheduledJobKey<ReceiptJob>();
+    private static JobKey DurableJobKey => SchedulerConstants.ScheduledJobKey<ReceiptJob>();
 
     /// <summary>
     /// Moves the scheduler's clock to just past <paramref name="instant" /> and wakes the loop.

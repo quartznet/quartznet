@@ -390,8 +390,8 @@ internal abstract partial class AdoJobStoreBase
     /// afterwards is not paused by this call. Pause by trigger group where the pause has to reach what
     /// is scheduled next.
     /// </remarks>
-    /// <seealso cref="ResumeJobs(GroupMatcher{JobKey}, CancellationToken)" />
-    public ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    /// <seealso cref="ResumeJobGroups" />
+    public ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
         {
@@ -741,8 +741,8 @@ internal abstract partial class AdoJobStoreBase
     /// missed one or more fire-times, then the <see cref="ITrigger" />'s
     /// misfire instruction will be applied.
     /// </remarks>
-    /// <seealso cref="PauseJobs(GroupMatcher{JobKey}, CancellationToken)" />
-    public ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    /// <seealso cref="PauseJobGroups" />
+    public ValueTask<List<string>> ResumeJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
         {
@@ -771,8 +771,8 @@ internal abstract partial class AdoJobStoreBase
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
-    /// <seealso cref="ResumeTriggers(Quartz.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
-    public ValueTask<List<string>> PauseTriggers(
+    /// <seealso cref="ResumeTriggerGroups(Quartz.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
+    public ValueTask<List<string>> PauseTriggerGroups(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -818,12 +818,12 @@ internal abstract partial class AdoJobStoreBase
             "pause trigger group '" + matcher + "'");
     }
 
-    public ValueTask<List<string>> ResumeTriggers(
+    public ValueTask<List<string>> ResumeTriggerGroups(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
         return ExecuteInLock(
-            SchedulerLock.TriggerAccess, conn => ResumeTriggers(conn, matcher, cancellationToken),
+            SchedulerLock.TriggerAccess, conn => ResumeTriggerGroups(conn, matcher, cancellationToken),
             cancellationToken);
     }
 
@@ -835,7 +835,7 @@ internal abstract partial class AdoJobStoreBase
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    protected ValueTask<List<string>> ResumeTriggers(
+    protected ValueTask<List<string>> ResumeTriggerGroups(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
@@ -867,7 +867,7 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(Quartz.GroupMatcher{Quartz.TriggerKey},CancellationToken)" />
+    /// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroups" />
     /// on every group.
     /// <para>
     /// When <see cref="ResumeAll(CancellationToken)" /> is called (to un-pause), trigger misfire
@@ -895,7 +895,7 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
+    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroups(Quartz.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
     /// on every group.
     /// </summary>
     /// <remarks>
@@ -909,7 +909,7 @@ internal abstract partial class AdoJobStoreBase
     }
 
     /// <summary>
-    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
+    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroups(Quartz.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
     /// on every group.
     /// <para>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
@@ -923,7 +923,7 @@ internal abstract partial class AdoJobStoreBase
     {
         // Every group at once, for the reason PauseAll takes the any-group matcher: naming each group
         // in turn issued the same statements a group at a time.
-        await ResumeTriggers(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
+        await ResumeTriggerGroups(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
 
         await Guarded(
             async () =>

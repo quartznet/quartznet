@@ -160,9 +160,9 @@ public class DelegatingScheduler : IScheduler
         return scheduler.PauseJob(jobKey, cancellationToken);
     }
 
-    public virtual ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseJobs(matcher, cancellationToken);
+        return scheduler.PauseJobGroups(matcher, cancellationToken);
     }
 
     public virtual ValueTask<List<JobKey>> PauseJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
@@ -175,9 +175,9 @@ public class DelegatingScheduler : IScheduler
         return scheduler.PauseTrigger(triggerKey, cancellationToken);
     }
 
-    public virtual ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> PauseTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseTriggers(matcher, cancellationToken);
+        return scheduler.PauseTriggerGroups(matcher, cancellationToken);
     }
 
     public virtual ValueTask<List<TriggerKey>> PauseTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
@@ -190,9 +190,9 @@ public class DelegatingScheduler : IScheduler
         return scheduler.ResumeJob(jobKey, cancellationToken);
     }
 
-    public virtual ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> ResumeJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeJobs(matcher, cancellationToken);
+        return scheduler.ResumeJobGroups(matcher, cancellationToken);
     }
 
     public virtual ValueTask<List<JobKey>> ResumeJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
@@ -205,9 +205,9 @@ public class DelegatingScheduler : IScheduler
         return scheduler.ResumeTrigger(triggerKey, cancellationToken);
     }
 
-    public virtual ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> ResumeTriggerGroups(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeTriggers(matcher, cancellationToken);
+        return scheduler.ResumeTriggerGroups(matcher, cancellationToken);
     }
 
     public virtual ValueTask<List<TriggerKey>> ResumeTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)

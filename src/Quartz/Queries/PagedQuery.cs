@@ -23,9 +23,29 @@ namespace Quartz;
 /// Base for job store queries whose results can be paged.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Results are always ordered by group and then name (ordinal), so a page is deterministic
 /// on every job store. <see cref="Skip" /> and <see cref="Take" /> are offsets into that
 /// ordering; a UI page maps to <c>Skip = (page - 1) * pageSize, Take = pageSize</c>.
+/// </para>
+/// <para>
+/// A filter is named for what it selects on. <c>Group</c> and <c>Name</c> are the result's own
+/// identity — <see cref="JobQuery.Name" /> is the job's name, <see cref="JobGroupQuery.Name" /> is
+/// the group's — and a filter on something the result merely refers to carries that thing's name:
+/// <see cref="TriggerQuery.Job" />, <see cref="TriggerQuery.CalendarName" />,
+/// <see cref="FireInstanceQuery.SchedulerInstanceId" />. That is why
+/// <see cref="FireInstanceQuery" /> alone spells its trigger filters
+/// <see cref="FireInstanceQuery.TriggerGroup" /> and <see cref="FireInstanceQuery.TriggerName" />: a
+/// firing is identified by a fire instance id and not by a key, so the trigger it belongs to is a
+/// reference like any other, and an unqualified <c>Name</c> there would leave a reader to guess
+/// whether it meant the trigger's or the job's.
+/// </para>
+/// <para>
+/// Every name filter is a matcher of the same family: <see cref="NameMatcher{TKey}" /> where the
+/// name is half of a <see cref="Key{T}" />, and the arity-free <see cref="NameMatcher" /> where it
+/// is a bare name — a calendar's, a group's. Every filter is nullable and null means "match
+/// everything", so no filter needs an "any" spelling of its own.
+/// </para>
 /// </remarks>
 public abstract record PagedQuery
 {

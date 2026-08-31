@@ -239,7 +239,7 @@ public class PauseResumeStatementCountTest
             Header("a", FirstJob, StoredTriggerState.Waiting),
             Header("b", SecondJob, StoredTriggerState.Waiting));
 
-        await store.PauseJobs(GroupMatcher<JobKey>.GroupStartsWith("jo"));
+        await store.PauseJobGroups(GroupMatcher<JobKey>.GroupStartsWith("jo"));
 
         A.CallTo(() => driverDelegate.SelectTriggerKeysForJobs(
                 A<ConnectionAndTransactionHolder>._, A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))

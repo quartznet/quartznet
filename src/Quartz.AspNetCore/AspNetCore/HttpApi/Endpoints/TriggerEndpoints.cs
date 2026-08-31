@@ -267,7 +267,7 @@ internal static class TriggerEndpoints
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-            var pausedGroups = await scheduler.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
+            var pausedGroups = await scheduler.PauseTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
             return new AffectedGroupsResponse([.. pausedGroups]);
         });
     }
@@ -319,7 +319,7 @@ internal static class TriggerEndpoints
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-            var resumedGroups = await scheduler.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
+            var resumedGroups = await scheduler.ResumeTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
             return new AffectedGroupsResponse([.. resumedGroups]);
         });
     }
@@ -350,7 +350,10 @@ internal static class TriggerEndpoints
         int? take = null,
         bool includeTotalCount = false,
         bool? paused = null,
-        string? name = null,
+        string? nameContains = null,
+        string? nameEndsWith = null,
+        string? nameStartsWith = null,
+        string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
@@ -358,7 +361,7 @@ internal static class TriggerEndpoints
         {
             TriggerGroupQuery query = new()
             {
-                Name = name,
+                Name = EndpointHelper.GetNameMatcher(nameContains, nameEndsWith, nameStartsWith, nameEquals),
                 Paused = paused,
                 Skip = skip,
                 IncludeTotalCount = includeTotalCount

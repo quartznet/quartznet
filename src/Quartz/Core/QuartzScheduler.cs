@@ -1470,7 +1470,7 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
-    public async ValueTask<List<string>> PauseTriggers(
+    public async ValueTask<List<string>> PauseTriggerGroups(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -1481,7 +1481,7 @@ internal sealed class QuartzScheduler
             matcher = GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup);
         }
 
-        var pausedGroups = await resources.JobStore.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
+        var pausedGroups = await resources.JobStore.PauseTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedTriggers(x, cancellationToken).AsTask())).ConfigureAwait(false);
         return pausedGroups;
@@ -1539,7 +1539,7 @@ internal sealed class QuartzScheduler
     /// Pause all of the <see cref="IJobDetail" />s in the
     /// given group - by pausing all of their <see cref="ITrigger" />s.
     /// </summary>
-    public async ValueTask<List<string>> PauseJobs(
+    public async ValueTask<List<string>> PauseJobGroups(
         GroupMatcher<JobKey> groupMatcher,
         CancellationToken cancellationToken = default)
     {
@@ -1550,7 +1550,7 @@ internal sealed class QuartzScheduler
             groupMatcher = GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup);
         }
 
-        var pausedGroups = await resources.JobStore.PauseJobs(groupMatcher, cancellationToken).ConfigureAwait(false);
+        var pausedGroups = await resources.JobStore.PauseJobGroups(groupMatcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedJobs(x, cancellationToken).AsTask())).ConfigureAwait(false);
         return pausedGroups;
@@ -1617,7 +1617,7 @@ internal sealed class QuartzScheduler
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public async ValueTask<List<string>> ResumeTriggers(
+    public async ValueTask<List<string>> ResumeTriggerGroups(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -1628,7 +1628,7 @@ internal sealed class QuartzScheduler
             matcher = GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup);
         }
 
-        var resumedGroups = await resources.JobStore.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
+        var resumedGroups = await resources.JobStore.ResumeTriggerGroups(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(resumedGroups.Select(x => NotifySchedulerListenersResumedTriggers(x, cancellationToken).AsTask())).ConfigureAwait(false);
         return resumedGroups;
@@ -1695,7 +1695,7 @@ internal sealed class QuartzScheduler
     /// misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public async ValueTask<List<string>> ResumeJobs(
+    public async ValueTask<List<string>> ResumeJobGroups(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -1706,14 +1706,14 @@ internal sealed class QuartzScheduler
             matcher = GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup);
         }
 
-        var resumedGroups = await resources.JobStore.ResumeJobs(matcher, cancellationToken).ConfigureAwait(false);
+        var resumedGroups = await resources.JobStore.ResumeJobGroups(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(resumedGroups.Select(x => NotifySchedulerListenersResumedJobs(x, cancellationToken).AsTask())).ConfigureAwait(false);
         return resumedGroups;
     }
 
     /// <summary>
-    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
+    /// Pause all triggers - equivalent of calling <see cref="PauseTriggerGroups" />
     /// with a matcher matching all known groups.
     /// <para>
     /// When <see cref="ResumeAll" /> is called (to un-pause), trigger misfire
@@ -1732,7 +1732,7 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
+    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggerGroups" />
     /// on every group.
     /// <para>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the

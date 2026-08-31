@@ -370,11 +370,11 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<List<string>> PauseTriggers(
+    public ValueTask<List<string>> PauseTriggerGroups(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseTriggers(matcher, cancellationToken);
+        return scheduler.PauseTriggerGroups(matcher, cancellationToken);
     }
 
     /// <summary>
@@ -400,11 +400,11 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<List<string>> PauseJobs(
+    public ValueTask<List<string>> PauseJobGroups(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.PauseJobs(matcher, cancellationToken);
+        return scheduler.PauseJobGroups(matcher, cancellationToken);
     }
 
     /// <summary>
@@ -430,11 +430,11 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<List<string>> ResumeTriggers(
+    public ValueTask<List<string>> ResumeTriggerGroups(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeTriggers(matcher, cancellationToken);
+        return scheduler.ResumeTriggerGroups(matcher, cancellationToken);
     }
 
     /// <summary>
@@ -460,11 +460,11 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<List<string>> ResumeJobs(
+    public ValueTask<List<string>> ResumeJobGroups(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.ResumeJobs(matcher, cancellationToken);
+        return scheduler.ResumeJobGroups(matcher, cancellationToken);
     }
 
     /// <summary>

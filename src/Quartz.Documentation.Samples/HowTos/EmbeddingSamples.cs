@@ -209,7 +209,7 @@ public static class EmbeddingSamples
 
         ITrigger trigger = TriggerBuilder.Create<SendReminderJob>(scheduler.TimeProvider)
             .WithIdentity(reminder.MessageId, reminder.ConversationId)
-            .ForJob(SchedulerJobExtensions.ScheduledJobKey<SendReminderJob>())
+            .ForJob(SchedulerConstants.ScheduledJobKey<SendReminderJob>())
             .StartAt(at)
             .UsingInput(reminder)
             .Build();

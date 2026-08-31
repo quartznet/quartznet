@@ -585,7 +585,7 @@ public interface IScheduler : IAsyncDisposable
     /// round trip per key — and without first listing the keys, which is a window in which another
     /// node can add one more.
     /// </para>
-    /// <para>Unlike <see cref="PauseJobs(GroupMatcher{JobKey}, CancellationToken)" />, nothing is
+    /// <para>Unlike <see cref="PauseJobGroups" />, nothing is
     /// remembered about the groups: a delete has no state to impose on a job added afterwards.</para>
     /// <para>One <see cref="ISchedulerListener.JobDeleted" /> is raised per deleted key, and the
     /// scheduling change is signalled once for the whole call. A matcher that matched nothing raises
@@ -649,10 +649,19 @@ public interface IScheduler : IAsyncDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Pause all of the <see cref="IJobDetail" />s in the
-    /// matching groups - by pausing all of their <see cref="ITrigger" />s.
+    /// Pause the job groups that match - by pausing all of the <see cref="ITrigger" />s of the
+    /// <see cref="IJobDetail" />s in them.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// A group, not a set of jobs, which is why this is named for groups and answers with their
+    /// names where <see cref="PauseJobs(IReadOnlyCollection{JobKey}, CancellationToken)" /> answers
+    /// with keys. The pause is recorded against the group itself and outlives the jobs that were in
+    /// it when the call was made: it survives a restart, reaches every node of a cluster, is what
+    /// <c>IsJobGroupPaused</c> reports, and is imposed on jobs added to the group afterwards. No
+    /// list of keys can say that, and an equality matcher pauses a group that holds no job at all —
+    /// which is how a caller pauses what is about to be added to it.
+    /// </para>
     /// <para>
     /// The Scheduler will "remember" that the groups are paused, and impose the
     /// pause on any new jobs that are added to any of those groups until it is resumed.
@@ -671,8 +680,8 @@ public interface IScheduler : IAsyncDisposable
     /// in that group, it will become paused.</para>
     /// </remarks>
     /// <returns>The names of the job groups that were paused by this call.</returns>
-    /// <seealso cref="ResumeJobs(GroupMatcher{JobKey}, CancellationToken)" />
-    ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
+    /// <seealso cref="ResumeJobGroups" />
+    ValueTask<List<string>> PauseJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given key.
@@ -706,9 +715,18 @@ public interface IScheduler : IAsyncDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Pause all of the <see cref="ITrigger" />s in the groups matching.
+    /// Pause the trigger groups that match, and every <see cref="ITrigger" /> in them.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// A group, not a set of triggers, which is why this is named for groups and answers with their
+    /// names where <see cref="PauseTriggers(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    /// answers with keys. The pause is recorded against the group itself and outlives the triggers
+    /// that were in it when the call was made: it survives a restart, reaches every node of a
+    /// cluster, is what <c>IsTriggerGroupPaused</c> reports, and is imposed on triggers stored into
+    /// the group afterwards. No list of keys can say that, and an equality matcher pauses a group
+    /// that holds no trigger at all — which is how a caller pauses what is about to be added to it.
+    /// </para>
     /// <para>
     /// The Scheduler will "remember" all the groups paused, and impose the
     /// pause on any new triggers that are added to any of those groups until it is resumed.
@@ -727,8 +745,8 @@ public interface IScheduler : IAsyncDisposable
     /// in that group, it will become paused.</para>
     /// </remarks>
     /// <returns>The names of the trigger groups that were paused by this call.</returns>
-    /// <seealso cref="ResumeTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
-    ValueTask<List<string>> PauseTriggers(
+    /// <seealso cref="ResumeTriggerGroups" />
+    ValueTask<List<string>> PauseTriggerGroups(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default);
 
@@ -773,17 +791,24 @@ public interface IScheduler : IAsyncDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Resume (un-pause) all of the <see cref="IJobDetail" />s
-    /// in matching groups.
+    /// Resume (un-pause) the job groups that match, and the <see cref="IJobDetail" />s in them.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Forgets the group's pause, whatever matcher recorded it, so a group paused by a prefix
+    /// matcher is resumed by one — which is why this answers with group names, as
+    /// <see cref="PauseJobGroups" /> does, rather than with the keys
+    /// <see cref="ResumeJobs(IReadOnlyCollection{JobKey}, CancellationToken)" /> answers with.
+    /// </para>
+    /// <para>
     /// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
     /// missed one or more fire-times, then the <see cref="ITrigger" />'s
     /// misfire instruction will be applied.
+    /// </para>
     /// </remarks>
     /// <returns>The names of the job groups that were resumed by this call.</returns>
-    /// <seealso cref="PauseJobs(GroupMatcher{JobKey}, CancellationToken)" />
-    ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
+    /// <seealso cref="PauseJobGroups" />
+    ValueTask<List<string>> ResumeJobGroups(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resume (un-pause) the <see cref="ITrigger" /> with the given
@@ -825,20 +850,29 @@ public interface IScheduler : IAsyncDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Resume (un-pause) all of the <see cref="ITrigger" />s in matching groups.
+    /// Resume (un-pause) the trigger groups that match, and every <see cref="ITrigger" /> in them.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// Forgets the group's pause, whatever matcher recorded it, so a group paused by a prefix
+    /// matcher is resumed by one — which is why this answers with group names, as
+    /// <see cref="PauseTriggerGroups" /> does, rather than with the keys
+    /// <see cref="ResumeTriggers(IReadOnlyCollection{TriggerKey}, CancellationToken)" /> answers
+    /// with.
+    /// </para>
+    /// <para>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
+    /// </para>
     /// </remarks>
     /// <returns>The names of the trigger groups that were resumed by this call.</returns>
-    /// <seealso cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
-    ValueTask<List<string>> ResumeTriggers(
+    /// <seealso cref="PauseTriggerGroups" />
+    ValueTask<List<string>> ResumeTriggerGroups(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Pause all triggers - similar to calling <see cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
+    /// Pause all triggers - similar to calling <see cref="PauseTriggerGroups" />
     /// on every group, however, after using this method <see cref="ResumeAll" />
     /// must be called to clear the scheduler's state of 'remembering' that all
     /// new triggers will be paused as they are added.
@@ -848,13 +882,13 @@ public interface IScheduler : IAsyncDisposable
     /// instructions WILL be applied.
     /// </remarks>
     /// <seealso cref="ResumeAll" />
-    /// <seealso cref="PauseTriggers(GroupMatcher{TriggerKey}, CancellationToken)" />
+    /// <seealso cref="PauseTriggerGroups" />
     /// <seealso cref="Standby" />
     ValueTask PauseAll(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resume (un-pause) all triggers - similar to calling
-    /// <see cref="ResumeTriggers(GroupMatcher{TriggerKey}, CancellationToken)" /> on every group.
+    /// <see cref="ResumeTriggerGroups" /> on every group.
     /// </summary>
     /// <remarks>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
@@ -997,6 +1031,55 @@ public interface IScheduler : IAsyncDisposable
     ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reset every <see cref="ITrigger" /> in the matching groups that is in
+    /// <see cref="TriggerState.Error" />, and return the keys it moved.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A mutation named by a matcher, like <see cref="DeleteJobs(GroupMatcher{JobKey}, CancellationToken)" />
+    /// and <see cref="UnscheduleJobs(GroupMatcher{TriggerKey}, CancellationToken)" />, and it answers
+    /// with keys as they do: what a reset changes is triggers, one at a time, and nothing about a
+    /// group is recorded — which is the difference between this and
+    /// <see cref="PauseTriggerGroups" />.
+    /// </para>
+    /// <para>
+    /// The default implementation names the set with <see cref="QueryTriggers" /> and hands it to
+    /// <see cref="ResetTriggersFromErrorState(IReadOnlyCollection{TriggerKey}, CancellationToken)" />,
+    /// which is what decides what resetting a trigger does. The listing between the two calls is
+    /// deliberately unbounded: the set is "every trigger in error in these groups", and a page of it
+    /// would silently reset some and leave the rest. The two calls are not one atomic operation, so a
+    /// trigger that enters the error state between them is left for the next call — which is also
+    /// true of a caller who writes the two calls by hand. An implementation whose store can do it in
+    /// one statement overrides this.
+    /// </para>
+    /// </remarks>
+    /// <param name="matcher">Limits the reset to triggers whose group matches.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The keys this call reset.</returns>
+    /// <seealso cref="ResetTriggersFromErrorState(IReadOnlyCollection{TriggerKey}, CancellationToken)" />
+    async ValueTask<List<TriggerKey>> ResetTriggersFromErrorState(
+        GroupMatcher<TriggerKey> matcher,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(matcher);
+
+        TriggerQuery query = new() { Group = matcher, State = TriggerState.Error, Take = int.MaxValue };
+        PagedResult<TriggerHeader> failed = await QueryTriggers(query, cancellationToken).ConfigureAwait(false);
+        if (failed.Items.Count == 0)
+        {
+            return [];
+        }
+
+        List<TriggerKey> keys = new(failed.Items.Count);
+        for (int i = 0; i < failed.Items.Count; i++)
+        {
+            keys.Add(failed.Items[i].Key);
+        }
+
+        return await ResetTriggersFromErrorState(keys, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.

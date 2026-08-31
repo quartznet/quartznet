@@ -185,7 +185,7 @@ public abstract class AbstractSchedulerTest
         var pausedGroups = await scheduler.GetPausedTriggerGroups();
         Assert.That(pausedGroups, Is.Empty, "Size of paused trigger groups list expected to be 0 ");
 
-        await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+        await scheduler.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
         // test that adding a trigger to a paused group causes the new trigger to be paused also...
         job = JobBuilder.Create<TestJob>()
@@ -210,7 +210,7 @@ public abstract class AbstractSchedulerTest
         s = await scheduler.GetTriggerState(new TriggerKey("t4", "g1"));
         Assert.That(s.Equals(TriggerState.Paused), "State of trigger t4 expected to be PAUSED ");
 
-        await scheduler.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+        await scheduler.ResumeTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals("g1"));
         s = await scheduler.GetTriggerState(new TriggerKey("t2", "g1"));
         Assert.That(s.Equals(TriggerState.Normal), "State of trigger t2 expected to be NORMAL ");
         s = await scheduler.GetTriggerState(new TriggerKey("t4", "g1"));

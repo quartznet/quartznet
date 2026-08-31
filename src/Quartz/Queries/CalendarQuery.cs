@@ -27,5 +27,10 @@ public sealed record CalendarQuery : PagedQuery
     /// <summary>
     /// Limits the result to calendars whose name matches. Null matches every name.
     /// </summary>
-    public CalendarNameMatcher? Name { get; init; }
+    /// <remarks>
+    /// A calendar is identified by a bare name rather than by a <see cref="Key{T}" />, so the filter
+    /// is the arity-free <see cref="NameMatcher" /> rather than <see cref="NameMatcher{TKey}" />.
+    /// The four comparisons, and the wire spellings they map to, are the same either way.
+    /// </remarks>
+    public NameMatcher? Name { get; init; }
 }

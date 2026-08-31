@@ -475,11 +475,11 @@ PagedResult<TriggerHeader> theirs = await scheduler.QueryTriggers(new TriggerQue
 });
 
 // suspend a tenant
-List<string> paused = await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(tenantId));
+List<string> paused = await scheduler.PauseTriggerGroups(GroupMatcher<TriggerKey>.GroupEquals(tenantId));
 
 // is a tenant suspended?
 PagedResult<TriggerGroup> group = await scheduler.QueryTriggerGroups(
-    new TriggerGroupQuery { Name = tenantId, Take = 1 });
+    new TriggerGroupQuery { Name = NameMatcher.NameEquals(tenantId), Take = 1 });
 bool suspended = group.Items is [{ Paused: true }];
 ```
 <!-- endSnippet -->
@@ -730,7 +730,7 @@ public sealed class RotateTenantKeysJob : IJob
         // ISchedulerFactory would have been the default scheduler's.
         IScheduler mine = context.Scheduler;
 
-        await mine.PauseTriggers(
+        await mine.PauseTriggerGroups(
             GroupMatcher<TriggerKey>.GroupEquals(context.Trigger.Key.Group),
             cancellationToken);
     }
