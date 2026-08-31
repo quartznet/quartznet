@@ -262,14 +262,23 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     private static readonly int[] HashFieldMaxes = { 59, 59, 23, 31, 12, 7 };
 
     // Day-of-week names and RFC 5545 BYDAY codes, indexed by Quartz's 1-7 numbering (1 = Sunday).
-    // Only error messages read these; the parser maps the other way, through GetDayOfWeekNumber.
-    private static readonly string[] DayOfWeekNames = { "", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
+    // The parser maps the other way, through GetDayOfWeekNumber. Error messages read both; the names
+    // are also read by UnixCronRewriter, which renumbers crontab's 0-6 into them - hence internal, so
+    // that there is one such table rather than two.
+    internal static readonly string[] DayOfWeekNames = { "", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
     private static readonly string[] RecurrenceDayCodes = { "", "SU", "MO", "TU", "WE", "TH", "FR", "SA" };
 
     ///<summary>
     /// Constructs a new <see cref="CronExpressionString" /> based on the specified
     /// parameter.
     /// </summary>
+    /// <remarks>
+    /// An <c>@</c> macro - <c>@yearly</c>, <c>@annually</c>, <c>@monthly</c>, <c>@weekly</c>,
+    /// <c>@daily</c>, <c>@midnight</c> or <c>@hourly</c> - is expanded here, which is what puts it
+    /// behind every entry point that reads an expression string. The expansion is what
+    /// <see cref="CronExpressionString" /> then holds, in the same way that it holds
+    /// <c>MON-FRI</c> for a caller who wrote <c>mon-fri</c>.
+    /// </remarks>
     /// <param name="cronExpression">String representation of the cron expression the new object should represent</param>
     /// <see cref="CronExpressionString" />
     public CronExpression(string cronExpression)
@@ -279,7 +288,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
         }
 
-        CronExpressionString = CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression).Trim();
+        CronExpressionString = CronMacros.Expand(CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression).Trim());
         BuildExpression(CronExpressionString);
     }
 
@@ -508,6 +517,79 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         {
             result = null;
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Parses a cron expression string written in the given format into a <see cref="CronExpression" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="CronFormat.Unix" /> reads the five-field crontab form, whose day-of-week is numbered
+    /// 0-7 with both 0 and 7 meaning Sunday. The result is an ordinary <see cref="CronExpression" />
+    /// holding the canonical Quartz spelling of the same schedule, so <c>"30 4 * * 1"</c> becomes
+    /// <c>"0 30 4 ? * MON"</c> and that is what <see cref="CronExpressionString" />, the dashboard and
+    /// the database show. The format is not recorded anywhere and the original text is not recoverable.
+    /// </para>
+    /// <para>
+    /// A time zone composes: <c>CronExpression.Parse(s, CronFormat.Unix).WithTimeZone(tz)</c>.
+    /// </para>
+    /// </remarks>
+    /// <param name="cronExpression">String representation of the cron expression.</param>
+    /// <param name="format">The dialect <paramref name="cronExpression"/> is written in.</param>
+    /// <returns>The parsed expression.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="cronExpression"/> is <see langword="null" />.</exception>
+    /// <exception cref="FormatException"><paramref name="cronExpression"/> is not a valid cron expression in <paramref name="format"/>.</exception>
+    public static CronExpression Parse(string cronExpression, CronFormat format)
+    {
+        ArgumentNullException.ThrowIfNull(cronExpression);
+        return new CronExpression(ToQuartzForm(cronExpression, format));
+    }
+
+    /// <summary>
+    /// Attempts to parse a cron expression string written in the given format into a
+    /// <see cref="CronExpression" />.
+    /// </summary>
+    /// <param name="cronExpression">String representation of the cron expression; may be <see langword="null" />.</param>
+    /// <param name="format">The dialect <paramref name="cronExpression"/> is written in.</param>
+    /// <param name="result">The parsed expression, or <see langword="null" /> when parsing failed.</param>
+    /// <returns><see langword="true" /> when <paramref name="cronExpression"/> is a valid cron expression in <paramref name="format"/>.</returns>
+    /// <seealso cref="Parse(string, CronFormat)" />
+    public static bool TryParse([NotNullWhen(true)] string? cronExpression, CronFormat format, [NotNullWhen(true)] out CronExpression? result)
+    {
+        if (cronExpression is null)
+        {
+            result = null;
+            return false;
+        }
+
+        try
+        {
+            result = new CronExpression(ToQuartzForm(cronExpression, format));
+            return true;
+        }
+        catch (FormatException)
+        {
+            result = null;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Reads an expression written in <paramref name="format"/> as the Quartz expression that says the
+    /// same thing. Only the string changes; nothing downstream of the parser knows about formats.
+    /// </summary>
+    internal static string ToQuartzForm(string cronExpression, CronFormat format)
+    {
+        switch (format)
+        {
+            case CronFormat.Quartz:
+                return cronExpression;
+            case CronFormat.Unix:
+                return UnixCronRewriter.ToQuartz(cronExpression);
+            default:
+                Throw.ArgumentOutOfRangeException(nameof(format), $"'{format}' is not a cron format.");
+                return cronExpression;
         }
     }
 
@@ -1137,6 +1219,18 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             sval = CronExpression.GetMonthNumber(sub) + 1;
             if (sval <= 0)
             {
+                // A day name in the month field is nearly always a five-field crontab line: crontab's
+                // fifth field is day-of-week and Quartz's fifth is month, so the two land on top of each
+                // other and the field is rejected before anything counts the fields. Say so here, or the
+                // count message below - which is the one that explains the dialect - is never reached.
+                if (GetDayOfWeekNumber(sub) >= 0)
+                {
+                    Throw.FormatException(
+                        $"Invalid Month value: '{sub.ToString()}' names a day of the week, and this is the month field. "
+                        + "That is usually a 5-field Unix/crontab expression; Quartz cron has 6 or 7 fields with seconds first. "
+                        + "Prepend a seconds field, or read the expression as written with CronExpression.Parse(expression, CronFormat.Unix).");
+                }
+
                 Throw.FormatException($"Invalid Month value: '{sub.ToString()}'");
             }
 
@@ -1820,11 +1914,16 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// day-of-week field is a bare number - the Quartz spelling of the day that number named in crontab.
     /// Prepending a seconds field keeps the digit, and the same digit is a different day in the two
     /// dialects, so advice that stopped at the rewrite moved the schedule by a day without saying so.
+    /// It ends by naming <see cref="CronFormat.Unix" />, which does the whole rewrite for the caller.
     /// </summary>
     private static string FiveFieldAdvice(string expression)
     {
         string prepend = $"Prepend a seconds field: \"0 {expression}\". "
                          + "Note that Quartz numbers days of week 1-7 starting at Sunday where Unix cron uses 0-6, so ";
+
+        // Rewriting by hand is one way out; the other is not to rewrite at all, because the five-field
+        // form is a dialect Quartz reads and not only a mistake it rejects.
+        const string orReadItAsUnix = " Or read it as written, renumbering and all, with CronExpression.Parse(expression, CronFormat.Unix).";
 
         string[] fields = expression.Split((char[]?) null, StringSplitOptions.RemoveEmptyEntries);
         if (fields.Length == 5
@@ -1836,10 +1935,11 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             string dayOfMonth = fields[2] is "*" or "?" ? "?" : fields[2];
             return prepend
                    + $"if '{fields[4]}' meant {(DayOfWeek) (quartzDayOfWeek - 1)} the Quartz spelling is "
-                   + $"\"0 {fields[0]} {fields[1]} {dayOfMonth} {fields[3]} {DayOfWeekNames[quartzDayOfWeek]}\".";
+                   + $"\"0 {fields[0]} {fields[1]} {dayOfMonth} {fields[3]} {DayOfWeekNames[quartzDayOfWeek]}\"."
+                   + orReadItAsUnix;
         }
 
-        return prepend + "respell numeric day-of-week values or use names (SUN, MON, ...).";
+        return prepend + "respell numeric day-of-week values or use names (SUN, MON, ...)." + orReadItAsUnix;
     }
 
     /// <summary>

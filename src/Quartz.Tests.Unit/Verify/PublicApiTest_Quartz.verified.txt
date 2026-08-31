@@ -130,9 +130,11 @@ namespace Quartz
         public static bool IsValidExpression(string cronExpression) { }
         public static bool IsValidExpression(string cronExpression, string hashKey) { }
         public static Quartz.CronExpression Parse(string cronExpression) { }
+        public static Quartz.CronExpression Parse(string cronExpression, Quartz.CronFormat format) { }
         public static string ResolveHash(string cronExpression, int hashSeed) { }
         public static string ResolveHash(string cronExpression, string hashKey) { }
         public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? cronExpression, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
+        public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? cronExpression, Quartz.CronFormat format, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
         public static void ValidateExpression(string cronExpression) { }
         public static void ValidateExpression(string cronExpression, string hashKey) { }
     }
@@ -183,6 +185,11 @@ namespace Quartz
         public Quartz.CronExpressionBuilder WithYears(params int[] years) { }
         public static Quartz.CronExpressionBuilder Create() { }
     }
+    public enum CronFormat
+    {
+        Quartz = 0,
+        Unix = 1,
+    }
     public sealed class CronScheduleBuilder : Quartz.IScheduleBuilder
     {
         public Quartz.Extensibility.IMutableTrigger Build() { }
@@ -190,6 +197,7 @@ namespace Quartz
         public Quartz.CronScheduleBuilder WithMisfireInstruction(Quartz.CronTriggerMisfireInstruction instruction) { }
         public static Quartz.CronScheduleBuilder Create(Quartz.CronExpression cronExpression) { }
         public static Quartz.CronScheduleBuilder Create(string cronExpression) { }
+        public static Quartz.CronScheduleBuilder Create(string cronExpression, Quartz.CronFormat format) { }
     }
     public enum CronTriggerMisfireInstruction
     {

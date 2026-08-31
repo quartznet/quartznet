@@ -488,7 +488,13 @@ how the clock and the zone are two separate axes.
 
 One more cron trap, since it accounts for more "my job ran fifty times" reports in this project than
 daylight saving does: Quartz cron puts **seconds first**, so `* 0/5 * * * ?` means *every second of
-every fifth minute*, not every five minutes. That is `0 0/5 * * * ?`. See
+every fifth minute*, not every five minutes. That is `0 0/5 * * * ?`. The same shift is why a
+five-field line copied from a crontab is not a Quartz expression: prepending a `0` fixes the layout
+but not the day-of-week numbering, which is 0-6 from Sunday in crontab and 1-7 from Sunday here. On
+**4.x**, don't translate it by hand — `CronExpression.Parse(line, CronFormat.Unix)` and
+`CronScheduleBuilder.Create(line, CronFormat.Unix)` read the five-field form as written, renumbering
+included, and store the canonical Quartz spelling. On **3.x** there is no such reader, so the
+translation is manual and the day-of-week digit is the part to check. See
 [Cron Triggers (4.x)](/documentation/quartz-4.x/tutorial/crontriggers) and
 [Cron Triggers (3.x)](/documentation/quartz-3.x/tutorial/crontriggers).
 

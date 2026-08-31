@@ -4632,12 +4632,81 @@ The cron expression parser now supports additional syntax:
 * `H` (hash) tokens for [load distribution](cron-expressions.md#h-hash-for-load-distribution) across triggers
 
 Parse errors name the fix instead of only the constraint. A 5-field Unix/crontab expression — the shape every
-online cron generator emits — is still rejected (Quartz cron puts seconds first), but the error now shows the
-corrected 6-field expression to use, and the day-of-week range error explains that Quartz numbers days 1-7
-starting at Sunday where Unix cron uses 0-6, recommending names (`SUN`, `MON`, …) as the unambiguous spelling.
-When the 5-field expression's day-of-week is a bare number the error goes one step further and shows the
-renumbered expression too: prepending a seconds field to `30 4 * * 1` keeps the `1`, and `1` is Monday in
-crontab but Sunday in Quartz, so the message names `"0 30 4 ? * MON"` as the schedule that was meant.
+online cron generator emits — is not Quartz's own form (Quartz cron puts seconds first), so reading one *as
+Quartz* is still an error; but the error now shows the corrected 6-field expression to use, names
+`CronFormat.Unix` as the way to read it as written instead, and the day-of-week range error explains that
+Quartz numbers days 1-7 starting at Sunday where Unix cron uses 0-6, recommending names (`SUN`, `MON`, …) as
+the unambiguous spelling. When the 5-field expression's day-of-week is a bare number the error goes one step
+further and shows the renumbered expression too: prepending a seconds field to `30 4 * * 1` keeps the `1`, and
+`1` is Monday in crontab but Sunday in Quartz, so the message names `"0 30 4 ? * MON"` as the schedule that was
+meant.
+
+A day name in the **month** field gets the same advice, because that is what a pasted crontab line looks like
+from the parser's side: `0 12 * * MON` never reaches the field count, since crontab's fifth field is
+day-of-week and Quartz's fifth is month, so `MON` is rejected as a month name first.
+
+### A cron expression can be written in the Unix five-field form
+
+`CronFormat.Quartz` is the default and nothing changes without asking for it. `CronFormat.Unix` reads the
+five-field crontab form, and there are exactly three doors:
+
+```csharp
+CronExpression.Parse("30 4 * * 1", CronFormat.Unix);
+CronExpression.TryParse(candidate, CronFormat.Unix, out CronExpression? expression);
+CronScheduleBuilder.Create("30 4 * * 1", CronFormat.Unix);
+```
+
+`WithCronSchedule` has no format overload; compose one —
+`WithCronSchedule(CronExpression.Parse(s, CronFormat.Unix))`. A time zone composes the same way:
+`CronExpression.Parse(s, CronFormat.Unix).WithTimeZone(tz)`.
+
+The format decides two things and nothing else. **The field layout**: five fields, minutes first, with no
+seconds and no year. **The day-of-week numbering**: 0-7, with both 0 and 7 meaning Sunday, so `1-5` is Monday
+to Friday as it is in crontab. Everything else is one grammar — `L`, `W`, `#` and `H` all work inside the
+five-field layout, and `L` alone in day-of-week still means Saturday, because it is not a number and so has
+nothing to renumber. When both day fields name days the expression fires on the union, which is
+`crontab(5)`'s rule and the same one Quartz applies to its own expressions.
+
+**The expression is normalised to the canonical Quartz form, and the original is not recoverable.**
+`CronExpression.Parse("30 4 * * 1", CronFormat.Unix).CronExpressionString` is `"0 30 4 ? * MON"`, and that is
+what `QRTZ_CRON_TRIGGERS.CRON_EXPRESSION`, the dashboard and the HTTP API all show. That is deliberate: a
+stored string that parses only under a flag the store does not persist would be a trap, so there is no
+`CRON_FORMAT` column and there will not be one. It is the same trade as the uppercasing that has always
+turned `mon-fri` into `MON-FRI`.
+
+| crontab | stored, and shown, as |
+|---|---|
+| `30 4 * * 1` | `0 30 4 ? * MON` |
+| `0 12 1 * *` | `0 0 12 1 * ?` |
+| `* * * * *` | `0 * * * * ?` |
+| `0 0 13 * 5` | `0 0 0 13 * FRI` — the 13th **and** every Friday, by the union rule |
+| `0 0 * * 0-6` | `0 0 0 * * ?` |
+| `0 0 * * 5-1` | `0 0 0 ? * FRI-MON` |
+| `0 0 * * 1/2` | `0 0 0 ? * 2/2` — numeric, because `MON/2` is [rejected](#the-parser-refuses-what-it-used-to-ignore) |
+
+Because the format is an argument to the parse, **the XML schema, the HTTP API and the dashboard do not take
+one**: a five-field expression is something you write in C#, not something you store. The `@` macros below
+have no such limit.
+
+### `@daily` and the rest of the macros work everywhere
+
+The `@` macros need no format, because they name the same schedule in every cron there is. They are expanded
+by the `CronExpression` constructor, which is what every entry point goes through, so they are read wherever
+an expression string is — `<cron-expression>@daily</cron-expression>` in an XML scheduling file, the
+dashboard's expression box and the HTTP API included.
+
+| macro | expands to |
+|---|---|
+| `@yearly`, `@annually` | `0 0 0 1 1 ?` |
+| `@monthly` | `0 0 0 1 * ?` |
+| `@weekly` | `0 0 0 ? * SUN` |
+| `@daily`, `@midnight` | `0 0 0 * * ?` |
+| `@hourly` | `0 0 * * * ?` |
+
+This is Vixie's set and only Vixie's set: there is no `@every_minute` or `@every_second`, and no jittered
+variant, because `0 * * * * ?` is already short and `H` spreads load deterministically. `@reboot` is rejected
+by name — a scheduler has no reboot to fire on — and any other `@name` is rejected with the supported list.
+The expansion is what gets stored, so a trigger written with `@daily` shows `0 0 0 * * ?`.
 
 ### The parser refuses what it used to ignore
 

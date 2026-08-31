@@ -38,7 +38,8 @@ For easy generation of cron intervals using UI you can use some of these service
 - [Cron Expression Generator & Explainer](https://www.freeformatter.com/cron-expression-generator-quartz.html)
 - [CronMaker](http://www.cronmaker.com/)
 
-NOTE: There are many cron standards/implementations. The results from some generators may not always be correct for Quartz.NET
+NOTE: There are many cron standards/implementations. The results from some generators may not always be correct for Quartz.NET.
+A generator that emits the five-field Unix form can be read as written - see [The Unix five-field form](#the-unix-five-field-form).
 :::
 
 ## Special characters
@@ -75,9 +76,117 @@ as it will not 'jump' over the boundary of a month's days. The `W` character can
 "the third Friday of the month" (day 6 = Friday and "#3" = the 3rd one in the month).
 Other examples: `2#1` = the first Monday of the month and `4#5` = the fifth Wednesday of the month.
 Note that if you specify `#5` and there is not 5 of the given day-of-week in the month, then no firing will occur that month.
+
+* `@` - names a whole schedule instead of one field. `@daily` *is* the expression; there is nothing else in it.
+See [Macros](#macros) below for the set.
+
 ::: tip
 The legal characters and the names of months and days of the week are not case sensitive. MON is the same as mon.
 :::
+
+## Macros
+
+The `@` macros are the ones Unix cron has had since Vixie's, and they mean the same thing here:
+
+| **Macro**             | **Expands to** | **Meaning**                           |
+|:----------------------|:---------------|:--------------------------------------|
+| `@yearly`, `@annually` | `0 0 0 1 1 ?`  | Midnight on 1 January                 |
+| `@monthly`            | `0 0 0 1 * ?`  | Midnight on the 1st of every month    |
+| `@weekly`             | `0 0 0 ? * SUN` | Midnight every Sunday                |
+| `@daily`, `@midnight` | `0 0 0 * * ?`  | Midnight every day                    |
+| `@hourly`             | `0 0 * * * ?`  | The top of every hour                 |
+
+A macro needs no dialect and no opt-in, so it works wherever an expression string is read - in code, in an
+XML scheduling file's `<cron-expression>@daily</cron-expression>`, in the dashboard's expression box and over
+the HTTP API:
+
+<!-- snippet: sample_cron_expressions_macro -->
+```csharp
+ITrigger trigger = TriggerBuilder.Create()
+    .WithIdentity("nightly")
+    .WithCronSchedule("@daily") // stored, and shown, as "0 0 0 * * ?"
+    .Build();
+```
+<!-- endSnippet -->
+
+The expansion is what gets stored: a trigger written with `@daily` reports its expression as `0 0 0 * * ?`.
+
+`@reboot` is rejected by name - a scheduler has no reboot to fire on, so schedule the work at startup
+instead - and any other `@name` is rejected with the list above. There is deliberately no `@every_minute`
+or `@every_second`: `0 * * * * ?` is already short, and where the point is to spread load,
+[`H`](#h-hash-for-load-distribution) does it deterministically.
+
+## The Unix five-field form
+
+A cron expression copied from a crontab, a Kubernetes `CronJob` or almost any online generator has **five**
+fields rather than six: it has no seconds field, and it numbers the days of the week 0-7 from Sunday rather
+than 1-7. Quartz reads that form when you ask it to, with `CronFormat.Unix`:
+
+<!-- snippet: sample_cron_expressions_unix_format -->
+```csharp
+// "at 04:30 on Mondays", written the way crontab writes it
+CronExpression expression = CronExpression.Parse("30 4 * * 1", CronFormat.Unix);
+
+// ...and held the way Quartz writes it: "0 30 4 ? * MON"
+string canonical = expression.CronExpressionString;
+```
+<!-- endSnippet -->
+
+The format is a way of reading the string, and that is all it is. There are three doors -
+`CronExpression.Parse`, `CronExpression.TryParse` and `CronScheduleBuilder.Create` - and past them the
+expression is an ordinary `CronExpression`:
+
+<!-- snippet: sample_cron_expressions_unix_format_trigger -->
+```csharp
+ITrigger trigger = TriggerBuilder.Create()
+    .WithIdentity("weekday-report")
+    .WithSchedule(CronScheduleBuilder.Create("15 10 * * 1-5", CronFormat.Unix))
+    .Build();
+
+// WithCronSchedule has no format overload; compose one when you need its other options
+ITrigger composed = TriggerBuilder.Create()
+    .WithIdentity("weekday-report-2")
+    .WithCronSchedule(CronExpression.Parse("15 10 * * 1-5", CronFormat.Unix))
+    .Build();
+```
+<!-- endSnippet -->
+
+A time zone composes the same way: `CronExpression.Parse(s, CronFormat.Unix).WithTimeZone(tz)`.
+
+| **Crontab**     | **Read as**          | **Meaning**                                           |
+|:----------------|:---------------------|:------------------------------------------------------|
+| `30 4 * * 1`    | `0 30 4 ? * MON`     | 04:30 every Monday                                    |
+| `0 12 1 * *`    | `0 0 12 1 * ?`       | Noon on the 1st of every month                        |
+| `* * * * *`     | `0 * * * * ?`        | Every minute                                          |
+| `15 10 * * 1-5` | `0 15 10 ? * MON-FRI` | 10:15 on weekdays                                    |
+| `0 0 * * 0-6`   | `0 0 0 * * ?`        | Midnight every day - `0-6` is the whole week          |
+| `0 0 * * 5-1`   | `0 0 0 ? * FRI-MON`  | Midnight Friday through Monday                        |
+| `0 0 13 * 5`    | `0 0 0 13 * FRI`     | The 13th **and** every Friday - both fields name days |
+
+Two things differ between the dialects and nothing else does. The **layout**: five fields, minutes first,
+with no seconds and no year. The **day-of-week numbering**: 0-7 with both 0 and 7 meaning Sunday, so `1-5` is
+Monday to Friday as it is in crontab, and `5` is Friday rather than the Thursday the same digit means in a
+Quartz expression. Everything above is one grammar - `L`, `W`, `#` and `H` all work inside the five-field
+layout, and `L` alone in day-of-week still means Saturday, because it is not a number and so has nothing to
+renumber.
+
+::: warning
+The expression is **normalised** to the canonical Quartz form, and the original text is not recoverable.
+`CronExpressionString`, the dashboard, the HTTP API and `QRTZ_CRON_TRIGGERS.CRON_EXPRESSION` all show
+`0 30 4 ? * MON` for a trigger written as `30 4 * * 1`. That is deliberate: a stored string that parses only
+under a flag the store does not persist would be a trap, so there is no format column and there will not be
+one. It is the same trade as the uppercasing that has always turned `mon-fri` into `MON-FRI`.
+
+The consequence is that the format is a parse-time argument only: the XML schema, the HTTP API and the
+dashboard do not take one, so a five-field expression is something you write in C#, not something you store.
+The macros above have no such limit.
+:::
+
+There is no auto-detection, and the field count alone does not choose the dialect. Letting it would make a
+*dropped* field silent: `0 0 12 * * ?` without its month field is `0 0 12 * ?`, a well-formed crontab line
+meaning midnight on the 12th rather than noon every day. The same digit also names a different day in each
+dialect. So Quartz asks, and the error a five-field expression gets when nobody asked names the method that
+does read it.
 
 ## H (hash) for load distribution
 
