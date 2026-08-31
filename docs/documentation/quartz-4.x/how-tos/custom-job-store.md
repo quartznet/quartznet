@@ -16,6 +16,7 @@ answers.
 | Add behaviour around an existing store — logging, metrics, tenant routing, fault injection | derive from `DelegatingJobStore` |
 | Support a **relational** database Quartz does not ship a dialect for | write an [`IDriverDelegate`](dialect-delegate.md), not a store |
 | Keep scheduling data somewhere that is not a relational database | implement `IJobStore` directly |
+| Manage transactions differently from either shipped ADO.NET store | implement `IJobStore` directly — see [The ADO.NET store is not a base class](#the-ado-net-store-is-not-a-base-class) |
 
 ## Decorating a store
 
@@ -58,9 +59,10 @@ q.UseJobStore(sp => new MetricsJobStore(
 `protected IJobStore InnerJobStore` reaches the real store through however many layers are in the way.
 
 ::: tip
-The shipped stores are sealed, and decoration is why. `RAMJobStore` holds a lock while it mutates
-several indexes in a fixed order and raises notifications after releasing it — none of which an
-override can be asked to preserve. Wrap it, and change what you meant to change.
+None of the shipped stores can be derived from — `RAMJobStore` is sealed, the two ADO.NET stores are
+internal — and decoration is why. `RAMJobStore` holds a lock while it mutates several indexes in a
+fixed order and raises notifications after releasing it, none of which an override can be asked to
+preserve. Wrap it, and change what you meant to change.
 :::
 
 A store that keeps scheduling data somewhere new should implement `IJobStore` directly rather than
@@ -218,100 +220,71 @@ rest.
 `bool Clustered` and `bool SupportsPersistence` are read-only because they describe what the store *is*.
 A store that cannot cluster answers `false` and means it.
 
-## Deriving from AdoJobStoreBase
+## Narrowing what a node picks up
 
-If your storage is relational but the *transaction* model differs — you manage transactions elsewhere,
-or lock differently — derive from `AdoJobStoreBase` rather than writing a store. It has exactly two
-abstract members:
+Some decorators want *less* work rather than different work: a node that takes at most five triggers at
+a time, or one that declines a whole class of job while a maintenance window is open. Both are
+decisions about the acquisition **request**, and `TriggerAcquisitionRequest` is a record — so a
+`DelegatingJobStore` rewrites it with `with` and hands it on:
 
-<!-- A signature listing rather than code, so it is written out here rather than compiled. -->
-
+<!-- snippet: sample_custom_job_store_acquisition_budget -->
 ```csharp
-protected abstract ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken ct = default);
-
-protected abstract ValueTask<T> ExecuteInLock<T>(
-    SchedulerLock? lockKind,
-    Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-    CancellationToken ct = default);
-```
-
-`LocalTransactionJobStore` and `ExternalTransactionJobStore` are the two shipped answers. An override of
-`GetLocalTransactionConnection` has to start with `GetEnlistedConnection`.
-
-Everything the base is built from arrives as one `AdoJobStoreDependencies`, so a derived store chains a
-single argument and a dependency added later reaches it without the constructor changing shape:
-
-<!-- snippet: sample_custom_job_store_dependencies -->
-```csharp
-public sealed class MyAdoJobStore(AdoJobStoreDependencies dependencies)
-    : LocalTransactionJobStore(dependencies)
+public sealed class BudgetedJobStore(IJobStore inner, int nodeBudget) : DelegatingJobStore(inner)
 {
-    // ...
-}
-```
-<!-- endSnippet -->
-
-The container registers `AdoJobStoreDependencies` per scheduler, so the generic registration forms build
-your store with the scheduler's own signaler, provider, driver delegate and options. Take the record and
-pass it on; read what you need off it if you want a setting at construction time — that is where
-`ExternalTransactionJobStore` reads `StoreOptions.Value.OpenConnection`.
-
-Four members are `protected virtual`, and one of them is a real extension point:
-
-<!-- A signature listing rather than code, so it is written out here rather than compiled. -->
-
-```csharp
-protected virtual TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request);
-```
-
-It maps the store-level request onto the criteria the driver delegate reads. Start from the base and
-return a `with` copy — the criteria are a record, so `with` leaves everything the base decided in
-place:
-
-<!-- snippet: sample_custom_job_store_acquisition_criteria -->
-```csharp
-protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
-{
-    TriggerAcquisitionCriteria criteria = base.CreateAcquisitionCriteria(request);
-    return criteria with { MaxCount = Math.Min(criteria.MaxCount, this.nodeBudget) };
+    public override ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return base.AcquireNextTriggers(
+            request with { MaxCount = Math.Min(request.MaxCount, nodeBudget) },
+            cancellationToken);
+    }
 }
 ```
 <!-- endSnippet -->
 
 ::: warning The MaxCount rule
-An override may **lower** `MaxCount` but must never raise it above the request's. The choice between
-lock-free and locked acquisition was already made from the request before this factory runs, so a
-raised count is only caught by post-acquisition validation, and the surplus is released and retried —
-a performance hazard rather than corruption, but a silent one.
+An override may **lower** `MaxCount` but must never raise it above what it was given. The choice
+between lock-free and locked acquisition is made from the request before the store reads it, so a
+raised count is caught only by post-acquisition validation: the surplus is released and retried. A
+performance hazard rather than corruption, but a silent one.
 :::
 
-It is called once per acquisition *attempt*, inside the store's internal retry loop, so an override runs
-again for every retry rather than once per `AcquireNextTriggers` call. Anything time-derived is
-recomputed, which is deliberate.
-
-`TriggerAcquisitionCriteria` is the designated place for future acquisition filtering, so a property
-added later will default to "no additional filtering" — an override that starts from `base` and adjusts
-one field keeps working.
+`AcquireNextTriggers` is called once per acquisition attempt, so a decorator runs again for every
+attempt rather than once per batch. Anything time-derived is recomputed, which is what makes the
+maintenance-window shape below work without restarting anything.
 
 ### Excluding job types from acquisition
 
-`ExcludedJobTypeNames` is the first of those properties, and it is how a node declines whole classes
-of work: names in the set are kept out of the acquisition query's result set, so an excluded job type
-never occupies one of the `MaxCount` rows a post-filter would have to discard.
+`ExcludedJobTypeNames` is how a node declines whole classes of work, and **every shipped store honours
+the request-level property**: the ADO.NET store threads the names into its driver delegate's criteria
+so the rows never leave the database, and `RAMJobStore` skips the candidate. Rewriting the request is
+therefore not a post-filter — an excluded job type never occupies one of the `MaxCount` rows.
 
 <!-- snippet: sample_custom_job_store_excluded_job_types -->
 ```csharp
-// JobType.FullName is the spelling the store persists - "Namespace.TypeName, AssemblyName".
-// Type.FullName carries no assembly name and would never match a stored row.
-private static readonly string reportingJobTypeName = new JobType(typeof(ReportingJob)).FullName;
-
-protected override TriggerAcquisitionCriteria CreateAcquisitionCriteria(TriggerAcquisitionRequest request)
+public sealed class MaintenanceWindowJobStore(IJobStore inner, IMaintenanceWindow window)
+    : DelegatingJobStore(inner)
 {
-    // Asked again on every acquisition attempt, so a window that opens between two of them takes
-    // effect on the next one without restarting anything.
-    string[]? excluded = this.maintenanceWindow.IsOpen ? [reportingJobTypeName] : null;
+    // JobType.FullName is the spelling the store persists - "Namespace.TypeName, AssemblyName".
+    // Type.FullName carries no assembly name and would never match a stored row.
+    private static readonly string reportingJobTypeName = new JobType(typeof(ReportingJob)).FullName;
 
-    return base.CreateAcquisitionCriteria(request) with { ExcludedJobTypeNames = excluded };
+    public override ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
+        TriggerAcquisitionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        // Asked again on every acquisition, so a window that opens between two of them takes effect on
+        // the next one without restarting anything.
+        if (!window.IsOpen)
+        {
+            return base.AcquireNextTriggers(request, cancellationToken);
+        }
+
+        return base.AcquireNextTriggers(
+            request with { ExcludedJobTypeNames = [reportingJobTypeName] },
+            cancellationToken);
+    }
 }
 ```
 <!-- endSnippet -->
@@ -327,10 +300,29 @@ Two things to get right:
   in-memory store compares ordinally. Rows written by Quartz 2.x or 3.x can carry an older spelling,
   and the read side never rewrites a stored name, so an exclusion will not match those.
 
-The property is also on `TriggerAcquisitionRequest`, which every shipped store honours — set it there
-when the caller knows the exclusions, and override `CreateAcquisitionCriteria` when the *store* does.
-Entries must be non-blank and there may be at most 1000 of them, both checked at construction; 1000 is
-Oracle's ceiling on an `IN` list.
+Entries must be non-blank and there may be at most 1000 of them, both checked when the request is
+constructed; 1000 is Oracle's ceiling on an `IN` list.
+
+## The ADO.NET store is not a base class
+
+`AdoJobStoreBase`, `LocalTransactionJobStore` and `ExternalTransactionJobStore` are internal. They are
+still what `quartz.jobStore.type` names and still what `UsePersistentStore` builds — nothing about
+configuring them has changed — but they are not something to derive from.
+
+Deriving from the base was never the seam it looked like. Every `protected` member below its two
+abstract ones is the connection-taking twin of the public member above it — `AddJob(conn, …)` beside
+`AddJob(job, …)` — because the public one takes the lock and the twin does the work. Overriding one of
+those changes half of an operation.
+
+What to reach for instead depends on what the override did:
+
+| What you were overriding for | What to do |
+|---|---|
+| Narrowing acquisition | `DelegatingJobStore`, rewriting the request — see [Narrowing what a node picks up](#narrowing-what-a-node-picks-up) |
+| Logging, metrics, tenant routing, fault injection | `DelegatingJobStore` — see [Decorating a store](#decorating-a-store) |
+| A relational database Quartz ships no dialect for | [A Driver Delegate for a New Database](dialect-delegate.md) |
+| Classifying one more of your driver's failures as retryable | `AdoJobStoreOptions.IsTransient` — see [What counts as transient](../operations.md#what-counts-as-transient) |
+| A different transaction model from either shipped store | Implement `IJobStore`, which is public and stays public. If the two shipped stores nearly fit, [open an issue](https://github.com/quartznet/quartznet/issues) — that is a gap worth hearing about rather than working around |
 
 ## Rebuilding jobs and triggers
 

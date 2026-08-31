@@ -23,7 +23,7 @@ using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
 
-public abstract partial class AdoJobStoreBase
+internal abstract partial class AdoJobStoreBase
 {
     /// <summary>
     /// Store the given <see cref="IJobDetail" /> and <see cref="IOperableTrigger" />.

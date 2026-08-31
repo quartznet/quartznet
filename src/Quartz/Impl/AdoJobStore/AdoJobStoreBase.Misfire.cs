@@ -25,7 +25,7 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Impl.AdoJobStore;
 
-public abstract partial class AdoJobStoreBase
+internal abstract partial class AdoJobStoreBase
 {
     protected DateTimeOffset MisfireTime
     {
@@ -58,7 +58,7 @@ public abstract partial class AdoJobStoreBase
 
     //private int lastRecoverCount = 0;
 
-    protected internal async ValueTask<RecoverMisfiredJobsResult> RecoverMisfiredJobs(
+    internal async ValueTask<RecoverMisfiredJobsResult> RecoverMisfiredJobs(
         ConnectionAndTransactionHolder conn,
         bool recovering,
         CancellationToken cancellationToken = default)
@@ -344,7 +344,7 @@ public abstract partial class AdoJobStoreBase
         }
     }
 
-    protected internal async ValueTask<RecoverMisfiredJobsResult> RecoverMisfires(
+    internal async ValueTask<RecoverMisfiredJobsResult> RecoverMisfires(
         Guid requestorId,
         CancellationToken cancellationToken = default)
     {

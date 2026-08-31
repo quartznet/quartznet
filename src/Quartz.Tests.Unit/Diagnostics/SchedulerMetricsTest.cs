@@ -575,7 +575,7 @@ public sealed class SchedulerMetricsTest
     /// <summary>
     /// A database store that never opens a connection, so the cluster paths can be driven without one.
     /// </summary>
-    public sealed class MetricsAdoJobStore : AdoJobStoreBase
+    internal sealed class MetricsAdoJobStore : AdoJobStoreBase
     {
         public MetricsAdoJobStore(TimeProvider timeProvider, bool clustered = false)
             : base(TestJobStores.Dependencies(

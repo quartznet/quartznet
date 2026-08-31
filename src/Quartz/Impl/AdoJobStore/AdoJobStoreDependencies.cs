@@ -65,7 +65,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// What the store and everything it owns create their loggers from, or <see langword="null" /> to read
 /// the ambient one.
 /// </param>
-public sealed record AdoJobStoreDependencies(
+internal sealed record AdoJobStoreDependencies(
     ISchedulerSignaler SchedulerSignaler,
     ITypeLoader TypeLoader,
     TimeProvider TimeProvider,

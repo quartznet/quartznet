@@ -51,7 +51,7 @@ public sealed class ExternalTransactionJobStoreContractTest : SqliteFileJobStore
 {
     private const string DataSourceName = "job-store-contract-cmt";
 
-    protected override AdoJobStoreBase CreateJobStore(IDbProvider dbProvider, IDriverDelegate driverDelegate)
+    private protected override AdoJobStoreBase CreateJobStore(IDbProvider dbProvider, IDriverDelegate driverDelegate)
     {
         // As with the local-transaction store, no lock handler: the store picks it, and for SQLite that
         // is SqliteLockHandler whatever this store would otherwise have insisted on.

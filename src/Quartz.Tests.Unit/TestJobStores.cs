@@ -21,7 +21,7 @@ namespace Quartz.Tests;
 /// supply them. This keeps that noise in one place, and lets a test pass only the collaborator it
 /// actually cares about — usually a signaler it wants to observe.
 /// </remarks>
-public static class TestJobStores
+internal static class TestJobStores
 {
     public static ILogger<T> Logger<T>() => NullLogger<T>.Instance;
 

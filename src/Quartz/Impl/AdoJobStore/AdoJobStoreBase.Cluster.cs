@@ -25,7 +25,7 @@ using Quartz.Impl.Triggers;
 
 namespace Quartz.Impl.AdoJobStore;
 
-public abstract partial class AdoJobStoreBase
+internal abstract partial class AdoJobStoreBase
 {
     /// <summary>
     /// Will recover any failed or misfired jobs and clean up the data store as
@@ -97,7 +97,7 @@ public abstract partial class AdoJobStoreBase
     /// </summary>
     internal DateTimeOffset LastCheckin { get; set; }
 
-    protected internal async ValueTask<bool> CheckIn(
+    internal async ValueTask<bool> CheckIn(
         Guid requestorId,
         CancellationToken cancellationToken = default)
     {

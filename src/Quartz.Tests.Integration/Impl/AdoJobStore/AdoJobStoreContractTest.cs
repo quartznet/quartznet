@@ -117,7 +117,7 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
     /// Builds the store under test. Overridden by the fixture that runs the contract against
     /// <see cref="ExternalTransactionJobStore" />.
     /// </summary>
-    protected virtual AdoJobStoreBase CreateJobStore(IDbProvider dbProvider, IDriverDelegate driverDelegate)
+    private protected virtual AdoJobStoreBase CreateJobStore(IDbProvider dbProvider, IDriverDelegate driverDelegate)
     {
         return new LocalTransactionJobStore(StoreDependencies(dbProvider, driverDelegate));
     }
@@ -128,7 +128,7 @@ public abstract class AdoJobStoreContractTest : JobStoreContractTest
     /// configuration builder injects one only when the application asked for a specific one. SQLite
     /// therefore gets SqliteLockHandler here exactly as it would in an application.
     /// </summary>
-    protected AdoJobStoreDependencies StoreDependencies(IDbProvider dbProvider, IDriverDelegate driverDelegate)
+    private protected AdoJobStoreDependencies StoreDependencies(IDbProvider dbProvider, IDriverDelegate driverDelegate)
     {
         return TestJobStores.Dependencies(
             schedulerOptions: TestJobStores.SchedulerOptions(SchedulerName, InstanceId),

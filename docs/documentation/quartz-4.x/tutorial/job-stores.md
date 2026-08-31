@@ -395,14 +395,14 @@ public sealed class LoggingJobStore : DelegatingJobStore
 ```
 <!-- endSnippet -->
 
-The stores Quartz ships are sealed, so this is also how you build on `RAMJobStore` - construct one and hand it
-to the base constructor, as above. Your store's own constructor arguments come from the container, so it can
+None of the stores Quartz ships can be derived from - `RAMJobStore` is sealed and the ADO.NET stores are
+internal - so this is also how you build on one: construct it and hand it to the base constructor, as above. Your store's own constructor arguments come from the container, so it can
 take whatever else it needs. `Quartz.Examples.AspNetCore`'s `CustomJobStore` shows the same shape.
 
 **Storing scheduling data somewhere new** implements `IJobStore` directly. It is a large interface with real
 concurrency requirements - trigger acquisition has to be atomic against other scheduler instances, and misfire
-handling has to be idempotent - so start from the semantics `RAMJobStore` and `AdoJobStoreBase` document rather
-than from the method signatures alone.
+handling has to be idempotent - so start from [A Job Store of Your Own](../how-tos/custom-job-store.md), which
+writes the contract out, rather than from the method signatures alone.
 
 A store that keeps job details as objects rather than as rows should re-store the data of a
 `[PersistJobDataAfterExecution]` job with `jobDetail.WithJobData(newData)`, not by rebuilding the detail through
