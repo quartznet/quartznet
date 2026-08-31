@@ -30,6 +30,13 @@ namespace Quartz;
 /// it is the one a trimmed or ahead-of-time-compiled application uses. The others resolve the driver by
 /// name and say so.
 /// </para>
+/// <para>
+/// Every provider therefore has the same three overloads, and <c>UseOracle</c> has a fourth. That is not
+/// an oversight: the name path reaches <c>BindByName</c> and <c>OracleDbType.Blob</c> by reflecting over
+/// the types the driver description names, and a factory names none, so the factory form of Oracle alone
+/// needs somewhere to say those two things in code. Oracle is the only driver Quartz ships a description
+/// for that needs either.
+/// </para>
 /// </remarks>
 public static class PersistentStoreBuilderExtensions
 {
