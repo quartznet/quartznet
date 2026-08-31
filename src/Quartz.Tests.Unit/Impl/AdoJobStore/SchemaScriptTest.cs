@@ -39,9 +39,11 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 /// gets to run.
 /// </para>
 /// <para>
-/// The comparison is textual: both files are parsed with the same small parser and the names it
-/// finds are compared. That catches the class of mistake this pair is prone to — a column added to
-/// one and not the other, an index renamed, a table forgotten — without needing a database.
+/// The comparison is textual: both files are parsed with the same small parser and what it finds is
+/// compared — the names, and for an index the columns it is declared over, since two indexes can
+/// share a name and serve entirely different plans. That catches the class of mistake this pair is
+/// prone to — a column added to one and not the other, an index renamed or reordered, a direction
+/// dropped, a table forgotten — without needing a database.
 /// <c>SchemaProvisioningTest</c> is the other half and does need one: it provisions into a real
 /// database of each dialect and compares the catalog, which is where a column that matches by name
 /// but not by type shows up.
