@@ -663,6 +663,11 @@ internal static class QuartzPropertyBridge
         parser.Bool("quartz.jobStore.lockOnInsert", value => options.LockOnInsert = value);
         parser.Bool("quartz.jobStore.acquireTriggersWithinLock", value => options.AcquireTriggersWithinLock = value);
         parser.Bool("quartz.jobStore.acceptEnlistedTransactions", value => options.AcceptEnlistedTransactions = value);
+        // Read by the ambient-transaction store alone, and settable on 3.x because the store was
+        // constructed and had its properties written by name. A file carrying it configured nothing
+        // here until this line, silently: the key is under a supported prefix, so it was accepted
+        // and dropped.
+        parser.Bool("quartz.jobStore.openConnection", value => options.OpenConnection = value);
         // The legacy key is a flag with two meanings: serializable, or say nothing. "Say nothing" has to
         // stay null rather than becoming ReadCommitted, because the SQLite defaulting reads it.
         parser.Bool(
