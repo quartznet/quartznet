@@ -856,6 +856,53 @@ public class InProcessQuartzApiClientTest
         }
     }
 
+    /// <summary>
+    /// Every mutation that can find nothing to act on hands back the scheduler's own answer.
+    /// </summary>
+    /// <remarks>
+    /// Five of these ten used to discard it with a literal <c>_ =</c>, so a dashboard could not tell a
+    /// deletion from a job a cluster peer had already removed. The pairs are asserted together because
+    /// the flag is only worth anything if both answers reach the caller.
+    /// </remarks>
+    [Test]
+    public async Task EveryMutationSaysWhetherItFoundAnythingToActOn()
+    {
+        IScheduler scheduler = await CreateScheduler("AppliedFlagTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            TriggerKey triggerKey = new("trigger1", "group1");
+            await scheduler.ScheduleJob(
+                JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).Build(),
+                TriggerBuilder.Create().WithIdentity(triggerKey).ForJob(jobKey).WithCronSchedule("0 0 1 * * ?").Build());
+            await scheduler.AddCalendar("holidays", new HolidayCalendar(), new AddCalendarOptions());
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            string name = scheduler.SchedulerName;
+            JobKeyDto job = new(jobKey.Group, jobKey.Name);
+            TriggerKeyDto trigger = new(triggerKey.Group, triggerKey.Name);
+
+            (await client.Interrupt(name, job)).Should().BeFalse(
+                "the job is scheduled but not running, so there is no execution to interrupt");
+            (await client.InterruptFireInstance(name, "no-such-fire-instance")).Should().BeFalse();
+
+            (await client.UnscheduleJob(name, trigger)).Should().BeTrue("the trigger was there");
+            (await client.UnscheduleJob(name, trigger)).Should().BeFalse(
+                "the second call finds nothing, which is what a second operator clicking the same button does");
+
+            (await client.DeleteCalendar(name, "holidays")).Should().BeTrue();
+            (await client.DeleteCalendar(name, "holidays")).Should().BeFalse();
+
+            (await client.DeleteJob(name, job)).Should().BeFalse(
+                "unscheduling the only trigger of a non-durable job took the job with it");
+            (await client.DeleteJob(name, new JobKeyDto("group1", "never-existed"))).Should().BeFalse();
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
     private static async Task<IScheduler> CreateScheduler(string testName)
     {
         NameValueCollection properties = new()
