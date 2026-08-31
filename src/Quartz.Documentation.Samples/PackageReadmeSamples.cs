@@ -168,7 +168,7 @@ public static class PackageReadmeSamples
             {
                 q.UseStructuredJobLogging();
                 q.UseStructuredTriggerLogging();
-                q.UseShutdownHook();
+                q.UseJsonSchedulingConfiguration(x => x.Files.Add("quartz_jobs.json"));
             });
 
             #endregion

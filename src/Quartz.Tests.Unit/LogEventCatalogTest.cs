@@ -54,7 +54,7 @@ public class LogEventCatalogTest
     private static readonly Assembly[] Catalogued =
     [
         typeof(global::Quartz.IScheduler).Assembly,
-        typeof(global::Quartz.Plugins.Management.ShutdownHookPlugin).Assembly,
+        typeof(global::Quartz.Plugins.History.LoggingJobHistoryPlugin).Assembly,
         typeof(global::Quartz.Jobs.DirectoryScanJob).Assembly,
         typeof(global::Quartz.RedisLockHandlerConfigurationExtensions).Assembly,
     ];

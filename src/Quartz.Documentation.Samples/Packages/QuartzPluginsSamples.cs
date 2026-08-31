@@ -59,11 +59,26 @@ public static class QuartzPluginsSamples
         #endregion
     }
 
-    public static void ShutdownHook(IServiceCollection services)
+    public static void ShutdownUnderAHost(IServiceCollection services)
     {
-        #region sample_plugins_shutdown_hook
+        #region sample_plugins_shutdown_under_a_host
 
-        services.AddQuartz(q => q.UseShutdownHook(options => options.CleanShutdown = true));
+        services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+        #endregion
+    }
+
+    public static async ValueTask ShutdownWithoutAHost()
+    {
+        #region sample_plugins_shutdown_without_a_host
+
+        await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create().Build();
+        IScheduler scheduler = await schedulerFactory.GetScheduler();
+        await scheduler.Start();
+
+        // ... the application runs ...
+
+        await scheduler.Shutdown(waitForJobsToComplete: true);
 
         #endregion
     }

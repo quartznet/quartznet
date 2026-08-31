@@ -21,16 +21,10 @@ namespace Quartz
     {
         public static Quartz.IQuartzBuilder UseJobHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseJsonSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
-        public static Quartz.IQuartzBuilder UseShutdownHook(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ShutdownHookOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseStructuredJobLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseStructuredTriggerLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.TriggerHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseTriggerHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.TriggerHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseXmlSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
-    }
-    public sealed class ShutdownHookOptions
-    {
-        public ShutdownHookOptions() { }
-        public bool CleanShutdown { get; set; }
     }
     public sealed class TriggerHistoryLoggingOptions
     {
@@ -108,15 +102,6 @@ namespace Quartz.Plugins.Json
         public System.Threading.Tasks.ValueTask FileUpdated(string fileName, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
-    }
-}
-namespace Quartz.Plugins.Management
-{
-    public sealed class ShutdownHookPlugin : Quartz.Extensibility.ISchedulerPlugin
-    {
-        public ShutdownHookPlugin() { }
-        public bool CleanShutdown { get; }
-        public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace Quartz.Plugins.Xml

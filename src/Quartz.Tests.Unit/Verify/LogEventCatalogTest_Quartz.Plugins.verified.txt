@@ -56,9 +56,3 @@
     "File named '{FileName}' does not exist"
 6326  Warning  JsonSchedulingPluginLog.FileCloseFailed
     "Error closing jobs file {FileName}"
-6500  Information  ManagementPluginLog.ShutdownHookRegistered
-    "Registering Quartz Shutdown hook '{PluginName}'"
-6501  Information  ManagementPluginLog.ShuttingDown
-    "Shutting down Quartz..."
-6502  Error  ManagementPluginLog.ShutdownFailed
-    "Error shutting down Quartz: {ErrorMessage}"

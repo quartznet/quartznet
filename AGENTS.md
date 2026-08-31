@@ -89,10 +89,19 @@ pass; do not "finish" any of them.
   is twelve members against roughly 1,400 call sites in this repository alone. The names say which
   reading of the clock the value is, and nobody is confused by them.
 - **`Use*` is the verb for an extension that registers a plugin** — `UseStructuredJobLogging`,
-  `UseShutdownHook`, `UseTimeZoneConverter` — because a plugin is middleware over a scheduler's
-  lifecycle and that is how middleware reads. `AddPlugin<T>` is the generic form, for a plugin with no
-  extension of its own. `Add*` stays for things a scheduler *contains*: jobs, triggers, calendars,
-  listeners.
+  `UseJobHistoryLogging`, `UseXmlSchedulingConfiguration` — because a plugin is middleware over a
+  scheduler's lifecycle and that is how middleware reads. `AddPlugin<T>` is the generic form, for a
+  plugin with no extension of its own. `Add*` stays for things a scheduler *contains*: jobs, triggers,
+  calendars, listeners. `UseTimeZoneConverter` keeps the verb although it no longer registers a plugin:
+  what it installs is still a scheduler-wide capability rather than something the scheduler holds.
+- **Four history-logging plugins ship, not two.** `LoggingJobHistoryPlugin` /
+  `LoggingTriggerHistoryPlugin` log through numbered format strings and
+  `StructuredLoggingJobHistoryPlugin` / `StructuredLoggingTriggerHistoryPlugin` log the same events
+  through named templates. The structured pair is the better default and is documented as such; the
+  classic pair stays because a deployment's log pipeline is matched against the 3.x message shape, and
+  a message template is a contract to whatever parses it. Retiring the classic pair is a break with no
+  migration to offer, so it is not on the table. The plugin sweep of #3593 retired the plugins whose
+  job the host already does — these are not those.
 - **`services.AddHealthChecks().AddQuartz()` keeps that name.** Read on its own it says nothing about
   health, but it is the `AspNetCore.HealthChecks.*` idiom — every check in that ecosystem is
   `AddHealthChecks().AddX()` — and the receiver is what supplies the noun.

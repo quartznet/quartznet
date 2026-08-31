@@ -1,18 +1,19 @@
 # Quartz.Plugins
 
 [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) provides ready-made
-`ISchedulerPlugin` implementations: logging a history of job and trigger events, loading jobs and
-triggers from a file at startup, and shutting the scheduler down cleanly when the process exits.
+`ISchedulerPlugin` implementations: logging a history of job and trigger events, and loading jobs and
+triggers from a file at startup.
 
 | Plugin | Extension |
 |---|---|
 | `StructuredLoggingJobHistoryPlugin` / `StructuredLoggingTriggerHistoryPlugin` | `UseStructuredJobLogging(…)` / `UseStructuredTriggerLogging(…)` |
 | `LoggingJobHistoryPlugin` / `LoggingTriggerHistoryPlugin` | `UseJobHistoryLogging(…)` / `UseTriggerHistoryLogging(…)` |
 | `JsonSchedulingDataProcessorPlugin` / `XmlSchedulingDataProcessorPlugin` | `UseJsonSchedulingConfiguration(…)` / `UseXmlSchedulingConfiguration(…)` |
-| `ShutdownHookPlugin` | `UseShutdownHook(…)` |
 
-Interrupting a job that overruns is no longer here: `JobInterruptMonitorPlugin` was retired in 4.0 for
-`AddJobTimeout(…)` in the core package, which needs no plugin and no job-data-map keys.
+Two plugins were retired in 4.0 because the host already does their job. Interrupting a job that
+overruns is `AddJobTimeout(…)` in the core package, which needs no plugin and no job-data-map keys.
+Shutting the scheduler down when the process exits is `AddQuartzHostedService()`, whose
+`QuartzHostedServiceOptions.WaitForJobsToComplete` is what `ShutdownHookPlugin.CleanShutdown` was.
 
 ## Installation
 
@@ -31,7 +32,7 @@ builder.Services.AddQuartz(q =>
 {
     q.UseStructuredJobLogging();
     q.UseStructuredTriggerLogging();
-    q.UseShutdownHook();
+    q.UseJsonSchedulingConfiguration(x => x.Files.Add("quartz_jobs.json"));
 });
 ```
 <!-- endSnippet -->

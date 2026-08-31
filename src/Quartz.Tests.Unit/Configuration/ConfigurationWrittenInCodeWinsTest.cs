@@ -11,7 +11,6 @@ using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Plugins.History;
 using Quartz.Plugins.Json;
-using Quartz.Plugins.Management;
 using Quartz.Plugins.Xml;
 
 namespace Quartz.Tests.Unit.Configuration;
@@ -179,8 +178,7 @@ public class ConfigurationWrittenInCodeWinsTest
             .UseStructuredJobLogging(options => options.JobWasVetoedMessage = "job vetoed")
             .UseStructuredTriggerLogging(options => options.TriggerCompleteMessage = "trigger complete")
             .UseXmlSchedulingConfiguration(options => options.Files.Add("jobs.xml"))
-            .UseJsonSchedulingConfiguration(options => options.Files.Add("jobs.json"))
-            .UseShutdownHook());
+            .UseJsonSchedulingConfiguration(options => options.Files.Add("jobs.json")));
 
         using ServiceProvider provider = services.BuildServiceProvider();
 
@@ -190,9 +188,6 @@ public class ConfigurationWrittenInCodeWinsTest
         Plugin<StructuredLoggingTriggerHistoryPlugin>(provider).TriggerCompleteMessage.Should().Be("trigger complete");
         Plugin<XmlSchedulingDataProcessorPlugin>(provider).FileNames.Should().Be("jobs.xml");
         Plugin<JsonSchedulingDataProcessorPlugin>(provider).FileNames.Should().Be("jobs.json");
-        Plugin<ShutdownHookPlugin>(provider).CleanShutdown.Should().BeTrue(
-            "an extension called without a callback still applies its options, whose defaults are the "
-            + "documented ones rather than whatever the plugin's own field happens to be");
 
         Plugin<LoggingJobHistoryPlugin>(provider).JobWasVetoedMessage.Should().NotBe("job vetoed",
             "the classic and structured history plugins share an options type, and a callback registered "
