@@ -175,10 +175,4 @@ public interface ICronTrigger : ITrigger
     /// </summary>
     /// <seealso cref="CronScheduleBuilder.WithMisfireInstruction" />
     CronTriggerMisfireInstruction MisfireInstruction { get; }
-
-    /// <summary>
-    /// Gets the expression summary.
-    /// </summary>
-    /// <returns></returns>
-    string? GetExpressionSummary();
 }

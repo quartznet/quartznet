@@ -117,32 +117,28 @@ namespace Quartz
     {
         public CronExpression(string cronExpression) { }
         public CronExpression(string cronExpression, System.TimeZoneInfo? timeZone) { }
-        public CronExpression(string cronExpression, int hashSeed) { }
-        public CronExpression(string cronExpression, string hashKey) { }
         public string CronExpressionString { get; }
         public System.TimeZoneInfo TimeZone { get; }
         public bool Equals(Quartz.CronExpression? other) { }
         public override bool Equals(object? obj) { }
-        public string GetExpressionSummary() { }
         public override int GetHashCode() { }
         public System.DateTimeOffset? GetNextInvalidTimeAfter(System.DateTimeOffset date) { }
         public System.DateTimeOffset? GetNextValidTimeAfter(System.DateTimeOffset date) { }
         [System.Security.SecurityCritical]
         public void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
-        public System.DateTimeOffset? GetTimeBefore(System.DateTimeOffset endTime) { }
+        public System.DateTimeOffset? GetPreviousValidTimeBefore(System.DateTimeOffset endTime) { }
         public bool IsSatisfiedBy(System.DateTimeOffset dateUtc) { }
         public override string ToString() { }
         public Quartz.CronExpression WithTimeZone(System.TimeZoneInfo? timeZone) { }
-        public static bool IsValidExpression(string cronExpression) { }
-        public static bool IsValidExpression(string cronExpression, string hashKey) { }
         public static Quartz.CronExpression Parse(string cronExpression) { }
         public static Quartz.CronExpression Parse(string cronExpression, Quartz.CronFormat format) { }
+        public static Quartz.CronExpression ParseWithHash(string cronExpression, int hashSeed) { }
+        public static Quartz.CronExpression ParseWithHash(string cronExpression, string hashKey) { }
         public static string ResolveHash(string cronExpression, int hashSeed) { }
         public static string ResolveHash(string cronExpression, string hashKey) { }
         public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? cronExpression, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
         public static bool TryParse([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? cronExpression, Quartz.CronFormat format, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
-        public static void ValidateExpression(string cronExpression) { }
-        public static void ValidateExpression(string cronExpression, string hashKey) { }
+        public static bool TryParseWithHash([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] string? cronExpression, string hashKey, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Quartz.CronExpression? result) { }
     }
     public sealed class CronExpressionBuilder
     {
@@ -476,7 +472,6 @@ namespace Quartz
         string? CronExpressionString { get; }
         Quartz.CronTriggerMisfireInstruction MisfireInstruction { get; }
         System.TimeZoneInfo TimeZone { get; }
-        string? GetExpressionSummary();
     }
     public interface IDailyTimeIntervalTrigger : Quartz.ITrigger
     {
@@ -3761,10 +3756,9 @@ namespace Quartz.Impl.Triggers
         public System.TimeZoneInfo TimeZone { get; set; }
         public override Quartz.ITrigger Clone() { }
         public override System.DateTimeOffset? ComputeFirstFireTimeUtc(Quartz.ICalendar? calendar) { }
-        public string? GetExpressionSummary() { }
         public override System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTimeUtc) { }
+        protected System.DateTimeOffset? GetPreviousValidTimeBefore(System.DateTimeOffset date) { }
         public override Quartz.IScheduleBuilder GetScheduleBuilder() { }
-        protected System.DateTimeOffset? GetTimeBefore(System.DateTimeOffset date) { }
         public override void Triggered(Quartz.ICalendar? calendar) { }
         public override void UpdateAfterMisfire(Quartz.ICalendar? calendar) { }
         public override void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold) { }

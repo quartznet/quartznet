@@ -22,7 +22,7 @@ public static class CronExpressionsSamples
         #region sample_cron_expressions_hash_key_on_expression
 
         ITrigger trigger = TriggerBuilder.Create()
-            .WithCronSchedule(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup"))
+            .WithCronSchedule(CronExpression.ParseWithHash("0 H H(0-7) * * ?", "nightly-cleanup"))
             .Build();
 
         #endregion
@@ -32,7 +32,7 @@ public static class CronExpressionsSamples
     {
         #region sample_cron_expressions_hash_key
 
-        var expr = new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup");
+        CronExpression expr = CronExpression.ParseWithHash("0 H H(0-7) * * ?", "nightly-cleanup");
 
         #endregion
     }

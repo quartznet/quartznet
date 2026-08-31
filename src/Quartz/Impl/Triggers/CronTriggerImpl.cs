@@ -466,7 +466,7 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
                 return null;
             }
 
-            DateTimeOffset? resultTime = GetTimeBefore(EndTimeUtc.Value.AddSeconds(1));
+            DateTimeOffset? resultTime = GetPreviousValidTimeBefore(EndTimeUtc.Value.AddSeconds(1));
             if (resultTime.HasValue && resultTime.Value < StartTimeUtc)
             {
                 return null;
@@ -716,15 +716,6 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
         return NextFireTimeUtc;
     }
 
-    /// <summary>
-    /// Gets the expression summary.
-    /// </summary>
-    /// <returns></returns>
-    public string? GetExpressionSummary()
-    {
-        return cronEx?.GetExpressionSummary();
-    }
-
     ////////////////////////////////////////////////////////////////////////////
     //
     // Computation Functions
@@ -746,8 +737,8 @@ public class CronTriggerImpl : TriggerBase, ICronTrigger
     /// </summary>
     /// <param name="date">The date.</param>
     /// <returns></returns>
-    protected DateTimeOffset? GetTimeBefore(DateTimeOffset date)
+    protected DateTimeOffset? GetPreviousValidTimeBefore(DateTimeOffset date)
     {
-        return cronEx?.GetTimeBefore(date);
+        return cronEx?.GetPreviousValidTimeBefore(date);
     }
 }

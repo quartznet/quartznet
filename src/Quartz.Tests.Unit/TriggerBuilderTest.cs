@@ -236,7 +236,7 @@ public class TriggerBuilderTest
     {
         // The hash-key cron overloads are gone; a hash key rides on the CronExpression instead.
         ITrigger trigger = TriggerBuilder.Create()
-            .WithCronSchedule(CronScheduleBuilder.Create(new CronExpression("H H * * * ?", "custom-key")))
+            .WithCronSchedule(CronScheduleBuilder.Create(CronExpression.ParseWithHash("H H * * * ?", "custom-key")))
             .Build();
 
         trigger.Should().BeAssignableTo<ICronTrigger>();

@@ -303,31 +303,6 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         this.timeZone = timeZone;
     }
 
-    /// <summary>
-    /// Constructs a new <see cref="CronExpression" /> with H (hash) tokens resolved
-    /// using the specified hash key. The hash key is typically the trigger or job name,
-    /// producing deterministic but spread-out fire times across different triggers.
-    /// </summary>
-    /// <param name="cronExpression">Cron expression that may contain H tokens</param>
-    /// <param name="hashKey">A stable string key used to derive hash values (e.g., trigger name)</param>
-    /// <seealso cref="ResolveHash(string, string)" />
-    public CronExpression(string cronExpression, string hashKey)
-        : this(ResolveHash(cronExpression, hashKey))
-    {
-    }
-
-    /// <summary>
-    /// Constructs a new <see cref="CronExpression" /> with H (hash) tokens resolved
-    /// using the specified integer hash seed.
-    /// </summary>
-    /// <param name="cronExpression">Cron expression that may contain H tokens</param>
-    /// <param name="hashSeed">An integer seed used to derive hash values</param>
-    /// <seealso cref="ResolveHash(string, int)" />
-    public CronExpression(string cronExpression, int hashSeed)
-        : this(ResolveHash(cronExpression, hashSeed))
-    {
-    }
-
     private static int GetVersion(SerializationInfo info)
     {
         try
@@ -604,50 +579,72 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     }
 
     /// <summary>
-    /// Indicates whether the specified cron expression can be parsed into a
-    /// valid cron expression
+    /// Parses a cron expression string whose <c>H</c> (hash) tokens are resolved against the given
+    /// hash key. The key is typically the trigger or job name, so that every trigger written with the
+    /// same expression lands on a different minute instead of all firing at once.
     /// </summary>
-    /// <param name="cronExpression">the expression to evaluate</param>
-    /// <returns>a boolean indicating whether the given expression is a valid cron
-    ///         expression</returns>
-    public static bool IsValidExpression(string cronExpression)
+    /// <param name="cronExpression">Cron expression that may contain <c>H</c> tokens.</param>
+    /// <param name="hashKey">A stable string key the hash values are derived from (e.g. the trigger name).</param>
+    /// <returns>The parsed expression, with every <c>H</c> token resolved to a value.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="cronExpression"/> or <paramref name="hashKey"/> is <see langword="null" />.</exception>
+    /// <exception cref="FormatException"><paramref name="cronExpression"/> is not a valid cron expression.</exception>
+    /// <seealso cref="ResolveHash(string, string)" />
+    public static CronExpression ParseWithHash(string cronExpression, string hashKey)
     {
-        return TryParse(cronExpression, out _);
-    }
-
-    public static void ValidateExpression(string cronExpression)
-    {
-        var _ = new CronExpression(cronExpression);
+        ArgumentNullException.ThrowIfNull(cronExpression);
+        ArgumentNullException.ThrowIfNull(hashKey);
+        return new CronExpression(ResolveHash(cronExpression, hashKey));
     }
 
     /// <summary>
-    /// Indicates whether the specified cron expression (which may contain H hash tokens)
-    /// can be parsed into a valid cron expression when resolved with the given hash key.
+    /// Parses a cron expression string whose <c>H</c> (hash) tokens are resolved against the given
+    /// integer seed.
     /// </summary>
-    public static bool IsValidExpression(string cronExpression, string hashKey)
+    /// <param name="cronExpression">Cron expression that may contain <c>H</c> tokens.</param>
+    /// <param name="hashSeed">An integer seed the hash values are derived from.</param>
+    /// <returns>The parsed expression, with every <c>H</c> token resolved to a value.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="cronExpression"/> is <see langword="null" />.</exception>
+    /// <exception cref="FormatException"><paramref name="cronExpression"/> is not a valid cron expression.</exception>
+    /// <seealso cref="ResolveHash(string, int)" />
+    public static CronExpression ParseWithHash(string cronExpression, int hashSeed)
     {
-        if (cronExpression is null || hashKey is null)
+        ArgumentNullException.ThrowIfNull(cronExpression);
+        return new CronExpression(ResolveHash(cronExpression, hashSeed));
+    }
+
+    /// <summary>
+    /// Attempts to parse a cron expression string whose <c>H</c> (hash) tokens are resolved against
+    /// the given hash key.
+    /// </summary>
+    /// <remarks>
+    /// An <c>H</c> token can be malformed in its own right — <c>H(0-60)</c> names a minute that does
+    /// not exist — so the resolution is inside the attempt rather than ahead of it.
+    /// </remarks>
+    /// <param name="cronExpression">Cron expression that may contain <c>H</c> tokens; may be <see langword="null" />.</param>
+    /// <param name="hashKey">A stable string key the hash values are derived from (e.g. the trigger name).</param>
+    /// <param name="result">The parsed expression, or <see langword="null" /> when parsing failed.</param>
+    /// <returns><see langword="true" /> when <paramref name="cronExpression"/> is a valid cron expression under <paramref name="hashKey"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="hashKey"/> is <see langword="null" />.</exception>
+    public static bool TryParseWithHash([NotNullWhen(true)] string? cronExpression, string hashKey, [NotNullWhen(true)] out CronExpression? result)
+    {
+        ArgumentNullException.ThrowIfNull(hashKey);
+
+        if (cronExpression is null)
         {
+            result = null;
             return false;
         }
 
         try
         {
-            return TryParse(ResolveHash(cronExpression, hashKey), out _);
+            result = new CronExpression(ResolveHash(cronExpression, hashKey));
+            return true;
         }
         catch (FormatException)
         {
+            result = null;
             return false;
         }
-    }
-
-    /// <summary>
-    /// Validates that the specified cron expression (which may contain H hash tokens)
-    /// can be parsed into a valid cron expression when resolved with the given hash key.
-    /// </summary>
-    public static void ValidateExpression(string cronExpression, string hashKey)
-    {
-        var _ = new CronExpression(cronExpression, hashKey);
     }
 
     /// <summary>
@@ -1634,30 +1631,6 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// </summary>
     /// <value>The cron expression string.</value>
     public string CronExpressionString { get; }
-
-    /// <summary>
-    /// Gets the expression summary.
-    /// </summary>
-    /// <returns></returns>
-    public string GetExpressionSummary()
-    {
-        return new CronExpressionSummary(
-            seconds,
-            minutes,
-            hours,
-            daysOfMonth,
-            months,
-            daysOfWeek,
-            lastDayOfWeek,
-            nearestWeekdays is not null || (lastDaySpecs is not null && lastDaySpecs.Exists(spec => spec.NearestWeekday)),
-            nthdayOfWeek,
-            lastDaySpecs is not null,
-            // calendarDayOfWeek and calendarDayOfMonth: 'C' is rejected by the parser, so no expression carries one
-            false,
-            false,
-            years
-        ).ToString();
-    }
 
     private static int SkipWhiteSpace(int position, ReadOnlySpan<char> str)
     {
@@ -2703,7 +2676,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             // offsets, whatever the size or sign of the zone's daylight delta. Compare against
             // the whole-second floor the search actually started from - comparing against a
             // sub-second afterTimeUtc would demote a valid fire, making the result non-monotonic
-            // in the input and breaking GetTimeBefore's binary search.
+            // in the input and breaking GetPreviousValidTimeBefore's binary search.
             if (d.ToUniversalTime() < afterTimeUtcFloor && TimeZone.IsAmbiguousTime(localDateTime))
             {
                 TimeSpan laterOccurrenceOffset = TimeZone.GetAmbiguousTimeOffsets(localDateTime).Min();
@@ -2809,11 +2782,12 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     }
 
     /// <summary>
-    /// Gets the time before.
+    /// Returns the latest time before <paramref name="endTime" /> that this expression fires at,
+    /// the mirror of <see cref="GetNextValidTimeAfter" />.
     /// </summary>
-    /// <param name="endTime">The end time.</param>
-    /// <returns></returns>
-    public DateTimeOffset? GetTimeBefore(DateTimeOffset endTime)
+    /// <param name="endTime">The instant to search back from; the result is strictly before it.</param>
+    /// <returns>The preceding fire time, or <see langword="null" /> when the expression has none.</returns>
+    public DateTimeOffset? GetPreviousValidTimeBefore(DateTimeOffset endTime)
     {
         long end = endTime.Ticks;
         // Start at year 2 so that DateTimeOffset constructions inside GetTimeAfter —

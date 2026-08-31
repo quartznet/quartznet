@@ -274,12 +274,12 @@ public class CronExpressionHashTest
         Assert.IsFalse(CronExpression.ContainsHashToken("0 0 12 ? * THU"));  // THU contains H but doesn't start with H
     }
 
-    // --- Constructor tests ---
+    // --- ParseWithHash tests ---
 
     [Test]
-    public void Constructor_WithHashKey_ProducesValidExpression()
+    public void ParseWithHash_WithHashKey_ProducesValidExpression()
     {
-        CronExpression expr = new CronExpression("H H * * * ?", "myTrigger");
+        CronExpression expr = CronExpression.ParseWithHash("H H * * * ?", "myTrigger");
 
         Assert.IsNotNull(expr.CronExpressionString);
         expr.CronExpressionString.Should().NotContain("H");
@@ -289,9 +289,9 @@ public class CronExpressionHashTest
     }
 
     [Test]
-    public void Constructor_WithIntSeed_ProducesValidExpression()
+    public void ParseWithHash_WithIntSeed_ProducesValidExpression()
     {
-        CronExpression expr = new CronExpression("H H(0-7) * * * ?", 42);
+        CronExpression expr = CronExpression.ParseWithHash("H H(0-7) * * * ?", 42);
 
         Assert.IsNotNull(expr.CronExpressionString);
         expr.CronExpressionString.Should().NotContain("H");
@@ -301,9 +301,9 @@ public class CronExpressionHashTest
     }
 
     [Test]
-    public void Constructor_WithTimeZone_PreservesResolvedExpression()
+    public void ParseWithHash_WithTimeZone_PreservesResolvedExpression()
     {
-        CronExpression original = new CronExpression("H H * * * ?", "myTrigger");
+        CronExpression original = CronExpression.ParseWithHash("H H * * * ?", "myTrigger");
         CronExpression copy = original.WithTimeZone(TimeZoneInfo.Utc);
 
         copy.CronExpressionString.Should().Be(original.CronExpressionString,
@@ -356,7 +356,7 @@ public class CronExpressionHashTest
             .Build();
 
         // Compare with explicit key matching the internal encoding
-        CronExpression explicit_ = new CronExpression("H H * * * ?", ":myTrigger");
+        CronExpression explicit_ = CronExpression.ParseWithHash("H H * * * ?", ":myTrigger");
 
         ICronTrigger cronTrigger = (ICronTrigger) trigger;
         Assert.AreEqual(explicit_.CronExpressionString, cronTrigger.CronExpressionString);
@@ -389,7 +389,7 @@ public class CronExpressionHashTest
     {
         // When using explicit hash key, no trigger identity is required
         ITrigger trigger = TriggerBuilder.Create()
-            .WithCronSchedule(CronScheduleBuilder.Create(new CronExpression("H H * * * ?", "custom-key")))
+            .WithCronSchedule(CronScheduleBuilder.Create(CronExpression.ParseWithHash("H H * * * ?", "custom-key")))
             .Build();
 
         Assert.IsNotNull(trigger);
@@ -425,7 +425,7 @@ public class CronExpressionHashTest
     [Test]
     public void CronScheduleFromHashedExpression_ProducesValidSchedule()
     {
-        CronScheduleBuilder builder = CronScheduleBuilder.Create(new CronExpression("H H(0-7) * * * ?", "nightly"));
+        CronScheduleBuilder builder = CronScheduleBuilder.Create(CronExpression.ParseWithHash("H H(0-7) * * * ?", "nightly"));
         IMutableTrigger trigger = builder.Build();
         Assert.IsNotNull(trigger);
     }
@@ -494,19 +494,69 @@ public class CronExpressionHashTest
             .WithMessage("*Unexpected*");
     }
 
-    [Test]
-    public void IsValidExpression_WithHash_ValidExpression_ReturnsTrue()
+    [TestCase("H H * * * ?")]
+    [TestCase("H H(0-7) * * * ?")]
+    [TestCase("H/15 * * * * ?")]
+    public void TryParseWithHash_ValidExpression_ReturnsTrueAndTheResolvedExpression(string expression)
     {
-        Assert.IsTrue(CronExpression.IsValidExpression("H H * * * ?", "key"));
-        Assert.IsTrue(CronExpression.IsValidExpression("H H(0-7) * * * ?", "key"));
-        Assert.IsTrue(CronExpression.IsValidExpression("H/15 * * * * ?", "key"));
+        CronExpression.TryParseWithHash(expression, "key", out CronExpression result).Should().BeTrue();
+
+        result.CronExpressionString.Should().NotContain("H",
+            "a true return means the H tokens resolved, so none can be left in the parsed expression");
+    }
+
+    [TestCase("H(0-60) * * * * ?", "the hash range names a second that does not exist, which the resolver rejects")]
+    [TestCase("H", "too few fields, which the parser rejects")]
+    [TestCase(null, "a null expression is not a parse failure to report, it is simply not an expression")]
+    public void TryParseWithHash_InvalidExpression_ReturnsFalseAndNoExpression(string expression, string reason)
+    {
+        CronExpression.TryParseWithHash(expression, "key", out CronExpression result).Should().BeFalse(reason);
+
+        result.Should().BeNull("a failed attempt must not hand back a half-built expression");
     }
 
     [Test]
-    public void IsValidExpression_WithHash_InvalidExpression_ReturnsFalse()
+    public void TryParseWithHash_NullHashKey_Throws()
     {
-        Assert.IsFalse(CronExpression.IsValidExpression("H(0-60) * * * * ?", "key"));
-        Assert.IsFalse(CronExpression.IsValidExpression("H", "key")); // too few fields
+        Action act = () => CronExpression.TryParseWithHash("H H * * * ?", null!, out _);
+
+        act.Should().Throw<ArgumentNullException>(
+            "the key comes from the program rather than from user input, so a missing one is a bug, not a parse failure");
+    }
+
+    [Test]
+    public void ParseWithHash_InvalidExpression_Throws()
+    {
+        Action act = () => CronExpression.ParseWithHash("H(0-60) * * * * ?", "key");
+
+        act.Should().Throw<FormatException>("resolving H is a parse, and a parse that cannot finish throws");
+    }
+
+    [Test]
+    public void ParseWithHash_NullArguments_Throw()
+    {
+        Action nullExpression = () => CronExpression.ParseWithHash(null!, "key");
+        nullExpression.Should().Throw<ArgumentNullException>();
+
+        Action nullHashKey = () => CronExpression.ParseWithHash("H H * * * ?", null!);
+        nullHashKey.Should().Throw<ArgumentNullException>();
+
+        Action nullExpressionWithSeed = () => CronExpression.ParseWithHash(null!, 42);
+        nullExpressionWithSeed.Should().Throw<ArgumentNullException>();
+    }
+
+    [Test]
+    public void ParseWithHash_IsResolveHashFollowedByAParse()
+    {
+        const string Expression = "H H(0-7) * * * ?";
+
+        CronExpression.ParseWithHash(Expression, "nightly").CronExpressionString
+            .Should().Be(CronExpression.ResolveHash(Expression, "nightly"),
+                "the two-step recipe and the one-call form must resolve H to the same values");
+
+        CronExpression.ParseWithHash(Expression, 42).CronExpressionString
+            .Should().Be(CronExpression.ResolveHash(Expression, 42),
+                "and the same holds for a seed");
     }
 
     // --- Fire time validation ---
@@ -514,7 +564,7 @@ public class CronExpressionHashTest
     [Test]
     public void HashExpression_ProducesValidFireTimes()
     {
-        CronExpression expr = new CronExpression("H H H * * ?", "test-job").WithTimeZone(TimeZoneInfo.Utc);
+        CronExpression expr = CronExpression.ParseWithHash("H H H * * ?", "test-job").WithTimeZone(TimeZoneInfo.Utc);
         DateTimeOffset now = DateTimeOffset.UtcNow;
 
         DateTimeOffset? next = expr.GetNextValidTimeAfter(now);
@@ -534,7 +584,7 @@ public class CronExpressionHashTest
     [Test]
     public void HashExpression_WithHourRange_FiresInRange()
     {
-        CronExpression expr = new CronExpression("0 H H(9-17) * * ?", "work-hours").WithTimeZone(TimeZoneInfo.Utc);
+        CronExpression expr = CronExpression.ParseWithHash("0 H H(9-17) * * ?", "work-hours").WithTimeZone(TimeZoneInfo.Utc);
 
         // Get next fire time
         DateTimeOffset now = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);

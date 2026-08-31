@@ -8482,9 +8482,9 @@ payload is the expression string and the time zone id, unchanged.
 
 ### `CronExpression` parses without throwing, and says it is equatable
 
-`IsValidExpression` was a `try`/`catch` around the constructor, which is the shape `TryParse` exists to
-replace. It is one now, alongside `IParsable<CronExpression>` — the same pair `JobKey` and `TriggerKey`
-already had.
+`IsValidExpression` was a `try`/`catch` around the constructor and `ValidateExpression` was a
+construction it discarded, which is the shape `TryParse` and `Parse` exist to replace. Those are the
+members now, alongside `IParsable<CronExpression>` — the same pair `JobKey` and `TriggerKey` already had.
 
 ```csharp
 if (CronExpression.TryParse(userInput, out CronExpression? expression))
@@ -8495,9 +8495,45 @@ if (CronExpression.TryParse(userInput, out CronExpression? expression))
 CronExpression parsed = CronExpression.Parse(userInput);   // ArgumentNullException / FormatException
 ```
 
-`IsValidExpression` is unchanged at the call site — it now delegates to `TryParse`. There are no
-`ReadOnlySpan<char>` overloads, deliberately: the type keeps its source string, so a span argument would
-only be copied back into one.
+**All four validation members are gone**, because each restated one of the two:
+
+| 3.x | 4.0 |
+|---|---|
+| `CronExpression.IsValidExpression(expr)` | `CronExpression.TryParse(expr, out _)` |
+| `CronExpression.ValidateExpression(expr)` | `CronExpression.Parse(expr)` |
+| `CronExpression.IsValidExpression(expr, hashKey)` | `CronExpression.TryParseWithHash(expr, hashKey, out _)` |
+| `CronExpression.ValidateExpression(expr, hashKey)` | `CronExpression.ParseWithHash(expr, hashKey)` |
+
+The replacements hand back the expression they parsed, so validating one and then using it is a single
+parse rather than two. Where the old call was genuinely only a check, discard the result — `out _`, or
+the return value of `Parse`.
+
+There are no `ReadOnlySpan<char>` overloads, deliberately: the type keeps its source string, so a span
+argument would only be copied back into one.
+
+### The hash key is a `Parse` argument, not a constructor overload
+
+3.x resolved `H` (hash) tokens through two constructors, `CronExpression(string, string hashKey)` and
+`CronExpression(string, int hashSeed)`. Between them and `CronExpression(string, TimeZoneInfo?)` they
+made the null literal ambiguous, so `new CronExpression(expr, null)` — the documented way to say "the
+system's local zone" — did not compile at all. The type keeps two constructors, and the hash resolution
+moves to statics beside `Parse`:
+
+```csharp
+CronExpression expression = CronExpression.ParseWithHash("0 H H(0-7) * * ?", "nightly-cleanup");
+CronExpression seeded = CronExpression.ParseWithHash("0 H H(0-7) * * ?", 42);
+
+if (CronExpression.TryParseWithHash(userInput, "nightly-cleanup", out CronExpression? parsed))
+{
+    // parsed is non-null here
+}
+
+CronExpression local = new CronExpression("0 H H(0-7) * * ?", null);   // compiles now
+```
+
+Resolving `H` **is** a parse — it reads the expression, and it throws `FormatException` when the
+expression is malformed — so `ParseWithHash` is where it belongs. `CronExpression.ResolveHash`, which
+returns the resolved string rather than an expression, is unchanged.
 
 Equality was already implemented; it is now declared. `CronExpression` states `IEquatable<CronExpression>`,
 and `Equals` takes a nullable argument, as the contract requires. `GetHashCode` hashes the `TimeZone`
@@ -8669,8 +8705,8 @@ Deleted: `SimpleScheduleTriggerBuilderExtensions`, `CronScheduleTriggerBuilderEx
 | `WithSimpleSchedule(SimpleScheduleBuilder)` | `WithSimpleSchedule(SimpleScheduleBuilder schedule)` |
 | `WithCronSchedule(string)` | `WithCronSchedule(string cronExpression, Action<CronScheduleBuilder>? configure = null)` |
 | `WithCronSchedule(string, Action<CronScheduleBuilder>)` | same member |
-| `WithCronSchedule(string expr, string hashKey)` | `WithCronSchedule(new CronExpression(expr, hashKey))` |
-| `WithCronSchedule(string expr, string hashKey, Action<CronScheduleBuilder>)` | `WithCronSchedule(new CronExpression(expr, hashKey), configure)` |
+| `WithCronSchedule(string expr, string hashKey)` | `WithCronSchedule(CronExpression.ParseWithHash(expr, hashKey))` |
+| `WithCronSchedule(string expr, string hashKey, Action<CronScheduleBuilder>)` | `WithCronSchedule(CronExpression.ParseWithHash(expr, hashKey), configure)` |
 | `WithCronSchedule(CronScheduleBuilder)` | `WithCronSchedule(CronScheduleBuilder schedule)` |
 | — | `WithCronSchedule(CronExpression cronExpression, Action<CronScheduleBuilder>? configure = null)` — new; also the home of the hash-key shape |
 | — | `WithCronSchedule(CronExpressionBuilder cronExpression, Action<CronScheduleBuilder>? configure = null)` — new; closes the [`CronExpressionBuilder`](#cronschedulebuilder-s-convenience-factories-are-gone) chain without naming `CronScheduleBuilder` |
@@ -8692,12 +8728,12 @@ Only two call shapes need editing:
 + .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
 
 - .WithCronSchedule("0 H H(0-7) * * ?", "nightly-cleanup")
-+ .WithCronSchedule(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup"))
++ .WithCronSchedule(CronExpression.ParseWithHash("0 H H(0-7) * * ?", "nightly-cleanup"))
 ```
 
 The hash-key overloads went because a hash key belongs to the expression, not to the way the expression is
-attached to a trigger — `new CronExpression(expr, hashKey)` takes it, and the `CronExpression`-taking overload
-carries the result. Without a key, `H` tokens still hash on the trigger's identity.
+attached to a trigger — [`CronExpression.ParseWithHash`](#the-hash-key-is-a-parse-argument-not-a-constructor-overload)
+takes it, and the `CronExpression`-taking overload carries the result. Without a key, `H` tokens still hash on the trigger's identity.
 
 ### `ITriggerConfigurator` gained a non-generic base
 
@@ -9037,8 +9073,8 @@ sub-second part of the `TimeOnly` is ignored.
 | `CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(h, m, days)` | `CronExpressionBuilder.Create().AtTime(new TimeOnly(h, m)).WithDaysOfWeek(days)` |
 | `CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(day, h, m)` | `CronExpressionBuilder.Create().AtTime(new TimeOnly(h, m)).WithDaysOfWeek(day)` |
 | `CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(dom, h, m)` | `CronExpressionBuilder.Create().AtTime(new TimeOnly(h, m)).WithDayOfMonth(dom)` |
-| `CronScheduleBuilder.CronScheduleWithHash(expr, hashKey)` | `CronScheduleBuilder.Create(new CronExpression(expr, hashKey))` |
-| `CronScheduleBuilder.CronScheduleWithHash(expr, hashSeed)` | `CronScheduleBuilder.Create(new CronExpression(expr, hashSeed))` |
+| `CronScheduleBuilder.CronScheduleWithHash(expr, hashKey)` | `CronScheduleBuilder.Create(CronExpression.ParseWithHash(expr, hashKey))` |
+| `CronScheduleBuilder.CronScheduleWithHash(expr, hashSeed)` | `CronScheduleBuilder.Create(CronExpression.ParseWithHash(expr, hashSeed))` |
 
 `WithCronSchedule` takes the builder, so nothing in the first four rows names `CronScheduleBuilder` at all:
 
@@ -10172,9 +10208,17 @@ removals on types that are still public and still open, which no section above n
 |---|---|---|
 | `AbstractTrigger.CompareTo(ITrigger)` | Removed; neither `TriggerBase` nor `ITrigger` itself implements `IComparable<ITrigger>` any more | It compared keys — `trigger.Key.CompareTo(other.Key)`, or `triggers.OrderBy(t => t.Key)`, both of which sort properly now that the key types implement `IComparable<JobKey>` / `IComparable<TriggerKey>`. `List<ITrigger>.Sort()` and friends still compile and now throw — see [The trigger family interfaces are read models](#the-trigger-family-interfaces-are-read-models) |
 | `AbstractTrigger.FullJobName` | Removed | `JobKey.ToString()`, alongside the rest in [TriggerBase Property Removals](#triggerbase-property-removals) |
+| `new CronExpression(expr, hashKey)`, `new CronExpression(expr, hashSeed)` | Removed; they made `new CronExpression(expr, null)` ambiguous with the time-zone overload, so the null literal did not compile | `CronExpression.ParseWithHash(expr, hashKey)` / `ParseWithHash(expr, hashSeed)` — see [The hash key is a `Parse` argument, not a constructor overload](#the-hash-key-is-a-parse-argument-not-a-constructor-overload) |
 | `CronExpression`'s `protected` constants, fields and parse hooks, and `OnDeserialization` | Gone with the type, which is `sealed` now and no longer implements `IDeserializationCallback` | No replacement; the parsed sets were never a contract — see [The parser is not a subclassing seam](#the-parser-is-not-a-subclassing-seam) |
+| `CronExpression.GetExpressionSummary()`, `ICronTrigger.GetExpressionSummary()`, `CronTriggerImpl.GetExpressionSummary()` | Removed | No replacement. It dumped the parsed field sets in an undocumented format; `CronExpressionString` is the expression, and the parsed sets were never a supported view — see [The parser is not a subclassing seam](#the-parser-is-not-a-subclassing-seam) |
+| `CronExpression.GetTimeBefore(t)` | Renamed | `GetPreviousValidTimeBefore(t)`, which reads as the pair of `GetNextValidTimeAfter` that it is |
+| `CronExpression.IsValidExpression(expr)` | Removed | `CronExpression.TryParse(expr, out _)` — see [`CronExpression` parses without throwing](#cronexpression-parses-without-throwing-and-says-it-is-equatable) |
+| `CronExpression.IsValidExpression(expr, hashKey)` | Removed | `CronExpression.TryParseWithHash(expr, hashKey, out _)` |
 | `CronExpression.MaxYear` | Removed (a `public static readonly int`) | No replacement. It was `DateTime.Now.Year + 100`, computed once per process — see [`CronExpression` is immutable](#cronexpression-is-immutable) |
+| `CronExpression.ValidateExpression(expr)` | Removed; its whole body was a construction it discarded | `CronExpression.Parse(expr)`, which hands back the expression it parsed |
+| `CronExpression.ValidateExpression(expr, hashKey)` | Removed | `CronExpression.ParseWithHash(expr, hashKey)` |
 | `CronTriggerImpl.GetTimeAfter(DateTimeOffset)` | Removed (it was `protected`) | `GetFireTimeAfter(DateTimeOffset?)`, or `CronExpression.GetNextValidTimeAfter` for the expression on its own |
+| `CronTriggerImpl.GetTimeBefore(DateTimeOffset)` | Renamed (it is `protected`) | `GetPreviousValidTimeBefore(DateTimeOffset)`, renamed with the `CronExpression` member it forwards to |
 | `CronTriggerImpl.YearToGiveupSchedulingAt` | Removed (a `protected const`) | No replacement; where the search stops is the expression's business |
 | `DateBuilder.ValidateDayOfMonth`, `.ValidateHour`, `.ValidateMinute`, `.ValidateMonth`, `.ValidateSecond`, `.ValidateYear` | Removed | No replacement; the builder validates its own arguments, and it is `sealed` — see [`DateBuilder`'s static factories are gone](#datebuilder-s-static-factories-are-gone) |
 | `DbProvider.CreateParameter()` | Removed | `CreateCommand().CreateParameter()` |
