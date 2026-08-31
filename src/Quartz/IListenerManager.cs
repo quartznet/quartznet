@@ -36,6 +36,11 @@ namespace Quartz;
 /// All three kinds of listener are managed the same way: a listener is identified by its name,
 /// registering one under a name that is already taken replaces it, and it is removed by that
 /// same name.
+/// <para>
+/// The matchers that decide which jobs and triggers a listener hears about are part of that
+/// registration, because registration is the moment anyone knows them. A listener that has to hear
+/// about something else is registered again under the same name, with the matchers it needs.
+/// </para>
 /// </remarks>
 /// <author>jhouse</author>
 /// <since>2.0 - previously listeners were managed directly on the Scheduler interface.</since>
@@ -69,69 +74,6 @@ public interface IListenerManager
     /// <seealso cref="IMatcher{T}" />
     /// <seealso cref="EverythingMatcher{T}" />
     void AddJobListener(IJobListener jobListener, params IReadOnlyCollection<IMatcher<JobKey>> matchers);
-
-    /// <summary>
-    /// Add the given Matcher to the set of matchers for which the listener
-    /// will receive events if ANY of the matchers match.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="listenerName">the name of the listener to add the matcher to</param>
-    /// <param name="matcher">the additional matcher to apply for selecting events</param>
-    /// <returns>
-    /// <see langword="true"/> if the identified listener was found and the matcher was associated;
-    /// otherwise, <see langword="false"/>.
-    /// </returns>
-    /// <exception cref="ArgumentNullException"><paramref name="listenerName"/> is <see langword="null"/>.</exception>
-    bool AddJobListenerMatcher(string listenerName, IMatcher<JobKey> matcher);
-
-    /// <summary>
-    /// Removes the given <see cref="IMatcher{JobKey}"/> from the set of matchers for which the listener
-    /// will receive events if ANY of the matchers match.
-    /// </summary>
-    /// <param name="listenerName">The name of the listener to remove the matcher for.</param>
-    /// <param name="matcher">The matcher to remove.</param>
-    /// <returns>
-    /// <see langword="true"/> if the given matcher was found and removed from the listener's list of matchers;
-    /// otherwise, <see langword="false"/>.
-    /// </returns>
-    /// <exception cref="ArgumentNullException"><paramref name="listenerName"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentNullException"><paramref name="matcher"/> is <see langword="null"/>.</exception>
-    bool RemoveJobListenerMatcher(string listenerName, IMatcher<JobKey> matcher);
-
-    /// <summary>
-    /// Sets the matchers for which the listener will receive events if ANY of the matchers match.
-    /// </summary>
-    /// <param name="listenerName">The name of the listener to set the matchers for.</param>
-    /// <param name="matchers">The matchers to set. When empty, the <see cref="IJobListener"/> will receive all events.</param>
-    /// <returns>
-    /// <see langword="true"/> if the specified listener exists and the matchers were set; otherwise,
-    /// <see langword="false"/>.
-    /// </returns>
-    /// <exception cref="ArgumentNullException"><paramref name="listenerName"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentNullException"><paramref name="matchers"/> is <see langword="null"/>.</exception>
-    /// <remarks>
-    /// This removes any existing matchers for the identified listener!
-    /// </remarks>
-    bool SetJobListenerMatchers(string listenerName, IReadOnlyCollection<IMatcher<JobKey>> matchers);
-
-    /// <summary>
-    /// Get the set of <see cref="IMatcher{JobKey}"/> instances that were registered for the specified
-    /// listener.
-    /// </summary>
-    /// <param name="listenerName">The name of the listener to add the matcher to</param>
-    /// <returns>
-    /// The matchers registered for selecting events for the identified listener. Empty when the
-    /// listener has no matchers, and when no such listener is registered — "matches everything" and
-    /// "there is nothing to match" are both the absence of a restriction, so neither is a null.
-    /// </returns>
-    /// <exception cref="ArgumentNullException"><paramref name="listenerName"/> is <see langword="null"/>.</exception>
-    /// <remarks>
-    /// A <see cref="IJobListener"/> will receive a given event if no matchers were registered for the
-    /// listener or the event matches ANY of the matchers that were registered for that
-    /// <see cref="IJobListener"/>.
-    /// </remarks>
-    IReadOnlyList<IMatcher<JobKey>> GetJobListenerMatchers(string listenerName);
 
     /// <summary>
     /// Remove the identified <see cref="IJobListener" /> from the <see cref="IScheduler" />.
@@ -190,53 +132,6 @@ public interface IListenerManager
     /// <seealso cref="IMatcher{T}" />
     /// <seealso cref="EverythingMatcher{T}" />
     void AddTriggerListener(ITriggerListener triggerListener, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers);
-
-    /// <summary>
-    /// Add the given Matcher to the set of matchers for which the listener
-    /// will receive events if ANY of the matchers match.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="listenerName">the name of the listener to add the matcher to</param>
-    /// <param name="matcher">the additional matcher to apply for selecting events</param>
-    /// <returns>true if the identified listener was found and updated</returns>
-    bool AddTriggerListenerMatcher(string listenerName, IMatcher<TriggerKey> matcher);
-
-    /// <summary>
-    /// Remove the given Matcher to the set of matchers for which the listener
-    /// will receive events if ANY of the matchers match.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="listenerName">the name of the listener to add the matcher to</param>
-    /// <param name="matcher">the additional matcher to apply for selecting events</param>
-    /// <returns>true if the given matcher was found and removed from the listener's list of matchers</returns>
-    bool RemoveTriggerListenerMatcher(string listenerName, IMatcher<TriggerKey> matcher);
-
-    /// <summary>
-    /// Set the set of Matchers for which the listener
-    /// will receive events if ANY of the matchers match.
-    /// </summary>
-    /// <remarks>
-    /// <para>Removes any existing matchers for the identified listener!</para>
-    /// </remarks>
-    /// <param name="listenerName">the name of the listener to add the matcher to</param>
-    /// <param name="matchers">the matchers to apply for selecting events</param>
-    /// <returns>true if the given matcher was found and removed from the listener's list of matchers</returns>
-    bool SetTriggerListenerMatchers(string listenerName, IReadOnlyCollection<IMatcher<TriggerKey>> matchers);
-
-    /// <summary>
-    /// Get the set of Matchers for which the listener
-    /// will receive events if ANY of the matchers match.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="listenerName">the name of the listener to add the matcher to</param>
-    /// <returns>
-    /// The matchers registered for selecting events for the identified listener. Empty when the
-    /// listener has no matchers, and when no such listener is registered.
-    /// </returns>
-    IReadOnlyList<IMatcher<TriggerKey>> GetTriggerListenerMatchers(string listenerName);
 
     /// <summary>
     /// Removes the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />.

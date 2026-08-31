@@ -30,7 +30,7 @@ public interface ITriggerListener
 
     ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default);
 
-    ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default);
+    ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default);
 
     ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default);
 }
@@ -39,13 +39,13 @@ public interface ITriggerListener
 `triggerInstructionCode` is the `SchedulerInstruction` the trigger returned for this fire — what the scheduler
 is about to do with the trigger, from `NoInstruction` through `SetTriggerComplete` to `DeleteTrigger`.
 
-A listener reaches the scheduler it serves through its execution context, or as its first argument when there
-is no execution. Three of these four callbacks happen inside a firing, so they read `context.Scheduler`;
-`TriggerMisfired` is the exception, because a misfire is noticed rather than executed, and it takes the
-scheduler directly:
+Every callback leads with the trigger it is about. A listener reaches the scheduler it serves through its
+execution context, or as a second argument when there is no execution. Three of these four callbacks happen
+inside a firing, so they read `context.Scheduler`; `TriggerMisfired` is the exception, because a misfire is
+noticed rather than executed, and it takes the scheduler directly in the place the context has:
 
 ```csharp
-public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
+public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
 {
     logger.LogWarning("{SchedulerName} missed {TriggerKey}", scheduler.SchedulerName, trigger.Key);
     return default;
@@ -134,6 +134,10 @@ scheduler.ListenerManager.AddJobListener(myJobListener, Matchers.AllJobs());
 
 Passing no matcher at all means the same thing — a listener with no matchers hears about every job — so
 `AddJobListener(myJobListener)` is the shortest way to say it.
+
+Registration is the only moment matchers are given. A listener that has to start hearing about something
+else is registered again under the same name, with the matchers it needs: the second registration replaces
+the listener and its matchers together, so the two can never be out of step.
 
 The `Matchers` class is the entry point: its static factories build the roots (`Matchers.AllJobs()`,
 `Matchers.AllTriggers()`, `Matchers.Key(key)`, `Matchers.Group<JobKey>(StringOperator.StartsWith, "a")`,

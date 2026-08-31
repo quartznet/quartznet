@@ -87,7 +87,7 @@ namespace Quartz.Dashboard.Plugins
         public System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggerComplete(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.IScheduler scheduler, Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.ITrigger trigger, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class DashboardLiveEventsPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.IJobListener, Quartz.ISchedulerListener, Quartz.ITriggerListener
@@ -119,7 +119,7 @@ namespace Quartz.Dashboard.Plugins
         public System.Threading.Tasks.ValueTask TriggerComplete(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggerFinalized(Quartz.IScheduler scheduler, Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.IScheduler scheduler, Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.ITrigger trigger, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggerPaused(Quartz.IScheduler scheduler, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggerResumed(Quartz.IScheduler scheduler, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggersPaused(Quartz.IScheduler scheduler, string? triggerGroup, System.Threading.CancellationToken cancellationToken = default) { }

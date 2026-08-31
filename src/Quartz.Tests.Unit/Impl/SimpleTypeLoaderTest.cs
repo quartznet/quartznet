@@ -70,8 +70,8 @@ public class SimpleTypeLoaderTest
     [Test]
     public void ShouldLoadListenerNamedByItsPre40Namespace()
     {
-        typeLoader.LoadType("Quartz.Listener.BroadcastJobListener, Quartz")
-            .Should().Be<BroadcastJobListener>(
+        typeLoader.LoadType("Quartz.Listener.JobChainingJobListener, Quartz")
+            .Should().Be<JobChainingJobListener>(
                 "quartz.jobListener.<name>.type naming the old singular namespace has to keep working");
     }
 

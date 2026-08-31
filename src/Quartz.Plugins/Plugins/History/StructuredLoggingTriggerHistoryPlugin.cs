@@ -132,8 +132,8 @@ public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, IT
 
     /// <inheritdoc />
     public ValueTask TriggerMisfired(
-        IScheduler scheduler,
         ITrigger trigger,
+        IScheduler scheduler,
         CancellationToken cancellationToken = default)
     {
         if (!logger.IsEnabled(LogLevel.Information))

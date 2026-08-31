@@ -551,25 +551,17 @@ namespace Quartz
     public interface IListenerManager
     {
         void AddJobListener(Quartz.IJobListener jobListener, [System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>> matchers);
-        bool AddJobListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.JobKey> matcher);
         void AddSchedulerListener(Quartz.ISchedulerListener schedulerListener);
         void AddTriggerListener(Quartz.ITriggerListener triggerListener, [System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.TriggerKey>> matchers);
-        bool AddTriggerListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.TriggerKey> matcher);
         Quartz.IJobListener? GetJobListener(string name);
-        System.Collections.Generic.IReadOnlyList<Quartz.IMatcher<Quartz.JobKey>> GetJobListenerMatchers(string listenerName);
         System.Collections.Generic.IReadOnlyList<Quartz.IJobListener> GetJobListeners();
         Quartz.ISchedulerListener? GetSchedulerListener(string name);
         System.Collections.Generic.IReadOnlyList<Quartz.ISchedulerListener> GetSchedulerListeners();
         Quartz.ITriggerListener? GetTriggerListener(string name);
-        System.Collections.Generic.IReadOnlyList<Quartz.IMatcher<Quartz.TriggerKey>> GetTriggerListenerMatchers(string listenerName);
         System.Collections.Generic.IReadOnlyList<Quartz.ITriggerListener> GetTriggerListeners();
         bool RemoveJobListener(string name);
-        bool RemoveJobListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.JobKey> matcher);
         bool RemoveSchedulerListener(string name);
         bool RemoveTriggerListener(string name);
-        bool RemoveTriggerListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.TriggerKey> matcher);
-        bool SetJobListenerMatchers(string listenerName, System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>> matchers);
-        bool SetTriggerListenerMatchers(string listenerName, System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.TriggerKey>> matchers);
     }
     public interface IMatcher<T>
         where T : Quartz.Key<T>
@@ -850,7 +842,7 @@ namespace Quartz
         string Name { get; }
         System.Threading.Tasks.ValueTask TriggerComplete(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.IScheduler scheduler, Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.ITrigger trigger, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default);
     }
     public sealed class InMemoryJobStoreOptions
@@ -3890,66 +3882,6 @@ namespace Quartz.Impl.Triggers
 }
 namespace Quartz.Listeners
 {
-    public sealed class BroadcastJobListener : Quartz.IJobListener
-    {
-        public BroadcastJobListener(string name) { }
-        public BroadcastJobListener(string name, System.Collections.Generic.IReadOnlyCollection<Quartz.IJobListener> listeners) { }
-        public System.Collections.Generic.IReadOnlyList<Quartz.IJobListener> Listeners { get; }
-        public string Name { get; }
-        public void AddListener(Quartz.IJobListener listener) { }
-        public System.Threading.Tasks.ValueTask JobExecutionVetoed(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobToBeExecuted(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobWasExecuted(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? jobException, System.Threading.CancellationToken cancellationToken = default) { }
-        public bool RemoveListener(Quartz.IJobListener listener) { }
-        public bool RemoveListener(string listenerName) { }
-    }
-    public sealed class BroadcastSchedulerListener : Quartz.ISchedulerListener
-    {
-        public BroadcastSchedulerListener(string name) { }
-        public BroadcastSchedulerListener(string name, System.Collections.Generic.IReadOnlyCollection<Quartz.ISchedulerListener> listeners) { }
-        public System.Collections.Generic.IReadOnlyList<Quartz.ISchedulerListener> Listeners { get; }
-        public string Name { get; }
-        public void AddListener(Quartz.ISchedulerListener listener) { }
-        public System.Threading.Tasks.ValueTask JobAdded(Quartz.IScheduler scheduler, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobDeleted(Quartz.IScheduler scheduler, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobInterrupted(Quartz.IScheduler scheduler, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobPaused(Quartz.IScheduler scheduler, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobResumed(Quartz.IScheduler scheduler, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobScheduled(Quartz.IScheduler scheduler, Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobUnscheduled(Quartz.IScheduler scheduler, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobsPaused(Quartz.IScheduler scheduler, string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobsResumed(Quartz.IScheduler scheduler, string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
-        public bool RemoveListener(Quartz.ISchedulerListener listener) { }
-        public bool RemoveListener(string listenerName) { }
-        public System.Threading.Tasks.ValueTask SchedulerError(Quartz.IScheduler scheduler, Quartz.SchedulerErrorContext errorContext, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask SchedulerInStandbyMode(Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask SchedulerShutdown(Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask SchedulerShuttingDown(Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask SchedulerStarted(Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask SchedulerStarting(Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask SchedulingDataCleared(Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerFinalized(Quartz.IScheduler scheduler, Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerInError(Quartz.IScheduler scheduler, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerPaused(Quartz.IScheduler scheduler, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerResumed(Quartz.IScheduler scheduler, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggersInError(Quartz.IScheduler scheduler, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggersPaused(Quartz.IScheduler scheduler, string? triggerGroup, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggersResumed(Quartz.IScheduler scheduler, string? triggerGroup, System.Threading.CancellationToken cancellationToken = default) { }
-    }
-    public sealed class BroadcastTriggerListener : Quartz.ITriggerListener
-    {
-        public BroadcastTriggerListener(string name) { }
-        public BroadcastTriggerListener(string name, System.Collections.Generic.IReadOnlyCollection<Quartz.ITriggerListener> listeners) { }
-        public System.Collections.Generic.IReadOnlyList<Quartz.ITriggerListener> Listeners { get; }
-        public string Name { get; }
-        public void AddListener(Quartz.ITriggerListener listener) { }
-        public bool RemoveListener(Quartz.ITriggerListener listener) { }
-        public bool RemoveListener(string listenerName) { }
-        public System.Threading.Tasks.ValueTask TriggerComplete(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.IScheduler scheduler, Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-    }
     public sealed class JobChainingJobListener : Quartz.IJobListener
     {
         public JobChainingJobListener(string name) { }

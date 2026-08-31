@@ -13,7 +13,7 @@ public class SampleTriggerListener : ITriggerListener
 
     public string Name => "Sample Trigger Listener";
 
-    public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
+    public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         logger.LogInformation(
             "Observed misfire of trigger {TriggerKey} on scheduler {SchedulerName}",

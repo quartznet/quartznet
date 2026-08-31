@@ -115,7 +115,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return ValueTask.FromResult(false);
     }
 
-    public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
+    public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         TriggerEventDto payload = new(
             SchedulerInstanceId: scheduler.SchedulerInstanceId,

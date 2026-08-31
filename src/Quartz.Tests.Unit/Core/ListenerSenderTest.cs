@@ -1,13 +1,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-using Quartz.Listeners;
-
 namespace Quartz.Tests.Unit.Core;
 
 /// <summary>
 /// A listener is told which scheduler is calling it — through its execution context where there is one,
-/// and as the first argument of every callback where there is not (#3063).
+/// and as an argument of the callback where there is not (#3063).
 /// </summary>
 [NonParallelizable]
 public sealed class ListenerSenderTest
@@ -126,30 +124,6 @@ public sealed class ListenerSenderTest
         }
     }
 
-    [Test]
-    public async Task BroadcastSchedulerListener_ForwardsTheSchedulerItWasGiven()
-    {
-        RecordingSchedulerListener first = new();
-        RecordingSchedulerListener second = new();
-
-        BroadcastSchedulerListener broadcast = new("broadcast", [first, second]);
-
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create().BuildScheduler();
-
-        try
-        {
-            await broadcast.TriggerPaused(scheduler, new TriggerKey("trigger", "broadcast"));
-
-            first.PausedBy.Should().Equal([scheduler],
-                "a broadcast has nothing of its own to say about who is calling, so it passes on what it was told");
-            second.PausedBy.Should().Equal([scheduler]);
-        }
-        finally
-        {
-            await scheduler.Shutdown(true);
-        }
-    }
-
     private static void Schedule(IQuartzBuilder builder, string group)
     {
         builder.AddJob<HarmlessJob>(j => j.WithIdentity("job", group));
@@ -192,7 +166,7 @@ public sealed class ListenerSenderTest
 
         public Task<(IScheduler Scheduler, TriggerKey TriggerKey)> Reported => reported.Task;
 
-        public ValueTask TriggerMisfired(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
+        public ValueTask TriggerMisfired(ITrigger trigger, IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             reported.TrySetResult((scheduler, trigger.Key));
             return default;

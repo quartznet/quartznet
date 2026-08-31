@@ -14,9 +14,10 @@ namespace Quartz.Core;
 /// <see cref="ISchedulerListener" /> has a default implementation, which is what lets a listener write
 /// only the notifications it cares about. The price is that a member with the wrong signature is not a
 /// compile error: it simply stops being an implementation of anything. The default body runs instead,
-/// and the method becomes dead code the scheduler never calls. Two migrations produce exactly that
-/// shape — a 3.x listener whose members return <see cref="Task" />, and a 4.0.0-alpha.1 listener whose
-/// callbacks do not take the scheduler first — and nothing in the build names the dead member.
+/// and the method becomes dead code the scheduler never calls. Three migrations produce exactly that
+/// shape — a 3.x listener whose members return <see cref="Task" />, a 4.0.0-alpha.1 listener whose
+/// callbacks do not take the scheduler first, and a listener whose <c>TriggerMisfired</c> still leads
+/// with the scheduler rather than the trigger — and nothing in the build names the dead member.
 /// </para>
 /// <para>
 /// So the shape is checked once, where the listener is registered, and a method whose name matches a
@@ -148,6 +149,18 @@ internal static class ListenerShape
             section ??= "#listeners-are-told-which-scheduler-is-calling";
         }
 
+        if (ReordersTheParameters(method, shadowed))
+        {
+            message.Append("The parameters are the notification's own, in a different order. ");
+
+            if (listenerInterface == typeof(ITriggerListener)
+                && string.Equals(shadowed.Name, nameof(ITriggerListener.TriggerMisfired), StringComparison.Ordinal))
+            {
+                message.Append("TriggerMisfired takes the trigger first since 4.0.0-alpha.5. ");
+                section ??= "#triggermisfired-takes-the-trigger-first";
+            }
+        }
+
         message.Append("Correct the signature, or rename the method if it is not meant to be that notification. See ")
             .Append(MigrationGuide)
             .Append(section)
@@ -180,6 +193,52 @@ internal static class ListenerShape
 
         ParameterInfo[] actual = method.GetParameters();
         return actual.Length == 0 || actual[0].ParameterType != typeof(IScheduler);
+    }
+
+    /// <summary>
+    /// Whether the method takes exactly the notification's parameters but in another order, which is the
+    /// shape a listener has whose <c>TriggerMisfired</c> still leads with the scheduler.
+    /// </summary>
+    /// <remarks>
+    /// Said separately from the signature pair in the message because the two signatures are otherwise
+    /// easy to read as the same one: only the order differs, and a reader comparing them left to right
+    /// finds every type they expected.
+    /// </remarks>
+    private static bool ReordersTheParameters(MethodInfo method, MethodInfo shadowed)
+    {
+        ParameterInfo[] expected = shadowed.GetParameters();
+        ParameterInfo[] actual = method.GetParameters();
+
+        if (expected.Length != actual.Length)
+        {
+            return false;
+        }
+
+        List<Type> unaccounted = new(actual.Length);
+        bool sameOrder = true;
+
+        for (int i = 0; i < actual.Length; i++)
+        {
+            unaccounted.Add(actual[i].ParameterType);
+            sameOrder &= actual[i].ParameterType == expected[i].ParameterType;
+        }
+
+        if (sameOrder)
+        {
+            // Something other than the order is wrong - the return type, most likely - and saying the
+            // parameters were reordered when they were not would send the reader looking for nothing.
+            return false;
+        }
+
+        foreach (ParameterInfo parameter in expected)
+        {
+            if (!unaccounted.Remove(parameter.ParameterType))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string Signature(MethodInfo method)
