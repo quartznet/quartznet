@@ -14,13 +14,22 @@ internal sealed class StringKeyDirtyFlagMapConverter(NewtonsoftJsonSerializerReg
             JobDataValues.Refuse(jobDataMap, registry);
         }
 
-        var map = new Dictionary<string, object?>((IDictionary<string, object?>) value!);
-        serializer.Serialize(writer, map);
+        // Written entry by entry rather than by handing Json.NET a Dictionary<string, object>, because
+        // the slot a value sits in is what decides whether a $type goes beside it - and a string map
+        // has to go out as the plain object the built-in serializer writes.
+        writer.WriteStartObject();
+        foreach (KeyValuePair<string, object?> pair in (IDictionary<string, object?>) value!)
+        {
+            writer.WritePropertyName(pair.Key);
+            JobDataValues.Write(writer, pair.Value, serializer);
+        }
+
+        writer.WriteEndObject();
     }
 
     public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
     {
-        IDictionary<string, object?> innerMap = serializer.Deserialize<IDictionary<string, object?>>(reader)!;
+        IDictionary<string, object?> innerMap = JobDataValues.ReadMap(reader, serializer);
 
         // The declared type decides what comes back; unconditionally returning a JobDataMap would hand
         // job code the wrong runtime type for a SchedulerContext-typed read.

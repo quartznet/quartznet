@@ -94,7 +94,8 @@ anyway.
 (`WAITING`, `ACQUIRED`, `EXECUTING`, `COMPLETE`, `BLOCKED`, `PAUSED`, `PAUSED_BLOCKED`, `ERROR`,
 `DELETED`), the pause-all marker, the trigger-type discriminators (`SIMPLE`, `CRON`, `CAL_INT`,
 `DAILY_I`, `RECUR`, `BLOB` — `RECUR` since 3.18), the lock names and the check-in row's columns are the
-same constants on both branches, and job data serializes to the same JSON. The failure predicate is the
+same constants on both branches, and job data serializes to the same JSON but for one value shape, below.
+The failure predicate is the
 same code, so the two versions judge and recover each other by it; the acquisition compare-and-swap is
 the same statement, so neither takes a trigger the other has; the stale-acquired sweep is scoped to the
 sweeping node's own rows on both, so neither disturbs the other's reservations; and node-affinity pins
@@ -117,6 +118,16 @@ that does the damage. Route calendar changes through the 3.x nodes until the las
 **Both versions have to be on JSON, and on the same serializer.** 4.0 refuses `quartz.serializer.type
 = binary` at startup, so a cluster whose 3.x nodes wrote binary job data has no window at all — that is
 a migration to do before the rollout, not during it.
+
+**A `Dictionary<string, string>` job data value is the one shape whose JSON differs**, and only on the
+Newtonsoft serializer. 4.0 writes it as the plain object System.Text.Json has always written, where 3.x
+wrote the type name Json.NET puts beside a value an `object`-typed slot cannot name — see
+[A string dictionary is written the same way by both serializers](migration-guide.md#a-string-dictionary-is-written-the-same-way-by-both-serializers).
+The compatibility runs the same way round as the calendars': 4.0 reads both forms, and 3.x's Newtonsoft
+reader reads only its own, handing back a Json.NET `JObject` where the job put a dictionary. A job that
+stores a string map therefore has to keep its writes on the 3.x nodes until the last one is retired, or
+store the map as a string it serializes itself. Nothing else in job data is affected, and a cluster on
+System.Text.Json is not affected at all.
 
 **Defer section 5 of the migration until the last 3.x node is gone.** Sections 1 to 4 are the required
 ones; section 5 realigns the index set, and it *drops seven indexes that the 3.20 migration created for

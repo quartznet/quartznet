@@ -65,6 +65,19 @@ namespace Quartz.Serialization.SystemTextJson;
 internal static class JobDataValues
 {
     /// <summary>
+    /// The property name Json.NET writes a value's type under, and the one name a stored string map
+    /// cannot use for an entry of its own.
+    /// </summary>
+    /// <remarks>
+    /// It is metadata rather than data on every path that reads it: <c>Quartz.Serialization.Newtonsoft</c>
+    /// consumes it to decide what to build, and this reader drops it (see <see cref="Read" />), so a blob
+    /// written before string maps went out plain does not hand a type name back as if the application had
+    /// stored one. That makes the name reserved, which is what <see cref="RefuseTypeMarker" /> says at the
+    /// one moment anyone can still be told.
+    /// </remarks>
+    internal const string TypeMarker = "$type";
+
+    /// <summary>
     /// The value types a persistent store's JSON accepts by name. Every one of them is answered by
     /// <see cref="QuartzStoreJsonContext" /> too, so a trimmed publish can write them all;
     /// <c>StoreFormatSourceGenerationTest</c> is what fails when the two stop agreeing.
@@ -117,6 +130,7 @@ internal static class JobDataValues
         Type type = value.GetType();
         if (Accepted.Contains(type) || type.IsEnum || registry.DeclaresJobDataValueType(type, options))
         {
+            RefuseTypeMarker(key, value);
             return;
         }
 
@@ -126,6 +140,30 @@ internal static class JobDataValues
             "(string, bool, char, int, long, float, double, decimal, DateTime, DateTimeOffset, TimeSpan, Guid, DateOnly, TimeOnly or an enum), " +
             "a Dictionary<string, string>, or a type the application declares through SystemTextJsonSerializerRegistry.AddTypeInfoResolver. " +
             "Anything with structure of its own has to be serialized by the job and stored as a string.");
+    }
+
+    /// <summary>
+    /// Throws when a string map holds an entry named <see cref="TypeMarker" />, which no reader will hand
+    /// back as one.
+    /// </summary>
+    /// <remarks>
+    /// The name belongs to Json.NET, which writes a value's type under it and reads it as metadata, so a
+    /// map carrying it has never survived a crossing: <c>Quartz.Serialization.Newtonsoft</c> wrote the name
+    /// twice and could not read its own blob back, and a map this serializer wrote was one that serializer
+    /// could not load at all. Refusing it on the way in is what turns a blob nobody can read into a failure
+    /// the application that wrote it hears about — and it is what lets both readers treat the name as
+    /// metadata without ever dropping an entry an application meant.
+    /// </remarks>
+    /// <exception cref="JsonSerializationException">The map holds an entry under the reserved name.</exception>
+    public static void RefuseTypeMarker(string key, object value)
+    {
+        if (value is Dictionary<string, string> stringMap && stringMap.ContainsKey(TypeMarker))
+        {
+            throw new JsonSerializationException(
+                $"Job data entry '{key}' holds a string map with an entry named '{TypeMarker}'. " +
+                $"'{TypeMarker}' is the name Json.NET writes a value's type under, so Quartz's JSON format reads it as metadata " +
+                "rather than as an entry and no reader can hand it back. Store that entry under a name of its own.");
+        }
     }
 
     /// <summary>
@@ -164,7 +202,14 @@ internal static class JobDataValues
             case JsonValueKind.Object:
                 // The one shape past the primitives a job data value comes back as, and the reason
                 // Dictionary<string, string> is both named in QuartzStoreJsonContext and accepted above.
-                return value.Deserialize((JsonTypeInfo<Dictionary<string, string>>) options.GetTypeInfo(typeof(Dictionary<string, string>)));
+                Dictionary<string, string>? stringMap = value.Deserialize((JsonTypeInfo<Dictionary<string, string>>) options.GetTypeInfo(typeof(Dictionary<string, string>)));
+
+                // A blob Quartz.Serialization.Newtonsoft wrote before string maps went out plain carries
+                // the type it wrote the map under. That is metadata to the reader that wrote it, and it has
+                // to be metadata here too: handing it back would put an assembly-qualified type name in the
+                // application's own key space, under a name RefuseTypeMarker keeps anything from storing.
+                stringMap?.Remove(TypeMarker);
+                return stringMap;
 
             default:
                 throw new JsonException($"Unsupported value kind: {value.ValueKind}");
