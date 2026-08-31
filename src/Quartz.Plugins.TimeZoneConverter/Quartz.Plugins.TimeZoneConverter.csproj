@@ -15,9 +15,9 @@
       trim-analysis warnings collapse into one IL2104, and IsTrimmable exempts exactly its IL2026s from
       that collapse - which is what lets this package report its own reflective call site.
 
-      There are none, and there were none the first time the analyzers were pointed at this package: the
-      plugin registers one resolver with TimeZones and that resolver asks TZConvert for a TimeZoneInfo by
-      its IANA or Windows id, which is data rather than a type name. So there is no
+      There are none, and there were none the first time the analyzers were pointed at this package:
+      UseTimeZoneConverter registers one resolver with TimeZones and that resolver asks TZConvert for a
+      TimeZoneInfo by its IANA or Windows id, which is data rather than a type name. So there is no
       TrimAnalysisBaseline.cs beside this file, and a warning appearing here is a new one — fix it rather
       than starting a baseline for it.
     -->

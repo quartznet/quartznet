@@ -1,5 +1,3 @@
-using System.Collections.Specialized;
-
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -27,22 +25,6 @@ public static class TimeZoneConverterSamples
         builder.UseTimeZoneConverter();
 
         await using StandaloneSchedulerFactory schedulerFactory = builder.Build();
-
-        #endregion
-    }
-
-    public static async ValueTask FromProperties()
-    {
-        #region sample_timezoneconverter_properties
-
-        NameValueCollection properties = new()
-        {
-            ["quartz.plugin.timeZoneConverter.type"] = "Quartz.Plugins.TimeZoneConverter.TimeZoneConverterPlugin, Quartz.Plugins.TimeZoneConverter"
-        };
-
-        await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
-            .UseProperties(properties)
-            .Build();
 
         #endregion
     }

@@ -7469,7 +7469,8 @@ above cover configuration strings.
 | `Quartz.Job` | `Quartz.Jobs` | Namespace, assembly and package now agree. A configuration string or a stored `JOB_CLASS_NAME` naming the old spelling still resolves, with a warning |
 | `Quartz.Extensibility.IDirectoryProvider` | `Quartz.Jobs.IDirectoryProvider` | It exists for `DirectoryScanJob` alone, so it lives with it. It is resolved from `SchedulerContext` by key, never by type name. Its one member also changed shape: `GetDirectoriesToScan(JobDataMap)` returns `List<string>` rather than `IReadOnlyList<string>`, following the concrete-out convention, so an implementation returning an array or a `ToList()` result needs one edit |
 | `Quartz.Logging`, `Quartz.Logging.LogProviders` | `Quartz.Diagnostics` | `LogProvider`, `DiagnosticHeaders` (now `ActivityTags`) and `OperationName` moved; `ILogProvider`, `LogContext`, `LogLevel`, the `Logger` delegate, `IJobDiagnosticData` and `LogProviders.LibLogException` went with LibLog. A `using Quartz.Logging;` no longer resolves at all, and nothing names these namespaces in configuration, so there is no fallback — see [Logging](#logging) |
-| `Quartz.Plugin.History`, `Quartz.Plugin.Json`, `Quartz.Plugin.Management`, `Quartz.Plugin.Xml`, `Quartz.Plugin.TimeZoneConverter` | `Quartz.Plugins.*` | Same rule as the jobs: the packages are `Quartz.Plugins` and `Quartz.Plugins.TimeZoneConverter`. A `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning. The **configuration key** prefix is still `quartz.plugin.`, singular — it is not a namespace. `Quartz.Plugin.Interrupt` has no 4.x counterpart: its one type is gone — see [`JobInterruptMonitorPlugin` is retired; a job timeout is middleware](#jobinterruptmonitorplugin-is-retired-a-job-timeout-is-middleware) |
+| `Quartz.Plugin.History`, `Quartz.Plugin.Json`, `Quartz.Plugin.Xml` | `Quartz.Plugins.*` | Same rule as the jobs: the package is `Quartz.Plugins`. A `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning. The **configuration key** prefix is still `quartz.plugin.`, singular — it is not a namespace |
+| `Quartz.Plugin.Interrupt`, `Quartz.Plugin.Management`, `Quartz.Plugin.TimeZoneConverter` | — | No 4.x counterpart: the one public type each held is gone. See [`JobInterruptMonitorPlugin` is retired; a job timeout is middleware](#jobinterruptmonitorplugin-is-retired-a-job-timeout-is-middleware), [`ShutdownHookPlugin` is retired; the host already shuts the scheduler down](#shutdownhookplugin-is-retired-the-host-already-shuts-the-scheduler-down) and [`TimeZoneConverterPlugin` is a resolver registration](#timezoneconverterplugin-is-a-resolver-registration). The `Quartz.Plugins.TimeZoneConverter` **package** is unaffected — it still ships `UseTimeZoneConverter` |
 | `Quartz.Listener` | `Quartz.Listeners` | Nothing names a listener by string any more — the `quartz.jobListener.<name>.type` and `quartz.triggerListener.<name>.type` keys are gone, see [The listener property keys are retired](#the-listener-property-keys-are-retired) — so this is a `using` to change and nothing else. See also [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone): three of the seven types are not there under either name |
 | `Quartz.Impl.Matchers` | `Quartz` | See [Matchers moved to `Quartz`](#matchers-moved-to-quartz). No shim is needed: a matcher is passed as an object and is never named by a configuration string |
 | `Quartz.AspNetCore`, `Quartz.AspNetCore.HealthChecks`, `Quartz.AspNetCore.HttpApi` | `Quartz` | Only the namespaces are gone; `AddQuartzHealthChecks`, `AddQuartzHttpApi` and `MapQuartzHttpApi` are extension methods and resolve through the `Quartz` you already have, so a `using Quartz.AspNetCore;` can simply be deleted. The **packages** differ: the HTTP API is still `Quartz.AspNetCore`, hosted by `QuartzAspNetCoreConfigurationExtensions` (renamed from `QuartzServiceCollectionExtensions` because the core package now has a class of that name in the same namespace), while the health check is in `Quartz` from `4.0.0-alpha.4`, hosted by `QuartzHealthCheckExtensions` — see [The health check is in `Quartz`, not `Quartz.AspNetCore`](#the-health-check-is-in-quartz-not-quartz-aspnetcore) |
@@ -9943,11 +9944,37 @@ one for the ids it resolves — which is exactly the last-write-wins behavior as
 throwing `TimeZoneNotFoundException` — the search catches it and continues with the next resolver,
 and `FindById` itself throws only after every fallback has failed.
 
-`TimeZoneConverterPlugin` now registers its own resolver on `Initialize` — targeting
-`TZConvert.TryGetTimeZoneInfo`, so an unknown id declines quietly instead of by exception — and
-disposes that registration on `Shutdown`. Shutting one scheduler down no longer changes time zone
-resolution for the other schedulers in the process, and no longer leaves a resolver installed after
-the last scheduler is gone.
+`UseTimeZoneConverter` is what registers the resolver now, targeting `TZConvert.TryGetTimeZoneInfo` so
+that an unknown id declines quietly instead of by exception — see
+[`TimeZoneConverterPlugin` is a resolver registration](#timezoneconverterplugin-is-a-resolver-registration).
+
+### `TimeZoneConverterPlugin` is a resolver registration
+
+`Quartz.Plugins.TimeZoneConverter` stays, and `UseTimeZoneConverter` stays; what is gone is the plugin
+between them. `TimeZoneConverterPlugin` was one `TimeZones.AddResolver` call wearing a plugin's
+lifecycle — no per-scheduler state, no scheduler to depend on, nothing for `Initialize` to be handed —
+so `UseTimeZoneConverter` performs the registration itself.
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `q.UseTimeZoneConverter()` | unchanged |
+| `q.AddPlugin<TimeZoneConverterPlugin>()` | `q.UseTimeZoneConverter()` |
+| `quartz.plugin.timeZoneConverter.type = Quartz.Plugin.TimeZoneConverter.TimeZoneConverterPlugin, Quartz.Plugins.TimeZoneConverter` | remove the key; the type no longer exists, so a configuration still naming it fails to load. Call `UseTimeZoneConverter()` instead |
+| `new TimeZoneConverterPlugin()` | nothing; `TimeZones.AddResolver(id => …)` is the public seam if you want a resolver of your own |
+
+Two things change for the better, and one is worth planning around:
+
+* **The registration happens while you are configuring, not when the scheduler starts.** Time zone
+  lookup is reached from places with no scheduler in scope — building a trigger, parsing a
+  `CronExpression`, deserializing a trigger out of a job store — so a trigger built before the host
+  starts now resolves its zone too.
+* **Nothing removes the resolver again.** The plugin disposed its own registration on `Shutdown`, and
+  had to take care not to disturb the other schedulers in the process while doing so. One registration
+  that outlives every scheduler is the same guarantee with none of the bookkeeping, and a second
+  `UseTimeZoneConverter` is a no-op rather than a duplicate resolver on a list nothing prunes.
+* **A test that asserted an id does *not* resolve now has to account for the process-wide resolver.**
+  It was never really removable — the plugin only removed it once every scheduler had shut down — but
+  it is now unambiguously permanent for the life of the process that installed it.
 
 ## `TriggerUtils` became `TriggerFireTimes`
 
@@ -10385,6 +10412,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Simpl.SystemPropertyInstanceIdGenerator` | Internal | `quartz.scheduler.instanceId = SYS_PROP` still selects it; in code, register your own `IInstanceIdGenerator` |
 | `Quartz.SystemTime` | Removed | `TimeProvider` — see [SystemTime Replaced with TimeProvider](#systemtime-replaced-with-timeprovider) |
 | `Quartz.TimeOfDay` | Removed | `TimeOnly` — see [`TimeOfDay` became `TimeOnly`](#timeofday-became-timeonly) |
+| `Quartz.Plugin.TimeZoneConverter.TimeZoneConverterPlugin` | Removed | `UseTimeZoneConverter()`, which registers the resolver itself. The `Quartz.Plugins.TimeZoneConverter` package is unchanged — see [`TimeZoneConverterPlugin` is a resolver registration](#timezoneconverterplugin-is-a-resolver-registration) |
 | `Quartz.Util.TimeZoneUtil` | Renamed `Quartz.TimeZones` | `FindTimeZoneById` is `FindById`; `CustomResolver` is `AddResolver(...)`, whose `IDisposable` undoes the registration; the Mono-era `ConvertTime` / `GetUtcOffset(DateTimeOffset, TimeZoneInfo)` shims went internal, while the wall-clock `GetUtcOffset(DateTime, TimeZoneInfo)` stays public — see [`TimeZoneUtil` became `Quartz.TimeZones`](#timezoneutil-became-quartz-timezones) |
 | `Quartz.TriggerExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.Impl.AdoJobStore.TriggerStatus` | Removed | `StoredTriggerHeader`, returned by `IDriverDelegate.SelectTriggerHeader` — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |

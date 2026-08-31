@@ -25,11 +25,13 @@ builder.Services.AddQuartz(q => q.UseTimeZoneConverter());
 <!-- endSnippet -->
 
 `UseTimeZoneConverter` hangs off `IQuartzBuilder`, so the same call configures a scheduler built
-without a host. The flat key `quartz.plugin.timeZoneConverter.type` does the same from configuration.
+without a host.
 
-Adding the plugin registers a resolver with `Quartz.TimeZones`, which is what Quartz's own lookups go
-through: both spellings then resolve everywhere, and a stored trigger keeps firing after its scheduler
-moves host.
+The call registers a resolver with `Quartz.TimeZones`, which is what Quartz's own lookups go through:
+both spellings then resolve everywhere, and a stored trigger keeps firing after its scheduler moves
+host. The registration is process-wide and takes effect at once, so a trigger built before the
+scheduler exists resolves its zone too. It is not a plugin — 4.0 retired the one this package used to
+ship, along with the `quartz.plugin.timeZoneConverter.type` key that named it.
 
 ## Documentation
 

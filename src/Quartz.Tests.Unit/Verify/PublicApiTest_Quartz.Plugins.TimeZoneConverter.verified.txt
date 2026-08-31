@@ -1,13 +1,4 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
-namespace Quartz.Plugins.TimeZoneConverter
-{
-    public sealed class TimeZoneConverterPlugin : Quartz.Extensibility.ISchedulerPlugin
-    {
-        public TimeZoneConverterPlugin() { }
-        public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
-    }
-}
 namespace Quartz
 {
     public static class TimeZonePluginConfigurationExtensions
