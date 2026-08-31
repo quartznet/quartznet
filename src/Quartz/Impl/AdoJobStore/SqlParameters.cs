@@ -46,6 +46,13 @@ namespace Quartz.Impl.AdoJobStore;
 /// The lock statements' names are not here either: those statements and their binding live in the
 /// same lock handler, which is a seam of its own.
 /// </para>
+/// <para>
+/// The paging pair is the one that also has a public spelling. <c>@pageSkip</c> and <c>@pageTake</c>
+/// are an agreement with a delegate outside this assembly — it overrides
+/// <see cref="StdAdoDelegate.ApplyPaging" /> and binds the same names in
+/// <see cref="StdAdoDelegate.AddPagingParameters" /> — so they are on <see cref="AdoConstants" /> as
+/// well, where such a delegate can reach them. <c>SqlParametersTest</c> holds the two spellings equal.
+/// </para>
 /// </remarks>
 internal static class SqlParameters
 {
@@ -177,11 +184,8 @@ internal static class SqlParameters
     public const string Boolean1 = "boolean1";
     public const string Boolean2 = "boolean2";
 
-    // Paging, for the dialects whose clause takes its bounds as parameters. These two are the one pair
-    // a delegate outside this assembly has to agree with — it overrides ApplyPaging and binds the same
-    // names in AddPagingParameters — so the values live on AdoConstants, which is public, and this
-    // class names them from there rather than repeating the strings.
+    // Paging, for the dialects whose clause takes its bounds as parameters.
 
-    public const string PageSkip = AdoConstants.ParameterPageSkip;
-    public const string PageTake = AdoConstants.ParameterPageTake;
+    public const string PageSkip = "pageSkip";
+    public const string PageTake = "pageTake";
 }

@@ -56,6 +56,24 @@ public class SqlParametersTest
             "every placeholder is spelled from a constant the binder also uses, so one that is not a constant is one nothing binds");
     }
 
+    /// <summary>
+    /// The paging pair is spelled twice: here, for the statements Quartz builds, and on
+    /// <see cref="AdoConstants" />, which is the public spelling a dialect delegate outside this
+    /// assembly binds by.
+    /// </summary>
+    /// <remarks>
+    /// Two constants rather than one because a delegate has to be able to name them and this class is
+    /// internal. Their drifting apart is silent in the worst way — the statement would carry one name
+    /// and the binder supply another, which a provider reports as an unbound parameter at run time, or
+    /// worse binds positionally to the wrong column — so it is worth a test rather than a comment.
+    /// </remarks>
+    [Test]
+    public void ThePagingParametersHaveOneSpellingBetweenTheirTwoHomes()
+    {
+        SqlParameters.PageSkip.Should().Be(AdoConstants.ParameterPageSkip);
+        SqlParameters.PageTake.Should().Be(AdoConstants.ParameterPageTake);
+    }
+
     private static IEnumerable<string> Placeholders(string sql)
     {
         for (int i = sql.IndexOf('@', StringComparison.Ordinal); i >= 0; i = sql.IndexOf('@', i + 1))
