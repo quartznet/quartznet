@@ -167,6 +167,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `MaxTransientRetries` | int | `3` | How many times a transient failure such as a deadlock is retried. Transient means the driver's own `DbException.IsTransient`, a SQLSTATE in class `40` — the standard's "transaction rollback", covering a serialization failure or a deadlock whichever provider reports it, with `40002` excepted because a deferred constraint violation fails identically on every retry — SQL Server's transient error numbers, SQLite's busy and locked codes, or a timeout. |
 | `TransientRetryInterval` | TimeSpan | `00:00:01` | Delay between transient retries. |
 | `RetryableActionErrorLogThreshold` | int | `4` | How many consecutive failures before they are logged as errors. |
+| `IsTransient` | `Func<Exception, bool>?` | `null` | An extra answer to the question above, for a driver that reports a retryable condition none of those signals recognise. Consulted first and only additive — returning `false` falls through to the built-in list, so it cannot make Quartz stop retrying something it already retries. The exception handed over is the store's own, so reach the driver's with `GetBaseException()`. Code only; there is no `quartz.*` key for a delegate. |
 | `UseDbLocks` | bool | `false` | Uses database row locks. Required for clustering, and implied by `UseClustering()`. |
 | `LockOnInsert` | bool | `true` | Takes a lock when inserting rows. |
 | `AcquireTriggersWithinLock` | bool | `false` | Acquires triggers inside the database lock. |

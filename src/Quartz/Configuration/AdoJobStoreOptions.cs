@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 
 using Quartz.Impl.AdoJobStore;
 
@@ -99,6 +100,33 @@ public sealed class AdoJobStoreOptions
     /// How many consecutive failures of a retryable action occur before they are logged as errors.
     /// </summary>
     public int RetryableActionErrorLogThreshold { get; set; } = 4;
+
+    /// <summary>
+    /// An extra answer to "is this failure worth retrying", for a driver that reports a retryable
+    /// condition Quartz does not recognise.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Consulted first, and only additive: returning <see langword="false"/> — which is also what
+    /// leaving this unset means — falls through to the built-in classification, so a predicate cannot
+    /// make Quartz stop retrying something it already retries. That is deliberate. The built-in list is
+    /// <see cref="DbException.IsTransient"/>, a SQLSTATE in class <c>40</c>, SQL Server's transient
+    /// error numbers, SQLite's busy and locked codes and <see cref="TimeoutException"/>, over the whole
+    /// chain of inner exceptions; a driver that misreports one of those is a bug to fix in
+    /// <c>TransientErrorDetector</c> rather than to work around here.
+    /// </para>
+    /// <para>
+    /// The exception handed over is the store's own, so the driver's exception is usually its
+    /// <see cref="Exception.InnerException"/> — <see cref="Exception.GetBaseException"/> is the short
+    /// way to the one your driver threw.
+    /// </para>
+    /// <para>
+    /// It is called on the failure path of a store operation, while a lock may be held, so it must be
+    /// quick and must not throw: a predicate that throws would replace the database failure the store
+    /// was about to report with one from the classification of it.
+    /// </para>
+    /// </remarks>
+    public Func<Exception, bool>? IsTransient { get; set; }
 
     /// <summary>
     /// Whether database row locks are used for synchronization. Required for clustering.

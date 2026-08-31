@@ -69,7 +69,11 @@ public class ConfigurationBindingIsSourceGeneratedTest
     private static readonly Dictionary<string, string> codeOnlyMembers = new(StringComparer.Ordinal)
     {
         ["Quartz.DataSourceOptions.DataSourceFactory"] =
-            "a Func<IServiceProvider, DbDataSource> is a value only code can supply, and the member says so"
+            "a Func<IServiceProvider, DbDataSource> is a value only code can supply, and the member says so",
+        ["Quartz.AdoJobStoreOptions.IsTransient"] =
+            "a Func<Exception, bool> classifies an exception the driver threw, which no configuration "
+            + "file can describe: the answer depends on the exception's type, its error number and its "
+            + "inner exceptions, and the member says so"
     };
 
     [Test]

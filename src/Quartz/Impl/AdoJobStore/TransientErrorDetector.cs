@@ -33,10 +33,10 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="AdoJobStoreBase.IsTransient" /> is the seam a store overrides to add its own driver's
-/// verdict; this is what it answers with by default. Every signal is inclusive: the first one that
-/// says "transient" wins, and the chain of inner exceptions is walked because the store wraps
-/// almost everything it catches in a <see cref="JobPersistenceException" />.
+/// This is the store's built-in verdict, and <see cref="AdoJobStoreOptions.IsTransient" /> is where an
+/// application adds its own driver's. Every signal is inclusive: the first one that says "transient"
+/// wins, and the chain of inner exceptions is walked because the store wraps almost everything it
+/// catches in a <see cref="JobPersistenceException" />.
 /// </para>
 /// <para>
 /// This used to sniff for a property literally named <c>IsTransient</c> on the exception's type.

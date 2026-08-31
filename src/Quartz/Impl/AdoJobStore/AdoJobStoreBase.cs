@@ -40,6 +40,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
     private readonly bool useProperties;
     private readonly Dictionary<string, ICalendar?> calendarCache = [];
     private readonly IDriverDelegate driverDelegate;
+    private readonly Func<Exception, bool>? configuredIsTransient;
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
     private readonly TimeSpan? misfirehandlerFrequence;
 
@@ -115,6 +116,7 @@ public abstract partial class AdoJobStoreBase : IJobStore
         MaxTransientRetries = options.MaxTransientRetries;
         TransientRetryInterval = options.TransientRetryInterval;
         RetryableActionErrorLogThreshold = options.RetryableActionErrorLogThreshold;
+        configuredIsTransient = options.IsTransient;
         UseDbLocks = options.UseDbLocks;
         LockOnInsert = options.LockOnInsert;
         AcquireTriggersWithinLock = options.AcquireTriggersWithinLock;

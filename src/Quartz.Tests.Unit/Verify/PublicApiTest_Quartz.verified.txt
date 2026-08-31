@@ -28,6 +28,7 @@ namespace Quartz
         public string DataSource { get; set; }
         public System.TimeSpan DbRetryInterval { get; set; }
         public bool DoubleCheckLockMisfireHandler { get; set; }
+        public System.Func<System.Exception, bool>? IsTransient { get; set; }
         public bool LockOnInsert { get; set; }
         public int MaxMisfiresToHandleAtATime { get; set; }
         public int MaxTransientRetries { get; set; }
