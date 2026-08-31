@@ -37,8 +37,10 @@ namespace Quartz.Tests.Unit;
 /// resulting local date and time. That re-resolution prefers the DAYLIGHT (first) occurrence of an
 /// ambiguous local time, and demotes to the standard offset only when the daylight interpretation
 /// would land at or before the "after" instant. Local times that fall inside a spring-forward gap
-/// do not exist, so the re-resolution yields the pre-transition offset and the fire lands shifted
-/// forward in real time by the transition delta.
+/// do not exist, so the re-resolution answers with the instant the clocks moved — the end of the
+/// gap — and the walk's own starting wall clock is rewound into the gap whenever the wall clock a
+/// second before it is one the gap swallowed. That rewind is what keeps a fire the gap produced a
+/// fire the expression still matches.
 /// </para>
 /// <para>
 /// These tests never touch <c>SystemTime</c>, so they are safe to run in parallel with the rest of
@@ -85,25 +87,26 @@ public class CronExpressionDstTests
     }
 
     /// <summary>
-    /// A daily trigger whose fire time falls inside the spring-forward gap still fires exactly once
-    /// on the transition day, but shifted forward in real time by the transition delta: the
-    /// non-existent local time is resolved with the pre-transition offset, so 02:30 -05:00 becomes
-    /// the instant that reads 03:30 -04:00. The following day is back to the nominal wall clock
-    /// time, which shows the shift is confined to the transition day.
+    /// A daily trigger whose fire time falls inside the spring-forward gap fires exactly once on
+    /// the transition day, at the END of the gap: the non-existent local time is answered with the
+    /// instant the clocks moved, so 02:30 fires at 03:00 -04:00. The following day is back to the
+    /// nominal wall clock time, which shows the move is confined to the transition day.
     /// </summary>
     /// <remarks>
-    /// This is a deliberate deviation from Cronos-style semantics, which fire such a trigger at the
-    /// END of the gap (03:00 in the Eastern case, i.e. the moment the skipped wall clock time would
-    /// have been reached). Quartz.NET instead fires delta-shifted (03:30) to keep parity with Java
-    /// Quartz, whose <c>CronExpression</c> performs the same "advance in wall clock, resolve the
-    /// offset last" walk. The Lord Howe case is the one that tells the two rules apart beyond
-    /// doubt: its delta is 30 minutes, so a gap-END rule would fire at 02:30 while the delta-shift
-    /// rule fires at 02:45.
+    /// This is the Cronos rule, and it is the only in-gap resolution that can be self-consistent: a
+    /// spring-forward gap takes no real time, so the gap's start and the gap's end are one instant,
+    /// and that instant is therefore the one an <see cref="CronExpression.IsSatisfiedBy" /> probe
+    /// starting a second earlier can reach. The delta shift this replaced (03:30 in the Eastern
+    /// case) could never be, whatever the search was taught. The Lord Howe case is the one that
+    /// tells the two rules apart beyond doubt: its delta is 30 minutes, so the gap-end rule fires at
+    /// 02:30 where the delta shift fired at 02:45. Santiago is the case where the two agree — its
+    /// scheduled 00:00 is the FIRST wall clock of the gap, and for that one reading the delta shift
+    /// and the gap's end name the same instant.
     /// </remarks>
-    [TestCase("0 30 2 * * ?", "Eastern", "2024-03-10 02:30", "2024-03-10 00:00 -05:00", "2024-03-10 03:30 -04:00", "2024-03-11 02:30 -04:00")]
-    [TestCase("0 15 2 * * ?", "LordHowe", "2019-10-06 02:15", "2019-10-06 00:00 +10:30", "2019-10-06 02:45 +11:00", "2019-10-07 02:15 +11:00")]
+    [TestCase("0 30 2 * * ?", "Eastern", "2024-03-10 02:30", "2024-03-10 00:00 -05:00", "2024-03-10 03:00 -04:00", "2024-03-11 02:30 -04:00")]
+    [TestCase("0 15 2 * * ?", "LordHowe", "2019-10-06 02:15", "2019-10-06 00:00 +10:30", "2019-10-06 02:30 +11:00", "2019-10-07 02:15 +11:00")]
     [TestCase("0 0 0 * * ?", "Santiago", "2019-09-08 00:00", "2019-09-07 12:00 -04:00", "2019-09-08 01:00 -03:00", "2019-09-09 00:00 -03:00")]
-    public void GetTimeAfter_FixedTimeInsideGap_FiresOnceShiftedByTransitionDelta(
+    public void GetTimeAfter_FixedTimeInsideGap_FiresOnceAtTheEndOfTheGap(
         string cronExpression,
         string zoneKey,
         string gapLocalTime,
@@ -207,7 +210,14 @@ public class CronExpressionDstTests
     /// The -5 minute probes on the fall-back transitions land just after a fire inside the repeated
     /// hour; they used to break the round trip until the sub-second demotion defect was fixed (see
     /// <see cref="GetTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_ReturnsRealPrecedingFire" />).
+    /// The fixed-time spring-forward rows are the ones the gap's end has to satisfy: the +5 minute
+    /// probe returns the in-gap fire, and "asking one second earlier reproduces it" is exactly the
+    /// property the delta shift could not have.
     /// </remarks>
+    [TestCase("0 30 2 * * ?", "Eastern", "2024-03-10 07:00 +00:00", new int[] { -60, -5, 5, 60 })]
+    [TestCase("0 0,30 2 * * ?", "Eastern", "2024-03-10 07:00 +00:00", new int[] { -60, -5, 5, 60 })]
+    [TestCase("0 15 2 * * ?", "LordHowe", "2019-10-05 15:30 +00:00", new int[] { -60, -5, 5, 60 })]
+    [TestCase("0 0 0 * * ?", "Santiago", "2019-09-08 04:00 +00:00", new int[] { -60, -5, 5, 60 })]
     [TestCase("0 * * * * ?", "Eastern", "2024-03-10 07:00 +00:00", new int[] { -60, -5, 5, 60 })]
     [TestCase("0 0 * * * ?", "Eastern", "2024-03-10 07:00 +00:00", new int[] { -60, -5, 5, 60 })]
     [TestCase("0 * * * * ?", "Eastern", "2024-11-03 06:00 +00:00", new int[] { -60, -5, 5, 60 })]
@@ -409,28 +419,28 @@ public class CronExpressionDstTests
         fireTimes.Should().Contain(TestTimeZones.Local("2019-04-07 01:45 +10:30"), "second pass of the repeated half hour");
     }
 
-    #region Current-behavior pins (decision points)
-
     /// <summary>
-    /// CURRENT BEHAVIOR PIN — known internal inconsistency, expected to change on main/4.0.
+    /// A trigger never fires at an instant its own expression rejects, not even for a wall clock
+    /// the spring-forward gap swallowed.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The mirror image of the fall-back inconsistency, on the spring-forward side. For a fixed
-    /// time inside the gap, <see cref="CronExpression.GetTimeAfter" /> returns the delta-shifted
-    /// instant 03:30 -04:00 (07:30Z), yet <see cref="CronExpression.IsSatisfiedBy" /> returns FALSE
-    /// for that very instant, because its local reading is hour 03 and the expression asks for hour
-    /// 02. The trigger therefore fires at an instant its own expression does not match.
+    /// <see cref="CronExpression.IsSatisfiedBy" /> is defined as "the next fire one second earlier
+    /// is this instant", so it holds only for an in-gap fire whose resolution a one-second-earlier
+    /// search can reproduce. It can: <see cref="CronExpression.GetTimeAfter" /> converts that
+    /// earlier instant to wall clock 03:00, sees that 02:59:59 is a reading the gap swallowed, and
+    /// rewinds its walk to the gap's start — arriving back at 02:30 and resolving it to the gap's
+    /// end, the same instant.
     /// </para>
     /// <para>
-    /// Whatever rule replaces the delta shift on main/4.0 should make these two agree: either the
-    /// fire moves to the gap END (03:00, which the expression still does not match literally, so
-    /// <c>IsSatisfiedBy</c> would need to special-case the gap), or <c>IsSatisfiedBy</c> learns to
-    /// accept the shifted instant. Flip target: this assertion becomes <c>BeTrue</c>.
+    /// This is why the gap's END is the only resolution that can work. The delta shift this
+    /// replaced returned 03:30 -04:00, which no earlier probe could ever reach, so the trigger
+    /// fired at an instant its own expression did not match. <c>IsSatisfiedBy</c> needs no
+    /// knowledge of daylight saving time to reach this answer.
     /// </para>
     /// </remarks>
     [Test]
-    public void IsSatisfiedBy_InstantReturnedForInGapFixedTime_IsCurrentlyFalse()
+    public void IsSatisfiedBy_InstantReturnedForInGapFixedTime_IsTrue()
     {
         TimeZoneInfo zone = TestTimeZones.Eastern;
         TestTimeZones.AssumeInvalidLocalTime(zone, WallClock("2024-03-10 02:30"));
@@ -440,12 +450,158 @@ public class CronExpressionDstTests
         DateTimeOffset? fire = cron.GetTimeAfter(TestTimeZones.Local("2024-03-10 00:00 -05:00"));
 
         fire.Should().NotBeNull();
-        fire!.Value.Should().Be(TestTimeZones.Local("2024-03-10 03:30 -04:00"));
+        fire!.Value.Should().Be(TestTimeZones.Local("2024-03-10 03:00 -04:00"));
 
-        cron.IsSatisfiedBy(fire.Value).Should().BeFalse("the fire instant reads as local 03:30, and the expression asks for hour 02");
+        cron.IsSatisfiedBy(fire.Value).Should().BeTrue(
+            "the gap's end is the instant the schedule's wall clock was reached, and it is the one instant a one-second-earlier probe can find");
     }
 
-    #endregion
+    /// <summary>
+    /// Every wall clock a gap swallowed names the same instant, so an expression matching several
+    /// of them fires once rather than once per match.
+    /// </summary>
+    /// <remarks>
+    /// This expression fired once before the gap-end rule too, because 02:00 is the FIRST reading of
+    /// the gap and the delta shift moved it to exactly the gap's end; it is pinned so that a later
+    /// change cannot quietly turn one fire into two. What the rule did move is covered by
+    /// <see cref="GetTimeAfter_MatchBetweenGapEndAndTheOldDeltaShift_IsNoLongerSwallowed" />.
+    /// </remarks>
+    [Test]
+    public void GetTimeAfter_SeveralMatchesInsideOneGap_FireOnceAtTheGapsEnd()
+    {
+        TimeZoneInfo zone = TestTimeZones.Eastern;
+        TestTimeZones.AssumeInvalidLocalTime(zone, WallClock("2024-03-10 02:00"));
+        TestTimeZones.AssumeInvalidLocalTime(zone, WallClock("2024-03-10 02:30"));
+
+        CronExpression cron = CronIn("0 0,30 2 * * ?", zone);
+
+        List<DateTimeOffset> fireTimes = TestTimeZones.Walk(
+            after => cron.GetTimeAfter(after),
+            TestTimeZones.Local("2024-03-10 00:00 -05:00"),
+            TestTimeZones.Local("2024-03-11 00:00 -04:00"));
+
+        fireTimes.Should().Equal(
+            [TestTimeZones.Local("2024-03-10 03:00 -04:00")],
+            "both 02:00 and 02:30 name the instant the clocks moved, and one instant is one fire");
+    }
+
+    /// <summary>
+    /// A match that falls between the gap's end and where the delta shift used to land is no longer
+    /// swallowed: the walk resumes from the gap's end, which is earlier, so it still sees 02:40.
+    /// </summary>
+    [Test]
+    public void GetTimeAfter_MatchBetweenGapEndAndTheOldDeltaShift_IsNoLongerSwallowed()
+    {
+        TimeZoneInfo zone = TestTimeZones.LordHowe;
+        TestTimeZones.AssumeInvalidLocalTime(zone, WallClock("2019-10-06 02:15"));
+
+        CronExpression cron = CronIn("0 15,40 2 * * ?", zone);
+
+        List<DateTimeOffset> fireTimes = TestTimeZones.Walk(
+            after => cron.GetTimeAfter(after),
+            TestTimeZones.Local("2019-10-06 00:00 +10:30"),
+            TestTimeZones.Local("2019-10-07 00:00 +11:00"));
+
+        fireTimes.Should().Equal(
+            [TestTimeZones.Local("2019-10-06 02:30 +11:00"), TestTimeZones.Local("2019-10-06 02:40 +11:00")],
+            "02:15 is answered with the gap's end 02:30, and 02:40 exists a quarter of an hour later; the delta shift used to answer 02:45 and lose 02:40 behind it");
+    }
+
+    /// <summary>
+    /// An hourly-at-half-past schedule gains a fire on the spring-forward day: the occurrence the
+    /// gap swallowed runs when the clocks move, and the next hour's occurrence still runs at its own
+    /// wall clock half an hour later.
+    /// </summary>
+    /// <remarks>
+    /// The interval-expression face of the same rule, and the shape most likely to be noticed in
+    /// production. The delta shift moved the 02:30 occurrence onto 03:30, where the next hour's
+    /// occurrence already stood, and the two collided into a single fire. The gap's end is earlier,
+    /// so 03:30 is still ahead of the search when it resumes and both occurrences survive. Two fires
+    /// half an hour apart is what never losing an occurrence costs, and it is confined to the
+    /// transition.
+    /// </remarks>
+    [Test]
+    public void GetTimeAfter_HourlyAtHalfPast_FiresAtTheGapsEndAndAgainAtTheNextHalfHour()
+    {
+        TimeZoneInfo zone = TestTimeZones.Eastern;
+        TestTimeZones.AssumeInvalidLocalTime(zone, WallClock("2024-03-10 02:30"));
+
+        CronExpression cron = CronIn("0 30 * * * ?", zone);
+
+        List<DateTimeOffset> fireTimes = TestTimeZones.Walk(
+            after => cron.GetTimeAfter(after),
+            TestTimeZones.Local("2024-03-10 01:30 -05:00"),
+            TestTimeZones.Local("2024-03-10 04:30 -04:00"));
+
+        fireTimes.Should().Equal(
+            [
+                TestTimeZones.Local("2024-03-10 03:00 -04:00"),
+                TestTimeZones.Local("2024-03-10 03:30 -04:00")
+            ],
+            "02:30 is reached the moment the clocks move, and 03:30 is an ordinary reading half an hour later");
+    }
+
+    /// <summary>
+    /// The search makes strict progress and stays monotone in its input across a spring-forward
+    /// transition, including at the transition second itself where the walk rewinds into the gap.
+    /// </summary>
+    /// <remarks>
+    /// Both properties are load-bearing. A result at or before the input would wedge
+    /// <see cref="CronExpression.GetNextValidTimeAfter" /> into an endless fire; a result that fell
+    /// as the input rose would break the binary search
+    /// <see cref="CronExpression.GetTimeBefore" /> layers on top of it. The rewind fires exactly
+    /// when the probe's whole-second floor is the transition instant, so this sweeps every second
+    /// on either side of it.
+    /// </remarks>
+    [TestCase("0 30 2 * * ?", "Eastern", "2024-03-10 07:00 +00:00")]
+    [TestCase("0 0,30 2 * * ?", "Eastern", "2024-03-10 07:00 +00:00")]
+    [TestCase("0 * * * * ?", "Eastern", "2024-03-10 07:00 +00:00")]
+    [TestCase("0 15 2 * * ?", "LordHowe", "2019-10-05 15:30 +00:00")]
+    [TestCase("0 0 0 * * ?", "Santiago", "2019-09-08 04:00 +00:00")]
+    public void GetTimeAfter_AcrossSpringForward_MakesStrictProgressAndStaysMonotone(
+        string cronExpression,
+        string zoneKey,
+        string transitionUtc)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        CronExpression cron = CronIn(cronExpression, zone);
+
+        DateTimeOffset transition = TestTimeZones.Local(transitionUtc);
+        DateTimeOffset? previousAnswer = null;
+
+        for (int offsetInSeconds = -90; offsetInSeconds <= 90; offsetInSeconds++)
+        {
+            DateTimeOffset probe = transition.AddSeconds(offsetInSeconds);
+            DateTimeOffset? answer = cron.GetTimeAfter(probe);
+
+            answer.Should().NotBeNull($"probe {probe:O}");
+            answer!.Value.Should().BeAfter(probe, $"the next fire must be strictly after the probe; probe {probe:O}");
+
+            if (previousAnswer is not null)
+            {
+                answer.Value.Should().BeOnOrAfter(previousAnswer.Value,
+                    $"a later probe may never answer earlier, or GetTimeBefore's binary search loses its predicate; probe {probe:O}");
+            }
+
+            previousAnswer = answer;
+        }
+    }
+
+    /// <summary>
+    /// Regression guard for the walk-start rewind: the wall clock a second before the search's
+    /// start is only asked about when there is one. A caller probing from the minimum instant would
+    /// otherwise underflow, because a zone west of UTC clamps that conversion to the very first
+    /// representable wall clock.
+    /// </summary>
+    [Test]
+    public void GetTimeAfter_ProbeAtTheMinimumInstant_DoesNotThrow()
+    {
+        CronExpression cron = CronIn("0 30 2 * * ?", TestTimeZones.Eastern);
+
+        Func<DateTimeOffset?> act = () => cron.GetTimeAfter(DateTimeOffset.MinValue);
+
+        act.Should().NotThrow();
+    }
 
     /// <summary>
     /// Regression test: a sub-second after-time inside the repeated fall-back hour must return the

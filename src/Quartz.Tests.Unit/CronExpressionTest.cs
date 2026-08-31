@@ -995,7 +995,9 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         DateTimeOffset before = daylightChange.Start.ToUniversalTime().AddMinutes(-5); // keep outside the potentially undefined interval
         DateTimeOffset? after = expression.GetNextValidTimeAfter(before);
         Assert.That(after.HasValue, Is.True);
-        DateTimeOffset expected = daylightChange.Start.Add(daylightChange.Delta).AddMinutes(15).ToUniversalTime();
+        // The :15 of the hour the gap swallowed does not exist, so the fire lands at the end of the
+        // gap - the instant the clocks moved, which is the start of the change plus its delta.
+        DateTimeOffset expected = daylightChange.Start.Add(daylightChange.Delta).ToUniversalTime();
         Assert.That(after.Value, Is.EqualTo(expected));
     }
 

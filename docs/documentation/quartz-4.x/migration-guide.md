@@ -4692,15 +4692,30 @@ configuration files never reach the database at all.
 
 ## Daylight saving time
 
-Two schedules fire at different times than they did on 3.x. Neither needs a code change, but both change
+Three schedules fire at different times than they did on 3.x. None needs a code change, but all three change
 *when* existing triggers run, so review any schedule that crosses a transition.
 
 **Interval cron expressions fire through both halves of a fall-back hour.** A cron expression whose second,
 minute or hour field uses a wildcard, a step or a range — `0 * * * * ?`, `0 0/30 * * * ?` — now fires through
 **both** occurrences of the wall-clock window that repeats when the clock goes back. Previously the repeated
-window fired only once, so an "every minute" schedule silently skipped an hour of real time. Fixed-time
-expressions such as `0 30 2 * * ?`, including comma lists like `0 0,30 2 * * ?`, are unchanged: they still fire
-once per day, at the first occurrence of an ambiguous wall-clock time.
+window fired only once, so an "every minute" schedule silently skipped an hour of real time. Over a fall-back
+hour, fixed-time expressions such as `0 30 2 * * ?` — including comma lists like `0 0,30 2 * * ?` — are
+unchanged: they still fire once per day, at the first occurrence of an ambiguous wall-clock time.
+
+**A cron time that does not exist fires when the gap ends, not shifted by the transition delta.** A daily
+`0 30 2 * * ?` over a 02:00–03:00 spring-forward gap now fires at **03:00**, the instant the clocks moved,
+where 3.x and 4.0 alpha fired at 03:30. In a zone whose daylight delta is not a whole hour —
+Australia/Lord_Howe — the fire reads 02:30 rather than 02:45. Every wall clock the gap swallowed names that
+one instant, so an expression matching several of them still fires once: `0 0,30 2 * * ?` fires once, as it
+did before. What *can* change a fire count is a match between the gap's end and where the delta shift used to
+land, which the search now reaches instead of resuming past it. An hourly `0 30 * * * ?` is the common shape:
+it fires at 03:00 for the occurrence the gap swallowed and again at 03:30 for the next hour's, where the delta
+shift moved the first onto 03:30 and the two collided into a single fire. `IsSatisfiedBy` now agrees with the
+fire time, which it did not before: a spring-forward gap takes no real time, so its start and its end are the
+same instant, and that makes the gap's end the one in-gap answer a search starting a second earlier can
+reproduce. A trigger therefore no longer fires at an instant its own expression rejects. For the same reason a
+`CronCalendar` written over the skipped hour now excludes that instant, where it used to exclude nothing at
+all on the transition day. Fall-back behaviour is untouched.
 
 **`CalendarIntervalTrigger` with `PreserveHourOfDayAcrossDaylightSavings` steps in local wall-clock time.**
 Fire times are now always exactly on schedule and strictly increasing; the previous implementation could return

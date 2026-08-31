@@ -456,19 +456,26 @@ fortnight is a property of the trigger rather than of the caller.
 
 Java Quartz's page warns that a cron trigger may fire twice or not at all across a transition. That
 is not what this implementation does, and the difference matters enough to state precisely. For a
-**fixed-time** expression such as `0 30 2 * * ?`, on both versions:
+**fixed-time** expression such as `0 30 2 * * ?`:
 
-- A wall-clock time that **does not exist** on a spring-forward day fires exactly **once**, shifted
-  forward by the transition delta. A daily 02:30 over a 02:00–03:00 gap fires at 03:30. It is not
-  skipped.
+- A wall-clock time that **does not exist** on a spring-forward day fires exactly **once**, and is
+  never skipped. *Where* it fires differs by version. On 4.x it fires at the **end of the gap**, the
+  instant the clocks moved: a daily 02:30 over a 02:00–03:00 gap fires at 03:00. On 3.x the fire is
+  shifted forward by the transition delta instead, to 03:30. In a zone whose delta is not a whole
+  hour — Australia/Lord_Howe — the two rules read 02:30 and 02:45. Only 4.x's answer is an instant
+  the expression itself matches: ask `IsSatisfiedBy` about the fire time and 4.x says yes where 3.x
+  says no.
 - A wall-clock time that **occurs twice** on a fall-back day fires **once**, at the first of the two
-  occurrences.
+  occurrences. This is the same on both versions.
 
 **Quartz 4.x only:** an *interval* expression — one with a wildcard, step or range in the second,
 minute or hour field, such as `0 * * * * ?` or `0 0/30 * * * ?` — fires through **both** passes of
 the repeated hour. On 3.x the repeated hour is fired once, which means an "every minute" schedule
-silently loses an hour of real time each autumn. Fixed-time expressions, including comma lists like
-`0 0,30 2 * * ?`, are unchanged between the versions.
+silently loses an hour of real time each autumn. Over the fall-back hour, fixed-time expressions —
+including comma lists like `0 0,30 2 * * ?` — are unchanged between the versions. On the
+spring-forward day the gap-end rule shows in an interval expression as an extra fire rather than a
+moved one: 4.x runs `0 30 * * * ?` at 03:00 for the occurrence the gap swallowed and again at 03:30
+for the next hour's, where 3.x resumes from the shifted 03:30 and runs once.
 
 Whatever the family, **name the time zone**. A cron trigger with no zone uses `TimeZoneInfo.Local`,
 which is the developer's machine in development and very often UTC in a container, so the schedule
