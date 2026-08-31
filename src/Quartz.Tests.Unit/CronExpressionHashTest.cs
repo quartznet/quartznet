@@ -559,6 +559,105 @@ public class CronExpressionHashTest
                 "and the same holds for a seed");
     }
 
+    // --- Macros on the hash path ---
+
+    /// <summary>
+    /// A macro names a whole schedule rather than a field, so it carries no <c>H</c> token and has
+    /// nothing to resolve - but it still has to survive the hash path. Issue #3626: hash resolution
+    /// counts fields before anything is parsed, and it ran ahead of the constructor's macro expansion,
+    /// so a one-field macro was rejected as malformed before anything looked at what it said.
+    /// </summary>
+    [TestCase("@yearly", "0 0 0 1 1 ?")]
+    [TestCase("@annually", "0 0 0 1 1 ?")]
+    [TestCase("@monthly", "0 0 0 1 * ?")]
+    [TestCase("@weekly", "0 0 0 ? * SUN")]
+    [TestCase("@daily", "0 0 0 * * ?")]
+    [TestCase("@midnight", "0 0 0 * * ?")]
+    [TestCase("@hourly", "0 0 * * * ?")]
+    public void ResolveHash_Macro_ExpandsItRatherThanCountingItsFields(string macro, string expanded)
+    {
+        CronExpression.ResolveHash(macro, "key").Should().Be(expanded,
+            "a macro is expanded wherever an expression string is read, the hash path included");
+
+        CronExpression.ResolveHash(macro, 42).Should().Be(expanded,
+            "and the seeded overload reads the same expression as the keyed one");
+    }
+
+    [TestCase("@daily", "0 0 0 * * ?")]
+    [TestCase("@weekly", "0 0 0 ? * SUN")]
+    public void ParseWithHash_Macro_ParsesToTheScheduleTheMacroNames(string macro, string expanded)
+    {
+        CronExpression.ParseWithHash(macro, "nightly").CronExpressionString.Should().Be(expanded);
+        CronExpression.ParseWithHash(macro, 42).CronExpressionString.Should().Be(expanded);
+    }
+
+    [TestCase("@daily", "0 0 0 * * ?")]
+    [TestCase("@weekly", "0 0 0 ? * SUN")]
+    public void TryParseWithHash_Macro_SucceedsRatherThanReportingItInvalid(string macro, string expanded)
+    {
+        CronExpression.TryParseWithHash(macro, "nightly", out CronExpression result).Should().BeTrue(
+            "a validator that rejects what its own parser accepts sends the caller to fix an expression that was never wrong");
+
+        result.CronExpressionString.Should().Be(expanded);
+    }
+
+    /// <summary>
+    /// The round trip the fix exists for: every door into the parser has to answer the same thing for
+    /// the same string. The constructor expands macros, so the hash path has to agree with it.
+    /// </summary>
+    [TestCase("@yearly")]
+    [TestCase("@annually")]
+    [TestCase("@monthly")]
+    [TestCase("@weekly")]
+    [TestCase("@daily")]
+    [TestCase("@midnight")]
+    [TestCase("@hourly")]
+    public void AMacroMeansTheSameThroughTheHashPathAsThroughTheConstructor(string macro)
+    {
+        string throughTheConstructor = new CronExpression(macro).CronExpressionString;
+
+        CronExpression.ParseWithHash(macro, "nightly").CronExpressionString
+            .Should().Be(throughTheConstructor, "ParseWithHash is a parse, and a parse reads the macro");
+        CronExpression.ParseWithHash(macro, 42).CronExpressionString
+            .Should().Be(throughTheConstructor);
+        CronExpression.ResolveHash(macro, "nightly")
+            .Should().Be(throughTheConstructor, "and the resolved string is what the constructor would have held");
+
+        CronExpression.TryParseWithHash(macro, "nightly", out CronExpression tried).Should().BeTrue();
+        tried.CronExpressionString.Should().Be(throughTheConstructor);
+
+        CronExpression.ParseWithHash(macro, "nightly")
+            .Should().Be(CronExpression.Parse(macro), "the two entry points build equal expressions, not merely equal strings");
+    }
+
+    [Test]
+    public void ResolveHash_UnsupportedMacro_ExplainsTheMacroRatherThanTheFieldCount()
+    {
+        Action reboot = () => CronExpression.ResolveHash("@reboot", "key");
+        reboot.Should().Throw<FormatException>()
+            .WithMessage("*reboot*", "the macro's own rejection is the one that names the fix; a field count teaches nothing here");
+
+        Action unknown = () => CronExpression.ResolveHash("@nightly", "key");
+        unknown.Should().Throw<FormatException>()
+            .WithMessage("*@daily*", "an unknown macro is answered with the set that does exist");
+    }
+
+    [Test]
+    public void TryParseWithHash_UnsupportedMacro_ReturnsFalse()
+    {
+        CronExpression.TryParseWithHash("@reboot", "key", out CronExpression result).Should().BeFalse(
+            "an unsupported macro is an expression the caller has to fix, which is what the attempt reports");
+
+        result.Should().BeNull();
+    }
+
+    [Test]
+    public void ResolveHash_MacroWithSurroundingWhitespace_IsStillAMacro()
+    {
+        CronExpression.ResolveHash("  @daily  ", "key").Should().Be("0 0 0 * * ?",
+            "the constructor trims before it expands, so the hash path has to trim too or the two disagree");
+    }
+
     // --- Fire time validation ---
 
     [Test]
