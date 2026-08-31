@@ -856,9 +856,10 @@ result visible to `GetAllSchedulers`, the dashboard and the HTTP API:
 
 <!-- snippet: sample_tenancy_runtime_onboarding -->
 ```csharp
-StandaloneSchedulerFactory tenantFactory = QuartzSchedulerBuilder.Create()
-    .ConfigureScheduler(o => o.InstanceName = tenantId)
-    .UsePersistentStore(s => s.UseSqlServer(connectionStrings[tenantId]))
+StandaloneSchedulerFactory tenantFactory = QuartzSchedulerBuilder
+    .Create(q => q
+        .ConfigureScheduler(o => o.InstanceName = tenantId)
+        .UsePersistentStore(s => s.UseSqlServer(connectionStrings[tenantId])))
     .Build();
 
 IScheduler tenant = await tenantFactory.GetScheduler();

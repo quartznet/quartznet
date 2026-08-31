@@ -46,17 +46,17 @@ builder.Services.AddQuartz(q => q.UsePersistentStore(store =>
 ```
 <!-- endSnippet -->
 
-Without a host, the same calls hang off `QuartzSchedulerBuilder`:
+Without a host, the same calls go inside `QuartzSchedulerBuilder.Create(q => …)`:
 
 <!-- snippet: sample_newtonsoft_standalone -->
 ```csharp
-await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
-    .UsePersistentStore(store =>
+await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
+    .Create(q => q.UsePersistentStore(store =>
     {
         store.UseGenericDatabase("MyProvider", "my connection string");
         store.ConfigureStore(options => options.StoreJobDataAsStrings = true);
         store.UseNewtonsoftJsonSerializer();
-    })
+    }))
     .Build();
 ```
 <!-- endSnippet -->

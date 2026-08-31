@@ -74,10 +74,11 @@ public sealed class RescheduleJobFireTimeTest
 
     private static StandaloneSchedulerFactory CreateFactory(TimeProvider clock, string name)
     {
-        return QuartzSchedulerBuilder.Create()
-            .UseInMemoryStore()
-            .UseTimeProvider(clock)
-            .ConfigureScheduler(o => o.InstanceName = name)
+        return QuartzSchedulerBuilder
+            .Create(q => q
+                .UseInMemoryStore()
+                .UseTimeProvider(clock)
+                .ConfigureScheduler(o => o.InstanceName = name))
             .Build();
     }
 

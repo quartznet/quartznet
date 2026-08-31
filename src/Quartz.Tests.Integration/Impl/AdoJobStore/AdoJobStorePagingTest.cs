@@ -155,24 +155,26 @@ public class AdoJobStorePagingTest
     {
         string suffix = $"{dbProvider}_{Guid.NewGuid():N}".Replace('-', '_');
 
-        QuartzSchedulerBuilder config = QuartzSchedulerBuilder.Create();
-        config.ConfigureScheduler(o =>
+        QuartzSchedulerBuilder config = QuartzSchedulerBuilder.Create(q =>
         {
-            o.InstanceId = $"paging_instance_{suffix}";
-            o.InstanceName = $"PagingTestScheduler_{dbProvider}".Replace('-', '_');
-        });
-
-        config.UsePersistentStore(store =>
-        {
-            store.ConfigureStore(o =>
+            q.ConfigureScheduler(o =>
             {
-                o.StoreJobDataAsStrings = false;
-                o.SchemaProvisioning = SchemaProvisioning.Validate;
+                o.InstanceId = $"paging_instance_{suffix}";
+                o.InstanceName = $"PagingTestScheduler_{dbProvider}".Replace('-', '_');
             });
 
-            store.UseGenericDatabase(dbProvider, connectionString);
-            store.Services.Replace(ServiceDescriptor.Singleton(typeof(IDriverDelegate), driverDelegateType));
-            store.UseSystemTextJsonSerializer();
+            q.UsePersistentStore(store =>
+            {
+                store.ConfigureStore(o =>
+                {
+                    o.StoreJobDataAsStrings = false;
+                    o.SchemaProvisioning = SchemaProvisioning.Validate;
+                });
+
+                store.UseGenericDatabase(dbProvider, connectionString);
+                store.Services.Replace(ServiceDescriptor.Singleton(typeof(IDriverDelegate), driverDelegateType));
+                store.UseSystemTextJsonSerializer();
+            });
         });
 
         IScheduler scheduler = await config.BuildScheduler();

@@ -64,16 +64,17 @@ public sealed class JobExecutionMiddlewareTest
     {
         Recorder recorder = new(expectedFirings: 1);
 
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-        builder.Services.AddSingleton(recorder);
-
-        IScheduler scheduler = await builder
-            .ConfigureScheduler(options => options.InstanceName = $"standalone-{Guid.NewGuid():N}")
-            .AddJobMiddleware<OuterMiddleware>()
-            .AddJobListener(new CompletionListener(recorder))
-            .ScheduleJob<RecordingJob>(
-                trigger => trigger.WithIdentity("standalone").StartNow(),
-                job => job.WithIdentity("standalone"))
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q =>
+            {
+                q.Services.AddSingleton(recorder);
+                q.ConfigureScheduler(options => options.InstanceName = $"standalone-{Guid.NewGuid():N}")
+                    .AddJobMiddleware<OuterMiddleware>()
+                    .AddJobListener(new CompletionListener(recorder))
+                    .ScheduleJob<RecordingJob>(
+                        trigger => trigger.WithIdentity("standalone").StartNow(),
+                        job => job.WithIdentity("standalone"));
+            })
             .BuildScheduler();
 
         try

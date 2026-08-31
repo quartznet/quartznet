@@ -61,8 +61,8 @@ public sealed class InjectedLoggingTest
         LogProvider.SetLogProvider(ambient);
         try
         {
-            await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-                .ConfigureScheduler(options => options.InstanceName = "standalone")
+            await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+                .Create(q => q.ConfigureScheduler(options => options.InstanceName = "standalone"))
                 .Build();
 
             await factory.GetScheduler();
@@ -89,11 +89,13 @@ public sealed class InjectedLoggingTest
         LogProvider.SetLogProvider(ambientFactory);
         try
         {
-            QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create()
-                .ConfigureScheduler(options => options.InstanceName = "standalone");
-            builder.Services.AddLogging(logging => logging.AddProvider(registered));
-
-            await using StandaloneSchedulerFactory factory = builder.Build();
+            await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+                .Create(q =>
+                {
+                    q.ConfigureScheduler(options => options.InstanceName = "standalone");
+                    q.Services.AddLogging(logging => logging.AddProvider(registered));
+                })
+                .Build();
 
             await factory.GetScheduler();
         }

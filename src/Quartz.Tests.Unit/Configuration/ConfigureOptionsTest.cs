@@ -133,10 +133,11 @@ public class ConfigureOptionsTest
     [Test]
     public async Task TheStandaloneBuilderConfiguresOptionsTheSameWay()
     {
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureOptions<CountingThreadPoolOptions>(options => options.Ceiling = 4)
-            .UseThreadPool<CountingThreadPool>()
-            .UseInMemoryStore()
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureOptions<CountingThreadPoolOptions>(options => options.Ceiling = 4)
+                .UseThreadPool<CountingThreadPool>()
+                .UseInMemoryStore())
             .BuildScheduler();
 
         try

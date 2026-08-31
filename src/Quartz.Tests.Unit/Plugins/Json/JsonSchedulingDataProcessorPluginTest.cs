@@ -131,9 +131,10 @@ public class JsonSchedulingDataProcessorPluginTest
 
     private static ValueTask<IScheduler> CreateScheduler()
     {
-        return QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "json-plugin-test-" + Guid.NewGuid().ToString("N"))
-            .UseInMemoryStore()
+        return QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "json-plugin-test-" + Guid.NewGuid().ToString("N"))
+                .UseInMemoryStore())
             .BuildScheduler();
     }
 

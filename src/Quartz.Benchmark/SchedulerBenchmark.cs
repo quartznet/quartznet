@@ -555,9 +555,7 @@ public class SchedulerBenchmark
     {
         RAMJobStore store = TestJobStores.Ram();
 
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-
-        builder
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q => q
             .ConfigureScheduler(options =>
             {
                 options.InstanceName = name;
@@ -573,7 +571,7 @@ public class SchedulerBenchmark
             })
             .UseDefaultThreadPool(threadCount)
             .UseJobStore(store)
-            .UseJobFactory(_jobFactory);
+            .UseJobFactory(_jobFactory));
 
         var scheduler = builder.BuildScheduler()
             .ConfigureAwait(false).GetAwaiter().GetResult();

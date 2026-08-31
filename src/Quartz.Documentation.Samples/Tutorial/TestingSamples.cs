@@ -19,9 +19,10 @@ public static class TestingSamples
     {
         #region sample_testing_in_memory_scheduler
 
-        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-            .UseInMemoryStore()
-            .ConfigureScheduler(o => o.InstanceName = $"test-{Guid.NewGuid():N}")
+        await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+            .Create(q => q
+                .UseInMemoryStore()
+                .ConfigureScheduler(o => o.InstanceName = $"test-{Guid.NewGuid():N}"))
             .Build();
 
         IScheduler scheduler = await factory.GetScheduler();
@@ -32,13 +33,13 @@ public static class TestingSamples
 
     public static void ShorteningTheIdleWait()
     {
-        QuartzSchedulerBuilder.Create()
+        QuartzSchedulerBuilder.Create(q => q
             #region sample_testing_idle_wait_time
 
             .ConfigureScheduler(o => o.IdleWaitTime = TimeSpan.FromSeconds(1))
 
             #endregion
-            .UseInMemoryStore();
+            .UseInMemoryStore());
     }
 
     public static void MisfireThreshold(TimeProvider clock)
@@ -46,9 +47,9 @@ public static class TestingSamples
         QuartzSchedulerBuilder builder =
             #region sample_testing_misfire_threshold
 
-            QuartzSchedulerBuilder.Create()
+            QuartzSchedulerBuilder.Create(q => q
                 .UseInMemoryStore(o => o.MisfireThreshold = TimeSpan.FromMilliseconds(50))
-                .UseTimeProvider(clock)
+                .UseTimeProvider(clock))
 
             #endregion
             ;
@@ -56,11 +57,11 @@ public static class TestingSamples
 
     public static void InjectingAFault()
     {
-        IQuartzBuilder builder =
+        QuartzSchedulerBuilder builder =
             #region sample_testing_fault_injection_registration
 
-            QuartzSchedulerBuilder.Create()
-                .UseJobStore(sp => new FlakyJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(sp)))
+            QuartzSchedulerBuilder.Create(q => q
+                .UseJobStore(sp => new FlakyJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(sp))))
 
             #endregion
             ;

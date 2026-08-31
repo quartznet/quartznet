@@ -159,9 +159,10 @@ public sealed class OptionsShorthandTest
 
     private static ValueTask<IScheduler> NewScheduler(string name)
     {
-        return QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = name)
-            .UseInMemoryStore()
+        return QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = name)
+                .UseInMemoryStore())
             .BuildScheduler();
     }
 }

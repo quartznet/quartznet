@@ -66,16 +66,17 @@ public class ScheduleJobBenchmark
     [GlobalSetup]
     public void GlobalSetup()
     {
-        scheduler = QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options =>
-            {
-                // Named for this benchmark because the smoke run puts every benchmark in the assembly
-                // in one process, and the scheduler repository refuses a second scheduler that shares
-                // a name and an instance id with one already bound.
-                options.InstanceName = nameof(ScheduleJobBenchmark);
-                options.InstanceId = nameof(ScheduleJobBenchmark);
-            })
-            .UseInMemoryStore()
+        scheduler = QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options =>
+                {
+                    // Named for this benchmark because the smoke run puts every benchmark in the assembly
+                    // in one process, and the scheduler repository refuses a second scheduler that shares
+                    // a name and an instance id with one already bound.
+                    options.InstanceName = nameof(ScheduleJobBenchmark);
+                    options.InstanceId = nameof(ScheduleJobBenchmark);
+                })
+                .UseInMemoryStore())
             .BuildScheduler()
             .GetAwaiter().GetResult();
 

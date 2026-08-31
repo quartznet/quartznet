@@ -88,9 +88,10 @@ public sealed class ListenerSenderTest
         // callback with no IJobExecutionContext to reach the scheduler through.
         MisfireRecordingListener listener = new();
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "misfires")
-            .UseInMemoryStore(store => store.MisfireThreshold = TimeSpan.FromMilliseconds(1))
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "misfires")
+                .UseInMemoryStore(store => store.MisfireThreshold = TimeSpan.FromMilliseconds(1)))
             .BuildScheduler();
 
         try

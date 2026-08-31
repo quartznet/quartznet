@@ -169,11 +169,10 @@ public static class QuartzPluginsSamples
         // under a host
         services.AddQuartz(q => q.UseMyPlugin(options => options.SomeSetting = "value"));
 
-        // standalone, without an application container
-        var builder = QuartzSchedulerBuilder.Create();
-        builder.UseMyPlugin(options => options.SomeSetting = "value");
-
-        var scheduler = await builder.BuildScheduler();
+        // standalone, without an application container — the same callback, a different receiver
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.UseMyPlugin(options => options.SomeSetting = "value"))
+            .BuildScheduler();
 
         #endregion
 

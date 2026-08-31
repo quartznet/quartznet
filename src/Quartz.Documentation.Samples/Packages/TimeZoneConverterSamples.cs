@@ -21,10 +21,9 @@ public static class TimeZoneConverterSamples
     {
         #region sample_timezoneconverter_standalone
 
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-        builder.UseTimeZoneConverter();
-
-        await using StandaloneSchedulerFactory schedulerFactory = builder.Build();
+        await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
+            .Create(q => q.UseTimeZoneConverter())
+            .Build();
 
         #endregion
     }

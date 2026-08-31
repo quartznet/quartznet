@@ -79,9 +79,10 @@ The standalone builder takes the same calls, because it *is* an `IQuartzBuilder`
 
 <!-- snippet: sample_job_middleware_standalone -->
 ```csharp
-IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-    .UseInMemoryStore()
-    .AddJobMiddleware<LogScopeMiddleware>()
+IScheduler scheduler = await QuartzSchedulerBuilder
+    .Create(q => q
+        .UseInMemoryStore()
+        .AddJobMiddleware<LogScopeMiddleware>())
     .BuildScheduler();
 ```
 <!-- endSnippet -->

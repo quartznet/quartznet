@@ -26,10 +26,9 @@ public class DirectoryScanJobTest
             serviceCollection.AddTransient<TestDirectoryScanListener>();
             var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
 
-            QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-            builder.UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider));
-
-            IScheduler scheduler = await builder.BuildScheduler();
+            IScheduler scheduler = await QuartzSchedulerBuilder
+                .Create(q => q.UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider)))
+                .BuildScheduler();
 
             var jobDetail = JobBuilder.Create<DirectoryScanJob>()
                 .WithIdentity("TestJob")

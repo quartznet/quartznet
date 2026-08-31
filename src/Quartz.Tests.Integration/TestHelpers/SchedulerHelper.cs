@@ -29,22 +29,21 @@ public class SchedulerHelper
         Action<QuartzSchedulerOptions> configureScheduler,
         Action<AdoJobStoreOptions>? configureStore = null)
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-
-        builder.ConfigureScheduler(configureScheduler);
-        builder.UseDefaultThreadPool();
-        builder.UsePersistentStore(store =>
-        {
-            UseDatabase(store, provider);
-            store.UseNewtonsoftJsonSerializer();
-            store.ConfigureStore(options =>
-            {
-                options.TablePrefix = TablePrefix;
-                configureStore?.Invoke(options);
-            });
-        });
-
-        return builder.BuildScheduler();
+        return QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(configureScheduler)
+                .UseDefaultThreadPool()
+                .UsePersistentStore(store =>
+                {
+                    UseDatabase(store, provider);
+                    store.UseNewtonsoftJsonSerializer();
+                    store.ConfigureStore(options =>
+                    {
+                        options.TablePrefix = TablePrefix;
+                        configureStore?.Invoke(options);
+                    });
+                }))
+            .BuildScheduler();
     }
 
     private static void UseDatabase(IPersistentStoreBuilder store, string provider)

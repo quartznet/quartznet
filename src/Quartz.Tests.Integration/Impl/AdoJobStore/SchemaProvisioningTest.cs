@@ -332,34 +332,31 @@ public class SchemaProvisioningTest
         string schedulerName,
         bool clustered)
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        return await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(o =>
+                {
+                    o.InstanceName = schedulerName;
+                    o.InstanceId = schedulerName;
+                })
+                .UseDefaultThreadPool(x => x.MaxConcurrency = 2)
+                .UsePersistentStore(store =>
+                {
+                    store.ConfigureStore(o => o.TablePrefix = tablePrefix);
+                    store.ProvisionSchema();
 
-        builder.ConfigureScheduler(o =>
-        {
-            o.InstanceName = schedulerName;
-            o.InstanceId = schedulerName;
-        });
+                    if (clustered)
+                    {
+                        // Two schedulers over one table set is a cluster, whatever their instance names
+                        // say. Clustering also makes them take database locks, which is the arrangement
+                        // where a half-created schema would show.
+                        store.UseClustering(cluster => cluster.CheckinInterval = TimeSpan.FromSeconds(10));
+                    }
 
-        builder.UseDefaultThreadPool(x => x.MaxConcurrency = 2);
-
-        builder.UsePersistentStore(store =>
-        {
-            store.ConfigureStore(o => o.TablePrefix = tablePrefix);
-            store.ProvisionSchema();
-
-            if (clustered)
-            {
-                // Two schedulers over one table set is a cluster, whatever their instance names say.
-                // Clustering also makes them take database locks, which is the arrangement where a
-                // half-created schema would show.
-                store.UseClustering(cluster => cluster.CheckinInterval = TimeSpan.FromSeconds(10));
-            }
-
-            MigratedSchemaWorkload.UseDialect(store, dialect, connectionString);
-            store.UseSystemTextJsonSerializer();
-        });
-
-        return await builder.BuildScheduler();
+                    MigratedSchemaWorkload.UseDialect(store, dialect, connectionString);
+                    store.UseSystemTextJsonSerializer();
+                }))
+            .BuildScheduler();
     }
 
     private static string RequireConnectionString(string variable)

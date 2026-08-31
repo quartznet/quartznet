@@ -641,7 +641,7 @@ version, indexed by the name you would have typed; this is the subset an integra
 | `scheduler.JobFactory = factory` (setter-only, on `IScheduler`) | `q.UseJobFactory(factory)` / `UseJobFactory<T>()` on the builder, or `ConfigureJobScope(…)` when all you wanted was to seed the DI scope |
 | `IJobFactory.NewJob(bundle, scheduler)` returning `IJob`; `ReturnJob(IJob)` | `CreateJob(bundle, scheduler, ct)` returning `ValueTask<JobScope>`; `ReturnJob(JobScope, ct)` |
 | `SystemTime.UtcNow = () => …` (a public mutable field) | `q.UseTimeProvider(provider)`, read back as `IScheduler.TimeProvider`. Per scheduler, not process-wide |
-| `StdSchedulerFactory` / `SchedulerBuilder` | `QuartzSchedulerBuilder.Create()`, whose `Build()` gives a `StandaloneSchedulerFactory` |
+| `StdSchedulerFactory` / `SchedulerBuilder` | `QuartzSchedulerBuilder.Create(q => …)`, whose `Build()` gives a `StandaloneSchedulerFactory` |
 | `TriggerBuilder.ModifiedByCalendar(name)` | `WithCalendarName(name)` |
 | `SchedulerMetaData` / `GetMetaData()` | `SchedulerMetadata` / `GetMetadata()` — note the lower-case `d` in both |
 | `GetCurrentlyExecutingJobs()` | `QueryFireInstances(new FireInstanceQuery())`, returning `PagedResult<FireInstance>` |

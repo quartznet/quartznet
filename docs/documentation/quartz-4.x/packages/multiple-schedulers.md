@@ -8,7 +8,7 @@ Quartz.NET has always supported running multiple schedulers in a single process 
 The named `AddQuartz(string name, ...)` overload makes this first-class: each named scheduler gets its own isolated configuration, jobs, triggers, listeners, and calendars, all managed through the familiar DI fluent API.
 
 ::: tip
-If you are not using Microsoft DI, you can create multiple schedulers from separate `QuartzSchedulerBuilder`s, each given its own `ConfigureScheduler(options => options.InstanceName = ...)`, and call `BuildScheduler()` on each.
+If you are not using Microsoft DI, you can create multiple schedulers from separate `QuartzSchedulerBuilder`s, each given its own `Create(q => q.ConfigureScheduler(options => options.InstanceName = ...))`, and call `BuildScheduler()` on each.
 :::
 
 ## When to Use Named Schedulers

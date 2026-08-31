@@ -26,15 +26,16 @@ Every option of every one of those, in both its typed and its flat spelling, is 
 ## Building a scheduler without a container
 
 An application with no host — a console application, or a test — builds a scheduler with
-`QuartzSchedulerBuilder`. It takes the same configuration API as `AddQuartz`, creating a container of
-its own and building from it, so what works in one works in the other:
+`QuartzSchedulerBuilder`. Its `Create` callback is the `AddQuartz` callback, over a container it
+creates itself, so what works in one works in the other:
 
 <!-- snippet: sample_configuration_building_a_scheduler -->
 ```csharp
-IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-    .ConfigureScheduler(options => options.InstanceName = "reporting")
-    .UseDefaultThreadPool(maxConcurrency: 10)
-    .UseInMemoryStore()
+IScheduler scheduler = await QuartzSchedulerBuilder
+    .Create(q => q
+        .ConfigureScheduler(options => options.InstanceName = "reporting")
+        .UseDefaultThreadPool(maxConcurrency: 10)
+        .UseInMemoryStore())
     .BuildScheduler();
 ```
 <!-- endSnippet -->

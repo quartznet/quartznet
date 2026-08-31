@@ -169,9 +169,10 @@ public sealed class TriggerScheduledOnceTest
 
     private static StandaloneSchedulerFactory CreateFactory(string name)
     {
-        return QuartzSchedulerBuilder.Create()
-            .UseInMemoryStore()
-            .ConfigureScheduler(o => o.InstanceName = name)
+        return QuartzSchedulerBuilder
+            .Create(q => q
+                .UseInMemoryStore()
+                .ConfigureScheduler(o => o.InstanceName = name))
             .Build();
     }
 

@@ -38,8 +38,8 @@ builder.Services.AddQuartz(q =>
 
 <!-- snippet: sample_time_provider_standalone -->
 ```csharp
-IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-    .UseTimeProvider(myTimeProvider)
+IScheduler scheduler = await QuartzSchedulerBuilder
+    .Create(q => q.UseTimeProvider(myTimeProvider))
     .BuildScheduler();
 ```
 <!-- endSnippet -->

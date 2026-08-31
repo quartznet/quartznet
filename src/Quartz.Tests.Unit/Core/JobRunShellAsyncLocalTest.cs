@@ -25,10 +25,9 @@ public class JobRunShellAsyncLocalTest
     {
         const string expectedTenant = "tenant-42";
 
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-        builder.UseJobFactory(new AsyncLocalSettingJobFactory(expectedTenant));
-
-        IScheduler scheduler = await builder.BuildScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.UseJobFactory(new AsyncLocalSettingJobFactory(expectedTenant)))
+            .BuildScheduler();
 
         try
         {
@@ -59,10 +58,9 @@ public class JobRunShellAsyncLocalTest
     [Test]
     public async Task AsyncJobFactory_AwaitedWorkCompletesBeforeJobExecute()
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-        builder.UseJobFactory(new AwaitingJobFactory());
-
-        IScheduler scheduler = await builder.BuildScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.UseJobFactory(new AwaitingJobFactory()))
+            .BuildScheduler();
 
         try
         {

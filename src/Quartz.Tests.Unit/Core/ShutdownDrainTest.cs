@@ -51,13 +51,14 @@ public class ShutdownDrainTest
     public async Task AShutdownThatWaitedForItsJobsWaitedForTheirStoreUpdatesToo()
     {
         RecordingJobStore store = null!;
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "drain-covers-the-store-write")
-            .UseJobStore(provider =>
-            {
-                store = new RecordingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
-                return store;
-            })
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = "drain-covers-the-store-write")
+                .UseJobStore(provider =>
+                {
+                    store = new RecordingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+                    return store;
+                }))
             .BuildScheduler();
 
         await scheduler.ScheduleJob(
@@ -93,8 +94,8 @@ public class ShutdownDrainTest
     [Test]
     public async Task AShutdownGivesUpOnTheWaitWhenTheCallersTokenFires()
     {
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "drain-honours-the-deadline")
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.ConfigureScheduler(options => options.InstanceName = "drain-honours-the-deadline"))
             .BuildScheduler();
 
         ShutdownRecordingListener listener = new ShutdownRecordingListener();

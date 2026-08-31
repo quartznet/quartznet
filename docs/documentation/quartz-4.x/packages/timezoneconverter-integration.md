@@ -41,10 +41,9 @@ host:
 
 <!-- snippet: sample_timezoneconverter_standalone -->
 ```csharp
-QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-builder.UseTimeZoneConverter();
-
-await using StandaloneSchedulerFactory schedulerFactory = builder.Build();
+await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder
+    .Create(q => q.UseTimeZoneConverter())
+    .Build();
 ```
 <!-- endSnippet -->
 

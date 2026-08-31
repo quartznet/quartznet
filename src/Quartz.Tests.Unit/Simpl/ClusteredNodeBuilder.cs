@@ -48,16 +48,15 @@ internal static class ClusteredNodeBuilder
     /// </summary>
     public static StandaloneSchedulerFactory Build(NameValueCollection properties = null)
     {
-        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q => q
+            .UseJobStore(provider => new ClusteredInMemoryJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider))));
 
         if (properties is not null)
         {
             builder = builder.UseProperties(properties);
         }
 
-        return builder
-            .UseJobStore(provider => new ClusteredInMemoryJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider)))
-            .Build();
+        return builder.Build();
     }
 
     /// <summary>

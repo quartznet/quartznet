@@ -627,7 +627,7 @@ story.
 ## The other seams
 
 Each of these replaces one collaborator of the scheduler. All are `IQuartzBuilder` members, so they work
-identically under `AddQuartz` and on a standalone `QuartzSchedulerBuilder`.
+identically under `AddQuartz` and inside `QuartzSchedulerBuilder.Create(q => …)`.
 
 | Method | Replaces | Default |
 |---|---|---|
@@ -697,23 +697,24 @@ In configuration, use a `Schedulers` section:
 ## Without a container
 
 Console applications and tests that have no host build a scheduler with `QuartzSchedulerBuilder`. It
-does not take *the same* configuration API — it **is** the configuration API: `QuartzSchedulerBuilder`
-implements `IQuartzBuilder`, the interface `AddQuartz` hands out, over a container it creates itself.
+does not take *a second* configuration API: `Create` hands the callback an `IQuartzBuilder`, the very
+one `AddQuartz(q => …)` hands out, over a container it creates itself.
 
 <!-- snippet: sample_reference_without_a_container -->
 ```csharp
-IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-    .ConfigureScheduler(options => options.InstanceName = "reporting")
-    .UseDefaultThreadPool(maxConcurrency: 20)
-    .UseInMemoryStore()
+IScheduler scheduler = await QuartzSchedulerBuilder
+    .Create(q => q
+        .ConfigureScheduler(options => options.InstanceName = "reporting")
+        .UseDefaultThreadPool(maxConcurrency: 20)
+        .UseInMemoryStore())
     .BuildScheduler();
 ```
 <!-- endSnippet -->
 
 What it adds is the two terminal methods a standalone caller needs, `Build()` for the factory and
-`BuildScheduler()` for the scheduler. Every configuration member returns `QuartzSchedulerBuilder`, so
-the chain reaches them. The `IQuartzBuilder` extension methods — `AddJob`, `AddTrigger`,
-`ScheduleJob`, `AddCalendar` — return the interface, so put those last or in a statement of their own.
+`BuildScheduler()` for the scheduler. Everything else — `AddJob`, `AddTrigger`, `ScheduleJob`,
+`AddCalendar`, every extension a package contributes — is written inside the callback, where it is
+the same call it would be under a host.
 
 A scheduler configured entirely by flat `quartz.*` keys is built the same way:
 

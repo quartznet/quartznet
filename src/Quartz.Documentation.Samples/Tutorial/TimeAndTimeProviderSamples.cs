@@ -24,8 +24,8 @@ public static class TimeAndTimeProviderSamples
     {
         #region sample_time_provider_standalone
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .UseTimeProvider(myTimeProvider)
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q.UseTimeProvider(myTimeProvider))
             .BuildScheduler();
 
         #endregion

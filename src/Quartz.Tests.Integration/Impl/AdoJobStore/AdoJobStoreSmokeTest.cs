@@ -267,15 +267,16 @@ public class AdoJobStoreSmokeTest
     {
         string schedulerInstanceId = $"instance_{dbProvider}_{connectionStringId}_{serializerType}_{providerMode}_{Guid.NewGuid():N}".Replace('-', '_');
         string schedulerName = $"TestScheduler_{dbProvider}_{connectionStringId}_{serializerType}_{providerMode}".Replace('-', '_');
-        QuartzSchedulerBuilder config = QuartzSchedulerBuilder.Create();
-        config.ConfigureScheduler(o =>
-        {
-            o.InstanceId = schedulerInstanceId;
-            o.InstanceName = schedulerName;
-        });
-        config.UseDefaultThreadPool(x => x.MaxConcurrency = 10);
+        QuartzSchedulerBuilder config = QuartzSchedulerBuilder.Create(q => q
+            .ConfigureScheduler(o =>
+            {
+                o.InstanceId = schedulerInstanceId;
+                o.InstanceName = schedulerName;
+            })
+            .UseDefaultThreadPool(x => x.MaxConcurrency = 10)
+            .UsePersistentStore(ConfigureStore));
 
-        config.UsePersistentStore(store =>
+        void ConfigureStore(IPersistentStoreBuilder store)
         {
             store.ConfigureStore(o =>
             {
@@ -329,7 +330,7 @@ public class AdoJobStoreSmokeTest
             {
                 throw new ArgumentException($"Cannot handle serializer type: {serializerType}", nameof(serializerType));
             }
-        });
+        }
 
         // Clear any old errors from the log
         //testLoggerHelper.ClearLogs();

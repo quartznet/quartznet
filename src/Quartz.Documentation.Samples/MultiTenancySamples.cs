@@ -291,9 +291,10 @@ public static class MultiTenancySamples
     {
         #region sample_tenancy_runtime_onboarding
 
-        StandaloneSchedulerFactory tenantFactory = QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(o => o.InstanceName = tenantId)
-            .UsePersistentStore(s => s.UseSqlServer(connectionStrings[tenantId]))
+        StandaloneSchedulerFactory tenantFactory = QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(o => o.InstanceName = tenantId)
+                .UsePersistentStore(s => s.UseSqlServer(connectionStrings[tenantId])))
             .Build();
 
         IScheduler tenant = await tenantFactory.GetScheduler();

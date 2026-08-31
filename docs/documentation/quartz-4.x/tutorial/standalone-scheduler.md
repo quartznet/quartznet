@@ -11,10 +11,11 @@ the *same* API `AddQuartz` uses, and hands back something you can dispose.
 
 <!-- snippet: sample_standalone_scheduler -->
 ```csharp
-IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-    .ConfigureScheduler(o => o.InstanceName = "reporting")
-    .UseDefaultThreadPool(maxConcurrency: 20)
-    .UseInMemoryStore()
+IScheduler scheduler = await QuartzSchedulerBuilder
+    .Create(q => q
+        .ConfigureScheduler(o => o.InstanceName = "reporting")
+        .UseDefaultThreadPool(maxConcurrency: 20)
+        .UseInMemoryStore())
     .BuildScheduler();
 
 await scheduler.Start();
@@ -23,36 +24,41 @@ await scheduler.Start();
 
 ## One configuration API, two entry points
 
-`QuartzSchedulerBuilder` implements `IQuartzBuilder`, which is the interface the `AddQuartz` callback
-gives you. Every configuration verb is therefore the same verb:
+`Create` hands the callback an `IQuartzBuilder` — the very interface the `AddQuartz` callback gives
+you. `q => q.ConfigureScheduler(…)` means the same thing in both places, letter for letter, because it
+*is* the same method:
 
 `ConfigureScheduler`, `ConfigureOptions<TOptions>`, `UseDefaultThreadPool`, `UseThreadPool<T>`,
 `UseInMemoryStore`, `UsePersistentStore`, `UseJobStore<T>`, `UseJobFactory<T>`, `UseTypeLoader<T>`,
 `UseInstanceIdGenerator<T>`, `UseTimeProvider`, `UseExecutionLimits`, `AddPlugin<T>`,
 `AddSchedulerListener<T>`, `AddJobListener<T>`, `AddTriggerListener<T>` — plus the extension methods
-`AddJob<T>`, `AddTrigger<TJob>`, `ScheduleJob<T>` and `AddCalendar`.
+`AddJob<T>`, `AddTrigger<TJob>`, `ScheduleJob<T>` and `AddCalendar`, and every extension a package of
+your own contributes.
 
 Learn the configuration API once and it works in both places. Only five members are the builder's own:
-`Build()`, `BuildScheduler()`, `UseConfiguration(IConfiguration)` and the two `UseProperties` overloads.
+`Create(configure)`, `Build()`, `BuildScheduler()`, `UseConfiguration(IConfiguration)` and the two
+`UseProperties` overloads. Those five are the whole of the type — it declares no configuration member
+of its own, so nothing here can fall behind what `AddQuartz` grew.
 
-Every configuration member returns `QuartzSchedulerBuilder`, and so does every builder extension, so
-the whole thing is one expression whatever is in the chain:
+The callback runs immediately, and the terminal methods hang off the builder it returns, so the whole
+thing stays one expression:
 
 <!-- snippet: sample_standalone_one_expression -->
 ```csharp
-await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-    .UseInMemoryStore()
-    .UseDefaultThreadPool(10)
+await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+    .Create(q => q
+        .UseInMemoryStore()
+        .UseDefaultThreadPool(10))
     .Build();
 ```
 <!-- endSnippet -->
 
-::: warning Changed in 4.x
-In the 4.0 previews a chain had to be broken up and the builder held in a variable to reach `Build()`:
-the configuration members returned `IQuartzBuilder`, and so did the extension methods that add jobs,
-triggers and calendars. The configuration members are covariant now, and every extension is mirrored on
-the builder as an instance method that returns it, so `Create()…Build()` is one statement no matter
-which of them the chain is made of.
+::: warning Changed in 4.0.0-alpha.5
+Earlier previews let you chain configuration directly on the builder —
+`Create().UseInMemoryStore().Build()` — because the type re-declared every `IQuartzBuilder` member and
+every builder extension with a covariant return. That facade is gone; configuration goes in the
+callback. The fix is mechanical: wrap what was chained between `Create()` and the terminal call in
+`Create(q => q…)`.
 :::
 
 ## Build, or BuildScheduler
@@ -62,14 +68,14 @@ Two endings, for two different needs:
 <!-- snippet: sample_standalone_build_scheduler_ending -->
 ```csharp
 // I want the scheduler
-IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseInMemoryStore().BuildScheduler();
+IScheduler scheduler = await QuartzSchedulerBuilder.Create(q => q.UseInMemoryStore()).BuildScheduler();
 ```
 <!-- endSnippet -->
 
 <!-- snippet: sample_standalone_build_ending -->
 ```csharp
 // I want to own the lifetime
-await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseInMemoryStore().Build();
+await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create(q => q.UseInMemoryStore()).Build();
 IScheduler scheduler = await factory.GetScheduler();
 ```
 <!-- endSnippet -->
@@ -92,8 +98,8 @@ whose jobs it can no longer build.
 
 <!-- snippet: sample_standalone_factory_owns_the_container -->
 ```csharp
-await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-    .UseInMemoryStore()
+await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+    .Create(q => q.UseInMemoryStore())
     .Build();
 
 IScheduler scheduler = await factory.GetScheduler();
@@ -141,18 +147,19 @@ new factory instead. `Standby()` / `Start()` is the pause-and-resume pair.
 
 ## Jobs, triggers and calendars
 
-The `IQuartzBuilder` extension methods work here unchanged, and chain with the rest:
+The `IQuartzBuilder` extension methods work here unchanged, and chain with the rest inside the callback:
 
 <!-- snippet: sample_standalone_jobs_triggers_and_calendars -->
 ```csharp
-await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-    .UseInMemoryStore()
-    .AddJob<ReportJob>(j => j.WithIdentity("nightly", "reports").StoreDurably())
-    .AddTrigger<ReportJob>(t => t
-        .ForJob("nightly", "reports")
-        .WithIdentity("nightly-trigger", "reports")
-        .WithCronSchedule("0 30 2 * * ?"))
-    .AddCalendar<HolidayCalendar>("holidays", configure: c => c.AddExcludedDay(new DateOnly(2026, 12, 25)))
+await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+    .Create(q => q
+        .UseInMemoryStore()
+        .AddJob<ReportJob>(j => j.WithIdentity("nightly", "reports").StoreDurably())
+        .AddTrigger<ReportJob>(t => t
+            .ForJob("nightly", "reports")
+            .WithIdentity("nightly-trigger", "reports")
+            .WithCronSchedule("0 30 2 * * ?"))
+        .AddCalendar<HolidayCalendar>("holidays", configure: c => c.AddExcludedDay(new DateOnly(2026, 12, 25))))
     .Build();
 ```
 <!-- endSnippet -->
@@ -161,15 +168,17 @@ Jobs declared this way are registered with the container, so they can take const
 
 <!-- snippet: sample_standalone_registering_services -->
 ```csharp
-QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
-builder.Services.AddSingleton<IReportRenderer, PdfReportRenderer>();
-builder.Services.AddHttpClient();
-builder.UseInMemoryStore().AddJob<ReportJob>(j => j.WithIdentity("nightly"));
+QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create(q =>
+{
+    q.Services.AddSingleton<IReportRenderer, PdfReportRenderer>();
+    q.Services.AddHttpClient();
+    q.UseInMemoryStore().AddJob<ReportJob>(j => j.WithIdentity("nightly"));
+});
 ```
 <!-- endSnippet -->
 
-`Services` is a real `IServiceCollection`. Anything you would register in an application container you
-can register here.
+`q.Services` is a real `IServiceCollection`. Anything you would register in an application container
+you can register here.
 
 ## Configuration from a file
 
@@ -224,18 +233,19 @@ Nothing about persistence needs a host:
 
 <!-- snippet: sample_standalone_persistent_and_clustered -->
 ```csharp
-await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-    .ConfigureScheduler(o =>
-    {
-        o.InstanceName = "orders";
-        o.InstanceId = Environment.MachineName;
-    })
-    .UsePersistentStore(s =>
-    {
-        s.UseSqlServer(connectionString);
-        s.UseClustering(c => c.CheckinInterval = TimeSpan.FromSeconds(10));
-        s.ConfigureStore(o => o.TablePrefix = "QRTZ_");
-    })
+await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+    .Create(q => q
+        .ConfigureScheduler(o =>
+        {
+            o.InstanceName = "orders";
+            o.InstanceId = Environment.MachineName;
+        })
+        .UsePersistentStore(s =>
+        {
+            s.UseSqlServer(connectionString);
+            s.UseClustering(c => c.CheckinInterval = TimeSpan.FromSeconds(10));
+            s.ConfigureStore(o => o.TablePrefix = "QRTZ_");
+        }))
     .Build();
 ```
 <!-- endSnippet -->
@@ -265,11 +275,8 @@ registration is `TryAdd`, so yours wins:
 ```csharp
 ISchedulerRepository shared = new SchedulerRepository();
 
-QuartzSchedulerBuilder first = QuartzSchedulerBuilder.Create();
-first.Services.AddSingleton(shared);
-
-QuartzSchedulerBuilder second = QuartzSchedulerBuilder.Create();
-second.Services.AddSingleton(shared);
+QuartzSchedulerBuilder first = QuartzSchedulerBuilder.Create(q => q.Services.AddSingleton(shared));
+QuartzSchedulerBuilder second = QuartzSchedulerBuilder.Create(q => q.Services.AddSingleton(shared));
 ```
 <!-- endSnippet -->
 
@@ -286,10 +293,10 @@ everything a host makes possible:
 | `AddQuartzHttpApi` / the dashboard | — |
 | Options validated at application start | validated on first use |
 | Configuration bound by the host | `UseConfiguration(section)` |
-| Application services already registered | register them on `Services` yourself |
+| Application services already registered | register them on `q.Services` yourself |
 
-`SchedulerName` on the builder is `""` — the standalone builder configures the default scheduler, and
-the instance name comes from `ConfigureScheduler(o => o.InstanceName = …)`.
+`q.SchedulerName` inside the callback is `""` — the standalone builder configures the default
+scheduler, and the instance name comes from `ConfigureScheduler(o => o.InstanceName = …)`.
 
 If a process is already a `HostApplicationBuilder` or a `WebApplicationBuilder`, use `AddQuartz`. The
 standalone builder is for the processes that are not.
@@ -298,10 +305,10 @@ standalone builder is for the processes that are not.
 
 | 3.x | 4.x |
 |---|---|
-| `StdSchedulerFactory.GetDefaultScheduler()` | `QuartzSchedulerBuilder.Create().UseInMemoryStore().BuildScheduler()` |
+| `StdSchedulerFactory.GetDefaultScheduler()` | `QuartzSchedulerBuilder.Create(q => q.UseInMemoryStore()).BuildScheduler()` |
 | `new StdSchedulerFactory(properties)` | `QuartzSchedulerBuilder.Create().UseProperties(properties)` |
-| `DirectSchedulerFactory.Instance.CreateScheduler(…)` | the `Use…` members — the builder *is* the direct path |
-| `SchedulerBuilder.Create()` | `QuartzSchedulerBuilder.Create()` |
+| `DirectSchedulerFactory.Instance.CreateScheduler(…)` | the `Use…` members in the callback — that *is* the direct path |
+| `SchedulerBuilder.Create()` | `QuartzSchedulerBuilder.Create(q => …)` |
 | `quartz.config` picked up implicitly | `UseConfiguration` or `UseProperties`, explicitly |
 
 The big change is ownership: 3.x's factory was a process-wide singleton handing out schedulers that

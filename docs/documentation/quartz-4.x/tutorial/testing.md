@@ -183,9 +183,10 @@ When the thing under test is the *wiring* — that a trigger reaches a job, that
 
 <!-- snippet: sample_testing_in_memory_scheduler -->
 ```csharp
-await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-    .UseInMemoryStore()
-    .ConfigureScheduler(o => o.InstanceName = $"test-{Guid.NewGuid():N}")
+await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+    .Create(q => q
+        .UseInMemoryStore()
+        .ConfigureScheduler(o => o.InstanceName = $"test-{Guid.NewGuid():N}"))
     .Build();
 
 IScheduler scheduler = await factory.GetScheduler();
@@ -284,9 +285,10 @@ Give the scheduler a `FakeTimeProvider` and every *computation* moves when you a
 ```csharp
 FakeTimeProvider clock = new(new DateTimeOffset(2026, 3, 6, 8, 0, 0, TimeSpan.Zero));
 
-await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create()
-    .UseInMemoryStore()
-    .UseTimeProvider(clock)
+await using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder
+    .Create(q => q
+        .UseInMemoryStore()
+        .UseTimeProvider(clock))
     .Build();
 ```
 
@@ -324,9 +326,9 @@ threshold makes it reachable:
 
 <!-- snippet: sample_testing_misfire_threshold -->
 ```csharp
-QuartzSchedulerBuilder.Create()
+QuartzSchedulerBuilder.Create(q => q
     .UseInMemoryStore(o => o.MisfireThreshold = TimeSpan.FromMilliseconds(50))
-    .UseTimeProvider(clock)
+    .UseTimeProvider(clock))
 ```
 <!-- endSnippet -->
 
@@ -362,8 +364,8 @@ internal sealed class FlakyJobStore(IJobStore inner) : DelegatingJobStore(inner)
 
 <!-- snippet: sample_testing_fault_injection_registration -->
 ```csharp
-QuartzSchedulerBuilder.Create()
-    .UseJobStore(sp => new FlakyJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(sp)))
+QuartzSchedulerBuilder.Create(q => q
+    .UseJobStore(sp => new FlakyJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(sp))))
 ```
 <!-- endSnippet -->
 

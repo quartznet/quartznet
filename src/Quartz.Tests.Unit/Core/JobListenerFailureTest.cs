@@ -341,13 +341,14 @@ public sealed class JobListenerFailureTest
     private static async Task<(IScheduler Scheduler, CompletionWatchingJobStore Store)> BuildScheduler(string instanceName)
     {
         CompletionWatchingJobStore store = null;
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = instanceName)
-            .UseJobStore(provider =>
-            {
-                store = new CompletionWatchingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
-                return store;
-            })
+        IScheduler scheduler = await QuartzSchedulerBuilder
+            .Create(q => q
+                .ConfigureScheduler(options => options.InstanceName = instanceName)
+                .UseJobStore(provider =>
+                {
+                    store = new CompletionWatchingJobStore(ActivatorUtilities.CreateInstance<RAMJobStore>(provider));
+                    return store;
+                }))
             .BuildScheduler();
 
         return (scheduler, store);
