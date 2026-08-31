@@ -176,15 +176,6 @@ namespace Quartz;
 /// not valid, since there are two expressions).
 /// </para>
 /// <para>
-/// <!--The 'C' character is allowed for the day-of-month and day-of-week fields.
-/// This character is short-hand for "calendar". This means values are
-/// calculated against the associated calendar, if any. If no calendar is
-/// associated, then it is equivalent to having an all-inclusive calendar. A
-/// value of "5C" in the day-of-month field means "the first day included by the
-/// calendar on or after the 5th". A value of "1C" in the day-of-week field
-/// means "the first day included by the calendar on or after Sunday". -->
-/// </para>
-/// <para>
 /// The legal characters and the names of months and days of the week are not
 /// case-sensitive.
 /// </para>
@@ -241,11 +232,6 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     [NonSerialized] private bool lastDayOfWeek;
 
     /// <summary>
-    /// N number of weeks.
-    /// </summary>
-    [NonSerialized] private int everyNthWeek;
-
-    /// <summary>
     /// Nth day of the week.
     /// </summary>
     [NonSerialized] private int nthdayOfWeek;
@@ -265,16 +251,6 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// </summary>
     [NonSerialized] private List<LastDaySpec>? lastDaySpecs;
 
-    /// <summary>
-    /// Calendar day of the week.
-    /// </summary>
-    [NonSerialized] private bool calendarDayOfWeek;
-
-    /// <summary>
-    /// Calendar day of the month.
-    /// </summary>
-    [NonSerialized] private bool calendarDayOfMonth;
-
     //e.g. LW L-0W L-4 L-12W LW-4 (out-of-range offsets are rejected in the 'L' parse)
     [GeneratedRegex("^L(-\\d+)?(W(-\\d+)?)?$", RegexOptions.ExplicitCapture, matchTimeoutMilliseconds: 5000)]
     private static partial Regex LastDayExpression();
@@ -282,6 +258,11 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     // Field ranges for H (hash) token resolution: [min, max] indexed by field type (Second=0 through DayOfWeek=5)
     private static readonly int[] HashFieldMins = { 0, 0, 0, 1, 1, 1 };
     private static readonly int[] HashFieldMaxes = { 59, 59, 23, 31, 12, 7 };
+
+    // Day-of-week names and RFC 5545 BYDAY codes, indexed by Quartz's 1-7 numbering (1 = Sunday).
+    // Only error messages read these; the parser maps the other way, through GetDayOfWeekNumber.
+    private static readonly string[] DayOfWeekNames = { "", "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT" };
+    private static readonly string[] RecurrenceDayCodes = { "", "SU", "MO", "TU", "WE", "TH", "FR", "SA" };
 
     ///<summary>
     /// Constructs a new <see cref="CronExpressionString" /> based on the specified
@@ -726,7 +707,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         if (fieldCount < 6 || fieldCount > 7)
         {
             string unixHint = fieldCount == 5
-                ? $" A 5-field expression is the Unix/crontab form; Quartz cron puts seconds first - prepend a seconds field: \"0 {upperExpression}\"."
+                ? $" A 5-field expression is the Unix/crontab form; Quartz cron puts seconds first. {FiveFieldAdvice(upperExpression)}"
                 : "";
             throw new FormatException($"Invalid cron expression (expected 6-7 fields, got {fieldCount}): {upperExpression}.{unixHint}");
         }
@@ -906,6 +887,15 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
                     Throw.FormatException("Support for specifying multiple \"nth\" days is not implemented.");
                 }
 
+                // '#' names one day's nth occurrence, and the evaluator reads the smallest day in the field
+                // to find it, so 'MON,FRI#3' fired on the third Monday and never on a Friday at all
+                if (exprOn == CronExpressionConstants.DayOfWeek && expr.IndexOf('#') != -1 && expr.IndexOf(',') >= 0)
+                {
+                    Throw.FormatException(
+                        $"'#' applies to the whole day-of-week field, so it cannot appear beside other days: '{expr.ToString()}' would fire "
+                        + "on the nth occurrence of one day and never on the others. Use one trigger per day, or drop the '#'.");
+                }
+
                 // A second, minute or hour field written as a wildcard, step or range expresses an
                 // interval ("keep firing every ...") rather than a fixed time of day. The
                 // distinction drives the fall-back behavior in GetTimeAfter: interval expressions
@@ -939,8 +929,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
                 {
                     Throw.FormatException(
                         $"Cron expression '{expression}' has 5 fields, which is the Unix/crontab form; Quartz cron has 6 or 7 fields with seconds first. "
-                        + $"Prepend a seconds field: \"0 {expression}\". "
-                        + "Note that Quartz numbers days of week 1-7 starting at Sunday where Unix cron uses 0-6, so respell numeric day-of-week values or use names (SUN, MON, ...).");
+                        + FiveFieldAdvice(expression));
                 }
 
                 Throw.FormatException(
@@ -1092,6 +1081,16 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             }
 
             case CronExpressionConstants.DayOfWeek:
+                // The 'L(-n)?(W(-n)?)?' shapes all reach here, but only a bare 'L' means anything in this
+                // field; the rest used to be read and thrown away, so '? * L-3' quietly meant every Saturday.
+                if (s.Length > i)
+                {
+                    Throw.FormatException(
+                        $"'{s.ToString()}' is not valid in the day-of-week field. There, 'L' on its own means Saturday; the '-n' offset "
+                        + $"and the 'W' (nearest weekday) forms belong to day-of-month. Write '{s.ToString()}' in the day-of-month field, "
+                        + "where the end of the month is what those forms count from, or '6L' (or 'FRIL') for the last Friday of the month.");
+                }
+
                 AddToSet(7, 7, 0, type);
                 break;
             default:
@@ -1196,20 +1195,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
 
                         break;
                     case '/':
-                        try
-                        {
-                            i += 4;
-                            everyNthWeek = ToInt32(s.Slice(i));
-                            if (everyNthWeek is < 1 or > 5)
-                            {
-                                Throw.FormatException("everyNthWeek is < 1 or > 5");
-                            }
-                        }
-                        catch (Exception)
-                        {
-                            Throw.FormatException("A numeric value between 1 and 5 must follow the '/' option");
-                        }
-
+                        Throw.FormatException(TextualDayOfWeekStepMessage(sub, sval, s.Slice(i + 4)));
                         break;
                     case 'L':
                         lastDayOfWeek = true;
@@ -1278,6 +1264,13 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     // ReSharper disable once UnusedParameter.Local
     private static void CheckIncrementRange(int incr, int type)
     {
+        // AddToSet reads a non-positive increment as "this is a plain value", which is what its internal
+        // callers mean by it - but written down, '*/0' asked for a step and got a wildcard instead.
+        if (incr < 1)
+        {
+            Throw.FormatException("A step of 0 is not a step: '*/0' would advance by nothing. Use '*' for every value, or a step of 1 or more.");
+        }
+
         switch (type)
         {
             case CronExpressionConstants.Second or CronExpressionConstants.Minute when incr > 59:
@@ -1321,7 +1314,9 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
                 return;
 
             case 'C':
-                HandleCOption(val, type, pos);
+                Throw.FormatException(
+                    $"'C' (calendar) is not supported. It was never implemented - '{val}C' behaved exactly like '{val}' - so remove it. "
+                    + "To skip days a calendar excludes, attach the calendar to the trigger with .ModifiedByCalendar(name).");
                 return;
 
             case '-':
@@ -1395,47 +1390,75 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         if (i < s.Length && s[i] == '/')
         {
             i++;
+            if (i >= s.Length || char.IsWhiteSpace(s[i]))
+            {
+                Throw.FormatException("'/' must be followed by an integer.");
+            }
+
             c = s[i];
-            var v2 = ToInt32(c);
+            var incr = ToInt32(c);
             i++;
-            if (i >= s.Length)
+            if (i < s.Length && char.IsDigit(s[i]))
             {
-                AddToSet(val, end, v2, type);
-                return;
+                (incr, i) = GetValue(incr, s, i);
             }
 
-            c = s[i];
-            if (char.IsDigit(c))
-            {
-                var (v3, _) = GetValue(v2, s, i);
-                AddToSet(val, end, v3, type);
-                return;
-            }
-
-            AddToSet(val, end, v2, type);
+            // The step of a range was never range-checked, so '0-10/120' parsed where '0/120' threw.
+            CheckIncrementRange(incr, type);
+            CheckNothingFollowsRange(s, i, val, end);
+            AddToSet(val, end, incr, type);
             return;
         }
 
+        CheckNothingFollowsRange(s, i, val, end);
         AddToSet(val, end, 1, type);
     }
 
-    private void HandleCOption(int val, int type, int i)
+    /// <summary>
+    /// Rejects anything left over after a range. The range parser used to stop reading and drop the
+    /// remainder, so '1-5W' silently meant '1-5' - an expression that says one thing and does another.
+    /// </summary>
+    private static void CheckNothingFollowsRange(ReadOnlySpan<char> s, int i, int val, int end)
     {
-        switch (type)
+        if (i >= s.Length || char.IsWhiteSpace(s[i]))
         {
-            case CronExpressionConstants.DayOfWeek:
-                calendarDayOfWeek = true;
-                break;
-            case CronExpressionConstants.DayOfMonth:
-                calendarDayOfMonth = true;
-                break;
-            default:
-                Throw.FormatException($"'C' option is not valid here. (pos={i})");
-                break;
+            return;
         }
 
-        var data = GetSet(type);
-        data.Add(val);
+        if (s[i] == 'W')
+        {
+            Throw.FormatException(
+                $"Unexpected character 'W' after the range '{val}-{end}'. The 'W' option shifts a single day-of-month to its nearest "
+                + $"weekday, so it cannot follow a range - write '{NearestWeekdayList(val, end)}' for that, or drop the 'W' to fire on "
+                + $"days {val} through {end}.");
+        }
+
+        Throw.FormatException($"Unexpected character '{s[i]}' after the range '{val}-{end}'.");
+    }
+
+    /// <summary>
+    /// Spells out the per-day 'W' list a range with a 'W' on it was probably reaching for, abbreviating
+    /// once the list would be longer than the sentence containing it.
+    /// </summary>
+    private static string NearestWeekdayList(int val, int end)
+    {
+        if (end < val || end - val > 6)
+        {
+            return $"{val}W,{val + 1}W,...,{end}W";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        for (int day = val; day <= end; day++)
+        {
+            if (builder.Length > 0)
+            {
+                builder.Append(',');
+            }
+
+            builder.Append(day).Append('W');
+        }
+
+        return builder.ToString();
     }
 
     private void HandleHashOption(ReadOnlySpan<char> s, int val, int type, int i)
@@ -1536,8 +1559,9 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             nearestWeekdays is not null || (lastDaySpecs is not null && lastDaySpecs.Exists(spec => spec.NearestWeekday)),
             nthdayOfWeek,
             lastDaySpecs is not null,
-            calendarDayOfWeek,
-            calendarDayOfMonth,
+            // calendarDayOfWeek and calendarDayOfMonth: 'C' is rejected by the parser, so no expression carries one
+            false,
+            false,
             years
         ).ToString();
     }
@@ -1790,6 +1814,74 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             "SAT" => 7,
             _ => -1
         };
+    }
+
+    /// <summary>
+    /// The advice half of the five-field error message: the seconds-first rewrite, and - when the
+    /// day-of-week field is a bare number - the Quartz spelling of the day that number named in crontab.
+    /// Prepending a seconds field keeps the digit, and the same digit is a different day in the two
+    /// dialects, so advice that stopped at the rewrite moved the schedule by a day without saying so.
+    /// </summary>
+    private static string FiveFieldAdvice(string expression)
+    {
+        string prepend = $"Prepend a seconds field: \"0 {expression}\". "
+                         + "Note that Quartz numbers days of week 1-7 starting at Sunday where Unix cron uses 0-6, so ";
+
+        string[] fields = expression.Split((char[]?) null, StringSplitOptions.RemoveEmptyEntries);
+        if (fields.Length == 5
+            && int.TryParse(fields[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out int unixDayOfWeek)
+            && unixDayOfWeek is >= 0 and <= 7)
+        {
+            int quartzDayOfWeek = unixDayOfWeek % 7 + 1;
+            // day-of-month has to yield, or the two day fields would both name days
+            string dayOfMonth = fields[2] is "*" or "?" ? "?" : fields[2];
+            return prepend
+                   + $"if '{fields[4]}' meant {(DayOfWeek) (quartzDayOfWeek - 1)} the Quartz spelling is "
+                   + $"\"0 {fields[0]} {fields[1]} {dayOfMonth} {fields[3]} {DayOfWeekNames[quartzDayOfWeek]}\".";
+        }
+
+        return prepend + "respell numeric day-of-week values or use names (SUN, MON, ...).";
+    }
+
+    /// <summary>
+    /// Builds the rejection message for a textual day-of-week followed by a step, such as <c>MON/2</c>.
+    /// Up to Quartz.NET 3.x that token meant "every second week"; the extension is gone, and the two
+    /// things a caller might have meant by it now live in two different places, so the message names both.
+    /// </summary>
+    /// <param name="dayName">the three-letter day name that was written, e.g. <c>MON</c></param>
+    /// <param name="dayOfWeek">that day in Quartz's 1-7 numbering</param>
+    /// <param name="stepText">everything after the <c>/</c>, which need not be a number</param>
+    private static string TextualDayOfWeekStepMessage(ReadOnlySpan<char> dayName, int dayOfWeek, ReadOnlySpan<char> stepText)
+    {
+        int step = int.TryParse(stepText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed) && parsed is >= 1 and <= 7
+            ? parsed
+            : 2;
+
+        return $"'{dayName.ToString()}/{stepText.ToString()}' is not supported. A textual day-of-week followed by '/' meant \"every second week\" "
+               + "in Quartz.NET 3.x, and that extension has been removed because its fortnight is not stable - a misfire, a restart or a "
+               + $"failover recomputes it from a different day and shifts the phase. Write '{StepThroughWeek(dayOfWeek, step)}' if you meant a "
+               + $"step through the week, or RecurrenceScheduleBuilder.Create(\"FREQ=WEEKLY;INTERVAL={step};BYDAY={RecurrenceDayCodes[dayOfWeek]}\") "
+               + $"if you meant one {DayOfWeekNames[dayOfWeek]} every {step} weeks.";
+    }
+
+    /// <summary>
+    /// Renders the day names a numeric step through the week would have produced, e.g. Monday by 2 is
+    /// <c>MON,WED,FRI</c>. The list stops at Saturday and does not wrap, which is what <c>2/2</c> means.
+    /// </summary>
+    private static string StepThroughWeek(int dayOfWeek, int step)
+    {
+        StringBuilder builder = new StringBuilder();
+        for (int day = dayOfWeek; day <= 7; day += step)
+        {
+            if (builder.Length > 0)
+            {
+                builder.Append(',');
+            }
+
+            builder.Append(DayOfWeekNames[day]);
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>
@@ -2215,34 +2307,6 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
             {
                 // we are NOT promoting the month
                 return new NextFireTimeCursor(true, new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset));
-            }
-        }
-        else if (everyNthWeek != 0)
-        {
-            var cDow = (int) d.DayOfWeek + 1; // current d-o-w
-            // desired d-o-w: next allowed at or after the current one, else the field minimum
-            if (!daysOfWeek.TryGetMinValueStartingFrom(cDow, out var dow))
-            {
-                dow = daysOfWeek.Min;
-            }
-
-            var daysToAdd = 0;
-            if (cDow < dow)
-            {
-                daysToAdd = (dow - cDow) + (7 * (everyNthWeek - 1));
-            }
-
-            if (cDow > dow)
-            {
-                daysToAdd = (dow + (7 - cDow)) + (7 * (everyNthWeek - 1));
-            }
-
-            if (daysToAdd > 0)
-            {
-                // are we switching days?
-                d = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
-                d = d.AddDays(daysToAdd);
-                return new NextFireTimeCursor(true, d);
             }
         }
         else

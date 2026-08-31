@@ -426,7 +426,104 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         act.Should().Throw<FormatException>()
             .WithMessage("*Unix/crontab*", "the most common first-run failure is a 5-field expression copied from crontab or Kubernetes")
             .WithMessage("*\"0 30 4 * * 1\"*", "the error must show the fixed expression, not just the constraint")
-            .WithMessage("*days of week 1-7*", "a Unix expression's numeric day-of-week also means a different day in Quartz");
+            .WithMessage("*days of week 1-7*", "a Unix expression's numeric day-of-week also means a different day in Quartz")
+            .WithMessage("*\"0 30 4 ? * MON\"*",
+                "prepending a seconds field keeps the digit, and '1' is Monday in crontab but Sunday in Quartz, so advice that stops at the rewrite moves the schedule by a day");
+    }
+
+    [TestCase("30 4 1 * 1", "\"0 30 4 1 * MON\"", "a day-of-month the crontab named is carried over as written")]
+    [TestCase("0 12 * * 7", "\"0 0 12 ? * SUN\"", "Unix spells Sunday both 0 and 7, and Quartz spells it 1")]
+    public void TheFiveFieldMessageRenumbersTheDayOfWeekItWasGiven(string expression, string expectedInMessage, string reason)
+    {
+        Action act = () => new CronExpression(expression);
+
+        act.Should().Throw<FormatException>(reason).WithMessage($"*{expectedInMessage}*", reason);
+    }
+
+    /// <summary>
+    /// The hash resolver counts the fields before anything is parsed, so it reaches the five-field
+    /// message with expressions the parser never gets far enough to reject - a five-field string's last
+    /// field is read as a month, so <c>0 12 * * MON</c> fails on the month long before the count is
+    /// looked at. The advice has to be the same on both paths.
+    /// </summary>
+    [TestCase("H 4 * * 1", "\"0 H 4 ? * MON\"", "the rewrite keeps the H token, because the token is not what is wrong")]
+    [TestCase("H 12 * * 0", "\"0 H 12 ? * SUN\"", "Unix numbers Sunday 0 where Quartz numbers it 1")]
+    [TestCase("H 12 * * MON", "respell numeric day-of-week values", "a day-of-week already spelled as a name needs no renumbering, so the generic advice stands")]
+    public void TheFiveFieldMessageIsTheSameOnTheHashResolvingPath(string expression, string expectedInMessage, string reason)
+    {
+        Action act = () => new CronExpression(expression, "a-trigger");
+
+        act.Should().Throw<FormatException>(reason)
+            .WithMessage("*Unix/crontab*", "the two paths must not disagree about what a five-field expression is")
+            .WithMessage($"*{expectedInMessage}*", reason);
+    }
+
+    /// <summary>
+    /// Every shape the parser used to accept and then quietly reinterpret. Each one now throws, and the
+    /// message has to name the expression that says what the author meant: a rejection that only states
+    /// the rule leaves them guessing at a schedule they believed they had already written.
+    /// </summary>
+    [TestCase("0 15 10 1-5W * ?", "1W,2W,3W,4W,5W", "the 'W' was dropped, so this quietly meant days 1 through 5")]
+    [TestCase("0 15 10 1-20W * ?", "1W,2W,...,20W", "a long range is abbreviated rather than spelled out over twenty days")]
+    [TestCase("0 15 10 1-5X * ?", "Unexpected character 'X' after the range '1-5'", "anything left over after a range was dropped, whatever it was")]
+    [TestCase("0 0 0 ? * L-3", "day-of-month", "everything after the 'L' was discarded, so this quietly meant every Saturday")]
+    [TestCase("0 0 0 ? * LW", "day-of-month", "'LW' in day-of-week was read as a bare 'L', which is Saturday")]
+    [TestCase("0 0 0 ? * MON,FRI#3", "one trigger per day", "the evaluator reads the smallest day in the field, so the Friday never fired at all")]
+    [TestCase("0 15 10 5C * ?", "ModifiedByCalendar", "'C' was never implemented, so '5C' behaved exactly like '5'")]
+    [TestCase("0 15 10 ? * 5C", "ModifiedByCalendar", "'C' was equally inert in day-of-week")]
+    [TestCase("0 */0 * * * ?", "a step of 1 or more", "a step of zero degenerated to no step, so '*/0' was '*'")]
+    [TestCase("0 5/0 * * * ?", "a step of 1 or more", "a step of zero after a value degenerated to the plain value")]
+    [TestCase("0 0-10/0 * * * ?", "a step of 1 or more", "a step of zero inside a range degenerated to the range's start")]
+    [TestCase("0 0-10/ * * * ?", "'/' must be followed by an integer", "a range with an empty step said nothing at all")]
+    [TestCase("0 0 12 ? * MON/2", "MON,WED,FRI", "the numeric twin '2/2' is what a step through the week means")]
+    [TestCase("0 0 12 ? * MON/2", "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO", "a fortnight that keeps its phase is a recurrence rule, not a cron expression")]
+    [TestCase("0 0 12 ? * MON/2", "not stable", "the message has to say why the extension went, or it reads as an arbitrary removal")]
+    [TestCase("0 0 12 ? * MON/X", "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO", "a step that is not a number is still a textual day-of-week step")]
+    [TestCase("0 0 12 ? * SUN/9", "FREQ=WEEKLY;INTERVAL=2;BYDAY=SU", "a step outside 1-7 is rejected as the same construct, not as a range error")]
+    public void ExpressionsThatSaidOneThingAndDidAnotherAreRejected(string expression, string expectedInMessage, string reason)
+    {
+        Action act = () => new CronExpression(expression);
+
+        act.Should().Throw<FormatException>(reason).WithMessage($"*{expectedInMessage}*", reason);
+    }
+
+    [TestCase("0-10/120 0 8-18 ? * 2-6", "Increment > 59 : 120")]
+    [TestCase("0 0-10/120 8-18 ? * 2-6", "Increment > 59 : 120")]
+    [TestCase("0 0 0-10/120 ? * 2-6", "Increment > 23 : 120")]
+    [TestCase("0 0 0 1-10/120 * 2-6", "Increment > 31 : 120")]
+    [TestCase("0 0 0 ? 1-10/120 2-6", "Increment > 12 : 120")]
+    [TestCase("0 0 0 ? * 1-6/120", "Increment > 7 : 120")]
+    public void AStepInsideARangeIsRangeCheckedLikeAnyOtherStep(string expression, string expectedMessage)
+    {
+        Action act = () => new CronExpression(expression);
+
+        act.Should().Throw<FormatException>(
+                "'0/120' has always thrown, and there is no reading of cron in which putting a range in front of the same step makes it legal")
+            .WithMessage(expectedMessage);
+    }
+
+    /// <summary>
+    /// The legitimate forms the new rejections stand next to. Each reads like one of them, so pin the
+    /// pair: bare <c>L</c> in day-of-week is Saturday while <c>L-3</c> there is not a form at all, and
+    /// <c>15W</c> shifts a single day while <c>1-5W</c> is a range with a stray character on the end.
+    /// </summary>
+    [TestCase("0 15 10 ? * L 2010", "'L' on its own in day-of-week is Saturday")]
+    [TestCase("0 15 10 ? * 6L 2010", "'6L' is the last Friday of the month")]
+    [TestCase("0 15 10 ? * FRIL 2010", "'FRIL' is the same schedule spelled with a name")]
+    [TestCase("0 15 10 LW-2 * ? 2010", "'LW-n' counts back from the last weekday of the month")]
+    [TestCase("0 15 10 L-5W * ? 2010", "'L-nW' is the nearest weekday to a day counted back from the end")]
+    [TestCase("0 15 10 15W * ? 2010", "a 'W' on a single day-of-month still shifts that day")]
+    [TestCase("0 15 10 ? * 6#3 2010", "'#' with no other day in the field is the nth day of the month")]
+    [TestCase("0 15 10 ? * FRI#3 2010", "and the same written with a name")]
+    [TestCase("0 15 10 1-5 * ? 2010", "a range with nothing after it is a range")]
+    [TestCase("0 0 18-21/1 ? * MON-FRI", "a step of 1 inside a range is a step, and a textual range is not a dash option")]
+    [TestCase("0 0 12 ? * 2/2", "the numeric twin of 'MON/2' is an ordinary step and is untouched")]
+    [TestCase("0 15 10 ? DEC * 2010", "'DEC' is a month name that happens to end in 'C', not a calendar option")]
+    public void ExpressionsTheNewRejectionsMustNotCatchStillParse(string expression, string reason)
+    {
+        Action act = () => new CronExpression(expression);
+
+        act.Should().NotThrow(reason);
     }
 
     [Test]
@@ -517,34 +614,6 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
 
         int[] arrJuneDaysThatShouldFire =
             [1, 8, 15, 22, 29];
-        List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
-
-        TestCorrectWeekFireDays(cronExpression, juneDays);
-    }
-
-    [Test]
-    public void TestCronExpressionWeekdaysFridayEveryTwoWeeks()
-    {
-        CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI/2");
-        var nextRunTime = cronExpression.GetTimeAfter(DateTimeOffset.Now);
-        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
-
-        int[] arrJuneDaysThatShouldFire =
-            [1, 15, 29];
-        List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
-
-        TestCorrectWeekFireDays(cronExpression, juneDays);
-    }
-
-    [Test]
-    public void TestCronExpressionWeekdaysThirsdayAndFridayEveryTwoWeeks()
-    {
-        CronExpression cronExpression = new CronExpression("0 0 12 ? * THU,FRI/2");
-        var nextRunTime = cronExpression.GetTimeAfter(DateTimeOffset.Now);
-        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
-
-        int[] arrJuneDaysThatShouldFire =
-            [1, 14, 15, 28, 29];
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
