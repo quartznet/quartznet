@@ -177,7 +177,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `UseBackgroundThreads` | bool | `false` | Runs the misfire handler and cluster manager on background threads, which do not keep the process alive. These two are the only real threads Quartz creates. |
 | `SchemaProvisioning` | `SchemaProvisioning` | `Validate` | What the store does about its schema at startup: `None` does nothing, `Validate` verifies the expected tables exist, `CreateIfMissing` creates whatever is missing and then verifies. |
 | `SelectWithLockSql` | string? | none | Overrides the row-lock statement, defaulted to SQL Server's `WITH (UPDLOCK,ROWLOCK)` form when that is the database. Read only when the store builds a database-locking handler for itself — see [Locking](#locking). |
-| `OpenConnection` | bool | `false` | Whether `ExternalTransactionJobStore` opens the connections it creates; read only by that store, which is the one `UsePersistentStore(store => store.UseAmbientTransactions())` selects. |
+| `OpenConnection` | bool | `false` | Whether the ambient-transaction store — `ExternalTransactionJobStore`, the one `UsePersistentStore(store => store.UseAmbientTransactions())` selects — opens the connections it creates. Read only by that store, and written by `quartz.jobStore.openConnection` as well as by the section entry. |
 
 A custom trigger persistence delegate is registered with
 `UsePersistentStore(s => s.UseTriggerPersistenceDelegate<T>())` rather than through an option; the
@@ -755,7 +755,7 @@ Two differences are worth knowing:
 | `quartz.context.key.NAME` | `Scheduler:Context:NAME` |
 | `quartz.threadPool.maxConcurrency` (or `threadCount`) | `ThreadPool:MaxConcurrency` |
 | `quartz.threadPool.type` | `UseThreadPool<T>()` |
-| `quartz.jobStore.type` | `UseInMemoryStore()` / `UsePersistentStore<T>()` |
+| `quartz.jobStore.type` | `UseInMemoryStore()` / `UsePersistentStore()`, with `UseAmbientTransactions()` inside it for the store 3.x called `JobStoreCMT`; `UsePersistentStore<T>()` takes a persistent store of your own |
 | `quartz.jobStore.misfireThreshold` | `JobStore:MisfireThreshold` |
 | `quartz.jobStore.tablePrefix` | `JobStore:TablePrefix` |
 | `quartz.jobStore.useProperties` | `JobStore:StoreJobDataAsStrings` |

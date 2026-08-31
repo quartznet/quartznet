@@ -173,7 +173,10 @@ independently.
 a second of, the next fire time, it is dropped and the occurrence wins. So a policy whose waits are longer
 than the gap between occurrences quietly does nothing — an hourly trigger with a 90-minute retry wait is
 never retried, because the next hour comes first. A retry is not scheduled past the trigger's `EndTimeUtc`
-either.
+either, nor past the end of the calendar: an exponential policy's waits grow until one of them is longer
+than the room left in a `DateTimeOffset`, and a retry with nowhere to land is declined for the same reason
+as one that would land too late. In every case the occurrence settles and the trigger keeps its ordinary
+schedule.
 
 **A retry burns nothing.** It does not consume a `SimpleTrigger` repeat count, a recurrence rule's `COUNT`
 slot, or a `TimesTriggered`. The schedule after a retry is exactly the schedule there would have been if

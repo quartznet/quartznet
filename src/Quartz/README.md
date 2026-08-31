@@ -60,7 +60,7 @@ await scheduler.Start();
 | [Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) | the web dashboard |
 | [Quartz.HttpClient](https://www.nuget.org/packages/Quartz.HttpClient) | driving a remote scheduler over the HTTP API |
 | [Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) | ready-made jobs: file scanning, sending mail, running a process |
-| [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) | history logging, XML and JSON schedule files, the interrupt monitor |
+| [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) | history logging, XML and JSON schedule files |
 | [Quartz.Plugins.TimeZoneConverter](https://www.nuget.org/packages/Quartz.Plugins.TimeZoneConverter) | Windows and IANA time zone ids resolving on either operating system |
 | [Quartz.Serialization.Newtonsoft](https://www.nuget.org/packages/Quartz.Serialization.Newtonsoft) | persisting with Newtonsoft.Json instead of System.Text.Json |
 | [Quartz.Extensions.Redis](https://www.nuget.org/packages/Quartz.Extensions.Redis) | Redis distributed locks for a cluster |

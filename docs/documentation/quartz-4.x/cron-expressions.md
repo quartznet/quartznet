@@ -84,6 +84,34 @@ See [Macros](#macros) below for the set.
 The legal characters and the names of months and days of the week are not case sensitive. MON is the same as mon.
 :::
 
+## Forms the parser refuses
+
+Seven shapes parsed on 3.x and then meant something other than what they said — a special character was
+dropped on the floor, or a step degenerated. Each is a `FormatException` in 4.x, and the message names
+the expression that says what the author meant.
+
+| Written | What it used to mean | Write instead |
+|:--------|:---------------------|:--------------|
+| `1-5W` | the `W` was dropped, leaving `1-5` | `1W,2W,3W,4W,5W`, or drop the `W`. `W` applies to a single day, not a range or a list |
+| `? * L-3`, `? * LW` | the suffix was dropped, leaving Saturday | `L-3` and `LW` belong to day-of-month. A bare `L` in day-of-week is still Saturday |
+| `MON,FRI#3` | the third **Monday**; the Friday was never fired | one trigger per day, or drop the `#`. `#` applies to the whole field |
+| `5C`, `1C` | `5` / `1` — `C` ("calendar") was never implemented | `WithCalendarName`, which is what a calendar is for |
+| `*/0`, `5/0`, `0-10/0` | no step at all | `*` for every value, or a step of 1 or more |
+| `0-10/120` | an unchecked step; `0/120` was already rejected | a step inside the field's range |
+| `MON/2` | every second week, with no stable phase | `MON,WED,FRI` for a step through the week, or `RecurrenceScheduleBuilder.Create("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO")` for every second Monday |
+
+`MON/2` is the one that changes a schedule rather than only a spelling. A textual day-of-week followed by
+`/` meant "every N weeks", while the numeric `2/2` beside it meant an ordinary step — two readings of one
+grammar. The fortnight also had no phase to keep: it counted whole weeks from wherever the search
+happened to start, so a misfire, a restart, a failover or a dashboard query recomputed it from a
+different day and moved it. It is rejected rather than quietly re-read as a step, because re-reading it
+would turn a fortnightly job into a thrice-weekly one — 26 fires a year become 156 — with nothing logged.
+[`RecurrenceTrigger`](tutorial/recurrencetrigger.md) anchors the interval on the trigger's start time, so
+the fortnight belongs to the trigger.
+
+If a database may hold one of these expressions, audit it before upgrading:
+[Before you upgrade](migration-guide.md#before-you-upgrade) has the query.
+
 ## Macros
 
 The `@` macros are the ones Unix cron has had since Vixie's, and they mean the same thing here:
@@ -166,9 +194,20 @@ A time zone composes the same way: `CronExpression.Parse(s, CronFormat.Unix).Wit
 Two things differ between the dialects and nothing else does. The **layout**: five fields, minutes first,
 with no seconds and no year. The **day-of-week numbering**: 0-7 with both 0 and 7 meaning Sunday, so `1-5` is
 Monday to Friday as it is in crontab, and `5` is Friday rather than the Thursday the same digit means in a
-Quartz expression. Everything above is one grammar - `L`, `W`, `#` and `H` all work inside the five-field
+Quartz expression. Everything above is one grammar - `L`, `W` and `#` all work inside the five-field
 layout, and `L` alone in day-of-week still means Saturday, because it is not a number and so has nothing to
 renumber.
+
+::: warning `H` composes with the Unix form through the builder only
+`CronScheduleBuilder.Create(expression, CronFormat.Unix)` reads an `H` in the five-field form: it rewrites
+to the Quartz form first and then defers the hash to the trigger's identity, so
+`Create("H 4 * * 1", CronFormat.Unix)` on a trigger identified as `nightly` comes out as `0 13 4 ? * MON`.
+The other two doors cannot. `CronExpression.Parse` and `TryParse` take a format but no hash key, so there
+is nothing for `H` to hash against; [`ParseWithHash`](#h-hash-for-load-distribution), `TryParseWithHash`
+and `ResolveHash` take a hash key but no format, so a five-field expression is rejected with the six-field
+advice. Use the builder, or prepend the seconds field yourself. A format-taking `ParseWithHash` is an
+additive overload and is filed for 4.1.
+:::
 
 ::: warning
 The expression is **normalised** to the canonical Quartz form, and the original text is not recoverable.
@@ -211,7 +250,7 @@ values, spreading load across the allowed range.
 
 `H` is **not** supported in the Year field, and cannot be combined with `L`, `W`, or `#`.
 
-### Examples
+### Hash examples
 
 | **Expression** | **Description** |
 |:---------------|:----------------|
@@ -370,9 +409,40 @@ written exactly `*` or `?` names no days, so it restricts nothing and the other 
 copied from one of those fires more often here than it did there.
 :::
 
-## Notes
+## Daylight saving time
 
-::: warning
-Be careful when setting fire times between the hours of the morning when "daylight savings" changes occur in your locale (for US locales, this would typically be the hour before and after 2:00 AM - because the time shift can cause a skip or a repeat depending on whether the time moves back or jumps forward. You may find this Wikipedia entry helpful in determining the specifics to your locale:
-[https://secure.wikimedia.org/wikipedia/en/wiki/Daylight_saving_time_around_the_world](https://secure.wikimedia.org/wikipedia/en/wiki/Daylight_saving_time_around_the_world)
+A cron expression names a wall-clock time, and a daylight saving transition is exactly the event that
+makes a wall clock ambiguous or missing. **Nothing is skipped and nothing is fired twice**, but it is
+worth knowing which instant is chosen, and the answer depends on whether the expression names a fixed
+time of day or an interval.
+
+A **fixed-time** expression is one whose second, minute and hour fields are plain values or comma lists
+of plain values - `0 30 2 * * ?`, `0 0,30 2 * * ?`:
+
+- A wall-clock time the clocks **skip** fires once, at the **end of the gap** - the instant the clocks
+  moved. A daily `0 30 2 * * ?` over a 02:00-03:00 spring-forward gap fires at 03:00. Every wall clock
+  the gap swallowed names that one instant, so an expression matching several of them still fires once.
+  This is the instant the expression itself matches: `IsSatisfiedBy` agrees with the fire time, which is
+  what makes it the right answer.
+- A wall-clock time that **occurs twice** on a fall-back day fires once, at the **first** of the two
+  occurrences.
+
+An **interval** expression - one with a wildcard, a step or a range in the second, minute or hour field,
+such as `0 * * * * ?` or `0 0/30 * * * ?` - keeps firing through the repeated hour, so both passes of it
+run. Over a spring-forward gap the gap-end rule shows as an extra fire rather than a moved one:
+`0 30 * * * ?` fires at 03:00 for the occurrence the gap swallowed and again at 03:30 for the next
+hour's.
+
+A `CronCalendar` written over the skipped hour excludes the gap's end for the same reason.
+
+::: warning Quartz 3.x behaves differently
+On 3.x a skipped time is shifted forward by the transition's delta instead - the daily `0 30 2 * * ?`
+above fires at 03:30, an instant its own expression does not match - and an interval expression fires the
+repeated hour only once, so an "every minute" schedule silently loses an hour of real time each autumn.
 :::
+
+Whatever the schedule, **name the time zone**: an expression with none uses `TimeZoneInfo.Local`, which
+is the developer's machine in development and very often UTC in a container.
+[Daylight saving, clock changes and cluster skew](../best-practices.md#daylight-saving-clock-changes-and-cluster-skew)
+covers the choice of trigger family, and the
+[FAQ](../faq.md#daylight-saving-time-and-triggers) has the longer treatment.

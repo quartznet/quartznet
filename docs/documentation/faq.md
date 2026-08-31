@@ -292,28 +292,58 @@ since its firing on Saturday morning at 10:00 am will not be 24 hours,
 but will instead be 23 or 25 hours respectively.
 
 There is one additional point users must understand about CronTrigger with
-respect to daylight savings. This is that you should take careful thought
-about creating schedules that fire between midnight and 3:00 am (the critical
-window of time depends on your trigger's locale, as explained above).
-The reason is that depending on your trigger's schedule, and the particular
-daylight event, the trigger may be skipped or may appear to not fire for an
-hour or two. As examples, say you are in the United States, where daylight
-savings events occur at 2:00 am. If you have a CronTrigger that fires every
-day at 2:15 am, then on the day of the beginning of daylight savings time
-the trigger will be skipped, since, 2:15 am never occurs that day. If you
-have a CronTrigger that fires every 15 minutes of every hour of every day,
-then on the day daylight savings time ends you will have an hour of time
-for which no triggers will occur, because when 2:00 am arrives, it will become
-1:00 am again, however all of the firings during the one o'clock hour have
-already occurred, and the trigger's next fire time was set to 2:00 am
+respect to daylight savings, and it is worth reading carefully because Java
+Quartz's own page says something Quartz.NET does not do. A CronTrigger is
+**never skipped** by a daylight saving transition, and never fires twice for
+one scheduled occurrence. What a transition decides is *which instant* a
+wall-clock time that is missing or repeated resolves to, and the answer
+depends on whether the expression names a fixed time of day or an interval.
 
-* hence for the next hour no triggering will occur.
+A **fixed-time** expression is one whose second, minute and hour fields are
+plain values or comma lists of plain values - `0 15 2 * * ?`, or
+`0 0,30 2 * * ?`. Say you are in the United States, where daylight saving
+events occur at 2:00 am, and you have a CronTrigger that fires every day at
+2:15 am:
+
+* On the day daylight saving time **begins**, 2:15 am does not exist. The
+  trigger fires once anyway. On **4.x** it fires at the *end of the gap* -
+  3:00 am, the instant the clocks moved - which is the one in-gap instant the
+  expression itself matches, so `IsSatisfiedBy` agrees with the fire time. On
+  **3.x** the fire is shifted forward by the transition's delta instead, to
+  3:15 am. A zone whose delta is not a whole hour - Australia/Lord_Howe - splits
+  the same two ways, on its own numbers. An expression matching several of the
+  swallowed wall clocks, such as `0 0,15,30,45 2 * * ?`, still fires once: they
+  all name the same instant.
+* On the day daylight saving time **ends**, 2:15 am occurs twice. The trigger
+  fires once, at the first of the two occurrences. This is the same on both
+  versions.
+
+An **interval** expression - one with a wildcard, a step or a range in the
+second, minute or hour field, such as a trigger that fires every 15 minutes of
+every hour of every day - is where the versions differ most. On **4.x** it
+keeps firing through the repeated hour, so both passes of it run. On **3.x**
+the repeated hour is fired only once, so on the day daylight saving time ends
+you have an hour of real time in which no firing occurs: when 2:00 am arrives
+it becomes 1:00 am again, all the firings of the one o'clock hour have already
+happened, and the trigger's next fire time was already 2:00 am. Over a
+spring-forward gap on 4.x the gap-end rule shows as an *extra* fire rather than
+a moved one - an hourly `0 30 * * * ?` fires at 3:00 for the occurrence the gap
+swallowed and again at 3:30 for the next hour's, where 3.x resumes from the
+shifted 3:30 and fires once.
 
 In summary, all of this makes perfect sense, and should be easy to remember
 if you keep these two rules in mind:
 
-* SimpleTrigger ALWAYS fires exactly every N seconds,  with no relation to the time of day.
-* CronTrigger ALWAYS fires at a given time of day and then computes its  next time to fire. If that time does not occur on a given day, the  trigger will be skipped. If the time occurs twice in a given day, it only fires once, because after firing on that time the first time, it computes the next time of day to fire on.
+* SimpleTrigger ALWAYS fires exactly every N seconds, with no relation to the time of day.
+* CronTrigger ALWAYS fires at a given time of day and then computes its next time to fire. If that time of day does not exist on a given day, it fires at the one instant the transition maps that wall clock onto rather than being skipped. If the time occurs twice in a given day, a fixed-time expression fires once, at the first occurrence, because after firing it computes the next time of day to fire on; an interval expression fires through both occurrences on 4.x.
+
+Whatever the schedule, **name the time zone**. A trigger with no zone uses
+`TimeZoneInfo.Local`, so the same expression means two different things on a
+developer's machine and in a container. 4.x's
+[Cron Expression Reference](quartz-4.x/cron-expressions.md#daylight-saving-time)
+states the two rules on their own, and
+[Daylight saving, clock changes and cluster skew](best-practices.md#daylight-saving-clock-changes-and-cluster-skew)
+covers choosing the trigger family that means what you meant.
 
 ## System clock changes (NTP corrections, manual adjustments)
 

@@ -450,7 +450,10 @@ for a cron expression with a workaround in it, is usually the sign.
 Monday there. 4.x rejects it, because the fortnight's phase was anchored to whatever last asked the
 expression a question: a misfire, a restart or a failover recomputed it from a different day and
 moved it. `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO` anchors on the trigger's start time instead, so the
-fortnight is a property of the trigger rather than of the caller.
+fortnight is a property of the trigger rather than of the caller. It is one of seven shapes 4.x
+refuses that 3.x accepted and then quietly reinterpreted;
+[Forms the parser refuses](/documentation/quartz-4.x/cron-expressions#forms-the-parser-refuses) lists
+them, and the ones to audit a database for before upgrading.
 
 ### The two daylight saving rules
 
@@ -462,7 +465,8 @@ is not what this implementation does, and the difference matters enough to state
   never skipped. *Where* it fires differs by version. On 4.x it fires at the **end of the gap**, the
   instant the clocks moved: a daily 02:30 over a 02:00–03:00 gap fires at 03:00. On 3.x the fire is
   shifted forward by the transition delta instead, to 03:30. In a zone whose delta is not a whole
-  hour — Australia/Lord_Howe — the two rules read 02:30 and 02:45. Only 4.x's answer is an instant
+  hour — Australia/Lord_Howe, where 02:00 becomes 02:30 — a daily `0 15 2 * * ?` reads 02:30 on 4.x
+  and 02:45 on 3.x. Only 4.x's answer is an instant
   the expression itself matches: ask `IsSatisfiedBy` about the fire time and 4.x says yes where 3.x
   says no.
 - A wall-clock time that **occurs twice** on a fall-back day fires **once**, at the first of the two
