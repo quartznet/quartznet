@@ -29,8 +29,9 @@ namespace Quartz.Core;
 /// <remarks>
 /// <para>
 /// Event ids 1000-1999 belong to this area and are allocated in file order: the scheduler itself
-/// (1000-1029), its firing loop (1030-1049), the job run shell (1050-1069), the signaler (1070-1079)
-/// and the error listener of last resort (1080-1089). An id, once given out, is what an operator
+/// (1000-1029), its firing loop (1030-1049), the job run shell (1050-1069), the signaler (1070-1079),
+/// the error listener of last resort (1080-1089) and the timeout middleware (1090-1099). An id, once
+/// given out, is what an operator
 /// filters and alerts on, so it is never reused for a different event and never renumbered;
 /// <c>LogEventCatalogTest</c> makes a change to one a reviewed diff.
 /// </para>
@@ -157,4 +158,13 @@ internal static partial class CoreLog
         JobKey? jobKey,
         string? fireInstanceId,
         Exception? exception);
+
+    [LoggerMessage(EventId = 1090, Level = LogLevel.Warning, Message = "Job {JobKey} exceeded the {Budget} it was allowed; interrupting fire instance {FireInstanceId}")]
+    public static partial void JobTimedOut(this ILogger logger, JobKey jobKey, TimeSpan budget, string fireInstanceId);
+
+    [LoggerMessage(EventId = 1091, Level = LogLevel.Debug, Message = "Job {JobKey} finished before the interrupt its timeout asked for reached fire instance {FireInstanceId}")]
+    public static partial void JobTimeoutFoundNothingToInterrupt(this ILogger logger, JobKey jobKey, string fireInstanceId);
+
+    [LoggerMessage(EventId = 1092, Level = LogLevel.Error, Message = "Interrupting timed out job {JobKey}, fire instance {FireInstanceId}, failed")]
+    public static partial void JobTimeoutInterruptFailed(this ILogger logger, JobKey jobKey, string fireInstanceId, Exception exception);
 }

@@ -37,10 +37,11 @@ internal sealed class JobTypeInformation
 {
     private static readonly ConcurrentDictionary<Type, JobTypeInformation> jobTypeCache = new ConcurrentDictionary<Type, JobTypeInformation>();
 
-    public JobTypeInformation(bool concurrentExecutionDisallowed, bool persistJobDataAfterExecution)
+    public JobTypeInformation(bool concurrentExecutionDisallowed, bool persistJobDataAfterExecution, TimeSpan? timeout)
     {
         ConcurrentExecutionDisallowed = concurrentExecutionDisallowed;
         PersistJobDataAfterExecution = persistJobDataAfterExecution;
+        Timeout = timeout;
     }
 
     /// <summary>
@@ -67,12 +68,25 @@ internal sealed class JobTypeInformation
     {
         var concurrentExecutionDisallowed = IsAttributePresentOnTypeOrItsInterfaces(jobType, typeof(DisallowConcurrentExecutionAttribute));
         var persistJobDataAfterExecution = IsAttributePresentOnTypeOrItsInterfaces(jobType, typeof(PersistJobDataAfterExecutionAttribute));
+        var timeout = (FindAttributeOnTypeOrItsInterfaces(jobType, typeof(JobTimeoutAttribute)) as JobTimeoutAttribute)?.Timeout;
 
-        return new JobTypeInformation(concurrentExecutionDisallowed, persistJobDataAfterExecution);
+        return new JobTypeInformation(concurrentExecutionDisallowed, persistJobDataAfterExecution, timeout);
     }
 
     /// <summary>
     /// Whether the type, anything it inherits from, or any interface it implements carries the attribute.
+    /// </summary>
+    /// <inheritdoc cref="FindAttributeOnTypeOrItsInterfaces" path="/remarks" />
+    private static bool IsAttributePresentOnTypeOrItsInterfaces(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type typeToExamine,
+        Type attributeType)
+    {
+        return FindAttributeOnTypeOrItsInterfaces(typeToExamine, attributeType) is not null;
+    }
+
+    /// <summary>
+    /// The attribute the type, anything it inherits from, or any interface it implements carries, or
+    /// <see langword="null" /> when none of them does.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -84,33 +98,46 @@ internal sealed class JobTypeInformation
     /// <see cref="DynamicallyAccessedMemberTypes.Interfaces" /> instead of travelling.
     /// </para>
     /// <para>
+    /// For <see cref="JobTimeoutAttribute" />, which carries a value rather than merely being present,
+    /// the type's own declaration wins over an interface's: a job that states its own budget is not
+    /// overruled by a contract it happens to fulfil.
+    /// </para>
+    /// <para>
     /// No annotation is needed on the attribute lookup itself: an attribute is part of the metadata of a
     /// type that survives trimming at all, so the trimmer has nothing to preserve on its account. Only
     /// <see cref="Type.GetInterfaces" /> asks for anything, and it asks for one flag.
     /// </para>
     /// </remarks>
-    private static bool IsAttributePresentOnTypeOrItsInterfaces(
+    private static Attribute? FindAttributeOnTypeOrItsInterfaces(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] Type typeToExamine,
         Type attributeType)
     {
-        if (typeToExamine.GetCustomAttributes(attributeType, inherit: true).Length > 0)
+        object[] declared = typeToExamine.GetCustomAttributes(attributeType, inherit: true);
+        if (declared.Length > 0)
         {
-            return true;
+            return (Attribute) declared[0];
         }
 
         foreach (var interfaceType in typeToExamine.GetInterfaces())
         {
-            if (interfaceType.GetCustomAttributes(attributeType, inherit: true).Length > 0)
+            object[] inherited = interfaceType.GetCustomAttributes(attributeType, inherit: true);
+            if (inherited.Length > 0)
             {
-                return true;
+                return (Attribute) inherited[0];
             }
         }
 
-        return false;
+        return null;
     }
 
     public bool ConcurrentExecutionDisallowed { get; }
     public bool PersistJobDataAfterExecution { get; }
+
+    /// <summary>
+    /// What <see cref="JobTimeoutAttribute" /> says a firing of this job may take, or
+    /// <see langword="null" /> when the type says nothing and the scheduler's own default applies.
+    /// </summary>
+    public TimeSpan? Timeout { get; }
 }
 
 /// <summary>

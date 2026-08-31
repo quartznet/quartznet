@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
+using Quartz.Core;
 using Quartz.Extensibility;
 using Quartz.Impl.Calendar;
 
@@ -135,6 +136,12 @@ public class QuartzSchedulerBuilderForwardingTest
         new Case("AddCalendar", "AddCalendar(name, factory, options)",
             builder => builder.AddCalendar("calendar-factory", _ => new HolidayCalendar()),
             services => HasCalendar(services, "calendar-factory")),
+
+        new Case("AddJobTimeout", "AddJobTimeout(defaultTimeout)",
+            builder => builder.AddJobTimeout(TimeSpan.FromMinutes(1)),
+            services => Resolve(services, provider => provider
+                .GetServices<JobExecutionMiddlewareRegistration>()
+                .Any(registration => registration.MiddlewareType == typeof(JobTimeoutMiddleware)))),
     ];
 
     public static IEnumerable<TestCaseData> Cases()

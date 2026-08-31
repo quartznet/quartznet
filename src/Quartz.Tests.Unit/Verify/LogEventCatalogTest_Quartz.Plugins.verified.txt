@@ -56,22 +56,6 @@
     "File named '{FileName}' does not exist"
 6326  Warning  JsonSchedulingPluginLog.FileCloseFailed
     "Error closing jobs file {FileName}"
-6400  Information  InterruptPluginLog.PluginRegistered
-    "Registering Job Interrupt Monitor Plugin"
-6401  Warning  InterruptPluginLog.MaxRunTimeNotANumber
-    "Job data map value for {Key} is not a number of milliseconds, using the plugin default of {Delay} instead"
-6402  Debug  InterruptPluginLog.InterruptMonitorScheduled
-    "Job's Interrupt Monitor has been scheduled to interrupt with the delay: {Delay}"
-6403  Error  InterruptPluginLog.InterruptMonitorSchedulingFailed
-    "Error scheduling interrupt monitor {ErrorMessage}"
-6410  Information  InterruptPluginLog.JobInterrupted
-    "Interrupted Job as it ran more than the configured max time. Job Details [{JobName}:{JobGroup}], fire instance id {FireInstanceId}"
-6411  Debug  InterruptPluginLog.JobNoLongerRunning
-    "Job execution was no longer running, nothing to interrupt. Job Details [{JobName}:{JobGroup}], fire instance id {FireInstanceId}"
-6412  Error  InterruptPluginLog.JobInterruptFailed
-    "Error interrupting Job: {ExceptionMessage}"
-6413  Error  InterruptPluginLog.MonitorCancellationFailed
-    "Error cancelling monitor: {ExceptionMessage}"
 6500  Information  ManagementPluginLog.ShutdownHookRegistered
     "Registering Quartz Shutdown hook '{PluginName}'"
 6501  Information  ManagementPluginLog.ShuttingDown

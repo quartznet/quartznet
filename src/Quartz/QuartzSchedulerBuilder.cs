@@ -800,6 +800,13 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         return this;
     }
 
+    /// <inheritdoc cref="QuartzBuilderExtensions.AddJobTimeout" />
+    public QuartzSchedulerBuilder AddJobTimeout(TimeSpan? defaultTimeout = null)
+    {
+        inner.AddJobTimeout(defaultTimeout);
+        return this;
+    }
+
     // The interface half. Implemented explicitly so the public members above can return this type
     // rather than IQuartzBuilder — the only way C# expresses a covariant return on an interface
     // implementation, and what lets Create()…BuildScheduler() be a single expression.

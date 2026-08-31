@@ -9,11 +9,6 @@ namespace Quartz
         public System.Collections.Generic.List<string> Files { get; }
         public System.TimeSpan ScanInterval { get; set; }
     }
-    public sealed class JobAutoInterruptOptions
-    {
-        public JobAutoInterruptOptions() { }
-        public System.TimeSpan DefaultMaxRunTime { get; set; }
-    }
     public sealed class JobHistoryLoggingOptions
     {
         public JobHistoryLoggingOptions() { }
@@ -24,7 +19,6 @@ namespace Quartz
     }
     public static class PluginConfigurationExtensions
     {
-        public static Quartz.IQuartzBuilder UseJobAutoInterrupt(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobAutoInterruptOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseJobHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseJsonSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
         public static Quartz.IQuartzBuilder UseShutdownHook(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ShutdownHookOptions>? configure = null) { }
@@ -103,22 +97,6 @@ namespace Quartz.Plugins.History
         public System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.ITrigger trigger, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
-    }
-}
-namespace Quartz.Plugins.Interrupt
-{
-    public sealed class JobInterruptMonitorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.ITriggerListener
-    {
-        public const string JobDataMapKeyAutoInterruptable = "AutoInterruptable";
-        public const string JobDataMapKeyMaxRunTime = "MaxRunTime";
-        public JobInterruptMonitorPlugin() { }
-        [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
-        public System.TimeSpan DefaultMaxRunTime { get; }
-        public string Name { get; }
-        public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerComplete(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace Quartz.Plugins.Json

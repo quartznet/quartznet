@@ -1,6 +1,5 @@
 using Quartz.Configuration;
 using Quartz.Plugins.History;
-using Quartz.Plugins.Interrupt;
 using Quartz.Plugins.Json;
 using Quartz.Plugins.Management;
 using Quartz.Plugins.Xml;
@@ -74,19 +73,6 @@ public static class PluginConfigurationExtensions
                 plugin.FailOnSchedulingError = options.FailOnSchedulingError;
                 plugin.ScanInterval = options.ScanInterval;
             });
-    }
-
-    /// <summary>
-    /// Signals cancellation to jobs that have run longer than they are allowed to.
-    /// </summary>
-    public static IQuartzBuilder UseJobAutoInterrupt(
-        this IQuartzBuilder builder,
-        Action<JobAutoInterruptOptions>? configure = null)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-
-        return builder.AddConfiguredPlugin<JobInterruptMonitorPlugin, JobAutoInterruptOptions>(
-            "jobAutoInterrupt", configure, static (plugin, options) => plugin.DefaultMaxRunTime = options.DefaultMaxRunTime);
     }
 
     /// <summary>
@@ -255,21 +241,6 @@ public sealed class ShutdownHookOptions
     /// <see langword="true" />.
     /// </summary>
     public bool CleanShutdown { get; set; } = true;
-}
-
-/// <summary>
-/// Configuration for the job auto-interrupt plugin.
-/// </summary>
-public sealed class JobAutoInterruptOptions
-{
-    /// <summary>
-    /// How long a job may run before cancellation is signalled to it.
-    /// </summary>
-    /// <remarks>
-    /// A per-job value can be set through the job data map under
-    /// <see cref="JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime"/>.
-    /// </remarks>
-    public TimeSpan DefaultMaxRunTime { get; set; } = TimeSpan.FromMinutes(5);
 }
 
 /// <summary>

@@ -10,7 +10,6 @@ using Quartz.Configuration;
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Plugins.History;
-using Quartz.Plugins.Interrupt;
 using Quartz.Plugins.Json;
 using Quartz.Plugins.Management;
 using Quartz.Plugins.Xml;
@@ -181,7 +180,6 @@ public class ConfigurationWrittenInCodeWinsTest
             .UseStructuredTriggerLogging(options => options.TriggerCompleteMessage = "trigger complete")
             .UseXmlSchedulingConfiguration(options => options.Files.Add("jobs.xml"))
             .UseJsonSchedulingConfiguration(options => options.Files.Add("jobs.json"))
-            .UseJobAutoInterrupt(options => options.DefaultMaxRunTime = TimeSpan.FromMinutes(7))
             .UseShutdownHook());
 
         using ServiceProvider provider = services.BuildServiceProvider();
@@ -192,7 +190,6 @@ public class ConfigurationWrittenInCodeWinsTest
         Plugin<StructuredLoggingTriggerHistoryPlugin>(provider).TriggerCompleteMessage.Should().Be("trigger complete");
         Plugin<XmlSchedulingDataProcessorPlugin>(provider).FileNames.Should().Be("jobs.xml");
         Plugin<JsonSchedulingDataProcessorPlugin>(provider).FileNames.Should().Be("jobs.json");
-        Plugin<JobInterruptMonitorPlugin>(provider).DefaultMaxRunTime.Should().Be(TimeSpan.FromMinutes(7));
         Plugin<ShutdownHookPlugin>(provider).CleanShutdown.Should().BeTrue(
             "an extension called without a callback still applies its options, whose defaults are the "
             + "documented ones rather than whatever the plugin's own field happens to be");

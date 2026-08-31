@@ -2,16 +2,17 @@
 
 [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) provides ready-made
 `ISchedulerPlugin` implementations: logging a history of job and trigger events, loading jobs and
-triggers from a file at startup, interrupting jobs that overrun, and shutting the scheduler down
-cleanly when the process exits.
+triggers from a file at startup, and shutting the scheduler down cleanly when the process exits.
 
 | Plugin | Extension |
 |---|---|
 | `StructuredLoggingJobHistoryPlugin` / `StructuredLoggingTriggerHistoryPlugin` | `UseStructuredJobLogging(…)` / `UseStructuredTriggerLogging(…)` |
 | `LoggingJobHistoryPlugin` / `LoggingTriggerHistoryPlugin` | `UseJobHistoryLogging(…)` / `UseTriggerHistoryLogging(…)` |
 | `JsonSchedulingDataProcessorPlugin` / `XmlSchedulingDataProcessorPlugin` | `UseJsonSchedulingConfiguration(…)` / `UseXmlSchedulingConfiguration(…)` |
-| `JobInterruptMonitorPlugin` | `UseJobAutoInterrupt(…)` |
 | `ShutdownHookPlugin` | `UseShutdownHook(…)` |
+
+Interrupting a job that overruns is no longer here: `JobInterruptMonitorPlugin` was retired in 4.0 for
+`AddJobTimeout(…)` in the core package, which needs no plugin and no job-data-map keys.
 
 ## Installation
 
@@ -30,7 +31,7 @@ builder.Services.AddQuartz(q =>
 {
     q.UseStructuredJobLogging();
     q.UseStructuredTriggerLogging();
-    q.UseJobAutoInterrupt(options => options.DefaultMaxRunTime = TimeSpan.FromMinutes(5));
+    q.UseShutdownHook();
 });
 ```
 <!-- endSnippet -->

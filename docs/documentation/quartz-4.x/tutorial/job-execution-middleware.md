@@ -30,7 +30,8 @@ public interface IJobExecutionMiddleware
 ```
 
 `next` is the rest of the chain, ending in the job. Await it to run the job; do not, and the job does
-not run.
+not run. Awaiting it twice is legal and runs the job twice inside the one firing — see
+[Translating exceptions](#translating-exceptions) for why that is not how you retry.
 
 ## Writing one
 
@@ -90,6 +91,37 @@ Registering a middleware for `AddQuartz("reporting", …)` puts it in that sched
 A named scheduler's middleware is its own, the way its listeners and its job store are.
 :::
 
+::: warning
+A middleware is built **once, from the container's root**, when the scheduler's resources are. Its
+constructor dependencies must therefore be singletons: a scoped one throws
+`Cannot resolve scoped service … from root provider` where scope validation is on — the Host's default
+in Development — and becomes a captive dependency living as long as the scheduler where it is not. The
+name is ASP.NET Core's, but the lifetime is a listener's.
+
+Take an `IServiceScopeFactory` and open a scope inside `Invoke` instead:
+
+<!-- snippet: sample_job_middleware_scoped -->
+```csharp
+public sealed class AuditMiddleware(IServiceScopeFactory scopeFactory) : IJobExecutionMiddleware
+{
+    public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
+    {
+        // A middleware is built once, from the container's root, so a scoped service cannot be a
+        // constructor parameter. Resolve it per firing instead.
+        await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+        AuditLog audit = scope.ServiceProvider.GetRequiredService<AuditLog>();
+
+        await audit.Starting(context.JobDetail.Key, cancellationToken);
+        await next(context, cancellationToken);
+    }
+}
+```
+<!-- endSnippet -->
+
+The firing's own scope — the one the job was resolved from — is reachable through
+`IJobExecutionContextAccessor`; see [Per-firing state](#per-firing-state).
+:::
+
 ## Order
 
 Middleware runs in registration order, **outermost first**. The first registered sees the firing
@@ -109,6 +141,13 @@ Each call adds a stage, so registering the same type twice puts it in the chain 
 The chain is composed **once**, when the scheduler is built, and one instance of each middleware
 serves every firing that scheduler performs. A middleware must therefore keep no per-firing state in
 a field — see [Per-firing state](#per-firing-state) below.
+
+A middleware registered through `ConfigureAllQuartzSchedulers` always composes **inside** one
+registered in a scheduler's own `AddQuartz` callback, whichever of the two calls was written first: a
+scheduler's own configuration runs before what every scheduler was told. That is deliberate, and it is
+what a library embedding Quartz relies on — what the library wraps, such as an outbox or a unit of
+work, belongs inside what the application wraps, such as its tenant scope. Because the ordering does not
+depend on the order of the calls, a library cannot change it by being registered earlier.
 
 ## Where it runs
 
@@ -225,12 +264,98 @@ than to any one middleware, and code that needs the firing itself can read it fr
 `IJobExecutionContextAccessor.Current`, which is set for the whole execution — including inside the
 pipeline, on the way in and on the way out.
 
+**`context.MergedJobDataMap`,** to hand something to a *listener*. An `AsyncLocal` does not reach one:
+an async method restores its caller's execution context, so what a middleware sets inside `Invoke` is
+gone by the time the run shell notifies listeners. The merged map is not — it is this firing's own copy
+of the job's and the trigger's data, built once and shared by everything that holds the context, so a
+value put into it is visible to the job, to the rest of the pipeline and to the listeners for as long
+as the firing lasts. Writing to it is safe and persists nothing: neither the job's nor the trigger's
+stored map is touched. Data that has to outlive the firing goes into `context.JobDetail.JobDataMap` on
+a job marked `[PersistJobDataAfterExecution]`, which is what a job store writes back.
+
 ## The cancellation token
 
 Forward the token you were given. Passing a different one to `next` changes what the job's `Execute`
 parameter is without changing `IJobExecutionContext.CancellationToken`, so the two stop being the
 same token and a job that reads the context sees the wrong one. That is the trap in writing a timeout
-as a middleware.
+as a middleware — and it is why the built-in one interrupts the firing instead.
+
+## Timing a job out
+
+`AddJobTimeout` registers the middleware Quartz ships for exactly this. It replaces
+`JobInterruptMonitorPlugin`, which is gone in 4.0 along with its `"AutoInterruptable"` and
+`"MaxRunTime"` job-data-map keys.
+
+<!-- snippet: sample_job_timeout_register -->
+```csharp
+builder.AddQuartz(q =>
+{
+    // every job gets five minutes, unless it says otherwise
+    q.AddJobTimeout(TimeSpan.FromMinutes(5));
+
+    // or: no scheduler-wide budget, and only the jobs carrying [JobTimeout] are bounded
+    q.AddJobTimeout();
+});
+```
+<!-- endSnippet -->
+
+A job varies the budget by declaring one, the way it declares `[DisallowConcurrentExecution]`. The
+attribute is inherited from a base class or from an interface the job implements, so a contract can set
+the budget for everything that fulfils it:
+
+<!-- snippet: sample_job_timeout_attribute -->
+```csharp
+// Thirty seconds for this job, whatever the scheduler's default is.
+[JobTimeout("00:00:30")]
+public sealed class ReportJob : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        // Forward the token: a job that never looks at it cannot be stopped by anything, and is simply
+        // reported as having timed out once it finally returns.
+        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+    }
+}
+
+// No timeout at all, whatever the scheduler's default is.
+[JobTimeout("00:00:00")]
+public sealed class NightlyRebuildJob : IJob
+{
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+}
+```
+<!-- endSnippet -->
+
+**Precedence.** The job type's `[JobTimeout]` decides whenever there is one — including when it says
+zero, which means the job has no timeout and is exempt from the scheduler-wide default rather than
+overruled by it. Without the attribute, `AddJobTimeout`'s argument decides; without an argument, and
+on a scheduler that never called `AddJobTimeout` at all, nothing is bounded.
+
+**What a timeout does.** When the budget is spent, the firing is interrupted through
+`IScheduler.InterruptFireInstance` — the same path an operator's interrupt takes, so
+`IJobExecutionContext.CancellationToken` (the very token the job holds) is cancelled and
+`ISchedulerListener.JobInterrupted` is raised. Only the firing that overran is interrupted, because it
+is named by its fire instance id: two concurrent executions of one job are timed separately. The
+middleware then raises a `JobExecutionException` naming the budget. That second step is the point: an
+interrupt on its own is *success-shaped*, because the run shell treats a cancellation of the context's
+token as a completed firing, so without it a timeout would reach no listener, produce no error, and
+never be retried.
+
+**A timeout is a retryable failure.** Because it arrives as a `JobExecutionException`, the trigger's
+[`RetryPolicy`](../how-tos/retrying-failed-jobs.md) decides what happens next, exactly as it would for any other
+failure. A retry is an ordinary re-acquisition with a new fire instance, so the pipeline runs again and
+each attempt is handed the whole budget afresh.
+
+::: warning
+**A job that ignores its `CancellationToken` cannot be stopped.** Cancellation is cooperative and
+nothing in .NET aborts running code. Such a job runs to completion, holding its thread-pool slot, and is
+reported as timed out only when it finally returns — which is worth knowing before a budget is relied on
+to free capacity. `CA2016` is the analyzer that flags a job failing to forward the token it was handed;
+turn it on.
+
+An exception the job threw that is *not* a cancellation is left alone even when the budget had expired:
+it says more about what went wrong than the timeout does. The overrun is logged either way.
+:::
 
 ## Middleware or a listener?
 
@@ -249,3 +374,5 @@ its work and a listener can still record what happened.
 
 * [Trigger and Job Listeners](trigger-and-job-listeners.md)
 * [More About Jobs](more-about-jobs.md) — job scopes and `ConfigureJobScope`
+* [Retrying failed jobs](../how-tos/retrying-failed-jobs.md) — what a trigger does with the failure a
+  timeout raises

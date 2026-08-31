@@ -74,6 +74,12 @@
     "{Message} (scheduler: {SchedulerName})"
 1081  Error  CoreLog.SchedulerErrorForFire
     "{Message} (scheduler: {SchedulerName}, trigger: {TriggerKey}, job: {JobKey}, fire instance: {FireInstanceId})"
+1090  Warning  CoreLog.JobTimedOut
+    "Job {JobKey} exceeded the {Budget} it was allowed; interrupting fire instance {FireInstanceId}"
+1091  Debug  CoreLog.JobTimeoutFoundNothingToInterrupt
+    "Job {JobKey} finished before the interrupt its timeout asked for reached fire instance {FireInstanceId}"
+1092  Error  CoreLog.JobTimeoutInterruptFailed
+    "Interrupting timed out job {JobKey}, fire instance {FireInstanceId}, failed"
 2000  Information  RAMJobStoreLog.StoreInitialized
     "RAMJobStore initialized."
 2001  Warning  RAMJobStoreLog.TriggerSkippedJobMissing

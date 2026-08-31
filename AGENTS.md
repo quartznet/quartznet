@@ -88,7 +88,7 @@ pass; do not "finish" any of them.
   the suffix redundant on its face. It is Java parity, it is what every Quartz tutorial teaches, and it
   is twelve members against roughly 1,400 call sites in this repository alone. The names say which
   reading of the clock the value is, and nobody is confused by them.
-- **`Use*` is the verb for an extension that registers a plugin** — `UseJobAutoInterrupt`,
+- **`Use*` is the verb for an extension that registers a plugin** — `UseStructuredJobLogging`,
   `UseShutdownHook`, `UseTimeZoneConverter` — because a plugin is middleware over a scheduler's
   lifecycle and that is how middleware reads. `AddPlugin<T>` is the generic form, for a plugin with no
   extension of its own. `Add*` stays for things a scheduler *contains*: jobs, triggers, calendars,

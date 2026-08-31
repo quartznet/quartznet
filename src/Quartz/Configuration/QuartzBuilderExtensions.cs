@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Quartz.Configuration;
+using Quartz.Core;
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Util;
@@ -646,5 +647,66 @@ public static class QuartzBuilderExtensions
 
         SchedulerContentRegistration.Add(builder, new CalendarConfiguration(name, calendar, options));
         return builder;
+    }
+
+    /// <summary>
+    /// Bounds how long a firing may run: when its budget is spent the execution is interrupted, and the
+    /// overrun is reported as the job's own failure.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A middleware, registered where the call is written, so it takes its place in the chain like any
+    /// other — outside a log scope registered after it, inside one registered before. It is an extension
+    /// rather than a member of <see cref="IQuartzBuilder" /> for the reason everything else here is: it
+    /// is <c>AddJobMiddleware</c> with the built-in middleware, and an implementation of the interface
+    /// should not have to reproduce it.
+    /// </para>
+    /// <para>
+    /// <strong>How the budget is found.</strong> The job type's <see cref="JobTimeoutAttribute" />
+    /// decides, and <paramref name="defaultTimeout" /> applies to every job that carries none. A job
+    /// declaring <c>[JobTimeout("00:00:00")]</c> has no timeout at all, so a long-running job is exempt
+    /// from a scheduler-wide default rather than fighting it. Called with no argument, only the jobs
+    /// that declare a budget are bounded.
+    /// </para>
+    /// <para>
+    /// <strong>What a timeout does.</strong> The firing is interrupted through
+    /// <see cref="IScheduler.InterruptFireInstance" />, exactly as an operator's interrupt would, so the
+    /// job's <see cref="IJobExecutionContext.CancellationToken" /> — the one it was handed — is
+    /// cancelled and <see cref="ISchedulerListener.JobInterrupted" /> is raised. The middleware then
+    /// raises a <see cref="JobExecutionException" /> naming the budget, which is what makes a timeout a
+    /// <em>failure</em>: without it an interrupt looks like a completed job, and the trigger's
+    /// <see cref="RetryPolicy" /> would never be consulted. With it, a timed-out firing is retried like
+    /// any other failure, and each attempt gets the whole budget again.
+    /// </para>
+    /// <para>
+    /// <strong>A job that ignores its token cannot be stopped.</strong> Cancellation is cooperative;
+    /// nothing here aborts a thread. A job that never looks at its token runs to completion and is
+    /// reported as timed out when it finally returns — which is worth knowing before a budget is relied
+    /// on to free a thread-pool slot. <c>CA2016</c> is what polices forwarding the token.
+    /// </para>
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="defaultTimeout">
+    /// How long a job that carries no <see cref="JobTimeoutAttribute" /> may run.
+    /// <see langword="null" />, the default, bounds only the jobs that declare a budget of their own.
+    /// </param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="defaultTimeout" /> is zero or negative. A scheduler-wide default of nothing is
+    /// what leaving it out already says.
+    /// </exception>
+    public static IQuartzBuilder AddJobTimeout(this IQuartzBuilder builder, TimeSpan? defaultTimeout = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (defaultTimeout is { } timeout && timeout <= TimeSpan.Zero)
+        {
+            Throw.ArgumentOutOfRangeException(
+                nameof(defaultTimeout),
+                "A scheduler-wide job timeout must be positive. Leave it out to bound only the jobs that carry [JobTimeout].");
+        }
+
+        return builder.AddJobMiddleware(provider => new JobTimeoutMiddleware(
+            defaultTimeout ?? TimeSpan.Zero,
+            provider.GetService<TimeProvider>() ?? TimeProvider.System));
     }
 }
