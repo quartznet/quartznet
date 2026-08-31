@@ -321,8 +321,10 @@ A few rules to be aware of:
 
 - Unconfigured fields default to `*` (every value).
 - Each field can be configured only once; configuring it again throws `InvalidOperationException`.
-- Day-of-month and day-of-week are mutually exclusive per cron syntax - the builder renders
-  the unused one as `?` and throws if you try to configure both.
+- One expression carries one day field: the builder renders the unused one as `?` and throws if
+  you configure both. That is the builder's own rule rather than cron's, because an expression
+  naming both day fields fires on the union of the two (`0 15 10 1,2,3 * MON,FRI`), which
+  `CronExpression.Parse` accepts - so write that one as text.
 - Values are validated eagerly against each field's allowed range, and `Build()` returns a
   fully validated `CronExpression`; use `ToString()` if you only need the expression string.
 - Days of the week are emitted using their textual names (`MON`, `FRI`, ...), so the produced

@@ -267,12 +267,27 @@ public class CronExpressionBuilderTest
             "the hour was rejected before the second and minute were written, so nothing was left half-applied");
     }
 
+    /// <summary>
+    /// The builder writes one day field per expression, and says that is its own rule.
+    /// </summary>
+    /// <remarks>
+    /// The message used to blame cron syntax, which does allow both: an expression naming both day
+    /// fields fires on their union, and <c>CronExpression.Parse</c> reads it that way. A refusal that
+    /// misstates why sends a reader looking for a parser bug, so the wording is pinned here.
+    /// </remarks>
     [Test]
     public void TestDayOfMonthAndDayOfWeekAreMutuallyExclusive()
     {
-        Invoking(x => x.WithDayOfMonth(10).WithDaysOfWeek(DayOfWeek.Monday)).Should().Throw<InvalidOperationException>().WithMessage("*both day-of-month and day-of-week*");
-        Invoking(x => x.WithDaysOfWeek(DayOfWeek.Monday).WithDayOfMonth(10)).Should().Throw<InvalidOperationException>().WithMessage("*both day-of-month and day-of-week*");
-        Invoking(x => x.OnLastDayOfMonth().OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 3)).Should().Throw<InvalidOperationException>().WithMessage("*both day-of-month and day-of-week*");
+        Invoking(x => x.WithDayOfMonth(10).WithDaysOfWeek(DayOfWeek.Monday)).Should().Throw<InvalidOperationException>().WithMessage("*one day field per expression*");
+        Invoking(x => x.WithDaysOfWeek(DayOfWeek.Monday).WithDayOfMonth(10)).Should().Throw<InvalidOperationException>().WithMessage("*one day field per expression*");
+        Invoking(x => x.OnLastDayOfMonth().OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 3)).Should().Throw<InvalidOperationException>().WithMessage("*one day field per expression*");
+        Invoking(x => x.WithDayOfMonth(13).WithDaysOfWeek(DayOfWeek.Friday)).Should().Throw<InvalidOperationException>().WithMessage("*fires on the union*",
+            "cron does allow both fields, so the refusal names the builder's constraint rather than a rule cron does not have");
+
+        CronExpression.Parse("0 0 0 13 * FRI").WithTimeZone(TimeZoneInfo.Utc)
+            .IsSatisfiedBy(new DateTimeOffset(2026, 5, 13, 0, 0, 0, TimeSpan.Zero)).Should().BeTrue(
+            "a Wednesday the 13th satisfies an expression naming both day fields, so the one the builder "
+            + "declines to compose is valid and fires on the union");
     }
 
     [Test]

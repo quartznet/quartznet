@@ -30,9 +30,12 @@ namespace Quartz;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Unconfigured fields default to every value ('*'). The day-of-month and
-/// day-of-week fields are mutually exclusive per cron syntax; the unused one
-/// renders as '?'. Each field can be configured only once. Day-of-week values
+/// Unconfigured fields default to every value ('*'). One expression carries one
+/// day field here: configuring day-of-month and day-of-week both is refused, and
+/// the unused one renders as '?'. That is this builder's constraint rather than
+/// cron's — an expression naming both days fires on the union of the two, which
+/// <see cref="CronExpression.Parse(string)" /> accepts and reads that way.
+/// Each field can be configured only once. Day-of-week values
 /// are emitted using their textual names (SUN-SAT) so that the produced
 /// expressions stay unambiguous across cron dialects that use different
 /// day-of-week numbering.
@@ -628,7 +631,7 @@ public sealed class CronExpressionBuilder
     {
         if (dayOfWeek is not null)
         {
-            throw new InvalidOperationException("Day-of-month cannot be configured because day-of-week has already been configured. Cron expressions do not support specifying both day-of-month and day-of-week.");
+            throw new InvalidOperationException("Day-of-month cannot be configured because day-of-week has already been configured. This builder writes one day field per expression; an expression that names both fires on the union of the two, so write that one as text and parse it.");
         }
 
         return SetField(ref dayOfMonth, "Day-of-month", value);
@@ -640,7 +643,7 @@ public sealed class CronExpressionBuilder
     {
         if (dayOfMonth is not null)
         {
-            throw new InvalidOperationException("Day-of-week cannot be configured because day-of-month has already been configured. Cron expressions do not support specifying both day-of-month and day-of-week.");
+            throw new InvalidOperationException("Day-of-week cannot be configured because day-of-month has already been configured. This builder writes one day field per expression; an expression that names both fires on the union of the two, so write that one as text and parse it.");
         }
 
         return SetField(ref dayOfWeek, "Day-of-week", value);

@@ -208,6 +208,41 @@ public class QuartzPropertyBridgeTest
         clustering.CheckinInterval.Should().Be(TimeSpan.FromSeconds(10));
     }
 
+    /// <summary>
+    /// The one ambient-transaction store setting a 3.x file could carry reaches its option.
+    /// </summary>
+    /// <remarks>
+    /// 3.x wrote <c>quartz.jobStore.*</c> onto the store object by property name, and
+    /// <c>JobStoreCMT.OpenConnection</c> was one of them. Nothing read the key here until it was
+    /// mapped, and because it sits under a prefix the unknown-key guard accepts, a file carrying it
+    /// was accepted and then ignored — the failure mode the guard exists to prevent, one level down.
+    /// </remarks>
+    [Test]
+    public void TheOpenConnectionFlagReachesTheStoreThatReadsIt()
+    {
+        using var provider = Bridge(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "primary",
+            ["quartz.jobStore.openConnection"] = "true",
+        });
+
+        Options<AdoJobStoreOptions>(provider).OpenConnection.Should().BeTrue(
+            "the key is 3.x's spelling of AdoJobStoreOptions.OpenConnection, and the ambient-transaction "
+            + "store it configures is reachable from a configuration file");
+    }
+
+    [Test]
+    public void TheOpenConnectionFlagIsOffWhenNobodyAsked()
+    {
+        using var provider = Bridge(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "primary",
+        });
+
+        Options<AdoJobStoreOptions>(provider).OpenConnection.Should().BeFalse(
+            "opening the connection is the externally managed transaction's job unless the file says otherwise");
+    }
+
     [Test]
     public void TheSerializableIsolationFlagBecomesTheIsolationLevel()
     {
