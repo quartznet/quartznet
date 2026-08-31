@@ -37,17 +37,17 @@ internal sealed class DialectDelegateOverrides : StdAdoDelegate
 
     protected override string ApplyPaging(string sql, bool takeLimited)
         => takeLimited
-            ? sql + " LIMIT @pageTake OFFSET @pageSkip"
-            : sql + " LIMIT -1 OFFSET @pageSkip";
+            ? sql + " LIMIT @" + AdoConstants.ParameterPageTake + " OFFSET @" + AdoConstants.ParameterPageSkip
+            : sql + " LIMIT -1 OFFSET @" + AdoConstants.ParameterPageSkip;
 
     protected override void AddPagingParameters(DbCommand cmd, int skip, int take, bool takeLimited)
     {
         if (takeLimited)
         {
-            AddCommandParameter(cmd, "pageTake", take);
+            AddCommandParameter(cmd, AdoConstants.ParameterPageTake, take);
         }
 
-        AddCommandParameter(cmd, "pageSkip", skip);
+        AddCommandParameter(cmd, AdoConstants.ParameterPageSkip, skip);
     }
 
     #endregion

@@ -84,23 +84,27 @@ The default is the ANSI form, understood by SQL Server 2012+, Oracle 12c+, Postg
 
 MySQL and SQLite have no such clause, so they override both members — and they must override
 `AddPagingParameters` too, because their clause names the parameters in the other order and providers
-that bind positionally take them in the order the statement mentions them:
+that bind positionally take them in the order the statement mentions them.
+
+The two parameter names are the one thing the two overrides have to agree about, so they are constants
+rather than literals: `AdoConstants.ParameterPageSkip` and `AdoConstants.ParameterPageTake`, spliced
+into the statement with an `@` and bound by the bare name.
 
 <!-- snippet: sample_dialect_delegate_paging -->
 ```csharp
 protected override string ApplyPaging(string sql, bool takeLimited)
     => takeLimited
-        ? sql + " LIMIT @pageTake OFFSET @pageSkip"
-        : sql + " LIMIT -1 OFFSET @pageSkip";
+        ? sql + " LIMIT @" + AdoConstants.ParameterPageTake + " OFFSET @" + AdoConstants.ParameterPageSkip
+        : sql + " LIMIT -1 OFFSET @" + AdoConstants.ParameterPageSkip;
 
 protected override void AddPagingParameters(DbCommand cmd, int skip, int take, bool takeLimited)
 {
     if (takeLimited)
     {
-        AddCommandParameter(cmd, "pageTake", take);
+        AddCommandParameter(cmd, AdoConstants.ParameterPageTake, take);
     }
 
-    AddCommandParameter(cmd, "pageSkip", skip);
+    AddCommandParameter(cmd, AdoConstants.ParameterPageSkip, skip);
 }
 ```
 <!-- endSnippet -->

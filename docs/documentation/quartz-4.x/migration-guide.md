@@ -6034,7 +6034,10 @@ Subclassing `StdAdoDelegate` gets you all of it. A database whose row-limiting s
 clause and **`AddPagingParameters(cmd, skip, take, takeLimited)`** binds it (`skip` and `take` are `int`,
 matching the query objects they serve). Override both together when your clause names the two parameters
 in the other order, because providers that bind positionally take parameters in the order the statement
-mentions them. `MySQLDelegate` and `SQLiteDelegate` do exactly this for `LIMIT … OFFSET`.
+mentions them. `MySQLDelegate` and `SQLiteDelegate` do exactly this for `LIMIT … OFFSET`. The two
+parameter names the pair has to agree on are `AdoConstants.ParameterPageSkip` and
+`AdoConstants.ParameterPageTake` — new in 4.0, and public because a delegate outside Quartz has to
+spell them.
 
 The value-conversion pairs on `IDbAccessor` are no longer all overridable on `StdAdoDelegate`: the
 boolean pair (`GetDbBooleanValue` / `GetBooleanFromDbValue`) stays virtual, because Oracle genuinely
@@ -10276,6 +10279,7 @@ removals on types that are still public and still open, which no section above n
 |---|---|---|
 | `AbstractTrigger.CompareTo(ITrigger)` | Removed; neither `TriggerBase` nor `ITrigger` itself implements `IComparable<ITrigger>` any more | It compared keys — `trigger.Key.CompareTo(other.Key)`, or `triggers.OrderBy(t => t.Key)`, both of which sort properly now that the key types implement `IComparable<JobKey>` / `IComparable<TriggerKey>`. `List<ITrigger>.Sort()` and friends still compile and now throw — see [The trigger family interfaces are read models](#the-trigger-family-interfaces-are-read-models) |
 | `AbstractTrigger.FullJobName` | Removed | `JobKey.ToString()`, alongside the rest in [TriggerBase Property Removals](#triggerbase-property-removals) |
+| `AdoConstants.AliasColumnNextFireTime` | Removed | No replacement, and none is needed: it named a column alias (`ALIAS_NXT_FR_TM`) that no 4.x statement uses and the schema has never had a column for. It was a carryover from the Java acquisition sub-select, and a delegate that copied 3.x SQL is the only thing that could have named it |
 | `new CronExpression(expr, hashKey)`, `new CronExpression(expr, hashSeed)` | Removed; they made `new CronExpression(expr, null)` ambiguous with the time-zone overload, so the null literal did not compile | `CronExpression.ParseWithHash(expr, hashKey)` / `ParseWithHash(expr, hashSeed)` — see [The hash key is a `Parse` argument, not a constructor overload](#the-hash-key-is-a-parse-argument-not-a-constructor-overload) |
 | `CronExpression`'s `protected` constants, fields and parse hooks, and `OnDeserialization` | Gone with the type, which is `sealed` now and no longer implements `IDeserializationCallback` | No replacement; the parsed sets were never a contract — see [The parser is not a subclassing seam](#the-parser-is-not-a-subclassing-seam) |
 | `CronExpression.GetExpressionSummary()`, `ICronTrigger.GetExpressionSummary()`, `CronTriggerImpl.GetExpressionSummary()` | Removed | No replacement. It dumped the parsed field sets in an undocumented format; `CronExpressionString` is the expression, and the parsed sets were never a supported view — see [The parser is not a subclassing seam](#the-parser-is-not-a-subclassing-seam) |
