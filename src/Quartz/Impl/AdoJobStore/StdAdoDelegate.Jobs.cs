@@ -111,7 +111,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, SqlParameters.JobGroup, jobKey.Group);
         if (state is not null)
         {
-            AddCommandParameter(cmd, SqlParameters.State, state.Value.ToStoredValue());
+            AddCommandParameter(cmd, SqlParameters.State, StoredTriggerStates.ToStoredValue(state.Value));
         }
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

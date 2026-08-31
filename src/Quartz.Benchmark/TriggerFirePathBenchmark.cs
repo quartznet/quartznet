@@ -157,7 +157,7 @@ public class TriggerFirePathBenchmark
         driverDelegate.AddCommandParameter(cmd, "instanceName", "NODE-01");
         driverDelegate.AddCommandParameter(cmd, "firedTime", driverDelegate.GetDbDateTimeValue(TimeProvider.System.GetUtcNow()));
         driverDelegate.AddCommandParameter(cmd, "scheduledTime", driverDelegate.GetDbDateTimeValue(trigger.NextFireTimeUtc));
-        driverDelegate.AddCommandParameter(cmd, "entryState", StoredTriggerState.Executing.ToStoredValue());
+        driverDelegate.AddCommandParameter(cmd, "entryState", StoredTriggerStates.ToStoredValue(StoredTriggerState.Executing));
         driverDelegate.AddCommandParameter(cmd, "jobName", trigger.JobKey.Name);
         driverDelegate.AddCommandParameter(cmd, "jobGroup", trigger.JobKey.Group);
         driverDelegate.AddCommandParameter(cmd, "isNonConcurrent", driverDelegate.GetDbBooleanValue(job.ConcurrentExecutionDisallowed));

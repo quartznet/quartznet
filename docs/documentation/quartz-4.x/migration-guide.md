@@ -6170,10 +6170,11 @@ states, and that
 | `StatePausedBlocked` | `PAUSED_BLOCKED` | `StoredTriggerState.PausedBlocked` |
 | `StateDeleted` | `DELETED` | `StoredTriggerState.Deleted` |
 
-Both directions are public, because a custom delegate binds the string into its own statements:
+Both directions are public, because a custom delegate binds the string into its own statements, and both
+are plain static methods — one mapping, one call shape:
 
 ```csharp
-string stored = StoredTriggerState.PausedBlocked.ToStoredValue();   // "PAUSED_BLOCKED"
+string stored = StoredTriggerStates.ToStoredValue(StoredTriggerState.PausedBlocked);   // "PAUSED_BLOCKED"
 StoredTriggerState state = StoredTriggerStates.FromStoredValue(stored);
 ```
 

@@ -3125,7 +3125,7 @@ namespace Quartz.Impl.AdoJobStore
     public static class StoredTriggerStates
     {
         public static Quartz.Extensibility.StoredTriggerState FromStoredValue(string? storedValue) { }
-        public static string ToStoredValue(this Quartz.Extensibility.StoredTriggerState state) { }
+        public static string ToStoredValue(Quartz.Extensibility.StoredTriggerState state) { }
     }
     public readonly struct TriggerAcquireResult : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerAcquireResult>
     {
