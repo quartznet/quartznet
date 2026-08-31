@@ -44,6 +44,27 @@ They hang off `IQuartzBuilder`, so they work the same under `AddQuartz` and on a
 [configuration reference](../configuration/reference.md#listeners-calendars-and-plugins) for how a plugin
 is registered and named.
 
+An options type in that table is the scheduler's own named options, so a plugin is configurable from
+`appsettings.json` like anything else the container builds — bind the section and the values reach the
+plugin:
+
+<!-- snippet: sample_plugins_options_from_configuration -->
+```csharp
+// A plugin's options are the scheduler's own named options, so a configuration section binds
+// onto them like any other. The callback below is applied over whatever the section said.
+services.Configure<FileSchedulingOptions>(configuration.GetSection("Quartz:Xml"));
+
+services.AddQuartz(q => q.UseXmlSchedulingConfiguration(x => x.ScanInterval = TimeSpan.FromMinutes(1)));
+```
+<!-- endSnippet -->
+
+The three sources are applied in the order that makes code the last word: the flat
+`quartz.plugin.{name}.{property}` keys first, then the values bound onto the options, then the callback
+passed to the extension method. A setting the callback says nothing about keeps whatever the keys or the
+configuration section gave it, so configuring a plugin in code does not discard the rest of its
+configuration — it only overrides the parts it names. Under `AddQuartz("name", …)` the options are that
+scheduler's, so bind them with `services.Configure<TOptions>("name", section)`.
+
 ## Features
 
 ### LoggingJobHistoryPlugin

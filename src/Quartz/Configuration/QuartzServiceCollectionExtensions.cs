@@ -154,11 +154,13 @@ public static partial class QuartzServiceCollectionExtensions
     /// Registers one named Quartz scheduler per child of the section's <c>Schedulers</c> sub-section.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Each child's key is the scheduler's name, and its contents are that scheduler's configuration —
     /// exactly what <c>AddQuartz(name, section)</c> would be given. The fan-out is its own method
     /// because registering several schedulers is a different act from registering one, and reading it
     /// out of the shape of a configuration file made <c>AddQuartz</c> mean two things depending on data
     /// it was handed.
+    /// </para>
     /// </remarks>
     /// <param name="services">The service collection to register into.</param>
     /// <param name="configuration">
@@ -375,6 +377,11 @@ public static partial class QuartzServiceCollectionExtensions
     /// implementation, and the knobs of components that have no options type at all. Splitting the
     /// sections between the two readers instead leaves anything that falls between them read by nobody,
     /// which is how a documented <c>JobStore:Type</c> came to be accepted and then ignored.
+    /// </para>
+    /// <para>
+    /// A key both readers would write identically is the exception, and there is one: it is dropped from
+    /// the flattened form rather than read twice. The list, and why nothing else is on it, is in
+    /// <see cref="QuartzConfigurationHelper" />.
     /// </para>
     /// <para>
     /// The two readers do disagree about the shape of a duration — <c>00:00:30</c> to the binder, a count

@@ -28,6 +28,43 @@ internal static class QuartzConfigurationHelper
     };
 
     /// <summary>
+    /// The flat keys a typed options binding already owns, which are therefore not synthesized from the
+    /// hierarchical section they would come from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A hierarchical section is read twice: it binds onto its typed options, and it is flattened onto
+    /// the <c>quartz.*</c> keys <see cref="QuartzPropertyBridge"/> translates. For nearly every key the
+    /// two have in common the second pass is doing something the binder cannot —
+    /// <c>Scheduler:InterruptJobsOnShutdown</c> is a spelling no property carries any more,
+    /// <c>Scheduler:IdleWaitTime</c> may be the legacy count of milliseconds that the binder would read
+    /// as a count of days, <c>ThreadPool:Type</c> selects an implementation rather than setting a value,
+    /// and a third-party component's own knobs have no options type at all. Those overlaps are
+    /// corrections and they stay.
+    /// </para>
+    /// <para>
+    /// <c>ThreadPool:MaxConcurrency</c> is the one key where both readers write the same property, from
+    /// the same key, in the same shape. Two writers of one value in a last-wins pipeline is a coin flip
+    /// rather than a fallback, so one of them has to go, and it is this one: the typed binder is the
+    /// reader the section has a first-class binding for, it is the one the source generator writes a
+    /// binder for, and a member added to <see cref="ThreadPoolOptions"/> later binds through it without
+    /// needing an entry anywhere else. Nothing else under <c>ThreadPool</c> is affected — the type key,
+    /// the legacy <c>threadCount</c> spelling and a third-party pool's own settings are all still
+    /// flattened, because the bridge is the only reader any of them has.
+    /// </para>
+    /// <para>
+    /// Only the <em>synthesized</em> spelling is dropped. A configuration that writes
+    /// <c>quartz.threadPool.maxConcurrency</c> as a flat key is passed through untouched and read by the
+    /// bridge, which is also the only reader on the paths that have no <see cref="IConfiguration"/> at
+    /// all — <c>AddQuartz(NameValueCollection)</c> and its dictionary twins.
+    /// </para>
+    /// </remarks>
+    private static readonly HashSet<string> boundByTypedOptions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "quartz.threadPool.maxConcurrency",
+    };
+
+    /// <summary>
     /// Converts a hierarchical <see cref="IConfiguration"/> section into a flat <see cref="NameValueCollection"/>
     /// of Quartz configuration properties.
     /// </summary>
@@ -92,9 +129,10 @@ internal static class QuartzConfigurationHelper
 
     private static void FlattenSection(IConfigurationSection section, string currentPath, NameValueCollection properties)
     {
-        if (section.Value is not null)
+        var key = "quartz." + currentPath;
+        if (section.Value is not null && !boundByTypedOptions.Contains(key))
         {
-            properties["quartz." + currentPath] = section.Value;
+            properties[key] = section.Value;
         }
 
         foreach (var child in section.GetChildren())

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -65,6 +66,19 @@ public static class QuartzPluginsSamples
         #region sample_plugins_shutdown_hook
 
         services.AddQuartz(q => q.UseShutdownHook(options => options.CleanShutdown = true));
+
+        #endregion
+    }
+
+    public static void PluginOptionsFromConfiguration(IServiceCollection services, IConfiguration configuration)
+    {
+        #region sample_plugins_options_from_configuration
+
+        // A plugin's options are the scheduler's own named options, so a configuration section binds
+        // onto them like any other. The callback below is applied over whatever the section said.
+        services.Configure<FileSchedulingOptions>(configuration.GetSection("Quartz:Xml"));
+
+        services.AddQuartz(q => q.UseXmlSchedulingConfiguration(x => x.ScanInterval = TimeSpan.FromMinutes(1)));
 
         #endregion
     }

@@ -1,13 +1,9 @@
-using System.Diagnostics.CodeAnalysis;
-
-using Microsoft.Extensions.DependencyInjection;
-
+using Quartz.Configuration;
 using Quartz.Plugins.History;
 using Quartz.Plugins.Interrupt;
 using Quartz.Plugins.Json;
 using Quartz.Plugins.Management;
 using Quartz.Plugins.Xml;
-using Quartz.Extensibility;
 
 namespace Quartz;
 
@@ -15,8 +11,18 @@ namespace Quartz;
 /// Adds the plugins shipped in <c>Quartz.Plugins</c> to a scheduler.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Each plugin is registered as an ordinary service, constructed by the container so it gets
 /// constructor injection, and then configured from typed options. No plugin is named by a string.
+/// </para>
+/// <para>
+/// The options are the scheduler's own named options, so a plugin is configurable from
+/// <c>appsettings.json</c> like anything else the container builds:
+/// <c>services.Configure&lt;FileSchedulingOptions&gt;(configuration.GetSection("…"))</c> reaches the
+/// plugin, and the callback passed here is applied over whatever bound onto them. The flat
+/// <c>quartz.plugin.&lt;name&gt;.*</c> keys still work and are applied first, so configuration written
+/// in code beats the same setting written as a string.
+/// </para>
 /// </remarks>
 public static class PluginConfigurationExtensions
 {
@@ -30,22 +36,20 @@ public static class PluginConfigurationExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        var options = new FileSchedulingOptions();
-        configure(options);
-
-        return builder.AddConfiguredPlugin<XmlSchedulingDataProcessorPlugin>("xml", plugin =>
-        {
-            // Left unset, the plugin keeps its own default file name rather than being handed an empty
-            // one, which it would try to open as a path.
-            if (options.Files.Count > 0)
+        return builder.AddConfiguredPlugin<XmlSchedulingDataProcessorPlugin, FileSchedulingOptions>(
+            "xml", configure, static (plugin, options) =>
             {
-                plugin.FileNames = string.Join(",", options.Files);
-            }
+                // Left unset, the plugin keeps its own default file name rather than being handed an
+                // empty one, which it would try to open as a path.
+                if (options.Files.Count > 0)
+                {
+                    plugin.FileNames = string.Join(",", options.Files);
+                }
 
-            plugin.FailOnFileNotFound = options.FailOnFileNotFound;
-            plugin.FailOnSchedulingError = options.FailOnSchedulingError;
-            plugin.ScanInterval = options.ScanInterval;
-        });
+                plugin.FailOnFileNotFound = options.FailOnFileNotFound;
+                plugin.FailOnSchedulingError = options.FailOnSchedulingError;
+                plugin.ScanInterval = options.ScanInterval;
+            });
     }
 
     /// <summary>
@@ -58,20 +62,18 @@ public static class PluginConfigurationExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        var options = new FileSchedulingOptions();
-        configure(options);
-
-        return builder.AddConfiguredPlugin<JsonSchedulingDataProcessorPlugin>("json", plugin =>
-        {
-            if (options.Files.Count > 0)
+        return builder.AddConfiguredPlugin<JsonSchedulingDataProcessorPlugin, FileSchedulingOptions>(
+            "json", configure, static (plugin, options) =>
             {
-                plugin.FileNames = string.Join(",", options.Files);
-            }
+                if (options.Files.Count > 0)
+                {
+                    plugin.FileNames = string.Join(",", options.Files);
+                }
 
-            plugin.FailOnFileNotFound = options.FailOnFileNotFound;
-            plugin.FailOnSchedulingError = options.FailOnSchedulingError;
-            plugin.ScanInterval = options.ScanInterval;
-        });
+                plugin.FailOnFileNotFound = options.FailOnFileNotFound;
+                plugin.FailOnSchedulingError = options.FailOnSchedulingError;
+                plugin.ScanInterval = options.ScanInterval;
+            });
     }
 
     /// <summary>
@@ -83,11 +85,8 @@ public static class PluginConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var options = new JobAutoInterruptOptions();
-        configure?.Invoke(options);
-
-        return builder.AddConfiguredPlugin<JobInterruptMonitorPlugin>(
-            "jobAutoInterrupt", plugin => plugin.DefaultMaxRunTime = options.DefaultMaxRunTime);
+        return builder.AddConfiguredPlugin<JobInterruptMonitorPlugin, JobAutoInterruptOptions>(
+            "jobAutoInterrupt", configure, static (plugin, options) => plugin.DefaultMaxRunTime = options.DefaultMaxRunTime);
     }
 
     /// <summary>
@@ -104,16 +103,14 @@ public static class PluginConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        JobHistoryLoggingOptions options = new JobHistoryLoggingOptions();
-        configure?.Invoke(options);
-
-        return builder.AddConfiguredPlugin<StructuredLoggingJobHistoryPlugin>("structuredJobHistory", plugin =>
-        {
-            Apply(options.JobSuccessMessage, value => plugin.JobSuccessMessage = value);
-            Apply(options.JobFailedMessage, value => plugin.JobFailedMessage = value);
-            Apply(options.JobToBeFiredMessage, value => plugin.JobToBeFiredMessage = value);
-            Apply(options.JobWasVetoedMessage, value => plugin.JobWasVetoedMessage = value);
-        });
+        return builder.AddConfiguredPlugin<StructuredLoggingJobHistoryPlugin, JobHistoryLoggingOptions>(
+            "structuredJobHistory", configure, static (plugin, options) =>
+            {
+                Apply(options.JobSuccessMessage, value => plugin.JobSuccessMessage = value);
+                Apply(options.JobFailedMessage, value => plugin.JobFailedMessage = value);
+                Apply(options.JobToBeFiredMessage, value => plugin.JobToBeFiredMessage = value);
+                Apply(options.JobWasVetoedMessage, value => plugin.JobWasVetoedMessage = value);
+            });
     }
 
     /// <summary>
@@ -126,15 +123,13 @@ public static class PluginConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        TriggerHistoryLoggingOptions options = new TriggerHistoryLoggingOptions();
-        configure?.Invoke(options);
-
-        return builder.AddConfiguredPlugin<StructuredLoggingTriggerHistoryPlugin>("structuredTriggerHistory", plugin =>
-        {
-            Apply(options.TriggerFiredMessage, value => plugin.TriggerFiredMessage = value);
-            Apply(options.TriggerMisfiredMessage, value => plugin.TriggerMisfiredMessage = value);
-            Apply(options.TriggerCompleteMessage, value => plugin.TriggerCompleteMessage = value);
-        });
+        return builder.AddConfiguredPlugin<StructuredLoggingTriggerHistoryPlugin, TriggerHistoryLoggingOptions>(
+            "structuredTriggerHistory", configure, static (plugin, options) =>
+            {
+                Apply(options.TriggerFiredMessage, value => plugin.TriggerFiredMessage = value);
+                Apply(options.TriggerMisfiredMessage, value => plugin.TriggerMisfiredMessage = value);
+                Apply(options.TriggerCompleteMessage, value => plugin.TriggerCompleteMessage = value);
+            });
     }
 
     /// <summary>
@@ -150,16 +145,14 @@ public static class PluginConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        JobHistoryLoggingOptions options = new JobHistoryLoggingOptions();
-        configure?.Invoke(options);
-
-        return builder.AddConfiguredPlugin<LoggingJobHistoryPlugin>("jobHistory", plugin =>
-        {
-            Apply(options.JobSuccessMessage, value => plugin.JobSuccessMessage = value);
-            Apply(options.JobFailedMessage, value => plugin.JobFailedMessage = value);
-            Apply(options.JobToBeFiredMessage, value => plugin.JobToBeFiredMessage = value);
-            Apply(options.JobWasVetoedMessage, value => plugin.JobWasVetoedMessage = value);
-        });
+        return builder.AddConfiguredPlugin<LoggingJobHistoryPlugin, JobHistoryLoggingOptions>(
+            "jobHistory", configure, static (plugin, options) =>
+            {
+                Apply(options.JobSuccessMessage, value => plugin.JobSuccessMessage = value);
+                Apply(options.JobFailedMessage, value => plugin.JobFailedMessage = value);
+                Apply(options.JobToBeFiredMessage, value => plugin.JobToBeFiredMessage = value);
+                Apply(options.JobWasVetoedMessage, value => plugin.JobWasVetoedMessage = value);
+            });
     }
 
     /// <summary>
@@ -175,15 +168,13 @@ public static class PluginConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        TriggerHistoryLoggingOptions options = new TriggerHistoryLoggingOptions();
-        configure?.Invoke(options);
-
-        return builder.AddConfiguredPlugin<LoggingTriggerHistoryPlugin>("triggerHistory", plugin =>
-        {
-            Apply(options.TriggerFiredMessage, value => plugin.TriggerFiredMessage = value);
-            Apply(options.TriggerMisfiredMessage, value => plugin.TriggerMisfiredMessage = value);
-            Apply(options.TriggerCompleteMessage, value => plugin.TriggerCompleteMessage = value);
-        });
+        return builder.AddConfiguredPlugin<LoggingTriggerHistoryPlugin, TriggerHistoryLoggingOptions>(
+            "triggerHistory", configure, static (plugin, options) =>
+            {
+                Apply(options.TriggerFiredMessage, value => plugin.TriggerFiredMessage = value);
+                Apply(options.TriggerMisfiredMessage, value => plugin.TriggerMisfiredMessage = value);
+                Apply(options.TriggerCompleteMessage, value => plugin.TriggerCompleteMessage = value);
+            });
     }
 
     /// <summary>
@@ -195,11 +186,8 @@ public static class PluginConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        ShutdownHookOptions options = new ShutdownHookOptions();
-        configure?.Invoke(options);
-
-        return builder.AddConfiguredPlugin<ShutdownHookPlugin>(
-            "shutdownHook", plugin => plugin.CleanShutdown = options.CleanShutdown);
+        return builder.AddConfiguredPlugin<ShutdownHookPlugin, ShutdownHookOptions>(
+            "shutdownHook", configure, static (plugin, options) => plugin.CleanShutdown = options.CleanShutdown);
     }
 
     /// <summary>
@@ -214,24 +202,6 @@ public static class PluginConfigurationExtensions
         }
     }
 
-    /// <summary>
-    /// Registers a plugin that the container constructs and the caller then configures.
-    /// </summary>
-    private static IQuartzBuilder AddConfiguredPlugin<
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TPlugin>(
-        this IQuartzBuilder builder,
-        string name,
-        Action<TPlugin> configure) where TPlugin : class, ISchedulerPlugin
-    {
-        return builder.AddPlugin<TPlugin>(
-            provider =>
-            {
-                var plugin = ActivatorUtilities.CreateInstance<TPlugin>(provider);
-                configure(plugin);
-                return plugin;
-            },
-            name);
-    }
 }
 
 /// <summary>
