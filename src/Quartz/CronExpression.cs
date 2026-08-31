@@ -664,6 +664,11 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// <item><description><c>H/step</c> — hash-derived offset, then every step</description></item>
     /// <item><description><c>H(min-max)/step</c> — hash-derived offset in range, then every step</description></item>
     /// </list>
+    /// <para>
+    /// A leading <c>@</c> macro is expanded first, as the constructor expands it, so a macro means the
+    /// same schedule here as everywhere else. A macro names a whole schedule and so carries no
+    /// <c>H</c> token; it simply passes through with nothing to resolve.
+    /// </para>
     /// </remarks>
     /// <param name="cronExpression">Cron expression that may contain H tokens</param>
     /// <param name="hashKey">A stable string key used to derive hash values (e.g., trigger name)</param>
@@ -681,7 +686,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         }
 
         return ResolveHashTokens(
-            CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression),
+            CronMacros.Expand(CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression).Trim()),
             HashStringToSeed(hashKey));
     }
 
@@ -689,6 +694,10 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
     /// Resolves H (hash) tokens in a cron expression to deterministic numeric values
     /// based on the given integer seed.
     /// </summary>
+    /// <remarks>
+    /// A leading <c>@</c> macro is expanded first, as the constructor expands it, so a macro means the
+    /// same schedule here as everywhere else.
+    /// </remarks>
     /// <param name="cronExpression">Cron expression that may contain H tokens</param>
     /// <param name="hashSeed">An integer seed used to derive hash values</param>
     /// <returns>A standard cron expression string with all H tokens resolved to numeric values</returns>
@@ -700,7 +709,7 @@ public sealed partial class CronExpression : ISerializable, IEquatable<CronExpre
         }
 
         return ResolveHashTokens(
-            CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression),
+            CronMacros.Expand(CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression).Trim()),
             hashSeed);
     }
 
