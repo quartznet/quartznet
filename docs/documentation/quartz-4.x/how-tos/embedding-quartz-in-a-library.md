@@ -431,9 +431,17 @@ services.ConfigureAllQuartzSchedulers(q => q.AddJobMiddleware<OutboxScopeMiddlew
 
 Middleware is keyed per scheduler, runs in registration order outermost first, and is composed once when the
 scheduler is built — so one instance serves every firing, and per-firing state belongs in an `AsyncLocal<T>`
-or in the job's scope rather than in a field. Not calling `next` short-circuits the firing. It runs inside
+or in the job's scope rather than in a field. Because the instance is built from the container's *root*, its
+constructor dependencies must be singletons; take an `IServiceScopeFactory` and open a scope inside `Invoke`
+for anything scoped. Not calling `next` short-circuits the firing. It runs inside
 the execution span and the duration measurement, and outside the run shell's exception handling, so a
 `JobExecutionException` a middleware throws is honoured exactly as one the job raised.
+
+**What you register here is always inner to what the application registers.** A scheduler's own `AddQuartz`
+callback runs before `ConfigureAllQuartzSchedulers` is applied to it, whichever call came first in the
+source — so your outbox scope sits inside the application's tenant scope, and no amount of registration
+ordering on either side can turn that around. That is the right way round, and it is not something a host
+application has to arrange.
 
 [Job Execution Middleware](../tutorial/job-execution-middleware.md) has the whole of it, including which
 concerns belong in a listener instead.

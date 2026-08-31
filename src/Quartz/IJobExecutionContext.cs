@@ -83,12 +83,17 @@ public interface IJobExecutionContext
     /// retrieve data from the JobDataMap found on this object.</i>
     /// </para>
     /// <para>
-    /// NOTE: Do not expect value 'set' into this JobDataMap to somehow be
-    /// set back onto a job's own JobDataMap.
+    /// <strong>Writing to it is safe, and it is this firing's own channel.</strong> The map is built
+    /// once per firing by copying the two it merges, so a value put into it is visible to the job, to
+    /// the rest of the middleware pipeline and to the listeners for as long as the firing lasts, and is
+    /// seen by nothing else. It is the only per-firing bag there is, and passing something from a
+    /// middleware to a listener is what it is for.
     /// </para>
     /// <para>
-    /// Attempts to change the contents of this map typically result in an
-    /// illegal state.
+    /// <strong>Nothing written here is persisted.</strong> It is a copy: neither the job's nor the
+    /// trigger's stored data map is touched, and the next firing starts from the stored values again.
+    /// Data that has to outlive the firing goes into <c>JobDetail.JobDataMap</c> on a job marked
+    /// <see cref="PersistJobDataAfterExecutionAttribute" />, which is what a job store writes back.
     /// </para>
     /// </remarks>
     JobDataMap MergedJobDataMap { get; }

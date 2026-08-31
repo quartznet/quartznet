@@ -237,7 +237,11 @@ public static partial class QuartzServiceCollectionExtensions
     /// <para>
     /// It runs after each scheduler's own configuration callback, which is what makes the order of the two
     /// calls immaterial: a scheduler registered later is configured then, and one registered earlier is
-    /// configured here, and both are after its own callback either way. The usual precedence follows —
+    /// configured here, and both are after its own callback either way. One consequence is worth naming:
+    /// a middleware added here always composes <em>inside</em> one a scheduler's own <c>AddQuartz</c>
+    /// callback added, because middleware runs in registration order and this registration is always the
+    /// later of the two. That is the right way round — what a library wraps, an outbox or a unit of work,
+    /// belongs within what the application wraps, such as its tenant scope. The usual precedence follows —
     /// registration is first-wins, so a component a scheduler chose for itself is not replaced by one
     /// chosen here; options are last-wins, so a value set here overrides the same option set on one
     /// scheduler, exactly as <c>ConfigureAll&lt;TOptions&gt;</c> overrides an earlier named

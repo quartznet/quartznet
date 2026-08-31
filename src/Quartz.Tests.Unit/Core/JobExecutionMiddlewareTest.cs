@@ -277,6 +277,102 @@ public sealed class JobExecutionMiddlewareTest
     }
 
     /// <summary>
+    /// A middleware a library contributes through <c>ConfigureAllQuartzSchedulers</c> always composes
+    /// <em>inside</em> one the application registered in its own <c>AddQuartz</c> callback, whichever of
+    /// the two calls was written first.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Deliberate, and worth pinning: <c>AddQuartzScheduler</c> runs a scheduler's own <c>configure</c>
+    /// and only then applies what every scheduler was told, so a library's outbox or unit-of-work sits
+    /// within the application's tenant scope rather than around it. Because that ordering does not depend
+    /// on the order of the calls, a library cannot change it by being loaded earlier — which is what makes
+    /// it something an application can rely on.
+    /// </para>
+    /// <para>
+    /// Both orders are exercised, because the claim is precisely that the two are the same.
+    /// </para>
+    /// </remarks>
+    [TestCase(true, TestName = "AConfigureAllMiddlewareComposesInsideAnAddQuartzOne_ConfigureAllFirst")]
+    [TestCase(false, TestName = "AConfigureAllMiddlewareComposesInsideAnAddQuartzOne_AddQuartzFirst")]
+    public async Task AConfigureAllMiddlewareComposesInsideAnAddQuartzOne(bool configureAllFirst)
+    {
+        Recorder recorder = new(expectedFirings: 1);
+
+        string id = Guid.NewGuid().ToString("N");
+        JobKey jobKey = new($"job-{id}", $"group-{id}");
+
+        ServiceCollection services = new();
+        services.AddSingleton(recorder);
+
+        Action registerConfigureAll = () => services.ConfigureAllQuartzSchedulers(
+            quartz => quartz.AddJobMiddleware(new NamedMiddleware("library", recorder)));
+
+        Action registerScheduler = () => services.AddQuartz(quartz =>
+        {
+            quartz.ConfigureScheduler(options => options.InstanceName = $"configure-all-{id}");
+            quartz.AddJobListener(new CompletionListener(recorder));
+            quartz.AddJobMiddleware(new NamedMiddleware("application", recorder));
+            quartz.AddJob(typeof(RecordingJob), job => job.WithIdentity(jobKey).StoreDurably());
+            quartz.AddTrigger(configurator => configurator.ForJob(jobKey).WithIdentity($"trigger-{id}").StartNow());
+        });
+
+        if (configureAllFirst)
+        {
+            registerConfigureAll();
+            registerScheduler();
+        }
+        else
+        {
+            registerScheduler();
+            registerConfigureAll();
+        }
+
+        await using ServiceProvider provider = services.BuildServiceProvider();
+
+        IScheduler scheduler = provider.GetRequiredService<IScheduler>();
+        try
+        {
+            await scheduler.Start();
+            await recorder.WaitForCompletion();
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+
+        recorder.Steps.Should().Equal(
+            ["application:before", "library:before", "job", "library:after", "application:after"],
+            "a scheduler's own callback runs before what ConfigureAllQuartzSchedulers said about every "
+            + "scheduler, so the application's middleware is outermost however the two calls were ordered");
+    }
+
+    /// <summary>
+    /// The one channel a middleware has to a listener: the merged job data map, whose XML documentation
+    /// used to say that writing to it produced an illegal state.
+    /// </summary>
+    /// <remarks>
+    /// It does not. The map is this firing's own merged copy, so a value put into it reaches the job and
+    /// the listeners and is written back to nothing. Pinned because the correction is the whole of the
+    /// documentation change, and prose that nothing checks goes stale.
+    /// </remarks>
+    [Test]
+    public async Task AMiddlewareCanPassAValueToAListenerThroughTheMergedJobDataMap()
+    {
+        Recorder recorder = new(expectedFirings: 1);
+
+        await RunScheduler(recorder, quartz => quartz.AddJobMiddleware<MapWritingMiddleware>());
+
+        recorder.MergedValueSeenByListener.Should().Be("from the middleware",
+            "the merged map is built once per firing and handed to everything that sees the context, so it "
+            + "is how a middleware tells a listener something");
+
+        recorder.JobContext!.JobDetail.JobDataMap.Should().NotContainKey(MapWritingMiddleware.Key,
+            "the merged map is a copy, so nothing written into it reaches what the job or the trigger has "
+            + "stored - which is why writing to it is safe");
+    }
+
+    /// <summary>
     /// Builds a scheduler with the given middleware, runs the job its trigger fires, and shuts
     /// everything down before returning — so an assertion never races the execution it is about.
     /// </summary>
@@ -377,6 +473,11 @@ public sealed class JobExecutionMiddlewareTest
 
         public IJobExecutionContext? AmbientAfter { get; set; }
 
+        /// <summary>
+        /// What the job listener read out of the merged job data map, which is where a middleware put it.
+        /// </summary>
+        public string? MergedValueSeenByListener { get; private set; }
+
         public IReadOnlyList<string> Steps
         {
             get
@@ -464,13 +565,14 @@ public sealed class JobExecutionMiddlewareTest
             }
         }
 
-        public void JobWasExecuted(JobExecutionException? jobException)
+        public void JobWasExecuted(JobExecutionException? jobException, string? mergedValue = null)
         {
             bool done;
             lock (gate)
             {
                 WasExecutedCount++;
                 JobException = jobException;
+                MergedValueSeenByListener ??= mergedValue;
                 done = WasExecutedCount >= expectedFirings;
             }
 
@@ -666,6 +768,20 @@ public sealed class JobExecutionMiddlewareTest
         }
     }
 
+    /// <summary>
+    /// A middleware that leaves a value in the merged job data map for a listener to find.
+    /// </summary>
+    public sealed class MapWritingMiddleware : IJobExecutionMiddleware
+    {
+        public const string Key = "middleware-said";
+
+        public ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
+        {
+            context.MergedJobDataMap[Key] = "from the middleware";
+            return next(context, cancellationToken);
+        }
+    }
+
     public sealed class AmbientReadingMiddleware : IJobExecutionMiddleware
     {
         private readonly Recorder recorder;
@@ -707,7 +823,9 @@ public sealed class JobExecutionMiddlewareTest
 
         public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
         {
-            recorder.JobWasExecuted(jobException);
+            recorder.JobWasExecuted(
+                jobException,
+                context.MergedJobDataMap.TryGetString(MapWritingMiddleware.Key, out string? value) ? value : null);
             return default;
         }
     }
