@@ -162,7 +162,7 @@ public class InProcessQuartzApiClientTest
             await scheduler.AddJob(job, new AddJobOptions { Replace = true });
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
-            JobDetailDto dto = await client.GetJob(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
+            JobDetailDto dto = await client.GetJobDetail(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
 
             dto.JobDataMap["Name"].Should().Be("abc");
             dto.JobDataMap["Count"].Should().Be(5);
@@ -228,7 +228,7 @@ public class InProcessQuartzApiClientTest
                     .WithCronSchedule("0 0 1 * * ?").Build());
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
-            List<TriggerHeaderDto> headers = await client.GetJobTriggers(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
+            List<TriggerHeaderDto> headers = await client.GetTriggersOfJob(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
 
             headers.Should().HaveCount(2);
             TriggerHeaderDto simple = headers.Single(h => h.Name == "simple");
@@ -243,7 +243,7 @@ public class InProcessQuartzApiClientTest
                 "the states come from the single trigger query the associated triggers table used to make one call per trigger for");
 
             await scheduler.PauseTrigger(new TriggerKey("cron", "group1"));
-            headers = await client.GetJobTriggers(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
+            headers = await client.GetTriggersOfJob(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name));
 
             headers.Single(h => h.Name == "cron").State.Should().Be(TriggerState.Paused, "each header carries its own trigger's state");
             headers.Single(h => h.Name == "simple").State.Should().Be(TriggerState.Normal);
@@ -272,20 +272,20 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            PagedResult<JobKeyDto> firstPage = await client.GetJobs(scheduler.SchedulerName, new DashboardJobQuery { Take = 25 });
+            PagedResult<JobKeyDto> firstPage = await client.QueryJobs(scheduler.SchedulerName, new DashboardJobQuery { Take = 25 });
             firstPage.Items.Should().HaveCount(25, "the page size limits what the store returns");
             firstPage.TotalCount.Should().Be(30, "the total is counted regardless of paging");
             firstPage.HasMore.Should().BeTrue("30 jobs do not fit on one page of 25");
             firstPage.Items[0].Name.Should().Be("job01", "results are ordered by group and then name");
 
-            PagedResult<JobKeyDto> secondPage = await client.GetJobs(scheduler.SchedulerName, new DashboardJobQuery { Skip = 25, Take = 25 });
+            PagedResult<JobKeyDto> secondPage = await client.QueryJobs(scheduler.SchedulerName, new DashboardJobQuery { Skip = 25, Take = 25 });
             secondPage.Items.Should().HaveCount(5, "the second page holds the remainder");
             secondPage.Items.Select(x => x.Name).Should().Equal(["job26", "job27", "job28", "job29", "job30"],
                 "page 2 continues where page 1 ended");
             secondPage.HasMore.Should().BeFalse("nothing matches beyond the second page");
             secondPage.TotalCount.Should().Be(30);
 
-            PagedResult<JobKeyDto> countOnly = await client.GetJobs(scheduler.SchedulerName, new DashboardJobQuery { Take = 0 });
+            PagedResult<JobKeyDto> countOnly = await client.QueryJobs(scheduler.SchedulerName, new DashboardJobQuery { Take = 0 });
             countOnly.Items.Should().BeEmpty("a page size of zero fetches no items");
             countOnly.TotalCount.Should().Be(30, "the dashboard total jobs tile is a count query, not a materialized list");
         }
@@ -306,7 +306,7 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            PagedResult<JobKeyDto> filtered = await client.GetJobs(scheduler.SchedulerName, new DashboardJobQuery { GroupContains = "mpor", Take = 25 });
+            PagedResult<JobKeyDto> filtered = await client.QueryJobs(scheduler.SchedulerName, new DashboardJobQuery { GroupContains = "mpor", Take = 25 });
 
             filtered.Items.Should().ContainSingle("the group filter matches groups that contain it")
                 .Which.Group.Should().Be("imports");
@@ -346,24 +346,24 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            PagedResult<TriggerHeaderDto> firstPage = await client.GetTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 25 });
+            PagedResult<TriggerHeaderDto> firstPage = await client.QueryTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 25 });
             firstPage.Items.Should().HaveCount(25);
             firstPage.TotalCount.Should().Be(30);
             firstPage.HasMore.Should().BeTrue("30 triggers do not fit on one page of 25");
             firstPage.Items[0].State.Should().Be(TriggerState.Paused, "the header carries the state the listing used to fetch per trigger");
             firstPage.Items[0].ExecutionGroup.Should().Be("imports", "the header carries the execution group without loading the trigger");
 
-            PagedResult<TriggerHeaderDto> secondPage = await client.GetTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Skip = 25, Take = 25 });
+            PagedResult<TriggerHeaderDto> secondPage = await client.QueryTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Skip = 25, Take = 25 });
             secondPage.Items.Select(x => x.Name).Should().Equal(["trigger26", "trigger27", "trigger28", "trigger29", "trigger30"],
                 "page 2 continues where page 1 ended");
             secondPage.HasMore.Should().BeFalse();
             secondPage.Items[^1].State.Should().Be(TriggerState.Normal, "the last four triggers were never paused");
 
-            PagedResult<TriggerHeaderDto> pausedCount = await client.GetTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Paused });
+            PagedResult<TriggerHeaderDto> pausedCount = await client.QueryTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Paused });
             pausedCount.TotalCount.Should().Be(26,
                 "a state-filtered count is exact, where the dashboard tile used to count states over the first 25 items only");
 
-            PagedResult<TriggerHeaderDto> errorCount = await client.GetTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Error });
+            PagedResult<TriggerHeaderDto> errorCount = await client.QueryTriggers(scheduler.SchedulerName, new DashboardTriggerQuery { Take = 0, State = TriggerState.Error });
             errorCount.Items.Should().BeEmpty();
             errorCount.TotalCount.Should().Be(0, "no trigger has failed, and the error tile reports that exactly");
         }
@@ -458,7 +458,7 @@ public class InProcessQuartzApiClientTest
             // in process there is no serializer between the page and the scheduler, so a value keeps
             // the type it was given rather than the one a JSON reader would have guessed
             JobDataMap overrides = new() { ["Count"] = 5 };
-            await client.TriggerJobWithData(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name), overrides);
+            await client.TriggerJob(scheduler.SchedulerName, new JobKeyDto(jobKey.Group, jobKey.Name), overrides);
 
             PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers(new TriggerQuery { Job = jobKey });
             triggers.Items.Should().ContainSingle("triggering a job now schedules the one-off trigger that fires it");
@@ -501,7 +501,7 @@ public class InProcessQuartzApiClientTest
             await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("paused"));
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
-            PagedResult<JobGroupDto> groups = await client.GetJobGroups(scheduler.SchedulerName, new DashboardGroupQuery());
+            PagedResult<JobGroupDto> groups = await client.QueryJobGroups(scheduler.SchedulerName, new DashboardGroupQuery());
 
             groups.Items.Select(x => x.Name).Should().Contain(["paused", "running"], "every job group is listed");
             groups.Items.Single(x => x.Name == "paused").Paused.Should().BeTrue("the group was paused");
@@ -542,10 +542,10 @@ public class InProcessQuartzApiClientTest
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            PagedResult<TriggerGroupDto> pausedTriggerGroups = await client.GetTriggerGroups(
+            PagedResult<TriggerGroupDto> pausedTriggerGroups = await client.QueryTriggerGroups(
                 scheduler.SchedulerName,
                 new DashboardGroupQuery { Take = 0, Paused = true });
-            PagedResult<JobGroupDto> pausedJobGroups = await client.GetJobGroups(
+            PagedResult<JobGroupDto> pausedJobGroups = await client.QueryJobGroups(
                 scheduler.SchedulerName,
                 new DashboardGroupQuery { Take = 0, Paused = true });
 
@@ -574,7 +574,7 @@ public class InProcessQuartzApiClientTest
             await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("paused"));
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
-            PagedResult<TriggerGroupDto> groups = await client.GetTriggerGroups(scheduler.SchedulerName, new DashboardGroupQuery());
+            PagedResult<TriggerGroupDto> groups = await client.QueryTriggerGroups(scheduler.SchedulerName, new DashboardGroupQuery());
 
             groups.Items.Select(x => x.Name).Should().Contain(["paused", "running"], "every trigger group is listed");
             groups.Items.Single(x => x.Name == "paused").Paused.Should().BeTrue("the group was paused");
@@ -722,7 +722,7 @@ public class InProcessQuartzApiClientTest
         {
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
-            List<ClusterNodeDto> nodes = await client.GetClusterNodes(scheduler.SchedulerName);
+            List<ClusterNodeDto> nodes = await client.QueryClusterNodes(scheduler.SchedulerName);
 
             ClusterNodeDto node = nodes.Should().ContainSingle().Subject;
             node.InstanceId.Should().Be(scheduler.SchedulerInstanceId);
@@ -808,6 +808,54 @@ public class InProcessQuartzApiClientTest
         }
     }
 
+    /// <summary>
+    /// The history feeds answer for themselves. A store holding nothing has an empty page and a count of
+    /// zero, which is the only "no history" answer there is: the nullable returns these replace meant
+    /// "this data source keeps no history", which was the deleted HTTP-backed client's 404 and never a
+    /// thing an in-process store could say.
+    /// </summary>
+    [Test]
+    public async Task TheHistoryFeedsAnswerWithAPageEvenWhenNothingWasRecorded()
+    {
+        IScheduler scheduler = await CreateScheduler(nameof(TheHistoryFeedsAnswerWithAPageEvenWhenNothingWasRecorded));
+        try
+        {
+            DashboardHistoryStore store = TestData.Dashboard.HistoryStore();
+            InProcessQuartzApiClient client = CreateClient(scheduler, store);
+            DashboardHistoryQuery historyQuery = new() { SchedulerName = scheduler.SchedulerName };
+            DashboardMisfireQuery misfireQuery = new() { SchedulerName = scheduler.SchedulerName };
+
+            PagedResult<DashboardHistoryEntry> executions = await client.QueryExecutions(historyQuery);
+            PagedResult<DashboardMisfireEntry> misfires = await client.QueryMisfires(misfireQuery);
+            int misfireCount = await client.CountMisfires(scheduler.SchedulerName, DateTimeOffset.MinValue);
+
+            executions.Items.Should().BeEmpty("nothing has run, which is an empty page rather than no page");
+            misfires.Items.Should().BeEmpty("nothing has misfired, which is an empty page rather than no page");
+            misfireCount.Should().Be(0);
+
+            await store.AddExecution(new DashboardHistoryEntry(
+                SchedulerName: scheduler.SchedulerName,
+                SchedulerInstanceId: scheduler.SchedulerInstanceId,
+                JobGroup: "reports",
+                JobName: "rollup",
+                TriggerGroup: "nightly",
+                TriggerName: "midnight",
+                FiredAtUtc: DateTimeOffset.UtcNow,
+                Duration: TimeSpan.FromSeconds(1),
+                Succeeded: true,
+                ExceptionMessage: null));
+
+            executions = await client.QueryExecutions(historyQuery);
+
+            executions.Items.Should().ContainSingle("the client reads the store it was given, unchanged")
+                .Which.SchedulerName.Should().Be(scheduler.SchedulerName);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
     private static async Task<IScheduler> CreateScheduler(string testName)
     {
         NameValueCollection properties = new()
@@ -821,13 +869,21 @@ public class InProcessQuartzApiClientTest
 
     private static InProcessQuartzApiClient CreateClient(IScheduler scheduler, params string[] registeredButNotCreated)
     {
+        return CreateClient(scheduler, TestData.Dashboard.HistoryStore(), registeredButNotCreated);
+    }
+
+    private static InProcessQuartzApiClient CreateClient(
+        IScheduler scheduler,
+        IDashboardHistoryStore historyStore,
+        params string[] registeredButNotCreated)
+    {
         SchedulerRepository repository = new();
         repository.Bind(scheduler);
         return new InProcessQuartzApiClient(
             repository,
             new StubSchedulerRegistry(repository, registeredButNotCreated),
             Options.Create(new QuartzDashboardOptions()),
-            TestData.Dashboard.HistoryStore());
+            historyStore);
     }
 
     /// <summary>

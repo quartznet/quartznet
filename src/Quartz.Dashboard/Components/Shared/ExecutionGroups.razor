@@ -241,7 +241,7 @@
             }
 
             // Both states, because a reservation holds a slot as surely as a running execution does.
-            PagedResult<FireInstanceDto> firings = await Api.GetFireInstances(
+            PagedResult<FireInstanceDto> firings = await Api.QueryFireInstances(
                 schedulerName,
                 new DashboardFireInstanceQuery { State = null });
 

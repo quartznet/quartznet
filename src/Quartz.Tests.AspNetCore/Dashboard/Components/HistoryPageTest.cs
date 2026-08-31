@@ -116,15 +116,13 @@ public class HistoryPageTest
     }
 
     [Test]
-    public void AStoreThatKeepsNoHistorySaysSoInsteadOfShowingAnEmptyPage()
+    public void AStoreHoldingNothingShowsAnEmptyPageRatherThanAFault()
     {
-        A.CallTo(() => context.Api.GetHistory(A<DashboardHistoryQuery>._, A<CancellationToken>._))
-            .Returns((PagedResult<DashboardHistoryEntry>?) null);
-
         IRenderedComponent<History> page = context.Render<History>();
 
-        page.Markup.Should().Contain("Execution history is unavailable",
-            "a null page means the data source keeps no history, which is not the same as an empty one");
+        page.Markup.Should().Contain("No execution history yet",
+            "a store that has recorded nothing answers with an empty page, which is the only "
+            + "'no history' answer there is now that the client cannot say it keeps none");
         page.Markup.Should().NotContain("qz-stat-card",
             "there is nothing to compute an average over");
     }
@@ -142,7 +140,7 @@ public class HistoryPageTest
             "the summary says what the listing is narrowed to, with the query values trimmed as they "
             + "were applied");
 
-        A.CallTo(() => context.Api.GetHistory(
+        A.CallTo(() => context.Api.QueryExecutions(
                 A<DashboardHistoryQuery>.That.Matches(query =>
                     query.JobFilter == "DummyGroup.DummyJob"
                     && query.TriggerFilter == "CronTriggerGroup"
@@ -161,7 +159,7 @@ public class HistoryPageTest
 
         context.Render<History>();
 
-        A.CallTo(() => context.Api.GetHistory(
+        A.CallTo(() => context.Api.QueryExecutions(
                 A<DashboardHistoryQuery>.That.Matches(query => query.Skip == 50 && query.Take == 25),
                 A<CancellationToken>._))
             .MustHaveHappened();
@@ -178,7 +176,7 @@ public class HistoryPageTest
 
         page.Markup.Should().Contain("Page 2 / 2",
             "asking for page 99 of 2 means the last one, which is what a job or trigger listing does too");
-        A.CallTo(() => context.Api.GetHistory(
+        A.CallTo(() => context.Api.QueryExecutions(
                 A<DashboardHistoryQuery>.That.Matches(query => query.Skip == 25),
                 A<CancellationToken>._))
             .MustHaveHappened();
@@ -207,7 +205,7 @@ public class HistoryPageTest
 
         IRenderedComponent<History> page = context.Render<History>();
 
-        A.CallTo(() => context.Api.GetHistory(
+        A.CallTo(() => context.Api.QueryExecutions(
                 A<DashboardHistoryQuery>.That.Matches(query => query.SchedulerInstanceId == "node-b"),
                 A<CancellationToken>._))
             .MustHaveHappened();
@@ -234,7 +232,7 @@ public class HistoryPageTest
     public void TheNodeFilterOffersTheClusterNodesEvenWhereNoRowNamesThem()
     {
         GivenHistory(Entry(100, node: "node-a"));
-        A.CallTo(() => context.Api.GetClusterNodes(TestData.SchedulerName, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryClusterNodes(TestData.SchedulerName, A<CancellationToken>._))
             .Returns(new List<ClusterNodeDto>
             {
                 new("node-a", null, null, ClusterNodeState.Alive, IsCurrentNode: true),
@@ -324,18 +322,18 @@ public class HistoryPageTest
 
     private void GivenHistory(int totalCount, params DashboardHistoryEntry[] entries)
     {
-        A.CallTo(() => context.Api.GetHistory(A<DashboardHistoryQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryExecutions(A<DashboardHistoryQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<DashboardHistoryEntry>(entries, totalCount));
     }
 
     /// <remarks>
-    /// Left unstubbed the fake answers null, which is the "this data source keeps no history" answer —
-    /// so a test that says nothing about misfires renders no misfire section, and the tests above are
-    /// unaffected by one.
+    /// Left unstubbed the misfire feed answers the empty page <see cref="DashboardComponentContext" />
+    /// sets up, so a test that says nothing about misfires renders the section with nothing in it and
+    /// the tests above are unaffected by one.
     /// </remarks>
     private void GivenMisfires(params DashboardMisfireEntry[] entries)
     {
-        A.CallTo(() => context.Api.GetMisfires(A<DashboardMisfireQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryMisfires(A<DashboardMisfireQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<DashboardMisfireEntry>(entries));
     }
 }

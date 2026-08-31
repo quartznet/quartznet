@@ -89,22 +89,26 @@ public sealed record DashboardMisfireEntry(
 /// The seam an application replaces to keep history somewhere that survives a restart — the shipped
 /// implementation is per-process and in-memory, so every node of a cluster holds its own. Both feeds
 /// carry the node that produced each row, which is what makes a shared implementation readable.
+/// <para>
+/// Two feeds, one verb each way: an execution and a misfire are both written with <c>Add*</c> and both
+/// read with <c>Query*</c>, and the paged reads are named as <see cref="IQuartzApiClient" />'s are.
+/// </para>
 /// </remarks>
 public interface IDashboardHistoryStore
 {
-    ValueTask Add(DashboardHistoryEntry entry, CancellationToken cancellationToken = default);
+    ValueTask AddExecution(DashboardHistoryEntry entry, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns one page of the recorded executions, newest first.
     /// </summary>
-    ValueTask<PagedResult<DashboardHistoryEntry>> GetPage(DashboardHistoryQuery query, CancellationToken cancellationToken = default);
+    ValueTask<PagedResult<DashboardHistoryEntry>> QueryExecutions(DashboardHistoryQuery query, CancellationToken cancellationToken = default);
 
     ValueTask AddMisfire(DashboardMisfireEntry entry, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns one page of the recorded misfires, newest first.
     /// </summary>
-    ValueTask<PagedResult<DashboardMisfireEntry>> GetMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default);
+    ValueTask<PagedResult<DashboardMisfireEntry>> QueryMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// How many misfires the scheduler has recorded since <paramref name="since" />.
@@ -150,7 +154,7 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
         retention = options.Value.HistoryRetention;
     }
 
-    public ValueTask Add(DashboardHistoryEntry entry, CancellationToken cancellationToken = default)
+    public ValueTask AddExecution(DashboardHistoryEntry entry, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
@@ -166,7 +170,7 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
         return default;
     }
 
-    public ValueTask<PagedResult<DashboardHistoryEntry>> GetPage(DashboardHistoryQuery query, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<DashboardHistoryEntry>> QueryExecutions(DashboardHistoryQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -192,7 +196,7 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
         return ValueTask.FromResult(Page(filtered.OrderByDescending(static entry => entry.FiredAtUtc).ToList(), query));
     }
 
-    public ValueTask<PagedResult<DashboardMisfireEntry>> GetMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<DashboardMisfireEntry>> QueryMisfires(DashboardMisfireQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 

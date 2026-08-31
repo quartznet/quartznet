@@ -221,8 +221,8 @@
     }
 
     /// <remarks>
-    /// A data source that keeps no misfire feed has not looked, which is a different fact from having
-    /// looked and found none — so it reads as a dash rather than as a clean bill of health.
+    /// Nothing has been counted until a scheduler is selected and answers, which is a different fact from
+    /// having counted and found none — so it reads as a dash rather than as a clean bill of health.
     /// </remarks>
     private string MisfiresStatValue => _misfires?.ToString(CultureInfo.InvariantCulture) ?? "—";
 
@@ -288,14 +288,14 @@
             _storeIsClustered = scheduler.Clustered;
 
             // Counting queries: Take = 0 fetches no items, only the exact totals the tiles show.
-            PagedResult<JobKeyDto> jobs = await Api.GetJobs(schedulerName, new DashboardJobQuery { Take = 0 });
-            PagedResult<TriggerHeaderDto> triggers = await Api.GetTriggers(schedulerName, new DashboardTriggerQuery { Take = 0 });
-            PagedResult<FireInstanceDto> executing = await Api.GetFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 });
+            PagedResult<JobKeyDto> jobs = await Api.QueryJobs(schedulerName, new DashboardJobQuery { Take = 0 });
+            PagedResult<TriggerHeaderDto> triggers = await Api.QueryTriggers(schedulerName, new DashboardTriggerQuery { Take = 0 });
+            PagedResult<FireInstanceDto> executing = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 });
 
             _triggersByState.Clear();
             foreach (TriggerState state in HistogramStates)
             {
-                PagedResult<TriggerHeaderDto> inState = await Api.GetTriggers(
+                PagedResult<TriggerHeaderDto> inState = await Api.QueryTriggers(
                     schedulerName,
                     new DashboardTriggerQuery { Take = 0, State = state });
                 _triggersByState[state] = inState.TotalCount ?? 0;
@@ -304,10 +304,10 @@
             // The paused groups are counted with the paused filter rather than by listing every group
             // and tallying: a group can be paused while it holds nothing, and an unfiltered listing
             // enumerates the groups that hold something.
-            PagedResult<TriggerGroupDto> pausedTriggerGroups = await Api.GetTriggerGroups(
+            PagedResult<TriggerGroupDto> pausedTriggerGroups = await Api.QueryTriggerGroups(
                 schedulerName,
                 new DashboardGroupQuery { Take = 0, Paused = true });
-            PagedResult<JobGroupDto> pausedJobGroups = await Api.GetJobGroups(
+            PagedResult<JobGroupDto> pausedJobGroups = await Api.QueryJobGroups(
                 schedulerName,
                 new DashboardGroupQuery { Take = 0, Paused = true });
 
@@ -317,7 +317,7 @@
                 schedulerName,
                 DateTimeOffset.UtcNow - Options.Value.HistoryRetention);
 
-            List<ClusterNodeDto> nodes = await Api.GetClusterNodes(schedulerName);
+            List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(schedulerName);
 
             _totalJobs = jobs.TotalCount ?? 0;
             _totalTriggers = triggers.TotalCount ?? 0;
@@ -401,7 +401,7 @@
                 return;
             }
 
-            PagedResult<FireInstanceDto> executing = await Api.GetFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 });
+            PagedResult<FireInstanceDto> executing = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery { Take = 0 });
             _currentlyExecuting = executing.TotalCount ?? 0;
         }
         catch (Exception ex)
@@ -417,7 +417,7 @@
     private Task StartSchedulerAsync()
     {
         return ExecuteSchedulerActionAsync(
-            schedulerName => Api.StartScheduler(schedulerName),
+            schedulerName => Api.Start(schedulerName),
             "Started scheduler.",
             actionName: "StartScheduler");
     }
@@ -425,7 +425,7 @@
     private Task StandbySchedulerAsync()
     {
         return ExecuteSchedulerActionAsync(
-            schedulerName => Api.StandbyScheduler(schedulerName),
+            schedulerName => Api.Standby(schedulerName),
             "Scheduler is in standby.",
             actionName: "StandbyScheduler");
     }
@@ -449,7 +449,7 @@
     private Task ShutdownSchedulerAsync()
     {
         return ExecuteSchedulerActionAsync(
-            schedulerName => Api.ShutdownScheduler(schedulerName),
+            schedulerName => Api.Shutdown(schedulerName),
             "Shutdown scheduler.",
             actionName: "ShutdownScheduler",
             preferCurrentScheduler: false);

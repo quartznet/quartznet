@@ -177,7 +177,7 @@
 
             if (!string.IsNullOrWhiteSpace(schedulerName))
             {
-                PagedResult<FireInstanceDto> page = await Api.GetFireInstances(schedulerName, new DashboardFireInstanceQuery());
+                PagedResult<FireInstanceDto> page = await Api.QueryFireInstances(schedulerName, new DashboardFireInstanceQuery());
                 _fireInstances.AddRange(page.Items);
                 _hasMore = page.HasMore;
                 _totalCount = page.TotalCount ?? page.Items.Count;

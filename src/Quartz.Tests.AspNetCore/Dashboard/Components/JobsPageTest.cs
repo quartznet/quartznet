@@ -56,7 +56,7 @@ public class JobsPageTest
 
         page.FindAll(".qz-pagination button").First(button => button.TextContent.Trim() == "2").Click();
 
-        A.CallTo(() => context.Api.GetJobs(
+        A.CallTo(() => context.Api.QueryJobs(
                 TestData.SchedulerName,
                 A<DashboardJobQuery>.That.Matches(query => query.Skip == 25 && query.Take == 25),
                 A<CancellationToken>._))
@@ -92,7 +92,7 @@ public class JobsPageTest
 
         // The filter is debounced, so the listing reloads a moment after the last keystroke.
         page.WaitForAssertion(() => page.TextOfAll("h2").Should().Equal(["imports"]));
-        A.CallTo(() => context.Api.GetJobs(
+        A.CallTo(() => context.Api.QueryJobs(
                 TestData.SchedulerName,
                 A<DashboardJobQuery>.That.Matches(query => query.GroupContains == "imp" && query.Skip == 0),
                 A<CancellationToken>._))
@@ -166,7 +166,7 @@ public class JobsPageTest
     [Test]
     public void AnApiThatRefusesIsReportedInsteadOfLeavingAStaleListing()
     {
-        A.CallTo(() => context.Api.GetJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))
             .Throws(new InvalidOperationException("the scheduler is not answering"));
 
         IRenderedComponent<Jobs> page = context.Render<Jobs>();
@@ -178,7 +178,7 @@ public class JobsPageTest
 
     private void GivenJobs(IReadOnlyList<JobKeyDto> jobs)
     {
-        A.CallTo(() => context.Api.GetJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))
             .ReturnsLazily((string _, DashboardJobQuery query, CancellationToken _) =>
             {
                 List<JobKeyDto> matched = jobs
@@ -200,7 +200,7 @@ public class JobsPageTest
             dtos.Add(new JobGroupDto(name, paused));
         }
 
-        A.CallTo(() => context.Api.GetJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<JobGroupDto>(dtos));
     }
 }

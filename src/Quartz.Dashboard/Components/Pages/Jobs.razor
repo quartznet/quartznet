@@ -161,14 +161,14 @@
             }
 
             string? groupFilter = string.IsNullOrWhiteSpace(_filter) ? null : _filter;
-            PagedResult<JobKeyDto> page = await Api.GetJobs(schedulerName, PageQuery(groupFilter, _currentPage));
+            PagedResult<JobKeyDto> page = await Api.QueryJobs(schedulerName, PageQuery(groupFilter, _currentPage));
 
             int totalCount = page.TotalCount ?? page.Items.Count;
             int totalPages = Math.Max(1, (int) Math.Ceiling((double) totalCount / _pageSize));
             if (_currentPage > totalPages)
             {
                 _currentPage = totalPages;
-                page = await Api.GetJobs(schedulerName, PageQuery(groupFilter, _currentPage));
+                page = await Api.QueryJobs(schedulerName, PageQuery(groupFilter, _currentPage));
                 totalCount = page.TotalCount ?? page.Items.Count;
             }
 
@@ -177,7 +177,7 @@
 
             // Every group, because the page labels each of the ones its current page shows, and it
             // cannot know which those are before it has them.
-            PagedResult<JobGroupDto> groups = await Api.GetJobGroups(schedulerName, new DashboardGroupQuery { Take = int.MaxValue });
+            PagedResult<JobGroupDto> groups = await Api.QueryJobGroups(schedulerName, new DashboardGroupQuery { Take = int.MaxValue });
             foreach (JobGroupDto group in groups.Items)
             {
                 _groupStates[group.Name] = group.Paused ? "Paused" : "Normal";
@@ -421,7 +421,7 @@
         try
         {
             // The group filter matches groups that contain it, so the exact group is selected here.
-            PagedResult<JobKeyDto> groupPage = await Api.GetJobs(
+            PagedResult<JobKeyDto> groupPage = await Api.QueryJobs(
                 schedulerName,
                 new DashboardJobQuery { GroupContains = group, Take = int.MaxValue });
             List<JobKeyDto> jobsInGroup = [];

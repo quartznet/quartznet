@@ -229,7 +229,7 @@
             int? nodeCount = null;
             if (detail.Persistent && detail.Clustered)
             {
-                List<ClusterNodeDto> nodes = await Api.GetClusterNodes(header.SchedulerName);
+                List<ClusterNodeDto> nodes = await Api.QueryClusterNodes(header.SchedulerName);
                 nodeCount = nodes.Count;
             }
 

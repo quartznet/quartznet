@@ -60,7 +60,7 @@ public class DashboardPageTest
         page.StatCardValue("Currently Executing").Should().Be("2");
         page.StatCardValue("Error Triggers").Should().Be("3");
 
-        A.CallTo(() => context.Api.GetJobs(
+        A.CallTo(() => context.Api.QueryJobs(
                 TestData.SchedulerName,
                 A<DashboardJobQuery>.That.Matches(query => query.Take == 0),
                 A<CancellationToken>._))
@@ -123,7 +123,7 @@ public class DashboardPageTest
 
         page.FindAll("button").First(button => button.TextContent.Trim() == "Standby").Click();
 
-        A.CallTo(() => context.Api.StandbyScheduler(TestData.SchedulerName, A<CancellationToken>._)).MustHaveHappened();
+        A.CallTo(() => context.Api.Standby(TestData.SchedulerName, A<CancellationToken>._)).MustHaveHappened();
         context.Toasts.Messages.Should().ContainSingle().Which.Message.Should().Be("Scheduler is in standby.");
         context.ActionLog.GetLatest(1).Should().ContainSingle()
             .Which.Action.Should().Be("StandbyScheduler");
@@ -135,13 +135,13 @@ public class DashboardPageTest
         IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
 
         page.FindAll("button").First(button => button.TextContent.Trim() == "Shutdown").Click();
-        A.CallTo(() => context.Api.ShutdownScheduler(A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
+        A.CallTo(() => context.Api.Shutdown(A<string>._, A<CancellationToken>._)).MustNotHaveHappened();
         page.Markup.Should().Contain("Running jobs may be interrupted",
             "shutting a scheduler down is not undone by clicking Start again");
 
         page.Find(".qz-confirm-dialog button.qz-button-danger").Click();
 
-        A.CallTo(() => context.Api.ShutdownScheduler(TestData.SchedulerName, A<CancellationToken>._)).MustHaveHappened();
+        A.CallTo(() => context.Api.Shutdown(TestData.SchedulerName, A<CancellationToken>._)).MustHaveHappened();
     }
 
     [Test]
@@ -220,7 +220,7 @@ public class DashboardPageTest
 
         foreach (TriggerState state in new[] { TriggerState.Normal, TriggerState.Paused, TriggerState.Blocked, TriggerState.Error, TriggerState.Complete })
         {
-            A.CallTo(() => context.Api.GetTriggers(
+            A.CallTo(() => context.Api.QueryTriggers(
                     TestData.SchedulerName,
                     A<DashboardTriggerQuery>.That.Matches(query => query.Take == 0 && query.State == state),
                     A<CancellationToken>._))
@@ -256,12 +256,12 @@ public class DashboardPageTest
         page.FindAll(".qz-stat-card-warning").Should().NotBeEmpty(
             "a paused group is why work is not being done, which is not an informational fact");
 
-        A.CallTo(() => context.Api.GetTriggerGroups(
+        A.CallTo(() => context.Api.QueryTriggerGroups(
                 TestData.SchedulerName,
                 A<DashboardGroupQuery>.That.Matches(query => query.Take == 0 && query.Paused == true),
                 A<CancellationToken>._))
             .MustHaveHappened();
-        A.CallTo(() => context.Api.GetJobGroups(
+        A.CallTo(() => context.Api.QueryJobGroups(
                 TestData.SchedulerName,
                 A<DashboardGroupQuery>.That.Matches(query => query.Take == 0 && query.Paused == true),
                 A<CancellationToken>._))
@@ -309,14 +309,13 @@ public class DashboardPageTest
     }
 
     /// <summary>
-    /// A data source with no misfire feed has not looked, which is not the same as having looked and
+    /// Nothing has been counted until a scheduler answers, which is not the same as having counted and
     /// found none.
     /// </summary>
     [Test]
-    public void ADataSourceThatKeepsNoMisfiresSaysSoRatherThanReportingZero()
+    public void ATileOverNoSchedulerSaysSoRatherThanReportingZero()
     {
-        A.CallTo(() => context.Api.CountMisfires(A<string>._, A<DateTimeOffset>._, A<CancellationToken>._))
-            .Returns((int?) null);
+        context.SchedulerState.ActiveSchedulerName = null;
 
         IRenderedComponent<DashboardPage> page = context.Render<DashboardPage>();
 
@@ -382,7 +381,7 @@ public class DashboardPageTest
             byState[state] = count;
         }
 
-        A.CallTo(() => context.Api.GetTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
             .ReturnsLazily((string _, DashboardTriggerQuery query, CancellationToken _) =>
                 new PagedResult<TriggerHeaderDto>(
                     [],
@@ -392,29 +391,29 @@ public class DashboardPageTest
 
     private void GivenPausedGroups(int triggerGroups, int jobGroups)
     {
-        A.CallTo(() => context.Api.GetTriggerGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryTriggerGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<TriggerGroupDto>([], HasMore: false, TotalCount: triggerGroups));
-        A.CallTo(() => context.Api.GetJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<JobGroupDto>([], HasMore: false, TotalCount: jobGroups));
     }
 
     private void GivenCounts(int jobs, int triggers, int errorTriggers, int executing)
     {
-        A.CallTo(() => context.Api.GetJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<JobKeyDto>([], HasMore: false, TotalCount: jobs));
-        A.CallTo(() => context.Api.GetTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryTriggers(A<string>._, A<DashboardTriggerQuery>._, A<CancellationToken>._))
             .ReturnsLazily((string _, DashboardTriggerQuery query, CancellationToken _) =>
                 new PagedResult<TriggerHeaderDto>(
                     [],
                     HasMore: false,
                     TotalCount: query.State == TriggerState.Error ? errorTriggers : triggers));
-        A.CallTo(() => context.Api.GetFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<FireInstanceDto>([], HasMore: false, TotalCount: executing));
     }
 
     private void GivenNodes(params ClusterNodeDto[] nodes)
     {
-        A.CallTo(() => context.Api.GetClusterNodes(A<string>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryClusterNodes(A<string>._, A<CancellationToken>._))
             .Returns(nodes.ToList());
     }
 

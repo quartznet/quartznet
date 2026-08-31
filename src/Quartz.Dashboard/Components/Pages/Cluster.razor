@@ -199,12 +199,12 @@
                 SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName);
                 _isClustered = scheduler.Clustered;
 
-                _nodes.AddRange(await Api.GetClusterNodes(schedulerName));
+                _nodes.AddRange(await Api.QueryClusterNodes(schedulerName));
 
                 // Both states, because the two columns are what a node is holding and what it is
                 // running: a reservation left behind by a node that died is exactly the thing an
                 // operator comes to this page to see.
-                PagedResult<FireInstanceDto> firings = await Api.GetFireInstances(
+                PagedResult<FireInstanceDto> firings = await Api.QueryFireInstances(
                     schedulerName,
                     new DashboardFireInstanceQuery { State = null });
 

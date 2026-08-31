@@ -130,7 +130,7 @@ public class DashboardPluginRegistrationTest
         await plugin.Initialize("quartzDashboardHistory", scheduler);
         await plugin.JobWasExecuted(ExecutionContext(scheduler), jobException: null);
 
-        PagedResult<DashboardHistoryEntry> page = await store.GetPage(new DashboardHistoryQuery { SchedulerName = "acme" });
+        PagedResult<DashboardHistoryEntry> page = await store.QueryExecutions(new DashboardHistoryQuery { SchedulerName = "acme" });
         page.Items.Should().ContainSingle("the plugin resolves its store from the container it was built with")
             .Which.JobName.Should().Be("DummyJob");
     }

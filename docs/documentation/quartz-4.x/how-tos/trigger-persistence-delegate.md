@@ -170,9 +170,10 @@ A persistence delegate is one of four pieces:
 implement `GetScheduleBuilder()`.
 
 ::: tip
-Of the five shipped trigger implementations, only `SimpleTriggerImpl` and `CronTriggerImpl` are
-subclassable — `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` and `RecurrenceTriggerImpl`
-are sealed.
+All five shipped trigger implementations are subclassable, so deriving from `SimpleTriggerImpl` or
+`CronTriggerImpl` — or from `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` or
+`RecurrenceTriggerImpl` — is the shortest route to a trigger that is one of those with something added.
+Pair it with a serializer deriving from that trigger's built-in serializer, as below.
 :::
 
 **2. An `IScheduleBuilder`.** The store rebuilds a trigger as

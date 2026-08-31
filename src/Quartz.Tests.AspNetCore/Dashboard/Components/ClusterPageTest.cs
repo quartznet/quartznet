@@ -174,7 +174,7 @@ public class ClusterPageTest
     [Test]
     public void AFailedReadIsReportedRatherThanLeavingAnEmptyTable()
     {
-        A.CallTo(() => context.Api.GetClusterNodes(A<string>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryClusterNodes(A<string>._, A<CancellationToken>._))
             .Throws(new InvalidOperationException("state table unavailable"));
 
         IRenderedComponent<Cluster> page = context.Render<Cluster>();
@@ -249,13 +249,13 @@ public class ClusterPageTest
 
     private void GivenNodes(params ClusterNodeDto[] nodes)
     {
-        A.CallTo(() => context.Api.GetClusterNodes(A<string>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryClusterNodes(A<string>._, A<CancellationToken>._))
             .Returns(nodes.ToList());
     }
 
     private void GivenFirings(params FireInstanceDto[] firings)
     {
-        A.CallTo(() => context.Api.GetFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryFireInstances(A<string>._, A<DashboardFireInstanceQuery>._, A<CancellationToken>._))
             .Returns(TestData.Dashboard.Page<FireInstanceDto>(firings));
     }
 }

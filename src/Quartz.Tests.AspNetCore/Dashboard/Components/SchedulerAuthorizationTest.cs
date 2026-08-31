@@ -124,9 +124,9 @@ public class SchedulerAuthorizationTest
 
         // The frame's own header still lists the schedulers the visitor may see — that listing is the
         // filtered one. What must not have happened is any of the reads the page itself makes.
-        A.CallTo(() => context.Api.GetJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryJobs(A<string>._, A<DashboardJobQuery>._, A<CancellationToken>._))
             .MustNotHaveHappened();
-        A.CallTo(() => context.Api.GetJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
+        A.CallTo(() => context.Api.QueryJobGroups(A<string>._, A<DashboardGroupQuery>._, A<CancellationToken>._))
             .MustNotHaveHappened();
     }
 
@@ -144,7 +144,7 @@ public class SchedulerAuthorizationTest
 
         layout.Markup.Should().NotContain("Not authorized");
         layout.FindAll("h1").Should().Contain(heading => heading.TextContent.Trim() == "Jobs");
-        A.CallTo(() => context.Api.GetJobs("acme", A<DashboardJobQuery>._, A<CancellationToken>._)).MustHaveHappened();
+        A.CallTo(() => context.Api.QueryJobs("acme", A<DashboardJobQuery>._, A<CancellationToken>._)).MustHaveHappened();
     }
 
     /// <summary>
