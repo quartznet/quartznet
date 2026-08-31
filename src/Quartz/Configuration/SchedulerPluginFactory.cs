@@ -26,6 +26,15 @@ namespace Quartz.Configuration;
 /// configuration working.
 /// </para>
 /// <para>
+/// The order the two sources are applied in is the documented one: the string properties go on first,
+/// and what a plugin was configured with in code goes on last, so a leftover key in a configuration
+/// file cannot quietly override the value the application asked for. The one arrangement that cannot
+/// have that order is a plugin whose configuration is baked into a factory of the caller's own —
+/// <c>AddPlugin&lt;T&gt;(provider =&gt; …)</c> — because by the time there is an instance to apply
+/// anything to, the factory has already run. Every plugin shipped with Quartz is registered with its
+/// options instead, which is what this ordering is for.
+/// </para>
+/// <para>
 /// Everything here is one scheduler's: the property bag is that scheduler's, the names are read from
 /// it, and a plugin type registered as a service is looked for under that scheduler's key. Two
 /// schedulers each configuring an XML plugin therefore get two instances reading their own files,
@@ -70,6 +79,11 @@ internal static class SchedulerPluginFactory
             plugins.Add((chosenNames.TryGetValue(type, out var name) ? name : type.Name, plugin));
         }
 
+        // Everything added in code is in the list now, and the entries the property bag names are
+        // appended after it. Kept, because only the plugins added in code carry the configuration that
+        // is applied last: an entry the property bag named is configured by that bag and nothing else.
+        int addedInCode = plugins.Count;
+
         var loader = provider.GetService<ITypeLoader>() ?? typeLoader;
 
         foreach (var name in PluginNames(properties))
@@ -94,7 +108,50 @@ internal static class SchedulerPluginFactory
             plugins.Add((name, plugin));
         }
 
+        ApplyConfiguration(provider, plugins, addedInCode, schedulerName);
+
         return plugins;
+    }
+
+    /// <summary>
+    /// Applies what each plugin added in code was configured with, after the string properties.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the last word, and it is meant to be: options are last-wins everywhere else in the
+    /// configuration model, and a plugin was the one component where they were not — the plugin was
+    /// configured while it was being built and the <c>quartz.plugin.&lt;name&gt;.*</c> keys were
+    /// applied on top of the result, so for every plugin shipped with Quartz a string beat the code
+    /// that said otherwise.
+    /// </para>
+    /// <para>
+    /// Matched on the plugin's type, which is what the registration named and what a plugin's options
+    /// belong to: one instance per type per scheduler is what the registration gives, so there is
+    /// nothing finer to match on. Two instances of one plugin type that must differ are two schedulers,
+    /// which is the axis the property bag has always separated them on as well.
+    /// </para>
+    /// </remarks>
+    private static void ApplyConfiguration(
+        IServiceProvider provider,
+        List<(string Name, ISchedulerPlugin Plugin)> plugins,
+        int addedInCode,
+        string schedulerName)
+    {
+        foreach (SchedulerPluginConfiguration configuration in provider.GetServices<SchedulerPluginConfiguration>())
+        {
+            if (!string.Equals(configuration.SchedulerName, schedulerName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            for (int i = 0; i < addedInCode; i++)
+            {
+                if (configuration.PluginType == plugins[i].Plugin.GetType())
+                {
+                    configuration.Apply(plugins[i].Plugin, provider);
+                }
+            }
+        }
     }
 
     /// <summary>

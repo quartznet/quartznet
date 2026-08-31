@@ -26,8 +26,43 @@ public class QuartzConfigurationHelperTests
 
         var result = QuartzConfigurationHelper.ToNameValueCollection(config);
         result["quartz.scheduler.instanceName"].Should().Be("Test");
-        result["quartz.threadPool.maxConcurrency"].Should().Be("10");
         result["quartz.jobStore.type"].Should().Be("Quartz.Impl.RAMJobStore, Quartz");
+        result["quartz.threadPool.maxConcurrency"].Should().BeNull(
+            "the section binds onto ThreadPoolOptions.MaxConcurrency, and a value flattened here as well "
+            + "would be read a second time by the property bridge");
+    }
+
+    [Test]
+    public void AKeyATypedOptionOwnsIsNotFlattenedTwice()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "ThreadPool:MaxConcurrency", "10" },
+            { "ThreadPool:ThreadCount", "8" },
+            { "ThreadPool:Type", "Quartz.Impl.DefaultThreadPool, Quartz" },
+            { "ThreadPool:Marker", "configured" },
+        });
+
+        var result = QuartzConfigurationHelper.ToNameValueCollection(config);
+
+        result["quartz.threadPool.maxConcurrency"].Should().BeNull();
+        result["quartz.threadPool.threadCount"].Should().Be("8",
+            "the legacy spelling is no property of the options type, so the bridge is its only reader");
+        result["quartz.threadPool.type"].Should().Be("Quartz.Impl.DefaultThreadPool, Quartz",
+            "the type key selects an implementation, which only the bridge can do");
+        result["quartz.threadPool.marker"].Should().Be("configured",
+            "a third-party pool's own settings are applied from the flat keys and have no typed home");
+    }
+
+    [Test]
+    public void AFlatKeyForATypedOptionIsPassedThroughUnchanged()
+    {
+        var config = BuildConfig(new Dictionary<string, string> { { "quartz.threadPool.maxConcurrency", "10" } });
+
+        QuartzConfigurationHelper.ToNameValueCollection(config)["quartz.threadPool.maxConcurrency"]
+            .Should().Be("10",
+                "only the spelling this synthesizes is left out; a key written flat has no typed binding "
+                + "to be read by, so dropping it would leave it read by nobody");
     }
 
     [Test]
