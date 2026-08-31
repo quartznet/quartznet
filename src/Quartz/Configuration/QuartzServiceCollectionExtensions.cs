@@ -161,6 +161,15 @@ public static partial class QuartzServiceCollectionExtensions
     /// out of the shape of a configuration file made <c>AddQuartz</c> mean two things depending on data
     /// it was handed.
     /// </para>
+    /// <para>
+    /// The section is a parameter because this receiver has no configuration of its own, which is the
+    /// rule every method here follows: a service collection is handed its configuration and never goes
+    /// looking for one, so <c>AddQuartz(configure)</c> means a scheduler configured entirely in code
+    /// rather than one that quietly reads whatever <see cref="IConfiguration"/> the container holds. On
+    /// a host application builder, which does hold configuration, this is
+    /// <c>builder.AddQuartzSchedulers(…)</c> and takes no section — the same difference
+    /// <c>AddQuartz</c> has between the two receivers.
+    /// </para>
     /// </remarks>
     /// <param name="services">The service collection to register into.</param>
     /// <param name="configuration">

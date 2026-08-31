@@ -78,6 +78,24 @@ public static class QuartzHostApplicationBuilderExtensions
     /// Registers one named Quartz scheduler per child of the <c>Quartz</c> section's <c>Schedulers</c>
     /// sub-section.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is <see cref="QuartzServiceCollectionExtensions.AddQuartzSchedulers(Microsoft.Extensions.DependencyInjection.IServiceCollection, IConfiguration, Action{IQuartzBuilder})"/>
+    /// with the section found for you, and it says exactly what that one says — including refusing a
+    /// section that describes one scheduler rather than several.
+    /// </para>
+    /// <para>
+    /// The receiver decides where configuration comes from, and it decides it the same way for every
+    /// method here: a service collection is <em>handed</em> its configuration, a builder already holds
+    /// its own. That is why this takes no <see cref="IConfiguration"/> and the service collection
+    /// overload requires one — the same difference <c>AddQuartz</c> has, for the same reason. Neither
+    /// receiver goes looking for a configuration it was not given: <c>services.AddQuartz(configure)</c>
+    /// means a scheduler configured entirely in code, not one that quietly reads whatever
+    /// <see cref="IConfiguration"/> the container happens to hold, and there is no
+    /// <c>services.AddQuartzSchedulers(configure)</c> because a fan-out with nothing to fan out over is
+    /// not a scheduler registration at all.
+    /// </para>
+    /// </remarks>
     /// <param name="builder">The host application builder.</param>
     /// <param name="configure">Applied to every scheduler described by the section.</param>
     public static IHostApplicationBuilder AddQuartzSchedulers(

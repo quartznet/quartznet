@@ -96,6 +96,39 @@ public sealed class HostApplicationBuilderTest
         host.Services.SchedulerOptions<ThreadPoolOptions>("billing").MaxConcurrency.Should().Be(5);
     }
 
+    /// <summary>
+    /// The one difference between the two receivers, said out loud: a builder holds its configuration
+    /// and a service collection is handed one.
+    /// </summary>
+    /// <remarks>
+    /// <c>AddQuartzSchedulers</c> takes an <see cref="IConfiguration"/> on <c>IServiceCollection</c> and
+    /// none on <c>IHostApplicationBuilder</c>, which reads like two contracts under one name until you
+    /// see that <c>AddQuartz</c> differs in exactly the same way and for the same reason. What would
+    /// make them genuinely incompatible is a service collection that read configuration it was never
+    /// given, so that is what this pins.
+    /// </remarks>
+    [Test]
+    public void AServiceCollectionReadsNoConfigurationItWasNotHanded()
+    {
+        HostApplicationBuilder builder = Builder(new Dictionary<string, string?>
+        {
+            ["Quartz:quartz.scheduler.instanceName"] = "from-configuration",
+            ["Quartz:ThreadPool:MaxConcurrency"] = "7",
+        });
+
+        // The container's own IConfiguration says all of that, and this overload was handed none of it.
+        builder.Services.AddQuartz();
+
+        using IHost host = builder.Build();
+
+        host.Services.GetRequiredService<IScheduler>().SchedulerName.Should().Be("QuartzScheduler",
+            "services.AddQuartz(configure) means a scheduler configured entirely in code; a receiver "
+            + "that went looking for an ambient section would configure schedulers a caller never "
+            + "described");
+        host.Services.SchedulerOptions<ThreadPoolOptions>().MaxConcurrency
+            .Should().Be(ThreadPoolOptions.DefaultMaxConcurrency);
+    }
+
     [Test]
     public void AddQuartzHostedService_RegistersTheHostedService()
     {
