@@ -2249,7 +2249,6 @@ namespace Quartz.Impl.AdoJobStore
 {
     public static class AdoConstants
     {
-        public const string AliasColumnNextFireTime = "ALIAS_NXT_FR_TM";
         public const string AllGroupsPaused = "_$_ALL_GROUPS_PAUSED_$_";
         public const string ColumnBlob = "BLOB_DATA";
         public const string ColumnCalendar = "CALENDAR";
@@ -2294,6 +2293,8 @@ namespace Quartz.Impl.AdoJobStore
         public const string ColumnTriggerState = "TRIGGER_STATE";
         public const string ColumnTriggerType = "TRIGGER_TYPE";
         public const string DefaultTablePrefix = "QRTZ_";
+        public const string ParameterPageSkip = "pageSkip";
+        public const string ParameterPageTake = "pageTake";
         public const string StateAcquired = "ACQUIRED";
         public const string StateBlocked = "BLOCKED";
         public const string StateComplete = "COMPLETE";

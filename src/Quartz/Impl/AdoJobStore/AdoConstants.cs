@@ -109,8 +109,6 @@ public static class AdoConstants
     public const string ColumnRetryPolicy = "RETRY_POLICY";
     public const string ColumnRetryAttempt = "RETRY_ATTEMPT";
 
-    public const string AliasColumnNextFireTime = "ALIAS_NXT_FR_TM";
-
     // TableSimpleTriggers columns names
     public const string ColumnRepeatCount = "REPEAT_COUNT";
     public const string ColumnRepeatInterval = "REPEAT_INTERVAL";
@@ -140,6 +138,35 @@ public static class AdoConstants
     // TableLocks columns names
     public const string ColumnLastCheckinTime = "LAST_CHECKIN_TIME";
     public const string ColumnCheckinInterval = "CHECKIN_INTERVAL";
+
+    // PARAMETER NAMES A DIALECT DELEGATE HAS TO AGREE WITH
+
+    /// <summary>
+    /// The name of the parameter carrying how many rows a page skips.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="StdAdoDelegate.ApplyPaging" /> splices these two names into the statement and
+    /// <see cref="StdAdoDelegate.AddPagingParameters" /> binds them, and a delegate that overrides one
+    /// of those members has to spell the same names in the other — so they are a contract between two
+    /// assemblies, not one delegate's private detail. They are here rather than only on the internal
+    /// list Quartz's own statements use, because this class is where the names a delegate must agree
+    /// with already live.
+    /// </para>
+    /// <para>
+    /// The value is the bare name; the statement carries it prefixed, as <c>"@" + ParameterPageSkip</c>.
+    /// </para>
+    /// </remarks>
+    public const string ParameterPageSkip = "pageSkip";
+
+    /// <summary>
+    /// The name of the parameter carrying how many rows a page reads.
+    /// </summary>
+    /// <remarks>
+    /// The other half of the pair <see cref="ParameterPageSkip" /> describes. It is absent from the
+    /// statement altogether when the caller asked for an unbounded page.
+    /// </remarks>
+    public const string ParameterPageTake = "pageTake";
 
     // MISC CONSTANTS
     public const string DefaultTablePrefix = "QRTZ_";

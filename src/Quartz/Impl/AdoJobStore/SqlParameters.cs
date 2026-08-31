@@ -177,8 +177,11 @@ internal static class SqlParameters
     public const string Boolean1 = "boolean1";
     public const string Boolean2 = "boolean2";
 
-    // Paging, for the dialects whose clause takes its bounds as parameters
+    // Paging, for the dialects whose clause takes its bounds as parameters. These two are the one pair
+    // a delegate outside this assembly has to agree with — it overrides ApplyPaging and binds the same
+    // names in AddPagingParameters — so the values live on AdoConstants, which is public, and this
+    // class names them from there rather than repeating the strings.
 
-    public const string PageSkip = "pageSkip";
-    public const string PageTake = "pageTake";
+    public const string PageSkip = AdoConstants.ParameterPageSkip;
+    public const string PageTake = AdoConstants.ParameterPageTake;
 }
